@@ -1,0 +1,9 @@
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/AliCodec.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/AliDecoder.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/AliDocStore.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/AliDocumentIterator.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/AliEncoder.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/ErrorCodeMapping.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/QueryRunner.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/TableStoreCredentialsProvider.java
+/Users/sandeeppal/src/chameleon/multicloudj/docstore/docstore-ali/src/main/java/com/salesforce/multicloudj/docstore/ali/WriteOperation.java

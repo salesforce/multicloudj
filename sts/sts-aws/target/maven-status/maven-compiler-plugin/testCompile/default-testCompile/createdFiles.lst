@@ -1,0 +1,5 @@
+com/salesforce/multicloudj/sts/aws/AwsStsIT.class
+com/salesforce/multicloudj/sts/aws/AwsStsTest.class
+com/salesforce/multicloudj/sts/aws/ReplaceAuthHeaderTransformer.class
+com/salesforce/multicloudj/sts/aws/AwsStsUtilitiesTest.class
+com/salesforce/multicloudj/sts/aws/AwsStsIT$HarnessImpl.class

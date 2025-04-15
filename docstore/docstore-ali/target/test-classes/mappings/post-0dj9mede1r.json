@@ -1,0 +1,30 @@
+{
+  "id" : "06ffbeef-7654-436a-a2d6-f219ce9e947f",
+  "name" : "batchgetrow",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n>\n\u000Fdocstore_test_1\u0012'u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u000E\u0000\u0000\u0000\u0003\t\u0000\u0000\u0000TaylorPut\n\u0010\tW\u001A\u00000\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CpkCCg9kb2NzdG9yZV90ZXN0XzEShQIIARoGCgQIARAAIvgBdQAAAAEDBAUAAABwTmFtZQUOAAAAAwkAAABUYXlsb3JQdXQKEAIDBBAAAABEb2NzdG9yZVJldmlzaW9uBSkAAAADJAAAADY1ZTQ5MWFkLTM5ODUtZTE2ZS0zYjRlLTlhZDQyOTRjNzZjMgcPQgxylQEAAAoyAwQBAAAAYgUCAAAAAgEHD0IMcpUBAAAKdAMEAQAAAGYFCQAAAAEAAACA61EpQAcPQgxylQEAAArrAwQBAAAAaQUJAAAAAHkAAAAAAAAABw9CDHKVAQAACr0DBAEAAABzBREAAAADDAAAAHJhbmRvbVN0cmluZwcPQgxylQEAAApICVM=",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-7ff2-f69c-329f-720bde4ffa0e",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:aZrKARTVseqO9emD/9PNQ46kwyQ=",
+      "x-ots-date" : "2025-03-07T19:19:21.958085Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "l8hf1IA7rYO2RbqrC/SsQQ==",
+      "Date" : "Fri, 07 Mar 2025 19:19:21 GMT"
+    }
+  },
+  "uuid" : "06ffbeef-7654-436a-a2d6-f219ce9e947f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-BatchGetRow",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-BatchGetRow-2",
+  "insertionIndex" : 30
+}

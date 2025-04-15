@@ -1,0 +1,394 @@
+{"0": {
+    "doc": "Api Documentation",
+    "title": "Java API documentation of the SDK",
+    "content": " ",
+    "url": "/api-java-doc.html#java-api-documentation-of-the-sdk",
+    
+    "relUrl": "/api-java-doc.html#java-api-documentation-of-the-sdk"
+  },"1": {
+    "doc": "Api Documentation",
+    "title": "Api Documentation",
+    "content": " ",
+    "url": "/api-java-doc.html",
+    
+    "relUrl": "/api-java-doc.html"
+  },"2": {
+    "doc": "How to Blob store",
+    "title": "BucketClient",
+    "content": "The BucketClient class in the multicloudj library provides a comprehensive, cloud-agnostic interface to interact with individual buckets in object storage services like AWS S3, Azure Blob Storage, and Google Cloud Storage. This client enables uploading, downloading, deleting, listing, copying, and managing blob metadata and multipart uploads across multiple cloud providers. ",
+    "url": "/guides/blobstore-guide.html#bucketclient",
+    
+    "relUrl": "/guides/blobstore-guide.html#bucketclient"
+  },"3": {
+    "doc": "How to Blob store",
+    "title": "Creating a Client",
+    "content": "BucketClient bucketClient = BucketClient.builder(\"aws\") .withRegion(\"us-west-2\") .withBucket(\"my-bucket\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); bucketClient = BucketClient.builder(\"aws\") .withRegion(\"us-west-2\") .withBucket(\"my-bucket\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . ",
+    "url": "/guides/blobstore-guide.html#creating-a-client",
+    
+    "relUrl": "/guides/blobstore-guide.html#creating-a-client"
+  },"4": {
+    "doc": "How to Blob store",
+    "title": "Uploading Files",
+    "content": "Supports various sources: . UploadRequest request = new UploadRequest(\"object-key\"); bucketClient.upload(request, inputStream); bucketClient.upload(request, new File(\"file.txt\")); bucketClient.upload(request, path); bucketClient.upload(request, byteArray); . ",
+    "url": "/guides/blobstore-guide.html#uploading-files",
+    
+    "relUrl": "/guides/blobstore-guide.html#uploading-files"
+  },"5": {
+    "doc": "How to Blob store",
+    "title": "Downloading Files",
+    "content": "DownloadRequest request = new DownloadRequest(\"object-key\"); bucketClient.download(request, outputStream); bucketClient.download(request, new File(\"dest.txt\")); bucketClient.download(request, path); bucketClient.download(request, byteArray); . ",
+    "url": "/guides/blobstore-guide.html#downloading-files",
+    
+    "relUrl": "/guides/blobstore-guide.html#downloading-files"
+  },"6": {
+    "doc": "How to Blob store",
+    "title": "Listing Blobs",
+    "content": "ListBlobsRequest request = new ListBlobsRequest(); Iterator&lt;BlobInfo&gt; blobs = bucketClient.list(request); while (blobs.hasNext()) { System.out.println(blobs.next().getName()); } . ",
+    "url": "/guides/blobstore-guide.html#listing-blobs",
+    
+    "relUrl": "/guides/blobstore-guide.html#listing-blobs"
+  },"7": {
+    "doc": "How to Blob store",
+    "title": "Deleting Blobs",
+    "content": "bucketClient.delete(\"object-key\", null); // optional versionId Collection&lt;BlobIdentifier&gt; toDelete = List.of( new BlobIdentifier(\"object1\"), new BlobIdentifier(\"object2\") ); bucketClient.delete(toDelete); . ",
+    "url": "/guides/blobstore-guide.html#deleting-blobs",
+    
+    "relUrl": "/guides/blobstore-guide.html#deleting-blobs"
+  },"8": {
+    "doc": "How to Blob store",
+    "title": "Copying Blobs",
+    "content": "CopyRequest copyRequest = new CopyRequest(); // populate source and destination CopyResponse response = bucketClient.copy(copyRequest); . ",
+    "url": "/guides/blobstore-guide.html#copying-blobs",
+    
+    "relUrl": "/guides/blobstore-guide.html#copying-blobs"
+  },"9": {
+    "doc": "How to Blob store",
+    "title": "Metadata and Tags",
+    "content": "BlobMetadata metadata = bucketClient.getMetadata(\"object-key\", null); Map&lt;String, String&gt; tags = bucketClient.getTags(\"object-key\"); bucketClient.setTags(\"object-key\", Map.of(\"env\", \"prod\")); . ",
+    "url": "/guides/blobstore-guide.html#metadata-and-tags",
+    
+    "relUrl": "/guides/blobstore-guide.html#metadata-and-tags"
+  },"10": {
+    "doc": "How to Blob store",
+    "title": "Presigned URLs",
+    "content": "PresignedUrlRequest presignedRequest = new PresignedUrlRequest(); URL url = bucketClient.generatePresignedUrl(presignedRequest); . ",
+    "url": "/guides/blobstore-guide.html#presigned-urls",
+    
+    "relUrl": "/guides/blobstore-guide.html#presigned-urls"
+  },"11": {
+    "doc": "How to Blob store",
+    "title": "Multipart Uploads",
+    "content": "MultipartUploadRequest initRequest = new MultipartUploadRequest(); MultipartUpload upload = bucketClient.initiateMultipartUpload(initRequest); UploadPartResponse part = bucketClient.uploadMultipartPart(upload, partData); List&lt;UploadPartResponse&gt; parts = List.of(part1, part2); bucketClient.completeMultipartUpload(upload, parts); List&lt;UploadPartResponse&gt; uploadedParts = bucketClient.listMultipartUpload(upload); bucketClient.abortMultipartUpload(upload); . ",
+    "url": "/guides/blobstore-guide.html#multipart-uploads",
+    
+    "relUrl": "/guides/blobstore-guide.html#multipart-uploads"
+  },"12": {
+    "doc": "How to Blob store",
+    "title": "Error Handling",
+    "content": "All operations may throw SubstrateSdkException. These can be caught and handled generically: . try { bucketClient.upload(request, new File(\"file.txt\")); } catch (SubstrateSdkException e) { // Handle access denied, IO failure, etc. e.printStackTrace(); } . Use BucketClient when you need full CRUD support and advanced control over blobs inside a single bucket, across any supported cloud provider. ",
+    "url": "/guides/blobstore-guide.html#error-handling",
+    
+    "relUrl": "/guides/blobstore-guide.html#error-handling"
+  },"13": {
+    "doc": "How to Blob store",
+    "title": "How to Blob store",
+    "content": " ",
+    "url": "/guides/blobstore-guide.html",
+    
+    "relUrl": "/guides/blobstore-guide.html"
+  },"14": {
+    "doc": "How to Docstore",
+    "title": "Docstore",
+    "content": "The DocStoreClient class in the multicloudj library provides a portable abstraction over document store providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying. ",
+    "url": "/guides/docstore-guide.html#docstore",
+    
+    "relUrl": "/guides/docstore-guide.html#docstore"
+  },"15": {
+    "doc": "How to Docstore",
+    "title": "Overview",
+    "content": "Document stores persist semi-structured, schemaless documents, typically as key-value pairs. The DocStoreClient lets you interact with multiple providers through a unified API. Each provider is implemented via a driver extending AbstractDocStore. ",
+    "url": "/guides/docstore-guide.html#overview",
+    
+    "relUrl": "/guides/docstore-guide.html#overview"
+  },"16": {
+    "doc": "How to Docstore",
+    "title": "Creating a Client",
+    "content": "To begin using DocStoreClient, use the static builder: . CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBuilder() .withTableName(\"chameleon-test\") .withPartitionKey(\"pName\") .withSortKey(\"s\") .withRevisionField(\"docRevision\") .build(); DocStoreClient client = DocStoreClient.builder(\"aws\") .withRegion(\"us-west-2\") .withCollectionOptions(collectionOptions) .build(); . ",
+    "url": "/guides/docstore-guide.html#creating-a-client",
+    
+    "relUrl": "/guides/docstore-guide.html#creating-a-client"
+  },"17": {
+    "doc": "How to Docstore",
+    "title": "Document Representation",
+    "content": "The Document class accepts either a user-defined class or a generic map. Option 1: Using a POJO (Player) . @AllArgsConstructor @NoArgsConstructor @Data public class Player { private String pName; private int i; private float f; private boolean b; private String s; } Player player = new Player(\"Alice\", 42, 99.5f, true, \"metadata\"); Document doc = new Document(player); . Option 2: Using a HashMap . Map&lt;String, Object&gt; map = new HashMap&lt;&gt;(); map.put(\"pName\", \"Alice\"); map.put(\"i\", 42); map.put(\"f\", 99.5f); map.put(\"b\", true); map.put(\"s\", \"metadata\"); Document doc = new Document(map); . ",
+    "url": "/guides/docstore-guide.html#document-representation",
+    
+    "relUrl": "/guides/docstore-guide.html#document-representation"
+  },"18": {
+    "doc": "How to Docstore",
+    "title": "Actions",
+    "content": "Once you have initialized a docstore client, you can call action methods on it to read, modify, and write documents. These are referred to as actions, and can be executed individually or as part of a batch using an action list. DocStore supports the following types of actions: . | Get retrieves a document. | Create creates a new document. | Replace replaces an existing document. | Put puts a document whether or not it already exists. | Update applies modifications to a document (not supported yet). | Delete deletes a document. | . Each of the following examples illustrates one of these actions. ",
+    "url": "/guides/docstore-guide.html#actions",
+    
+    "relUrl": "/guides/docstore-guide.html#actions"
+  },"19": {
+    "doc": "How to Docstore",
+    "title": "Basic Operations",
+    "content": "Create . Create will throw an exception ResourceAlreadyExists if the document already exists. client.create(doc); . Get . To retrieve a document, you must provide a Document initialized with the corresponding object and pre-populate the fields that uniquely identify it (e.g., partition key and sort key): . Player player = new Player(); player.setPName(\"Alice\"); // Assuming pName is the partition key player.setS(\"metadata\"); // Assuming s is the sort key client.get(new Document(player)); . With optional fields you want to retrieve: . client.get(new Document(player), \"pName\", \"f\"); . Replace . Replaces the existing doc, will throw ResourceNotFound is the document doesn’t exist. client.replace(doc); . Put . Put is similar to create but will not throw in case the document doesn’t exist. client.put(doc); . Delete . To delete a document, the input must also have the required key fields populated: . Player player = new Player(); player.setPName(\"Alice\"); player.setS(\"metadata\"); client.delete(new Document(player)); . Update (Not Supported) . client.update(doc, Map.of(\"f\", 120.0f)); // Throws UnSupportedOperationException . ",
+    "url": "/guides/docstore-guide.html#basic-operations",
+    
+    "relUrl": "/guides/docstore-guide.html#basic-operations"
+  },"20": {
+    "doc": "How to Docstore",
+    "title": "Batch Operations",
+    "content": "Batch Get . List&lt;Document&gt; docs = List.of( new Document().put(\"pName\", \"Alice\").put(\"s\", \"metadata\"), new Document().put(\"pName\", \"Bob\").put(\"s\", \"stats\") ); client.batchGet(docs); . Batch Put . List&lt;Document&gt; docs = List.of( new Document().put(\"pName\", \"Alice\").put(\"f\", 10.5f), new Document().put(\"pName\", \"Bob\").put(\"f\", 20.0f) ); client.batchPut(docs); . ",
+    "url": "/guides/docstore-guide.html#batch-operations",
+    
+    "relUrl": "/guides/docstore-guide.html#batch-operations"
+  },"21": {
+    "doc": "How to Docstore",
+    "title": "Queries",
+    "content": "DocStore’s get action retrieves a single document by its primary key. However, when you need to retrieve or manipulate multiple documents that match a condition, you can use queries. Queries allow you to: . | Retrieve all documents that match specific conditions. | Delete or update documents in bulk based on criteria. | . The query interface is chainable and supports filtering and sorting (depending on driver support). DocStore can also optimize queries automatically. Based on your filter conditions, it attempts to determine whether a global secondary index (GSI) or a local secondary index (LSI) can be used to execute the query more efficiently. This helps reduce latency and improves performance. Queries support the following methods: . | Where: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The “not equals” comparison isn’t supported, because it isn’t portable across providers. | OrderBy: Specifies the order of the resulting documents, by field and direction. For portability, you can specify at most one OrderBy, and its field must also be mentioned in a Where clause. | Limit: Limits the number of documents in the result. | . Query query = client.query(); // Apply filtering, sorting, etc. (Depends on driver implementation.) . ",
+    "url": "/guides/docstore-guide.html#queries",
+    
+    "relUrl": "/guides/docstore-guide.html#queries"
+  },"22": {
+    "doc": "How to Docstore",
+    "title": "Advanced Usage",
+    "content": "Action Lists . ActionList actions = client.getActions(); actions.put(doc1).get(doc2).delete(doc3); actions.run(); . You can also chain operations directly using the fluent API with enableAtomicWrites() for atomic execution: . client.getActions() .create(new Document(new Player(\"Alice\", 1, 3.99f, true, \"CA\"))) .create(new Document(new Player(\"Bob\", 2, 3.99f, true, \"PT\"))) .create(new Document(new Player(\"Carol\", 3, 3.99f, true, \"PA\"))) .enableAtomicWrites() .create(new Document(new Player(\"Dave\", 4, 3.99f, true, \"TX\"))) .create(new Document(new Player(\"Eve\", 5, 3.99f, true, \"OR\"))) .create(new Document(new Player(\"Frank\", 6, 3.99f, true, \"NJ\"))) .run(); . Atomic Writes: . If you want to write your documents atomically, just use the enableAtomicWrites as above and all the writes are this will be executed atomically. Close the Client . client.close(); . ",
+    "url": "/guides/docstore-guide.html#advanced-usage",
+    
+    "relUrl": "/guides/docstore-guide.html#advanced-usage"
+  },"23": {
+    "doc": "How to Docstore",
+    "title": "How to Docstore",
+    "content": " ",
+    "url": "/guides/docstore-guide.html",
+    
+    "relUrl": "/guides/docstore-guide.html"
+  },"24": {
+    "doc": "Exception Handling",
+    "title": "Exception Handling in Substrate SDK",
+    "content": " ",
+    "url": "/design/errors.html#exception-handling-in-substrate-sdk",
+    
+    "relUrl": "/design/errors.html#exception-handling-in-substrate-sdk"
+  },"25": {
+    "doc": "Exception Handling",
+    "title": "How Does Exception Handling Work for SDK Users?",
+    "content": "Substrate SDK defines substrate-agnostic exceptions for end users, so they don’t have to deal with substrate-specific exceptions directly. The SDK wraps all exceptions from cloud providers in a standardized wrapper based on the exception type before propagating it to the end user. Some broadly categorized exceptions include: . | SubstrateSdkException –&gt; Base class for all the exceptions | AccessDeniedException | ResourceNotFoundException | ResourceAlreadyExistsException | ResourceExhaustedException | InvalidArgumentException | FailedPreConditionException | DeadlineExceededException | ResourceConflictException | UnAuthorizedException | UnSupportedOperationException | UnknownException –&gt; This is used when no predefined mapping exists. Ideally, as the SDK evolves, there should be no occurrences of this exception. | . ",
+    "url": "/design/errors.html#how-does-exception-handling-work-for-sdk-users",
+    
+    "relUrl": "/design/errors.html#how-does-exception-handling-work-for-sdk-users"
+  },"26": {
+    "doc": "Exception Handling",
+    "title": "How Does Exception Handling Work for Provider Implementations?",
+    "content": "Handling Server-Side Exceptions . Server-side exceptions are relatively straightforward because provider implementations do not need to process them explicitly. These exceptions are considered RunTimeExceptions, which are thrown to the client layer and wrapped according to the predefined mapping. When Provider Implementations Need to Throw Exceptions . There are cases where provider implementations must throw SubstrateSdkException themselves. Some examples include: . | Input Validation Failures . | If a provider implementation validates input parameters and detects an issue, it can throw an InvalidArgumentException directly. | . | Converting Server-Side Exceptions to Different Semantics . | In some cases, a provider implementation may need to reinterpret server-side exceptions. | Example: In DocStore, the create API expects the item not to exist, while the put API does not have this constraint. If a key already exists, the provider must decide which exception to throw based on the API semantics. | . | . Exception Wrapping . | If the exception is already a subclass of SubstrateSdkException, it is not re-wrapped. | Otherwise, exceptions are wrapped according to predefined mappings to ensure a consistent experience for SDK users. | . ",
+    "url": "/design/errors.html#how-does-exception-handling-work-for-provider-implementations",
+    
+    "relUrl": "/design/errors.html#how-does-exception-handling-work-for-provider-implementations"
+  },"27": {
+    "doc": "Exception Handling",
+    "title": "Exception Handling",
+    "content": " ",
+    "url": "/design/errors.html",
+    
+    "relUrl": "/design/errors.html"
+  },"28": {
+    "doc": "MultiCloudJ Overview",
+    "title": "MultiCloudJ",
+    "content": "Multi-substrate Java SDK providing unified and substrate-neutral interfaces for cloud services such as Security Token Service (STS), Blob Storage, Key-Value Store, and more. ",
+    "url": "/#multicloudj",
+    
+    "relUrl": "/#multicloudj"
+  },"29": {
+    "doc": "MultiCloudJ Overview",
+    "title": "Maven Dependencies",
+    "content": "&lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;{service}-client&lt;/artifactId&gt; &lt;version&gt;{version}&lt;/version&gt; &lt;/dependency&gt; . ",
+    "url": "/#maven-dependencies",
+    
+    "relUrl": "/#maven-dependencies"
+  },"30": {
+    "doc": "MultiCloudJ Overview",
+    "title": "Running Examples",
+    "content": "MultiCloudJ includes various example programs demonstrating how to interact with supported services like STS, Blob Storage, and Doc Stores. Java examples are located in the examples directory. To run an example: . ",
+    "url": "/#running-examples",
+    
+    "relUrl": "/#running-examples"
+  },"31": {
+    "doc": "MultiCloudJ Overview",
+    "title": "Service supported as of now",
+    "content": "MultiCloudJ provides substrate-neutral interfaces supporting the following service: . | STS (Security Token Service) | BlobStore | Document Store | . ",
+    "url": "/#service-supported-as-of-now",
+    
+    "relUrl": "/#service-supported-as-of-now"
+  },"32": {
+    "doc": "MultiCloudJ Overview",
+    "title": "Integration with Cloud Providers",
+    "content": "MultiCloudJ provides substrate-neutral interfaces supporting multiple cloud providers, including: . | AWS | Alibaba | GCP | . ",
+    "url": "/#integration-with-cloud-providers",
+    
+    "relUrl": "/#integration-with-cloud-providers"
+  },"33": {
+    "doc": "MultiCloudJ Overview",
+    "title": "Where to Go from Here",
+    "content": "Documentation and Guides: . | Roadmap: What’s coming next and in our roadmap. | How to guides: Introduction to MultiCloudJ and getting started quickly. | Design decisions: Introduction to MultiCloudJ and getting started quickly. | . API Documentation: . | Java API Documentation (Javadoc) | . Community and Support: . | GitHub Issues | Discussion Forum | Contribution Guidelines | . Additional Resources: . | MultiCloudJ Homepage | Release Notes | Examples | . ",
+    "url": "/#where-to-go-from-here",
+    
+    "relUrl": "/#where-to-go-from-here"
+  },"34": {
+    "doc": "MultiCloudJ Overview",
+    "title": "MultiCloudJ Overview",
+    "content": " ",
+    "url": "/",
+    
+    "relUrl": "/"
+  },"35": {
+    "doc": "Design",
+    "title": "Design guides",
+    "content": "Welcome to the MultiCloudJ Design Guides. This section provides concise, task-focused guides to help you understand multiple design decisions of the SDK. ",
+    "url": "/design/#design-guides",
+    
+    "relUrl": "/design/#design-guides"
+  },"36": {
+    "doc": "Design",
+    "title": "Layers of the SDK",
+    "content": " ",
+    "url": "/design/#layers-of-the-sdk",
+    
+    "relUrl": "/design/#layers-of-the-sdk"
+  },"37": {
+    "doc": "Design",
+    "title": "Error Handling",
+    "content": " ",
+    "url": "/design/#error-handling",
+    
+    "relUrl": "/design/#error-handling"
+  },"38": {
+    "doc": "Design",
+    "title": "Design",
+    "content": " ",
+    "url": "/design/",
+    
+    "relUrl": "/design/"
+  },"39": {
+    "doc": "Usage Guides",
+    "title": "How-To Guides",
+    "content": "Welcome to the MultiCloudJ How-To Guides. This section provides concise, task-focused guides designed to help you accomplish common goals using MultiCloudJ’s cloud-agnostic interfaces. Each guide is grouped by API and includes practical examples and usage patterns. ",
+    "url": "/guides/#how-to-guides",
+    
+    "relUrl": "/guides/#how-to-guides"
+  },"40": {
+    "doc": "Usage Guides",
+    "title": "🛡️ STS",
+    "content": "Learn how to get access credentials using roles/service accounts etc. | STS | . ",
+    "url": "/guides/#%EF%B8%8F-sts",
+    
+    "relUrl": "/guides/#️-sts"
+  },"41": {
+    "doc": "Usage Guides",
+    "title": "☁️ Blob",
+    "content": "Learn how to manage object storage (uploading, downloading, listing blobs) in a cloud-neutral way. | Blob Store | . ",
+    "url": "/guides/#%EF%B8%8F-blob",
+    
+    "relUrl": "/guides/#️-blob"
+  },"42": {
+    "doc": "Usage Guides",
+    "title": "📄 Docstore",
+    "content": "Work with document-oriented databases using a consistent interface. | Docstore | . ",
+    "url": "/guides/#-docstore",
+    
+    "relUrl": "/guides/#-docstore"
+  },"43": {
+    "doc": "Usage Guides",
+    "title": "📬 Pub/Sub",
+    "content": "Use publish/subscribe systems to send and receive messages. | Pubsub | . Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease. ",
+    "url": "/guides/#-pubsub",
+    
+    "relUrl": "/guides/#-pubsub"
+  },"44": {
+    "doc": "Usage Guides",
+    "title": "Usage Guides",
+    "content": " ",
+    "url": "/guides/",
+    
+    "relUrl": "/guides/"
+  },"45": {
+    "doc": "Layers",
+    "title": "Design Decisions",
+    "content": "Layers of SDK . Portable Layer . Driver Layer . Provider Layer . Provider Loading . Builder Pattern . Exception Handling . ",
+    "url": "/design/layers.html#design-decisions",
+    
+    "relUrl": "/design/layers.html#design-decisions"
+  },"46": {
+    "doc": "Layers",
+    "title": "Layers",
+    "content": " ",
+    "url": "/design/layers.html",
+    
+    "relUrl": "/design/layers.html"
+  },"47": {
+    "doc": "Feature Roadmap",
+    "title": "Feature Roadmap",
+    "content": "| All | Java | Go | Python | | . | Service | ..Q4-2024 | Q1-2025 | Q2-2025 | Q3-2025 | Q4-2025 | . | CredentialsProvider | AWS,ALI | - | GCP | - | - | . | BlobStore | - | AWS,ALI | GCP | - | - | . | Docstore | - | AWS,ALI | - | GCP | - | . | Workflows | - | - | - | - | AWS,GCP,ALI | . | STS | AWS,ALI | - | GCP | - | - | . | PubSub | - | - | AWS | ALI,GCP | - | . | CredentialsProvider | - | - | AWS,GCP,ALI | - | - | . | BlobStore | AWS,GCP,ALI | - | - | - | - | . | Docstore | AWS,GCP,ALI(v1) | - | - | ALI(v2) | - | . | Workflows | ALI,AWS | - | - | - | GCP | . | STS | ALI,AWS | GCP | - | - | - | . | PubSub | GCP,ALI,AWS | - | - | - | - | . | CredentialsProvider | - | - | - | AWS,GCP | ALI | . | BlobStore | - | - | - | AWS,GCP | ALI | . | Docstore | - | - | - | AWS,GCP | ALI | . | Workflows | - | - | - | AWS,GCP | ALI | . | STS | - | - | - | AWS,GCP | ALI | . | PubSub | - | - | - | AWS,GCP | ALI | . ",
+    "url": "/roadmap.html",
+    
+    "relUrl": "/roadmap.html"
+  },"48": {
+    "doc": "How to STS",
+    "title": "STS (Security Token Service)",
+    "content": "The StsClient class in the multicloudj library provides a portable interface for interacting with cloud provider security token services such as AWS STS, GCP IAM Credentials, or any other compatible implementation. It allows you to obtain temporary credentials, access tokens, and caller identity information in a cloud-neutral way. ",
+    "url": "/guides/sts-guide.html#sts-security-token-service",
+    
+    "relUrl": "/guides/sts-guide.html#sts-security-token-service"
+  },"49": {
+    "doc": "How to STS",
+    "title": "Overview",
+    "content": "The StsClient is built on top of provider-specific implementations of AbstractSts. Each provider registers its implementation and is selected dynamically at runtime. To use STS, you must first create a client using the builder() method. ",
+    "url": "/guides/sts-guide.html#overview",
+    
+    "relUrl": "/guides/sts-guide.html#overview"
+  },"50": {
+    "doc": "How to STS",
+    "title": "Creating a Client",
+    "content": "StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Optionally, you can set a custom endpoint: . URI endpoint = URI.create(\"https://sts.custom-endpoint.com\"); StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .withEndpoint(endpoint) .build(); . ",
+    "url": "/guides/sts-guide.html#creating-a-client",
+    
+    "relUrl": "/guides/sts-guide.html#creating-a-client"
+  },"51": {
+    "doc": "How to STS",
+    "title": "Getting Caller Identity",
+    "content": "Retrieve the caller identity associated with the current credentials: . CallerIdentity identity = stsClient.getCallerIdentity(); System.out.println(\"Caller: \" + identity.getArn()); . ",
+    "url": "/guides/sts-guide.html#getting-caller-identity",
+    
+    "relUrl": "/guides/sts-guide.html#getting-caller-identity"
+  },"52": {
+    "doc": "How to STS",
+    "title": "Getting an Access Token",
+    "content": "Use this when you need an OAuth2-style token (provider support may vary): . GetAccessTokenRequest request = new GetAccessTokenRequest(); StsCredentials token = stsClient.getAccessToken(request); System.out.println(\"Access Token: \" + token.getAccessToken()); . ",
+    "url": "/guides/sts-guide.html#getting-an-access-token",
+    
+    "relUrl": "/guides/sts-guide.html#getting-an-access-token"
+  },"53": {
+    "doc": "How to STS",
+    "title": "Assuming a Role",
+    "content": "To assume a different identity (e.g., for cross-account access): . AssumedRoleRequest request = new AssumedRoleRequest(); request.setRoleArn(\"arn:aws:iam::123456789012:role/example-role\"); request.setSessionName(\"example-session\"); StsCredentials credentials = stsClient.getAssumeRoleCredentials(request); System.out.println(\"Temporary Credentials: \" + credentials.getAccessKeyId()); . ",
+    "url": "/guides/sts-guide.html#assuming-a-role",
+    
+    "relUrl": "/guides/sts-guide.html#assuming-a-role"
+  },"54": {
+    "doc": "How to STS",
+    "title": "Error Handling",
+    "content": "All errors are translated to SubstrateSdkException subclasses by the underlying driver. The client will automatically map exceptions to meaningful runtime errors based on the provider: . try { CallerIdentity identity = stsClient.getCallerIdentity(); } catch (SubstrateSdkException e) { // Handle known errors: AccessDenied, Timeout, etc. e.printStackTrace(); } . ",
+    "url": "/guides/sts-guide.html#error-handling",
+    
+    "relUrl": "/guides/sts-guide.html#error-handling"
+  },"55": {
+    "doc": "How to STS",
+    "title": "How to STS",
+    "content": " ",
+    "url": "/guides/sts-guide.html",
+    
+    "relUrl": "/guides/sts-guide.html"
+  }
+}

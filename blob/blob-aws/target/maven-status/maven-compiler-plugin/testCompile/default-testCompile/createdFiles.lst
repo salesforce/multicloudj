@@ -1,0 +1,8 @@
+com/salesforce/multicloudj/blob/aws/AwsTransformerTest.class
+com/salesforce/multicloudj/blob/aws/AwsBlobStoreIT$HarnessImpl.class
+com/salesforce/multicloudj/blob/aws/AwsBlobStoreIT.class
+com/salesforce/multicloudj/blob/aws/AwsBlobClientTest.class
+com/salesforce/multicloudj/blob/aws/AwsBlobClientIT$HarnessImpl.class
+com/salesforce/multicloudj/blob/aws/AwsBlobStoreTest.class
+com/salesforce/multicloudj/blob/aws/async/AwsAsyncBlobStoreTest.class
+com/salesforce/multicloudj/blob/aws/AwsBlobClientIT.class

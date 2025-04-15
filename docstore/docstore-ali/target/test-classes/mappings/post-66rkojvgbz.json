@@ -1,0 +1,27 @@
+{
+  "id" : "013ede2d-bb02-4672-9d98-e44e88e8b0d3",
+  "name" : "putrow",
+  "request" : {
+    "url" : "/PutRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012�\u0001u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\r\u0000\u0000\u0000\u0003\b\u0000\u0000\u0000FrankMap\n\"\u0002\u0003\u0004\u0001\u0000\u0000\u0000i\u0005\t\u0000\u0000\u0000\u0000y\u0000\u0000\u0000\u0000\u0000\u0000\u0000\nJ\u0003\u0004\u0001\u0000\u0000\u0000b\u0005\u0002\u0000\u0000\u0000\u0002\u0001\n>\u0003\u0004\u0001\u0000\u0000\u0000s\u0005\u0012\u0000\u0000\u0000\u0003\r\u0000\u0000\u0000random String\nk\u0003\u0004\u0001\u0000\u0000\u0000f\u0005\t\u0000\u0000\u0000\u0001\u0000\u0000\u0000��Q)@\n�\t3\u001A\u0002\b\u0002\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgBEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-7eb4-1cf6-8707-fe0a0e0ed6b1",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:80jI6NwnOW1RMml/savf3Mh4bXc=",
+      "x-ots-date" : "2025-03-07T19:19:01.062185Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "bofsTfsxtvymDNQpw96K/Q==",
+      "Date" : "Fri, 07 Mar 2025 19:19:01 GMT"
+    }
+  },
+  "uuid" : "013ede2d-bb02-4672-9d98-e44e88e8b0d3",
+  "persistent" : true,
+  "insertionIndex" : 11
+}

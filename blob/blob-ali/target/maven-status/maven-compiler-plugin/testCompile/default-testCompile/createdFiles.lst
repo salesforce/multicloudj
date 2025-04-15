@@ -1,0 +1,4 @@
+com/salesforce/multicloudj/blob/ali/ErrorCodeMappingTest.class
+com/salesforce/multicloudj/blob/ali/AliBlobClientTest.class
+com/salesforce/multicloudj/blob/ali/AliBlobStoreTest.class
+com/salesforce/multicloudj/blob/ali/OSSCredentialsProviderTest.class

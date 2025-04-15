@@ -1,0 +1,5 @@
+com/salesforce/multicloudj/sts/ali/EnvironmentCredentialProvider.class
+com/salesforce/multicloudj/sts/ali/AliStsTest.class
+com/salesforce/multicloudj/sts/ali/AliStsUtilitiesTest.class
+com/salesforce/multicloudj/sts/ali/AliStsIT$HarnessImpl.class
+com/salesforce/multicloudj/sts/ali/AliStsIT.class

@@ -1,0 +1,10 @@
+com/salesforce/multicloudj/blob/ali/OSSCredentialsProvider$1.class
+com/salesforce/multicloudj/blob/ali/AliBlobStore$Builder.class
+com/salesforce/multicloudj/blob/ali/AliBlobClient.class
+META-INF/services/com.salesforce.multicloudj.blob.driver.AbstractBlobStore
+com/salesforce/multicloudj/blob/ali/BlobInfoIterator.class
+com/salesforce/multicloudj/blob/ali/ErrorCodeMapping.class
+com/salesforce/multicloudj/blob/ali/OSSCredentialsProvider.class
+com/salesforce/multicloudj/blob/ali/AliBlobStore$1.class
+com/salesforce/multicloudj/blob/ali/AliBlobClient$Builder.class
+com/salesforce/multicloudj/blob/ali/AliBlobStore.class

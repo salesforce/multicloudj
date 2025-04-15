@@ -1,0 +1,22 @@
+{
+  "id" : "4b8ce3bd-37c5-4334-8abd-549676c7f5bf",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-deleting",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-deleting",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4Q33387J6G06QFAB",
+      "x-amz-id-2" : "YgROofYJNLqKfkKBaHjn3CSMkKLDSG5yXJqfMAITkFJogGgIY5wl5RHjqsSn7w0ERrcLpF65X3o=",
+      "Date" : "Tue, 27 Aug 2024 19:36:50 GMT"
+    }
+  },
+  "uuid" : "4b8ce3bd-37c5-4334-8abd-549676c7f5bf",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting-2",
+  "insertionIndex" : 43
+}

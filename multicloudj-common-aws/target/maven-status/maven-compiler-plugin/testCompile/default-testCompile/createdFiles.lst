@@ -1,0 +1,4 @@
+com/salesforce/multicloudj/common/aws/util/TestsUtilAws.class
+com/salesforce/multicloudj/common/aws/util/TestsUtilAws$1.class
+com/salesforce/multicloudj/common/aws/CredentialsProviderTest.class
+com/salesforce/multicloudj/common/aws/util/TestsUtilAws$TrustAllHostNameVerifier.class

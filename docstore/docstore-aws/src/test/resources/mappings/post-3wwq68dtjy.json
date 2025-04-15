@@ -1,0 +1,32 @@
+{
+  "id" : "a9743977-d208-4e0f-b7c1-fa23e2260cb4",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"TaylorMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"DocstoreRevision\":{\"S\":\"dae29fb9-a071-4047-a796-109521072800\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "ICCESHU77VHF6819ORKFQ9KP47VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "505247099",
+      "Date" : "Wed, 05 Mar 2025 18:21:15 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "a9743977-d208-4e0f-b7c1-fa23e2260cb4",
+  "persistent" : true,
+  "insertionIndex" : 74
+}

@@ -1,0 +1,25 @@
+{
+  "id" : "2432f9b7-95e2-4e60-9e56-bb94bcabb78f",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-nonexistentparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts?uploadId=gZR0iPJfLWnQC4zT2q5SIdzwHssUpWH7JOIwQ3xVy3ZfQIKJ8nwNfinraFg6aC8z0HxOcbTfTHfdF1kqAQzfGkyiB25Sec8RnSmndAlK6lD510t5alF5V4mT6gZPL2.GAg03sdr0ws6PGTSmaPGpJJN4JDbGogySetqEfH7z2Q._WWgFvo.smXLHZZGF4O_AAYE1ITnfMzOpjM3CwJXzKA--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>fakeEtag</ETag><PartNumber>3</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>gZR0iPJfLWnQC4zT2q5SIdzwHssUpWH7JOIwQ3xVy3ZfQIKJ8nwNfinraFg6aC8z0HxOcbTfTHfdF1kqAQzfGkyiB25Sec8RnSmndAlK6lD510t5alF5V4mT6gZPL2.GAg03sdr0ws6PGTSmaPGpJJN4JDbGogySetqEfH7z2Q._WWgFvo.smXLHZZGF4O_AAYE1ITnfMzOpjM3CwJXzKA--</UploadId><PartNumber>3</PartNumber><ETag>fakeEtag</ETag><RequestId>0TS39X58NZ5T0NPZ</RequestId><HostId>uKrnqWEOQW1Z5jLucYx6I4d0cvx1QUj/XCV5qpplQ6z/bqtT0WiaRrsO4wOG2cX3xZIu8erI4pw=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0TS39X58NZ5T0NPZ",
+      "x-amz-id-2" : "uKrnqWEOQW1Z5jLucYx6I4d0cvx1QUj/XCV5qpplQ6z/bqtT0WiaRrsO4wOG2cX3xZIu8erI4pw=",
+      "Date" : "Wed, 06 Nov 2024 19:25:22 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2432f9b7-95e2-4e60-9e56-bb94bcabb78f",
+  "persistent" : true,
+  "insertionIndex" : 30
+}

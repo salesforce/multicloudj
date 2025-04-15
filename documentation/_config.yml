@@ -1,0 +1,18 @@
+title: MulticloudJ
+description: Substrate Agnostic Cloud SDK for Java
+theme: just-the-docs
+baseurl: ""
+plugins:
+  - jekyll-default-layout
+collections:
+  guides:
+    output: true
+    permalink: /guides/:path/
+  design:
+    output: true
+    permalink: /design/:path/
+
+just_the_docs:
+  show_title: true
+  search_enabled: true
+  show_last_modified_time: true

@@ -1,0 +1,27 @@
+{
+  "id" : "63c3d5d1-1fc7-4615-8bf1-c56ec47b5a4c",
+  "name" : "describetable",
+  "request" : {
+    "url" : "/DescribeTable",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "ChwKD2RvY3N0b3JlX3Rlc3RfMRIJCgVwTmFtZRACEgwKBAgAEAAQyOz0vQYaFQj///////////8BEAEogKMFMAE4ACABKgQIACAAOgIIAEiPvLas7t2LAw==",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-8238-03b2-6f76-700b11dbae8b",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:km8U0ez6xbMGuqa/Pod3Bt7Eyw4=",
+      "x-ots-date" : "2025-03-07T19:20:00.041076Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "xQ/xtf3iWbhS/zYG+cyTKg==",
+      "Date" : "Fri, 07 Mar 2025 19:20:00 GMT"
+    }
+  },
+  "uuid" : "63c3d5d1-1fc7-4615-8bf1-c56ec47b5a4c",
+  "persistent" : true,
+  "insertionIndex" : 109
+}

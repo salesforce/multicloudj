@@ -1,0 +1,24 @@
+{
+  "id" : "6875b525-d965-4060-9abb-04f01f26fad1",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=GetSessionToken&Version=2011-06-15",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<GetSessionTokenResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <GetSessionTokenResult>\n    <Credentials>\n      <AccessKeyId>ASIAUPFUOJPKT3IDUD5U</AccessKeyId>\n      <SecretAccessKey>RxfH5/3LJ05XneHCGuKJ/wFHXdml/5kQWBEjw4VL</SecretAccessKey>\n      <SessionToken>IQoJb3JpZ2luX2VjENv//////////wEaCXVzLXdlc3QtMiJHMEUCIDFZcTX2oImwLRKSC7LuUPW78/LuuXe5Ovk0zf4QmsGHAiEA3lOMe2+3K3/drDbuaiNY+mbT1zdf/a9stqqLjzT+aP8q9AEI9P//////////ARACGgwzMDc0Njg1ODU5NDEiDA64ETwhiXfmTsSn7SrIAQuY/eJSYR+G/kj4yEMv6kFiGrFvx4dV5yygukl3VaJzoQqZaEeoVgTIYoOnte/Y3HHtC3ILUucGiaFyXd2kHMZDTNGvoZDGwbxe6+WY8VNEbAvQbi8SkKahmeg8KJ+0NnpbnMq9Zwt07NKckBQ7pizhB2WwRLVy6qJSb7uUTjkJuoWqTIFy70GHTP6iFv4w582dohNunv9eMmItIb+52Nv5WnXITEyhRlOQxhvG0EPX4+LYObiwRSuOdGaaFbOKyJgn5eL57Tb/MMn/57YGOpgBOHZRAP6NTxlKYXZXyC+WQsVOxnnWvAjxZXKwBklLulGP9VitnIv1WJUcItRgBT3NEn/WFwaaWjYE0OYO514VEkVO2I11Qqshmees+SaNFWXlBB8JIbWbrBDZorhMENeo6O/FT2WKIoRCfUetYwONJTGwVkIC0C7AO89D5JnI4G7RYEIyCFl8GBaEUxV+E+CdDA8ekpdZAnc=</SessionToken>\n      <Expiration>2024-09-06T07:00:25Z</Expiration>\n    </Credentials>\n  </GetSessionTokenResult>\n  <ResponseMetadata>\n    <RequestId>91a36039-9204-4d70-98f9-6b3a8881d96a</RequestId>\n  </ResponseMetadata>\n</GetSessionTokenResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "91a36039-9204-4d70-98f9-6b3a8881d96a",
+      "Date" : "Thu, 05 Sep 2024 19:00:25 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "6875b525-d965-4060-9abb-04f01f26fad1",
+  "persistent" : true,
+  "insertionIndex" : 8
+}

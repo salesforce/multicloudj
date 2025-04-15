@@ -1,0 +1,12 @@
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/ExceptionHandlerTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/InvalidArgumentExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/ResourceAlreadyExistsExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/ResourceConflictExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/ResourceExhaustedExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/ResourceNotFoundExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/SubstrateSdkExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/UnAuthorizedExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/UnSupportedExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/exceptions/UnknownExceptionTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/util/ali/TestsUtilAli.java
+/Users/sandeeppal/src/chameleon/multicloudj/multicloudj-common/src/test/java/com/salesforce/multicloudj/common/util/common/TestsUtil.java

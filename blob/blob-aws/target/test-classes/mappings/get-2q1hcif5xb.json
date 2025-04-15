@@ -1,0 +1,22 @@
+{
+  "id" : "027b802b-9091-40a0-b558-86af0da7f38b",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-singlepart",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-singlePart?uploadId=BZ_T2pmKe2RRma98pF.7f7XCSNGQ4QSC1t50Ymiolso0Upc_aAxofXshgW2jtBep2THaSGtnMhvi_EbKaZX03OCOLsPaPIuXGTlXn6mKvEWoTLDvHD66FwI9W9jrgLxyhA8GlECdu4UAWVPXj0xM7XaNKBlm7eZhMJN7FuBNnPT89p324SSCT0FRnxo1O0YfFj7Ei0EVoYMKINVT8twF9Q--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-singlePart</Key><UploadId>BZ_T2pmKe2RRma98pF.7f7XCSNGQ4QSC1t50Ymiolso0Upc_aAxofXshgW2jtBep2THaSGtnMhvi_EbKaZX03OCOLsPaPIuXGTlXn6mKvEWoTLDvHD66FwI9W9jrgLxyhA8GlECdu4UAWVPXj0xM7XaNKBlm7eZhMJN7FuBNnPT89p324SSCT0FRnxo1O0YfFj7Ei0EVoYMKINVT8twF9Q--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-david.phillips@6602fa4e-c38a-46f9-a1eb-4141fda7a15c</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-david.phillips@6602fa4e-c38a-46f9-a1eb-4141fda7a15c</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID><DisplayName>pcsk-aws+2e080b17111009838202251711100983820193</DisplayName></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>1</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2024-11-06T19:25:15.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "MCHN000R40Y2XCP5",
+      "x-amz-id-2" : "vBda9pTkAGN7fxBSt6/XkuEtn3z22zczBh5PbeJqjH9PqpQ/QYu5X5/ESwmnsT6uuvagj5PV+Jw=",
+      "Date" : "Wed, 06 Nov 2024 19:25:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "027b802b-9091-40a0-b558-86af0da7f38b",
+  "persistent" : true,
+  "insertionIndex" : 24
+}

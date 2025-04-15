@@ -1,0 +1,15 @@
+com/salesforce/multicloudj/docstore/aws/AwsDocstoreIT.class
+com/salesforce/multicloudj/docstore/aws/AwsDocstoreIT$HarnessImpl.class
+com/salesforce/multicloudj/docstore/aws/AwsCodecTest$2TestCase.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStoreTest$TestDocStore.class
+com/salesforce/multicloudj/docstore/aws/AwsEncoderTest.class
+com/salesforce/multicloudj/docstore/aws/AwsDocumentIteratorTest.class
+com/salesforce/multicloudj/docstore/aws/QueryRunnerTest.class
+com/salesforce/multicloudj/docstore/aws/AwsDecoderTest$1TestCase.class
+com/salesforce/multicloudj/docstore/aws/AwsCodecTest$1TestCase.class
+com/salesforce/multicloudj/docstore/aws/AwsEncoderTest$1TestCase.class
+com/salesforce/multicloudj/docstore/aws/AwsCodecTest.class
+com/salesforce/multicloudj/docstore/aws/AwsDecoderTest.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStoreTest.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStoreTest$1Person.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStoreTest$TestAction.class

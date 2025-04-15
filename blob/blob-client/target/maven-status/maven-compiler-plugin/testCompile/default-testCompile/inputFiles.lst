@@ -1,0 +1,12 @@
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/async/client/AsyncBucketClientTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/async/client/ProviderSupplierTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/async/driver/AbstractAsyncBlobStoreTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/async/driver/TestAsyncBlobStore.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/async/driver/TestAsyncBlobStoreProvider.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/client/AbstractBlobClientIT.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/client/AbstractBlobStoreIT.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/client/BucketClientTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/client/ProviderSupplierTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/driver/AbstractBlobStoreTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/driver/BlobStoreValidatorTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/blob/blob-client/src/test/java/com/salesforce/multicloudj/blob/driver/TestBlobStore.java

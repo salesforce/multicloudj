@@ -1,0 +1,24 @@
+{
+  "id" : "988c2e08-8bf6-4238-bd93-78c6c61bfb33",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_bulkdeletebyversion_happy8",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy8",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy8</Key><RequestId>SNWZV6R22W7XDF3V</RequestId><HostId>RBdqwNKCeZwEGt69VnYmaigljG3/4StZoBkIIt6HPv/Ion/j01b7twCVWlWGOnY2DcEmtR/72kc=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "SNWZV6R22W7XDF3V",
+      "x-amz-id-2" : "RBdqwNKCeZwEGt69VnYmaigljG3/4StZoBkIIt6HPv/Ion/j01b7twCVWlWGOnY2DcEmtR/72kc=",
+      "x-amz-version-id" : "Xnny7gMi1zA9kctfmu5ntrfwp_wm3H7s",
+      "Date" : "Mon, 17 Feb 2025 05:51:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "988c2e08-8bf6-4238-bd93-78c6c61bfb33",
+  "persistent" : true,
+  "insertionIndex" : 40
+}

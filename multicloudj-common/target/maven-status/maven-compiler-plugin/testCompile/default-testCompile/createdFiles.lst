@@ -1,0 +1,14 @@
+com/salesforce/multicloudj/common/exceptions/ResourceConflictExceptionTest.class
+com/salesforce/multicloudj/common/util/ali/TestsUtilAli$1.class
+com/salesforce/multicloudj/common/exceptions/InvalidArgumentExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/ResourceAlreadyExistsExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/UnSupportedExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/ResourceExhaustedExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/ExceptionHandlerTest.class
+com/salesforce/multicloudj/common/util/common/TestsUtil.class
+com/salesforce/multicloudj/common/util/ali/TestsUtilAli.class
+com/salesforce/multicloudj/common/exceptions/UnknownExceptionTest.class
+com/salesforce/multicloudj/common/util/common/TestsUtil$TruncateRequestBodyTransformer.class
+com/salesforce/multicloudj/common/exceptions/UnAuthorizedExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/SubstrateSdkExceptionTest.class
+com/salesforce/multicloudj/common/exceptions/ResourceNotFoundExceptionTest.class

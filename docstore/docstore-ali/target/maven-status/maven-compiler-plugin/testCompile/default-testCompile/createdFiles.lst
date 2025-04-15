@@ -1,0 +1,16 @@
+com/salesforce/multicloudj/docstore/ali/ErrorCodeMappingTest.class
+com/salesforce/multicloudj/docstore/ali/AliDocStoreTest$TestAction.class
+com/salesforce/multicloudj/docstore/ali/TestSQLRow.class
+com/salesforce/multicloudj/docstore/ali/AliDocumentIteratorTest.class
+com/salesforce/multicloudj/docstore/ali/AliDocStoreTest$TestDocStore.class
+com/salesforce/multicloudj/docstore/ali/AliDocStoreTest$1Person.class
+com/salesforce/multicloudj/docstore/ali/TestDescribeTableResponse.class
+com/salesforce/multicloudj/docstore/ali/AliDocStoreTest.class
+com/salesforce/multicloudj/docstore/ali/AliEncoderTest.class
+com/salesforce/multicloudj/docstore/ali/AliEncoderTest$1TestCase.class
+com/salesforce/multicloudj/docstore/ali/TestSQLResultSet.class
+com/salesforce/multicloudj/docstore/ali/QueryRunnerTest.class
+com/salesforce/multicloudj/docstore/ali/AliDecoderTest.class
+com/salesforce/multicloudj/docstore/ali/AliDecoderTest$1TestCase.class
+com/salesforce/multicloudj/docstore/ali/AliDocstoreIT$HarnessImpl.class
+com/salesforce/multicloudj/docstore/ali/AliDocstoreIT.class

@@ -1,0 +1,22 @@
+{
+  "id" : "1a1a7295-a423-4179-9005-5322cc84e295",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-skippingnumbers",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers?uploadId=EIKc0B75VwyOHJbmP8CeLtEmXbrA23ySWMF4y3M5YZ89FCANijq9urooWpaKCszYlasSt6yikiOHE9bqbroFNp8z5gjLLjX0hnCcrxK3I1kkTVHcB92_DBk7MWZdt2Hx1skr7NydOgVaJ1kq3xw4169z11Lmge4OVoI.rkYVj.5P2oe7yZA4tyKkQ2L3LOa2b1nAZHtHkbA708A3Cmed0w--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-skippingNumbers</Key><UploadId>EIKc0B75VwyOHJbmP8CeLtEmXbrA23ySWMF4y3M5YZ89FCANijq9urooWpaKCszYlasSt6yikiOHE9bqbroFNp8z5gjLLjX0hnCcrxK3I1kkTVHcB92_DBk7MWZdt2Hx1skr7NydOgVaJ1kq3xw4169z11Lmge4OVoI.rkYVj.5P2oe7yZA4tyKkQ2L3LOa2b1nAZHtHkbA708A3Cmed0w--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-david.phillips@6602fa4e-c38a-46f9-a1eb-4141fda7a15c</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-david.phillips@6602fa4e-c38a-46f9-a1eb-4141fda7a15c</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID><DisplayName>pcsk-aws+2e080b17111009838202251711100983820193</DisplayName></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>6</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2024-11-06T19:25:03.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2024-11-06T19:25:07.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>6</PartNumber><LastModified>2024-11-06T19:25:09.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "GBBTP8YWZC22WDVB",
+      "x-amz-id-2" : "xaXtBSSmNC4kkBAa9aR+cluYWTmKNeCTDdktwwMX0DQlMGa6oUIS7O9E+077LepXFjc1S29/xyA=",
+      "Date" : "Wed, 06 Nov 2024 19:25:12 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "1a1a7295-a423-4179-9005-5322cc84e295",
+  "persistent" : true,
+  "insertionIndex" : 14
+}

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.salesforce.multicloudj.sts.driver.AbstractStsUtilitiesTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.086 s -- in com.salesforce.multicloudj.sts.driver.AbstractStsUtilitiesTest

@@ -1,0 +1,24 @@
+{
+  "id" : "70a91a37-9757-43f9-815e-ba5a905d39c2",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=GetCallerIdentity&Version=2011-06-15",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<GetCallerIdentityResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <GetCallerIdentityResult>\n    <Arn>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@90a39e03-dc69-489b-81dd-fe5c7de266af</Arn>\n    <UserId>AROAZQ3DQ6RHRTUML22G2:PCSK-sandeeppal@90a39e03-dc69-489b-81dd-fe5c7de266af</UserId>\n    <Account>654654370895</Account>\n  </GetCallerIdentityResult>\n  <ResponseMetadata>\n    <RequestId>d5da6794-ca39-47b1-8a0a-a0d41224f9e5</RequestId>\n  </ResponseMetadata>\n</GetCallerIdentityResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "d5da6794-ca39-47b1-8a0a-a0d41224f9e5",
+      "Date" : "Thu, 05 Sep 2024 18:51:24 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "70a91a37-9757-43f9-815e-ba5a905d39c2",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

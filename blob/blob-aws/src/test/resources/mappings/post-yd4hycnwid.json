@@ -1,0 +1,26 @@
+{
+  "id" : "271e5a07-0910-4b04-a49f-73687174df2f",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-multipleparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts?uploadId=1szglZzRlZzBmQvQ.DwIDjEGX_hJwglE.9q_OAwoKaoDm3FO1CTXVHnw1RgZZudd9B1IC9nS6kdnk3G5uOZp4DeznQRSZV0gEa_M6I5R7WhSZSODGKsfircUqQr0d5Jja_pF0zTlc.Ffb2cZcyx57C.bb4PgxVgxxJSSMsbLBOU8QPFssjG_e76xUBzSNp4JeWuFBqV_8JvwLtzK0NgGUw--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-multipleParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "43HA8BG94RQB1RN5",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "bkemxgdHaggVJiQynmi2hsDIw1VQmCpJr7IfDhU3h9F8fovsfOscPM3dhx3CMYoNIiWOvTN0qmk=",
+      "Date" : "Wed, 06 Nov 2024 19:19:42 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "271e5a07-0910-4b04-a49f-73687174df2f",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

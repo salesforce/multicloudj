@@ -1,0 +1,16 @@
+com/salesforce/multicloudj/docstore/aws/AwsDocStore$1.class
+com/salesforce/multicloudj/docstore/aws/ErrorCodeMapping.class
+com/salesforce/multicloudj/docstore/aws/WriteOperation.class
+com/salesforce/multicloudj/docstore/aws/AwsDecoder.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStore$Queryable.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStore$Builder.class
+META-INF/services/com.salesforce.multicloudj.docstore.driver.AbstractDocStore
+com/salesforce/multicloudj/docstore/aws/AwsDecoder$1.class
+com/salesforce/multicloudj/docstore/aws/AwsEncoder$MapEncoder.class
+com/salesforce/multicloudj/docstore/aws/AwsDocumentIterator.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStore$Key.class
+com/salesforce/multicloudj/docstore/aws/QueryRunner.class
+com/salesforce/multicloudj/docstore/aws/AwsDocStore.class
+com/salesforce/multicloudj/docstore/aws/AwsCodec.class
+com/salesforce/multicloudj/docstore/aws/AwsEncoder$ListEncoder.class
+com/salesforce/multicloudj/docstore/aws/AwsEncoder.class

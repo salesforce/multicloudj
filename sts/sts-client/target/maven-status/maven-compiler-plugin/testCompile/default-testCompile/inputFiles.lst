@@ -1,0 +1,14 @@
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/client/AbstractStsIT.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/client/StsClientTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/client/StsUtilitiesTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/client/TestConcreteAbstractSts.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/client/TestConcreteAbstractStsUtilities.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/driver/AbstractStsTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/driver/AbstractStsUtilitiesTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/driver/FlowCollectorTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/AssumedRoleRequestTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/CallerIdentityTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/CredentialsOverriderTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/GetAccessTokenRequestTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/SignedAuthRequestTest.java
+/Users/sandeeppal/src/chameleon/multicloudj/sts/sts-client/src/test/java/com/salesforce/multicloudj/sts/model/StsCredentialsTest.java
