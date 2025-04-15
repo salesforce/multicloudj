@@ -1,0 +1,25 @@
+{
+  "id" : "b2b5cf3a-f498-473d-83eb-445e69d07763",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-bulk-delete_happy1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-bulk-delete_happy1",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "QnVsayBkZWxldGUgYmxvYiBmb3IgY29uZm9ybWFuY2UtdGVzdHMvYmxvYi1mb3ItYnVsay1kZWxldGVfaGFwcHkx"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"73c34e7026e66f595cf475bf3325fc06\"",
+      "x-amz-request-id" : "5S4RQH796Z85YMX4",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "MwTBYDabhazhYr7mTbRqQ4LMzdmsIkB4AWtw3KHJcTHQ3szTgNIabtqD0Evi4brBmvtdni8LBdM=",
+      "Date" : "Tue, 01 Oct 2024 09:36:18 GMT"
+    }
+  },
+  "uuid" : "b2b5cf3a-f498-473d-83eb-445e69d07763",
+  "persistent" : true,
+  "insertionIndex" : 21
+}

@@ -1,0 +1,27 @@
+{
+  "id" : "f6752b89-1f97-4ef8-848b-eae79ff301e8",
+  "name" : "sqlquery",
+  "request" : {
+    "url" : "/SQLQuery",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u001ESELECT * FROM docstore_test_1;\u0010\u0002\u0018\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CioKD2RvY3N0b3JlX3Rlc3RfMRINCgQIARAAEgUIjAEQABoGCgQIABAAIAAS2AIMAAAACAAUABAABAAIAAAACgAAAAAAAAAAAAAABAAAAAEAAAAQAAAADAAUABAADwAIAAQADAAAACAAAAAwAAAAAAAABAQAAAAFAAAAcE5hbWUAAAAEAAYABAAAAAAADgAMAAQAAAAAAAAACAAOAAAACAAAABQAAAAKAAAAAAAAAAAAAAAAAAAACgAAALgAAACkAAAAjAAAAHgAAABoAAAAUAAAAEAAAAAsAAAAGAAAAAQAAAAIAAAAVGlnZXJNYXAAAAAACAAAAFNoYXJrTWFwAAAAAAgAAABRdWVlbk1hcAAAAAAHAAAAUHVtYU1hcAAMAAAAUHJpbmNlUGxheWVyAAAAAAcAAABMaW9uTWFwAAgAAABGcmFua01hcAAAAAAMAAAARWR3YXJkUGxheWVyAAAAAAgAAABEYXZpZE1hcAAAAAAMAAAAQmlzaG9wUGxheWVyAAAAABgCIAE=",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-7f7b-bf04-e126-150a2f69fa34",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:pHyWSK4vYgNsADrv5EUVAT6pJnI=",
+      "x-ots-date" : "2025-03-07T19:19:14.149757Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "jjfkvPFlCt+BmDdN2sIbXw==",
+      "Date" : "Fri, 07 Mar 2025 19:19:14 GMT"
+    }
+  },
+  "uuid" : "f6752b89-1f97-4ef8-848b-eae79ff301e8",
+  "persistent" : true,
+  "insertionIndex" : 46
+}

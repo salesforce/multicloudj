@@ -1,0 +1,27 @@
+{
+  "id" : "44a40dd1-36d3-4cdb-bc83-1913e2beea50",
+  "name" : "batchgetrow",
+  "request" : {
+    "url" : "/BatchGetRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\nA\n\u000Fdocstore_test_1\u0012*u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0011\u0000\u0000\u0000\u0003\f\u0000\u0000\u0000DavidReplace\n�\t�\u001A\u00000\u0001",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "Cs8BCg9kb2NzdG9yZV90ZXN0XzESuwEIARoGCgQIARAAIq4BdQAAAAEDBAUAAABwTmFtZQURAAAAAwwAAABEYXZpZFJlcGxhY2UK6QIDBAEAAABiBQIAAAACAAdGfQxylQEAAArRAwQBAAAAZgUJAAAAAQAAAAAAAAAAB0Z9DHKVAQAAChwDBAEAAABpBQkAAAAAXwAAAAAAAAAHRn0McpUBAAAKLQMEAQAAAHMFEwAAAAMOAAAAcmVwbGFjZWRTdHJpbmcHRn0McpUBAAAK/glX",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-80d9-c198-7076-700bef00d82b",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:tRFn1pK5d72AaHevA1zEbizM0OU=",
+      "x-ots-date" : "2025-03-07T19:19:37.083163Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "5dv20N7obJoVDcOZCd6Ltw==",
+      "Date" : "Fri, 07 Mar 2025 19:19:37 GMT"
+    }
+  },
+  "uuid" : "44a40dd1-36d3-4cdb-bc83-1913e2beea50",
+  "persistent" : true,
+  "insertionIndex" : 59
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "05647d21-9b56-4c5d-9d8c-c116b2200b43",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":3,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"86d75156-1e56-6288-f644-7d4fb15c1828\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoPut\"}},{\"i\":{\"N\":\"111\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString2\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnPut\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomStringMap\"},\"DocstoreRevision\":{\"S\":\"1a4972ee-0166-fe57-976e-3f241d50efda\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorPut\"}}],\"ScannedCount\":3}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "E8HNMU1P2D6S60VJ7JP0PNT7QFVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "831698043",
+      "Date" : "Wed, 05 Mar 2025 18:21:06 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "05647d21-9b56-4c5d-9d8c-c116b2200b43",
+  "persistent" : true,
+  "insertionIndex" : 68
+}

@@ -1,0 +1,27 @@
+{
+  "id" : "1f4cad4c-cae9-41fb-828f-dea3d9464b19",
+  "name" : "deleterow",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012+u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0011\u0000\u0000\u0000\u0003\f\u0000\u0000\u0000EdwardPlayer\n\u0007\b\tl\u001A\u0002\b\u0000\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-7f8c-b0da-ea23-150ae902c5c1",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:PmAEjjA4QNAtF+SWcTBQIH5RuKc=",
+      "x-ots-date" : "2025-03-07T19:19:15.256396Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Fri, 07 Mar 2025 19:19:15 GMT"
+    }
+  },
+  "uuid" : "1f4cad4c-cae9-41fb-828f-dea3d9464b19",
+  "persistent" : true,
+  "insertionIndex" : 44
+}

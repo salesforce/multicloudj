@@ -1,0 +1,27 @@
+{
+  "id" : "069f8e69-de94-4405-ae42-8040e9e4ea70",
+  "name" : "deleterow",
+  "request" : {
+    "url" : "/DeleteRow",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "\n\u000Fdocstore_test_1\u0012-u\u0000\u0000\u0000\u0001\u0003\u0004\u0005\u0000\u0000\u0000pName\u0005\u0013\u0000\u0000\u0000\u0003\u000E\u0000\u0000\u0000ClarkMapDelete\n�\b\t\u0003\u001A\u0002\b\u0000\"\u0002\b\u0000",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "CgYKBAgAEAE=",
+    "headers" : {
+      "x-ots-requestid" : "00062fc5-7e20-9924-4e07-fe0a31f25d42",
+      "Authorization" : "OTS STS.NTXNhXJ9waZin5xWhtxu8Xzyn:ZlTZGGqFr9H2fRAf/L4JP+Q+o2M=",
+      "x-ots-date" : "2025-03-07T19:18:51.398307Z",
+      "x-ots-contenttype" : "protocol buffer",
+      "x-ots-contentmd5" : "cGqcInR86zj/8Pah1LWaHg==",
+      "Date" : "Fri, 07 Mar 2025 19:18:51 GMT"
+    }
+  },
+  "uuid" : "069f8e69-de94-4405-ae42-8040e9e4ea70",
+  "persistent" : true,
+  "insertionIndex" : 20
+}

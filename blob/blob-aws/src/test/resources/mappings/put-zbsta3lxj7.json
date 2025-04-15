@@ -1,0 +1,25 @@
+{
+  "id" : "9e784449-0134-4d7f-b054-60db9403c778",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-reading6",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-reading6",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-request-id" : "X6TGVE3X4RGPE6DE",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "C6WEMlONdzkRv5/F6RGTteGPHXnNm5mhgbYAJ3o+L6+ETZQp0LG9RwsKmGNghNBOPM8rfYKlggQ=",
+      "Date" : "Tue, 27 Aug 2024 19:36:54 GMT"
+    }
+  },
+  "uuid" : "9e784449-0134-4d7f-b054-60db9403c778",
+  "persistent" : true,
+  "insertionIndex" : 55
+}
