@@ -1,10 +1,3 @@
-License Info
-------------
-
-Most projects we open source should use the [Apache License v2](https://opensource.org/license/apache-2-0/) license.  Samples, demos, and blog / doc code examples should instead use [CC-0](https://creativecommons.org/publicdomain/zero/1.0/).  If you strongly feel your project should perhaps use a different license clause, please engage with legal team.
-
-For the ALv2 license, create a `LICENSE.txt` file (or use the one in this template repo) in the root of your repo containing:
-```
 Apache License Version 2.0
 
 Copyright (c) 2024 Salesforce, Inc.
@@ -211,41 +204,3 @@ All rights reserved.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
-
-```
-
-The shorter version of license text should be added as a comment to all Salesforce-authored source code and configuration files that support comments. This include file formats like HTML, CSS, JavaScript, XML, etc. which aren't directly code, but are still critical to your project code. Like:
-```
-/*
- * Copyright (c) 2023, Salesforce, Inc.
- * SPDX-License-Identifier: Apache-2
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
- ```
-
-Note that there are many tools that exist to do this sort of thing in an automated fashion, without having to manually edit every single file in your project. It is highly recommended that you research some of these tools for your particular language / build system.
-
-For sample, demo, and example code, we recommend the [Unlicense](https://opensource.org/license/unlicense/) license. Create a `LICENSE.txt` file containing:
-```
-This is free and unencumbered software released into the public domain.
-
-Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
-
-In jurisdictions that recognize copyright laws, the author or authors of this software dedicate any and all copyright interest in the software to the public domain. We make this dedication for the benefit of the public at large and to the detriment of our heirs and successors. We intend this dedication to be an overt act of relinquishment in perpetuity of all present and future rights to this software under copyright law.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-No license header is required for samples, demos, and example code.
