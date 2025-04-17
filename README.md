@@ -113,7 +113,7 @@ We welcome contributions! Please review our [Contribution Guidelines](CONTRIBUTI
 
 ### Documentation
 
-Detailed documentation can be found on our [official documentation site](https://supreme-meme-1699qwr.pages.github.io/).
+Detailed documentation can be found on our [official documentation site](https://opensource.salesforce.com/multicloudj).
 
 ---
 

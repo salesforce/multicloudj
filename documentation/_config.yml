@@ -1,7 +1,8 @@
 title: MulticloudJ
 description: Substrate Agnostic Cloud SDK for Java
 theme: just-the-docs
-baseurl: ""
+baseurl: "/multicloudj"
+url: "https://opensource.salesforce.com"
 plugins:
   - jekyll-default-layout
 collections:
