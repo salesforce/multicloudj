@@ -195,265 +195,258 @@
     
     "relUrl": "/design/errors.html"
   },"28": {
-    "doc": "Exception Handling",
+    "doc": "Flexibility",
     "title": "Flexibility",
     "content": "Substrate SDK remains extensible and you can have your custom providers implementing the driver layer and include the provider jar in the classpath. All you need to do is load the provider with providerId, for example: . BucketClient.builder(\"&lt;BlobstoreCustomProvider&gt;\")... DocstoreClient.builder(\"DocstoreCustomProvider\")... You can also keep the providers outside of this SDK repo anywhere as long as they have access to driver layer. There might be few use-case where you want to tweak the implementation provided by Substrate SDK for your special requirements. You can can have your own implementation overriding the the implementation provided by Substrate SDK and provide that in the runtime. ",
-    "url": "/multicloudj/design/flexibility.html#flexibility",
-    
-    "relUrl": "/design/flexibility.html#flexibility"
-  },"29": {
-    "doc": "Exception Handling",
-    "title": "Exception Handling",
-    "content": " ",
     "url": "/multicloudj/design/flexibility.html",
     
     "relUrl": "/design/flexibility.html"
-  },"30": {
+  },"29": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ",
     "content": "Multi-substrate Java SDK providing unified and substrate-neutral interfaces for cloud services such as Security Token Service (STS), Blob Storage, Key-Value Store, and more. ",
     "url": "/multicloudj/#multicloudj",
     
     "relUrl": "/#multicloudj"
-  },"31": {
+  },"30": {
     "doc": "MultiCloudJ Overview",
     "title": "Maven Dependencies",
     "content": "&lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;{service}-client&lt;/artifactId&gt; &lt;version&gt;{version}&lt;/version&gt; &lt;/dependency&gt; . ",
     "url": "/multicloudj/#maven-dependencies",
     
     "relUrl": "/#maven-dependencies"
-  },"32": {
+  },"31": {
     "doc": "MultiCloudJ Overview",
     "title": "Running Examples",
-    "content": "MultiCloudJ includes various example programs demonstrating how to interact with supported services like STS, Blob Storage, and Doc Stores. Java examples are located in the examples directory. To run an example: . ",
+    "content": "MultiCloudJ includes various example programs demonstrating how to interact with supported services like STS, Blob Storage, and Doc Stores. Examples are located in the examples directory. ",
     "url": "/multicloudj/#running-examples",
     
     "relUrl": "/#running-examples"
-  },"33": {
+  },"32": {
     "doc": "MultiCloudJ Overview",
     "title": "Service supported as of now",
     "content": "MultiCloudJ provides substrate-neutral interfaces supporting the following service: . | STS (Security Token Service) | BlobStore | Document Store | . ",
     "url": "/multicloudj/#service-supported-as-of-now",
     
     "relUrl": "/#service-supported-as-of-now"
-  },"34": {
+  },"33": {
     "doc": "MultiCloudJ Overview",
     "title": "Integration with Cloud Providers",
     "content": "MultiCloudJ provides substrate-neutral interfaces supporting multiple cloud providers, including: . | AWS | Alibaba | GCP | . ",
     "url": "/multicloudj/#integration-with-cloud-providers",
     
     "relUrl": "/#integration-with-cloud-providers"
-  },"35": {
+  },"34": {
     "doc": "MultiCloudJ Overview",
     "title": "Where to Go from Here",
     "content": "Documentation and Guides: . | How to guides: How to use guides for developers ready to use the SDK. | Design decisions: Some critical design decisions behind the SDK. | . API Documentation: . | Java API Documentation (Javadoc) | . Community and Support: . | GitHub Issues | Discussion Forum | Contribution Guidelines | . Additional Resources: . | MultiCloudJ Homepage | Release Notes | Examples | . ",
     "url": "/multicloudj/#where-to-go-from-here",
     
     "relUrl": "/#where-to-go-from-here"
-  },"36": {
+  },"35": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ Overview",
     "content": " ",
     "url": "/multicloudj/",
     
     "relUrl": "/"
-  },"37": {
+  },"36": {
     "doc": "Design",
     "title": "Design Guides",
     "content": "Welcome to the MultiCloudJ Design Guides. This section provides concise, task-focused guides to help you understand the key design decisions behind the SDK. | Layers of the SDK - Understanding the layered architecture | Error Handling - How errors are handled across the SDK | Flexibility - How to extend and customize the SDK | . ",
     "url": "/multicloudj/design/#design-guides",
     
     "relUrl": "/design/#design-guides"
-  },"38": {
+  },"37": {
     "doc": "Design",
     "title": "Core Design Principles",
     "content": "MultiCloudJ is built on several key principles: . | Substrate Agnosticism: The SDK provides a unified interface that works consistently across different cloud providers. | Extensibility: New cloud providers can be added without modifying existing code. | Simplicity: The API is designed to be intuitive and easy to use. | Performance: The SDK is optimized for efficient cloud service interactions. | Reliability: Robust error handling and retry mechanisms ensure reliable operation. | . ",
     "url": "/multicloudj/design/#core-design-principles",
     
     "relUrl": "/design/#core-design-principles"
-  },"39": {
+  },"38": {
     "doc": "Design",
     "title": "Contributing to Design",
     "content": "We welcome contributions to improve MultiCloudJ’s design. When contributing: . | Follow the established architectural patterns | Document your design decisions | Consider backward compatibility | Test your changes thoroughly | Update relevant documentation | . ",
     "url": "/multicloudj/design/#contributing-to-design",
     
     "relUrl": "/design/#contributing-to-design"
-  },"40": {
+  },"39": {
     "doc": "Design",
     "title": "Design Decisions",
     "content": "Key design decisions in MultiCloudJ include: . | Layered Architecture: Separating concerns between portable, driver, and provider layers | Builder Pattern: Using builders for flexible client configuration | Provider Loading: Dynamic loading of cloud provider implementations | Error Handling: Comprehensive error handling and recovery mechanisms | Extensibility: Support for custom providers and implementations | . ",
     "url": "/multicloudj/design/#design-decisions",
     
     "relUrl": "/design/#design-decisions"
-  },"41": {
+  },"40": {
     "doc": "Design",
     "title": "Best Practices",
     "content": "When working with MultiCloudJ’s design: . | Keep it Simple: Prefer simple solutions over complex ones | Be Consistent: Follow established patterns and conventions | Think Ahead: Consider future extensibility and maintenance | Document Everything: Clear documentation is essential | Test Thoroughly: Ensure your changes work across all supported providers | . ",
     "url": "/multicloudj/design/#best-practices",
     
     "relUrl": "/design/#best-practices"
-  },"42": {
+  },"41": {
     "doc": "Design",
     "title": "Related Resources",
     "content": ". | API Documentation | How-to Guides | Examples | Contribution Guidelines | . ",
     "url": "/multicloudj/design/#related-resources",
     
     "relUrl": "/design/#related-resources"
-  },"43": {
+  },"42": {
     "doc": "Design",
     "title": "Design",
     "content": " ",
     "url": "/multicloudj/design/",
     
     "relUrl": "/design/"
-  },"44": {
+  },"43": {
     "doc": "Usage Guides",
     "title": "How-To Guides",
     "content": "Welcome to the MultiCloudJ How-To Guides. This section provides concise, task-focused guides designed to help you accomplish common goals using MultiCloudJ’s cloud-agnostic interfaces. Each guide is grouped by API and includes practical examples and usage patterns. ",
     "url": "/multicloudj/guides/#how-to-guides",
     
     "relUrl": "/guides/#how-to-guides"
-  },"45": {
+  },"44": {
     "doc": "Usage Guides",
     "title": "🛡️ STS",
     "content": "Learn how to get access credentials using roles/service accounts etc. | STS | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-sts",
     
     "relUrl": "/guides/#️-sts"
-  },"46": {
+  },"45": {
     "doc": "Usage Guides",
     "title": "☁️ Blob",
     "content": "Learn how to manage object storage (uploading, downloading, listing blobs) in a cloud-neutral way. | Blob Store | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-blob",
     
     "relUrl": "/guides/#️-blob"
-  },"47": {
+  },"46": {
     "doc": "Usage Guides",
     "title": "📄 Docstore",
     "content": "Work with document-oriented databases using a consistent interface. | Docstore | . ",
     "url": "/multicloudj/guides/#-docstore",
     
     "relUrl": "/guides/#-docstore"
-  },"48": {
+  },"47": {
     "doc": "Usage Guides",
     "title": "📬 Pub/Sub",
     "content": "Use publish/subscribe systems to send and receive messages. | Pubsub | . Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease. ",
     "url": "/multicloudj/guides/#-pubsub",
     
     "relUrl": "/guides/#-pubsub"
-  },"49": {
+  },"48": {
     "doc": "Usage Guides",
     "title": "Usage Guides",
     "content": " ",
     "url": "/multicloudj/guides/",
     
     "relUrl": "/guides/"
-  },"50": {
+  },"49": {
     "doc": "Layers",
     "title": "Layers",
     "content": " ",
     "url": "/multicloudj/design/layers.html",
     
     "relUrl": "/design/layers.html"
-  },"51": {
+  },"50": {
     "doc": "Layers",
     "title": "Introduction",
     "content": "The Substrate SDK uses a layered architecture to provide a clean separation between the public API, internal abstractions, and provider-specific implementations. This architecture enables: . | A consistent, substrate-agnostic experience for end users | Easy addition of new cloud providers | Clear separation of concerns | Maintainable and testable code | . ",
     "url": "/multicloudj/design/layers.html#introduction",
     
     "relUrl": "/design/layers.html#introduction"
-  },"52": {
+  },"51": {
     "doc": "Layers",
     "title": "Components",
     "content": ". The architecture consists of three main layers: . | Portable Layer (Top) - The public-facing API that users interact with | Driver Layer (Middle) - The abstraction layer that defines common interfaces | Provider Layer (Bottom) - The implementation layer for specific cloud providers | . ",
     "url": "/multicloudj/design/layers.html#components",
     
     "relUrl": "/design/layers.html#components"
-  },"53": {
+  },"52": {
     "doc": "Layers",
     "title": "Portable Layer",
     "content": "The portable layer is the most important and front-facing layer for end users. End users should mostly interact with the portable Layer to make cloud service calls. The portable Layer should expose all necessary functions/APIs for the end user. For example, for a blobstore service, it can expose methods like upload, download, delete, etc., through the portable Layer. Characteristics of an ideal portable Layer: . | The portable Layer should be substrate-agnostic, containing no substrate-specific logic. It should offer a substrate-agnostic experience for the end user. | The portable Layer should accept the substrate(provider) value from the end user and initiate the appropriate session on that substrate. (We might consider that empty provider will pick whatever provider it finds first in the classpath, if required). | The portable Layer should allow users to provide substrate-agnostic inputs such as region name, credentials through a credentials provider defined in Substrate SDK, bucket name (for blob services), etc. | The portable Layer should only expose functions that are supported across all substrates. It should not support or expose features that work on one substrate but not on others. | The portable Layer should strive to provide the best experience for the end user, requiring as little information as possible. | . Example usage of the portable Layer for blob storage and uploading the blob: . // hardcodes for illustration purposes values should be outside of the service code String substrate = \"aws\" String region = \"us-east-1\" // Setting up session credentials - // these are optional and ideally in prod, this is not required // since the k8s pods are set with default credentials and Substrate SDK // uses the default credentials in that case. StsCredentials credentials = new StsCredentials( \"accessKeyId\", \"accessKeySecret\", \"sessionToken\"); CredentialsOverrider credsOverrider = new CredentialsOverrider .Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build(); // Initiate the substrate agnostic BucketClient BucketClient client = BucketClient.builder(substrate) .withBucket(\"chameleon-java\") .withRegion(region) .withCredentialsOverrider(credsOverrider).build(); // Prepare the substrate agnostic UploadRequest UploadRequest uploadRequest = new UploadRequest.Builder() .withKey(\"bucket-path/chameleon.jpg\") // Upload the content UploadResponse response = client.upload(uploadRequest, \"dummy-content\"); . The above example demonstrates that the end user wants to open the client for the blob storage in the AWS substrate to the bucket “chameleon-java” in the region “us-east-1”. The client is used to upload/write the blob in the bucket. In this example, the portable fulfills all the requirements as discussed above: . | There is no substrate specific logic exposed on the portable Layer. From the code block, there is no substrate specific exposure and this logic works in the same manner for other substrates by just providing a different substrate value. | portable Layer forces the client the provide a substrate value, it doesn’t assume or interpret the substrate based on the runtime. | It provides a way to supply inputs to open the session in a substrate agnostic manner. | It asks the minimum amount of information from the end user without knowing the internals of the SDK. | . ",
     "url": "/multicloudj/design/layers.html#portable-layer",
     
     "relUrl": "/design/layers.html#portable-layer"
-  },"54": {
+  },"53": {
     "doc": "Layers",
     "title": "Driver Layer",
     "content": "The driver layer is a layer behind the portable Layer which defines the abstract functions and implementations for each substrate/provider. The driver layer can also include wrapper logic on top of abstract functions to further simplify portable Layer. Structure . The basic structure of abstract Blob Store looks like this which defines some variables required for the provider implementation such as region and the provider id: . public abstract class AbstracBlobtore { protected final String providerId; protected final String region; protected final String bucket; // Abstract methods for substrate-specific implementations protected abstract UploadResponse doUpload(UploadRequest uploadRequest); protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest); protected abstract void doDelete(String key); } . Why do need a separate driver layer? . While it’s possible to achieve the abstraction of service capabilities without this driver layer and instead make the portable layer an abstract class, there are numerous benefits to keeping the portable layer separate. These benefits include: . Separation of concerns: . Abstract classes deal with internal code of SDK and abstract methods for providers to implement where as portable Layer or client is all about external facing code. We can keep the portable Layer light weight and to the point. Driver abstraction consist of: . | Common methods for logic which applies to all providers | Abstract methods to be implemented by providers | . Prevention of leaky abstractions: . Having a separate portable Layer prevents the leaky abstractions because the client doesn’t have to deal with or access the driver layer which might expose some internals. Maintainability: . Changing the internal implementations are comparatively safe without breaking portable Layer contracts. Testing: . End users have simple portable layer for mocks and testing. Example: . For instance, the upload method in BucketClient have multiple methods in the backend, such as validateContent to validate if the content is in the right format which is common for all providers. This validateContent method should be internal and not exposed to end users, therefore it can be part of driver layer and keep the BucketClient purely public. Secondly, if we have a prepContent abstraction function in driver which should be implemented by all the provider implementations to prepareContent for specific substrate. Now, let’s say each substrate appends the content with some prefix bytes which are substrate specific. So the upload method is executed as follow behind the scenes: . public UploadResponse upload(UploadRequest uploadRequest) { validation(); &lt;- this is common validation for all substrates prepContent(); &lt;- this is provider specific prep content doUpload(); this is provider specific upload of the content } . Basically we might have several methods which the end user doesn’t care about and should be completely abstracted from the users. These functions should be placed in driver layer, keeping the portable layer purely public and sanitized. ",
     "url": "/multicloudj/design/layers.html#driver-layer",
     
     "relUrl": "/design/layers.html#driver-layer"
-  },"55": {
+  },"54": {
     "doc": "Layers",
     "title": "Provider Layer",
     "content": "Provider layer implements the driver layer for each substrate. Provider layer is for each provider or substrate which powers the API calls from the end users to make substrate specific calls. In the below code example: AWSBlobStore is the provider for blob/blobstore for AWS substrate and implements all the abstract functions in the AWS substrate. public class AWSBlobStore extends AbstractBlobStore { S3Client s3Client; public AWSBlobStore(Builder builder) { s3Client = ... // code logic to build the s3Client by information from builder } @Override protected void doUploadFile(String key, String filePath) { Map&lt;String, String&gt; metadata = new HashMap&lt;&gt;(); PutObjectRequest putOb = PutObjectRequest.builder() .bucket(this.bucketName) .key(key) .metadata(metadata) .build(); s3Client.putObject(putOb, RequestBody.fromFile(new File(filePath))); log.info(\"Successfully placed object\" + \" into bucket \" + bucketName); } @Override public Builder builder() { return new Builder(); } public static class Builder extends AbstractBlobStore.Builder&lt;AwsBlobStore&gt; { public Builder() { providerId(\"aws\"); } @Override public AwsBlobStore build() { return new AwsBlobStore(this); } ... } } . ",
     "url": "/multicloudj/design/layers.html#provider-layer",
     
     "relUrl": "/design/layers.html#provider-layer"
-  },"56": {
+  },"55": {
     "doc": "Layers",
     "title": "Best Practices",
     "content": ". | Keep the Portable Layer Clean . | Only expose substrate-agnostic APIs | Validate inputs before passing to driver layer | Handle common error cases | . | Driver Layer Design . | Define clear interfaces | Include common validation logic | Provide default implementations where possible | Document expected behavior | . | Provider Implementation . | Follow the driver layer contract strictly | Handle provider-specific edge cases | Implement proper error handling | Add provider-specific logging | . | . ",
     "url": "/multicloudj/design/layers.html#best-practices",
     
     "relUrl": "/design/layers.html#best-practices"
-  },"57": {
+  },"56": {
     "doc": "Layers",
     "title": "Common Pitfalls",
     "content": ". | Leaky Abstractions . | Avoid exposing provider-specific types in the portable layer | Don’t let provider-specific exceptions bubble up | Keep provider-specific configuration internal | . | Inconsistent Behavior . | Ensure all providers implement the same behavior | Handle edge cases consistently | Document any provider-specific limitations | . | Performance Issues . | Avoid unnecessary abstraction layers | Cache provider clients when possible | Use efficient data structures | . | . ",
     "url": "/multicloudj/design/layers.html#common-pitfalls",
     
     "relUrl": "/design/layers.html#common-pitfalls"
-  },"58": {
+  },"57": {
     "doc": "How to STS",
     "title": "STS (Security Token Service)",
     "content": "The StsClient class in the multicloudj library provides a portable interface for interacting with cloud provider security token services such as AWS STS, GCP IAM Credentials, or any other compatible implementation. It allows you to obtain temporary credentials, access tokens, and caller identity information in a cloud-neutral way. ",
     "url": "/multicloudj/guides/sts-guide.html#sts-security-token-service",
     
     "relUrl": "/guides/sts-guide.html#sts-security-token-service"
-  },"59": {
+  },"58": {
     "doc": "How to STS",
     "title": "Overview",
     "content": "The StsClient is built on top of provider-specific implementations of AbstractSts. Each provider registers its implementation and is selected dynamically at runtime. To use STS, you must first create a client using the builder() method. ",
     "url": "/multicloudj/guides/sts-guide.html#overview",
     
     "relUrl": "/guides/sts-guide.html#overview"
-  },"60": {
+  },"59": {
     "doc": "How to STS",
     "title": "Creating a Client",
     "content": "StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Optionally, you can set a custom endpoint: . URI endpoint = URI.create(\"https://sts.custom-endpoint.com\"); StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .withEndpoint(endpoint) .build(); . ",
     "url": "/multicloudj/guides/sts-guide.html#creating-a-client",
     
     "relUrl": "/guides/sts-guide.html#creating-a-client"
-  },"61": {
+  },"60": {
     "doc": "How to STS",
     "title": "Getting Caller Identity",
     "content": "Retrieve the caller identity associated with the current credentials: . CallerIdentity identity = stsClient.getCallerIdentity(); System.out.println(\"Caller: \" + identity.getArn()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-caller-identity",
     
     "relUrl": "/guides/sts-guide.html#getting-caller-identity"
-  },"62": {
+  },"61": {
     "doc": "How to STS",
     "title": "Getting an Access Token",
     "content": "Use this when you need an OAuth2-style token (provider support may vary): . GetAccessTokenRequest request = new GetAccessTokenRequest(); StsCredentials token = stsClient.getAccessToken(request); System.out.println(\"Access Token: \" + token.getAccessToken()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-an-access-token",
     
     "relUrl": "/guides/sts-guide.html#getting-an-access-token"
-  },"63": {
+  },"62": {
     "doc": "How to STS",
     "title": "Assuming a Role",
     "content": "To assume a different identity (e.g., for cross-account access): . AssumedRoleRequest request = new AssumedRoleRequest(); request.setRoleArn(\"arn:aws:iam::123456789012:role/example-role\"); request.setSessionName(\"example-session\"); StsCredentials credentials = stsClient.getAssumeRoleCredentials(request); System.out.println(\"Temporary Credentials: \" + credentials.getAccessKeyId()); . ",
     "url": "/multicloudj/guides/sts-guide.html#assuming-a-role",
     
     "relUrl": "/guides/sts-guide.html#assuming-a-role"
-  },"64": {
+  },"63": {
     "doc": "How to STS",
     "title": "Error Handling",
     "content": "All errors are translated to SubstrateSdkException subclasses by the underlying driver. The client will automatically map exceptions to meaningful runtime errors based on the provider: . try { CallerIdentity identity = stsClient.getCallerIdentity(); } catch (SubstrateSdkException e) { // Handle known errors: AccessDenied, Timeout, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/sts-guide.html#error-handling",
     
     "relUrl": "/guides/sts-guide.html#error-handling"
-  },"65": {
+  },"64": {
     "doc": "How to STS",
     "title": "How to STS",
     "content": " ",

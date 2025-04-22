@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Exception Handling
+title: Flexibility
 parent: Design
 nav_order: 2
 ---

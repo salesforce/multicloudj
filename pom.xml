@@ -10,6 +10,7 @@
     <modules>
         <module>blob</module>
         <module>docstore</module>
+        <module>examples</module>
         <module>sts</module>
         <module>multicloudj-common</module>
         <module>multicloudj-common-ali</module>

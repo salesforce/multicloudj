@@ -22,7 +22,7 @@ Multi-substrate Java SDK providing unified and substrate-neutral interfaces for 
 
 MultiCloudJ includes various example programs demonstrating how to interact with supported services like STS, Blob Storage, and Doc Stores.
 
-Java examples are located in the `examples` directory. To run an example:
+Examples are located in the `examples` directory.
 
 # Service supported as of now
 
