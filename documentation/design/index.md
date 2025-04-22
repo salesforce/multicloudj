@@ -16,5 +16,6 @@ help you understand multiple design decisions of the SDK.
 
 ## [Layers of the SDK](layers.html)
 
-
 ## [Error Handling](errors.html)
+
+## [Flexibility](flexibility.html)
