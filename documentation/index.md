@@ -44,8 +44,8 @@ MultiCloudJ provides substrate-neutral interfaces supporting multiple cloud prov
 # Where to Go from Here
 **Documentation and Guides:**
 
-* [How to guides](guides/index.html): Introduction to MultiCloudJ and getting started quickly.
-* [Design decisions](design.html): Introduction to MultiCloudJ and getting started quickly.
+* [How to guides](guides/index.html): How to use guides for developers ready to use the SDK.
+* [Design decisions](design/index.html): Some critical design decisions behind the SDK.
 
 **API Documentation:**
 
@@ -55,7 +55,7 @@ MultiCloudJ provides substrate-neutral interfaces supporting multiple cloud prov
 
 * [GitHub Issues](https://github.com/salesforce/multicloudj/issues)
 * [Discussion Forum](https://github.com/salesforce/multicloudj/issues)
-* [Contribution Guidelines](CONTRIBUTING.md)
+* [Contribution Guidelines](https://github.com/salesforce/multicloudj/blob/main/CONTRIBUTING.md)
 
 **Additional Resources:**
 

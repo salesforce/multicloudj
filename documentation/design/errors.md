@@ -2,7 +2,7 @@
 layout: default
 title: Exception Handling
 parent: Design
-nav_order: 2
+nav_order: 3
 ---
 # Exception Handling in Substrate SDK
 

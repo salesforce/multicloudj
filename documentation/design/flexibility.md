@@ -1,3 +1,9 @@
+---
+layout: default
+title: Exception Handling
+parent: Design
+nav_order: 2
+---
 # Flexibility
 
 Substrate SDK remains extensible and you can have your custom providers implementing the driver layer and include the provider jar in the classpath. All you need to do is load the provider with providerId, for example:
