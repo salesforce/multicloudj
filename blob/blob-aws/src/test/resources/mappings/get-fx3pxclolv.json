@@ -1,0 +1,24 @@
+{
+  "id" : "98158e94-36c9-47a1-9e97-0bcec3940ef4",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_testrangedread_versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/testRangedRead_versioned?versionId=dFhbAutKeSZOcwHEIxnPZl6H_MLhffq7",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 416,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRange</Code><Message>The requested range is not satisfiable</Message><RangeRequested>bytes=57-</RangeRequested><ActualObjectSize>47</ActualObjectSize><RequestId>KPC6TF7NVHK1MJ3Z</RequestId><HostId>l6awvuEe1Ojn1sMZjPw45MwnJdVLBbhQdxSZ9xKVylzTs677lSgSBDfRRfq4GKcwBcJ03T8Vdm0=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KPC6TF7NVHK1MJ3Z",
+      "x-amz-id-2" : "l6awvuEe1Ojn1sMZjPw45MwnJdVLBbhQdxSZ9xKVylzTs677lSgSBDfRRfq4GKcwBcJ03T8Vdm0=",
+      "Date" : "Fri, 04 Apr 2025 07:17:40 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "98158e94-36c9-47a1-9e97-0bcec3940ef4",
+  "persistent" : true,
+  "scenarioName" : "scenario-6-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned",
+  "requiredScenarioState" : "scenario-6-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned-8",
+  "insertionIndex" : 32
+}

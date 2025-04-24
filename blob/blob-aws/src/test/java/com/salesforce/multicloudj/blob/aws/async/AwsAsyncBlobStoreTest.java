@@ -183,6 +183,9 @@ public class AwsAsyncBlobStoreTest {
                 .withRegion(REGION)
                 .withEndpoint(URI.create("https://endpoint.example.com"))
                 .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                .withSocketTimeout(Duration.ofMinutes(1))
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withMaxConnections(100)
                 .build();
 
         assertNotNull(store);

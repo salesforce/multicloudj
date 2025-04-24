@@ -22,6 +22,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -526,43 +528,20 @@ public abstract class AbstractBlobStoreIT {
 
         // Run the test
         try {
-            DownloadResponse response = null;
             DownloadRequest.Builder requestBuilder = new DownloadRequest.Builder().withKey(downloadKey);
             if(downloadUsingVersionId) {
                 requestBuilder.withVersionId(useCorrectVersionId ? uploadResponse.getVersionId() : "fakeVersionId");
             }
             DownloadRequest request = requestBuilder.build();
+            DownloadResponse response;
+            byte[] content;
             try {
-                byte[] content = null;
-                switch (downloadType) {
-                    case InputStream:
-                        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                            response = bucketClient.download(request, outputStream);
-                            content = outputStream.toByteArray();
-                        }
-                        break;
-                    case ByteArray:
-                        ByteArray byteArray = new ByteArray(blobBytes);
-                        response = bucketClient.download(request, byteArray);
-                        content = byteArray.getBytes();
-                        break;
-                    case File:
-                        Path path = Files.createTempFile("tempFile", ".txt");
-                        File file = path.toFile();
-                        file.delete();
-                        response = bucketClient.download(request, file);
-                        content = Files.readAllBytes(path);
-                        break;
-                    case Path:
-                        Path path2 = Files.createTempFile("tempPath", ".txt");
-                        path2.toFile().delete();
-                        response = bucketClient.download(request, path2);
-                        content = Files.readAllBytes(path2);
-                        break;
-                }
+                Pair<DownloadResponse, byte[]> result = readContent(bucketClient, request, downloadType);
+                response = result.getLeft();
+                content = result.getRight();
                 Assertions.assertEquals(blobBytes.length, content.length, testName + ": Content-Length did not match");
                 Assertions.assertArrayEquals(blobBytes, content, testName + ": Bytes arrays did not match");
-            } catch(SubstrateSdkException e) {
+            } catch (SubstrateSdkException e) {
                 Assertions.assertTrue(wantError, testName + ": Did not expect error. " + e.getMessage());
                 return;
             }
@@ -577,6 +556,135 @@ public abstract class AbstractBlobStoreIT {
             // Delete our blob to clean up the test
             safeDeleteBlobs(bucketClient, uploadKey);
         }
+    }
+
+    @Test
+    public void testRangedRead() throws IOException {
+        String key = "conformance-tests/testRangedRead";
+        runRangedReadDownloadTest(key+"_unversioned", false, DownloadType.InputStream);
+        runRangedReadDownloadTest(key+"_unversioned", false, DownloadType.ByteArray);
+        runRangedReadDownloadTest(key+"_unversioned", false, DownloadType.File);
+        runRangedReadDownloadTest(key+"_unversioned", false, DownloadType.Path);
+        runRangedReadDownloadTest(key+"_versioned", true, DownloadType.InputStream);
+        runRangedReadDownloadTest(key+"_versioned", true, DownloadType.ByteArray);
+        runRangedReadDownloadTest(key+"_versioned", true, DownloadType.File);
+        runRangedReadDownloadTest(key+"_versioned", true, DownloadType.Path);
+    }
+
+    private void runRangedReadDownloadTest(String key, boolean useVersionedBucket, DownloadType downloadType) throws IOException {
+
+        String blobData = "This is test data for the ranged read test file";
+        byte[] blobBytes = blobData.getBytes();
+
+        // Create the BucketClient
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        // Upload a blob so we can read from it
+        UploadResponse uploadResponse;
+        try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+            UploadRequest request = new UploadRequest.Builder()
+                    .withKey(key)
+                    .withContentLength(blobBytes.length)
+                    .build();
+            uploadResponse = bucketClient.upload(request, inputStream);
+        }
+
+        try {
+            DownloadRequest.Builder requestBuilder = new DownloadRequest.Builder()
+                    .withKey(key)
+                    .withVersionId(uploadResponse.getVersionId());
+
+            // Try downloading the first 10 bytes
+            Pair<DownloadResponse, byte[]> result = readContent(bucketClient, requestBuilder.withRange(0L, 9L).build(), downloadType);
+            byte[] content = result.getRight();
+            Assertions.assertEquals(10, content.length);
+            Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 0, 10), content);
+
+            // Try downloading a middle 20 bytes
+            result = readContent(bucketClient, requestBuilder.withRange(10L, 29L).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(20, content.length);
+            Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, 30), content);
+
+            // Try downloading from byte 10 onward
+            result = readContent(bucketClient, requestBuilder.withRange(10L, null).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(blobBytes.length-10, content.length);
+            Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, blobBytes.length), content);
+
+            // Try downloading the last 10 bytes
+            result = readContent(bucketClient, requestBuilder.withRange(null, 10L).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(10, content.length);
+            Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, blobBytes.length-10, blobBytes.length), content);
+
+            // Try downloading a single byte
+            result = readContent(bucketClient, requestBuilder.withRange(10L, 10L).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(1, content.length);
+            Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, 11), content);
+
+            // Ask for bytes out of range (0 to length+10). This exceeds the total size, but still works
+            result = readContent(bucketClient, requestBuilder.withRange(0L, blobBytes.length+10L).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(blobBytes.length, content.length);
+            Assertions.assertArrayEquals(blobBytes, content);
+
+            // Ask for the last length+10 bytes. This exceeds the total size, but still works
+            result = readContent(bucketClient, requestBuilder.withRange(null, blobBytes.length+10L).build(), downloadType);
+            content = result.getRight();
+            Assertions.assertEquals(blobBytes.length, content.length);
+            Assertions.assertArrayEquals(blobBytes, content);
+
+            // Ask for everything but the first length+10 bytes (this should fail)
+            boolean hasError = false;
+            try{
+                readContent(bucketClient, requestBuilder.withRange(blobBytes.length+10L, null).build(), downloadType);
+            }
+            catch (SubstrateSdkException e) {
+                hasError = true;
+            }
+            Assertions.assertTrue(hasError);
+        } finally {
+            // Delete our blob to clean up the test
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    /**
+     * Helper function for downloading content using the overloaded download() types
+     */
+    private Pair<DownloadResponse, byte[]> readContent(BucketClient bucketClient, DownloadRequest request, DownloadType downloadType) throws IOException {
+        byte[] content = null;
+        DownloadResponse response = null;
+        switch (downloadType) {
+            case InputStream:
+                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                    response = bucketClient.download(request, outputStream);
+                    content = outputStream.toByteArray();
+                }
+                break;
+            case ByteArray:
+                ByteArray byteArray = new ByteArray();
+                response = bucketClient.download(request, byteArray);
+                content = byteArray.getBytes();
+                break;
+            case File:
+                Path path = Files.createTempFile("tempFile", ".txt");
+                File file = path.toFile();
+                file.delete();
+                response = bucketClient.download(request, file);
+                content = Files.readAllBytes(path);
+                break;
+            case Path:
+                Path path2 = Files.createTempFile("tempPath", ".txt");
+                path2.toFile().delete();
+                response = bucketClient.download(request, path2);
+                content = Files.readAllBytes(path2);
+                break;
+        }
+        return new ImmutablePair<>(response, content);
     }
 
     // Note: This tests delete for non-versioned buckets

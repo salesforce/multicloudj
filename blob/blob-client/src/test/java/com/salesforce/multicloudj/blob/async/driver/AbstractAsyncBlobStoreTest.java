@@ -85,6 +85,7 @@ public class AbstractAsyncBlobStoreTest {
         UploadRequest request = getTestUploadRequest();
         mockBlobStore.upload(request, inputStream);
 
+        verify(validator, times(1)).validate(any(UploadRequest.class));
         verify(validator, times(1)).validateKey(any());
         ArgumentCaptor<UploadRequest> requestCaptor = ArgumentCaptor.forClass(UploadRequest.class);
         ArgumentCaptor<InputStream> contentCaptor = ArgumentCaptor.forClass(InputStream.class);
@@ -103,6 +104,7 @@ public class AbstractAsyncBlobStoreTest {
         UploadRequest request = getTestUploadRequest();
         mockBlobStore.upload(request, content);
 
+        verify(validator, times(1)).validate(any(UploadRequest.class));
         verify(validator, times(1)).validateKey(any());
         ArgumentCaptor<UploadRequest> requestCaptor = ArgumentCaptor.forClass(UploadRequest.class);
         ArgumentCaptor<byte[]> contentCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -121,6 +123,7 @@ public class AbstractAsyncBlobStoreTest {
         UploadRequest request = getTestUploadRequest();
         mockBlobStore.upload(request, file);
 
+        verify(validator, times(1)).validate(any(UploadRequest.class));
         verify(validator, times(1)).validateKey(any());
         ArgumentCaptor<UploadRequest> requestCaptor = ArgumentCaptor.forClass(UploadRequest.class);
         ArgumentCaptor<File> contentCaptor = ArgumentCaptor.forClass(File.class);
@@ -140,6 +143,7 @@ public class AbstractAsyncBlobStoreTest {
         Path path = file.toPath();
         mockBlobStore.upload(request, path);
 
+        verify(validator, times(1)).validate(any(UploadRequest.class));
         verify(validator, times(1)).validateKey(any());
         ArgumentCaptor<UploadRequest> requestCaptor = ArgumentCaptor.forClass(UploadRequest.class);
         ArgumentCaptor<Path> contentCaptor = ArgumentCaptor.forClass(Path.class);
@@ -169,7 +173,9 @@ public class AbstractAsyncBlobStoreTest {
         DownloadRequest request = getTestDownloadRequest();
         mockBlobStore.download(request, outputStream);
 
+        verify(validator, times(1)).validate(any(DownloadRequest.class));
         verify(validator, times(1)).validateKey(any());
+        verify(validator, times(1)).validateRange(any(), any());
         ArgumentCaptor<DownloadRequest> requestCaptor = ArgumentCaptor.forClass(DownloadRequest.class);
         ArgumentCaptor<OutputStream> contentCaptor = ArgumentCaptor.forClass(OutputStream.class);
         verify(mockBlobStore, times(1)).doDownload(requestCaptor.capture(), contentCaptor.capture());
@@ -186,7 +192,9 @@ public class AbstractAsyncBlobStoreTest {
         DownloadRequest request = getTestDownloadRequest();
         mockBlobStore.download(request, byteArray);
 
+        verify(validator, times(1)).validate(any(DownloadRequest.class));
         verify(validator, times(1)).validateKey(any());
+        verify(validator, times(1)).validateRange(any(), any());
         ArgumentCaptor<DownloadRequest> requestCaptor = ArgumentCaptor.forClass(DownloadRequest.class);
         ArgumentCaptor<ByteArray> contentCaptor = ArgumentCaptor.forClass(ByteArray.class);
         verify(mockBlobStore, times(1)).doDownload(requestCaptor.capture(), contentCaptor.capture());
@@ -203,7 +211,9 @@ public class AbstractAsyncBlobStoreTest {
         DownloadRequest request = getTestDownloadRequest();
         mockBlobStore.download(request, file);
 
+        verify(validator, times(1)).validate(any(DownloadRequest.class));
         verify(validator, times(1)).validateKey(any());
+        verify(validator, times(1)).validateRange(any(), any());
         ArgumentCaptor<DownloadRequest> requestCaptor = ArgumentCaptor.forClass(DownloadRequest.class);
         ArgumentCaptor<File> contentCaptor = ArgumentCaptor.forClass(File.class);
         verify(mockBlobStore, times(1)).doDownload(requestCaptor.capture(), contentCaptor.capture());
@@ -220,7 +230,9 @@ public class AbstractAsyncBlobStoreTest {
         DownloadRequest request = getTestDownloadRequest();
         mockBlobStore.download(request, path);
 
+        verify(validator, times(1)).validate(any(DownloadRequest.class));
         verify(validator, times(1)).validateKey(any());
+        verify(validator, times(1)).validateRange(any(), any());
         ArgumentCaptor<DownloadRequest> requestCaptor = ArgumentCaptor.forClass(DownloadRequest.class);
         ArgumentCaptor<Path> contentCaptor = ArgumentCaptor.forClass(Path.class);
         verify(mockBlobStore, times(1)).doDownload(requestCaptor.capture(), contentCaptor.capture());

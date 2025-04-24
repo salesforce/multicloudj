@@ -76,6 +76,9 @@ public class BucketClientTest {
                 .withCredentialsOverrider(credsOverrider)
                 .withEndpoint(URI.create("https://blob.endpoint.com"))
                 .withProxyEndpoint(URI.create("https://proxy.endpoint.com"))
+                .withMaxConnections(100)
+                .withSocketTimeout(Duration.ofSeconds(60))
+                .withIdleConnectionTimeout(Duration.ofMinutes(10))
                 .build();
     }
 

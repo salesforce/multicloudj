@@ -114,12 +114,26 @@ public class AwsTransformer {
     }
 
     public GetObjectRequest toRequest(DownloadRequest request) {
-        return GetObjectRequest
+        var builder = GetObjectRequest
                 .builder()
                 .bucket(getBucket())
                 .key(request.getKey())
-                .versionId(request.getVersionId())
-                .build();
+                .versionId(request.getVersionId());
+
+        if(request.getStart() != null || request.getEnd() != null) {
+            builder.range(createRangeString(request.getStart(), request.getEnd()));
+        }
+        return builder.build();
+    }
+
+    /**
+     * Reading the first 500 bytes            - createRangeString(0, 500)    -   "bytes=0-500"
+     * Reading a middle 500 bytes             - createRangeString(123, 623)  -   "bytes=123-623"
+     * Reading the last 500 bytes             - createRangeString(null, 500) -   "bytes=-500"
+     * Reading everything but first 500 bytes - createRangeString(500, null) -   "bytes=500-"
+     */
+    protected String createRangeString(Long start, Long end) {
+        return "bytes=" + (start==null ? "" : start) + "-" + (end==null ? "" : end);
     }
 
     public DownloadResponse toDownloadResponse(DownloadRequest downloadRequest, GetObjectResponse response) {

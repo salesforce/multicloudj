@@ -93,6 +93,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -130,9 +131,13 @@ public class AwsBlobStoreTest {
 
         aws = new AwsBlobStore.Builder().withTransformerSupplier(transformerSupplier)
                 .withCredentialsOverrider(credsOverrider)
-                .withBucket("bucket-1").withRegion("us-east-2")
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
                 .withEndpoint(URI.create("https://blob.endpoint.com"))
                 .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
+                .withSocketTimeout(Duration.ofMinutes(1))
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withMaxConnections(100)
                 .build();
         credsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("some-role").build();
         aws = new AwsBlobStore.Builder().withTransformerSupplier(transformerSupplier)
@@ -150,6 +155,38 @@ public class AwsBlobStoreTest {
     @Test
     void testProviderId() {
         assertEquals("aws", aws.getProviderId());
+    }
+
+    @Test
+    void testShouldConfigureHttpClient() {
+        var builderWithProxy = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"));
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithProxy));
+
+        var builderWithMaxConnections = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withMaxConnections(10);
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithMaxConnections));
+
+        var builderWithSocketTimeout = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withSocketTimeout(Duration.ofSeconds(10));
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithSocketTimeout));
+
+        var builderWithIdleConnectionTimeout = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withIdleConnectionTimeout(Duration.ofSeconds(10));
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithIdleConnectionTimeout));
+
+        var builderWithNoOverrides = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2");
+        assertFalse(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithNoOverrides));
     }
 
     @Test
@@ -244,7 +281,7 @@ public class AwsBlobStoreTest {
     }
 
     private DownloadRequest buildTestDownloadRequest() {
-        return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").build();
+        return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").withRange(10L, 110L).build();
     }
 
     private void setupMockGetObjectResponse(Instant now) {
@@ -305,6 +342,7 @@ public class AwsBlobStoreTest {
         assertEquals("bucket-1", actualGetObjectRequest.bucket());
         assertEquals("object-1", actualGetObjectRequest.key());
         assertEquals("version-1", actualGetObjectRequest.versionId());
+        assertEquals("bytes=10-110", actualGetObjectRequest.range());
 
         // Verify the response data is properly mapped into the DownloadResponse object
         assertEquals("object-1", response.getKey());

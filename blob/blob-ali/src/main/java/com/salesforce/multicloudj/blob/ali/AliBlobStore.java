@@ -55,6 +55,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -90,7 +92,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         if (builder.getEndpoint() != null) {
             endpoint = builder.getEndpoint().getHost();
         }
-        OSSClientBuilder.OSSClientBuilderImpl impl = OSSClientBuilder.create().endpoint(endpoint);
+        OSSClientBuilder.OSSClientBuilderImpl impl = OSSClientBuilder.create().region(region).endpoint(endpoint);
         ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
         clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
         if (builder.getProxyEndpoint() != null) {
@@ -98,6 +100,16 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
             clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
             clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
         }
+        if(builder.getMaxConnections() != null) {
+            clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
+        }
+        if(builder.getSocketTimeout() != null) {
+            clientBuilderConfiguration.setSocketTimeout((int)builder.getSocketTimeout().toMillis());
+        }
+        if(builder.getIdleConnectionTimeout() != null) {
+            clientBuilderConfiguration.setIdleConnectionTime((int)builder.getIdleConnectionTimeout().toMillis());
+        }
+
         CredentialsProvider credentialsProvider = OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region);
         if (credentialsProvider != null) {
             impl.credentialsProvider(credentialsProvider);
@@ -214,7 +226,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, OutputStream outputStream) {
-        GetObjectRequest request = new GetObjectRequest(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
+        GetObjectRequest request = buildGetObjectRequest(downloadRequest);
         try (OSSObject ossObject = ossClient.getObject(request)) {
             InputStream downloadedInputstream = ossObject.getObjectContent();
             copyStream(downloadedInputstream, outputStream);
@@ -233,6 +245,16 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         } catch (IOException e) {
             throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
         }
+    }
+
+    /**
+     * Reading the first 500 bytes            - computeRange(0, 500)    -   (0, 500)
+     * Reading a middle 500 bytes             - computeRange(123, 623)  -   (123, 623)
+     * Reading the last 500 bytes             - computeRange(null, 500) -   (-1, 500)
+     * Reading everything but first 500 bytes - computeRange(500, null) -   (500, -1)
+     */
+    protected Pair<Long, Long> computeRange(Long start, Long end) {
+        return new ImmutablePair<>(start==null ? -1 : start, end==null ? -1 : end);
     }
 
     /**
@@ -271,7 +293,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-        GetObjectRequest request = new GetObjectRequest(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
+        GetObjectRequest request = buildGetObjectRequest(downloadRequest);
         try (OSSObject ossObject = ossClient.getObject(request)) {
             InputStream downloadedInputstream = ossObject.getObjectContent();
             Files.copy(downloadedInputstream, path);
@@ -290,6 +312,15 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         } catch (IOException e) {
             throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
         }
+    }
+
+    private GetObjectRequest buildGetObjectRequest(DownloadRequest downloadRequest) {
+        GetObjectRequest request = new GetObjectRequest(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
+        if(downloadRequest.getStart() != null || downloadRequest.getEnd() != null) {
+            Pair<Long, Long> range = computeRange(downloadRequest.getStart(), downloadRequest.getEnd());
+            request.withRange(range.getLeft(), range.getRight());
+        }
+        return request;
     }
 
     private void copyStream(InputStream in, OutputStream out) {
@@ -455,7 +486,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
 
         return partListing.getParts().stream()
                 .sorted(Comparator.comparingInt(PartSummary::getPartNumber))
-                .map((part) -> new com.salesforce.multicloudj.blob.driver.UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
+                .map((part) -> new UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
                 .collect(Collectors.toList());
     }
 

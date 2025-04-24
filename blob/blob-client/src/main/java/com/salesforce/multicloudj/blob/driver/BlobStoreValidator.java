@@ -26,6 +26,10 @@ public class BlobStoreValidator {
     static final String INVALID_ENDPOINT_PORT_MSG = "Endpoint must have a non-zero positive value for the port number. value=%s";
     static final String INVALID_ENDPOINT_NO_PATH_ALLOWED_MSG = "Endpoint must not have a path specified. value=%s";
     static final String INVALID_ENDPOINT_NO_QUERY_PARAMS_ALLOWED_MSG = "Endpoint must not have query params specified. value=%s";
+    static final String INVALID_MAX_CONNECTIONS_MSG = "Maximum connections must be a positive value. value=%s";
+    static final String INVALID_SOCKET_TIMEOUT_MSG = "Socket timeout must be a non-negative value if specified. Duration was '%s'";
+    static final String INVALID_RANGED_READ_NEGATIVE_BOUNDARIES_MSG = "Ranged read boundaries cannot be negative. start=%s end=%s";
+    static final String INVALID_RANGED_READ_BOUNDARIES_MSG = "Ranged read start cannot be larger than end. start=%s end=%s";
 
     /**
      * Inspects the input string and throws an IllegalArgumentException if the input is `null`, empty, or blank.
@@ -148,6 +152,7 @@ public class BlobStoreValidator {
      */
     public void validate(DownloadRequest request) {
         validateKey(request.getKey());
+        validateRange(request.getStart(), request.getEnd());
     }
 
     /**
@@ -230,6 +235,27 @@ public class BlobStoreValidator {
         }
         if(endpoint.getQuery() != null) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_NO_QUERY_PARAMS_ALLOWED_MSG, endpoint.getQuery()));
+        }
+    }
+
+    public void validateMaxConnections(Integer maxConnections) {
+        if(maxConnections == null || maxConnections <= 0) {
+            throw new IllegalArgumentException(String.format(INVALID_MAX_CONNECTIONS_MSG, maxConnections));
+        }
+    }
+
+    public void validateSocketTimeout(Duration socketTimeout) {
+        if(socketTimeout == null || socketTimeout.isNegative()) {
+            throw new IllegalArgumentException(String.format(INVALID_SOCKET_TIMEOUT_MSG, socketTimeout));
+        }
+    }
+
+    public void validateRange(Long start, Long end) {
+        if ((start != null && start < 0) || (end != null && end < 0)) {
+            throw new IllegalArgumentException(String.format(INVALID_RANGED_READ_NEGATIVE_BOUNDARIES_MSG, start, end));
+        }
+        if (start != null && end != null && end < start) {
+            throw new IllegalArgumentException(String.format(INVALID_RANGED_READ_BOUNDARIES_MSG, start, end));
         }
     }
 }

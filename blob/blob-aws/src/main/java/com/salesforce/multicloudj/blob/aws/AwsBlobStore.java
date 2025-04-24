@@ -105,16 +105,36 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
         if (builder.getEndpoint() != null) {
             b.endpointOverride(builder.getEndpoint());
         }
-        if (builder.getProxyEndpoint() != null) {
-            ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
-                    .endpoint(builder.getProxyEndpoint())
-                    .build();
-            b.httpClient(ApacheHttpClient.builder()
-                    .proxyConfiguration(proxyConfig)
-                    .build());
+        if(shouldConfigureHttpClient(builder)) {
+            ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
+            if (builder.getProxyEndpoint() != null) {
+                httpClientBuilder.proxyConfiguration(ProxyConfiguration.builder()
+                        .endpoint(builder.getProxyEndpoint())
+                        .build());
+            }
+            if(builder.getMaxConnections() != null) {
+                httpClientBuilder.maxConnections(builder.getMaxConnections());
+            }
+            if(builder.getSocketTimeout() != null) {
+                httpClientBuilder.socketTimeout(builder.getSocketTimeout());
+            }
+            if(builder.getIdleConnectionTimeout() != null) {
+                httpClientBuilder.connectionMaxIdleTime(builder.getIdleConnectionTimeout());
+            }
+            b.httpClient(httpClientBuilder.build());
         }
 
         return b.build();
+    }
+
+    /**
+     * Helper function to determine if any of the HttpClient configuration options have been set
+     */
+    protected static boolean shouldConfigureHttpClient(Builder builder) {
+        return builder.getProxyEndpoint() != null
+                || builder.getMaxConnections() != null
+                || builder.getSocketTimeout() != null
+                || builder.getIdleConnectionTimeout() != null;
     }
 
     @Override

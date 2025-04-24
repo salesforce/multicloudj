@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Properties;
 
 /**
@@ -68,6 +69,38 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
      */
     public BlobClientBuilder<C, S> withProxyEndpoint(URI proxyEndpoint) {
         this.storeBuilder.withProxyEndpoint(proxyEndpoint);
+        return this;
+    }
+
+    /**
+     * Method to supply a maximum connection count. Value must be a positive integer if specified.
+     * @param maxConnections The maximum number of connections allowed in the connection pool
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxConnections(Integer maxConnections) {
+        this.storeBuilder.withMaxConnections(maxConnections);
+        return this;
+    }
+
+    /**
+     * Method to supply a socket timeout
+     * @param socketTimeout The amount of time to wait for data to be transferred over an established, open connection
+     *                      before the connection is timed out. A duration of 0 means infinity, and is not recommended.
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withSocketTimeout(Duration socketTimeout) {
+        this.storeBuilder.withSocketTimeout(socketTimeout);
+        return this;
+    }
+
+    /**
+     * Method to supply an idle connection timeout
+     * @param idleConnectionTimeout The maximum amount of time that a connection should be allowed to remain open while idle.
+     *                              Value must be a positive duration.
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withIdleConnectionTimeout(Duration idleConnectionTimeout) {
+        this.storeBuilder.withIdleConnectionTimeout(idleConnectionTimeout);
         return this;
     }
 

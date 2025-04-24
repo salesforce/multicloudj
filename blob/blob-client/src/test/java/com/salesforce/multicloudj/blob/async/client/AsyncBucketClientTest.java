@@ -98,6 +98,9 @@ public class AsyncBucketClientTest {
                 .withCredentialsOverrider(credsOverrider)
                 .withEndpoint(URI.create("https://blob.endpoint.com"))
                 .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
+                .withMaxConnections(100)
+                .withSocketTimeout(Duration.ofSeconds(60))
+                .withIdleConnectionTimeout(Duration.ofMinutes(10))
                 .withProperties(properties)
                 .build();
     }

@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -60,6 +61,7 @@ public class BucketClient {
      * @param uploadRequest Wrapper, containing upload data
      * @param inputStream The input stream that contains the blob content
      * @return Returns an UploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public UploadResponse upload(UploadRequest uploadRequest, InputStream inputStream) {
         try {
@@ -77,6 +79,7 @@ public class BucketClient {
      * @param uploadRequest Wrapper, containing upload data
      * @param content The byte array that contains the blob content
      * @return Returns an UploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public UploadResponse upload(UploadRequest uploadRequest, byte[] content) {
         try {
@@ -94,6 +97,7 @@ public class BucketClient {
      * @param uploadRequest Wrapper, containing upload data
      * @param file The File that contains the blob content
      * @return Returns an UploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public UploadResponse upload(UploadRequest uploadRequest, File file) {
         try {
@@ -111,6 +115,7 @@ public class BucketClient {
      * @param uploadRequest Wrapper, containing upload data
      * @param path The Path that contains the blob content
      * @return Returns an UploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public UploadResponse upload(UploadRequest uploadRequest, Path path) {
         try {
@@ -128,6 +133,7 @@ public class BucketClient {
      * @param downloadRequest downloadRequest Wrapper, containing download data
      * @param outputStream The output stream that the blob content will be written to
      * @return Returns a DownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public DownloadResponse download(DownloadRequest downloadRequest, OutputStream outputStream) {
         try {
@@ -145,6 +151,7 @@ public class BucketClient {
      * @param downloadRequest downloadRequest Wrapper, containing download data
      * @param byteArray The byte array that blob content will be written to
      * @return Returns a DownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public DownloadResponse download(DownloadRequest downloadRequest, ByteArray byteArray) {
         try {
@@ -158,11 +165,11 @@ public class BucketClient {
 
     /**
      * Downloads the Blob content from substrate-specific Blob storage.
-     * Throws an exception if the file already exists.
      *
      * @param downloadRequest downloadRequest Wrapper, containing download data
      * @param file The File the blob content will be written to
      * @return Returns a DownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file already exists.
      */
     public DownloadResponse download(DownloadRequest downloadRequest, File file) {
         try {
@@ -176,11 +183,11 @@ public class BucketClient {
 
     /**
      * Downloads the Blob content from substrate-specific Blob storage.
-     * Throws an exception if a file already exists at the path location.
      *
      * @param downloadRequest downloadRequest Wrapper, containing download data
      * @param path The Path that blob content will be written to
      * @return Returns a DownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if a file already exists at the path location.
      */
     public DownloadResponse download(DownloadRequest downloadRequest, Path path) {
         try {
@@ -193,11 +200,12 @@ public class BucketClient {
     }
 
     /**
-     * Deletes a single blob from substrate-specific Blob storage
+     * Deletes a single blob from substrate-specific Blob storage.
      *
      * @param key Object name of the Blob
      * @param versionId The versionId of the blob. This field is optional and should be null
      *                  unless you're targeting the deletion of a specific key/version blob.
+     * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if the blob does not exist.
      */
     public void delete(String key, String versionId) {
         try {
@@ -212,6 +220,7 @@ public class BucketClient {
      * Deletes a collection of Blobs from a substrate-specific Blob storage.
      *
      * @param objects A collection of blob identifiers to delete
+     * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a blob in the list does not exist.
      */
     public void delete(Collection<BlobIdentifier> objects) {
         try {
@@ -227,6 +236,7 @@ public class BucketClient {
      *
      * @param request copy request wrapper. Contains the information necessary to perform a copy
      * @return CopyResponse of the copied Blob
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public CopyResponse copy(CopyRequest request) {
         try {
@@ -246,6 +256,7 @@ public class BucketClient {
      *                  has versioning enabled. This value should be null unless you're targeting a
      *                  specific key/version blob.
      * @return Metadata of the Blob
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob does not exist.
      */
     public BlobMetadata getMetadata(String key, String versionId) {
         try {
@@ -261,6 +272,7 @@ public class BucketClient {
      * Retrieves the list of Blob in the bucket
      *
      * @return Iterator object of the Blobs
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public Iterator<BlobInfo> list(ListBlobsRequest request) {
         try {
@@ -276,6 +288,7 @@ public class BucketClient {
      * Initiates a multipartUpload for a Blob
      *
      * @param request Contains information about the blob to upload
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
         try {
@@ -292,6 +305,7 @@ public class BucketClient {
      *
      * @param mpu The multipartUpload to use
      * @param mpp The multipartPart data
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public UploadPartResponse uploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
         try {
@@ -308,6 +322,7 @@ public class BucketClient {
      *
      * @param mpu The multipartUpload to use
      * @param parts A list of the parts contained in the multipartUpload
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public MultipartUploadResponse completeMultipartUpload(MultipartUpload mpu, List<UploadPartResponse> parts) {
         try {
@@ -323,6 +338,7 @@ public class BucketClient {
      * Returns a list of all uploaded parts for the given MultipartUpload
      *
      * @param mpu The multipartUpload to query against
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public List<UploadPartResponse> listMultipartUpload(MultipartUpload mpu) {
         try {
@@ -337,6 +353,7 @@ public class BucketClient {
     /**
      * Aborts a multipartUpload
      * @param mpu The multipartUpload to abort
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public void abortMultipartUpload(MultipartUpload mpu) {
         try {
@@ -348,9 +365,10 @@ public class BucketClient {
     }
 
     /**
-     * Returns a map of all the tags associated with the blob
+     * Returns a map of all the tags associated with the blob.
      * @param key Name of the blob whose tags are to be retrieved
      * @return The blob's tags
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob does not exist.
      */
     public Map<String, String> getTags(String key) {
         try {
@@ -363,9 +381,10 @@ public class BucketClient {
     }
 
     /**
-     * Sets tags on a blob
+     * Sets tags on a blob.
      * @param key Name of the blob to set tags on
      * @param tags The tags to set
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob does not exist.
      */
     public void setTags(String key, Map<String, String> tags) {
         try {
@@ -380,6 +399,7 @@ public class BucketClient {
      * Generates a presigned URL for uploading/downloading blobs
      * @param request The presigned request
      * @return Returns the presigned URL
+     * @throws SubstrateSdkException Thrown if the operation fails
      */
     public URL generatePresignedUrl(PresignedUrlRequest request) {
         try {
@@ -436,6 +456,38 @@ public class BucketClient {
          */
         public BlobBuilder withProxyEndpoint(URI proxyEndpoint) {
             this.blobStoreBuilder.withProxyEndpoint(proxyEndpoint);
+            return this;
+        }
+
+        /**
+         * Method to supply a maximum connection count. Value must be a positive integer if specified.
+         * @param maxConnections The maximum number of connections allowed in the connection pool
+         * @return An instance of self
+         */
+        public BlobBuilder withMaxConnections(Integer maxConnections) {
+            this.blobStoreBuilder.withMaxConnections(maxConnections);
+            return this;
+        }
+
+        /**
+         * Method to supply a socket timeout
+         * @param socketTimeout The amount of time to wait for data to be transferred over an established, open connection
+         *                      before the connection is timed out. A duration of 0 means infinity, and is not recommended.
+         * @return An instance of self
+         */
+        public BlobBuilder withSocketTimeout(Duration socketTimeout) {
+            this.blobStoreBuilder.withSocketTimeout(socketTimeout);
+            return this;
+        }
+
+        /**
+         * Method to supply an idle connection timeout
+         * @param idleConnectionTimeout The maximum amount of time that a connection should be allowed to remain open while idle.
+         *                              Value must be a positive duration.
+         * @return An instance of self
+         */
+        public BlobBuilder withIdleConnectionTimeout(Duration idleConnectionTimeout) {
+            this.blobStoreBuilder.withIdleConnectionTimeout(idleConnectionTimeout);
             return this;
         }
 

@@ -1,3 +1,4 @@
+com.salesforce.multicloudj.blob
 com.salesforce.multicloudj.blob.ali
 com.salesforce.multicloudj.blob.async.client
 com.salesforce.multicloudj.blob.async.driver
@@ -11,11 +12,13 @@ com.salesforce.multicloudj.common.aws
 com.salesforce.multicloudj.common.exceptions
 com.salesforce.multicloudj.common.provider
 com.salesforce.multicloudj.common.service
+com.salesforce.multicloudj.docstore
 com.salesforce.multicloudj.docstore.ali
 com.salesforce.multicloudj.docstore.aws
 com.salesforce.multicloudj.docstore.client
 com.salesforce.multicloudj.docstore.driver
 com.salesforce.multicloudj.docstore.driver.codec
+com.salesforce.multicloudj.sts
 com.salesforce.multicloudj.sts.ali
 com.salesforce.multicloudj.sts.aws
 com.salesforce.multicloudj.sts.client

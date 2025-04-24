@@ -53,6 +53,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,7 @@ public class AliBlobStoreTest {
         OSSClientBuilder.OSSClientBuilderImpl mockBuilder = mock(OSSClientBuilder.OSSClientBuilderImpl.class);
 
         staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
         when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
         when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
         when(mockBuilder.build()).thenReturn(mockOssClient);
@@ -113,12 +115,16 @@ public class AliBlobStoreTest {
                 .withSessionCredentials(creds).build();
         ali = new AliBlobStore.Builder()
                 .withBucket("bucket-1")
+                .withRegion("cn-shanghai")
                 .withEndpoint(URI.create("https://test.example.com"))
                 .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
                 .withCredentialsOverrider(credsOverrider)
+                .withSocketTimeout(Duration.ofMinutes(1))
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withMaxConnections(100)
                 .build();
         credsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("role").build();
-        ali = new AliBlobStore.Builder().withBucket("bucket-1").withCredentialsOverrider(credsOverrider).build();
+        ali = new AliBlobStore.Builder().withBucket("bucket-1").withRegion("cn-shanghai").withCredentialsOverrider(credsOverrider).build();
     }
 
     @AfterEach
@@ -179,6 +185,25 @@ public class AliBlobStoreTest {
         verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path));
     }
 
+    @Test
+    void testComputeRange() {
+        Pair<Long, Long> result = ali.computeRange(0L, 500L);
+        assertEquals(result.getLeft(), 0);
+        assertEquals(result.getRight(), 500);
+
+        result = ali.computeRange(100L, 600L);
+        assertEquals(result.getLeft(), 100);
+        assertEquals(result.getRight(), 600);
+
+        result = ali.computeRange(null, 500L);
+        assertEquals(result.getLeft(), -1);
+        assertEquals(result.getRight(), 500);
+
+        result = ali.computeRange(500L, null);
+        assertEquals(result.getLeft(), 500);
+        assertEquals(result.getRight(), -1);
+    }
+
     void verifyUploadTestResults(UploadResponse uploadResponse) {
 
         // Verify the parameters passed into the SDK
@@ -234,6 +259,8 @@ public class AliBlobStoreTest {
         GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
         assertEquals("object-1", actualGetObjectRequest.getKey());
         assertEquals("bucket-1", actualGetObjectRequest.getBucketName());
+        assertEquals(10, actualGetObjectRequest.getRange()[0]);
+        assertEquals(110, actualGetObjectRequest.getRange()[1]);
 
         // Verify the response data is properly mapped into the DownloadResponse object
         assertEquals("object-1", response.getKey());
@@ -567,7 +594,7 @@ public class AliBlobStoreTest {
     }
 
     private DownloadRequest getTestDownloadRequest() {
-        return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").build();
+        return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").withRange(10L, 110L).build();
     }
 
     private OSSObject buildTestGetObjectResult(Instant now) {

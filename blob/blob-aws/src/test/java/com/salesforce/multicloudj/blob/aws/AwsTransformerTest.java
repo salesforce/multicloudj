@@ -170,11 +170,22 @@ public class AwsTransformerTest {
                 .builder()
                 .withKey("some/key/path.file")
                 .withVersionId("version-1")
+                .withRange(0L, 500L)
                 .build();
         var actual = transformer.toRequest(request);
         assertEquals(BUCKET, actual.bucket());
         assertEquals(request.getKey(), actual.key());
         assertEquals(request.getVersionId(), actual.versionId());
+        assertEquals(request.getStart(), 0);
+        assertEquals(request.getEnd(), 500);
+    }
+
+    @Test
+    void testCreateRangeString() {
+        assertEquals("bytes=0-500", transformer.createRangeString(0L, 500L));
+        assertEquals("bytes=100-600", transformer.createRangeString(100L, 600L));
+        assertEquals("bytes=-500", transformer.createRangeString(null, 500L));
+        assertEquals("bytes=500-", transformer.createRangeString(500L, null));
     }
 
     @Test

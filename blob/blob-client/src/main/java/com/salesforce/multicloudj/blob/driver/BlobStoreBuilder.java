@@ -3,79 +3,26 @@ package com.salesforce.multicloudj.blob.driver;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import lombok.Getter;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Properties;
 
+@Getter
 public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvider.Builder<T> {
+
     private String providerId;
     private String bucket;
     private String region;
     private URI endpoint;
     private URI proxyEndpoint;
+    private Integer maxConnections;
+    private Duration socketTimeout;
+    private Duration idleConnectionTimeout;
     private CredentialsOverrider credentialsOverrider;
     private Properties properties = new Properties();
     private BlobStoreValidator validator = new BlobStoreValidator();
-
-    /**
-     * Gets the providerId that this builder was built with.
-     * @return the id of the provider
-     */
-    public String getProviderId() {
-        return this.providerId;
-    }
-
-    /**
-     * Gets the bucket name
-     * @return The bucket name
-     */
-    public String getBucket(){
-        return this.bucket;
-    }
-
-    /**
-     * Gets the region.
-     * @return The region.
-     */
-    public String getRegion(){
-        return this.region;
-    }
-
-    /**
-     * Gets the endpoint.
-     * @return The endpoint.
-     */
-    public URI getEndpoint(){
-        return this.endpoint;
-    }
-
-    /**
-     * Gets the proxy endpoint.
-     * @return The proxy endpoint.
-     */
-    public URI getProxyEndpoint(){
-        return this.proxyEndpoint;
-    }
-
-    /**
-     * Gets the CredentialsOverrider.
-     * @return The CredentialsOverrider.
-     */
-    public CredentialsOverrider getCredentialsOverrider() {
-        return this.credentialsOverrider;
-    }
-
-    /**
-     * Gets the BlobStoreValidator used for input validation.
-     * @return the validator used for input validation.
-     */
-    public BlobStoreValidator getValidator() {
-        return this.validator;
-    }
-
-    public Properties getProperties() {
-        return this.properties;
-    }
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -121,6 +68,41 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     public BlobStoreBuilder<T> withProxyEndpoint(URI proxyEndpoint) {
         validator.validateEndpoint(proxyEndpoint, true);
         this.proxyEndpoint = proxyEndpoint;
+        return this;
+    }
+
+    /**
+     * Method to supply a maximum connection count. Value must be a positive integer if specified.
+     * @param maxConnections The maximum number of connections allowed in the connection pool
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withMaxConnections(Integer maxConnections) {
+        validator.validateMaxConnections(maxConnections);
+        this.maxConnections = maxConnections;
+        return this;
+    }
+
+    /**
+     * Method to supply a socket timeout
+     * @param socketTimeout The amount of time to wait for data to be transferred over an established, open connection
+     *                      before the connection is timed out. A duration of 0 means infinity, and is not recommended.
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withSocketTimeout(Duration socketTimeout) {
+        validator.validateSocketTimeout(socketTimeout);
+        this.socketTimeout = socketTimeout;
+        return this;
+    }
+
+    /**
+     * Method to supply an idle connection timeout
+     * @param idleConnectionTimeout The maximum amount of time that a connection should be allowed to remain open while idle.
+     *                              Value must be a positive duration.
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withIdleConnectionTimeout(Duration idleConnectionTimeout) {
+        validator.validateDuration(idleConnectionTimeout);
+        this.idleConnectionTimeout = idleConnectionTimeout;
         return this;
     }
 

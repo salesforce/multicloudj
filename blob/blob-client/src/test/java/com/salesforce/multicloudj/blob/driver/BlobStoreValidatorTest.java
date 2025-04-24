@@ -285,4 +285,41 @@ public class BlobStoreValidatorTest {
             }
         }
     }
+
+    @Test
+    void testValidateMaxConnections() {
+        validator.validateMaxConnections(10);
+        validator.validateMaxConnections(500000);
+        assertThrows(IllegalArgumentException.class, () -> validator.validateMaxConnections(0));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateMaxConnections(-1));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateMaxConnections(-100));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateDuration(Duration.ofHours(0)));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateDuration(Duration.ofHours(-10)));
+    }
+
+    @Test
+    void testValidateSocketTimeout() {
+        validator.validateSocketTimeout(Duration.ofSeconds(60));
+        validator.validateSocketTimeout(Duration.ofHours(24));
+        validator.validateSocketTimeout(Duration.ofDays(0));
+        validator.validateSocketTimeout(Duration.ofSeconds(0));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateSocketTimeout(Duration.ofHours(-1)));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateSocketTimeout(Duration.ofHours(-10)));
+    }
+
+    @Test
+    void testValidateRange() {
+        validator.validateRange(0L, 100L);
+        validator.validateRange(100L, 100L);
+        validator.validateRange(100L, 500L);
+        validator.validateRange(null, 100L);
+        validator.validateRange(100L, null);
+        validator.validateRange(null, null);
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(-1L, 100L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(0L, -100L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(-1L, null));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(null, -100L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(-100L, -100L));
+        assertThrows(IllegalArgumentException.class, () -> validator.validateRange(100L, 50L));
+    }
 }
