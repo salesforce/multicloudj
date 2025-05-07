@@ -1,6 +1,6 @@
 package com.salesforce.multicloudj.sts.model;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,12 +21,12 @@ class SignedAuthRequestTest {
     @Test
     void getRequest() {
         SignedAuthRequest signedAuthRequest = new SignedAuthRequest(request, credentials);
-        Assert.assertEquals(request, signedAuthRequest.getRequest());
+        Assertions.assertEquals(request, signedAuthRequest.getRequest());
     }
 
     @Test
     void getCredentials() {
         SignedAuthRequest signedAuthRequest = new SignedAuthRequest(request, credentials);
-        Assert.assertEquals(credentials, signedAuthRequest.getCredentials());
+        Assertions.assertEquals(credentials, signedAuthRequest.getCredentials());
     }
 }

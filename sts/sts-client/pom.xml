@@ -12,13 +12,6 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <properties>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -46,7 +39,7 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
-            <version>0.0.2-SNAPSHOT</version>
+            <version>0.1.0-SNAPSHOT</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

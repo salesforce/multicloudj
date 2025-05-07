@@ -55,6 +55,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -168,11 +169,23 @@ public class AliBlobStoreTest {
     @Test
     void testDoUploadFile() throws IOException {
         doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
-        Path path = Files.createTempFile("tempFile", ".txt");
-        try(BufferedWriter writer = Files.newBufferedWriter(path)) {
-            writer.write(new char[1024]);
+        Path path = null;
+        try {
+            path = Files.createTempFile("tempFile", ".txt");
+            try(BufferedWriter writer = Files.newBufferedWriter(path)) {
+                writer.write(new char[1024]);
+            }
+            verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path.toFile()));
+        } finally {
+            // Clean up temp file even if test fails
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    Assertions.fail(e);
+                }
+            }
         }
-        verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path.toFile()));
     }
 
     @Test
@@ -241,14 +254,38 @@ public class AliBlobStoreTest {
     void testDoDownloadFile() {
         Instant now = Instant.now();
         doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
-        verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), Path.of("tempFile.txt").toFile()), now);
+        Path path = Path.of("tempFile.txt");
+        try {
+            Files.deleteIfExists(path);
+            verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), path.toFile()), now);
+        } catch (IOException e) {
+            Assertions.fail(e);
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail(e);
+            }
+        }
     }
 
     @Test
     void testDoDownloadPath() {
         Instant now = Instant.now();
         doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
-        verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), Path.of("tempPath.txt")), now);
+        Path path = Path.of("tempPath.txt");
+        try {
+            Files.deleteIfExists(path);
+            verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), path), now);
+        } catch (IOException e) {
+            Assertions.fail(e);
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail(e);
+            }
+        }
     }
 
     void verifyDownloadTestResults(DownloadResponse response, Instant now) {

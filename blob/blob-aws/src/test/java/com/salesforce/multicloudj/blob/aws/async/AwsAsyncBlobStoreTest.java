@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -251,21 +252,45 @@ public class AwsAsyncBlobStoreTest {
     @Test
     void testDoUploadFile() throws ExecutionException, InterruptedException, IOException {
         doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse())).when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
-        Path path = Files.createTempFile("tempFile", ".txt");
-        try(BufferedWriter writer = Files.newBufferedWriter(path)) {
-            writer.write(new char[1024]);
+        Path path = null;
+        try {
+            path = Files.createTempFile("tempFile", ".txt");
+            try(BufferedWriter writer = Files.newBufferedWriter(path)) {
+                writer.write(new char[1024]);
+            }
+            verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), path.toFile()).get());
+        } finally {
+            // Clean up temp file even if test fails
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    Assertions.fail();
+                }
+            }
         }
-        verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), path.toFile()).get());
     }
 
     @Test
     void testDoUploadPath() throws ExecutionException, InterruptedException, IOException {
         doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse())).when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
-        Path path = Files.createTempFile("tempFile", ".txt");
-        try(BufferedWriter writer = Files.newBufferedWriter(path)) {
-            writer.write(new char[1024]);
+        Path path = null;
+        try {
+            path = Files.createTempFile("tempFile", ".txt");
+            try(BufferedWriter writer = Files.newBufferedWriter(path)) {
+                writer.write(new char[1024]);
+            }
+            verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), path).get());
+        } finally {
+            // Clean up temp file even if test fails
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    Assertions.fail();
+                }
+            }
         }
-        verifyUploadTestResults(aws.doUpload(generateTestUploadRequest(), path).get());
     }
 
     void verifyUploadTestResults(UploadResponse uploadResponse) {
@@ -343,22 +368,40 @@ public class AwsAsyncBlobStoreTest {
     void testDoDownloadFile() throws ExecutionException, InterruptedException, IOException {
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
-        DownloadResponse response = aws.doDownload(generateTestDownloadRequest(), mock(File.class)).get();
-
-        ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
-        verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(AsyncResponseTransformer.class));
-        verifyDownloadTestResults(response, getObjectRequestCaptor, now);
+        Path path = Path.of("tempFile.txt");
+        try {
+            Files.deleteIfExists(path);
+            DownloadResponse response = aws.doDownload(generateTestDownloadRequest(), path.toFile()).get();
+            ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(AsyncResponseTransformer.class));
+            verifyDownloadTestResults(response, getObjectRequestCaptor, now);
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail();
+            }
+        }
     }
 
     @Test
     void testDoDownloadPath() throws ExecutionException, InterruptedException, IOException {
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
-        DownloadResponse response = aws.doDownload(generateTestDownloadRequest(), mock(Path.class)).get();
-
-        ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
-        verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(Path.class));
-        verifyDownloadTestResults(response, getObjectRequestCaptor, now);
+        Path path = Path.of("tempPath.txt");
+        try {
+            Files.deleteIfExists(path);
+            DownloadResponse response = aws.doDownload(generateTestDownloadRequest(), path).get();
+            ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(Path.class));
+            verifyDownloadTestResults(response, getObjectRequestCaptor, now);
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail();
+            }
+        }
     }
 
     void verifyDownloadTestResults(DownloadResponse response, ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor, Instant now) {

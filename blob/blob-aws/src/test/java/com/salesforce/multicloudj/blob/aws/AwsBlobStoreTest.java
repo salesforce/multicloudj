@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -242,21 +243,45 @@ public class AwsBlobStoreTest {
     @Test
     void testDoUploadFile() throws IOException {
         doReturn(buildMockPutObjectResponse()).when(mockS3Client).putObject((PutObjectRequest) any(), (RequestBody) any());
-        Path path = Files.createTempFile("tempFile", ".txt");
-        try(BufferedWriter writer = Files.newBufferedWriter(path)) {
-            writer.write(new char[1024]);
+        Path path = null;
+        try {
+            path = Files.createTempFile("tempFile", ".txt");
+            try(BufferedWriter writer = Files.newBufferedWriter(path)) {
+                writer.write(new char[1024]);
+            }
+            verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), path.toFile()));
+        } finally {
+            // Clean up temp file even if test fails
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    Assertions.fail();
+                }
+            }
         }
-        verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), path.toFile()));
     }
 
     @Test
     void testDoUploadPath() throws IOException {
         doReturn(buildMockPutObjectResponse()).when(mockS3Client).putObject((PutObjectRequest) any(), (RequestBody) any());
-        Path path = Files.createTempFile("tempFile", ".txt");
-        try(BufferedWriter writer = Files.newBufferedWriter(path)) {
-            writer.write(new char[1024]);
+        Path path = null;
+        try {
+            path = Files.createTempFile("tempFile", ".txt");
+            try(BufferedWriter writer = Files.newBufferedWriter(path)) {
+                writer.write(new char[1024]);
+            }
+            verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), path));
+        } finally {
+            // Clean up temp file even if test fails
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    Assertions.fail();
+                }
+            }
         }
-        verifyUploadTestResults(aws.doUpload(buildTestUploadRequest(), path));
     }
 
     void verifyUploadTestResults(UploadResponse uploadResponse) {
@@ -320,18 +345,40 @@ public class AwsBlobStoreTest {
 
     @Test
     void testDoDownloadFile() {
-        Path path = Path.of("tempFile.txt");
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
-        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now);
+        Path path = Path.of("tempFile.txt");
+        try {
+            Files.deleteIfExists(path);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now);
+        } catch (IOException e) {
+            Assertions.fail();
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail();
+            }
+        }
     }
 
     @Test
     void testDoDownloadPath() {
-        Path path = Path.of("tempPath.txt");
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
-        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now);
+        Path path = Path.of("tempPath.txt");
+        try {
+            Files.deleteIfExists(path);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now);
+        } catch (IOException e) {
+            Assertions.fail();
+        } finally {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException e) {
+                Assertions.fail();
+            }
+        }
     }
 
     void verifyDownloadTestResults(DownloadResponse response, Instant now) {

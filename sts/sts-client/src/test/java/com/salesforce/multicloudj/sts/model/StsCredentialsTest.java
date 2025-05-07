@@ -1,20 +1,20 @@
 package com.salesforce.multicloudj.sts.model;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-public class StsCredentialsTest {
+class StsCredentialsTest {
 
     @Test
-    public void stsCredentials() {
+    void stsCredentials() {
         String accessKeyId = "testKeyId";
         String secretAccessKey = "testSecretKey";
         String token = "testToken";
 
         StsCredentials credentials = new StsCredentials(accessKeyId, secretAccessKey, token);
-        Assert.assertEquals("AccessKey Id doesn't match", accessKeyId, credentials.getAccessKeyId());
-        Assert.assertEquals("Secret Key doesn't match", secretAccessKey, credentials.getAccessKeySecret());
-        Assert.assertEquals("Token doesn't match", token, credentials.getSecurityToken());
+        Assertions.assertEquals(accessKeyId, credentials.getAccessKeyId(), "AccessKey Id doesn't match");
+        Assertions.assertEquals(secretAccessKey, credentials.getAccessKeySecret(), "Secret Key doesn't match");
+        Assertions.assertEquals(token, credentials.getSecurityToken(), "Token doesn't match");
     }
 }
