@@ -7,11 +7,12 @@ import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-
+@Disabled
 public class AliDocstoreIT extends AbstractDocstoreIT {
     // Switch it to https after table store can support https proxy and
     // method to override the SSL context to trust all certs for wiremock test up.

@@ -60,7 +60,7 @@ public abstract class AbstractStsIT {
     public void initializeWireMockServer() {
         harness = createHarness();
         TestsUtil.startWireMockServer(
-                String.format("projects/libs/chameleon/multicloudj/sts/sts-%s/src/test/resources", harness.getProviderId()), harness.getPort(), harness.getWiremockExtensions().toArray(new String[0]));
+                "src/test/resources", harness.getPort(), harness.getWiremockExtensions().toArray(new String[0]));
     }
 
     /**
