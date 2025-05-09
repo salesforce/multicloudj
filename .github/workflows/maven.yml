@@ -26,9 +26,6 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    - name: Download dependencies
-      run: mvn -B dependency:go-offline
-    
     - name: Build and verify with Maven
       run: mvn -B -T 1 verify
       
