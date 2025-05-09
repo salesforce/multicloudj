@@ -30,7 +30,6 @@ import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;

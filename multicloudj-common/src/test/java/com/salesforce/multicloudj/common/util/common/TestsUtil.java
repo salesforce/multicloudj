@@ -72,7 +72,7 @@ public class TestsUtil {
         wireMockServer = new WireMockServer(WireMockConfiguration.options()
                 .httpsPort(port)
                 .port(port+1) // http port
-                .keystorePath("projects/libs/chameleon/multicloudj/multicloudj-common/src/test/resources/wiremock-keystore.jks")
+                .keystorePath("wiremock-keystore.jks")
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)

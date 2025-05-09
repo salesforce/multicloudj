@@ -71,8 +71,7 @@ public abstract class AbstractDocstoreIT {
         Random random = new Random(12345L);
         Util.setUuidSupplier(() -> new UUID(random.nextLong(), random.nextLong()).toString());
         harness = createHarness();
-        String path = String.format("projects/libs/chameleon/multicloudj/docstore/docstore-%s/src/test/resources", harness.getProviderId());
-        TestsUtil.startWireMockServer(path, harness.getPort());
+        TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
 
     /**
