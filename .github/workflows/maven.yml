@@ -1,0 +1,36 @@
+name: Java CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11, 17]
+
+    steps:
+      # 1. Check out your repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Set up the JDK from the matrix
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin     # or “zulu”/“adopt” etc.
+          java-version: ${{ matrix.java-version }}
+          cache: maven             # automatic ~/.m2 caching
+
+      # 3. Verify Java version
+      - name: Verify Java version
+        run: java -version
+
+      # 4. Run Maven Verify
+      - name: Build & verify with Maven
+        run: mvn --batch-mode verify
