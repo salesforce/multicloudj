@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Add necessary permissions for commenting on PRs
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   build:
     name: Java 11 Build with Coverage
