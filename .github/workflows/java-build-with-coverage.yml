@@ -1,0 +1,59 @@
+name: Java Build with Coverage
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        java: [11, 17, 21]
+    
+    name: Java ${{ matrix.java }} Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better code coverage accuracy
+      
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Build with Maven
+      run: mvn -B clean test
+      
+    - name: Generate JaCoCo Coverage Report
+      if: matrix.java == '11'  # Only generate coverage from one Java version
+      run: |
+        mvn -B org.jacoco:jacoco-maven-plugin:0.8.7:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.7:report
+      
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-java-${{ matrix.java }}
+        path: target/surefire-reports
+        
+    - name: Upload Coverage Reports (Codecov)
+      if: matrix.java == '11'  # Only upload coverage from one Java version to avoid duplicates
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
+        
+    - name: Upload Coverage Reports (GitHub)
+      if: matrix.java == '11'  # Only upload coverage from one Java version to avoid duplicates
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-report
+        path: '**/target/site/jacoco/index.html' 
