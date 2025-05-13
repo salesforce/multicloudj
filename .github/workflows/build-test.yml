@@ -29,10 +29,17 @@ jobs:
     - name: Run JaCoCo Report Aggregate
       run: mvn -B jacoco:report-aggregate -DskipTests
       
+    - name: Debug - Check JaCoCo Report Location
+      run: |
+        echo "Checking for JaCoCo reports..."
+        find ./target -name "*.xml" | grep jacoco || echo "No JaCoCo XML reports found"
+        
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
+      continue-on-error: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
         directory: ./target/site/jacoco-aggregate/
         flags: unittests
