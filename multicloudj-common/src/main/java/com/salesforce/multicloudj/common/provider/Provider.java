@@ -6,9 +6,8 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
  * Interface representing a provider in the SDK.
  * This provider interface should be implemented by every single
  * abstract class for the service which gets extended by
- * provider implementations. See this abstract class for Sts implementing this
- * provider as example
- * {@link com.salesforce.multicloudj.sts.driver.AbstractSts}.
+ * provider implementations. See the Abstract class for each service
+ * as examples of implementing this provider interface.
  */
 public interface Provider {
 
