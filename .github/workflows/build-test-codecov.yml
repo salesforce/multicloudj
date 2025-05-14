@@ -35,7 +35,7 @@ jobs:
         find ./target -name "*.xml" | grep jacoco || echo "No JaCoCo XML reports found"
         
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       continue-on-error: true
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
