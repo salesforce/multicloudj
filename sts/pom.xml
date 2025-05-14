@@ -15,6 +15,7 @@
         <module>sts-aws</module>
         <module>sts-ali</module>
         <module>sts-client</module>
+        <module>sts-gcp</module>
     </modules>
 
     <dependencies>
