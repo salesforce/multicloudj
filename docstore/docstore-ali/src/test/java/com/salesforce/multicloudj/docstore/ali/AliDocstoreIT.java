@@ -2,9 +2,12 @@ package com.salesforce.multicloudj.docstore.ali;
 
 import com.alicloud.openservices.tablestore.ClientConfiguration;
 import com.alicloud.openservices.tablestore.SyncClient;
+import com.alicloud.openservices.tablestore.core.auth.CredentialsProvider;
+import com.alicloud.openservices.tablestore.core.auth.DefaultCredentialProvider;
 import com.alicloud.openservices.tablestore.core.auth.EnvironmentVariableCredentialsProvider;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
+import com.salesforce.multicloudj.docstore.client.CollectionKind;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import org.junit.jupiter.api.Disabled;
@@ -31,39 +34,31 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
         SyncClient client;
 
         @Override
-        public AbstractDocStore createDocstoreDriver() {
+        public AbstractDocStore createDocstoreDriver(CollectionKind kind) {
             ClientConfiguration configuration = new ClientConfiguration();
             configuration.setProxyHost(TestsUtil.WIREMOCK_HOST);
             configuration.setProxyPort(port+1);
-
-            client = new SyncClient(END_POINT, new EnvironmentVariableCredentialsProvider(), INSTANCE_NAME, configuration, null);
-
-            return new AliDocStore().builder().withTableStoreClient(client).withCollectionOptions(
-                    new CollectionOptions
-                            .CollectionOptionsBuilder()
-                            .withTableName("docstore_test_1")
-                            .withPartitionKey("pName")
-                            .build()
-            ).build();
-        }
-
-        @Override
-        public AbstractDocStore createDocstoreDriver2() {
-            ClientConfiguration configuration = new ClientConfiguration();
-            configuration.setProxyHost(TestsUtil.WIREMOCK_HOST);
-            configuration.setProxyPort(port+1);
-
-            client = new SyncClient(END_POINT, new EnvironmentVariableCredentialsProvider(), INSTANCE_NAME, configuration, null);
-
-            return new AliDocStore().builder().withTableStoreClient(client).withCollectionOptions(
-                    new CollectionOptions
-                            .CollectionOptionsBuilder()
-                            .withTableName("docstore_test_2")
-                            .withPartitionKey("Game")
-                            .withSortKey("Player")
-                            .withAllowScans(true)
-                            .build()
-            ).build();
+            CredentialsProvider provider = new EnvironmentVariableCredentialsProvider();
+            if (System.getProperty("record") == null) {
+                provider = new DefaultCredentialProvider("STS.NTXNhXJ9waZin5xWhtxu8Xzyn", "mUYqR96AFtJ5PMACckQQh3Qxry8=", "test");
+            }
+            client = new SyncClient(END_POINT, provider, INSTANCE_NAME, configuration, null);
+            CollectionOptions collectionOptions = null;
+            if (kind == CollectionKind.SINGLE_KEY) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("docstore_test_1")
+                        .withPartitionKey("pName").build();
+            } else if (kind == CollectionKind.TWO_KEYS) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("docstore_test_2")
+                        .withPartitionKey("Game")
+                        .withSortKey("Player")
+                        .withAllowScans(true)
+                        .build();
+            }
+            return new AliDocStore().builder().withTableStoreClient(client)
+                    .withCollectionOptions(collectionOptions)
+                    .build();
         }
 
         @Override

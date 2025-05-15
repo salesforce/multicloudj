@@ -1,0 +1,35 @@
+{
+  "id" : "357a52b7-74a0-4f19-8b4d-1b4c8baaa55d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"TaylorPut\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"DocstoreRevision\":{\"S\":\"ce07a24b-e938-5968-7bba-a47ed029bf4f\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorPut\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "A1ES1ACJJ2SJ4V38GP96NLOVIRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1815966522",
+      "Date" : "Mon, 07 Apr 2025 21:04:14 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "357a52b7-74a0-4f19-8b4d-1b4c8baaa55d",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1--2",
+  "insertionIndex" : 55
+}

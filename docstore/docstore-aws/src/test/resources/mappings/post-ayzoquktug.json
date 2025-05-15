@@ -1,0 +1,32 @@
+{
+  "id" : "5365ff7c-e728-401c-a8b3-8b305e1a5c29",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"billie\"},\"Score\":{\"N\":\"111\"},\"Game\":{\"S\":\"Zombie DMV\"},\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"}},\"ConditionExpression\":\"attribute_not_exists(Game)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "44K3S3TMPCKQAGIV8B6DF2ISMRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Mon, 07 Apr 2025 21:03:57 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "5365ff7c-e728-401c-a8b3-8b305e1a5c29",
+  "persistent" : true,
+  "insertionIndex" : 17
+}

@@ -1,7 +1,7 @@
 package com.salesforce.multicloudj.docstore.client;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class ProviderSupplierTest {
     @Test

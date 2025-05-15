@@ -39,6 +39,7 @@
         <module>multicloudj-common</module>
         <module>multicloudj-common-ali</module>
         <module>multicloudj-common-aws</module>
+        <module>multicloudj-common-gcp</module>
     </modules>
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

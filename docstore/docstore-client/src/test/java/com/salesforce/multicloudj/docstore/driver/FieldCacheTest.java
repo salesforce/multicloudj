@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class FieldCacheTest {
 
-
     @Test
     public void testFieldCache() {
         FieldCache cache = new FieldCache();
