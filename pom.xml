@@ -40,6 +40,7 @@
         <module>multicloudj-common-ali</module>
         <module>multicloudj-common-aws</module>
         <module>multicloudj-common-gcp</module>
+        <module>coverage-report</module>
     </modules>
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -192,16 +193,9 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report-aggregate</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report-aggregate</goal>
                         </goals>
                     </execution>
                 </executions>
