@@ -35,11 +35,10 @@ jobs:
         find ./target -name "*.xml" | grep jacoco || echo "No JaCoCo XML reports found"
         
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       continue-on-error: true
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
         directory: ./target/site/jacoco-aggregate/
         flags: unittests
