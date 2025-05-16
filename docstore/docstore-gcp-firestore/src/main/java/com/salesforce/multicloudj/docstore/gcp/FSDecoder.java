@@ -5,10 +5,10 @@ import com.salesforce.multicloudj.docstore.driver.codec.Decoder;
 import com.salesforce.multicloudj.docstore.driver.codec.ListDecoderCallback;
 import com.salesforce.multicloudj.docstore.driver.codec.MapDecoderCallback;
 
-import java.util.List;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class FSDecoder implements Decoder {
     private final Value value;

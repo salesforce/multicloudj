@@ -1,0 +1,32 @@
+{
+  "id" : "f923beb5-ba0f-4c6b-9571-8acd16fe26bf",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"pName\":{\"S\":\"JohnReplace\"},\"f\":{\"N\":\"34.560001373291016\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "SLAQ2QVTJ9FSF7IGQ6KC14B15BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Mon, 07 Apr 2025 21:04:18 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "f923beb5-ba0f-4c6b-9571-8acd16fe26bf",
+  "persistent" : true,
+  "insertionIndex" : 88
+}

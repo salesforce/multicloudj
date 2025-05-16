@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.docstore.aws;
 
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
+import com.salesforce.multicloudj.docstore.client.CollectionKind;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -28,7 +29,7 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
 
         @Override
-        public AbstractDocStore createDocstoreDriver() {
+        public AbstractDocStore createDocstoreDriver(CollectionKind kind) {
             httpClient = TestsUtilAws.getProxyClient("https", port);
             DynamoDbClientBuilder builder = DynamoDbClient.builder()
                     .httpClient(httpClient)
@@ -41,32 +42,26 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
                             URI.create("https://dynamodb.us-west-2.amazonaws.com"));
 
             client = builder.build();
-            return new AwsDocStore().builder().withDDBClient(client).withCollectionOptions(new CollectionOptions.CollectionOptionsBuilder().withTableName("docstore-test-1").withPartitionKey("pName").build()).build();
-        }
+            CollectionOptions collectionOptions = null;
+            if (kind == CollectionKind.SINGLE_KEY) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("docstore-test-1")
+                        .withPartitionKey("pName")
+                        .withAllowScans(true)
+                        .build();
+            } else if (kind == CollectionKind.TWO_KEYS) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("docstore-test-2")
+                        .withPartitionKey("Game")
+                        .withSortKey("Player")
+                        .withAllowScans(true)
+                        .build();
+            }
 
-        @Override
-        public AbstractDocStore createDocstoreDriver2() {
-            httpClient = TestsUtilAws.getProxyClient("https", port);
-            DynamoDbClientBuilder builder = DynamoDbClient.builder()
-                    .httpClient(httpClient)
-                    .region(Region.US_WEST_2)
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                            System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
-                            System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
-                            System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
-                    .endpointOverride(
-                            URI.create("https://dynamodb.us-west-2.amazonaws.com"));
-
-            client = builder.build();
             return new AwsDocStore().builder()
                     .withDDBClient(client)
-                    .withCollectionOptions(
-                            new CollectionOptions.CollectionOptionsBuilder()
-                                    .withTableName("docstore-test-2")
-                                    .withPartitionKey("Game")
-                                    .withSortKey("Player")
-                                    .withAllowScans(true)
-                                    .build()).build();
+                    .withCollectionOptions(collectionOptions)
+                    .build();
         }
 
         @Override

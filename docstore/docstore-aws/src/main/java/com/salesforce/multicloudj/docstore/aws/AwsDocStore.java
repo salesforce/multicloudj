@@ -613,10 +613,10 @@ public class AwsDocStore extends AbstractDocStore {
             // No query can be done: fall back to scanning.
             if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
                 // Scans are unordered, so we can't run this query.
-                // TODO(jba): If the user specifies all the partition keys, and there is a global
+                // TODO: If the user specifies all the partition keys, and there is a global
                 // secondary index whose sort key is the order-by field, then we can query that index
                 // for every value of the partition key and merge the results.
-                // TODO(jba): If the query has a reasonable limit N, then we can run a scan and keep
+                // TODO: If the query has a reasonable limit N, then we can run a scan and keep
                 // the top N documents in memory.
                 throw new InvalidArgumentException("query requires a table scan, but has an ordering requirement; add an index or provide Options.RunQueryFallback");
             }
@@ -896,7 +896,7 @@ public class AwsDocStore extends AbstractDocStore {
         for (Filter filter : filters) {
             String filterExpression = filterToCondition(filter, expressionAttributeNames, expressionAttributeValues);
             if (filtersExpressionBuilder.length() > 0) {
-                filtersExpressionBuilder.append(" AND ");
+                filtersExpressionBuilder.append(" AND");
             }
             filtersExpressionBuilder.append(filterExpression);
         }
@@ -910,15 +910,15 @@ public class AwsDocStore extends AbstractDocStore {
         expressionAttributeValues.put(valueKey, encodeValue(filter.getValue()));
         switch (filter.getOp()) {
             case EQUAL:
-                return "#attr" + filter.getFieldPath() + " = " + valueKey;
+                return " #attr" + filter.getFieldPath() + " = " + valueKey;
             case LESS_THAN:
-                return "#attr" + filter.getFieldPath() + " < " + valueKey;
+                return " #attr" + filter.getFieldPath() + " < " + valueKey;
             case GREATER_THAN:
-                return "#attr" + filter.getFieldPath() + " > " + valueKey;
+                return " #attr" + filter.getFieldPath() + " > " + valueKey;
             case LESS_THAN_OR_EQUAL_TO:
-                return "#attr" + filter.getFieldPath() + " <= " + valueKey;
+                return " #attr" + filter.getFieldPath() + " <= " + valueKey;
             case GREATER_THAN_OR_EQUAL_TO:
-                return "#attr" + filter.getFieldPath() + " >= " + valueKey;
+                return " #attr" + filter.getFieldPath() + " >= " + valueKey;
             case IN:
                 return toInOrNotInCondition(filter, expressionAttributeNames, expressionAttributeValues, true);
             case NOT_IN:
@@ -928,26 +928,32 @@ public class AwsDocStore extends AbstractDocStore {
         }
     }
 
+    // The expressions for IN are of the format: #attrPlayer IN (:value0, :value1) where :value_i is AttributeValue
+    // defined in expressionAttributeValues map.
+    // The expressions for NOT IN are of format same as IN but wrapped in NOT, for example: NOT (#attrPlayer IN (:value0, :value1))
     private String toInOrNotInCondition(Filter filter, Map<String, String> expressionAttributeNames, Map<String, AttributeValue> expressionAttributeValues, boolean in) {
+        // remove the last AttributeValue added
+        expressionAttributeValues.remove(":value" + (expressionAttributeValues.size()-1));
         expressionAttributeNames.put("#attr" + filter.getFieldPath(), filter.getFieldPath());
         try {
             Collection<Object> collection = (Collection<Object>) filter.getValue();
             StringBuilder filterExpressionBuilder = new StringBuilder();
-            filterExpressionBuilder.append("#attr").append(filter.getFieldPath());
-            if (in) {
-                filterExpressionBuilder.append(" IN ");
-            } else {
-                filterExpressionBuilder.append(" NOT IN ");
+            if (!in) {
+                filterExpressionBuilder.append(" NOT").append("(");
             }
-
+            filterExpressionBuilder.append(" #attr").append(filter.getFieldPath());
+            filterExpressionBuilder.append(" IN ");
             filterExpressionBuilder.append("(");
             for (Object object : collection) {
-                String valueKey = ":value" + expressionAttributeNames.size();
+                String valueKey = ":value" + expressionAttributeValues.size();
                 filterExpressionBuilder.append(valueKey).append(", ");
-                expressionAttributeValues.put(valueKey, encodeValue(filter.getValue()));
+                expressionAttributeValues.put(valueKey, encodeValue(object));
             }
             filterExpressionBuilder.setLength(filterExpressionBuilder.length() - 2);
             filterExpressionBuilder.append(")");
+            if (!in) {
+                filterExpressionBuilder.append(")");
+            }
             return filterExpressionBuilder.toString();
         } catch (ClassCastException e) {
             throw new IllegalArgumentException("Filter value is not collection type: " + filter.getFieldPath());

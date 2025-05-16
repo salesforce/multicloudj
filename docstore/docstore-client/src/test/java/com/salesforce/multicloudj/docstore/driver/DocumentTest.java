@@ -63,7 +63,7 @@ public class DocumentTest {
     @Test
     public void testGetDocument() {
         Document doc = docMap.getDocument(new String[]{"author", "firstName"}, false);
-        assertTrue(doc.getFieldNames().size() >= 9 );
+        assertTrue(doc.getFieldNames().size() >= 9);
 
         /* TODO: This test should be successful to support collections as fields
         doc = docMap.getDocument(new String[]{"author", "nickNames"}, false);
@@ -77,7 +77,7 @@ public class DocumentTest {
         assertNotNull(doc);
 
         doc = docObject.getDocument(new String[]{"author", "firstName"}, false);
-        assertTrue(doc.getFieldNames().size() >= 9 );
+        assertTrue(doc.getFieldNames().size() >= 9);
 
 
         // Test cannot create a new field in an object.
@@ -141,4 +141,5 @@ public class DocumentTest {
         decDoc.decode(decoder);
         Assertions.assertEquals(docObject.getField("publisher"), decDoc.getField("publisher"));
     }
+
 }
