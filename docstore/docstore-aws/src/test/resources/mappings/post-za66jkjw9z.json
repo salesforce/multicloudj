@@ -1,0 +1,32 @@
+{
+  "id" : "a320800c-94ec-47aa-98d8-7edce71e1638",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"LouisMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"808abf74-167e-3855-e4cb-0e7778b4eb53\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "18MQBO76VK0NQOOORBS2SJG8MVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Mon, 07 Apr 2025 21:04:32 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "a320800c-94ec-47aa-98d8-7edce71e1638",
+  "persistent" : true,
+  "insertionIndex" : 116
+}

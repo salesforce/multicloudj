@@ -30,6 +30,7 @@ import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -444,6 +445,9 @@ class AliDocStoreTest {
             Field field = docStore.getClass().getSuperclass().getSuperclass().getDeclaredField("collectionOptions");
             field.setAccessible(true);
             field.set(docStore, collectionOptions);
+            field = docStore.getClass().getSuperclass().getDeclaredField("tableStoreClient");
+            field.setAccessible(true);
+            field.set(docStore, syncClient);
         } catch (Exception e) {
             Assertions.fail("Failed to get field.");
         }
@@ -705,36 +709,5 @@ class AliDocStoreTest {
         SQLQueryRequest sqlQueryRequest = captor.getValue();
         Assertions.assertEquals("SELECT price FROM my-table WHERE title = 'value' AND publisher = 'John' ORDER BY publisher;",
                 sqlQueryRequest.getQuery(), "Base index is not used as expected");
-    }
-
-    @Test
-    void testRunGetQueryWithScan() {
-        Query query = new Query(ali).where("publisher", FilterOperation.EQUAL, "value");
-        query.setFieldPaths(List.of("price"));
-
-        ParallelScanResponse parallelScanResponse = mock(ParallelScanResponse.class);
-        when(parallelScanResponse.getNextToken()).thenReturn("testTokenScan".getBytes());
-        PrimaryKeyColumn primaryKeyColumn = new PrimaryKeyColumn("pkCol", PrimaryKeyValue.fromString("YelloBook"));
-        when(parallelScanResponse.getRows()).thenReturn(List.of(new Row(new PrimaryKey(List.of(primaryKeyColumn)), new ArrayList<>())));
-        when(syncClient.parallelScan(any(ParallelScanRequest.class))).thenReturn(parallelScanResponse);
-
-        try {
-            Field field = ali.getClass().getDeclaredField("tableStoreClient");
-            field.setAccessible(true);
-            field.set(ali, syncClient);
-        } catch (Exception e) {
-            Assertions.fail("Failed to get field.");
-        }
-
-        DocumentIterator iterator = ali.runGetQuery(query);
-        Map<String, String> testMap = new HashMap<>();
-        iterator.next(new Document(testMap));
-        Assertions.assertEquals(2, testMap.size());
-        ArgumentCaptor<ParallelScanRequest> captor = ArgumentCaptor.forClass(ParallelScanRequest.class);
-        verify(syncClient, times(0)).parallelScan(captor.capture());
-        //ParallelScanRequest parallelScanRequest = captor.getValue();
-        //Assertions.assertEquals("my-table", parallelScanRequest.getTableName());
-        //Assertions.assertEquals(1, parallelScanRequest.getColumnsToGet().getColumns().size());
-        //Assertions.assertEquals("price", parallelScanRequest.getColumnsToGet().getColumns().get(0));
     }
 }

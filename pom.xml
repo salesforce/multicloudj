@@ -39,6 +39,8 @@
         <module>multicloudj-common</module>
         <module>multicloudj-common-ali</module>
         <module>multicloudj-common-aws</module>
+        <module>multicloudj-common-gcp</module>
+        <module>coverage-report</module>
     </modules>
     <properties>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -118,6 +120,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.6.3</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
                 <executions>
                     <execution>
                         <id>aggregate-javadoc</id>
@@ -126,9 +131,10 @@
                             <goal>aggregate</goal>
                         </goals>
                         <configuration>
+                            <skip>false</skip>
                             <source>${compileSource}</source>
-                            <reportOutputDirectory>${project.basedir}/api/java</reportOutputDirectory>
-                            <outputDirectory>${project.basedir}/api/java</outputDirectory>
+                            <reportOutputDirectory>${project.build.directory}/site</reportOutputDirectory>
+                            <destDir>apidocs</destDir>
                         </configuration>
                     </execution>
                 </executions>
@@ -137,6 +143,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
                 <version>3.21.0</version>
+                <configuration>
+                    <skipDeploy>true</skipDeploy>
+                </configuration>
+                <inherited>false</inherited>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -165,6 +175,30 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.7</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -253,6 +287,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
                 <version>3.4.2</version>  <!-- Use a stable version -->
+                <inherited>false</inherited>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <aggregate>true</aggregate>
+                </configuration>
+                <inherited>false</inherited>
             </plugin>
         </plugins>
     </reporting>

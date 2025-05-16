@@ -3,13 +3,13 @@ package com.salesforce.multicloudj.docstore.aws;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
-import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Book;
 import com.salesforce.multicloudj.docstore.driver.testtypes.Person;
 import lombok.AllArgsConstructor;
@@ -678,13 +678,14 @@ public class AwsDocStoreTest {
         Filter filter3 = new Filter("fieldc", FilterOperation.LESS_THAN_OR_EQUAL_TO, "valuec");
         Filter filter4 = new Filter("fieldd", FilterOperation.GREATER_THAN, "valued");
         Filter filter5 = new Filter("fielde", FilterOperation.GREATER_THAN_OR_EQUAL_TO, "valuee");
-        Filter filter6 = new Filter("fieldf", FilterOperation.IN, List.of("valuf"));
-        Filter filter7 = new Filter("fieldg", FilterOperation.NOT_IN, List.of("valug"));
+        Filter filter6 = new Filter("fieldf", FilterOperation.IN, List.of("valuef"));
+        Filter filter7 = new Filter("fieldg", FilterOperation.NOT_IN, List.of("valueg"));
         Map<String, String> expressionAttributeNames = new HashMap<>();
         Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
         List<Filter> filters = new ArrayList<>();
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {docStore.filtersToCondition(filters, null, null);});
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> docStore.filtersToCondition(filters, null, null));
         filters.add(filter1);
         filters.add(filter2);
         filters.add(filter3);
@@ -693,7 +694,7 @@ public class AwsDocStoreTest {
         filters.add(filter6);
         filters.add(filter7);
         String condition = docStore.filtersToCondition(filters, expressionAttributeNames, expressionAttributeValues);
-        Assertions.assertEquals("#attrfielda = :value0 AND #attrfieldb < :value1 AND #attrfieldc <= :value2 AND #attrfieldd > :value3 AND #attrfielde >= :value4 AND #attrfieldf IN (:value6) AND #attrfieldg NOT IN (:value7)", condition);
+        Assertions.assertEquals(" #attrfielda = :value0 AND #attrfieldb < :value1 AND #attrfieldc <= :value2 AND #attrfieldd > :value3 AND #attrfielde >= :value4 AND #attrfieldf IN (:value5) AND NOT( #attrfieldg IN (:value6))", condition);
         Assertions.assertEquals("fielda", expressionAttributeNames.get("#attrfielda"));
         Assertions.assertEquals("valueb", expressionAttributeValues.get(":value1").s());
     }

@@ -1,0 +1,32 @@
+{
+  "id" : "203073e4-7c5e-42bb-80b7-ceae361c63c0",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"pName\":{\"S\":\"LeoMap\"},\"f\":{\"N\":\"12.65999984741211\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "A86VCTKROUG5DD47MI4O3NG8HJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Mon, 07 Apr 2025 21:04:26 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "203073e4-7c5e-42bb-80b7-ceae361c63c0",
+  "persistent" : true,
+  "insertionIndex" : 97
+}

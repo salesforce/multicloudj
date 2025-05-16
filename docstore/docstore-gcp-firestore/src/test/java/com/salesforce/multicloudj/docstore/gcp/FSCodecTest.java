@@ -5,13 +5,10 @@ import com.google.firestore.v1.Value;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.salesforce.multicloudj.docstore.driver.codec.Codec.decode;
 
 public class FSCodecTest {
     static Value nullValue = Value.newBuilder()

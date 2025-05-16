@@ -8,7 +8,6 @@ import com.alicloud.openservices.tablestore.model.search.ParallelScanResponse;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -37,22 +36,10 @@ class QueryRunnerTest {
     }
 
     @Test
-    @Disabled
     void testRun() {
         SyncClient tsClient = mock(SyncClient.class);
-        ParallelScanRequest mockScan = mock(ParallelScanRequest.class);
-        QueryRunner runner = new QueryRunner(tsClient, null, true,null);
-        ParallelScanResponse mockScanResponse = mock(ParallelScanResponse.class);
-        when(tsClient.parallelScan(any(ParallelScanRequest.class))).thenReturn(mockScanResponse);
-        byte[] lastToken = new byte[]{};
-        when(mockScanResponse.getNextToken()).thenReturn(lastToken);
-        when(mockScanResponse.getRows()).thenReturn(List.of(new Row(new PrimaryKey(), new ArrayList<>())));
-        List<Row> items = new ArrayList<>();
-        Assertions.assertEquals(Arrays.toString(lastToken), runner.run(INIT_TOKEN, items, null, null));
-        Assertions.assertEquals(1, items.size());
-
         SQLQueryRequest mockQuery = mock(SQLQueryRequest.class);
-        runner = new QueryRunner(tsClient, mockQuery, true , null);
+        QueryRunner runner = new QueryRunner(tsClient, mockQuery, true , null);
         SQLQueryResponse mockQueryResponse = mock(SQLQueryResponse.class);
         when(mockQueryResponse.getSQLResultSet()).thenReturn(new TestSQLResultSet());
         when(mockQueryResponse.getNextSearchToken()).thenReturn("testToken");

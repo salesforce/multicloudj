@@ -1,0 +1,32 @@
+{
+  "id" : "358c2d06-4e85-45a8-b87e-f5a5605b7f4d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"FrankMap\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2,#attr3\",\"ExpressionAttributeNames\":{\"#attr3\":\"pName\",\"#attr2\":\"s\",\"#attr1\":\"f\",\"#attr0\":\"i\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"FrankMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "RGUIB1CKV8HJ9SLG4U2044J677VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "636994006",
+      "Date" : "Mon, 07 Apr 2025 21:04:07 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "358c2d06-4e85-45a8-b87e-f5a5605b7f4d",
+  "persistent" : true,
+  "insertionIndex" : 37
+}

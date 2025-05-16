@@ -1,0 +1,32 @@
+{
+  "id" : "419d56d1-3c77-4ba7-b455-9d8aac2684f4",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"PrincePlayer\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2\",\"ExpressionAttributeNames\":{\"#attr2\":\"pName\",\"#attr1\":\"f\",\"#attr0\":\"i\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"PrincePlayer\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "HPTUUKD9RQO89HV2DG4M5K48M3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3682056898",
+      "Date" : "Mon, 07 Apr 2025 21:04:06 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "419d56d1-3c77-4ba7-b455-9d8aac2684f4",
+  "persistent" : true,
+  "insertionIndex" : 41
+}
