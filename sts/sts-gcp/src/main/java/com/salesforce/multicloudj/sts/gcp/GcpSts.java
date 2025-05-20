@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.gcp;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
@@ -19,7 +20,8 @@ import java.util.List;
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts<GcpSts> {
-    IamCredentialsClient stsClient;
+    private final String scope = "https://www.googleapis.com/auth/cloud-platform";
+    private IamCredentialsClient stsClient;
 
     public GcpSts(Builder builder) {
         super(builder);
@@ -43,22 +45,34 @@ public class GcpSts extends AbstractSts<GcpSts> {
     protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request){
         GenerateAccessTokenRequest accessTokenRequest = GenerateAccessTokenRequest.newBuilder()
                 .setName("projects/-/serviceAccounts/" + request.getRole())
-                .addAllScope(List.of("https://www.googleapis.com/auth/iam"))
+                .addAllScope(List.of(scope))
                 .setLifetime(Duration.newBuilder().setSeconds(request.getExpiration()).build())
                 .build();
 
         GenerateAccessTokenResponse response = this.stsClient.generateAccessToken(accessTokenRequest);
-        return new StsCredentials(null, null, (response.getAccessToken()));
+        return new StsCredentials(null, null, response.getAccessToken());
     }
 
     @Override
     protected CallerIdentity getCallerIdentityFromProvider() {
-        return null;
+        try {
+            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+            credentials.refreshIfExpired();
+            return new CallerIdentity(null, credentials.getAccessToken().getTokenValue(), null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
-        return null;
+        try {
+            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+            credentials.refreshIfExpired();
+            return new StsCredentials(null, null, credentials.getAccessToken().getTokenValue());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
