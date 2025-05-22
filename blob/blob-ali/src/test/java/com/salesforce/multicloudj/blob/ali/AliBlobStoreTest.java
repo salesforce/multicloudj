@@ -11,6 +11,7 @@ import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
+import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.GenericRequest;
@@ -53,7 +54,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,7 +78,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -108,6 +107,7 @@ public class AliBlobStoreTest {
         staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
         when(mockBuilder.region(any())).thenReturn(mockBuilder);
         when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
+        when(mockBuilder.clientConfiguration(any())).thenReturn(mockBuilder);
         when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
         when(mockBuilder.build()).thenReturn(mockOssClient);
 
@@ -196,25 +196,6 @@ public class AliBlobStoreTest {
             writer.write(new char[1024]);
         }
         verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path));
-    }
-
-    @Test
-    void testComputeRange() {
-        Pair<Long, Long> result = ali.computeRange(0L, 500L);
-        assertEquals(result.getLeft(), 0);
-        assertEquals(result.getRight(), 500);
-
-        result = ali.computeRange(100L, 600L);
-        assertEquals(result.getLeft(), 100);
-        assertEquals(result.getRight(), 600);
-
-        result = ali.computeRange(null, 500L);
-        assertEquals(result.getLeft(), -1);
-        assertEquals(result.getRight(), 500);
-
-        result = ali.computeRange(500L, null);
-        assertEquals(result.getLeft(), 500);
-        assertEquals(result.getRight(), -1);
     }
 
     void verifyUploadTestResults(UploadResponse uploadResponse) {
@@ -320,23 +301,48 @@ public class AliBlobStoreTest {
         assertEquals("bucket-1", bucketCaptor.getValue());
         assertEquals("object-1", keyCaptor.getValue());
         assertEquals("version-1", versionCaptor.getValue());
+
+        ali.doDelete("object-1", null);
+        bucketCaptor = ArgumentCaptor.forClass(String.class);
+        keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockOssClient, times(1)).deleteObject(bucketCaptor.capture(), keyCaptor.capture());
+        assertEquals("bucket-1", bucketCaptor.getValue());
+        assertEquals("object-1", keyCaptor.getValue());
     }
 
     @Test
     void testDoBulkDelete() {
         List<BlobIdentifier> objects = List.of(new BlobIdentifier("object-1","version-1"),
-                new BlobIdentifier("object-2","version-2"),
-                new BlobIdentifier("object-3","version-3"));
+                new BlobIdentifier("object-2",null),
+                new BlobIdentifier("object-3","version-3"),
+                new BlobIdentifier("object-4",null));
         ali.doDelete(objects);
 
+        // Verify it sends a delete request for the objects that have versionIds
         ArgumentCaptor<DeleteVersionsRequest> deleteVersionsRequestCaptor = ArgumentCaptor.forClass(DeleteVersionsRequest.class);
         verify(mockOssClient, times(1)).deleteVersions(deleteVersionsRequestCaptor.capture());
         DeleteVersionsRequest actualDeleteVersionsRequest = deleteVersionsRequestCaptor.getValue();
         assertEquals("bucket-1", actualDeleteVersionsRequest.getBucketName());
-        Map<String, String> objectsMap = objects.stream().collect(Collectors.toMap(BlobIdentifier::getKey, BlobIdentifier::getVersionId));
-        for(DeleteVersionsRequest.KeyVersion key : actualDeleteVersionsRequest.getKeys()){
-            assertEquals(objectsMap.get(key.getKey()), key.getVersion());
-        }
+        List<DeleteVersionsRequest.KeyVersion> keyVersions = actualDeleteVersionsRequest.getKeys();
+        assertEquals(2, keyVersions.size());
+        assertEquals("object-1", keyVersions.get(0).getKey());
+        assertEquals("version-1", keyVersions.get(0).getVersion());
+        assertEquals("object-3", keyVersions.get(1).getKey());
+        assertEquals("version-3", keyVersions.get(1).getVersion());
+
+        // Verify it sends a delete request for the objects that don't have versionIds
+        ArgumentCaptor<DeleteObjectsRequest> deleteObjectsRequestCaptor = ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+        verify(mockOssClient, times(1)).deleteObjects(deleteObjectsRequestCaptor.capture());
+        DeleteObjectsRequest actualDeleteObjectsRequest = deleteObjectsRequestCaptor.getValue();
+        List<String> keys = actualDeleteObjectsRequest.getKeys();
+        assertEquals(2, keys.size());
+        assertEquals("object-2", keys.get(0));
+        assertEquals("object-4", keys.get(1));
+
+        // Test that edge cases are properly processed
+        ali.doDelete(List.of(new BlobIdentifier("object-1","version-1")));
+        ali.doDelete(List.of(new BlobIdentifier("object-1",null)));
+        ali.doDelete(List.of());
     }
 
     @Test
@@ -579,7 +585,7 @@ public class AliBlobStoreTest {
                 .duration(duration)
                 .build();
 
-        ali.doGeneratePresignedUploadUrl(presignedUploadRequest);
+        ali.doGeneratePresignedUrl(presignedUploadRequest);
 
         ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor = ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
         verify(mockOssClient, times(1)).generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());
@@ -602,7 +608,7 @@ public class AliBlobStoreTest {
                 .duration(duration)
                 .build();
 
-        ali.doGeneratePresignedDownloadUrl(presignedDownloadRequest);
+        ali.doGeneratePresignedUrl(presignedDownloadRequest);
 
         ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor = ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
         verify(mockOssClient, times(1)).generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());

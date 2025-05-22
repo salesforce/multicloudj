@@ -75,8 +75,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             CredentialsOverrider credentialsOverrider,
             BlobStoreValidator validator,
             S3AsyncClient client,
-            AwsTransformerSupplier transformerSupplier
-    ) {
+            AwsTransformerSupplier transformerSupplier) {
         super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
         this.client = client;
         this.transformer = transformerSupplier.get(bucket);
@@ -295,11 +294,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         return new Builder();
     }
 
+    @Getter
     public static class Builder extends AsyncBlobStoreProvider.Builder {
 
-        @Getter
         private S3AsyncClient s3Client;
-        @Getter
         private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
         public Builder() {
@@ -336,7 +334,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
             return b.build();
         }
-
 
         public Builder withS3Client(S3AsyncClient s3Client) {
             this.s3Client = s3Client;
