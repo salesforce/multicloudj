@@ -2,32 +2,22 @@ package com.salesforce.multicloudj.blob.ali;
 
 import com.aliyun.oss.ClientBuilderConfiguration;
 import com.aliyun.oss.ClientException;
-import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.ServiceException;
-import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.comm.SignVersion;
-import com.aliyun.oss.internal.OSSHeaders;
-import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
-import com.aliyun.oss.model.DeleteVersionsRequest;
-import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
 import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.ObjectMetadata;
-import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PartSummary;
 import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
@@ -55,8 +45,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
+import lombok.Getter;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -67,59 +56,29 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Alibaba implementation of BlobService
+ * Alibaba implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
 
-    private OSS ossClient;
-
-    public AliBlobStore(Builder builder) {
-        super(builder);
-
-        String endpoint = "https://oss-" + region + ".aliyuncs.com";
-        if (builder.getEndpoint() != null) {
-            endpoint = builder.getEndpoint().getHost();
-        }
-        OSSClientBuilder.OSSClientBuilderImpl impl = OSSClientBuilder.create().region(region).endpoint(endpoint);
-        ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-        clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-        if (builder.getProxyEndpoint() != null) {
-            // Note: The proxy logic is hardwired to be HTTP-only in OSS
-            clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
-            clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
-        }
-        if(builder.getMaxConnections() != null) {
-            clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
-        }
-        if(builder.getSocketTimeout() != null) {
-            clientBuilderConfiguration.setSocketTimeout((int)builder.getSocketTimeout().toMillis());
-        }
-        if(builder.getIdleConnectionTimeout() != null) {
-            clientBuilderConfiguration.setIdleConnectionTime((int)builder.getIdleConnectionTimeout().toMillis());
-        }
-
-        CredentialsProvider credentialsProvider = OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region);
-        if (credentialsProvider != null) {
-            impl.credentialsProvider(credentialsProvider);
-        }
-        impl.clientConfiguration(clientBuilderConfiguration);
-        ossClient = impl.build();
-    }
+    private final OSS ossClient;
+    private final AliTransformer transformer;
 
     public AliBlobStore() {
-        super(new Builder());
+        this(new Builder(), null);
+    }
+
+    public AliBlobStore(Builder builder, OSS ossClient) {
+        super(builder);
+        this.ossClient = ossClient;
+        this.transformer = builder.getTransformerSupplier().get(bucket);
     }
 
     @Override
@@ -151,17 +110,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setUserMetadata(uploadRequest.getMetadata());
-        metadata.setObjectTagging(uploadRequest.getTags());
-        PutObjectRequest request = new PutObjectRequest(bucket, uploadRequest.getKey(), inputStream, metadata);
-
-        PutObjectResult result = ossClient.putObject(request);
-        return UploadResponse.builder()
-                .key(uploadRequest.getKey())
-                .versionId(result.getVersionId())
-                .eTag(result.getETag())
-                .build();
+        return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, inputStream));
     }
 
     /**
@@ -173,7 +122,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-        return doUpload(uploadRequest, new PutObjectRequest(bucket, uploadRequest.getKey(), new ByteArrayInputStream(content)));
+        return doUpload(uploadRequest, new ByteArrayInputStream(content));
     }
 
     /**
@@ -185,7 +134,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-        return doUpload(uploadRequest, new PutObjectRequest(bucket, uploadRequest.getKey(), file));
+        return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, file));
     }
 
     /**
@@ -197,24 +146,14 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-        return doUpload(uploadRequest, new PutObjectRequest(bucket, uploadRequest.getKey(), path.toFile()));
+        return doUpload(uploadRequest, path.toFile());
     }
 
     /**
      * Helper function to upload blobs
      */
     protected UploadResponse doUpload(UploadRequest uploadRequest, PutObjectRequest request) {
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setUserMetadata(uploadRequest.getMetadata());
-        metadata.setObjectTagging(uploadRequest.getTags());
-        request.setMetadata(metadata);
-
-        PutObjectResult result = ossClient.putObject(request);
-        return UploadResponse.builder()
-                .key(uploadRequest.getKey())
-                .versionId(result.getVersionId())
-                .eTag(result.getETag())
-                .build();
+        return transformer.toUploadResponse(uploadRequest, ossClient.putObject(request));
     }
 
     /**
@@ -226,35 +165,14 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, OutputStream outputStream) {
-        GetObjectRequest request = buildGetObjectRequest(downloadRequest);
+        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
         try (OSSObject ossObject = ossClient.getObject(request)) {
             InputStream downloadedInputstream = ossObject.getObjectContent();
             copyStream(downloadedInputstream, outputStream);
-
-            return DownloadResponse.builder()
-                    .key(ossObject.getKey())
-                    .metadata(BlobMetadata.builder()
-                            .key(ossObject.getKey())
-                            .versionId(ossObject.getObjectMetadata().getVersionId())
-                            .eTag(ossObject.getObjectMetadata().getETag())
-                            .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
-                            .metadata(ossObject.getObjectMetadata().getUserMetadata())
-                            .objectSize(ossObject.getObjectMetadata().getContentLength())
-                            .build())
-                    .build();
+            return transformer.toDownloadResponse(ossObject);
         } catch (IOException e) {
             throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
         }
-    }
-
-    /**
-     * Reading the first 500 bytes            - computeRange(0, 500)    -   (0, 500)
-     * Reading a middle 500 bytes             - computeRange(123, 623)  -   (123, 623)
-     * Reading the last 500 bytes             - computeRange(null, 500) -   (-1, 500)
-     * Reading everything but first 500 bytes - computeRange(500, null) -   (500, -1)
-     */
-    protected Pair<Long, Long> computeRange(Long start, Long end) {
-        return new ImmutablePair<>(start==null ? -1 : start, end==null ? -1 : end);
     }
 
     /**
@@ -293,34 +211,14 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-        GetObjectRequest request = buildGetObjectRequest(downloadRequest);
+        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
         try (OSSObject ossObject = ossClient.getObject(request)) {
             InputStream downloadedInputstream = ossObject.getObjectContent();
             Files.copy(downloadedInputstream, path);
-
-            return DownloadResponse.builder()
-                    .key(ossObject.getKey())
-                    .metadata(BlobMetadata.builder()
-                            .key(ossObject.getKey())
-                            .versionId(ossObject.getObjectMetadata().getVersionId())
-                            .eTag(ossObject.getObjectMetadata().getETag())
-                            .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
-                            .metadata(ossObject.getObjectMetadata().getUserMetadata())
-                            .objectSize(ossObject.getObjectMetadata().getContentLength())
-                            .build())
-                    .build();
+            return transformer.toDownloadResponse(ossObject);
         } catch (IOException e) {
             throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
         }
-    }
-
-    private GetObjectRequest buildGetObjectRequest(DownloadRequest downloadRequest) {
-        GetObjectRequest request = new GetObjectRequest(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
-        if(downloadRequest.getStart() != null || downloadRequest.getEnd() != null) {
-            Pair<Long, Long> range = computeRange(downloadRequest.getStart(), downloadRequest.getEnd());
-            request.withRange(range.getLeft(), range.getRight());
-        }
-        return request;
     }
 
     private void copyStream(InputStream in, OutputStream out) {
@@ -343,7 +241,12 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected void doDelete(String key, String versionId) {
-        ossClient.deleteVersion(bucket, key, versionId);
+        if(versionId == null){
+            ossClient.deleteObject(bucket, key);
+        }
+        else {
+            ossClient.deleteVersion(bucket, key, versionId);
+        }
     }
 
     /**
@@ -353,11 +256,19 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected void doDelete(Collection<BlobIdentifier> objects) {
-        List<DeleteVersionsRequest.KeyVersion> objectsToDelete = new ArrayList<>();
-        for(BlobIdentifier object : objects) {
-            objectsToDelete.add(new DeleteVersionsRequest.KeyVersion(object.getKey(), object.getVersionId()));
+
+        // Split the BlobIdentifiers into collections of those with versionIds and those without
+        Map<Boolean, List<BlobIdentifier>> partitionedIdentifiers = objects.stream()
+                .collect(Collectors.partitioningBy(identifier -> identifier.getVersionId()!=null));
+
+        List<BlobIdentifier> unversionedObjects = partitionedIdentifiers.get(false);
+        List<BlobIdentifier> versionedObjects = partitionedIdentifiers.get(true);
+        if(!versionedObjects.isEmpty()) {
+            ossClient.deleteVersions(transformer.toDeleteVersionsRequest(versionedObjects));
         }
-        ossClient.deleteVersions(new DeleteVersionsRequest(bucket).withKeys(objectsToDelete));
+        if(!unversionedObjects.isEmpty()) {
+            ossClient.deleteObjects(transformer.toDeleteObjectsRequest(unversionedObjects));
+        }
     }
 
     /**
@@ -368,17 +279,9 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected CopyResponse doCopy(CopyRequest request) {
-        CopyObjectRequest copyRequest = new CopyObjectRequest(
-                bucket, request.getSrcKey(), request.getSrcVersionId(),
-                request.getDestBucket(), request.getDestKey());
-
+        CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
         CopyObjectResult result = ossClient.copyObject(copyRequest);
-        return CopyResponse.builder()
-                .key(request.getDestKey())
-                .versionId(result.getVersionId())
-                .eTag(result.getETag())
-                .lastModified(result.getLastModified().toInstant())
-                .build();
+        return transformer.toCopyResponse(request.getDestKey(), result);
     }
 
     /**
@@ -392,22 +295,8 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
-        GenericRequest metadataRequest = new GenericRequest()
-                .withBucketName(bucket)
-                .withKey(key)
-                .withVersionId(versionId);
-        ObjectMetadata metadata = ossClient.getObjectMetadata(metadataRequest);
-        long objectSize = metadata.getContentLength();
-        Map<String, String> rawMetadata = metadata.getUserMetadata();
-
-        return BlobMetadata.builder()
-                .key(key)
-                .versionId(metadata.getVersionId())
-                .eTag(metadata.getETag())
-                .objectSize(objectSize)
-                .metadata(rawMetadata)
-                .lastModified(metadata.getLastModified().toInstant())
-                .build();
+        GenericRequest metadataRequest = transformer.toMetadataRequest(key, versionId);
+        return transformer.toBlobMetadata(key, ossClient.getObjectMetadata(metadataRequest));
     }
 
     /**
@@ -428,13 +317,9 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
-
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setUserMetadata(request.getMetadata());
-
-        InitiateMultipartUploadRequest initiateMultipartUploadRequest = new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);
+        InitiateMultipartUploadRequest initiateMultipartUploadRequest = transformer.toInitiateMultipartUploadRequest(request);
         InitiateMultipartUploadResult initiateMultipartUploadResult = ossClient.initiateMultipartUpload(initiateMultipartUploadRequest);
-        return new MultipartUpload(initiateMultipartUploadResult.getBucketName(), initiateMultipartUploadResult.getKey(), initiateMultipartUploadResult.getUploadId());
+        return transformer.toMultipartUpload(initiateMultipartUploadResult);
     }
 
     /**
@@ -446,11 +331,9 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp){
-
-        UploadPartRequest uploadPartRequest = new UploadPartRequest(getBucket(), mpu.getKey(), mpu.getId(), mpp.getPartNumber(), mpp.getInputStream(), mpp.getContentLength());
+        UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
         UploadPartResult uploadPartResult = ossClient.uploadPart(uploadPartRequest);
-
-        return new UploadPartResponse(mpp.getPartNumber(), uploadPartResult.getPartETag().getETag(), mpp.getContentLength());
+        return transformer.toUploadPartResponse(mpp, uploadPartResult);
     }
 
     /**
@@ -462,13 +345,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
-
-        List<PartETag> completedParts = parts.stream()
-                .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
-                .map(part -> new PartETag(part.getPartNumber(), part.getEtag()))
-                .collect(Collectors.toList());
-
-        CompleteMultipartUploadRequest completeMultipartUploadRequest = new CompleteMultipartUploadRequest(getBucket(), mpu.getKey(), mpu.getId(), completedParts);
+        CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
         CompleteMultipartUploadResult completeMultipartUploadResult = ossClient.completeMultipartUpload(completeMultipartUploadRequest);
         return new MultipartUploadResponse(completeMultipartUploadResult.getETag());
     }
@@ -480,14 +357,9 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      * @return Returns a list of all uploaded parts
      */
     protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
-
-        ListPartsRequest listPartsRequest = new ListPartsRequest(bucket, mpu.getKey(), mpu.getId());
+        ListPartsRequest listPartsRequest = transformer.toListPartsRequest(mpu);
         PartListing partListing = ossClient.listParts(listPartsRequest);
-
-        return partListing.getParts().stream()
-                .sorted(Comparator.comparingInt(PartSummary::getPartNumber))
-                .map((part) -> new UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
-                .collect(Collectors.toList());
+        return transformer.toListUploadPartResponse(partListing);
     }
 
     /**
@@ -496,9 +368,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      * @param mpu The multipartUpload identifier
      */
     protected void doAbortMultipartUpload(final MultipartUpload mpu) {
-
-        AbortMultipartUploadRequest abortMultipartUploadRequest = new AbortMultipartUploadRequest(bucket, mpu.getKey(), mpu.getId());
-        ossClient.abortMultipartUpload(abortMultipartUploadRequest);
+        ossClient.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu));
     }
 
     /**
@@ -531,67 +401,86 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
     protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
         switch(request.getType()) {
             case UPLOAD:
-                return doGeneratePresignedUploadUrl(request);
+                return ossClient.generatePresignedUrl(transformer.toPresignedUrlUploadRequest(request));
             case DOWNLOAD:
-                return doGeneratePresignedDownloadUrl(request);
+                return ossClient.generatePresignedUrl(transformer.toPresignedUrlDownloadRequest(request));
         }
         throw new InvalidArgumentException("Unsupported PresignedOperation. type="+request.getType());
     }
 
-    /**
-     * Generates a presigned URL for uploading blobs
-     * @param request The presigned upload request
-     * @return Returns the presigned upload URL
-     */
-    protected URL doGeneratePresignedUploadUrl(PresignedUrlRequest request) {
-        return ossClient.generatePresignedUrl(generatePresignedUrlUploadRequest(request));
-    }
-
-    /**
-     * Helper function to generate GeneratePresignedUrlRequest for upload
-     * @param request The PresignedUploadRequest
-     * @return Returns the GeneratePresignedUrlRequest for a PresignedUploadRequest
-     */
-    protected GeneratePresignedUrlRequest generatePresignedUrlUploadRequest(PresignedUrlRequest request) {
-        Date expirationDate = Date.from(Instant.now().plus(request.getDuration()));
-        GeneratePresignedUrlRequest presignedUrlRequest = new GeneratePresignedUrlRequest(getBucket(), request.getKey());
-        presignedUrlRequest.setExpiration(expirationDate);
-        presignedUrlRequest.setMethod(HttpMethod.PUT);
-        presignedUrlRequest.setUserMetadata(request.getMetadata());
-
-        // Note: Tagging is not supported by default for OSS presigned uploads so we have to manually append it
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setObjectTagging(request.getTags());
-        Object encodedTagging = metadata.getRawMetadata().get(OSSHeaders.OSS_TAGGING);
-        if(encodedTagging instanceof String) {
-            presignedUrlRequest.addHeader(OSSHeaders.OSS_TAGGING, (String)encodedTagging);
-        }
-        return presignedUrlRequest;
-    }
-
-    /**
-     * Generates a presigned URL for downloading blobs
-     * @param request The presigned download request
-     * @return Returns the presigned download URL
-     */
-    protected URL doGeneratePresignedDownloadUrl(PresignedUrlRequest request) {
-        Date expirationDate = Date.from(Instant.now().plus(request.getDuration()));
-        GeneratePresignedUrlRequest presignedUrlRequest = new GeneratePresignedUrlRequest(getBucket(), request.getKey());
-        presignedUrlRequest.setExpiration(expirationDate);
-        presignedUrlRequest.setMethod(HttpMethod.GET);
-
-        return ossClient.generatePresignedUrl(presignedUrlRequest);
-    }
-
+    @Getter
     public static class Builder extends AbstractBlobStore.Builder<AliBlobStore> {
+
+        private OSS client;
+        private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
 
         public Builder() {
             providerId(AliConstants.PROVIDER_ID);
         }
 
+        /**
+         * Helper function to generate the OSS Client
+         */
+        private static OSS buildOSSClient(Builder builder) {
+            return OSSClientBuilder.create()
+                    .region(builder.getRegion())
+                    .endpoint(getEndpoint(builder))
+                    .clientConfiguration(getClientBuilderConfiguration(builder))
+                    .credentialsProvider(OSSCredentialsProvider.getCredentialsProvider(
+                            builder.getCredentialsOverrider(),
+                            builder.getRegion()))
+                    .build();
+        }
+
+        /**
+         * Helper function to produce the endpoint value
+         */
+        private static String getEndpoint(Builder builder) {
+            if (builder.getEndpoint() != null) {
+                return builder.getEndpoint().getHost();
+            }
+            return "https://oss-" + builder.getRegion() + ".aliyuncs.com";
+        }
+
+        /**
+         * Helper function to generate the ClientBuilderConfiguration
+         */
+        private static ClientBuilderConfiguration getClientBuilderConfiguration(Builder builder) {
+            ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
+            clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
+            if (builder.getProxyEndpoint() != null) {
+                // Note: The proxy logic is hardwired to be HTTP-only in OSS
+                clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
+                clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
+            }
+            if(builder.getMaxConnections() != null) {
+                clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
+            }
+            if(builder.getSocketTimeout() != null) {
+                clientBuilderConfiguration.setSocketTimeout((int) builder.getSocketTimeout().toMillis());
+            }
+            if(builder.getIdleConnectionTimeout() != null) {
+                clientBuilderConfiguration.setIdleConnectionTime((int) builder.getIdleConnectionTimeout().toMillis());
+            }
+            return clientBuilderConfiguration;
+        }
+
+        public Builder withClient(OSS client) {
+            this.client = client;
+            return this;
+        }
+
+        public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
+            this.transformerSupplier = transformerSupplier;
+            return this;
+        }
+
         @Override
         public AliBlobStore build() {
-            return new AliBlobStore(this);
+            if(client == null) {
+                client = buildOSSClient(this);
+            }
+            return new AliBlobStore(this, client);
         }
     }
 }

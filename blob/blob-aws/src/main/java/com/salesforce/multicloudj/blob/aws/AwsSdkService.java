@@ -20,8 +20,4 @@ public interface AwsSdkService extends SdkService {
         }
         return UnknownException.class;
     }
-
-    default AwsTransformer createTransformer(String bucket) {
-        return new AwsTransformer(bucket);
-    }
 }

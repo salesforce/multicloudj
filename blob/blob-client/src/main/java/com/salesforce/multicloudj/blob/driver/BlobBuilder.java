@@ -13,6 +13,7 @@ import java.util.Properties;
  * This class is not intended to be instantiated directly. Instead, use one of the subclasses that are provided
  * by the library.
  * <p>
+ * Example: {@link com.salesforce.multicloudj.blob.ali.AliBlobClient}
  *
  * @param <T>
  */
