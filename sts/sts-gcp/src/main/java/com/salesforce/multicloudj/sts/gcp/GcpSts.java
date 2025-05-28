@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -124,7 +125,7 @@ public class GcpSts extends AbstractSts<GcpSts> {
 
     public static class Builder extends AbstractSts.Builder<GcpSts> {
         protected Builder() {
-            providerId("gcp");
+            providerId(GcpConstants.PROVIDER_ID);
         }
 
         public GcpSts build(IamCredentialsClient stsClient) {
