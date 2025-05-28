@@ -403,18 +403,12 @@ public class FSDocStore extends AbstractDocStore {
     private Precondition buildPrecondition(Document doc, ActionKind actionKind) {
         switch (actionKind) {
             case ACTION_KIND_CREATE:
-                // Precondition: the document doesn't already exist
-                return Precondition.newBuilder()
-                        .setExists(false)
-                        .build();
+                return Precondition.newBuilder().setExists(false).build();
             case ACTION_KIND_REPLACE:
             case ACTION_KIND_UPDATE:
             case ACTION_KIND_PUT:
             case ACTION_KIND_DELETE:
                 return buildRevisionPrecondition(doc);
-            case ACTION_KIND_GET:
-                // No preconditions on a Get
-                return null;
             default:
                 throw new IllegalArgumentException("Invalid action kind: " + actionKind);
         }
@@ -431,24 +425,17 @@ public class FSDocStore extends AbstractDocStore {
         if (!(revision instanceof String) || ((String) revision).isEmpty()) {
             return null;
         }
-        
-        try {
-            // Parse revision as a timestamp - expected to be seconds since epoch
-            long timestampSeconds = Long.parseLong((String)revision);
-            
-            // Create a Firestore updateTime precondition using the timestamp
-            return Precondition.newBuilder()
-                    .setUpdateTime(Timestamp.newBuilder()
-                            .setSeconds(timestampSeconds)
-                            .setNanos(0) // We don't store nanos, so use 0
-                            .build())
-                    .build();
-        } catch (NumberFormatException e) {
-            // If revision can't be parsed as a timestamp, fall back to exists check
-            return Precondition.newBuilder()
-                    .setExists(true)
-                    .build();
-        }
+
+        // Parse revision as a timestamp - expected to be seconds since epoch
+        long timestampSeconds = Long.parseLong((String)revision);
+
+        // Create a Firestore updateTime precondition using the timestamp
+        return Precondition.newBuilder()
+                .setUpdateTime(Timestamp.newBuilder()
+                        .setSeconds(timestampSeconds)
+                        .build())
+                .build();
+
     }
 
     /**
@@ -648,9 +635,7 @@ public class FSDocStore extends AbstractDocStore {
 
             // Add field mask if specific fields are requested
             if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
-                DocumentMask.Builder maskBuilder =
-                    DocumentMask.newBuilder();
-                
+                DocumentMask.Builder maskBuilder = DocumentMask.newBuilder();
                 // Add key fields to ensure they're included
                 Set<String> fieldPaths = new HashSet<>(gets.get(start).getFieldPaths());
                 fieldPaths.add(collectionOptions.getPartitionKey());
