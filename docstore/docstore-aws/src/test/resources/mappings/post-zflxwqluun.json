@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"08e7b250-dc1d-5342-d324-a3d4c44c28ba\"},\"pName\":{\"S\":\"LeoPut\"},\"f\":{\"N\":\"12.65999984741211\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"someRevision\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"08e7b250-dc1d-5342-d324-a3d4c44c28ba\"},\"pName\":{\"S\":\"LeoPut\"},\"f\":{\"N\":\"12.65999984741211\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"123\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
