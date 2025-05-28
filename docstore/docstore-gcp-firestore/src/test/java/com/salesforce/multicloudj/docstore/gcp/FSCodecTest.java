@@ -97,7 +97,7 @@ public class FSCodecTest {
         Map<String, Object> m = new HashMap<>();
         com.salesforce.multicloudj.docstore.driver.Document doc = new com.salesforce.multicloudj.docstore.driver.Document(m);
         // Decode the snapshot into the document
-        FSCodec.decodeDoc(fsDoc, doc);
+        FSCodec.decodeDoc(fsDoc, doc, null);
 
         // Verify the decoded values
         Assertions.assertEquals("value", doc.getField("string"));

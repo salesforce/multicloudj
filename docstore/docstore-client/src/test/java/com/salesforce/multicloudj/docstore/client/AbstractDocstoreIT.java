@@ -434,7 +434,7 @@ public abstract class AbstractDocstoreIT {
         m2.put("DocstoreRevision", null);
         testCases.add(new TestCase("ReplaceWithMapAlreadyExists", m2, null));
 
-        Map m3 = Map.of("pName", "LeoPut", "i", 121, "f", 12.66f, "b", true, "DocstoreRevision", "someRevision");
+        Map m3 = Map.of("pName", "LeoPut", "i", 121, "f", 12.66f, "b", true, "DocstoreRevision", "123");
         m3 = new HashMap(m3);
         testCases.add(new TestCase("PutWithNonEmptyRevision", m3, ResourceNotFoundException.class));
 
@@ -458,7 +458,7 @@ public abstract class AbstractDocstoreIT {
                 // Temporarily don't assert on gcp firestore unless we have the
                 // get implementation
                 if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-                    return;
+                    //return;
                 }
                 if (got instanceof Map) {
                     Assertions.assertTrue(compareMaps((Map) got, (Map) testCase.doc));
