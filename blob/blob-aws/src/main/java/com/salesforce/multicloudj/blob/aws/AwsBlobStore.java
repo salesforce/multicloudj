@@ -31,6 +31,7 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
@@ -70,61 +71,23 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * AWS implementation of BlobService
+ * AWS implementation of BlobStore
  */
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
 
-    private S3Client s3Client;
-    private AwsTransformer transformer;
+    private final S3Client s3Client;
+    private final AwsTransformer transformer;
 
     public AwsBlobStore() {
-        super(new Builder());
-    }
-
-    public AwsBlobStore(Builder builder) {
-        this(builder, buildS3Client(builder));
+        this(new Builder(), null);
     }
 
     public AwsBlobStore(Builder builder, S3Client s3Client) {
         super(builder);
         this.s3Client = s3Client;
         this.transformer = builder.getTransformerSupplier().get(bucket);
-    }
-
-    private static S3Client buildS3Client(Builder builder) {
-        Region regionObj = Region.of(builder.getRegion());
-        S3ClientBuilder b = S3Client.builder();
-        b.region(regionObj);
-
-        AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), regionObj);
-        if (credentialsProvider != null) {
-            b.credentialsProvider(credentialsProvider);
-        }
-        if (builder.getEndpoint() != null) {
-            b.endpointOverride(builder.getEndpoint());
-        }
-        if(shouldConfigureHttpClient(builder)) {
-            ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
-            if (builder.getProxyEndpoint() != null) {
-                httpClientBuilder.proxyConfiguration(ProxyConfiguration.builder()
-                        .endpoint(builder.getProxyEndpoint())
-                        .build());
-            }
-            if(builder.getMaxConnections() != null) {
-                httpClientBuilder.maxConnections(builder.getMaxConnections());
-            }
-            if(builder.getSocketTimeout() != null) {
-                httpClientBuilder.socketTimeout(builder.getSocketTimeout());
-            }
-            if(builder.getIdleConnectionTimeout() != null) {
-                httpClientBuilder.connectionMaxIdleTime(builder.getIdleConnectionTimeout());
-            }
-            b.httpClient(httpClientBuilder.build());
-        }
-
-        return b.build();
     }
 
     /**
@@ -467,13 +430,63 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
                 .build();
     }
 
+    @Getter
     public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore> {
 
-        @Getter
+        private S3Client s3Client;
         private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
         public Builder() {
             providerId(AwsConstants.PROVIDER_ID);
+        }
+
+        /**
+         * Helper function to generate the client
+         */
+        private static S3Client buildS3Client(Builder builder) {
+            Region regionObj = Region.of(builder.getRegion());
+            S3ClientBuilder b = S3Client.builder();
+            b.region(regionObj);
+
+            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), regionObj);
+            if (credentialsProvider != null) {
+                b.credentialsProvider(credentialsProvider);
+            }
+            if (builder.getEndpoint() != null) {
+                b.endpointOverride(builder.getEndpoint());
+            }
+            if(shouldConfigureHttpClient(builder)) {
+                b.httpClient(generateHttpClient(builder));
+            }
+
+            return b.build();
+        }
+
+        /**
+         * Helper function to generate the HttpClient
+         */
+        private static SdkHttpClient generateHttpClient(Builder builder) {
+            ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
+            if (builder.getProxyEndpoint() != null) {
+                httpClientBuilder.proxyConfiguration(ProxyConfiguration.builder()
+                        .endpoint(builder.getProxyEndpoint())
+                        .build());
+            }
+            if(builder.getMaxConnections() != null) {
+                httpClientBuilder.maxConnections(builder.getMaxConnections());
+            }
+            if(builder.getSocketTimeout() != null) {
+                httpClientBuilder.socketTimeout(builder.getSocketTimeout());
+            }
+            if(builder.getIdleConnectionTimeout() != null) {
+                httpClientBuilder.connectionMaxIdleTime(builder.getIdleConnectionTimeout());
+            }
+            return httpClientBuilder.build();
+        }
+
+        public Builder withS3Client(S3Client s3Client) {
+            this.s3Client = s3Client;
+            return this;
         }
 
         public Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
@@ -483,10 +496,10 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
 
         @Override
         public AwsBlobStore build() {
-            return new AwsBlobStore(this);
-        }
+            if (s3Client == null) {
+                s3Client = buildS3Client(this);
+            }
 
-        public AwsBlobStore build(S3Client s3Client) {
             return new AwsBlobStore(this, s3Client);
         }
     }

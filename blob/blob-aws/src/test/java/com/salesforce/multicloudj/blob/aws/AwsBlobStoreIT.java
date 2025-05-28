@@ -74,12 +74,13 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
                     .build();
 
             AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
-            builder.withEndpoint(URI.create(endpoint))
+            builder.withS3Client(client)
+                    .withEndpoint(URI.create(endpoint))
                     .withBucket(bucketName)
                     .withRegion(region)
                     .withCredentialsOverrider(credentialsOverrider);
 
-            return builder.build(client);
+            return builder.build();
         }
 
         @Override
