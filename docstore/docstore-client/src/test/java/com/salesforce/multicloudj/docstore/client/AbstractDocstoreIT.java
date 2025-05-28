@@ -455,11 +455,6 @@ public abstract class AbstractDocstoreIT {
                 verifyRevisionFieldExist(testCase.doc, "DocstoreRevision");
                 Object got = newDocument(testCase.doc);
                 docStoreClient.get(new Document(got));
-                // Temporarily don't assert on gcp firestore unless we have the
-                // get implementation
-                if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-                    //return;
-                }
                 if (got instanceof Map) {
                     Assertions.assertTrue(compareMaps((Map) got, (Map) testCase.doc));
                 } else {

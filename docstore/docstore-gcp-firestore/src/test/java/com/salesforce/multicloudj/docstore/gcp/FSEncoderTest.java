@@ -3,8 +3,8 @@ package com.salesforce.multicloudj.docstore.gcp;
 import com.google.firestore.v1.Value;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.docstore.driver.codec.Codec;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 import java.util.HashMap;
