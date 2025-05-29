@@ -317,10 +317,8 @@ public class FSDocStore extends AbstractDocStore {
             for (int i = 0; i < Objects.requireNonNull(response).getWriteResultsCount(); i++) {
                 Action action = writeToActionMap.get(i);
                 if (action != null && action.getDocument().hasField(getRevisionField())) {
-                    // Convert update time to revision format (seconds since epoch as string)
                     Timestamp updateTime = response.getWriteResults(i).getUpdateTime();
-                    String revision = String.valueOf(updateTime.getSeconds());
-                    action.getDocument().setField(getRevisionField(), revision);
+                    action.getDocument().setField(getRevisionField(), updateTime);
                 }
             }
         }
@@ -421,19 +419,15 @@ public class FSDocStore extends AbstractDocStore {
      * @return A Firestore precondition based on update timestamp or null if no revision
      */
     private Precondition buildRevisionPrecondition(Document doc) {
-        Object revision = doc.getField(getRevisionField());
-        if (!(revision instanceof String) || ((String) revision).isEmpty()) {
+        Object revisionObject = doc.getField(getRevisionField());
+        if (!(revisionObject instanceof Timestamp)) {
             return null;
         }
 
-        // Parse revision as a timestamp - expected to be seconds since epoch
-        long timestampSeconds = Long.parseLong((String)revision);
-
+        Timestamp revision = (Timestamp) revisionObject;
         // Create a Firestore updateTime precondition using the timestamp
         return Precondition.newBuilder()
-                .setUpdateTime(Timestamp.newBuilder()
-                        .setSeconds(timestampSeconds)
-                        .build())
+                .setUpdateTime(revision)
                 .build();
 
     }

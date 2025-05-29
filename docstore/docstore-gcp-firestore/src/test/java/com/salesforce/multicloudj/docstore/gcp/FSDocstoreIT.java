@@ -4,6 +4,7 @@ import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.firestore.v1.FirestoreClient;
 import com.google.cloud.firestore.v1.FirestoreSettings;
+import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreIT;
 import com.salesforce.multicloudj.docstore.client.CollectionKind;
@@ -52,6 +53,11 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
                             .withPartitionKey("pName")
                             .build())
                     .build();
+        }
+
+        @Override
+        public Object getRevisionId() {
+            return Timestamp.newBuilder().setSeconds(Math.abs(123)).build();
         }
 
         @Override

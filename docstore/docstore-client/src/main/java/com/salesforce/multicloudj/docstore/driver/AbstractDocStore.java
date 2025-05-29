@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.docstore.driver;
 
 import com.google.common.base.Strings;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
@@ -100,7 +99,7 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
         }
 
         action.setKey(key);
-        String revision = (String)doc.getField(getRevisionField());
+        Object revision = doc.getField(getRevisionField());
         if (action.getKind() == ActionKind.ACTION_KIND_CREATE && revision != null) {
             throw new IllegalArgumentException("cannot create a document with a revision field: " + action.getDocument().toString());
         }
