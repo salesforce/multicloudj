@@ -46,18 +46,28 @@ public class FSCodec {
 
     /**
      * Decodes a Firestore Document snapshot into a Document object.
-     * This method converts the Firestore Document's fields into a map value
-     * and uses FSDecoder to populate the target Document.
+     * This method converts the Firestore Document's fields into a map value,
+     * uses FSDecoder to populate the target Document, and sets the revision field
+     * using the document's update time if specified.
      *
      * @param fsDocument The Firestore Document snapshot to decode
      * @param doc The target Document to populate with decoded values
+     * @param revisionField The name of the revision field, or null if not used
      */
-    public static void decodeDoc(Document fsDocument, com.salesforce.multicloudj.docstore.driver.Document doc) {
+    public static void decodeDoc(Document fsDocument, com.salesforce.multicloudj.docstore.driver.Document doc, String revisionField) {
         Value mapValue = Value.newBuilder()
             .setMapValue(com.google.firestore.v1.MapValue.newBuilder()
                 .putAllFields(fsDocument.getFieldsMap())
                 .build())
             .build();
         doc.decode(new FSDecoder(mapValue));
+        
+        // Set the revision field in the document, if it exists, to the update time
+        if (revisionField != null && !revisionField.isEmpty() && 
+            doc.hasField(revisionField) && fsDocument.hasUpdateTime()) {
+            // Convert update time to string representation (seconds since epoch)
+            String updateTime = String.valueOf(fsDocument.getUpdateTime().getSeconds());
+            doc.setField(revisionField, updateTime);
+        }
     }
 } 
