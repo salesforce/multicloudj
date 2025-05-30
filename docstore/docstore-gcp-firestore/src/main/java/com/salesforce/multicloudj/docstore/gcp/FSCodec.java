@@ -65,9 +65,7 @@ public class FSCodec {
         // Set the revision field in the document, if it exists, to the update time
         if (revisionField != null && !revisionField.isEmpty() && 
             doc.hasField(revisionField) && fsDocument.hasUpdateTime()) {
-            // Convert update time to string representation (seconds since epoch)
-            String updateTime = String.valueOf(fsDocument.getUpdateTime().getSeconds());
-            doc.setField(revisionField, updateTime);
+            doc.setField(revisionField, fsDocument.getUpdateTime());
         }
     }
 } 

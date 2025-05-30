@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.docstore.client;
 
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -38,6 +40,10 @@ public abstract class AbstractDocstoreIT {
     public interface Harness extends AutoCloseable {
         // Method to create a docstore store driver
         AbstractDocStore createDocstoreDriver(CollectionKind collectionKind);
+
+        // Method to get the revision Id for a provider, firestore leverages
+        // timestamp as revision
+        Object getRevisionId();
 
         // provide the STS endpoint in provider
         String getDocstoreEndpoint();
@@ -234,7 +240,10 @@ public abstract class AbstractDocstoreIT {
                     return false;
                 }
 
-            } else if (!value1.equals(value2)) {
+            } else if (value1 instanceof Timestamp && value2 instanceof Timestamp) {
+                return Timestamps.compare((Timestamp) value1, (Timestamp) value2) == 0;
+            }
+            else if (!value1.equals(value2)) {
                 return false;
             }
         }
@@ -386,8 +395,8 @@ public abstract class AbstractDocstoreIT {
 
     private void verifyRevisionFieldExist(Object doc, String revisionField) {
         if (doc instanceof Map) {
-            String revision = (String) ((Map) doc).get(revisionField);
-            Assertions.assertTrue(StringUtils.isNotEmpty(revision));
+            Object revision = ((Map) doc).get(revisionField);
+            Assertions.assertNotNull(revision);
         }
     }
 
@@ -434,7 +443,7 @@ public abstract class AbstractDocstoreIT {
         m2.put("DocstoreRevision", null);
         testCases.add(new TestCase("ReplaceWithMapAlreadyExists", m2, null));
 
-        Map m3 = Map.of("pName", "LeoPut", "i", 121, "f", 12.66f, "b", true, "DocstoreRevision", "123");
+        Map m3 = Map.of("pName", "LeoPut", "i", 121, "f", 12.66f, "b", true, "DocstoreRevision", harness.getRevisionId());
         m3 = new HashMap(m3);
         testCases.add(new TestCase("PutWithNonEmptyRevision", m3, ResourceNotFoundException.class));
 

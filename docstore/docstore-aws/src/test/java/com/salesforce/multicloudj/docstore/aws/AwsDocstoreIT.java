@@ -65,6 +65,11 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
         }
 
         @Override
+        public Object getRevisionId() {
+            return "123";
+        }
+
+        @Override
         public String getDocstoreEndpoint() {
             return "https://dynamodb.us-west-2.amazonaws.com";
         }
