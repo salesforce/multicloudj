@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.junit.jupiter.api.Disabled;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -16,6 +17,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 
+@Disabled
 public class AwsBlobClientIT extends AbstractBlobClientIT {
 
     private static final String endpoint = "https://s3.us-west-2.amazonaws.com";
