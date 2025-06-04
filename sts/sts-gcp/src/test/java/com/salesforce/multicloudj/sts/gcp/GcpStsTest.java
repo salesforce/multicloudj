@@ -17,11 +17,11 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
-import com.salesforce.multicloudj.sts.gcp.GcpSts;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -55,8 +55,8 @@ public class GcpStsTest {
         GcpSts sts = new GcpSts().builder().build(mockStsClient);
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole("testRole").withSessionName("testSession").build();
         StsCredentials credentials = sts.assumeRole(request);
-        Assertions.assertEquals(null, credentials.getAccessKeyId());
-        Assertions.assertEquals(null, credentials.getAccessKeySecret());
+        Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
+        Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
         Assertions.assertEquals("testAccessToken", credentials.getSecurityToken());
     }
 
@@ -67,9 +67,9 @@ public class GcpStsTest {
             
             GcpSts sts = new GcpSts().builder().build(mockStsClient);
             CallerIdentity identity = sts.getCallerIdentity();
-            Assertions.assertEquals(null, identity.getUserId());
+            Assertions.assertEquals(StringUtils.EMPTY, identity.getUserId());
             Assertions.assertEquals("testAccessTokenValue", identity.getCloudResourceName());
-            Assertions.assertEquals(null, identity.getAccountId());
+            Assertions.assertEquals(StringUtils.EMPTY, identity.getAccountId());
         }
     }
 
@@ -97,8 +97,8 @@ public class GcpStsTest {
             GcpSts sts = new GcpSts().builder().build(mockStsClient);
             GetAccessTokenRequest request = GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build();
             StsCredentials credentials = sts.getAccessToken(request);
-            Assertions.assertEquals(null, credentials.getAccessKeyId());
-            Assertions.assertEquals(null, credentials.getAccessKeySecret());
+            Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
+            Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
             Assertions.assertEquals("testAccessTokenValue", credentials.getSecurityToken());
         }
     }
