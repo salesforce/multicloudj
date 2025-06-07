@@ -11,6 +11,9 @@ import com.google.firestore.v1.CommitRequest;
 import com.google.firestore.v1.CommitResponse;
 import com.google.firestore.v1.DocumentMask;
 import com.google.firestore.v1.Precondition;
+import com.google.firestore.v1.RunQueryRequest;
+import com.google.firestore.v1.StructuredQuery;
+import com.google.firestore.v1.Value;
 import com.google.firestore.v1.Write;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -24,6 +27,8 @@ import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
+import com.salesforce.multicloudj.docstore.driver.Filter;
+import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -177,10 +182,14 @@ public class FSDocStore extends AbstractDocStore {
     @Override
     public Key getKey(Document document) {
         // In Firestore, the document ID is the primary key.
-        // Assuming the partition key field holds the document ID.
+        // To simulate PK + SK pattern, we can concat them together to form
+        // a single document ID.
         String docId = (String) document.getField(collectionOptions.getPartitionKey());
         if (docId == null || docId.isEmpty()) {
             throw new IllegalArgumentException("Document ID (partitionKey) cannot be null or empty for Firestore");
+        }
+        if (collectionOptions.getSortKey() != null && document.getField(collectionOptions.getSortKey()) != null) {
+            docId += ":" + document.getField(collectionOptions.getSortKey());
         }
         return new Key(docId);
     }
@@ -264,8 +273,10 @@ public class FSDocStore extends AbstractDocStore {
 
         // Process each action and create write operations
         for (Action action : writes) {
-            // TODO remove this logic once all the actions are supported in firestore.
-            if (action.getKind() != ActionKind.ACTION_KIND_PUT && action.getKind() != ActionKind.ACTION_KIND_REPLACE) {
+            // Handle both PUT and DELETE actions
+            if (action.getKind() != ActionKind.ACTION_KIND_PUT && 
+                action.getKind() != ActionKind.ACTION_KIND_REPLACE &&
+                action.getKind() != ActionKind.ACTION_KIND_DELETE) {
                 continue;
             }
 
@@ -279,8 +290,14 @@ public class FSDocStore extends AbstractDocStore {
             // Get the full document path
             String documentPath = getDocumentPath(key.getDocumentId());
 
-            // Create the write operation with the updated document
-            Write write = createPutWrite(action.getDocument(), documentPath, action.getKind());
+            // Create the appropriate write operation based on action kind
+            Write write;
+            if (action.getKind() == ActionKind.ACTION_KIND_DELETE) {
+                write = createDeleteWrite(action.getDocument(), documentPath, action.getKind());
+            } else {
+                write = createPutWrite(action.getDocument(), documentPath, action.getKind());
+            }
+
             allWrites.add(write);
             writeToActionMap.put(writeIndex++, action);
         }
@@ -299,9 +316,9 @@ public class FSDocStore extends AbstractDocStore {
                 response = firestoreClient.commit(commitRequest);
             }  catch (ApiException e) {
                 // When a precondition fails, the error handling depends on the action type.
-                // Because we batch writes, we inspect only the first action’s kind to decide
+                // Because we batch writes, we inspect only the first action's kind to decide
                 // which exception to throw. This is always correct for a single-Do action.
-                // For multi-action batches, however, we can’t guarantee throwing the exact
+                // For multi-action batches, however, we can't guarantee throwing the exact
                 // exception for each individual action.
                 if (e.getCause().getMessage().contains("FAILED_PRECONDITION")) {
                     if (writes.get(0).getKind() == ActionKind.ACTION_KIND_CREATE) {
@@ -322,6 +339,28 @@ public class FSDocStore extends AbstractDocStore {
                 }
             }
         }
+    }
+
+    /**
+     * Creates a Write operation for a DELETE action.
+     *
+     * @param doc The document to delete
+     * @param documentPath Full path to the document
+     * @param actionKind The type of action being performed
+     * @return A Write operation for deletion
+     */
+    private Write createDeleteWrite(Document doc, String documentPath, ActionKind actionKind) {
+        // Create a delete operation
+        Write.Builder writeBuilder = Write.newBuilder()
+                .setDelete(documentPath);
+
+        // Add precondition based on action kind
+        Precondition precondition = buildPrecondition(doc, actionKind);
+        if (precondition != null) {
+            writeBuilder.setCurrentDocument(precondition);
+        }
+
+        return writeBuilder.build();
     }
 
     /**
@@ -401,12 +440,24 @@ public class FSDocStore extends AbstractDocStore {
     private Precondition buildPrecondition(Document doc, ActionKind actionKind) {
         switch (actionKind) {
             case ACTION_KIND_CREATE:
+                // Precondition: the document doesn't already exist
                 return Precondition.newBuilder().setExists(false).build();
             case ACTION_KIND_REPLACE:
             case ACTION_KIND_UPDATE:
+                // Precondition: the revision matches, or if there is no revision, the document exists
+                Precondition revisionPrecondition = buildRevisionPrecondition(doc);
+                if (revisionPrecondition != null) {
+                    return revisionPrecondition;
+                }
+                // If no revision, just check that document exists
+                return Precondition.newBuilder().setExists(true).build();
             case ACTION_KIND_PUT:
             case ACTION_KIND_DELETE:
+                // Precondition: the revision matches, if any
                 return buildRevisionPrecondition(doc);
+            case ACTION_KIND_GET:
+                // No preconditions on a Get
+                return null;
             default:
                 throw new IllegalArgumentException("Invalid action kind: " + actionKind);
         }
@@ -445,49 +496,219 @@ public class FSDocStore extends AbstractDocStore {
     }
 
     /**
+     * Plans a Firestore structured query based on the provided query parameters.
+     *
+     * @param query The query to plan for execution
+     * @return A QueryRunner configured to execute the query
+     */
+    protected QueryRunner planQuery(Query query) {
+        // Create a structured query builder
+        StructuredQuery.Builder structuredQueryBuilder = StructuredQuery.newBuilder();
+        
+        // Set the collection to query
+        structuredQueryBuilder.addFrom(
+            StructuredQuery.CollectionSelector.newBuilder()
+                .setCollectionId(extractCollectionId(collectionOptions.getTableName()))
+                .build()
+        );
+        
+        // Handle field projections (select specific fields)
+        if (query.getFieldPaths() != null && !query.getFieldPaths().isEmpty()) {
+            StructuredQuery.Projection.Builder projectionBuilder = StructuredQuery.Projection.newBuilder();
+            
+            // Add each field to the projection
+            for (String fieldPath : query.getFieldPaths()) {
+                projectionBuilder.addFields(
+                    StructuredQuery.FieldReference.newBuilder()
+                        .setFieldPath(fieldPath)
+                        .build()
+                );
+            }
+        }
+        
+        // Handle query filters
+        if (query.getFilters() != null && !query.getFilters().isEmpty()) {
+            StructuredQuery.Filter filter = filtersToStructuredFilter(query.getFilters());
+            if (filter != null) {
+                structuredQueryBuilder.setWhere(filter);
+            }
+        }
+        
+        // Handle ordering
+        if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
+            StructuredQuery.Direction direction = query.isOrderAscending() ? 
+                StructuredQuery.Direction.ASCENDING : StructuredQuery.Direction.DESCENDING;
+            
+            structuredQueryBuilder.addOrderBy(
+                StructuredQuery.Order.newBuilder()
+                    .setField(
+                        StructuredQuery.FieldReference.newBuilder()
+                            .setFieldPath(query.getOrderByField())
+                            .build()
+                    )
+                    .setDirection(direction)
+                    .build()
+            );
+        }
+        
+        // Handle offset
+        if (query.getOffset() > 0) {
+            structuredQueryBuilder.setOffset(query.getOffset());
+        }
+        
+        // Handle limit
+        if (query.getLimit() > 0) {
+            structuredQueryBuilder.setLimit(
+                com.google.protobuf.Int32Value.newBuilder()
+                    .setValue(query.getLimit())
+                    .build()
+            );
+        }
+        
+        // Build the run query request
+        RunQueryRequest request = RunQueryRequest.newBuilder()
+            .setParent(getDatabasePath() + "/documents")
+            .setStructuredQuery(structuredQueryBuilder.build())
+            .build();
+        
+        return new QueryRunner(
+            firestoreClient,
+            request,
+            query.getBeforeQuery()
+        );
+    }
+    
+    /**
+     * Converts a list of filters to a Firestore structured filter.
+     *
+     * @param filters The list of filters to convert
+     * @return A Firestore structured filter
+     */
+    private StructuredQuery.Filter filtersToStructuredFilter(List<Filter> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return null;
+        }
+
+        // Handle it specially because we don't need the composite filter condition for single filter
+        if (filters.size() == 1) {
+            return filterToStructuredFilter(filters.get(0));
+        }
+        
+        // Combine multiple filters with AND
+        StructuredQuery.CompositeFilter.Builder compositeFilter = StructuredQuery.CompositeFilter.newBuilder()
+            .setOp(StructuredQuery.CompositeFilter.Operator.AND);
+        
+        for (Filter filter : filters) {
+            StructuredQuery.Filter structuredFilter = filterToStructuredFilter(filter);
+            if (structuredFilter != null) {
+                compositeFilter.addFilters(structuredFilter);
+            }
+        }
+        
+        return StructuredQuery.Filter.newBuilder()
+            .setCompositeFilter(compositeFilter.build())
+            .build();
+    }
+    
+    /**
+     * Converts a single filter to a Firestore structured filter.
+     *
+     * @param filter The filter to convert
+     * @return A Firestore structured filter
+     */
+    private StructuredQuery.Filter filterToStructuredFilter(Filter filter) {
+        if (filter == null) {
+            return null;
+        }
+        
+        String fieldPath = filter.getFieldPath();
+        FilterOperation op = filter.getOp();
+        Object value = filter.getValue();
+        
+        // Create field reference
+        StructuredQuery.FieldReference fieldRef = StructuredQuery.FieldReference.newBuilder()
+            .setFieldPath(fieldPath)
+            .build();
+        
+        // Convert value to Firestore Value
+        Value firestoreValue = FSCodec.encodeValue(value);
+        if (firestoreValue == null) {
+            return null;
+        }
+        
+        // Map operation to Firestore operator
+        StructuredQuery.FieldFilter.Operator operator;
+        switch (op) {
+            case EQUAL:
+                operator = StructuredQuery.FieldFilter.Operator.EQUAL;
+                break;
+            case NOT_IN:
+                operator = StructuredQuery.FieldFilter.Operator.NOT_IN;
+                break;
+            case GREATER_THAN:
+                operator = StructuredQuery.FieldFilter.Operator.GREATER_THAN;
+                break;
+            case GREATER_THAN_OR_EQUAL_TO:
+                operator = StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL;
+                break;
+            case LESS_THAN:
+                operator = StructuredQuery.FieldFilter.Operator.LESS_THAN;
+                break;
+            case LESS_THAN_OR_EQUAL_TO:
+                operator = StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL;
+                break;
+            case IN:
+                operator = StructuredQuery.FieldFilter.Operator.IN;
+                break;
+            default:
+                return null;
+        }
+        
+        return StructuredQuery.Filter.newBuilder()
+            .setFieldFilter(
+                StructuredQuery.FieldFilter.newBuilder()
+                    .setField(fieldRef)
+                    .setOp(operator)
+                    .setValue(firestoreValue)
+                    .build()
+            )
+            .build();
+    }
+
+    /**
      * {@inheritDoc}
      * <p>
-     * Executes a query against Firestore and returns an iterator over the results.
-     * <p>
-     * Note: This feature is currently not fully implemented.
+     * Executes a query against Firestore and returns an iterator for the results.
      *
      * @param query The query to execute
-     * @return A DocumentIterator for the query results
-     * @throws UnsupportedOperationException Currently thrown as this feature is not implemented
+     * @return An iterator for the query results
      */
     @Override
     public DocumentIterator runGetQuery(Query query) {
-        return new DocumentIterator() {
-            @Override
-            public void next(Document document) {
-
-            }
-
-            @Override
-            public boolean hasNext() {
-                return false;
-            }
-
-            @Override
-            public void stop() {
-
-            }
-        };
+        QueryRunner queryRunner = planQuery(query);
+        if (queryRunner == null) {
+            throw new SubstrateSdkException("Failed to plan query for execution");
+        }
+        
+        // Create the document iterator - offset/limit are handled in the query now
+        return new FSDocumentIterator(queryRunner, 0, 0);
     }
 
     /**
      * {@inheritDoc}
      * <p>
      * Generates a query execution plan for the given query.
-     * <p>
-     * Note: This feature is currently not fully implemented.
      *
      * @param query The query to plan
      * @return A string representation of the query plan
      */
     @Override
     public String queryPlan(Query query) {
-        return "Firestore query plan not yet implemented.";
+        QueryRunner queryRunner = planQuery(query);
+        if (queryRunner == null) {
+            return "Failed to plan query for execution";
+        }
+        return queryRunner.queryPlan();
     }
 
     /**
@@ -501,13 +722,8 @@ public class FSDocStore extends AbstractDocStore {
      */
     @Override
     public void close() {
-        try {
-            if (firestoreClient != null) {
-                firestoreClient.close();
-            }
-        } catch (Exception e) {
-            throw new UnknownException("Unable to close the connection", e);
-        }
+        executorService.shutdown();
+        firestoreClient.close();
     }
 
     /**
@@ -643,7 +859,7 @@ public class FSDocStore extends AbstractDocStore {
 
             // Execute the batch get request
             BatchGetDocumentsRequest request = requestBuilder.build();
-            
+
             // Process each document response
             firestoreClient.batchGetDocumentsCallable().call(request).forEach(response -> {
                 if (response.hasFound()) {
@@ -661,6 +877,21 @@ public class FSDocStore extends AbstractDocStore {
         } catch (Exception e) {
             throw new SubstrateSdkException("Error executing Firestore batch gets", e);
         }
+    }
+
+    /**
+     * Extracts the collection ID (last segment) from a full collection path.
+     *
+     * @param tableName The full collection path or name
+     * @return The collection ID (last segment of the path)
+     */
+    private String extractCollectionId(String tableName) {
+        // Handle paths that contain slash characters
+        int lastSlashIndex = tableName.lastIndexOf('/');
+        if (lastSlashIndex >= 0 && lastSlashIndex < tableName.length() - 1) {
+            return tableName.substring(lastSlashIndex + 1);
+        }
+        return tableName;
     }
 }
 

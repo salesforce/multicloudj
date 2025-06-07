@@ -1,0 +1,34 @@
+{
+  "id" : "79b54427-82ed-4caf-96cd-1f88802dc3f6",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TaylorPut\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TaylorPut\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"randomString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"TaylorPut\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2025-06-07T19:04:19.341257Z\",\n    \"updateTime\": \"2025-06-07T19:04:19.341257Z\"\n  },\n  \"readTime\": \"2025-06-07T19:04:19.653953Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13374245932941987677;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sat, 07 Jun 2025 19:04:19 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "79b54427-82ed-4caf-96cd-1f88802dc3f6",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-databases-(default)-documents:batchGet-2",
+  "insertionIndex" : 33
+}

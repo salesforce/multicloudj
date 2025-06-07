@@ -1,0 +1,32 @@
+{
+  "id" : "73e5ae48-2361-4f74-96f7-25cfbd262ea9",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"QueenMap\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2,#attr3\",\"ExpressionAttributeNames\":{\"#attr3\":\"pName\",\"#attr2\":\"S\",\"#attr1\":\"f\",\"#attr0\":\"I\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"QueenMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "4IO1S6QBO4M1F80K81OEVT693FVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3662364093",
+      "Date" : "Sat, 07 Jun 2025 20:09:56 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "73e5ae48-2361-4f74-96f7-25cfbd262ea9",
+  "persistent" : true,
+  "insertionIndex" : 31
+}
