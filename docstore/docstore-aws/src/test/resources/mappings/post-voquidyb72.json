@@ -1,0 +1,32 @@
+{
+  "id" : "112c85b1-9133-4dce-9d35-85ea0b116fb8",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DescribeTable"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pName\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.739250359602E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"pName\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"TableId\":\"a64f5fc6-5267-4059-b0bf-e10cc9fcf628\",\"TableName\":\"docstore-test-1\",\"TableSizeBytes\":0,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "96O488BMM2O4HDAUK4U9DDERTNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1512694266",
+      "Date" : "Sat, 07 Jun 2025 20:09:58 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "112c85b1-9133-4dce-9d35-85ea0b116fb8",
+  "persistent" : true,
+  "insertionIndex" : 70
+}

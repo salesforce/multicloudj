@@ -48,9 +48,6 @@ public abstract class AbstractDocstoreIT {
         // provide the STS endpoint in provider
         String getDocstoreEndpoint();
 
-        // provide the provider ID
-        String getProviderId();
-
         // Wiremock server need the https port, if
         // we make it constant at abstract class, we won't be able
         // to run tests in parallel. Each provider can provide the
@@ -60,6 +57,13 @@ public abstract class AbstractDocstoreIT {
         // If you need to provide extensions to wiremock proxy
         // provide the fully qualified class names here.
         List<String> getWiremockExtensions();
+
+        // Method to check if the provider supports OrderBy in full table scans
+        // Returns true if the provider can handle OrderBy clauses during full table scans,
+        // false if it requires an index or fallback mechanism
+        default boolean supportOrderByInFullScan() {
+            return false;
+        }
     }
 
     protected abstract Harness createHarness();
@@ -676,9 +680,6 @@ public abstract class AbstractDocstoreIT {
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
         // Temporarily don't assert on gcp firestore unless we have the
         // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         // Create test data
         List<HighScore> allScores = List.of(
                 new HighScore(game1, "pat", 49, "2024-03-13", false),
@@ -691,7 +692,7 @@ public abstract class AbstractDocstoreIT {
                 new HighScore(game2, "fran", 33, "2024-03-20", false)
         );
         for (HighScore score : allScores) {
-            docStoreClient.create(new Document(score));
+            docStoreClient.put(new Document(score));
         }
 
         // 1. Query all
@@ -763,17 +764,28 @@ public abstract class AbstractDocstoreIT {
         List<HighScore> withGlitchNotIns = getQueryResult(iter12);
         Assertions.assertEquals(6, withGlitchNotIns.size());
 
-        // 13. query all order by player (SK) asc, should fail because full scans with order by are not allowed
-        Assertions.assertThrows(
-                InvalidArgumentException.class,
-                () -> docStoreClient.query().orderBy("Player", true).get()
-        );
+        // 13. query all order by player (SK) asc, should fail because full scans with order by are not allowe
+        if (harness.supportOrderByInFullScan()) {
+            Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", true).get()
+            );
+        } else {
+            Assertions.assertThrows(
+                    InvalidArgumentException.class,
+                    () -> docStoreClient.query().orderBy("Player", true).get()
+            );
+        }
+
 
         // 14. query all order by player desc, should fail because full scans with order by are not allowed
-        Assertions.assertThrows(
-                InvalidArgumentException.class,
-                () -> docStoreClient.query().orderBy("Player", false).get()
-        );
+        if (harness.supportOrderByInFullScan()) {
+            Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", false).get()
+            );
+        } else {
+            Assertions.assertThrows(
+                    InvalidArgumentException.class,
+                    () -> docStoreClient.query().orderBy("Player", false).get()
+            );
+        }
 
         // 15. Test for valid order by clause.
         DocumentIterator iter15 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game1)

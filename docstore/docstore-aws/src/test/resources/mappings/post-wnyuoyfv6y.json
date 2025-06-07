@@ -1,0 +1,32 @@
+{
+  "id" : "306a4eb8-78ca-4f28-9a45-f102e5d84903",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"JohnMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "4LKH5NFAL44OEQ7HLQMH26P1BJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "463191088",
+      "Date" : "Sat, 07 Jun 2025 20:10:09 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "306a4eb8-78ca-4f28-9a45-f102e5d84903",
+  "persistent" : true,
+  "insertionIndex" : 100
+}

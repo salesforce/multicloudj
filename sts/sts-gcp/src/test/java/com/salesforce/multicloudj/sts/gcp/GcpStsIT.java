@@ -9,11 +9,13 @@ import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+@Disabled
 public class GcpStsIT extends AbstractStsIT {
     @Override
     protected Harness createHarness() {

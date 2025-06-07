@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
 import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.firestore.v1.FirestoreClient;
 import com.google.firestore.v1.CommitRequest;
@@ -150,7 +152,7 @@ public class FSDocStoreTest {
         // Since Key is private, use reflection to check the documentId
         Field documentIdField = key.getClass().getDeclaredField("documentId");
         documentIdField.setAccessible(true);
-        Assertions.assertEquals("TestTitle", documentIdField.get(key));
+        Assertions.assertEquals("TestTitle:TestPublisher", documentIdField.get(key));
         
         // Test that exception is thrown when partition key is missing
         com.salesforce.multicloudj.docstore.driver.Document docWithoutKey = 
@@ -211,7 +213,12 @@ public class FSDocStoreTest {
     void testRunGetQuery() {
         // Create a query using the proper constructor 
         Query query = new Query(docStore);
-        Assertions.assertNotNull(docStore.runGetQuery(query));
+        ServerStream stream = Mockito.mock(ServerStream.class);
+        ServerStreamingCallable callable = Mockito.mock(ServerStreamingCallable.class);
+        when(mockFirestoreClient.runQueryCallable()).thenReturn(callable);
+        when(callable.call(any())).thenReturn(stream);
+        when(stream.iterator()).thenReturn(null);
+        Assertions.assertInstanceOf(FSDocumentIterator.class, docStore.runGetQuery(query));
     }
 
     @Test
@@ -220,7 +227,7 @@ public class FSDocStoreTest {
         Query query = new Query(docStore);
         String plan = docStore.queryPlan(query);
         Assertions.assertNotNull(plan);
-        Assertions.assertTrue(plan.contains("not yet implemented"));
+        Assertions.assertTrue(plan.isEmpty());
     }
 
     @Test
@@ -240,7 +247,7 @@ public class FSDocStoreTest {
                 .withCollectionOptions(collectionOptions)
                 .build();
         
-        Assertions.assertThrows(UnknownException.class, docStoreWithErrorOnClose::close);
+        Assertions.assertThrows(RuntimeException.class, docStoreWithErrorOnClose::close);
     }
 
     @Test

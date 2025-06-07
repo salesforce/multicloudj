@@ -1,0 +1,32 @@
+{
+  "id" : "798aa4b0-48f0-4416-9a55-0a900319e842",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DescribeTable"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"Game\",\"AttributeType\":\"S\"},{\"AttributeName\":\"Player\",\"AttributeType\":\"S\"},{\"AttributeName\":\"Score\",\"AttributeType\":\"N\"},{\"AttributeName\":\"Time\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.737505846219E9,\"DeletionProtectionEnabled\":false,\"GlobalSecondaryIndexes\":[{\"IndexArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-2/index/global\",\"IndexName\":\"global\",\"IndexSizeBytes\":485,\"IndexStatus\":\"ACTIVE\",\"ItemCount\":8,\"KeySchema\":[{\"AttributeName\":\"Player\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"Time\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}},{\"IndexArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-2/index/Player-index\",\"IndexName\":\"Player-index\",\"IndexSizeBytes\":485,\"IndexStatus\":\"ACTIVE\",\"ItemCount\":8,\"KeySchema\":[{\"AttributeName\":\"Player\",\"KeyType\":\"HASH\"}],\"Projection\":{\"ProjectionType\":\"ALL\"},\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}],\"ItemCount\":8,\"KeySchema\":[{\"AttributeName\":\"Game\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"Player\",\"KeyType\":\"RANGE\"}],\"LocalSecondaryIndexes\":[{\"IndexArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-2/index/local\",\"IndexName\":\"local\",\"IndexSizeBytes\":485,\"ItemCount\":8,\"KeySchema\":[{\"AttributeName\":\"Game\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"Score\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"}}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-2\",\"TableId\":\"b5d7040f-169e-41e4-887e-14fff6fc1be5\",\"TableName\":\"docstore-test-2\",\"TableSizeBytes\":485,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "45R5G4UADDSK9KI1U8TN2275I7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2040492386",
+      "Date" : "Sat, 07 Jun 2025 20:09:46 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "798aa4b0-48f0-4416-9a55-0a900319e842",
+  "persistent" : true,
+  "insertionIndex" : 14
+}

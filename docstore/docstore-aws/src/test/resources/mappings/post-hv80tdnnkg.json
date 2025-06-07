@@ -1,0 +1,32 @@
+{
+  "id" : "7306d043-5fd9-4b36-bbd7-753e4b92c6a6",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"KingReplace\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"s\":{\"S\":\"replacedString\"},\"DocstoreRevision\":{\"S\":\"dae29fb9-a071-4047-a796-109521072800\"},\"f\":{\"N\":\"34.560001373291016\"},\"pName\":{\"S\":\"KingReplace\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "SIN2V0HPG61I9T8NRVENS86NTJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1000227399",
+      "Date" : "Sat, 07 Jun 2025 20:10:07 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "7306d043-5fd9-4b36-bbd7-753e4b92c6a6",
+  "persistent" : true,
+  "insertionIndex" : 74
+}

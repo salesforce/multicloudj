@@ -1,0 +1,32 @@
+{
+  "id" : "9ad14338-d1e6-4527-b762-1c98bfdc9479",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomStringMap\"},\"pName\":{\"S\":\"JohnMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"111\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\",\"message\":\"The conditional request failed\"}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "GMM4UA4PSQLMKVBA2V8HG9MFQRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "396270901",
+      "Date" : "Sat, 07 Jun 2025 20:10:10 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "9ad14338-d1e6-4527-b762-1c98bfdc9479",
+  "persistent" : true,
+  "insertionIndex" : 99
+}

@@ -67,11 +67,6 @@ public class AliDocstoreIT extends AbstractDocstoreIT {
         }
 
         @Override
-        public String getProviderId() {
-            return "ali";
-        }
-
-        @Override
         public int getPort() {
             return port;
         }
