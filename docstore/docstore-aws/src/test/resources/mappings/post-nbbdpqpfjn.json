@@ -1,0 +1,32 @@
+{
+  "id" : "3f5e2157-1fc7-4152-b69e-6641bc9fad27",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":3,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"DocstoreRevision\":{\"S\":\"9b8aa92d-b861-91bb-05c5-74c7e9ae6210\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnMap\"}}],\"ScannedCount\":3}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "TT0P6D7T6FSBU6U9OGLE7F1MBNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2884378359",
+      "Date" : "Sat, 07 Jun 2025 20:10:12 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "3f5e2157-1fc7-4152-b69e-6641bc9fad27",
+  "persistent" : true,
+  "insertionIndex" : 131
+}

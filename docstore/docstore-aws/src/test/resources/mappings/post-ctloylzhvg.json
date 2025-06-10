@@ -1,0 +1,32 @@
+{
+  "id" : "82b82672-b955-4ec5-b422-b238a63097a6",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"FilterExpression\":\" NOT( #attrWithGlitch IN (:value0))\",\"ExpressionAttributeNames\":{\"#attrWithGlitch\":\"WithGlitch\"},\"ExpressionAttributeValues\":{\":value0\":{\"BOOL\":true}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":6,\"Items\":[{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"},\"Player\":{\"S\":\"billie\"},\"Score\":{\"N\":\"111\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-20\"},\"Player\":{\"S\":\"fran\"},\"Score\":{\"N\":\"33\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-02-01\"},\"Player\":{\"S\":\"andy\"},\"Score\":{\"N\":\"81\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-19\"},\"Player\":{\"S\":\"fran\"},\"Score\":{\"N\":\"33\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"},\"Player\":{\"S\":\"mel\"},\"Score\":{\"N\":\"60\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-13\"},\"Player\":{\"S\":\"pat\"},\"Score\":{\"N\":\"49\"},\"Game\":{\"S\":\"Praise All Monsters\"}}],\"ScannedCount\":8}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "GUS1KR8H6SU5CMJ6I3VVTJ535BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2231396479",
+      "Date" : "Sat, 07 Jun 2025 20:09:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "82b82672-b955-4ec5-b422-b238a63097a6",
+  "persistent" : true,
+  "insertionIndex" : 2
+}

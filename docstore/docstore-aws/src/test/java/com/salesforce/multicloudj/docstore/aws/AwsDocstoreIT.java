@@ -75,11 +75,6 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
         }
 
         @Override
-        public String getProviderId() {
-            return "aws";
-        }
-
-        @Override
         public int getPort() {
             return port;
         }

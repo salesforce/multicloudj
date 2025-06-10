@@ -46,12 +46,23 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
                 Assertions.fail("Failed to create the firestore client", e);
             }
 
+            CollectionOptions collectionOptions = null;
+            if (collectionKind == CollectionKind.SINGLE_KEY) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
+                        .withPartitionKey("pName")
+                        .build();
+            } else if (collectionKind == CollectionKind.TWO_KEYS) {
+                collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2")
+                        .withPartitionKey("Game")
+                        .withSortKey("Player")
+                        .build();
+            }
+
             return new FSDocStore().builder()
                     .withFirestoreV1Client(firestoreClient)
-                    .withCollectionOptions(new CollectionOptions.CollectionOptionsBuilder()
-                            .withTableName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
-                            .withPartitionKey("pName")
-                            .build())
+                    .withCollectionOptions(collectionOptions)
                     .build();
         }
 
@@ -66,11 +77,6 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
         }
 
         @Override
-        public String getProviderId() {
-            return "gcp-firestore";
-        }
-
-        @Override
         public int getPort() {
             return port;
         }
@@ -78,6 +84,11 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
         @Override
         public List<String> getWiremockExtensions() {
             return List.of();
+        }
+
+        @Override
+        public boolean supportOrderByInFullScan() {
+            return true;
         }
 
         @Override
