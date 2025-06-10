@@ -1,0 +1,31 @@
+{
+  "id" : "a81a250e-2f4f-4d6e-a16e-e42d29a71674",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Player\"},\"op\":8,\"value\":{\"arrayValue\":{\"values\":[{\"stringValue\":\"pat\"},{\"stringValue\":\"billie\"}]}}}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:pat\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"pat\"\n      },\n      \"Score\": {\n        \"integerValue\": \"49\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-03-13\"\n      }\n    },\n    \"createTime\": \"2025-06-06T23:29:37.869601Z\",\n    \"updateTime\": \"2025-06-06T23:29:37.869601Z\"\n  },\n  \"readTime\": \"2025-06-07T19:04:14.274115Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:billie\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"billie\"\n      },\n      \"Score\": {\n        \"integerValue\": \"111\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-10\"\n      }\n    },\n    \"createTime\": \"2025-06-06T23:29:39.653301Z\",\n    \"updateTime\": \"2025-06-06T23:29:39.653301Z\"\n  },\n  \"readTime\": \"2025-06-07T19:04:14.274115Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:pat\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"pat\"\n      },\n      \"Score\": {\n        \"integerValue\": \"120\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-01\"\n      }\n    },\n    \"createTime\": \"2025-06-06T23:29:39.357904Z\",\n    \"updateTime\": \"2025-06-06T23:29:39.357904Z\"\n  },\n  \"readTime\": \"2025-06-07T19:04:14.274115Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13882389653312365332;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Sat, 07 Jun 2025 19:04:14 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a81a250e-2f4f-4d6e-a16e-e42d29a71674",
+  "persistent" : true,
+  "insertionIndex" : 8
+}
