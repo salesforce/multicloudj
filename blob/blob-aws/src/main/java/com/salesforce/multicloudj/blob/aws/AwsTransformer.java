@@ -127,10 +127,10 @@ public class AwsTransformer {
     }
 
     /**
-     * Reading the first 500 bytes            - createRangeString(0, 500)    ->   "bytes=0-500"
-     * Reading a middle 500 bytes             - createRangeString(123, 623)  ->   "bytes=123-623"
-     * Reading the last 500 bytes             - createRangeString(null, 500) ->   "bytes=-500"
-     * Reading everything but first 500 bytes - createRangeString(500, null) ->   "bytes=500-"
+     * Reading the first 500 bytes            - createRangeString(0, 500)    -   "bytes=0-500"
+     * Reading a middle 500 bytes             - createRangeString(123, 623)  -   "bytes=123-623"
+     * Reading the last 500 bytes             - createRangeString(null, 500) -   "bytes=-500"
+     * Reading everything but first 500 bytes - createRangeString(500, null) -   "bytes=500-"
      */
     protected String createRangeString(Long start, Long end) {
         return "bytes=" + (start==null ? "" : start) + "-" + (end==null ? "" : end);

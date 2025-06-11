@@ -56,7 +56,7 @@ When working with MultiCloudJ's design:
 
 ## Related Resources
 
-- [API Documentation](../api/java/index.html)
+- [API Documentation](https://javadoc.io/doc/com.salesforce.multicloudj)
 - [How-to Guides](../guides/index.html)
 - [Examples](https://github.com/salesforce/multicloudj/tree/main/examples)
 - [Contribution Guidelines](https://github.com/salesforce/multicloudj/blob/main/CONTRIBUTING.md)

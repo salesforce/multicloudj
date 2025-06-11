@@ -93,10 +93,10 @@ public class AliTransformer {
     }
 
     /**
-     * Reading the first 500 bytes            - computeRange(0, 500)    ->   (0, 500)
-     * Reading a middle 500 bytes             - computeRange(123, 623)  ->   (123, 623)
-     * Reading the last 500 bytes             - computeRange(null, 500) ->   (-1, 500)
-     * Reading everything but first 500 bytes - computeRange(500, null) ->   (500, -1)
+     * Reading the first 500 bytes            - computeRange(0, 500)    -   (0, 500)
+     * Reading a middle 500 bytes             - computeRange(123, 623)  -   (123, 623)
+     * Reading the last 500 bytes             - computeRange(null, 500) -   (-1, 500)
+     * Reading everything but first 500 bytes - computeRange(500, null) -   (500, -1)
      */
     protected Pair<Long, Long> computeRange(Long start, Long end) {
         return new ImmutablePair<>(start==null ? -1 : start, end==null ? -1 : end);
