@@ -12,6 +12,53 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 ---
 
+## Feature Support Across Providers
+
+### Core API Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Basic Upload** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Upload from InputStream, byte[], File, Path |
+| **Basic Download** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Download to OutputStream, byte[], File, Path |
+| **Delete Objects** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Single and batch delete operations |
+| **Copy Objects** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Server-side copy within and across buckets |
+| **Get Metadata** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Retrieve object metadata and properties |
+| **List Objects** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Paginated listing with filters |
+| **Object Tagging** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Get and set object tags |
+| **Presigned URLs** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Generate temporary access URLs |
+| **Versioning Support** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Object version-specific operations |
+
+### Multipart Upload Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Initiate Multipart** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Start multipart upload session |
+| **Upload Part** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Upload individual parts |
+| **Complete Multipart** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Finalize multipart upload |
+| **List Parts** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | List uploaded parts |
+| **Abort Multipart** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Cancel multipart upload |
+
+### Advanced Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Async Operations** | ⏱️ End of June'25 | ✅ Supported | 📅 In Roadmap | CompletableFuture-based async API available only for AWS |
+| **Bucket Operations** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | List buckets via BlobClient |
+
+### Configuration Options
+
+| Configuration | GCP | AWS | ALI | Comments |
+|---------------|-----|-----|-----|----------|
+| **Regional Support** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Region-specific bucket operations |
+| **Endpoint Override** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Custom endpoint configuration |
+| **Proxy Support** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | HTTP proxy configuration |
+| **Credentials Override** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Custom credential providers via STS |
+
+### Provider-Specific Notes
+
+
+---
+
 ## Creating a Client
 
 ```java

@@ -6,11 +6,13 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.2.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>blob</artifactId>
     <packaging>pom</packaging>
+    <name>MultiCloudJ Blob</name>
+    <description>MultiCloudJ Blob Storage</description>
     <modules>
         <module>blob-aws</module>
         <module>blob-ali</module>

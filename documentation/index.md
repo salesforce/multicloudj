@@ -49,7 +49,7 @@ MultiCloudJ provides substrate-neutral interfaces supporting multiple cloud prov
 
 **API Documentation:**
 
-* [Java API Documentation (Javadoc)](api/java/index.html)
+* [Java API Documentation (Javadoc)](https://javadoc.io/doc/com.salesforce.multicloudj)
 
 **Community and Support:**
 
