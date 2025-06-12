@@ -14,7 +14,29 @@ The `StsClient` class in the `multicloudj` library provides a portable interface
 
 The `StsClient` is built on top of provider-specific implementations of `AbstractSts`. Each provider registers its implementation and is selected dynamically at runtime.
 
-To use STS, you must first create a client using the `builder()` method.
+---
+
+## Feature Support Across Providers
+
+### Core API Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Assume Role** | ✅ Supported | ✅ Supported | ✅ Supported | Core feature for temporary credentials for role/service account |
+| **Get Caller Identity** | ✅ Supported | ✅ Supported | ✅ Supported | Returns identity information of the current caller |
+| **Get Access Token** | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs|
+
+### Configuration Options
+
+| Configuration | GCP | AWS | ALI | Comments |
+|---------------|-----|-----|-----|----------|
+| **Region Support** | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations |
+| **Endpoint Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration |
+
+### Provider-Specific Notes
+
+**GCP (Google Cloud Platform)**
+- Uses Google's OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity
 
 ---
 
