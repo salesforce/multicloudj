@@ -6,13 +6,61 @@ parent: Usage Guides
 ---
 # Docstore
 
-The `DocStoreClient` class in the `multicloudj` library provides a portable abstraction over document store providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying.
+The `DocStoreClient` class in the `multicloudj` library provides a portable document store like abstraction over NoSQSL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing.
 
-## Overview
 
-Document stores persist semi-structured, schemaless documents, typically as key-value pairs. The `DocStoreClient` lets you interact with multiple providers through a unified API.
+Internally, each provider is implemented via a driver extending `AbstractDocStore`.
 
-Each provider is implemented via a driver extending `AbstractDocStore`.
+## Feature Support Across Providers
+
+### Core API Features
+
+| Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
+|--------------|---------------|--------------|----------------|----------|
+| **Create Document** | ✅ Supported | ✅ Supported | ✅ Supported | Insert new documents |
+| **Get Document** | ✅ Supported | ✅ Supported | ✅ Supported | Get the document by key |
+| **Put Document** | ✅ Supported | ✅ Supported | ✅ Supported | Insert or replace document |
+| **Replace Document** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Replace existing document |
+| **Delete Document** | ✅ Supported | ✅ Supported | ✅ Supported | Remove document by key |
+| **Update Document** | ⏱️ End of June'25 | ⏱️ Coming Soon | ⏱️ Coming Soon | Update operations not yet implemented in any provider |
+
+### Batch Operations
+
+| Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
+|--------------|---------------|--------------|----------------|----------|
+| **Batch Get** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve multiple documents in one call |
+| **Batch Write** | ✅ Supported | ✅ Supported | ✅ Supported | Write multiple documents atomically |
+| **Atommic Writes** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents |
+
+### Query Features
+
+| Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
+|--------------|---------------|--------------|----------------|----------|
+| **Basic Queries** | ✅ Supported | ✅ Supported | ✅ Supported | Filter and projection queries |
+| **Compound Filters** | ✅ Supported | ✅ Supported | ✅ Supported | Multiple filter conditions |
+| **Order By** | ✅ Supported | ✅ Supported | ✅ Supported | Sort query results |
+| **Order By in Full Scan** | ❌ **Not Supported** | ❌ **Not Supported** | ❌ **Not Supported** | ** It's too expensive ** |
+| **Limit/Offset** | ✅ Supported | ✅ Supported | ✅ Supported | Pagination support |
+| **Index-based Queries** | ✅ Supported | ✅ Supported | ✅ Supported | Query using secondary indexes |
+| **Query Planning** | ✅ Supported | ✅ Supported | ✅ Supported | Explain query execution plans |
+
+### Advanced Features
+
+| Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
+|--------------|---------------|--------------|----------------|----------|
+| **Revision/Versioning** | ✅ Supported | ✅ Supported | ✅ Supported | Optimistic concurrency control |
+| **Single Key Collections** | ✅ Supported | ✅ Supported | ✅ Supported | Collections with only partition key |
+| **Two Key Collections** | ✅ Supported | ✅ Supported | ✅ Supported | Collections with partition + sort key(uses indexes in firestore) |
+
+### Configuration Options
+
+| Configuration | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
+|---------------|---------------|--------------|----------------|----------|
+| **Regional Support** | ✅ Supported | ✅ Supported | ✅ Supported | Region-specific operations |
+| **Custom Endpoints** | ✅ Supported | ✅ Supported | ✅ Supported | Override default service endpoints |
+| **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
+| **Collection Options** | ✅ Supported | ✅ Supported | ✅ Supported | Table/collection configuration |
+
 
 ## Creating a Client
 
@@ -165,7 +213,7 @@ client.batchPut(docs);
 
 ## Queries
 
-DocStore’s `get` action retrieves a single document by its primary key. However, when you need to retrieve or manipulate multiple documents that match a condition, you can use queries.
+DocStore's `get` action retrieves a single document by its primary key. However, when you need to retrieve or manipulate multiple documents that match a condition, you can use queries.
 
 Queries allow you to:
 - Retrieve all documents that match specific conditions.
@@ -177,7 +225,7 @@ DocStore can also optimize queries automatically. Based on your filter condition
 
 Queries support the following methods:
 
-- **Where**: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The “not equals” comparison isn’t supported, because it isn’t portable across providers.
+- **Where**: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The "not equals" comparison isn't supported, because it isn't portable across providers.
 - **OrderBy**: Specifies the order of the resulting documents, by field and direction. For portability, you can specify at most one OrderBy, and its field must also be mentioned in a Where clause.
 - **Limit**: Limits the number of documents in the result.
 
