@@ -38,6 +38,8 @@ public class ExceptionHandler {
             throw new InvalidArgumentException(t);
         } else if (FailedPreconditionException.class.isAssignableFrom(exceptionClass)) {
             throw new FailedPreconditionException(t);
+        } else if (TransactionFailedException.class.isAssignableFrom(exceptionClass)) {
+            throw new TransactionFailedException(t);
         } else if (UnknownException.class.isAssignableFrom(exceptionClass)) {
             throw new UnknownException(t);
         } else if (SubstrateSdkException.class.isAssignableFrom(exceptionClass)) {

@@ -91,9 +91,9 @@ public class TestsUtil {
         RecordSpecBuilder recordSpec = recordSpec()
                 // enforcing the cloud service to be always https
                 .forTarget(targetEndpoint.replace("http:", "https:"))
-                .extractBinaryBodiesOver(4096)
+                .extractBinaryBodiesOver(4096*2)
                 .captureHeader("X-Amz-Target")
-                .transformerParameters(Parameters.from(Map.of(TRUNCATE_MATCHER_REQUST_BODY_OVER,4096)))
+                .transformerParameters(Parameters.from(Map.of(TRUNCATE_MATCHER_REQUST_BODY_OVER,4096*2)))
                 .chooseBodyMatchTypeAutomatically(true, false, false)
                 .makeStubsPersistent(true);
         if (isRecordingEnabled) {

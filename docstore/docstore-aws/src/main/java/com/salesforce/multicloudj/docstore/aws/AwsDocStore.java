@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -199,18 +200,20 @@ public class AwsDocStore extends AbstractDocStore {
     }
 
     protected void batchGet(List<Action> gets, Consumer<Predicate<Object>> beforeDo, int start, int end) {
-        Map<String, AttributeValue> keys = new HashMap<>();
+        // AWS BatchGetItem expects a List<Map<String, AttributeValue>> where each Map represents one document's key
+        List<Map<String, AttributeValue>> keysList = new ArrayList<>();
         for (int i = start; i <= end; i++) {
             AttributeValue av = AwsCodec.encodeDocKeyFields(gets.get(i).getDocument(), collectionOptions.getPartitionKey(), collectionOptions.getSortKey());
             if (av == null) {
                 throw new IllegalArgumentException("Failed to encode keys.");
             }
-            keys.putAll(av.m());
+            // Each document's key should be a separate map in the list
+            keysList.add(av.m());
         }
 
         // Create the KeysAndAttributes.
         KeysAndAttributes.Builder keysAndAttributes = KeysAndAttributes.builder()
-                .keys(keys)
+                .keys(keysList)
                 .consistentRead(false);
         if (gets.get(start).getFieldPaths() != null && !gets.get(start).getFieldPaths().isEmpty()) {
             // Need to add the key fields if not included.
@@ -340,13 +343,9 @@ public class AwsDocStore extends AbstractDocStore {
                 txWrites.add(op.getWriteItem());
             }
         }
-        TransactWriteItemsRequest request = TransactWriteItemsRequest.builder().transactItems(txWrites).build();
-        try {
-            ddb.transactWriteItems(request);
-            updateRevision(writeOperations);
-        } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to acquire write operation.", e);
-        }
+        TransactWriteItemsRequest request = TransactWriteItemsRequest.builder().transactItems(txWrites).clientRequestToken(Util.uniqueString()).build();
+        ddb.transactWriteItems(request);
+        updateRevision(writeOperations);
     }
 
     private void updateRevision(List<WriteOperation> writeOperations) {
