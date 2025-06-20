@@ -1,0 +1,34 @@
+{
+  "id" : "7d14e78f-2743-49ec-940e-63fc953104f6",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"JohnPut\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"111\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString2\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnPut\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "95GDEGHC26S8D61A4EGK7IP9KRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1807608458",
+      "Date" : "Fri, 20 Jun 2025 01:56:31 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "7d14e78f-2743-49ec-940e-63fc953104f6",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-",
+  "requiredScenarioState" : "scenario-2--2",
+  "insertionIndex" : 61
+}

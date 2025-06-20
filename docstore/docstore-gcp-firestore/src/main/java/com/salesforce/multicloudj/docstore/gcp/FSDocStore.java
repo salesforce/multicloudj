@@ -20,6 +20,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
@@ -253,9 +254,11 @@ public class FSDocStore extends AbstractDocStore {
     }
 
     /**
-     * Processes non-atomic write operations in a single batch.
+     * Processes non-atomic write operations in batches.
      * <p>
      * Batches compatible write operations together for improved performance.
+     * Unlike atomic writes, these may be split into multiple commits for optimization.
+     * Each individual batch is atomic, but there's no atomicity guarantee across batches.
      *
      * @param writes List of write actions to process
      * @param beforeDo Optional callback executed before each write
@@ -273,10 +276,12 @@ public class FSDocStore extends AbstractDocStore {
 
         // Process each action and create write operations
         for (Action action : writes) {
-            // Handle both PUT and DELETE actions
+            // Handle all write action types: PUT, REPLACE, CREATE, DELETE, UPDATE
             if (action.getKind() != ActionKind.ACTION_KIND_PUT && 
                 action.getKind() != ActionKind.ACTION_KIND_REPLACE &&
-                action.getKind() != ActionKind.ACTION_KIND_DELETE) {
+                action.getKind() != ActionKind.ACTION_KIND_CREATE &&
+                action.getKind() != ActionKind.ACTION_KIND_DELETE &&
+                action.getKind() != ActionKind.ACTION_KIND_UPDATE) {
                 continue;
             }
 
@@ -294,6 +299,8 @@ public class FSDocStore extends AbstractDocStore {
             Write write;
             if (action.getKind() == ActionKind.ACTION_KIND_DELETE) {
                 write = createDeleteWrite(action.getDocument(), documentPath, action.getKind());
+            } else if (action.getKind() == ActionKind.ACTION_KIND_UPDATE) {
+                write = createUpdateWrite(action.getDocument(), documentPath, action.getMods());
             } else {
                 write = createPutWrite(action.getDocument(), documentPath, action.getKind());
             }
@@ -431,6 +438,60 @@ public class FSDocStore extends AbstractDocStore {
     }
 
     /**
+     * Creates a Write operation for an UPDATE action with field modifications.
+     *
+     * @param doc The document to update
+     * @param documentPath Full path to the document
+     * @param mods Map of field modifications
+     * @return A Write operation for update
+     */
+    private Write createUpdateWrite(Document doc, String documentPath, Map<String, Object> mods) {
+        if (mods == null || mods.isEmpty()) {
+            // If no modifications, treat as a PUT operation
+            return createPutWrite(doc, documentPath, ActionKind.ACTION_KIND_PUT);
+        }
+
+        // Create the document with only the fields to update
+        com.google.firestore.v1.Document.Builder docBuilder = com.google.firestore.v1.Document.newBuilder()
+                .setName(documentPath);
+
+        // Create update mask with field paths
+        List<String> fieldPaths = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : mods.entrySet()) {
+            String fieldPath = entry.getKey();
+            Object value = entry.getValue();
+            
+            fieldPaths.add(fieldPath);
+            
+            if (value != null) {
+                Value firestoreValue = FSCodec.encodeValue(value);
+                if (firestoreValue != null) {
+                    docBuilder.putFields(fieldPath, firestoreValue);
+                }
+            }
+        }
+
+        // Create update mask
+        DocumentMask updateMask = DocumentMask.newBuilder()
+                .addAllFieldPaths(fieldPaths)
+                .build();
+
+        // Create write operation
+        Write.Builder writeBuilder = Write.newBuilder()
+                .setUpdate(docBuilder.build())
+                .setUpdateMask(updateMask);
+
+        // Add precondition - for updates, we typically want the document to exist
+        Precondition precondition = buildPrecondition(doc, ActionKind.ACTION_KIND_UPDATE);
+        if (precondition != null) {
+            writeBuilder.setCurrentDocument(precondition);
+        }
+
+        return writeBuilder.build();
+    }
+
+    /**
      * Builds a precondition for write operations based on action kind and revision.
      *
      * @param doc The document
@@ -487,12 +548,157 @@ public class FSDocStore extends AbstractDocStore {
      * Processes atomic writes using Firestore transactions.
      * <p>
      * Ensures that a set of operations either all succeed or all fail.
+     * Unlike batched writes which may be split into multiple commits for performance,
+     * atomic writes MUST be executed in a single commit to guarantee true atomicity.
      *
      * @param writes List of atomic write actions
      * @param beforeDo Optional callback executed before each write
      */
     private void runAtomicWrites(List<Action> writes, Consumer<Predicate<Object>> beforeDo) {
-        // Implementation for atomic writes using the low-level API
+        if (writes.isEmpty()) {
+            return;
+        }
+
+        // Build atomic write commit call following the Go pattern
+        AtomicWriteCommitCall atomicWriteCall = buildAtomicWritesCommitCall(writes, beforeDo);
+        
+        // Execute the atomic write commit call - MUST be a single commit
+        if (!atomicWriteCall.getWrites().isEmpty()) {
+            doAtomicCommitCall(atomicWriteCall);
+        }
+    }
+
+    /**
+     * Construct a commit call with all the atomic writes.
+     * This follows the Go Cloud pattern from buildAtomicWritesCommitCall.
+     * All writes MUST go into a single commit for true atomicity.
+     *
+     * @param actions List of atomic write actions
+     * @param beforeDo Optional callback executed before each write
+     * @return AtomicWriteCommitCall containing all writes to be committed atomically
+     */
+    private AtomicWriteCommitCall buildAtomicWritesCommitCall(List<Action> actions, Consumer<Predicate<Object>> beforeDo) {
+        List<Write> allWrites = new ArrayList<>();
+        List<Action> processedActions = new ArrayList<>();
+
+        for (Action action : actions) {
+            // Execute beforeDo callback for this action
+            if (beforeDo != null) {
+                Key key = getKey(action.getDocument());
+                beforeDo.accept(k -> k.equals(key));
+            }
+
+            // Convert action to write operations
+            Write write = actionToWrite(action);
+            if (write != null) {
+                allWrites.add(write);
+                processedActions.add(action);
+            }
+        }
+
+        return new AtomicWriteCommitCall(allWrites, processedActions);
+    }
+
+    /**
+     * Convert an action to a Firestore Write operation.
+     * This follows the Go Cloud pattern from actionToWrites.
+     *
+     * @param action The action to convert
+     * @return A Firestore Write operation
+     */
+    private Write actionToWrite(Action action) {
+        Key key = getKey(action.getDocument());
+        String documentPath = getDocumentPath(key.getDocumentId());
+
+        switch (action.getKind()) {
+            case ACTION_KIND_CREATE:
+                return createPutWrite(action.getDocument(), documentPath, action.getKind());
+                
+            case ACTION_KIND_REPLACE:
+                return createPutWrite(action.getDocument(), documentPath, action.getKind());
+                
+            case ACTION_KIND_PUT:
+                return createPutWrite(action.getDocument(), documentPath, action.getKind());
+                
+            case ACTION_KIND_UPDATE:
+                // For updates, we need to handle field modifications
+                return createUpdateWrite(action.getDocument(), documentPath, action.getMods());
+                
+            case ACTION_KIND_DELETE:
+                return createDeleteWrite(action.getDocument(), documentPath, action.getKind());
+                
+            default:
+                throw new IllegalArgumentException("Unknown action kind: " + action.getKind());
+        }
+    }
+
+    /**
+     * Execute the atomic write commit call.
+     * This follows the Go Cloud pattern from doCommitCall.
+     * CRITICAL: All writes must be in a single commit for atomicity.
+     *
+     * @param atomicWriteCall The atomic write commit call to execute
+     */
+    private void doAtomicCommitCall(AtomicWriteCommitCall atomicWriteCall) {
+        // CRITICAL: Create a single CommitRequest with ALL atomic writes
+        // This ensures true atomicity - all succeed or all fail together
+        CommitRequest commitRequest = CommitRequest.newBuilder()
+                .setDatabase(getDatabasePath())
+                .addAllWrites(atomicWriteCall.getWrites())
+                .build();
+
+        // Execute the commit request - if this fails, ALL writes are rolled back
+        CommitResponse response;
+        try {
+            response = firestoreClient.commit(commitRequest);
+        } catch (ApiException e) {
+            // Handle precondition failures and other errors
+            if (e.getCause() != null && e.getCause().getMessage().contains("FAILED_PRECONDITION")) {
+                // Determine which exception to throw based on the first action's kind
+                if (!atomicWriteCall.getActions().isEmpty()) {
+                    ActionKind firstActionKind = atomicWriteCall.getActions().get(0).getKind();
+                    if (firstActionKind == ActionKind.ACTION_KIND_CREATE) {
+                        throw new ResourceAlreadyExistsException("Atomic write failed: document already exists", e);
+                    } else {
+                        throw new ResourceNotFoundException("Atomic write failed: document not found", e);
+                    }
+                }
+            }
+            throw new TransactionFailedException("Atomic write failed - all operations rolled back", e);
+        }
+
+        // Update revision fields in all documents using the update time from the response
+        for (int i = 0; i < response.getWriteResultsCount() && i < atomicWriteCall.getActions().size(); i++) {
+            Action action = atomicWriteCall.getActions().get(i);
+            // TODO: When we support update, this will need to adapt the
+            // update being reflected in two items in write results
+            if (action.getDocument().hasField(getRevisionField())) {
+                Timestamp updateTime = response.getWriteResults(i).getUpdateTime();
+                action.getDocument().setField(getRevisionField(), updateTime);
+            }
+        }
+    }
+
+    /**
+     * Helper class to hold atomic write commit call information.
+     * This follows the Go Cloud pattern from commitCall struct.
+     */
+    private static class AtomicWriteCommitCall {
+        private final List<Write> writes;
+        private final List<Action> actions;
+
+        public AtomicWriteCommitCall(List<Write> writes, List<Action> actions) {
+            this.writes = writes;
+            this.actions = actions;
+        }
+
+        public List<Write> getWrites() {
+            return writes;
+        }
+
+        public List<Action> getActions() {
+            return actions;
+        }
     }
 
     /**

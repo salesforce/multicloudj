@@ -5,6 +5,7 @@ import com.google.protobuf.util.Timestamps;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
@@ -678,8 +679,6 @@ public abstract class AbstractDocstoreIT {
     public void testGetQuery() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.TWO_KEYS);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
         // Create test data
         List<HighScore> allScores = List.of(
                 new HighScore(game1, "pat", 49, "2024-03-13", false),
@@ -820,4 +819,191 @@ public abstract class AbstractDocstoreIT {
     private static String game1 = "Praise All Monsters";
     private static String game2 = "Zombie DMV";
     private static String game3 = "Days Gone";
+
+    @Test
+    public void testAtomicWrites() {
+        AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+        DocStoreClient docStoreClient = new DocStoreClient(docStore);
+        String revField = "DocstoreRevision";
+        
+        // Create 9 test documents following the Go pattern
+        List<Map<String, Object>> docs = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            Map<String, Object> doc = new HashMap<>();
+            doc.put("pName", String.format("testAtomicWrites%d", i));
+            doc.put("s", String.valueOf(i));
+            doc.put("i", i);
+            //doc.put("f", (float) (i+.10*i));
+            doc.put("b", i % 2 == 0);
+            doc.put(revField, null);
+            docs.add(doc);
+        }
+
+        // Put the nine docs
+        ActionList actions = docStoreClient.getActions();
+        for (int i = 0; i < 9; i++) {
+            actions.create(new Document(docs.get(i)));
+        }
+        actions.run();
+
+        // Verify all documents were created and have revision fields
+        for (Map<String, Object> doc : docs) {
+            verifyRevisionFieldExist(doc, revField);
+        }
+
+        // Delete the first three, get the second three, and update last three atomically
+        // Prepare get documents
+        List<Map<String, Object>> getDocs = new ArrayList<>();
+        for (int i = 3; i < 6; i++) {
+            Map<String, Object> getDoc = new HashMap<>();
+            getDoc.put("pName", docs.get(i).get("pName"));
+            getDocs.add(getDoc);
+        }
+
+        actions = docStoreClient.getActions();
+        // Get operations
+        actions.get(new Document(getDocs.get(0)));
+        // Delete operations
+        actions.delete(new Document(docs.get(0)));
+        actions.delete(new Document(docs.get(1)));
+        actions.get(new Document(getDocs.get(1)));
+        actions.delete(new Document(docs.get(2)));
+        actions.get(new Document(getDocs.get(2)));
+        
+        // Enable atomic writes for the following operations
+        actions.enableAtomicWrites();
+        Map t6 = docs.get(6);
+        t6.put("s", "66");
+        actions.put(new Document(t6));
+        Map t7 = docs.get(7);
+        t7.put("s", "77");
+        actions.put(new Document(t7));
+        Map t8 = docs.get(8);
+        t8.put("s", "88");
+        actions.put(new Document(t8));
+        actions.run();
+
+        // Verify get documents contain the expected data
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> expected = docs.get(i + 3);
+            Map<String, Object> actual = getDocs.get(i);
+            // The get operation should have populated these documents
+            Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+            Assertions.assertEquals(expected.get("s"), actual.get("s"));
+            Assertions.assertEquals(expected.get("i"), actual.get("i"));
+            //Assertions.assertEquals(expected.get("f"), actual.get("f"));
+            Assertions.assertEquals(expected.get("b"), actual.get("b"));
+            Assertions.assertNotNull(actual.get(revField));
+        }
+
+        // Get the docs updated as part of atomic writes and verify values were updated successfully
+        Map<String, Object> doc6 = new HashMap<>();
+        doc6.put("pName", docs.get(6).get("pName"));
+        docStoreClient.get(new Document(doc6));
+        Assertions.assertEquals("66", doc6.get("s"));
+
+        Map<String, Object> doc7 = new HashMap<>();
+        doc7.put("pName", docs.get(7).get("pName"));
+        docStoreClient.get(new Document(doc7));
+        Assertions.assertEquals("77", doc7.get("s"));
+
+        Map<String, Object> doc8 = new HashMap<>();
+        doc8.put("pName", docs.get(8).get("pName"));
+        docStoreClient.get(new Document(doc8));
+        Assertions.assertEquals("88", doc8.get("s"));
+
+        docStoreClient.close();
+    }
+
+    @Test
+    public void testAtomicWritesFail() {
+        AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
+        DocStoreClient docStoreClient = new DocStoreClient(docStore);
+        String revField = "DocstoreRevision";
+        
+        // Create 9 test documents but only put the first 8 (doc8 won't exist)
+        List<Map<String, Object>> docs = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            Map<String, Object> doc = new HashMap<>();
+            doc.put("pName", String.format("testAtomicWritesFail%d", i));
+            doc.put("s", String.valueOf(i));
+            doc.put("i", i);
+            doc.put("f", (float) (i+.10*i));
+            doc.put("b", i % 2 == 0);
+            doc.put(revField, null);
+            docs.add(doc);
+        }
+
+        // Put only the first eight docs (docs[8] doesn't exist)
+        ActionList actions = docStoreClient.getActions();
+        for (int i = 0; i < 8; i++) {
+            actions.create(new Document(docs.get(i)));
+        }
+        actions.run();
+
+        // Verify first 8 documents were created and have revision fields
+        for (int i = 0; i < 8; i++) {
+            verifyRevisionFieldExist(docs.get(i), revField);
+        }
+
+        // Delete the first three, get the second three, and update last three atomically
+        // Prepare get documents
+        List<Map<String, Object>> getDocs = new ArrayList<>();
+        for (int i = 3; i < 6; i++) {
+            Map<String, Object> getDoc = new HashMap<>();
+            getDoc.put("pName", docs.get(i).get("pName"));
+            getDocs.add(getDoc);
+        }
+
+        actions = docStoreClient.getActions();
+        // Get operations
+        actions.get(new Document(getDocs.get(0)));
+        // Delete operations
+        actions.delete(new Document(docs.get(0)));
+        actions.delete(new Document(docs.get(1)));
+        actions.get(new Document(getDocs.get(1)));
+        actions.delete(new Document(docs.get(2)));
+        actions.get(new Document(getDocs.get(2)));
+
+        // Atomic writes operations - the last one will fail because docs[8] doesn't exist
+        actions.enableAtomicWrites();
+        Map t6 = docs.get(6);
+        t6.put("s", "66");
+        actions.put(new Document(t6));
+        Map t7 = docs.get(7);
+        t7.put("s", "77");
+        actions.put(new Document(t7));
+        Map t8 = docs.get(8);
+        t8.put(revField, "88");
+        actions.put(new Document(t8));
+
+        // The atomic transaction should fail
+        Assertions.assertThrows(TransactionFailedException.class, actions::run);
+
+        // Verify get documents still contain the expected data (from before the failed transaction)
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> expected = docs.get(i + 3);
+            Map<String, Object> actual = getDocs.get(i);
+            // The get operation should have populated these documents
+            Assertions.assertEquals(expected.get("pName"), actual.get("pName"));
+            Assertions.assertEquals(expected.get("s"), actual.get("s"));
+            Assertions.assertEquals(expected.get("i"), actual.get("i"));
+            Assertions.assertEquals(expected.get("f"), actual.get("f"));
+            Assertions.assertEquals(expected.get("b"), actual.get("b"));
+            Assertions.assertNotNull(actual.get(revField));
+        }
+
+        // Validate that the values still remain the original (atomic rollback)
+        Map<String, Object> doc6 = new HashMap<>();
+        doc6.put("pName", docs.get(6).get("pName"));
+        docStoreClient.get(new Document(doc6));
+        Assertions.assertEquals("6", doc6.get("s")); // Should still be original value
+
+        Map<String, Object> doc7 = new HashMap<>();
+        doc7.put("pName", docs.get(7).get("pName"));
+        docStoreClient.get(new Document(doc7));
+        Assertions.assertEquals("7", doc7.get("s")); // Should still be original value
+
+        docStoreClient.close();
+    }
 }

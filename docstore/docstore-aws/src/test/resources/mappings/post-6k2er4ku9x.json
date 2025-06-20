@@ -1,0 +1,32 @@
+{
+  "id" : "47123e8a-abe6-44a2-8387-7d4402e46411",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"EdwardPlayer\"},\"f\":{\"N\":\"32.29999923706055\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "9QQOPGP9552O7GJ4GEG2CI8NHBVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Fri, 20 Jun 2025 01:56:25 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "47123e8a-abe6-44a2-8387-7d4402e46411",
+  "persistent" : true,
+  "insertionIndex" : 44
+}

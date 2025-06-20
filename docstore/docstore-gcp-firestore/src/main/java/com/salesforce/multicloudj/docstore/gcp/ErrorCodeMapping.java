@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -44,8 +45,8 @@ public class ErrorCodeMapping {
         EXCEPTION_MAP.put(StatusCode.Code.DEADLINE_EXCEEDED, DeadlineExceededException.class);
 
         // Operation/transaction exceptions
-        EXCEPTION_MAP.put(StatusCode.Code.ABORTED, DeadlineExceededException.class);
-        EXCEPTION_MAP.put(StatusCode.Code.CANCELLED, UnknownException.class);
+        EXCEPTION_MAP.put(StatusCode.Code.ABORTED, TransactionFailedException.class);
+        EXCEPTION_MAP.put(StatusCode.Code.CANCELLED, TransactionFailedException.class);
 
         // Server-side errors
         EXCEPTION_MAP.put(StatusCode.Code.INTERNAL, UnknownException.class);

@@ -1,0 +1,32 @@
+{
+  "id" : "40291d66-9147-4a1f-b864-82b81f939427",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":8,\"Items\":[{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"},\"Player\":{\"S\":\"billie\"},\"Score\":{\"N\":\"111\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-20\"},\"Player\":{\"S\":\"fran\"},\"Score\":{\"N\":\"33\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":true},\"Time\":{\"S\":\"2024-04-18\"},\"Player\":{\"S\":\"mel\"},\"Score\":{\"N\":\"190\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":true},\"Time\":{\"S\":\"2024-04-01\"},\"Player\":{\"S\":\"pat\"},\"Score\":{\"N\":\"120\"},\"Game\":{\"S\":\"Zombie DMV\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-02-01\"},\"Player\":{\"S\":\"andy\"},\"Score\":{\"N\":\"81\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-19\"},\"Player\":{\"S\":\"fran\"},\"Score\":{\"N\":\"33\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"},\"Player\":{\"S\":\"mel\"},\"Score\":{\"N\":\"60\"},\"Game\":{\"S\":\"Praise All Monsters\"}},{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-13\"},\"Player\":{\"S\":\"pat\"},\"Score\":{\"N\":\"49\"},\"Game\":{\"S\":\"Praise All Monsters\"}}],\"ScannedCount\":8}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "407P65T4LS5FPFI4VS0C5JJ13BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3219950341",
+      "Date" : "Fri, 20 Jun 2025 01:56:19 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "40291d66-9147-4a1f-b864-82b81f939427",
+  "persistent" : true,
+  "insertionIndex" : 13
+}

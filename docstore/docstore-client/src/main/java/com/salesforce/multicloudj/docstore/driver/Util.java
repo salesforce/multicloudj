@@ -48,6 +48,7 @@ public class Util {
         writeList.addAll(nullKeys);
         writeList.sort(Comparator.comparing(Action::getIndex));
         atomicWriteList.addAll(atomicWrites.values());
+        atomicWriteList.addAll(atomicNullKeys);
         atomicWriteList.sort(Comparator.comparing(Action::getIndex));
         afterGets.addAll(agets.values());
         afterGets.sort(Comparator.comparing(Action::getIndex));
