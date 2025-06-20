@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 
 import java.util.HashMap;
@@ -34,6 +35,8 @@ public class ErrorCodeMapping {
         map.put("ConditionalCheckFailedException", FailedPreconditionException.class);
         map.put("ItemCollectionSizeLimitExceededException", ResourceExhaustedException.class);
         map.put("TransactionConflictException", ResourceConflictException.class);
+        // TransactWriteItems
+        map.put("TransactionCanceledException", TransactionFailedException.class);
         ERROR_MAPPING = ImmutableMap.copyOf(map);
     }
 

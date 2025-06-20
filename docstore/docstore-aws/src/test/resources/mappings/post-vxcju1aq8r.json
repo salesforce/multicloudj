@@ -1,0 +1,32 @@
+{
+  "id" : "7033da9e-e333-4174-83ec-6822d0979007",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"LeoPut\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"675216e8-0659-212d-4a95-bdc7c1f18a09\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoPut\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "9HFOHRN2OJQGAV2JC3M43APQB7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3410693333",
+      "Date" : "Fri, 20 Jun 2025 01:56:33 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "7033da9e-e333-4174-83ec-6822d0979007",
+  "persistent" : true,
+  "insertionIndex" : 54
+}

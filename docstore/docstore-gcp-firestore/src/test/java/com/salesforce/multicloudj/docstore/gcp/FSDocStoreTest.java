@@ -268,4 +268,75 @@ public class FSDocStoreTest {
         
         Assertions.assertNotNull(builder);
     }
+
+    @Test
+    void testAtomicWrites() throws Exception {
+        // Create test documents
+        Map<String, Object> doc1Map = new HashMap<>();
+        doc1Map.put("title", "Doc1");
+        doc1Map.put("publisher", "Publisher1");
+        doc1Map.put("content", "Content1");
+        com.salesforce.multicloudj.docstore.driver.Document testDoc1 = 
+                new com.salesforce.multicloudj.docstore.driver.Document(doc1Map);
+        
+        Map<String, Object> doc2Map = new HashMap<>();
+        doc2Map.put("title", "Doc2");
+        doc2Map.put("publisher", "Publisher2");
+        doc2Map.put("content", "Content2");
+        com.salesforce.multicloudj.docstore.driver.Document testDoc2 = 
+                new com.salesforce.multicloudj.docstore.driver.Document(doc2Map);
+        
+        Map<String, Object> doc3Map = new HashMap<>();
+        doc3Map.put("title", "Doc3");
+        doc3Map.put("publisher", "Publisher3");
+        doc3Map.put("content", "Content3");
+        com.salesforce.multicloudj.docstore.driver.Document testDoc3 = 
+                new com.salesforce.multicloudj.docstore.driver.Document(doc3Map);
+        
+        // Create atomic write actions
+        Action atomicAction1 = new TestAction(ActionKind.ACTION_KIND_CREATE, testDoc1, null, null, true);
+        Action atomicAction2 = new TestAction(ActionKind.ACTION_KIND_PUT, testDoc2, null, null, true);
+        Action atomicAction3 = new TestAction(ActionKind.ACTION_KIND_UPDATE, testDoc3, null, 
+                Map.of("content", "Updated Content3"), true);
+        
+        // Run the atomic actions
+        List<Action> actions = new ArrayList<>();
+        actions.add(atomicAction1);
+        actions.add(atomicAction2);
+        actions.add(atomicAction3);
+        docStore.runActions(actions, null);
+        
+        // Verify the commit was called (atomic writes are batched in a single commit)
+        ArgumentCaptor<CommitRequest> requestCaptor = ArgumentCaptor.forClass(CommitRequest.class);
+        verify(mockFirestoreClient).commit(requestCaptor.capture());
+        
+        // Verify the request contents
+        CommitRequest capturedRequest = requestCaptor.getValue();
+        Assertions.assertNotNull(capturedRequest);
+        
+        // Verify database path
+        Assertions.assertEquals("projects/testDB/databases/(default)",
+                capturedRequest.getDatabase());
+        
+        // Verify we have all three writes in a single commit (atomic)
+        Assertions.assertEquals(3, capturedRequest.getWritesCount());
+        
+        // Verify the writes contain the expected documents
+        Write write1 = capturedRequest.getWrites(0);
+        Write write2 = capturedRequest.getWrites(1);
+        Write write3 = capturedRequest.getWrites(2);
+        
+        Assertions.assertTrue(write1.hasUpdate());
+        Assertions.assertTrue(write2.hasUpdate());
+        Assertions.assertTrue(write3.hasUpdate());
+        
+        // Verify the document names contain the expected identifiers
+        Assertions.assertTrue(write1.getUpdate().getName().contains("Doc1:Publisher1"));
+        Assertions.assertTrue(write2.getUpdate().getName().contains("Doc2:Publisher2"));
+        Assertions.assertTrue(write3.getUpdate().getName().contains("Doc3:Publisher3"));
+        
+        // Verify the third write has an update mask (for UPDATE action)
+        Assertions.assertTrue(write3.hasUpdateMask());
+        Assertions.assertTrue(write3.getUpdateMask().getFieldPathsList().contains("content"));
+    }
 } 
