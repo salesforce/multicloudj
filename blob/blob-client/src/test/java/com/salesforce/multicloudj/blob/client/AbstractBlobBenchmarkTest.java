@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 /**
  * Abstract JMH benchmark class for Blob operations following Go Cloud drivertest patterns.
  */
-@Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
@@ -66,8 +65,7 @@ public abstract class AbstractBlobBenchmarkTest {
         AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
         String getEndpoint();
         String getProviderId();
-        String getMetadataHeader(String key);
-        String getTaggingHeader();
+        String getBucketName();
     }
 
     protected abstract Harness createHarness();
@@ -80,13 +78,17 @@ public abstract class AbstractBlobBenchmarkTest {
             harness = createHarness();
             
             // Setup test data
-            bucketName = "benchmark-bucket-" + UUID.randomUUID().toString().replace("-", "");
+            bucketName = harness.getBucketName(); // Use the actual bucket name from harness
             blobKeys = new ArrayList<>();
             testBlobs = new ArrayList<>();
             random = new Random(42); // Fixed seed for reproducibility
 
             AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
             bucketClient = new BucketClient(blobStore);
+            
+            // Generate and upload test data for download benchmarks
+            generateTestBlobs();
+            setupTestData();
         } catch (Exception e) {
             throw new RuntimeException("Failed to setup benchmark", e);
         }
@@ -103,7 +105,6 @@ public abstract class AbstractBlobBenchmarkTest {
         } catch (Exception e) {
             System.err.println("Error closing harness: " + e.getMessage());
         }
-        // No WireMock to stop
     }
 
     /**
@@ -512,9 +513,8 @@ public abstract class AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(".*benchmarkSingleActionPut.*")
-                //.include(".*benchmarkWriteReadDelete.*")
-                //.include(".*AbstractBlobBenchmarkTest.*")
+                //.include(".*benchmarkSingleActionPut.*")
+                .include(".*" + this.getClass().getName() + ".*")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)

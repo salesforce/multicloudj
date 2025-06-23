@@ -25,6 +25,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
@@ -43,14 +44,13 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
     @Override
     @Test
     public void runBenchmarks() throws RunnerException {
-        // Configure JMH to run benchmarks and save results to a file
         Options opt = new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*benchmarkSingleActionPut.*") // Include all benchmark methods in this class
+                .include(".*" + this.getClass().getName() + ".*(benchmarkSingleActionPut|benchmarkSingleActionGet|benchmarkActionListPut|benchmarkActionListGet|benchmarkWriteReadDelete).*")  // Run self-contained benchmarks first
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
                 .resultFormat(org.openjdk.jmh.results.format.ResultFormatType.JSON)
-                .result("target/jmh-results.json") // Use a more specific path
+                .result("target/jmh-results.json")
                 .build();
 
         new Runner(opt).run();
@@ -65,12 +65,6 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
             String accessKeyId = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
             String secretAccessKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
             String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-
-            if (!useValidCredentials) {
-                accessKeyId = "invalidAccessKey";
-                secretAccessKey = "invalidSecretAccessKey";
-                sessionToken = "invalidSessionToken";
-            }
 
             StsCredentials sessionCreds = new StsCredentials(accessKeyId, secretAccessKey, sessionToken);
             CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
@@ -89,11 +83,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
                     credentialsOverrider.getSessionCredentials().getAccessKeySecret(),
                     credentialsOverrider.getSessionCredentials().getSecurityToken());
 
-            // For benchmarking, you can either:
-            // 1. Use real AWS (requires valid credentials)
-            // 2. Use in-memory implementation (faster, no network)
-            // 3. Use local S3-compatible service like MinIO
-            
+
             client = S3Client.builder()
                     .region(Region.US_EAST_2)
                     .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
@@ -124,13 +114,8 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
         }
 
         @Override
-        public String getMetadataHeader(String key) {
-            return "x-amz-meta-" + key;
-        }
-
-        @Override
-        public String getTaggingHeader() {
-            return "x-amz-tagging";
+        public String getBucketName() {
+            return bucketName;
         }
 
         @Override
