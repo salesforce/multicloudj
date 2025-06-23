@@ -18,14 +18,19 @@ import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.net.URI;
+import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Test;
+import org.openjdk.jmh.runner.RunnerException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(AwsBlobBenchmarkTest.class);
     private static final String endpoint = "https://s3.us-east-2.amazonaws.com";
     private static final String bucketName = "chameleon-jcloud-benchmarks";
     private static final String versionedBucketName = "chameleon-jcloud-versioned";
@@ -41,7 +46,8 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*")
+                .include(".*benchmarkSingleActionPut.*")
+                //.include(".*" + this.getClass().getName() + ".*") 
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
