@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <groupId>com.salesforce.multicloudj</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>multicloudj-parent</artifactId>
@@ -8,14 +10,14 @@
     <version>0.2.0-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
-    
+
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
             <url>https://github.com/salesforce/multicloudj/blob/main/LICENSE.txt</url>
         </license>
     </licenses>
-    
+
     <developers>
         <developer>
             <name>MultiCloudJ Developers</name>
@@ -24,13 +26,13 @@
             <organizationUrl>https://www.salesforce.com</organizationUrl>
         </developer>
     </developers>
-    
+
     <scm>
         <connection>scm:git:git://github.com/salesforce/multicloudj.git</connection>
         <developerConnection>scm:git:ssh://github.com:salesforce/multicloudj.git</developerConnection>
         <url>https://github.com/salesforce/multicloudj</url>
     </scm>
-    
+
     <modules>
         <module>blob</module>
         <module>docstore</module>
@@ -197,12 +199,41 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Checkstyle Plugin for Code Quality -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <configLocation>google_checks.xml</configLocation>
+                    <encoding>UTF-8</encoding>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>10.25.1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
         </plugins>
     </build>
-    
+
     <profiles>
         <profile>
-            <id>release</id>    
+            <id>release</id>
             <distributionManagement>
                 <snapshotRepository>
                     <id>central-mj</id>
@@ -229,7 +260,7 @@
                             </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!-- Attach javadoc jar -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -244,7 +275,7 @@
                             </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!-- GPG signing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -267,7 +298,7 @@
                             </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!-- Nexus Staging Plugin -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
@@ -284,7 +315,7 @@
             </build>
         </profile>
     </profiles>
-    
+
     <reporting>
         <plugins>
             <plugin>
