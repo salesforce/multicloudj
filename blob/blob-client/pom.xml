@@ -146,6 +146,8 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        
+        <!-- JMH Dependencies for Benchmarking -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
@@ -153,9 +155,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.4.14</version>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>1.37</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

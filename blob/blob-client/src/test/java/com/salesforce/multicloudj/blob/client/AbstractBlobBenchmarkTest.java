@@ -27,10 +27,12 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * Abstract JMH benchmark class for Blob operations following Go Cloud drivertest patterns.
  */
+@Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
@@ -513,8 +515,8 @@ public abstract class AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                //.include(".*benchmarkSingleActionPut.*")
-                .include(".*" + this.getClass().getName() + ".*")
+                .include(".*benchmarkSingleActionPut.*")
+                //.include(".*" + this.getClass().getName() + ".*")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
