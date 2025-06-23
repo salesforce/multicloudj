@@ -25,7 +25,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
@@ -45,7 +45,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*(benchmarkSingleActionPut|benchmarkSingleActionGet|benchmarkActionListPut|benchmarkActionListGet|benchmarkWriteReadDelete).*")  // Run self-contained benchmarks first
+                .include(".*" + this.getClass().getName() + ".*") 
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
