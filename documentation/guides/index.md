@@ -44,4 +44,12 @@ Use publish/subscribe systems to send and receive messages.
 
 ---
 
+## 🧪 Testing
+
+Learn how to write and run conformance tests for multi-cloud applications.
+
+- [Conformance Tests](conformance-tests-guide.html)
+
+---
+
 Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease.
