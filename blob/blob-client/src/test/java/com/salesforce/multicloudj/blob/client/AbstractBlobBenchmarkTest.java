@@ -48,7 +48,7 @@ import org.junit.jupiter.api.Disabled;
 /**
  * Abstract JMH benchmark class for Blob operations following Go Cloud drivertest patterns.
  */
-//@Disabled
+@Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
