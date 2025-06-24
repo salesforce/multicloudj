@@ -742,8 +742,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        
-        <!-- JMH Dependencies for Benchmarking -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
@@ -757,5 +755,5 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
+    
 </project>
