@@ -41,8 +41,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
         S3Client client;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
-            // Use AWS default credential chain (environment variables, IAM roles, etc.)
+        public AbstractBlobStore<?> createBlobStore() {
             client = S3Client.builder()
                     .region(Region.US_EAST_2)
                     .endpointOverride(URI.create(endpoint))

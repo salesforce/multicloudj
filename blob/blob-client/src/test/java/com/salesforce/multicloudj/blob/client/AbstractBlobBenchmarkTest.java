@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Disabled;
 
 /**
- * Abstract JMH benchmark class for Blob operations following Go Cloud drivertest patterns.
+ * Abstract JMH benchmark class for Blob operations
  */
 @Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
@@ -71,7 +71,6 @@ public abstract class AbstractBlobBenchmarkTest {
     protected Random random;
     protected BucketClient bucketClient;
 
-    // Atomic counters for Go Cloud pattern benchmarks
     private final AtomicInteger nextPutId = new AtomicInteger(0);
     private final AtomicInteger nextGetId = new AtomicInteger(0);
     private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
@@ -80,7 +79,7 @@ public abstract class AbstractBlobBenchmarkTest {
 
     // Harness interface
     public interface Harness extends AutoCloseable {
-        AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
+        AbstractBlobStore<?> createBlobStore();
         String getBucketName();
     }
 
@@ -90,16 +89,16 @@ public abstract class AbstractBlobBenchmarkTest {
     @Setup(Level.Trial)
     public void setupBenchmark() {
         try {
-            // Initialize harness (no WireMock)
+            // Initialize harness
             harness = createHarness();
             
             // Setup test data
-            bucketName = harness.getBucketName(); // Use the actual bucket name from harness
+            bucketName = harness.getBucketName();
             blobKeys = new ArrayList<>();
             testBlobs = new ArrayList<>();
-            random = new Random(42); // Fixed seed for reproducibility
+            random = new Random(42); 
 
-            AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+            AbstractBlobStore<?> blobStore = harness.createBlobStore();
             bucketClient = new BucketClient(blobStore);
             
             // Generate and upload test data for download benchmarks
@@ -180,14 +179,13 @@ public abstract class AbstractBlobBenchmarkTest {
                 try {
                     bucketClient.delete(key, null);
                 } catch (Exception e) {
-                    // Ignore cleanup errors
+                    
                 }
             }
         } catch (Exception e) {
-            // Ignore cleanup errors
         }
     }
-    // ==================== BENCHMARK TESTS ====================
+
     @Benchmark
     @Threads(4)
     public void benchmarkSingleActionPut(Blackhole bh) {
@@ -200,7 +198,7 @@ public abstract class AbstractBlobBenchmarkTest {
         try {
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextPutId.incrementAndGet();
-                byte[] blobData = createBlob(SMALL_BLOB); // Use real 1KB data
+                byte[] blobData = createBlob(SMALL_BLOB);
 
                 try (InputStream inputStream = new ByteArrayInputStream(blobData)) {
                     UploadRequest request = new UploadRequest.Builder()
@@ -217,7 +215,7 @@ public abstract class AbstractBlobBenchmarkTest {
     }
 
     /**
-     * GO CLOUD PATTERN: Single Action Get
+     * Single Action Get
      */
     @Benchmark
     @Threads(4)
@@ -244,8 +242,6 @@ public abstract class AbstractBlobBenchmarkTest {
                     bucketClient.upload(request, inputStream);
                 }
             }
-
-            // Benchmark the Get operations
             for (String key : keys) {
                 try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
                     DownloadRequest request = new DownloadRequest.Builder()
@@ -261,7 +257,7 @@ public abstract class AbstractBlobBenchmarkTest {
     }
 
     /**
-     * GO CLOUD PATTERN: Batch Action Put
+     * Batch Action Put
      */
     @Benchmark
     @Threads(4)
@@ -294,7 +290,7 @@ public abstract class AbstractBlobBenchmarkTest {
     }
 
     /**
-     * GO CLOUD PATTERN: Batch Action Get
+     * Batch Action Get
      */
     @Benchmark
     @Threads(4)
@@ -340,14 +336,13 @@ public abstract class AbstractBlobBenchmarkTest {
     }
 
     /**
-     * GO CLOUD PATTERN: Write-Read-Delete Benchmark
-     * Mirrors the Go Cloud benchmarkWriteReadDelete function
+     Write-Read-Delete Benchmark
      */
     @Benchmark
     @Threads(4)
     public void benchmarkWriteReadDelete(Blackhole bh) {
         final String baseKey = "writereaddeletebenchmark-blob-";
-        final byte[] content = createBlob(SMALL_BLOB); // Use small blob to avoid WireMock issues
+        final byte[] content = createBlob(SMALL_BLOB); 
         
         try {
             String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
@@ -385,8 +380,6 @@ public abstract class AbstractBlobBenchmarkTest {
             throw new RuntimeException("Benchmark write-read-delete failed", e);
         }
     }
-
-    // ==================== PRE-POPULATED DATA BENCHMARKS ====================
 
     /**
      * Benchmark downloads using pre-populated test data
@@ -468,8 +461,6 @@ public abstract class AbstractBlobBenchmarkTest {
         }
     }
 
-    // ==================== UTILITY METHODS ====================
-
     /**
      * Create a blob of specified size with random data
      */
@@ -503,7 +494,7 @@ public abstract class AbstractBlobBenchmarkTest {
     protected String getRandomBlobKeyWithPrefix(String prefix) {
         List<String> filteredKeys = blobKeys.stream()
                 .filter(key -> key.startsWith(prefix))
-                .collect(Collectors.toList()); // Fixed: Use collect(Collectors.toList()) instead of toList()
+                .collect(Collectors.toList()); 
 
         if (filteredKeys.isEmpty()) {
             return generateUniqueBlobKey(prefix);
