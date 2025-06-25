@@ -1,0 +1,31 @@
+{
+  "id" : "70f1e36d-834e-419c-b335-69017e0cba34",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidReplace\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidReplace\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": false\n      },\n      \"s\": {\n        \"stringValue\": \"replacedString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"DavidReplace\"\n      },\n      \"f\": {\n        \"doubleValue\": 0\n      },\n      \"i\": {\n        \"integerValue\": \"95\"\n      }\n    },\n    \"createTime\": \"2025-06-25T21:15:29.436758Z\",\n    \"updateTime\": \"2025-06-25T21:15:29.776069Z\"\n  },\n  \"readTime\": \"2025-06-25T21:15:30.119307Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13906657973132756392;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:30 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "70f1e36d-834e-419c-b335-69017e0cba34",
+  "persistent" : true,
+  "insertionIndex" : 72
+}

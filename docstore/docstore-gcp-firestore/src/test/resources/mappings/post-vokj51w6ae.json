@@ -1,0 +1,31 @@
+{
+  "id" : "4a693302-543c-4565-a8b5-584f7e89d9ad",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites3\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites4\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites5\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites6\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites7\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {},\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2025-06-25T21:15:47.512936Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "3794120321002579599;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:47 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4a693302-543c-4565-a8b5-584f7e89d9ad",
+  "persistent" : true,
+  "insertionIndex" : 128
+}

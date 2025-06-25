@@ -1,0 +1,31 @@
+{
+  "id" : "0d3e8276-ad1d-46c3-b709-2d22e6f939ad",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentReplace\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"replacedString\"},\"pName\":{\"stringValue\":\"NonExistentReplace\"},\"f\":{\"doubleValue\":34.560001373291016},\"i\":{\"integerValue\":\"95\"}}},\"currentDocument\":{\"exists\":true}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No document to update: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentReplace\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "2627107859290454658;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:30 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "0d3e8276-ad1d-46c3-b709-2d22e6f939ad",
+  "persistent" : true,
+  "insertionIndex" : 70
+}

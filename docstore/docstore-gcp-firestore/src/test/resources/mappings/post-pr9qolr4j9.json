@@ -1,0 +1,31 @@
+{
+  "id" : "d36bab12-e092-4e25-a6a6-11462f80fedc",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnReplace\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"replacedString\"},\"pName\":{\"stringValue\":\"JohnReplace\"},\"f\":{\"doubleValue\":34.560001373291016},\"i\":{\"integerValue\":\"95\"}}},\"currentDocument\":{\"exists\":true}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2025-06-25T21:15:28.783281Z\"\n    }\n  ],\n  \"commitTime\": \"2025-06-25T21:15:28.783281Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "3010153378092257990;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "d36bab12-e092-4e25-a6a6-11462f80fedc",
+  "persistent" : true,
+  "insertionIndex" : 76
+}

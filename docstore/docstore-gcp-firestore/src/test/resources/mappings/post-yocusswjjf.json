@@ -1,0 +1,31 @@
+{
+  "id" : "82a5084a-5ce1-4492-ad2e-58822f56c0d0",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/KingReplace\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/KingReplace\",\n    \"fields\": {\n      \"s\": {\n        \"stringValue\": \"replacedString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"KingReplace\"\n      },\n      \"f\": {\n        \"doubleValue\": 34.560001373291016\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2025-06-25T21:15:32.143417Z\",\n    \"updateTime\": \"2025-06-25T21:15:32.488416Z\"\n  },\n  \"readTime\": \"2025-06-25T21:15:32.809716Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "18002727729002731112;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:32 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "82a5084a-5ce1-4492-ad2e-58822f56c0d0",
+  "persistent" : true,
+  "insertionIndex" : 64
+}

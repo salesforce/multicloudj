@@ -1,0 +1,31 @@
+{
+  "id" : "b29a32a3-25cd-4335-a300-2e5d6c1a3f04",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites6\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites6\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"66\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites6\"\n      },\n      \"i\": {\n        \"integerValue\": \"6\"\n      },\n      \"DocstoreRevision\": {\n        \"bytesValue\": \"CIDO8cIGEMDAuPIC\"\n      }\n    },\n    \"createTime\": \"2025-06-25T21:15:44.776872Z\",\n    \"updateTime\": \"2025-06-25T21:15:45.814488Z\"\n  },\n  \"readTime\": \"2025-06-25T21:15:46.140406Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13786304431660372743;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:46 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b29a32a3-25cd-4335-a300-2e5d6c1a3f04",
+  "persistent" : true,
+  "insertionIndex" : 114
+}

@@ -1,0 +1,31 @@
+{
+  "id" : "720e160c-a968-4bb0-9b48-f6847c287741",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LeoMap\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LeoMap\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"pName\": {\n        \"stringValue\": \"LeoMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2025-06-25T21:15:36.533835Z\",\n    \"updateTime\": \"2025-06-25T21:15:36.533835Z\"\n  },\n  \"readTime\": \"2025-06-25T21:15:36.882040Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "14072155705652146603;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:36 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "720e160c-a968-4bb0-9b48-f6847c287741",
+  "persistent" : true,
+  "insertionIndex" : 81
+}

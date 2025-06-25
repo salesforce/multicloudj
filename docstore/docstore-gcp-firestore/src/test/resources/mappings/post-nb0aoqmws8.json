@@ -1,0 +1,31 @@
+{
+  "id" : "0f83093c-714b-435a-8e4e-59b48b54809c",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\"],\"mask\":{\"fieldPaths\":[\"S\",\"pName\",\"f\",\"I\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\",\n    \"fields\": {\n      \"pName\": {\n        \"stringValue\": \"QueenMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      }\n    },\n    \"createTime\": \"2025-06-25T21:15:20.648921Z\",\n    \"updateTime\": \"2025-06-25T21:15:20.648921Z\"\n  },\n  \"readTime\": \"2025-06-25T21:15:21.020607Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "10864086511517725347;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 25 Jun 2025 21:15:21 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "0f83093c-714b-435a-8e4e-59b48b54809c",
+  "persistent" : true,
+  "insertionIndex" : 32
+}
