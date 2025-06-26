@@ -32,7 +32,6 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
-            <version>0.2.0-SNAPSHOT</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -45,12 +44,10 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
-            <version>0.2.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>sts-client</artifactId>
-            <version>0.2.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>commons-logging</groupId>
