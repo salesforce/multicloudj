@@ -3,7 +3,6 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>sts-client</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>MultiCloudJ - STS Client</name>
 

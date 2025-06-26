@@ -3,7 +3,6 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>sts-ali</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>MultiCloudJ - STS Alibaba Cloud</name>
 
