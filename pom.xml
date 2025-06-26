@@ -187,6 +187,22 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.11.2</version>
+                    <configuration>
+                        <links>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                        </links>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -197,26 +213,6 @@
                 <configuration>
                     <release>${releaseTarget}</release>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.6.3</version>
-                <executions>
-                    <execution>
-                        <id>aggregate-javadoc</id>
-                        <phase>site</phase>
-                        <goals>
-                            <goal>aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <skip>false</skip>
-                            <source>${compileSource}</source>
-                            <reportOutputDirectory>${project.build.directory}/site</reportOutputDirectory>
-                            <destDir>apidocs</destDir>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -345,7 +341,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.6.3</version>
+                        <version>3.11.2</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -354,6 +350,17 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <links>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                            </links>
+                        </configuration>
                     </plugin>
 
                     <!-- GPG signing -->
@@ -412,6 +419,22 @@
                     <aggregate>true</aggregate>
                 </configuration>
                 <inherited>false</inherited>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <configuration>
+                    <links>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                    </links>
+                </configuration>
             </plugin>
         </plugins>
     </reporting>
