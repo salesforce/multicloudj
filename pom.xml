@@ -55,7 +55,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>4.2.3</guice.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <revision>0.2.0-SNAPSHOT</revision>
+        <revision>0.2.1</revision>
     </properties>
     <!-- All module dependencies and versions -->
     <dependencyManagement>
@@ -303,6 +303,72 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            
+            <!-- Source and Javadoc plugins for all modules -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <links>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                    </links>
+                </configuration>
+            </plugin>
+            
+            <!-- Maven Flatten Plugin to resolve ${revision} property -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>oss</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -321,47 +387,6 @@
             </distributionManagement>
             <build>
                 <plugins>
-                    <!-- Attach source jars -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                    <!-- Attach javadoc jar -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.11.2</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <links>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                                <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                            </links>
-                        </configuration>
-                    </plugin>
-
                     <!-- GPG signing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
