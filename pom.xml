@@ -7,7 +7,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -55,6 +55,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>4.2.3</guice.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <revision>0.2.0-SNAPSHOT</revision>
     </properties>
     <!-- All module dependencies and versions -->
     <dependencyManagement>
