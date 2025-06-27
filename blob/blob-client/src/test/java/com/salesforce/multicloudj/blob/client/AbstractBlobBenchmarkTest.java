@@ -53,7 +53,7 @@ import org.junit.jupiter.api.Disabled;
 /**
  * Abstract JMH benchmark class for Blob operations
  */
-//@Disabled
+@Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)

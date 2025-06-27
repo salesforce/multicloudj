@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-//@Disabled
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
@@ -62,7 +62,6 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
                 
                 logger.info("Successfully created S3 client");
 
-                // Create AwsBlobStore
                 logger.debug("Building AwsBlobStore with bucket: {}", bucketName);
                 AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
                 builder.withS3Client(client)
