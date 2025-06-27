@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<javadocOptions>
+  <docletArtifacts>
+    <docletArtifact />
+  </docletArtifacts>
+  <tagletArtifacts>
+    <tagletArtifact />
+  </tagletArtifacts>
+  <links>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/0.2.1</link>
+    <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/0.2.1</link>
+  </links>
+  <javadocResourcesDirectory>src/main/javadoc</javadocResourcesDirectory>
+</javadocOptions>
