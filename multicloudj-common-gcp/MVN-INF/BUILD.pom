@@ -1,9 +1,0 @@
-maven_artifact(
-    group_id = "com.salesforce.multicloudj",
-    artifact_id = "multicloudj-common-gcp",
-    version = "0.0.11-SNAPSHOT",
-    pom_generation_mode = "dynamic",
-)
-maven_artifact_update(
-    version_increment_strategy = "patch",
-)
