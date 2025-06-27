@@ -107,8 +107,7 @@ public abstract class AbstractBlobBenchmarkTest {
 
             AbstractBlobStore<?> blobStore = harness.createBlobStore();
             bucketClient = new BucketClient(blobStore);
-            
-            // Generate and upload test data for download benchmarks
+            cleanupTestData();
             generateTestBlobs();
             setupTestData();
         } catch (Exception e) {
@@ -125,7 +124,7 @@ public abstract class AbstractBlobBenchmarkTest {
                 harness.close();
             }
         } catch (Exception e) {
-            System.err.println("Error closing harness: " + e.getMessage());
+            throw new RuntimeException("Error closing harness", e);
         }
     }
 
@@ -181,15 +180,16 @@ public abstract class AbstractBlobBenchmarkTest {
      * Cleanup test data
      */
     private void cleanupTestData() {
-        try {
-            for (String key : blobKeys) {
-                try {
-                    bucketClient.delete(key, null);
-                } catch (Exception e) {
-                    
-                }
+        if (blobKeys == null || bucketClient == null) {
+            return;
+        }
+        
+        for (String key : blobKeys) {
+            try {
+                bucketClient.delete(key, null);
+            } catch (Exception e) {
+                // Ignore cleanup failures - key might not exist
             }
-        } catch (Exception e) {
         }
     }
 
@@ -365,30 +365,20 @@ public abstract class AbstractBlobBenchmarkTest {
             
             List<UploadPartResponse> partResponses = new ArrayList<>();
             
-            try {
-                int numParts = (int) Math.ceil((double) content.length / PART_SIZE);
-                for (int partNum = 1; partNum <= numParts; partNum++) {
-                    int startIndex = (partNum - 1) * PART_SIZE;
-                    int endIndex = Math.min(startIndex + PART_SIZE, content.length);
-                    byte[] partData = Arrays.copyOfRange(content, startIndex, endIndex);
-                    
-                    MultipartPart part = new MultipartPart(partNum, partData);
-                    UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, part);
-                    partResponses.add(partResponse);
-                    bh.consume(partResponse.getEtag());
-                }
-
-                MultipartUploadResponse completeResponse = bucketClient.completeMultipartUpload(mpu, partResponses);
-                bh.consume(completeResponse.getEtag());
+            int numParts = (int) Math.ceil((double) content.length / PART_SIZE);
+            for (int partNum = 1; partNum <= numParts; partNum++) {
+                int startIndex = (partNum - 1) * PART_SIZE;
+                int endIndex = Math.min(startIndex + PART_SIZE, content.length);
+                byte[] partData = Arrays.copyOfRange(content, startIndex, endIndex);
                 
-            } catch (Exception e) {
-                try {
-                    bucketClient.abortMultipartUpload(mpu);
-                } catch (Exception abortException) {
-                    System.err.println("Failed to abort multipart upload: " + abortException.getMessage());
-                }
-                throw e;
+                MultipartPart part = new MultipartPart(partNum, partData);
+                UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, part);
+                partResponses.add(partResponse);
+                bh.consume(partResponse.getEtag());
             }
+
+            MultipartUploadResponse completeResponse = bucketClient.completeMultipartUpload(mpu, partResponses);
+            bh.consume(completeResponse.getEtag());
         }
     } catch (Exception e) {
         throw new RuntimeException("Benchmark multipart upload failed", e);
