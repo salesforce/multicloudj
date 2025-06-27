@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.salesforce.multicloudj</groupId>
+  <artifactId>docstore</artifactId>
+  <version>0.2.1</version>
+  <packaging>pom</packaging>
+  <name>MultiCloudJ DocStore</name>
+  <description>MultiCloudJ Document Store API for NoSQL storage</description>
+  <url>https://github.com/salesforce/multicloudj/docstore</url>
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>https://github.com/salesforce/multicloudj/blob/main/LICENSE.txt</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>MultiCloudJ Developers</name>
+      <email>opensource@salesforce.com</email>
+      <organization>Salesforce</organization>
+      <organizationUrl>https://www.salesforce.com</organizationUrl>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:git://github.com/salesforce/multicloudj.git/docstore</connection>
+    <developerConnection>scm:git:ssh://github.com:salesforce/multicloudj.git/docstore</developerConnection>
+    <url>https://github.com/salesforce/multicloudj/docstore</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>4.2.3</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <version>1.0-rc7</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+</project>

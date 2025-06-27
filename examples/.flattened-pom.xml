@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.salesforce.multicloudj</groupId>
+  <artifactId>multicloudj-examples</artifactId>
+  <version>0.2.1</version>
+  <name>MultiCloudJ - Examples</name>
+  <description>Salesforce Multi-substrate Java SDK</description>
+  <url>https://github.com/salesforce/multicloudj/multicloudj-examples</url>
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>https://github.com/salesforce/multicloudj/blob/main/LICENSE.txt</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>MultiCloudJ Developers</name>
+      <email>opensource@salesforce.com</email>
+      <organization>Salesforce</organization>
+      <organizationUrl>https://www.salesforce.com</organizationUrl>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:git://github.com/salesforce/multicloudj.git/multicloudj-examples</connection>
+    <developerConnection>scm:git:ssh://github.com:salesforce/multicloudj.git/multicloudj-examples</developerConnection>
+    <url>https://github.com/salesforce/multicloudj/multicloudj-examples</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.34</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>4.2.3</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.salesforce.multicloudj</groupId>
+      <artifactId>sts-client</artifactId>
+      <version>0.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.salesforce.multicloudj</groupId>
+      <artifactId>blob-client</artifactId>
+      <version>0.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.salesforce.multicloudj</groupId>
+      <artifactId>docstore-client</artifactId>
+      <version>0.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.salesforce.multicloudj</groupId>
+      <artifactId>docstore-gcp-firestore</artifactId>
+      <version>0.2.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.2</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.17.0</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+</project>
