@@ -10,6 +10,7 @@ TEMP_DIR=$(mktemp -d)
 SITE_BRANCH="site"
 MAIN_BRANCH="main"
 TARGET_DIR="docs/api/java/${VERSION}"
+LATEST_DIR="docs/api/java/latest"
 
 # 1. Checkout main branch
 git checkout "$MAIN_BRANCH"
@@ -26,8 +27,13 @@ rm -rf "$TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 cp -r "$TEMP_DIR"/* "$TARGET_DIR/"
 
-# 5. Show result
+# 5. Update latest symlink
+rm -f "$LATEST_DIR"
+ln -sf "$VERSION" "$LATEST_DIR"
+
+# 6. Show result
 echo "JavaDoc for version $VERSION copied to $TARGET_DIR (site branch)"
+echo "Latest symlink updated to point to $VERSION"
 echo "You can now commit and push the changes."
 
 # Cleanup
