@@ -16,7 +16,7 @@ git checkout "$MAIN_BRANCH"
 
 # 2. Generate JavaDoc in temp dir
 mvn clean javadoc:aggregate -DskipTests
-cp -r target/site/apidocs/* "$TEMP_DIR/"
+cp -r target/reports/apidocs/* "$TEMP_DIR/"
 
 # 3. Checkout site branch
 git checkout "$SITE_BRANCH"
