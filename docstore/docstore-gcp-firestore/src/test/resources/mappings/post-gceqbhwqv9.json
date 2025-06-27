@@ -1,0 +1,31 @@
+{
+  "id" : "e120e61a-0f5c-488b-92c6-46f8df62a9bf",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail6\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"66\"},\"pName\":{\"stringValue\":\"testAtomicWritesFail6\"},\"f\":{\"doubleValue\":6.599999904632568},\"i\":{\"integerValue\":\"6\"},\"DocstoreRevision\":{\"bytesValue\":\"CKL1+MIGEKCbwUw=\"}}},\"currentDocument\":{\"updateTime\":\"2025-06-27T06:30:58.160452Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail7\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"77\"},\"pName\":{\"stringValue\":\"testAtomicWritesFail7\"},\"f\":{\"doubleValue\":7.699999809265137},\"i\":{\"integerValue\":\"7\"},\"DocstoreRevision\":{\"bytesValue\":\"CKL1+MIGEKCbwUw=\"}}},\"currentDocument\":{\"updateTime\":\"2025-06-27T06:30:58.160452Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail8\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"8\"},\"pName\":{\"stringValue\":\"testAtomicWritesFail8\"},\"f\":{\"doubleValue\":8.800000190734863},\"i\":{\"integerValue\":\"8\"},\"DocstoreRevision\":{\"stringValue\":\"88\"}}},\"currentDocument\":{\"exists\":true}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No document to update: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWritesFail8\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "15618477271226697348;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 27 Jun 2025 06:30:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e120e61a-0f5c-488b-92c6-46f8df62a9bf",
+  "persistent" : true,
+  "insertionIndex" : 124
+}

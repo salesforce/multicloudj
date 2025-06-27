@@ -142,11 +142,6 @@ public abstract class AbstractDocstoreIT {
     public void testCreate() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object doc;
@@ -264,11 +259,6 @@ public abstract class AbstractDocstoreIT {
     public void testGet() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object doc;
@@ -569,11 +559,6 @@ public abstract class AbstractDocstoreIT {
     public void testReplace() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object origDoc;
