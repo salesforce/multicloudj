@@ -1,0 +1,31 @@
+{
+  "id" : "f5129e54-0ed5-4ddd-812b-6124034c35b0",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"fieldFilter\":{\"field\":{\"fieldPath\":\"WithGlitch\"},\"op\":8,\"value\":{\"arrayValue\":{\"values\":[{\"booleanValue\":true}]}}}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"190\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-18\"\n      }\n    },\n    \"createTime\": \"2025-06-25T17:59:01.573212Z\",\n    \"updateTime\": \"2025-06-25T17:59:01.573212Z\"\n  },\n  \"readTime\": \"2025-06-27T06:30:30.312314Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:pat\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"pat\"\n      },\n      \"Score\": {\n        \"integerValue\": \"120\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-01\"\n      }\n    },\n    \"createTime\": \"2025-06-25T17:59:00.953720Z\",\n    \"updateTime\": \"2025-06-25T17:59:00.953720Z\"\n  },\n  \"readTime\": \"2025-06-27T06:30:30.312314Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "9378315825999055427;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 27 Jun 2025 06:30:30 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f5129e54-0ed5-4ddd-812b-6124034c35b0",
+  "persistent" : true,
+  "insertionIndex" : 5
+}
