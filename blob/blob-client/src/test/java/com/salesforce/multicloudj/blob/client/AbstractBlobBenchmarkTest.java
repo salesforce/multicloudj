@@ -31,6 +31,11 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -48,7 +53,7 @@ import org.junit.jupiter.api.Disabled;
 /**
  * Abstract JMH benchmark class for Blob operations
  */
-@Disabled
+//@Disabled
 @BenchmarkMode({Mode.Throughput, Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
@@ -63,6 +68,7 @@ public abstract class AbstractBlobBenchmarkTest {
     protected static final int SMALL_BLOB = 1024;           // 1KB
     protected static final int MEDIUM_BLOB = 1024 * 1024;   // 1MB
     protected static final int LARGE_BLOB = 10 * 1024 * 1024; // 10MB
+    protected static final int PART_SIZE = 5 * 1024 * 1024;
 
     // Test data
     protected String bucketName;
@@ -76,6 +82,7 @@ public abstract class AbstractBlobBenchmarkTest {
     private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
     private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
     private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
+    private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
 
     // Harness interface
     public interface Harness extends AutoCloseable {
@@ -193,7 +200,7 @@ public abstract class AbstractBlobBenchmarkTest {
     }
 
     private void benchmarkSingleActionPut(Blackhole bh, int n) {
-        final String baseKey = "benchmark-put-";
+        final String baseKey = "benchmarksingleaction-put-";
 
         try {
             for (int i = 0; i < n; i++) {
@@ -335,6 +342,58 @@ public abstract class AbstractBlobBenchmarkTest {
         }
     }
 
+    /**
+     * Multipart Upload
+     */
+    @Benchmark
+    @Threads(2)
+    public void benchmarkMultipartUpload(Blackhole bh) {
+        benchmarkMultipartUpload(bh, 10);
+    }
+    private void benchmarkMultipartUpload(Blackhole bh, int n) {
+    final String baseKey = "benchmarkmultipartupload-";
+    final byte[] content = createBlob(LARGE_BLOB);
+    try {
+        for (int i = 0; i < n; i++) {
+            String key = baseKey + nextMultipartUploadId.incrementAndGet();
+
+            MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                    .withKey(key)
+                    .build();
+            MultipartUpload mpu = bucketClient.initiateMultipartUpload(request);
+            bh.consume(mpu.getId());
+            
+            List<UploadPartResponse> partResponses = new ArrayList<>();
+            
+            try {
+                int numParts = (int) Math.ceil((double) content.length / PART_SIZE);
+                for (int partNum = 1; partNum <= numParts; partNum++) {
+                    int startIndex = (partNum - 1) * PART_SIZE;
+                    int endIndex = Math.min(startIndex + PART_SIZE, content.length);
+                    byte[] partData = Arrays.copyOfRange(content, startIndex, endIndex);
+                    
+                    MultipartPart part = new MultipartPart(partNum, partData);
+                    UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, part);
+                    partResponses.add(partResponse);
+                    bh.consume(partResponse.getEtag());
+                }
+
+                MultipartUploadResponse completeResponse = bucketClient.completeMultipartUpload(mpu, partResponses);
+                bh.consume(completeResponse.getEtag());
+                
+            } catch (Exception e) {
+                try {
+                    bucketClient.abortMultipartUpload(mpu);
+                } catch (Exception abortException) {
+                    System.err.println("Failed to abort multipart upload: " + abortException.getMessage());
+                }
+                throw e;
+            }
+        }
+    } catch (Exception e) {
+        throw new RuntimeException("Benchmark multipart upload failed", e);
+    }
+}
     /**
      Write-Read-Delete Benchmark
      */
@@ -520,7 +579,9 @@ public abstract class AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*")
+                //.include(".*" + this.getClass().getName() + ".*")
+                //.include(".*benchmarkMultipartUpload.*")
+                .include(".*benchmarkSingleActionPut.*")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)

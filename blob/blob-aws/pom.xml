@@ -712,7 +712,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- JMH Dependencies for Benchmarking -->
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
@@ -723,6 +722,12 @@
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
             <version>1.37</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.15</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
