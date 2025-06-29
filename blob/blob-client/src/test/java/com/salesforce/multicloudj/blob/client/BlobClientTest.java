@@ -8,12 +8,12 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
 import org.mockito.MockedStatic;
 
 import java.net.URI;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -65,8 +65,8 @@ public class BlobClientTest {
 
         ListBucketsResponse response = client.listBuckets();
         verify(mockBlobClient, times(1)).listBuckets();
-        assertEquals(expectedResponse.getBucketInfoList().size(), response.getBucketInfoList().size());
-        assertEquals(expectedResponse.getBucketInfoList().get(0).getName(), response.getBucketInfoList().get(0).getName());
+        Assertions.assertEquals(expectedResponse.getBucketInfoList().size(), response.getBucketInfoList().size());
+        Assertions.assertEquals(expectedResponse.getBucketInfoList().get(0).getName(), response.getBucketInfoList().get(0).getName());
     }
 
     @Test

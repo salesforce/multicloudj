@@ -340,6 +340,20 @@ public class AsyncBucketClient {
                 .exceptionally(this::handleException);
     }
 
+    /**
+     * Determines if an object exists for a given key/versionId
+     * @param key Name of the blob to check
+     * @param versionId The version of the blob to check. This field is optional and should be null
+     *                  unless you're checking for the existence of a specific key/version blob.
+     * @return Returns true if the object exists. Returns false if it doesn't exist.
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<Boolean> doesObjectExist(String key, String versionId) {
+        return blobStore
+                .doesObjectExist(key, versionId)
+                .exceptionally(this::handleException);
+    }
+
     public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
 
         public Builder(String providerId) {

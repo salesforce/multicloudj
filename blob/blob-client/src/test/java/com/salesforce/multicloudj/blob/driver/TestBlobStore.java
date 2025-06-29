@@ -89,7 +89,7 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
+    protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         return null;
     }
 
@@ -99,7 +99,7 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
+    protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
         return null;
     }
 
@@ -121,6 +121,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     @Override
     protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
         return null;
+    }
+
+    @Override
+    protected boolean doDoesObjectExist(String key, String versionId) {
+        return false;
     }
 
     @Override

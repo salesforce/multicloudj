@@ -212,7 +212,7 @@ public class AliTransformer {
     public List<UploadPartResponse> toListUploadPartResponse(PartListing partListing) {
         return partListing.getParts().stream()
                 .sorted(Comparator.comparingInt(PartSummary::getPartNumber))
-                .map((part) -> new UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
+                .map((part) -> new com.salesforce.multicloudj.blob.driver.UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
                 .collect(Collectors.toList());
     }
 

@@ -54,6 +54,7 @@ import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -430,6 +431,26 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
                 .build();
     }
 
+    /**
+     * Determines if an object exists for a given key/versionId
+     * @param key Name of the blob to check
+     * @param versionId The version of the blob to check
+     * @return Returns true if the object exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesObjectExist(String key, String versionId) {
+        try {
+            s3Client.headObject(transformer.toHeadRequest(key, versionId));
+            return true;
+        }
+        catch(S3Exception e) {
+            if (e.statusCode() == 404) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
     @Getter
     public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore> {
 
@@ -484,12 +505,12 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
             return httpClientBuilder.build();
         }
 
-        public Builder withS3Client(S3Client s3Client) {
+        public AwsBlobStore.Builder withS3Client(S3Client s3Client) {
             this.s3Client = s3Client;
             return this;
         }
 
-        public Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
+        public AwsBlobStore.Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
             return this;
         }
