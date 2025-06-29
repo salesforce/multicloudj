@@ -1,0 +1,32 @@
+{
+  "id" : "f1859e94-a8ca-4b38-abfc-e1b1cd6248b5",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"2\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"03368b64-36e2-e031-d72d-0cc8e9098ce7\"},\"s\":{\"S\":\"2\"},\"pName\":{\"S\":\"testAtomicWritesFail2\"},\"f\":{\"N\":\"2.200000047683716\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "J22OIMC2TCKUFMSG36DKDV462FVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:52 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "f1859e94-a8ca-4b38-abfc-e1b1cd6248b5",
+  "persistent" : true,
+  "insertionIndex" : 183
+}

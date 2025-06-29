@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.docstore.ali;
 import com.alicloud.openservices.tablestore.model.Row;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
@@ -91,5 +92,10 @@ public class AliDocumentIterator implements DocumentIterator {
         lastToken = null;
         scanItems = null;
         queryItems = null;
+    }
+
+    @Override
+    public PaginationToken getPaginationToken() {
+        return null;
     }
 }

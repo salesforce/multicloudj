@@ -4,6 +4,7 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.firestore.v1.RunQueryResponse;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Document;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -236,5 +237,10 @@ public class FSDocumentIterator implements DocumentIterator {
     @Override
     public void stop() {
         markDoneAndClose();
+    }
+
+    @Override
+    public PaginationToken getPaginationToken() {
+        return null;
     }
 } 

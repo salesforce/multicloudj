@@ -31,6 +31,8 @@ public class QueryTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> query.offset(-1));
         query.offset(10);
         Assertions.assertThrows(IllegalArgumentException.class, () -> query.offset(8));
+        PaginationToken paginationToken = mock(PaginationToken.class);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> query.paginationToken(paginationToken));
     }
 
     @Test
@@ -39,6 +41,17 @@ public class QueryTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> query.limit(-1));
         query.limit(10);
         Assertions.assertThrows(IllegalArgumentException.class, () -> query.limit(8));
+    }
+
+    @Test
+    void testPaginationToken() {
+        Query query = new Query(docStore);
+        PaginationToken paginationToken = mock(PaginationToken.class);
+        query.paginationToken(null);
+        query.paginationToken(paginationToken);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> query.offset(8));
+        PaginationToken paginationToken2 = mock(PaginationToken.class);
+        Assertions.assertDoesNotThrow(() -> query.paginationToken(paginationToken2));
     }
 
     @Test
