@@ -1,0 +1,32 @@
+{
+  "id" : "c78bd0ce-d48d-4a89-a594-c4339d10cf4d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":10,\"Items\":[{\"i\":{\"N\":\"95\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"32.29999923706055\"},\"pName\":{\"S\":\"EdwardPlayer\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"PrincePlayer\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"PumaMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"FrankMap\"}},{\"i\":{\"N\":\"121\"},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TigerMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"DavidMap\"}},{\"i\":{\"N\":\"121\"},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"QueenMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"DocstoreRevision\":{\"S\":\"98cf5a0c-d567-51a1-e95a-c678666fe6f5\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"SharkMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LionMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"BishopPlayer\"}}],\"ScannedCount\":10}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "CPPBKS3T8QT8L4K729PD2TR497VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "817879155",
+      "Date" : "Sun, 29 Jun 2025 05:51:23 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "c78bd0ce-d48d-4a89-a594-c4339d10cf4d",
+  "persistent" : true,
+  "insertionIndex" : 84
+}

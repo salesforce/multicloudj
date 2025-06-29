@@ -29,27 +29,29 @@ public class QueryRunnerTest {
         DynamoDbClient ddb = mock(DynamoDbClient.class);
         ScanRequest scanRequest = mock(ScanRequest.class);
         QueryRequest queryRequest = mock(QueryRequest.class);
+        List<String> paginationKeys = new ArrayList<>();
 
-        QueryRunner runner = new QueryRunner(ddb, scanRequest, null, null);
+        QueryRunner runner = new QueryRunner(ddb, scanRequest, null, null, paginationKeys);
         Assertions.assertEquals("Scan", runner.queryPlan());
 
         when(queryRequest.indexName()).thenReturn("index");
-        runner = new QueryRunner(ddb, null, queryRequest, null);
+        runner = new QueryRunner(ddb, null, queryRequest, null, paginationKeys);
         Assertions.assertEquals("Index index", runner.queryPlan());
 
         QueryRequest queryRequest2 = mock(QueryRequest.class);
         when(queryRequest2.tableName()).thenReturn(null);
-        runner = new QueryRunner(ddb, null, queryRequest2, null);
+        runner = new QueryRunner(ddb, null, queryRequest2, null, paginationKeys);
         Assertions.assertEquals("Table", runner.queryPlan());
     }
 
     @Test
     void testRun() {
         DynamoDbClient ddb = mock(DynamoDbClient.class);
+        List<String> paginationKeys = new ArrayList<>();
 
         ScanRequest mockScan = mock(ScanRequest.class);
         ScanRequest mockScan2 = mock(ScanRequest.class);
-        QueryRunner runner = new QueryRunner(ddb, mockScan, null, null);
+        QueryRunner runner = new QueryRunner(ddb, mockScan, null, null, paginationKeys);
         ScanResponse mockScanResponse = mock(ScanResponse.class);
         ScanResponse mockScanResponse2 = mock(ScanResponse.class);
         ScanRequest.Builder mockBuilder = mock(ScanRequest.Builder.class);
@@ -89,7 +91,7 @@ public class QueryRunnerTest {
 
         QueryRequest mockQuery = mock(QueryRequest.class);
         QueryRequest mockQuery2 = mock(QueryRequest.class);
-        runner = new QueryRunner(ddb, null, mockQuery, null);
+        runner = new QueryRunner(ddb, null, mockQuery, null, paginationKeys);
         QueryResponse mockQueryResponse = mock(QueryResponse.class);
         QueryResponse mockQueryResponse2 = mock(QueryResponse.class);
         QueryRequest.Builder mockQueryBuilder = mock(QueryRequest.Builder.class);

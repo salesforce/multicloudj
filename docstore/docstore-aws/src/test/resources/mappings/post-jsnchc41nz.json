@@ -1,0 +1,32 @@
+{
+  "id" : "40df28b2-911b-481a-8c09-8a1dabcfe637",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.TransactWriteItems"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TransactItems\":[{\"Put\":{\"Item\":{\"i\":{\"N\":\"6\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"214e4a93-93a3-2069-0a9b-8cc0c6dfc809\"},\"s\":{\"S\":\"66\"},\"pName\":{\"S\":\"testAtomicWritesFail6\"},\"f\":{\"N\":\"6.599999904632568\"}},\"TableName\":\"docstore-test-1\",\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"67be2852-6b38-c62f-161d-afbf27171931\"}}}},{\"Put\":{\"Item\":{\"i\":{\"N\":\"7\"},\"b\":{\"BOOL\":false},\"DocstoreRevision\":{\"S\":\"3d400f3f-2a3c-360b-a576-d73bb57bbda0\"},\"s\":{\"S\":\"77\"},\"pName\":{\"S\":\"testAtomicWritesFail7\"},\"f\":{\"N\":\"7.699999809265137\"}},\"TableName\":\"docstore-test-1\",\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"abdd69af-3af0-9698-5dd6-4f91e7d2b77b\"}}}},{\"Put\":{\"Item\":{\"i\":{\"N\":\"8\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"389a8924-1c08-810c-b727-91453a83b0ce\"},\"s\":{\"S\":\"8\"},\"pName\":{\"S\":\"testAtomicWritesFail8\"},\"f\":{\"N\":\"8.800000190734863\"}},\"TableName\":\"docstore-test-1\",\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"88\"}}}}],\"ClientRequestToken\":\"c8064e85-18a6-6c4c-6243-8d5c0d520513\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"com.amazonaws.dynamodb.v20120810#TransactionCanceledException\",\"CancellationReasons\":[{\"Code\":\"None\"},{\"Code\":\"None\"},{\"Code\":\"ConditionalCheckFailed\",\"Message\":\"The conditional request failed\"}],\"Message\":\"Transaction cancelled, please refer cancellation reasons for specific reasons [None, None, ConditionalCheckFailed]\"}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "DE7U9HRDL3DR0LHFKF47B72H37VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2597991568",
+      "Date" : "Sun, 29 Jun 2025 05:51:53 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "40df28b2-911b-481a-8c09-8a1dabcfe637",
+  "persistent" : true,
+  "insertionIndex" : 175
+}

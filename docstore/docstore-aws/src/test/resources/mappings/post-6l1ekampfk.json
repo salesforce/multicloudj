@@ -1,0 +1,32 @@
+{
+  "id" : "4a3d10c2-7527-461b-ac4c-7c2e7b194207",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"BishopPlayer\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"BishopPlayer\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "AIQ9ES59GIDMS6KC7K3BC74LH7VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1930985268",
+      "Date" : "Sun, 29 Jun 2025 05:51:15 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4a3d10c2-7527-461b-ac4c-7c2e7b194207",
+  "persistent" : true,
+  "insertionIndex" : 56
+}
