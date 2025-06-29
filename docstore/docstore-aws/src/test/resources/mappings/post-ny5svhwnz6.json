@@ -1,0 +1,32 @@
+{
+  "id" : "8949ad4c-3dc8-4263-94da-93c4b9488eee",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"LeoMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "551RM6VS7V87ANGECCBCTG9OHRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3109718115",
+      "Date" : "Sun, 29 Jun 2025 05:51:40 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "8949ad4c-3dc8-4263-94da-93c4b9488eee",
+  "persistent" : true,
+  "insertionIndex" : 109
+}
