@@ -32,6 +32,7 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

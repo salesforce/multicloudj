@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.docstore.aws;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -9,6 +10,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -26,6 +28,9 @@ public class QueryRunner {
     private QueryRequest queryRequest;
 
     private Consumer<Predicate<Object>> beforeRun;
+
+    @Setter
+    private List<String> paginationKeys = new ArrayList<>();
 
     public String queryPlan() {
         if (scanRequest != null) {

@@ -1,0 +1,32 @@
+{
+  "id" : "ac96ab3e-0264-4c05-ac79-dcd2e942e5c8",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Query"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Limit\":2,\"ExclusiveStartKey\":{\"Player\":{\"S\":\"mel\"},\"Game\":{\"S\":\"Zombie DMV\"}},\"KeyConditionExpression\":\"#attrGame = :value0 AND #attrPlayer > :value1\",\"ExpressionAttributeNames\":{\"#attrPlayer\":\"Player\",\"#attrGame\":\"Game\"},\"ExpressionAttributeValues\":{\":value1\":{\"S\":\"billie\"},\":value0\":{\"S\":\"Zombie DMV\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":1,\"Items\":[{\"WithGlitch\":{\"BOOL\":true},\"Time\":{\"S\":\"2024-04-01\"},\"Player\":{\"S\":\"pat\"},\"Score\":{\"N\":\"120\"},\"Game\":{\"S\":\"Zombie DMV\"}}],\"ScannedCount\":1}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "TIRE4RCG6LQTNI719EH5UL2BDVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3240507048",
+      "Date" : "Sun, 29 Jun 2025 05:51:09 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "ac96ab3e-0264-4c05-ac79-dcd2e942e5c8",
+  "persistent" : true,
+  "insertionIndex" : 9
+}

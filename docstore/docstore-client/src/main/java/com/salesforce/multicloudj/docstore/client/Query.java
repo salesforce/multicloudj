@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -87,6 +88,11 @@ public class Query {
      * limit <= 0, the driver implementation returns all possible results.
      */
     private int limit = 0;
+
+    /**
+     * paginationToken sets the pagination token returned by the previous query.
+     */
+    private PaginationToken paginationToken = null;
 
     /** The field to use for sorting the results. Must appear in at least one where clause. */
     private String orderByField = null;
@@ -200,6 +206,10 @@ public class Query {
             throw new IllegalArgumentException("query can have at most one offset clause.");
         }
 
+        if (paginationToken != null) {
+            throw new IllegalArgumentException("query already has one pagination token.");
+        }
+
         this.offset = n;
         return this;
     }
@@ -223,6 +233,22 @@ public class Query {
             throw new IllegalArgumentException("query can have at most one limit clause.");
         }
         this.limit = n;
+        return this;
+    }
+
+    /**
+     * Sets the field to use pagination query.
+     *
+     * Use pagination token will make the query start directly from the result of the last query.
+     *
+     * @param paginationToken the pagination token that was returned from the last query.
+     */
+    public Query paginationToken(PaginationToken paginationToken) {
+        if (offset > 0) {
+            throw new IllegalArgumentException("query already has set an offset.");
+        }
+
+        this.paginationToken = paginationToken;
         return this;
     }
 
