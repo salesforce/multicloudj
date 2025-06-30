@@ -1,0 +1,32 @@
+{
+  "id" : "398558fb-52a9-4f27-a864-50a993ee8ac1",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"LionMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "GNIHN5O3AJQ0Q352E1F813L98BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:45 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "398558fb-52a9-4f27-a864-50a993ee8ac1",
+  "persistent" : true,
+  "insertionIndex" : 132
+}

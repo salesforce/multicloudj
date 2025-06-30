@@ -1,0 +1,31 @@
+{
+  "id" : "94218476-a6f8-4e69-96ab-0d016a59ec69",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankDelete\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomString\"},\"pName\":{\"stringValue\":\"FrankDelete\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2025-06-27T06:30:51.856517Z\"\n    }\n  ],\n  \"commitTime\": \"2025-06-27T06:30:51.856517Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "15010425964088327383;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 27 Jun 2025 06:30:51 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "94218476-a6f8-4e69-96ab-0d016a59ec69",
+  "persistent" : true,
+  "insertionIndex" : 102
+}

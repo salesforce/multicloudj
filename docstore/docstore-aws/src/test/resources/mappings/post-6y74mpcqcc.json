@@ -1,0 +1,32 @@
+{
+  "id" : "80f4f01d-d46f-4b42-a40a-ec31801b4735",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"LeoReplace\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"0203716a-a8e7-1be0-0d23-f26d34fff49a\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "HQLON68B55UI46CNEUTKP56ISVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:37 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "80f4f01d-d46f-4b42-a40a-ec31801b4735",
+  "persistent" : true,
+  "insertionIndex" : 122
+}

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
+import com.google.api.gax.rpc.AbortedException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -31,6 +32,7 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -327,14 +329,17 @@ public class FSDocStore extends AbstractDocStore {
                 // which exception to throw. This is always correct for a single-Do action.
                 // For multi-action batches, however, we can't guarantee throwing the exact
                 // exception for each individual action.
-                if (e.getCause().getMessage().contains("FAILED_PRECONDITION")) {
+                // It's a weird thing that firestore throws two different errors for precondition
+                // failures. For create with exists precondition, it aborts the transaction with Conflict.
+                if (e.getCause().getMessage().contains("FAILED_PRECONDITION")
+                || (e instanceof AbortedException && e.getMessage().equals("Conflict")) ) {
                     if (writes.get(0).getKind() == ActionKind.ACTION_KIND_CREATE) {
                         throw new ResourceAlreadyExistsException(e);
                     } else {
                         throw new ResourceNotFoundException(e);
                     }
                 }
-
+                throw e;
             }
 
             // Set the revision field in documents using the update time from the response

@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -569,11 +570,10 @@ public class AwsDocStore extends AbstractDocStore {
 
         AwsDocumentIterator iter = new AwsDocumentIterator(
                 qr,
-                query.getOffset(),
-                query.getLimit(),
+                query,
                 0);
 
-        iter.run(null);
+        iter.run(query.getPaginationToken() != null ? ((AwsPaginationToken)query.getPaginationToken()).getExclusiveStartKey() : null);
         return iter;
     }
 
@@ -607,6 +607,15 @@ public class AwsDocStore extends AbstractDocStore {
 
         // Find the best thing to query (table or index).
         Queryable queryable = getBestQueryable(query);
+
+        // Collect keys required for pagination. If table is used, the list contains primary keys of base
+        // table. If index is used, the list contains both base table primary keys and index primary keys.
+        Set<String> paginationKeys = new HashSet<>();
+        paginationKeys.add(collectionOptions.getPartitionKey());
+        if (collectionOptions.getSortKey() != null) {
+            paginationKeys.add(collectionOptions.getSortKey());
+        }
+
         // queryable is not null for sure.
         if (queryable.indexName == null && queryable.key == null) {
             // No query can be done: fall back to scanning.
@@ -643,7 +652,7 @@ public class AwsDocStore extends AbstractDocStore {
             }
 
             scanRequestBuilder.tableName(collectionOptions.getTableName());
-            return new QueryRunner(ddb, scanRequestBuilder.build(), null, query.getBeforeQuery());
+            return new QueryRunner(ddb, scanRequestBuilder.build(), null, query.getBeforeQuery(), new ArrayList<>(paginationKeys));
         }
 
         // Do a query.
@@ -697,7 +706,12 @@ public class AwsDocStore extends AbstractDocStore {
             queryRequestBuilder.scanIndexForward(query.isOrderAscending());
         }
 
-        return new QueryRunner(ddb, null, queryRequestBuilder.build(), query.getBeforeQuery());
+        paginationKeys.add(queryable.getKey().getPartitionKey());
+        if (queryable.getKey().getSortKey() != null) {
+            paginationKeys.add(queryable.getKey().getSortKey());
+        }
+
+        return new QueryRunner(ddb, null, queryRequestBuilder.build(), query.getBeforeQuery(), new ArrayList<>(paginationKeys));
     }
 
     protected Queryable getBestQueryable(Query query) {

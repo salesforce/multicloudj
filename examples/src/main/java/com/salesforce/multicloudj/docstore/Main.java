@@ -1,8 +1,6 @@
 package com.salesforce.multicloudj.docstore;
 
 import com.salesforce.multicloudj.docstore.client.DocStoreClient;
-import com.salesforce.multicloudj.docstore.client.DocStoreClient;
-import com.salesforce.multicloudj.docstore.client.DocStoreClient;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
@@ -11,7 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class Main {

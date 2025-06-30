@@ -579,9 +579,7 @@ public abstract class AbstractBlobBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                //.include(".*" + this.getClass().getName() + ".*")
-                //.include(".*benchmarkMultipartUpload.*")
-                .include(".*benchmarkSingleActionPut.*")
+                .include(".*" + this.getClass().getName() + ".*")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)

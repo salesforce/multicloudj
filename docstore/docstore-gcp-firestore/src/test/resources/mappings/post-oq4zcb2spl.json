@@ -1,0 +1,31 @@
+{
+  "id" : "3cb75bb8-5c7d-4262-b920-1c9d63af85d2",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"88\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites8\"\n      },\n      \"i\": {\n        \"integerValue\": \"8\"\n      },\n      \"DocstoreRevision\": {\n        \"bytesValue\": \"CJ/1+MIGELD4hYUC\"\n      }\n    },\n    \"createTime\": \"2025-06-27T06:30:55.547454Z\",\n    \"updateTime\": \"2025-06-27T06:30:56.326187Z\"\n  },\n  \"readTime\": \"2025-06-27T06:30:57.124071Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "14081609027541826886;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 27 Jun 2025 06:30:57 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3cb75bb8-5c7d-4262-b920-1c9d63af85d2",
+  "persistent" : true,
+  "insertionIndex" : 112
+}

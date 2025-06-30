@@ -1,0 +1,32 @@
+{
+  "id" : "5c16e85d-ba3d-4dc7-a9b6-24a126ec4263",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"LeoPut\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"675216e8-0659-212d-4a95-bdc7c1f18a09\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "QNOKFNIAR0FQ4V1ARCHKSV5D0RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:29 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "5c16e85d-ba3d-4dc7-a9b6-24a126ec4263",
+  "persistent" : true,
+  "insertionIndex" : 105
+}

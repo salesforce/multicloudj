@@ -67,7 +67,7 @@ public class AsyncBucketClientTest {
     private StsCredentials creds;
     private AsyncBucketClient client;
 
-    private MockedStatic<ProviderSupplier> providerSupplier;
+    private MockedStatic<com.salesforce.multicloudj.blob.async.client.ProviderSupplier> providerSupplier;
     private MockedStatic<ExceptionHandler> mockedExceptionHandler;
 
     @BeforeEach
@@ -78,7 +78,7 @@ public class AsyncBucketClientTest {
                 .thenThrow(UnAuthorizedException.class);
 
         mockBlobStore = mock(AsyncBlobStore.class);
-        providerSupplier = mockStatic(ProviderSupplier.class);
+        providerSupplier = mockStatic(com.salesforce.multicloudj.blob.async.client.ProviderSupplier.class);
         AsyncBlobStoreProvider.Builder mockBuilder = mock(AsyncBlobStoreProvider.Builder.class);
         when(mockBuilder.build()).thenReturn(mockBlobStore);
         providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder(PROVIDER_ID)).thenReturn(mockBuilder);
@@ -523,5 +523,16 @@ public class AsyncBucketClientTest {
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).generatePresignedUrl(presignedUrlRequest);
         assertFailed(client.generatePresignedUrl(presignedUrlRequest), UnAuthorizedException.class);
+    }
+
+    @Test
+    void testDoDoesObjectExist() throws ExecutionException, InterruptedException {
+        doReturn(CompletableFuture.completedFuture(true)).when(mockBlobStore).doesObjectExist(any(), any());
+        boolean result = client.doesObjectExist("object-1", "version-1").get();
+        assertTrue(result);
+
+        CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
+        doReturn(failure).when(mockBlobStore).doesObjectExist(any(), any());
+        assertFailed(client.doesObjectExist("object-1", "version-1"), UnAuthorizedException.class);
     }
 }

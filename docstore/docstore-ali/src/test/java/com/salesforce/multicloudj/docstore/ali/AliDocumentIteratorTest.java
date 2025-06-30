@@ -103,4 +103,10 @@ class AliDocumentIteratorTest {
         Assertions.assertFalse(iter.hasNext());
         iter.stop();
     }
+
+    @Test
+    void testGetPaginationToken() {
+        AliDocumentIterator iter = new AliDocumentIterator(runner, 0, 0);
+        Assertions.assertNull(iter.getPaginationToken());
+    }
 }

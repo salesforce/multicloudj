@@ -248,6 +248,15 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         return doGeneratePresignedUrl(request);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Boolean> doesObjectExist(String key, String versionId) {
+        validator.validateKey(key);
+        return doDoesObjectExist(key, versionId);
+    }
+
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, byte[] content);
@@ -289,4 +298,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<Void> doSetTags(String key, Map<String, String> tags);
 
     protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
+
+    protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
 }

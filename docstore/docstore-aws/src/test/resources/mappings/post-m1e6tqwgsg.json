@@ -1,0 +1,32 @@
+{
+  "id" : "47dc136a-2300-4d77-85a4-8885d5103de3",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"andy\"},\"Score\":{\"N\":\"81\"},\"Game\":{\"S\":\"Praise All Monsters\"},\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-02-01\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "APMK6TLKOO3H391SO4N1EAR47RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:01 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "47dc136a-2300-4d77-85a4-8885d5103de3",
+  "persistent" : true,
+  "insertionIndex" : 30
+}

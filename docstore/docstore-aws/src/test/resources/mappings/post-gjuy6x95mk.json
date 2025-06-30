@@ -1,0 +1,32 @@
+{
+  "id" : "011001a6-0954-4c75-84e0-c8c220229b9b",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"DavidMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "UVKGE3V2LNSVIT2F6AC9I199RJVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Sun, 29 Jun 2025 05:51:17 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "011001a6-0954-4c75-84e0-c8c220229b9b",
+  "persistent" : true,
+  "insertionIndex" : 49
+}

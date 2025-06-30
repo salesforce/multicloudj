@@ -13,6 +13,7 @@ import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -142,11 +143,6 @@ public abstract class AbstractDocstoreIT {
     public void testCreate() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object doc;
@@ -264,11 +260,6 @@ public abstract class AbstractDocstoreIT {
     public void testGet() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object doc;
@@ -569,11 +560,6 @@ public abstract class AbstractDocstoreIT {
     public void testReplace() {
         AbstractDocStore docStore = harness.createDocstoreDriver(CollectionKind.SINGLE_KEY);
         DocStoreClient docStoreClient = new DocStoreClient(docStore);
-        // Temporarily don't assert on gcp firestore unless we have the
-        // get implementation
-        if (docStoreClient.docStore.getProviderId().equals("gcp-firestore")) {
-            return;
-        }
         class TestCase {
             final String name;
             final Object origDoc;
@@ -792,6 +778,85 @@ public abstract class AbstractDocstoreIT {
                 .orderBy("Player", true).get();
         List<HighScore> gamePlayerAsc = getQueryResult(iter15);
         Assertions.assertEquals(4, gamePlayerAsc.size());
+
+// The following tests currently are only enabled for AWS.
+        if (!docStoreClient.docStore.getProviderId().equals("aws")) {
+            docStoreClient.close();
+            return;
+        }
+
+        // 16. Test query table with pagination token. Result contains 1 full page and 1 half page.
+        DocumentIterator iter16 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game2)
+                .where("Player", FilterOperation.GREATER_THAN, "billie").limit(2).get();
+        List<HighScore> gamePlayerScore = getQueryResult(iter16);
+        Assertions.assertEquals(2, gamePlayerScore.size());
+        PaginationToken paginationToken = iter16.getPaginationToken();
+        Assertions.assertFalse(paginationToken.isEmpty());
+
+        iter16 = docStoreClient.query()
+                .where("Game", FilterOperation.EQUAL, game2)
+                .where("Player", FilterOperation.GREATER_THAN, "billie").paginationToken(paginationToken).limit(2).get();
+        gamePlayerScore = getQueryResult(iter16);
+        Assertions.assertEquals(1, gamePlayerScore.size());
+        Assertions.assertEquals("pat", gamePlayerScore.get(0).Player);
+        paginationToken = iter16.getPaginationToken();
+        Assertions.assertTrue(paginationToken.isEmpty());
+
+        // 17. Test query table with pagination token. Result contains only 1 page.
+        DocumentIterator iter17 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game1)
+                .where("Player", FilterOperation.GREATER_THAN, "andy").offset(1).limit(2).get();
+        List<HighScore> highScores = getQueryResult(iter17);
+        Assertions.assertEquals(2, highScores.size());
+        Assertions.assertEquals("mel", highScores.get(0).Player);
+        paginationToken = iter17.getPaginationToken();
+        Assertions.assertTrue(paginationToken.isEmpty());
+
+        // 18. Test scan table with pagination token. Result contains 2 full pages.
+        DocumentIterator iter18 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game2)
+                .where("WithGlitch", FilterOperation.EQUAL, false).offset(0).limit(1).get();
+        highScores = getQueryResult(iter18);
+        Assertions.assertEquals(1, highScores.size());
+        paginationToken = iter18.getPaginationToken();
+        Assertions.assertFalse(paginationToken.isEmpty());
+
+        iter18 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game2)
+                .where("WithGlitch", FilterOperation.EQUAL, false).paginationToken(paginationToken).limit(1).get();
+        highScores = getQueryResult(iter18);
+        Assertions.assertEquals(1, highScores.size());
+        Assertions.assertEquals("fran", highScores.get(0).Player);
+
+        // 19. Test query from local index with pagination token. Result contains 1 full page and 1 half page.
+        DocumentIterator iter19 = docStoreClient.query().where("Game", FilterOperation.EQUAL, game2)
+                .where("Score", FilterOperation.GREATER_THAN, 100).limit(2).get();
+        highScores = getQueryResult(iter19);
+        Assertions.assertEquals(2, highScores.size());
+        paginationToken = iter19.getPaginationToken();
+        Assertions.assertFalse(paginationToken.isEmpty());
+
+        iter19 = docStoreClient.query()
+                .where("Game", FilterOperation.EQUAL, game2)
+                .where("Score", FilterOperation.GREATER_THAN, 100).paginationToken(paginationToken).limit(2).get();
+        highScores = getQueryResult(iter19);
+        Assertions.assertEquals(1, highScores.size());
+        Assertions.assertEquals("mel", highScores.get(0).Player);
+        paginationToken = iter19.getPaginationToken();
+        Assertions.assertTrue(paginationToken.isEmpty());
+
+        // 20. Test query from global index with pagination token. Result contains 2 full pages.
+        DocumentIterator iter20 = docStoreClient.query().where("Player", FilterOperation.EQUAL, "mel")
+                .where("Time", FilterOperation.GREATER_THAN, "2024-02-01").limit(1).get();
+        highScores = getQueryResult(iter20);
+        Assertions.assertEquals(1, highScores.size());
+        paginationToken = iter20.getPaginationToken();
+        Assertions.assertFalse(paginationToken.isEmpty());
+
+        iter20 = docStoreClient.query()
+                .where("Player", FilterOperation.EQUAL, "mel")
+                .where("Time", FilterOperation.GREATER_THAN, "2024-02-01").paginationToken(paginationToken).limit(1).get();
+        highScores = getQueryResult(iter20);
+        Assertions.assertEquals(1, highScores.size());
+        Assertions.assertEquals("2024-04-18", highScores.get(0).Time);
+        
         docStoreClient.close();
     }
 

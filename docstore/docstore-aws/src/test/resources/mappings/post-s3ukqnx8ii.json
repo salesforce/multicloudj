@@ -1,0 +1,32 @@
+{
+  "id" : "dfbfd3c4-50d4-47cb-a91a-14ccc19c14fb",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Query"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"IndexName\":\"global\",\"Limit\":1,\"KeyConditionExpression\":\"#attrPlayer = :value0 AND #attrTime > :value1\",\"ExpressionAttributeNames\":{\"#attrTime\":\"Time\",\"#attrPlayer\":\"Player\"},\"ExpressionAttributeValues\":{\":value1\":{\"S\":\"2024-02-01\"},\":value0\":{\"S\":\"mel\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":1,\"Items\":[{\"Player\":{\"S\":\"mel\"},\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-04-10\"},\"Score\":{\"N\":\"60\"},\"Game\":{\"S\":\"Praise All Monsters\"}}],\"LastEvaluatedKey\":{\"Game\":{\"S\":\"Praise All Monsters\"},\"Player\":{\"S\":\"mel\"},\"Time\":{\"S\":\"2024-04-10\"}},\"ScannedCount\":1}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "E609LFSCK3GDORE4E8ATO0JD37VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "137883632",
+      "Date" : "Sun, 29 Jun 2025 05:51:12 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "dfbfd3c4-50d4-47cb-a91a-14ccc19c14fb",
+  "persistent" : true,
+  "insertionIndex" : 2
+}

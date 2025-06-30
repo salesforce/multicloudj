@@ -241,6 +241,15 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
         return doGeneratePresignedUrl(request);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean doesObjectExist(String key, String versionId) {
+        validator.validateKey(key);
+        return doDoesObjectExist(key, versionId);
+    }
+
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, byte[] content);
@@ -282,6 +291,8 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected abstract void doSetTags(String key, Map<String, String> tags);
 
     protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
+
+    protected abstract boolean doDoesObjectExist(String key, String versionId);
 
     public abstract static class Builder<T extends AbstractBlobStore<T>>
             extends BlobStoreBuilder<T>
