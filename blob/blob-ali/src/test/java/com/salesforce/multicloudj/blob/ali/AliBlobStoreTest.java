@@ -83,6 +83,7 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -616,6 +617,21 @@ public class AliBlobStoreTest {
         assertEquals(HttpMethod.GET, actualRequest.getMethod());
         assertEquals("bucket-1", actualRequest.getBucketName());
         assertEquals("object-1", actualRequest.getKey());
+    }
+
+    @Test
+    void testDoDoesObjectExist() {
+        doReturn(true).when(mockOssClient).doesObjectExist(any(GenericRequest.class));
+
+        boolean result = ali.doDoesObjectExist("object-1", "version-1");
+
+        ArgumentCaptor<GenericRequest> requestCaptor = ArgumentCaptor.forClass(GenericRequest.class);
+        verify(mockOssClient, times(1)).doesObjectExist(requestCaptor.capture());
+        GenericRequest actualRequest = requestCaptor.getValue();
+        assertEquals("bucket-1", actualRequest.getBucketName());
+        assertEquals("object-1", actualRequest.getKey());
+        assertEquals("version-1", actualRequest.getVersionId());
+        assertTrue(result);
     }
 
     private UploadRequest getTestUploadRequest() {

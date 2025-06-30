@@ -64,6 +64,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
@@ -101,6 +102,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
@@ -745,6 +747,27 @@ public class AwsBlobStoreTest {
 
         URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest);
         assertEquals(url, actualUrl);
+    }
+
+    @Test
+    void testDoDoesObjectExist() {
+        boolean result = aws.doDoesObjectExist("object-1", "version-1");
+
+        ArgumentCaptor<HeadObjectRequest> requestCaptor = ArgumentCaptor.forClass(HeadObjectRequest.class);
+        verify(mockS3Client, times(1)).headObject(requestCaptor.capture());
+        HeadObjectRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals("version-1", actualRequest.versionId());
+        assertTrue(result);
+
+        // Verify the error state
+        S3Exception mockException = mock(S3Exception.class);
+        doReturn(404).when(mockException).statusCode();
+        doThrow(mockException).when(mockS3Client).headObject(any(HeadObjectRequest.class));
+
+        result = aws.doDoesObjectExist("object-1", "version-1");
+        assertFalse(result);
     }
 
     private S3Object mockObject(int index) {

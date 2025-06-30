@@ -21,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -71,6 +72,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
@@ -82,7 +84,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -103,8 +104,10 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -749,5 +752,36 @@ public class AwsAsyncBlobStoreTest {
 
         URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest).get();
         assertEquals(url, actualUrl);
+    }
+
+    @Test
+    void testDoDoesObjectExist() throws ExecutionException, InterruptedException {
+
+        HeadObjectResponse mockResponse = mock(HeadObjectResponse.class);
+        doReturn("version-1").when(mockResponse).versionId();
+        doReturn(future(mockResponse)).when(mockS3Client).headObject((HeadObjectRequest) any());
+
+        boolean result = aws.doDoesObjectExist("object-1", "version-1").get();
+
+        ArgumentCaptor<HeadObjectRequest> requestCaptor = ArgumentCaptor.forClass(HeadObjectRequest.class);
+        verify(mockS3Client, times(1)).headObject(requestCaptor.capture());
+        HeadObjectRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals("version-1", actualRequest.versionId());
+        assertTrue(result);
+
+        // Verify the error state
+        S3Exception mockException = mock(S3Exception.class);
+        doReturn(404).when(mockException).statusCode();
+        doReturn(CompletableFuture.failedFuture(mockException)).when(mockS3Client).headObject(any(HeadObjectRequest.class));
+        result = aws.doDoesObjectExist("object-1", "version-1").get();
+        assertFalse(result);
+
+        // Verify the unexpected error state
+        doReturn(CompletableFuture.failedFuture(mock(RuntimeException.class))).when(mockS3Client).headObject(any(HeadObjectRequest.class));
+        var exceptionalResult = aws.doDoesObjectExist("object-1", "version-1");
+        assertTrue(exceptionalResult.isCompletedExceptionally());
+        assertInstanceOf(SubstrateSdkException.class, assertThrows(ExecutionException.class, exceptionalResult::get).getCause());
     }
 }

@@ -83,7 +83,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
 
     @Override
     public Provider.Builder builder() {
-        return new Builder();
+        return new AliBlobStore.Builder();
     }
 
     @Override
@@ -408,6 +408,17 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         throw new InvalidArgumentException("Unsupported PresignedOperation. type="+request.getType());
     }
 
+    /**
+     * Determines if an object exists for a given key/versionId
+     * @param key Name of the blob to check
+     * @param versionId The version of the blob to check
+     * @return Returns true if the object exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesObjectExist(String key, String versionId) {
+        return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
+    }
+
     @Getter
     public static class Builder extends AbstractBlobStore.Builder<AliBlobStore> {
 
@@ -418,8 +429,18 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
             providerId(AliConstants.PROVIDER_ID);
         }
 
+        public Builder withClient(OSS client) {
+            this.client = client;
+            return this;
+        }
+
+        public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
+            this.transformerSupplier = transformerSupplier;
+            return this;
+        }
+
         /**
-         * Helper function to generate the OSS Client
+         * Helper function for generating the OSS client
          */
         private static OSS buildOSSClient(Builder builder) {
             return OSSClientBuilder.create()
@@ -465,18 +486,9 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
             return clientBuilderConfiguration;
         }
 
-        public Builder withClient(OSS client) {
-            this.client = client;
-            return this;
-        }
-
-        public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
-            this.transformerSupplier = transformerSupplier;
-            return this;
-        }
-
         @Override
         public AliBlobStore build() {
+            OSS client = getClient();
             if(client == null) {
                 client = buildOSSClient(this);
             }

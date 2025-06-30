@@ -65,6 +65,7 @@ public class AbstractBlobStoreTest {
         doCallRealMethod().when(mockBlobStore).getTags(any());
         doCallRealMethod().when(mockBlobStore).setTags(any(), any());
         doCallRealMethod().when(mockBlobStore).generatePresignedUrl(any());
+        doCallRealMethod().when(mockBlobStore).doesObjectExist(any(), any());
         doReturn("bucket-1").when(mockBlobStore).getBucket();
     }
 
@@ -381,5 +382,12 @@ public class AbstractBlobStoreTest {
         mockBlobStore.generatePresignedUrl(presignedUrlRequest);
         verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
         verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
+    }
+
+    @Test
+    void testDoesObjectExist() {
+        mockBlobStore.doesObjectExist("object-1", "version-1");
+        verify(validator, times(1)).validateKey(any());
+        verify(mockBlobStore, times(1)).doDoesObjectExist("object-1", "version-1");
     }
 }
