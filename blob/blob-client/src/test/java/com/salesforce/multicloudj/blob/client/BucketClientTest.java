@@ -475,4 +475,15 @@ public class BucketClientTest {
             client.generatePresignedUrl(presignedUrlRequest);
         });
     }
+
+    @Test
+    void testDoesObjectExist() {
+        client.doesObjectExist("object-1", "version-1");
+        verify(mockBlobStore, times(1)).doesObjectExist("object-1", "version-1");
+
+        doThrow(RuntimeException.class).when(mockBlobStore).doesObjectExist(any(), any());
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.doesObjectExist("object-1", "version-1");
+        });
+    }
 }
