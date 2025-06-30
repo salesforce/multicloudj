@@ -27,11 +27,14 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration;
+import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.ProxyConfiguration;
@@ -42,6 +45,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.Part;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
@@ -51,19 +55,20 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+/**
+ * AWS implementation of AsyncBlobStore
+ */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
 
     private final S3AsyncClient client;
@@ -121,7 +126,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     try (response) {
                         response.transferTo(outputStream);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        throw new SubstrateSdkException("Request failed while transforming to output stream", e);
                     }
                     return transformer.toDownloadResponse(request, response.response());
                 });
@@ -290,6 +295,21 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 .build();
     }
 
+    @Override
+    protected CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId) {
+        return client
+                .headObject(transformer.toHeadRequest(key, versionId))
+                .thenApply(response -> true)
+                .exceptionally(e -> {
+                    if(e.getCause() instanceof S3Exception && ((S3Exception)e.getCause()).statusCode() == 404) {
+                        return false;
+                    }
+                    else {
+                        throw new SubstrateSdkException("Request failed. Reason=" + e.getMessage(), e);
+                    }
+                });
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -314,6 +334,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     regionObj
             );
 
+            if(builder.getExecutorService() != null)  {
+                b.asyncConfiguration(ClientAsyncConfiguration.builder()
+                        .advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, builder.getExecutorService())
+                        .build());
+            }
             if (credentialsProvider != null) {
                 b.credentialsProvider(credentialsProvider);
             }
@@ -342,42 +367,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
         public Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
-            return this;
-        }
-
-        @Override
-        public Builder withBucket(String bucket) {
-            super.withBucket(bucket);
-            return this;
-        }
-
-        @Override
-        public Builder withRegion(String region) {
-            super.withRegion(region);
-            return this;
-        }
-
-        @Override
-        public Builder withEndpoint(URI endpoint) {
-            super.withEndpoint(endpoint);
-            return this;
-        }
-
-        @Override
-        public Builder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
-            super.withCredentialsOverrider(credentialsOverrider);
-            return this;
-        }
-
-        @Override
-        public Builder withValidator(BlobStoreValidator validator) {
-            super.withValidator(validator);
-            return this;
-        }
-
-        @Override
-        public Builder withProperties(Properties properties) {
-            super.withProperties(properties);
             return this;
         }
 

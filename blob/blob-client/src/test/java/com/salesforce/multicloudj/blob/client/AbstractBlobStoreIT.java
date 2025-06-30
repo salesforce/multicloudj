@@ -2091,6 +2091,50 @@ public abstract class AbstractBlobStoreIT {
         }
     }
 
+    @Test
+    void testDoesObjectExist() throws IOException {
+        runDoesObjectExistTest("conformance-tests/doesBlobExist/unversioned", false);
+    }
+
+    @Test
+    void testDoesObjectExist_versioned() throws IOException {
+        runDoesObjectExistTest("conformance-tests/doesBlobExist/versioned", true);
+    }
+
+    private void runDoesObjectExistTest(String key, boolean useVersionedBucket) throws IOException {
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        BucketClient bucketClient = new BucketClient(blobStore);
+        byte[] blobBytes1 = "This is test data".getBytes(StandardCharsets.UTF_8);
+        byte[] blobBytes2= "This is the second test data".getBytes(StandardCharsets.UTF_8);
+        UploadResponse uploadResponse1;
+        UploadResponse uploadResponse2;
+
+        try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
+             InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+            UploadRequest request1 = new UploadRequest.Builder()
+                    .withKey(key)
+                    .withContentLength(blobBytes1.length)
+                    .build();
+            uploadResponse1 = bucketClient.upload(request1, inputStream1);
+            UploadRequest request2 = new UploadRequest.Builder()
+                    .withKey(key)
+                    .withContentLength(blobBytes2.length)
+                    .build();
+            uploadResponse2 = bucketClient.upload(request2, inputStream2);
+
+            // Check if the objects exist
+            Assertions.assertTrue(bucketClient.doesObjectExist(key, uploadResponse1.getVersionId()));  // Get 1st version
+            Assertions.assertTrue(bucketClient.doesObjectExist(key, uploadResponse2.getVersionId()));  // Get 2nd version
+            Assertions.assertTrue(bucketClient.doesObjectExist(key, null));  // Get latest version
+
+            // Check something that doesn't exist
+            Assertions.assertFalse(bucketClient.doesObjectExist(key+"fake", null));
+        }
+        finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
     /**
      * Helper function for uploading to a presignedUrl
      */
