@@ -12,7 +12,6 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
-
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
@@ -42,21 +41,60 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
         @Override
         public AbstractBlobStore<?> createBlobStore() {
-            client = S3Client.builder()
-                    .region(Region.US_EAST_2)
-                    .endpointOverride(URI.create(endpoint))
-                    .serviceConfiguration(S3Configuration.builder()
-                            .pathStyleAccessEnabled(true)
-                            .build())
-                    .build();
+            logger.info("Creating AWS blob store with endpoint: {}, bucket: {}, region: {}", 
+                    endpoint, bucketName, region);
+            
+            try {
+                URI endpointUri;
+                try {
+                    endpointUri = URI.create(endpoint);
+                    logger.debug("Successfully parsed endpoint URI: {}", endpointUri);
+                } catch (IllegalArgumentException e) {
+                    logger.error("Invalid endpoint URI: {}", endpoint, e);
+                    throw new RuntimeException("Failed to parse endpoint URI: " + endpoint, e);
+                }
+                logger.debug("Building S3 client with region: {}", Region.US_EAST_2);
+                client = S3Client.builder()
+                        .region(Region.US_EAST_2)
+                        .endpointOverride(endpointUri)
+                        .serviceConfiguration(S3Configuration.builder()
+                                .pathStyleAccessEnabled(true)
+                                .build())
+                        .build();
+                
+                logger.info("Successfully created S3 client");
 
-            AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
-            builder.withS3Client(client)
-                    .withEndpoint(URI.create(endpoint))
-                    .withBucket(bucketName)
-                    .withRegion(region);
+                logger.debug("Building AwsBlobStore with bucket: {}", bucketName);
+                AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
+                builder.withS3Client(client)
+                        .withEndpoint(endpointUri)
+                        .withBucket(bucketName)
+                        .withRegion(region);
 
-            return builder.build();
+                AbstractBlobStore<?> blobStore = builder.build();
+                logger.info("Successfully created AWS blob store");
+                
+                return blobStore;
+                
+            } catch (Exception e) {
+                logger.error("Failed to create AWS blob store", e);
+                
+                if (client != null) {
+                    try {
+                        client.close();
+                        logger.debug("Cleaned up S3 client after failure");
+                    } catch (Exception cleanupException) {
+                        logger.warn("Failed to cleanup S3 client after blob store creation failure", cleanupException);
+                    }
+                    client = null;
+                }
+                
+                if (e instanceof RuntimeException) {
+                    throw (RuntimeException) e;
+                } else {
+                    throw new RuntimeException("Failed to create AWS blob store", e);
+                }
+            }
         }
 
         @Override
