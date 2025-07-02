@@ -84,6 +84,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        return null;
+    }
+
+    @Override
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
         return null;
     }
