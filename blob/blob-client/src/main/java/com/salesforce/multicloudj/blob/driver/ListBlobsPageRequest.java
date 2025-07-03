@@ -1,8 +1,11 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import lombok.Getter;
+
 /**
  * Request object for paginated list operations
  */
+@Getter
 public class ListBlobsPageRequest {
 
     private final String prefix;
@@ -15,22 +18,6 @@ public class ListBlobsPageRequest {
         this.delimiter = builder.delimiter;
         this.paginationToken = builder.paginationToken;
         this.maxResults = builder.maxResults;
-    }
-
-    public String getPrefix() {
-        return prefix;
-    }
-
-    public String getDelimiter() {
-        return delimiter;
-    }
-
-    public String getPaginationToken() {
-        return paginationToken;
-    }
-
-    public Integer getMaxResults() {
-        return maxResults;
     }
 
     public static Builder builder() {

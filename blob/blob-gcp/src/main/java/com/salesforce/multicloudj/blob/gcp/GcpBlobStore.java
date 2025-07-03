@@ -1,9 +1,9 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
+import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
-import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
@@ -66,8 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static com.salesforce.multicloudj.common.Constants.LIST_BATCH_SIZE;
 
 /**
  * GCP implementation of BlobStore
@@ -236,27 +234,8 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
  */
 @Override
 protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-    List<Storage.BlobListOption> listOptions = new ArrayList<>();
-    if(request.getPrefix() != null) {
-        listOptions.add(Storage.BlobListOption.prefix(request.getPrefix()));
-    }
-    if(request.getDelimiter() != null) {
-        listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
-    }
-    
-    // GCP Cloud Storage uses page tokens for pagination
-    if(request.getPaginationToken() != null) {
-        listOptions.add(Storage.BlobListOption.pageToken(request.getPaginationToken()));
-    }
-    
-    // Set page size based on request or use default
-    long pageSize = request.getMaxResults() != null ? request.getMaxResults().longValue() : LIST_BATCH_SIZE;
-    listOptions.add(Storage.BlobListOption.pageSize(pageSize));
-    
-    Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-    
     // Use the Page API to get proper pagination support
-    Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), listOptionsArray);
+    Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
     
     List<BlobInfo> blobs = page.streamAll()
             .map(blob -> BlobInfo.builder()

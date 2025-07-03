@@ -1,10 +1,13 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import lombok.Getter;
+
 import java.util.List;
 
 /**
  * Response object for paginated list operations that includes the blob list, truncation status, and pagination token
  */
+@Getter
 public class ListBlobsPageResponse {
 
     private final List<BlobInfo> blobs;
@@ -17,15 +20,4 @@ public class ListBlobsPageResponse {
         this.nextPageToken = nextPageToken;
     }
 
-    public List<BlobInfo> getBlobs() {
-        return blobs;
-    }
-
-    public boolean isTruncated() {
-        return isTruncated;
-    }
-
-    public String getNextPageToken() {
-        return nextPageToken;
-    }
-} 
+}

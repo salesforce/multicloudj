@@ -77,8 +77,6 @@ class GcpBlobStoreTest {
     private static final String TEST_KEY = "test-key";
     private static final String TEST_VERSION_ID = "12345";
     private static final String TEST_ETAG = "test-etag";
-    private static final Long TEST_GENERATION = 12345L;
-    private static final Long TEST_SIZE = 1024L;
     private static final byte[] TEST_CONTENT = "test content".getBytes();
 
     @Mock
@@ -135,7 +133,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoUpload_WithInputStream() throws IOException {
+    void testDoUpload_WithInputStream() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             UploadRequest uploadRequest = UploadRequest.builder()
@@ -165,7 +163,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoUpload_WithInputStream_ThrowsException() throws IOException {
+    void testDoUpload_WithInputStream_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             UploadRequest uploadRequest = UploadRequest.builder()
@@ -290,7 +288,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithOutputStream() throws IOException {
+    void testDoDownload_WithOutputStream() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -350,7 +348,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithOutputStream_ThrowsException() throws IOException {
+    void testDoDownload_WithOutputStream_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -373,7 +371,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithByteArray() throws IOException {
+    void testDoDownload_WithByteArray() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -401,8 +399,8 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithFile() throws IOException {
-        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+    void testDoDownload_WithFile() {
+        try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -427,8 +425,8 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithPath() throws IOException {
-        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+    void testDoDownload_WithPath() {
+        try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -453,7 +451,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithPath_ThrowsException() throws IOException {
+    void testDoDownload_WithPath_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");

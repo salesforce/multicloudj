@@ -14,10 +14,9 @@ import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListObjectsRequest;
 import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.OSSObject;
+import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.TagSet;
@@ -321,24 +320,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-        ListObjectsRequest listRequest = new ListObjectsRequest(bucket);
-        
-        if (request.getPrefix() != null) {
-            listRequest.setPrefix(request.getPrefix());
-        }
-        
-        if (request.getDelimiter() != null) {
-            listRequest.setDelimiter(request.getDelimiter());
-        }
-        
-        if (request.getPaginationToken() != null) {
-            listRequest.setMarker(request.getPaginationToken());
-        }
-        
-        if (request.getMaxResults() != null) {
-            listRequest.setMaxKeys(request.getMaxResults());
-        }
-
+        com.aliyun.oss.model.ListObjectsRequest listRequest = transformer.toListObjectsRequest(request);
         ObjectListing response = ossClient.listObjects(listRequest);
         
         List<BlobInfo> blobs = response.getObjectSummaries().stream()

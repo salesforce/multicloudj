@@ -15,6 +15,8 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -203,6 +205,23 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         );
 
         return publisher.subscribe(wrapper);
+    }
+
+    @Override
+    protected CompletableFuture<ListBlobsPageResponse> doListPage(ListBlobsPageRequest request) {
+        ListObjectsV2Request awsRequest = transformer.toRequest(request);
+        return client.listObjectsV2(awsRequest)
+                .thenApply(response -> {
+                    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = response.contents().stream()
+                            .map(transformer::toInfo)
+                            .collect(Collectors.toList());
+
+                    return new ListBlobsPageResponse(
+                            blobs,
+                            response.isTruncated(),
+                            response.nextContinuationToken()
+                    );
+                });
     }
 
     @Override

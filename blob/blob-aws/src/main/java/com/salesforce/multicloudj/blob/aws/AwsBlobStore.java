@@ -21,7 +21,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.Constants;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -325,30 +324,11 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
      */
     @Override
     protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-        ListObjectsV2Request.Builder requestBuilder = ListObjectsV2Request.builder()
-                .bucket(getBucket())
-                .maxKeys(request.getMaxResults() != null ? request.getMaxResults() : Constants.LIST_BATCH_SIZE);
-
-        if (request.getPrefix() != null) {
-            requestBuilder.prefix(request.getPrefix());
-        }
-
-        if (request.getDelimiter() != null) {
-            requestBuilder.delimiter(request.getDelimiter());
-        }
-
-        if (request.getPaginationToken() != null) {
-            requestBuilder.continuationToken(request.getPaginationToken());
-        }
-
-        ListObjectsV2Request awsRequest = requestBuilder.build();
+        ListObjectsV2Request awsRequest = transformer.toRequest(request);
         ListObjectsV2Response response = s3Client.listObjectsV2(awsRequest);
 
         List<BlobInfo> blobs = response.contents().stream()
-                .map(s3Obj -> new BlobInfo.Builder()
-                        .withKey(s3Obj.key())
-                        .withObjectSize(s3Obj.size())
-                        .build())
+                .map(transformer::toInfo)
                 .collect(Collectors.toList());
 
         return new ListBlobsPageResponse(

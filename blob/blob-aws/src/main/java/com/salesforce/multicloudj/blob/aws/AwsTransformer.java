@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -91,6 +92,24 @@ public class AwsTransformer {
                 .delimiter(request.getDelimiter())
                 .prefix(request.getPrefix())
                 .build();
+    }
+
+    public ListObjectsV2Request toRequest(ListBlobsPageRequest request) {
+        ListObjectsV2Request.Builder builder = ListObjectsV2Request
+                .builder()
+                .bucket(getBucket())
+                .delimiter(request.getDelimiter())
+                .prefix(request.getPrefix());
+
+        if (request.getMaxResults() != null) {
+            builder.maxKeys(request.getMaxResults());
+        }
+
+        if (request.getPaginationToken() != null) {
+            builder.continuationToken(request.getPaginationToken());
+        }
+
+        return builder.build();
     }
 
     public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
