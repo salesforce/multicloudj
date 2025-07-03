@@ -113,26 +113,36 @@ public abstract class AbstractDocstoreBenchmarkTest {
     private void generateTestPlayers() {
         String[] baseNames = {"John", "Taylor", "Leo", "Frank", "David", "King", "Queen", "Tiger", "Lion", "Louis"};
         
+        // Small players - ~1KB document size
+        // For Player object with pName, score, floatValue, isActive, and s, 
+        // a 's' field of ~900 characters will make the document around 1KB.
+        int smallDocSize = 900; // Characters for the 's' field
         for (int i = 0; i < 100; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkSmall" + i;
-            Player player = createPlayer(pName, i);
+            Player player = createPlayer(pName, i, smallDocSize); 
             documentKeys.add(pName);
             testPlayers.add(player);
         }
 
+        // Medium players - ~10KB document size
+        // For Player object, an 's' field of ~9900 characters will make the document around 10KB.
+        int mediumDocSize = 9900; // Characters for the 's' field
         for (int i = 0; i < 20; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkMedium" + i;
-            Player player = createPlayer(pName, i + 1000);
+            Player player = createPlayer(pName, i, mediumDocSize);
             documentKeys.add(pName);
             testPlayers.add(player);
         }
 
+        // Large players - ~100KB document size
+        // For Player object, an 's' field of ~99900 characters will make the document around 100KB.
+        int largeDocSize = 99900; // Characters for the 's' field
         for (int i = 0; i < 5; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkLarge" + i;
-            Player player = createPlayer(pName, i + 10000);
+            Player player = createPlayer(pName, i, largeDocSize); 
             documentKeys.add(pName);
             testPlayers.add(player);
         }
@@ -168,11 +178,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
                         actionList.delete(new Document(deleteDoc));
                     }
                 } catch (Exception e) {
+                    // Log the exception if needed, but continue cleanup
                 }
             }
             actionList.run();
         } catch (Exception e) {
- 
+            // Log the exception if needed, but continue cleanup
         }
     }
 
@@ -187,11 +198,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkSingleActionPut(Blackhole bh, int n) {
         final String baseKey = "benchmarksingleaction-put-player-";
+        final int docSize = 500; // Example size for single put
 
         try {
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextPutId.incrementAndGet();
-                Player player = createPlayer(key, i);
+                Player player = createPlayer(key, i, docSize);
 
                 Document doc = new Document(player);
                 docStoreClient.put(doc);
@@ -213,14 +225,14 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkSingleActionGet(Blackhole bh, int n) {
         final String baseKey = "benchmarksingleaction-get-player-";
+        final int docSize = 500; 
 
         try {
-            // Pre-populate data for this benchmark iteration
             List<String> keys = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextGetId.incrementAndGet();
                 keys.add(key);
-                Player player = createPlayer(key, i);
+                Player player = createPlayer(key, i, docSize);
 
                 Document doc = new Document(player);
                 docStoreClient.put(doc);
@@ -249,12 +261,13 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkActionListPut(Blackhole bh, int n) {
         final String baseKey = "benchmarkactionlist-put-player-";
+        final int docSize = 200; // Example size for batch put
 
         try {
             List<Document> documents = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextBatchPutId.incrementAndGet();
-                Player player = createPlayer(key, i);
+                Player player = createPlayer(key, i, docSize);
                 documents.add(new Document(player));
             }
 
@@ -276,23 +289,20 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkActionListGet(Blackhole bh, int n) {
         final String baseKey = "benchmarkactionlist-get-player-";
+        final int docSize = 200; // Example size for batch get
 
         try {
-            // Pre-populate data
             List<Document> documents = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextBatchGetId.incrementAndGet();
-                Player player = createPlayer(key, i);
+                Player player = createPlayer(key, i, docSize);
                 Document doc = new Document(player);
                 docStoreClient.put(doc);
                 
-                // Create get player with just the key
                 Player getPlayer = new Player();
                 getPlayer.setPName(key);
                 documents.add(new Document(getPlayer));
             }
-
-            // Benchmark batched Get operations
             docStoreClient.batchGet(documents);
             bh.consume(documents.size());
         } catch (Exception e) {
@@ -307,24 +317,22 @@ public abstract class AbstractDocstoreBenchmarkTest {
     @Threads(4)
     public void benchmarkWriteReadDelete(Blackhole bh) {
         final String baseKey = "writereaddeletebenchmark-player-";
-        
+        final int docSize = 500; // Example size for W-R-D
+
         try {
             String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
-            Player player = createPlayer(key, random.nextInt(1000));
+            Player player = createPlayer(key, random.nextInt(1000), docSize);
             
-            // Write operation
             Document writeDoc = new Document(player);
             docStoreClient.put(writeDoc);
             bh.consume(player.getPName());
             
-            // Read operation
             Player readPlayer = new Player();
             readPlayer.setPName(key);
             Document doc = new Document(readPlayer);
             docStoreClient.get(doc);
             bh.consume(doc.getField("pName"));
             
-            // Delete operation
             docStoreClient.delete(doc);
             
         } catch (Exception e) {
@@ -333,7 +341,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Benchmark gets using pre-populated test data
+     * Benchmark gets using test data
      */
     @Benchmark
     public void benchmarkGetFromTestData(Blackhole bh) {
@@ -382,7 +390,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
             
             for (int i = 0; i < 5; i++) {
                 String key = "AtomicDoc" + UUID.randomUUID().toString().substring(0, 8);
-                Player player = createPlayer(key, i);
+                Player player = createPlayer(key, i, 100); // Small size for atomic writes example
                 initialPlayers.add(player);
                 actions.create(new Document(player));
             }
@@ -433,11 +441,16 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Create a Player with varied data types
+     * Create a Player with varied data types and a string of specified size.
+     * The `size` parameter is for the size of the 's' field in characters.
      */
-    protected Player createPlayer(String pName, int baseValue) {
+    protected Player createPlayer(String pName, int baseValue, int size) {
+        char[] chars = new char[size];
+        java.util.Arrays.fill(chars, 'A');
+        String largeString = new String(chars);
+
         return new Player(pName, baseValue, (float) (baseValue + random.nextFloat() * 100), 
-                         baseValue % 2 == 0, "string_" + baseValue + "_" + random.nextInt(1000));
+                         baseValue % 2 == 0, largeString);
     }
 
     /**
@@ -459,7 +472,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
      */
     protected String getRandomPlayerKeyWithPrefix(String prefix) {
         List<String> filteredKeys = documentKeys.stream()
-                .filter(key -> key.startsWith(prefix))
+                .filter(key -> key.contains(prefix)) 
                 .collect(Collectors.toList()); 
 
         if (filteredKeys.isEmpty()) {
@@ -483,4 +496,3 @@ public abstract class AbstractDocstoreBenchmarkTest {
         new Runner(opt).run();
     }
 }
-

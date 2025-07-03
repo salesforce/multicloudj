@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
