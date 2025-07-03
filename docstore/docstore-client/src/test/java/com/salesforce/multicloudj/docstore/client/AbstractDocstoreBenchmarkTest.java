@@ -137,8 +137,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
         }
 
         // Large players - ~100KB document size
-        // For Player object, an 's' field of ~99900 characters will make the document around 100KB.
-        int largeDocSize = 99900; // Characters for the 's' field
+        int largeDocSize = 99900; 
         for (int i = 0; i < 5; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkLarge" + i;
@@ -178,12 +177,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
                         actionList.delete(new Document(deleteDoc));
                     }
                 } catch (Exception e) {
-                    // Log the exception if needed, but continue cleanup
                 }
             }
             actionList.run();
         } catch (Exception e) {
-            // Log the exception if needed, but continue cleanup
         }
     }
 
@@ -198,7 +195,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkSingleActionPut(Blackhole bh, int n) {
         final String baseKey = "benchmarksingleaction-put-player-";
-        final int docSize = 500; // Example size for single put
+        final int docSize = 500; 
 
         try {
             for (int i = 0; i < n; i++) {
@@ -261,7 +258,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkActionListPut(Blackhole bh, int n) {
         final String baseKey = "benchmarkactionlist-put-player-";
-        final int docSize = 200; // Example size for batch put
+        final int docSize = 200;
 
         try {
             List<Document> documents = new ArrayList<>();
@@ -289,7 +286,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     private void benchmarkActionListGet(Blackhole bh, int n) {
         final String baseKey = "benchmarkactionlist-get-player-";
-        final int docSize = 200; // Example size for batch get
+        final int docSize = 200;
 
         try {
             List<Document> documents = new ArrayList<>();
@@ -317,7 +314,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     @Threads(4)
     public void benchmarkWriteReadDelete(Blackhole bh) {
         final String baseKey = "writereaddeletebenchmark-player-";
-        final int docSize = 500; // Example size for W-R-D
+        final int docSize = 500;
 
         try {
             String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
@@ -390,7 +387,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
             
             for (int i = 0; i < 5; i++) {
                 String key = "AtomicDoc" + UUID.randomUUID().toString().substring(0, 8);
-                Player player = createPlayer(key, i, 100); // Small size for atomic writes example
+                Player player = createPlayer(key, i, 100);
                 initialPlayers.add(player);
                 actions.create(new Document(player));
             }
