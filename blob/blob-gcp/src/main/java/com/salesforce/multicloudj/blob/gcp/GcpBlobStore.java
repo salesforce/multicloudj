@@ -227,29 +227,29 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     }
 
     /**
- * Lists a single page of objects in the bucket with pagination support
- *
- * @param request The list request containing filters and optional pagination token
- * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
- */
-@Override
-protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-    // Use the Page API to get proper pagination support
-    Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
-    
-    List<BlobInfo> blobs = page.streamAll()
-            .map(blob -> BlobInfo.builder()
-                    .withKey(blob.getName())
-                    .withObjectSize(blob.getSize())
-                    .build())
-            .collect(Collectors.toList());
+     * Lists a single page of objects in the bucket with pagination support
+     *
+     * @param request The list request containing filters and optional pagination token
+     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
+     */
+    @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        // Use the Page API to get proper pagination support
+        Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
+        
+        List<BlobInfo> blobs = page.streamAll()
+                .map(blob -> BlobInfo.builder()
+                        .withKey(blob.getName())
+                        .withObjectSize(blob.getSize())
+                        .build())
+                .collect(Collectors.toList());
 
-    return new ListBlobsPageResponse(
-            blobs,
-            page.hasNextPage(),
-            page.getNextPageToken()
-    );
-}
+        return new ListBlobsPageResponse(
+                blobs,
+                page.hasNextPage(),
+                page.getNextPageToken()
+        );
+    }
 
     @Override
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {

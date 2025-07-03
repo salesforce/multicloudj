@@ -10,6 +10,8 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -64,7 +66,9 @@ import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.Part;
@@ -107,6 +111,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -540,6 +545,73 @@ public class AwsAsyncBlobStoreTest {
         ListObjectsV2Request awsRequest = transformerSupplier.get(BUCKET).toRequest(request);
         verify(mockS3Client).listObjectsV2Paginator(awsRequest);
         verify(publisher).subscribe(any(ConsumerWrapper.class));
+    }
+
+    @Test
+    void testDoListPage() throws ExecutionException, InterruptedException {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withPrefix("abc")
+                .withDelimiter("/")
+                .withPaginationToken("next-token")
+                .withMaxResults(50)
+                .build();
+        
+        ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(future(mockResponse));
+        
+        // Mock response contents
+        List<S3Object> s3Objects = List.of(
+                S3Object.builder().key("key-1").size(100L).lastModified(Instant.now()).build(),
+                S3Object.builder().key("key-2").size(200L).lastModified(Instant.now()).build(),
+                S3Object.builder().key("key-3").size(300L).lastModified(Instant.now()).build()
+        );
+        when(mockResponse.contents()).thenReturn(s3Objects);
+        when(mockResponse.isTruncated()).thenReturn(true);
+        when(mockResponse.nextContinuationToken()).thenReturn("next-page-token");
+
+        ListBlobsPageResponse response = aws.doListPage(request).get();
+
+        // Verify the request is mapped to the SDK
+        ArgumentCaptor<ListObjectsV2Request> requestCaptor = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+        verify(mockS3Client, times(1)).listObjectsV2(requestCaptor.capture());
+        ListObjectsV2Request actualRequest = requestCaptor.getValue();
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals("abc", actualRequest.prefix());
+        assertEquals("/", actualRequest.delimiter());
+        assertEquals("next-token", actualRequest.continuationToken());
+        assertEquals(50, actualRequest.maxKeys());
+
+        // Verify the response is mapped back properly
+        assertNotNull(response);
+        assertEquals(3, response.getBlobs().size());
+        assertTrue(response.isTruncated());
+        assertEquals("next-page-token", response.getNextPageToken());
+        
+        // Verify blob details
+        assertEquals("key-1", response.getBlobs().get(0).getKey());
+        assertEquals(100L, response.getBlobs().get(0).getObjectSize());
+        assertEquals("key-2", response.getBlobs().get(1).getKey());
+        assertEquals(200L, response.getBlobs().get(1).getObjectSize());
+        assertEquals("key-3", response.getBlobs().get(2).getKey());
+        assertEquals(300L, response.getBlobs().get(2).getObjectSize());
+    }
+
+    @Test
+    void testDoListPageEmpty() throws ExecutionException, InterruptedException {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
+        ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+        when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(future(mockResponse));
+        when(mockResponse.contents()).thenReturn(List.of());
+        when(mockResponse.isTruncated()).thenReturn(false);
+        when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+        ListBlobsPageResponse response = aws.doListPage(request).get();
+
+        assertNotNull(response);
+        assertEquals(0, response.getBlobs().size());
+        assertFalse(response.isTruncated());
+        assertNull(response.getNextPageToken());
     }
 
     @Test
