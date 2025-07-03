@@ -20,6 +20,8 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -62,10 +64,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,8 +81,6 @@ class GcpBlobStoreTest {
     private static final String TEST_KEY = "test-key";
     private static final String TEST_VERSION_ID = "12345";
     private static final String TEST_ETAG = "test-etag";
-    private static final Long TEST_GENERATION = 12345L;
-    private static final Long TEST_SIZE = 1024L;
     private static final byte[] TEST_CONTENT = "test content".getBytes();
 
     @Mock
@@ -135,7 +137,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoUpload_WithInputStream() throws IOException {
+    void testDoUpload_WithInputStream() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             UploadRequest uploadRequest = UploadRequest.builder()
@@ -165,7 +167,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoUpload_WithInputStream_ThrowsException() throws IOException {
+    void testDoUpload_WithInputStream_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             UploadRequest uploadRequest = UploadRequest.builder()
@@ -290,7 +292,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithOutputStream() throws IOException {
+    void testDoDownload_WithOutputStream() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -350,7 +352,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithOutputStream_ThrowsException() throws IOException {
+    void testDoDownload_WithOutputStream_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -373,7 +375,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithByteArray() throws IOException {
+    void testDoDownload_WithByteArray() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -401,8 +403,8 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithFile() throws IOException {
-        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+    void testDoDownload_WithFile() {
+        try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -427,8 +429,8 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithPath() throws IOException {
-        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+    void testDoDownload_WithPath() {
+        try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");
             DownloadRequest downloadRequest = DownloadRequest.builder()
@@ -453,7 +455,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoDownload_WithPath_ThrowsException() throws IOException {
+    void testDoDownload_WithPath_ThrowsException() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             // Given
             Path testFile = tempDir.resolve("download.txt");
@@ -616,6 +618,105 @@ class GcpBlobStoreTest {
 
         // Then
         assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    void testDoListPage() {
+        // Given
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withPrefix("test-prefix")
+                .withDelimiter("/")
+                .withPaginationToken("next-token")
+                .withMaxResults(50)
+                .build();
+
+        List<com.google.cloud.storage.Blob> mockBlobs = Arrays.asList(mockBlob, mockBlob);
+        Page mockPage = mock(Page.class);
+        Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+        
+        when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+        doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+        when(mockPage.streamAll()).thenReturn(mockBlobs.stream());
+        when(mockPage.hasNextPage()).thenReturn(true);
+        when(mockPage.getNextPageToken()).thenReturn("next-page-token");
+        when(mockBlob.getName()).thenReturn("test-key-1", "test-key-2");
+        when(mockBlob.getSize()).thenReturn(1024L, 2048L);
+
+        // When
+        ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(2, response.getBlobs().size());
+        assertTrue(response.isTruncated());
+        assertEquals("next-page-token", response.getNextPageToken());
+        
+        // Verify first and second blob
+        assertEquals("test-key-1", response.getBlobs().get(0).getKey());
+        assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
+        assertEquals("test-key-2", response.getBlobs().get(1).getKey());
+        assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
+    }
+
+    @Test
+    void testDoListPageEmpty() {
+        // Given
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
+        Page mockPage = mock(Page.class);
+        Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+        
+        when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+        doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+        when(mockPage.streamAll()).thenReturn(Collections.emptyList().stream());
+        when(mockPage.hasNextPage()).thenReturn(false);
+        when(mockPage.getNextPageToken()).thenReturn(null);
+
+        // When
+        ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(0, response.getBlobs().size());
+        assertEquals(false, response.isTruncated());
+        assertNull(response.getNextPageToken());
+    }
+
+    @Test
+    void testDoListPageWithPagination() {
+        // Given - Test pagination with multiple pages
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withPrefix("test-prefix")
+                .withMaxResults(2)
+                .build();
+
+        List<com.google.cloud.storage.Blob> mockBlobs = Arrays.asList(mockBlob, mockBlob);
+        Page mockPage = mock(Page.class);
+        Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+        
+        when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+        doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+        when(mockPage.streamAll()).thenReturn(mockBlobs.stream());
+        when(mockPage.hasNextPage()).thenReturn(true);
+        when(mockPage.getNextPageToken()).thenReturn("next-page-token");
+        when(mockBlob.getName()).thenReturn("test-key-1", "test-key-2");
+        when(mockBlob.getSize()).thenReturn(1024L, 2048L);
+
+        // When
+        ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(2, response.getBlobs().size());
+        assertTrue(response.isTruncated(), "Response should be truncated when hasNextPage is true");
+        assertEquals("next-page-token", response.getNextPageToken());
+        
+        // Verify first and second blob
+        assertEquals("test-key-1", response.getBlobs().get(0).getKey());
+        assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
+        assertEquals("test-key-2", response.getBlobs().get(1).getKey());
+        assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
     }
 
     @Test

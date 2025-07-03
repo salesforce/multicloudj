@@ -12,6 +12,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.junit.jupiter.api.BeforeEach;
@@ -478,5 +479,29 @@ class GcpTransformerTest {
             transformer.toBlobInfo(presignedUrlRequest);
         });
         assertEquals("Tags are not supported by GCP", exception.getMessage());
+    }
+
+    @Test
+    void testToBlobListOptions() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withDelimiter(":")
+                .withPrefix("some/prefix/path/thingie")
+                .withPaginationToken("next-token")
+                .withMaxResults(100)
+                .build();
+
+        Storage.BlobListOption[] actual = transformer.toBlobListOptions(request);
+        
+        assertEquals(4, actual.length);
+    }
+
+    @Test
+    void testToBlobListOptions_WithNullValues() {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
+
+        Storage.BlobListOption[] actual = transformer.toBlobListOptions(request);
+        
+        assertEquals(0, actual.length);
     }
 } 

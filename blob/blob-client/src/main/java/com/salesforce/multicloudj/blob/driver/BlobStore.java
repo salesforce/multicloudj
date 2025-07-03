@@ -147,6 +147,14 @@ public interface BlobStore extends SdkService, Provider {
     Iterator<BlobInfo> list(ListBlobsRequest request);
 
     /**
+     * Retrieves a single page of blobs from the bucket with pagination support
+     *
+     * @param request The pagination request containing filters, pagination token, and max results
+     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
+     */
+    ListBlobsPageResponse listPage(ListBlobsPageRequest request);
+
+    /**
      * Initiates a multipart upload
      *
      * @param request the multipart request

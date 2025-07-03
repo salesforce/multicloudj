@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
+import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
@@ -24,6 +25,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -221,6 +224,31 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                         .build();
             }
         };
+    }
+
+    /**
+     * Lists a single page of objects in the bucket with pagination support
+     *
+     * @param request The list request containing filters and optional pagination token
+     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
+     */
+    @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        // Use the Page API to get proper pagination support
+        Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
+        
+        List<BlobInfo> blobs = page.streamAll()
+                .map(blob -> BlobInfo.builder()
+                        .withKey(blob.getName())
+                        .withObjectSize(blob.getSize())
+                        .build())
+                .collect(Collectors.toList());
+
+        return new ListBlobsPageResponse(
+                blobs,
+                page.hasNextPage(),
+                page.getNextPageToken()
+        );
     }
 
     @Override

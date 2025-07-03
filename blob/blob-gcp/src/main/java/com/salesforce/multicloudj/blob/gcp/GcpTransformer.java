@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -108,5 +109,27 @@ public class GcpTransformer {
             throw new UnSupportedOperationException("Tags are not supported by GCP");
         }
         return blobInfoBuilder.build();
+    }
+
+    public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
+        java.util.List<Storage.BlobListOption> options = new java.util.ArrayList<>();
+        
+        if (request.getPrefix() != null) {
+            options.add(Storage.BlobListOption.prefix(request.getPrefix()));
+        }
+        
+        if (request.getDelimiter() != null) {
+            options.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
+        }
+        
+        if (request.getPaginationToken() != null) {
+            options.add(Storage.BlobListOption.pageToken(request.getPaginationToken()));
+        }
+        
+        if (request.getMaxResults() != null) {
+            options.add(Storage.BlobListOption.pageSize(request.getMaxResults().longValue()));
+        }
+        
+        return options.toArray(new Storage.BlobListOption[0]);
     }
 }

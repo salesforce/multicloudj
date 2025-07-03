@@ -10,6 +10,8 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -157,6 +159,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
                 consumer.accept(new ListBlobsBatch(currentBatch, List.of()));
             }
         }, executorService);
+    }
+
+    @Override
+    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
+        return CompletableFuture.supplyAsync(() -> blobStore.listPage(request), executorService);
     }
 
     @Override
