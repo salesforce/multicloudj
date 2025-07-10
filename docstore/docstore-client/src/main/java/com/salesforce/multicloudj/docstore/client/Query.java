@@ -66,8 +66,10 @@ public class Query {
     /** The underlying document store implementation used to execute queries. */
     private final AbstractDocStore docStore;
 
+    /**
+     * A list of field paths to retrieve. Each field path is a dot-separated string (e.g., "user.name", "address.city").
+     * */
     @Setter
-    /** A list of field paths to retrieve. Each field path is a dot-separated string (e.g., "user.name", "address.city"). */
     private List<String> fieldPaths = new ArrayList<>();
 
     /** 
@@ -91,10 +93,23 @@ public class Query {
 
     /**
      * paginationToken sets the pagination token returned by the previous query.
+     * Pagination token being empty guarantees that there are no more documents left.
+     * However, pagination token being non-empty doesn't guarantee that there
+     * are documents left. For example: firestore pagination is stateless cursor values
+     * and can only be inferred from the last returned document unless dynamoDB which
+     * returns the null lastEvaluatedKey if no more data left.
      */
     private PaginationToken paginationToken = null;
 
-    /** The field to use for sorting the results. Must appear in at least one where clause. */
+    /**
+     * The field to use for sorting the results. Must appear in at least one where clause.
+     * If there is a range comparison, it must have the order by clause to work
+     * without issues.
+     * see: <a href="https://firebase.google.com/docs/firestore/query-data/order-limit-data?limitations#limitations">
+     * </a>
+     * The order by field also must appear in the cursor
+     * <a href="https://firebase.google.com/docs/firestore/reference/rest/v1beta1/StructuredQuery">...</a>
+     */
     private String orderByField = null;
 
     /** Specifies the sort direction. True for ascending, false for descending. */
@@ -254,12 +269,15 @@ public class Query {
 
     /**
      * Sets the field to use for sorting the query results.
-     * 
+     *
      * <p><strong>Important:</strong> The orderBy field must appear in at least one where clause
      * to ensure efficient query execution across different cloud providers.
-     * Only one orderBy clause is allowed per query.
-     * 
-     * @param fieldName the field name to sort by, must not be null
+     * Only one orderBy clause is allowed per query. If there are in-equality
+     * filters, the order-by is advisable to have the consistent results across substrates
+     * because of Google cloud firestore limitations.
+     * <a href="https://firebase.google.com/docs/firestore/query-data/order-limit-data?limitations#limitations">...</a>
+     *
+     * @param fieldName      the field name to sort by, must not be null
      * @param orderAscending true for ascending order, false for descending order
      * @return this Query instance for method chaining
      */

@@ -1,0 +1,31 @@
+{
+  "id" : "3fe7c31d-cd01-4b71-a999-1dfa119cf0fb",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-1\"}]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/ClarkMapDelete\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"random String\"\n      },\n      \"pName\": {\n        \"stringValue\": \"ClarkMapDelete\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2025-07-10T23:54:01.774289Z\",\n    \"updateTime\": \"2025-07-10T23:54:01.774289Z\"\n  },\n  \"readTime\": \"2025-07-10T23:54:02.434549Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankDelete\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"randomString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"FrankDelete\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2025-07-10T23:53:58.607853Z\",\n    \"updateTime\": \"2025-07-10T23:53:58.607853Z\"\n  },\n  \"readTime\": \"2025-07-10T23:54:02.434549Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11474365487090938551;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:54:02 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3fe7c31d-cd01-4b71-a999-1dfa119cf0fb",
+  "persistent" : true,
+  "insertionIndex" : 129
+}

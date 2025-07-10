@@ -1,0 +1,31 @@
+{
+  "id" : "643aa342-86e0-4ee3-9397-708acd1326e1",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentscommit",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomStringMap\"},\"pName\":{\"stringValue\":\"JohnMap\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"111\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 409,
+    "body" : "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"Document already exists: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\n    \"status\": \"ALREADY_EXISTS\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11922005126690924458;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:53:53 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "643aa342-86e0-4ee3-9397-708acd1326e1",
+  "persistent" : true,
+  "insertionIndex" : 95
+}
