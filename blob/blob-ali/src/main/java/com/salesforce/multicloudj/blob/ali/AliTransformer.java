@@ -33,6 +33,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -243,5 +244,27 @@ public class AliTransformer {
         presignedUrlRequest.setExpiration(expirationDate);
         presignedUrlRequest.setMethod(HttpMethod.GET);
         return presignedUrlRequest;
+    }
+
+    public com.aliyun.oss.model.ListObjectsRequest toListObjectsRequest(ListBlobsPageRequest request) {
+        com.aliyun.oss.model.ListObjectsRequest listRequest = new com.aliyun.oss.model.ListObjectsRequest(bucket);
+        
+        if (request.getPrefix() != null) {
+            listRequest.setPrefix(request.getPrefix());
+        }
+        
+        if (request.getDelimiter() != null) {
+            listRequest.setDelimiter(request.getDelimiter());
+        }
+        
+        if (request.getPaginationToken() != null) {
+            listRequest.setMarker(request.getPaginationToken());
+        }
+        
+        if (request.getMaxResults() != null) {
+            listRequest.setMaxKeys(request.getMaxResults());
+        }
+        
+        return listRequest;
     }
 }

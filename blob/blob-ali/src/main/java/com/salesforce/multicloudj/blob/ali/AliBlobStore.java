@@ -16,6 +16,7 @@ import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
 import com.aliyun.oss.model.OSSObject;
+import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.TagSet;
@@ -31,6 +32,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -307,6 +310,31 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
     @Override
     protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
         return new BlobInfoIterator(ossClient, bucket, request);
+    }
+
+    /**
+     * Lists a single page of objects in the bucket with pagination support
+     *
+     * @param request The list request containing filters and optional pagination token
+     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
+     */
+    @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        com.aliyun.oss.model.ListObjectsRequest listRequest = transformer.toListObjectsRequest(request);
+        ObjectListing response = ossClient.listObjects(listRequest);
+        
+        List<BlobInfo> blobs = response.getObjectSummaries().stream()
+                .map(objSum -> new BlobInfo.Builder()
+                        .withKey(objSum.getKey())
+                        .withObjectSize(objSum.getSize())
+                        .build())
+                .collect(Collectors.toList());
+
+        return new ListBlobsPageResponse(
+                blobs,
+                response.isTruncated(),
+                response.getNextMarker()
+        );
     }
 
     /**

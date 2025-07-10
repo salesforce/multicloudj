@@ -10,6 +10,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -49,6 +51,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.Part;
@@ -310,6 +314,28 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     @Override
     protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
         return new BlobInfoIterator(s3Client, getBucket(), request);
+    }
+
+    /**
+     * Lists a single page of objects in the bucket with pagination support
+     *
+     * @param request The list request containing filters and optional pagination token
+     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
+     */
+    @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        ListObjectsV2Request awsRequest = transformer.toRequest(request);
+        ListObjectsV2Response response = s3Client.listObjectsV2(awsRequest);
+
+        List<BlobInfo> blobs = response.contents().stream()
+                .map(transformer::toInfo)
+                .collect(Collectors.toList());
+
+        return new ListBlobsPageResponse(
+                blobs,
+                response.isTruncated(),
+                response.nextContinuationToken()
+        );
     }
 
     /**

@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -23,6 +24,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
@@ -133,6 +135,24 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actual.bucket());
         assertEquals(request.getDelimiter(), actual.delimiter());
         assertEquals(request.getPrefix(), actual.prefix());
+    }
+
+    @Test
+    void testToListObjectsV2PageRequest() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withDelimiter(":")
+                .withPrefix("some/prefix/path/thingie")
+                .withPaginationToken("next-token")
+                .withMaxResults(100)
+                .build();
+
+        ListObjectsV2Request actual = transformer.toRequest(request);
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(request.getDelimiter(), actual.delimiter());
+        assertEquals(request.getPrefix(), actual.prefix());
+        assertEquals(request.getPaginationToken(), actual.continuationToken());
+        assertEquals(request.getMaxResults(), actual.maxKeys());
     }
 
     @Test

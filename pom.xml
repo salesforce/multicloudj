@@ -1,21 +1,23 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <groupId>com.salesforce.multicloudj</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
-    
+
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
             <url>https://github.com/salesforce/multicloudj/blob/main/LICENSE.txt</url>
         </license>
     </licenses>
-    
+
     <developers>
         <developer>
             <name>MultiCloudJ Developers</name>
@@ -24,13 +26,13 @@
             <organizationUrl>https://www.salesforce.com</organizationUrl>
         </developer>
     </developers>
-    
+
     <scm>
         <connection>scm:git:git://github.com/salesforce/multicloudj.git</connection>
         <developerConnection>scm:git:ssh://github.com:salesforce/multicloudj.git</developerConnection>
         <url>https://github.com/salesforce/multicloudj</url>
     </scm>
-    
+
     <modules>
         <module>blob</module>
         <module>docstore</module>
@@ -53,6 +55,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>4.2.3</guice.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <revision>0.2.1</revision>
     </properties>
     <!-- All module dependencies and versions -->
     <dependencyManagement>
@@ -82,31 +85,90 @@
                 <artifactId>guice-multibindings</artifactId>
                 <version>${guice.version}</version>
             </dependency>
+            
+            <!-- Internal MultiCloudJ Dependencies -->
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-aws</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-aws</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-ali</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-ali</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-gcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>multicloudj-common-gcp</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>sts-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>sts-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>blob-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>blob-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <build>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.11.0</version>
-                    <configuration>
-                        <release>${releaseTarget}</release>
-                        <annotationProcessorPaths>
-                            <path>
-                                <groupId>org.projectlombok</groupId>
-                                <artifactId>lombok</artifactId>
-                                <version>1.18.34</version>
-                            </path>
-                            <path>
-                                <groupId>com.google.auto.service</groupId>
-                                <artifactId>auto-service</artifactId>
-                                <version>1.1.1</version>
-                            </path>
-                        </annotationProcessorPaths>
-                    </configuration>
-                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
@@ -125,28 +187,32 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.11.2</version>
+                    <configuration>
+                        <links>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                        </links>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.6.3</version>
-                <executions>
-                    <execution>
-                        <id>aggregate-javadoc</id>
-                        <phase>site</phase>
-                        <goals>
-                            <goal>aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <skip>false</skip>
-                            <source>${compileSource}</source>
-                            <reportOutputDirectory>${project.build.directory}/site</reportOutputDirectory>
-                            <destDir>apidocs</destDir>
-                        </configuration>
-                    </execution>
-                </executions>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>${releaseTarget}</release>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -209,44 +275,106 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Checkstyle Plugin for Code Quality -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <configLocation>google_checks.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>10.25.1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            
+            <!-- Source and Javadoc plugins for all modules -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <links>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                    </links>
+                </configuration>
+            </plugin>
+            
+            <!-- Maven Flatten Plugin to resolve ${revision} property -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>oss</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-    
+
     <profiles>
         <profile>
-            <id>annotation-processing</id>
-            <activation>
-                <property>
-                    <name>!skip.annotation.processing</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.11.0</version>
-                        <configuration>
-                            <release>${releaseTarget}</release>
-                            <annotationProcessorPaths>
-                                <path>
-                                    <groupId>org.projectlombok</groupId>
-                                    <artifactId>lombok</artifactId>
-                                    <version>1.18.34</version>
-                                </path>
-                                <path>
-                                    <groupId>com.google.auto.service</groupId>
-                                    <artifactId>auto-service</artifactId>
-                                    <version>1.1.1</version>
-                                </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>release</id>    
+            <id>release</id>
             <distributionManagement>
                 <snapshotRepository>
                     <id>central-mj</id>
@@ -259,36 +387,6 @@
             </distributionManagement>
             <build>
                 <plugins>
-                    <!-- Attach source jars -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    
-                    <!-- Attach javadoc jar -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.6.3</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    
                     <!-- GPG signing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -311,7 +409,7 @@
                             </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!-- Nexus Staging Plugin -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
@@ -328,7 +426,7 @@
             </build>
         </profile>
     </profiles>
-    
+
     <reporting>
         <plugins>
             <plugin>
@@ -345,6 +443,22 @@
                     <aggregate>true</aggregate>
                 </configuration>
                 <inherited>false</inherited>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <configuration>
+                    <links>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
+                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
+                    </links>
+                </configuration>
             </plugin>
         </plugins>
     </reporting>

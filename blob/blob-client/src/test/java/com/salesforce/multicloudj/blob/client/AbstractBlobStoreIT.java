@@ -9,6 +9,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -1288,6 +1290,154 @@ public abstract class AbstractBlobStoreIT {
             }
             Assertions.assertEquals(1, observedKeys.size(), "testList: Did not return expected number of keys");
             Assertions.assertTrue(observedKeys.contains(prefixKey + "_3"));
+        }
+        // Clean up
+        finally {
+            safeDeleteBlobs(bucketClient, keys);
+        }
+    }
+
+    @Test
+    public void testListPage() throws IOException {
+
+        // Create the BucketClient
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        // Upload multiple blobs to the bucket to test pagination
+        String baseKey = "conformance-tests/blob-for-list-page";
+        String prefixKey = baseKey + "/prefix";
+        String[] keys = new String[]{
+            baseKey, 
+            prefixKey + "-1", 
+            prefixKey + "-2", 
+            prefixKey + "_3",
+            prefixKey + "-4",
+            prefixKey + "-5",
+            prefixKey + "_6"
+        };
+        byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
+        
+        try {
+            // Load some blobs into the bucket for this test
+            for (String key : keys) {
+                try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                    UploadRequest request = new UploadRequest.Builder()
+                            .withKey(key)
+                            .withContentLength(blobBytes.length)
+                            .build();
+                    bucketClient.upload(request, inputStream);
+                }
+            }
+
+            // Test 1: Basic listPage with small maxResults to force pagination
+            ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+                    .withPrefix(baseKey)
+                    .withMaxResults(3)
+                    .build();
+            
+            ListBlobsPageResponse firstPage = bucketClient.listPage(request);
+            Assertions.assertNotNull(firstPage);
+            Assertions.assertNotNull(firstPage.getBlobs());
+            
+            // Should have at most 3 items due to maxResults
+            Assertions.assertTrue(firstPage.getBlobs().size() <= 3, 
+                "testListPage: First page should have at most 3 items");
+            
+            // If we have more than 3 items total, it should be truncated
+            Assertions.assertTrue(firstPage.isTruncated(),
+                    "testListPage: Should be truncated when more items exist");
+            Assertions.assertNotNull(firstPage.getNextPageToken(),
+                "testListPage: Should have next page token when truncated");
+
+            // Test 2: Continue to next page if available
+            ListBlobsPageRequest nextPageRequest = ListBlobsPageRequest.builder()
+                    .withPrefix(baseKey)
+                    .withMaxResults(3)
+                    .withPaginationToken(firstPage.getNextPageToken())
+                    .build();
+
+            ListBlobsPageResponse secondPage = bucketClient.listPage(nextPageRequest);
+            Assertions.assertNotNull(secondPage);
+            Assertions.assertNotNull(secondPage.getBlobs());
+
+            // Verify we got different results
+            Set<String> firstPageKeys = firstPage.getBlobs().stream()
+                    .map(BlobInfo::getKey)
+                    .collect(Collectors.toSet());
+            Set<String> secondPageKeys = secondPage.getBlobs().stream()
+                    .map(BlobInfo::getKey)
+                    .collect(Collectors.toSet());
+
+            // Pages should not overlap
+            Set<String> intersection = new HashSet<>(firstPageKeys);
+            intersection.retainAll(secondPageKeys);
+            Assertions.assertTrue(intersection.isEmpty(),
+                "testListPage: Pages should not have overlapping keys");
+
+
+            // Test 3: Test prefix functionality with pagination
+            ListBlobsPageRequest prefixRequest = ListBlobsPageRequest.builder()
+                    .withPrefix(prefixKey)
+                    .withMaxResults(2)
+                    .build();
+            
+            ListBlobsPageResponse prefixPage = bucketClient.listPage(prefixRequest);
+            Assertions.assertNotNull(prefixPage);
+            
+            // All returned keys should start with the prefix
+            for (BlobInfo blobInfo : prefixPage.getBlobs()) {
+                Assertions.assertTrue(blobInfo.getKey().startsWith(prefixKey), 
+                    "testListPage: All keys should start with prefix: " + blobInfo.getKey());
+            }
+
+            // Test 4: Test delimiter functionality with pagination
+            ListBlobsPageRequest delimiterRequest = ListBlobsPageRequest.builder()
+                    .withPrefix(prefixKey)
+                    .withDelimiter("-")
+                    .withMaxResults(2)
+                    .build();
+            
+            ListBlobsPageResponse delimiterPage = bucketClient.listPage(delimiterRequest);
+            Assertions.assertNotNull(delimiterPage);
+            
+            // Should only return keys that don't contain "-" after the prefix
+            for (BlobInfo blobInfo : delimiterPage.getBlobs()) {
+                String keyAfterPrefix = blobInfo.getKey().substring(prefixKey.length());
+                Assertions.assertFalse(keyAfterPrefix.contains("-"), 
+                    "testListPage: Keys should not contain delimiter after prefix: " + blobInfo.getKey());
+            }
+
+            // Test 5: Manual pagination loop to collect all items
+            Set<String> allKeys = new HashSet<>();
+            String nextToken = null;
+            int pageCount = 0;
+            
+            do {
+                ListBlobsPageRequest pageRequest = ListBlobsPageRequest.builder()
+                        .withPrefix(baseKey)
+                        .withMaxResults(2)
+                        .withPaginationToken(nextToken)
+                        .build();
+
+                ListBlobsPageResponse page = bucketClient.listPage(pageRequest);
+                Assertions.assertNotNull(page);
+                
+                page.getBlobs().forEach(blob -> allKeys.add(blob.getKey()));
+                nextToken = page.getNextPageToken();
+                pageCount++;
+                
+                // Safety check to prevent infinite loops
+                Assertions.assertTrue(pageCount <= 10, 
+                    "testListPage: Pagination loop exceeded maximum expected pages");
+                
+            } while (nextToken != null);
+            
+            // Verify we collected all expected keys
+            for (String key : keys) {
+                Assertions.assertTrue(allKeys.contains(key), 
+                    "testListPage: Missing expected key: " + key);
+            }
         }
         // Clean up
         finally {
