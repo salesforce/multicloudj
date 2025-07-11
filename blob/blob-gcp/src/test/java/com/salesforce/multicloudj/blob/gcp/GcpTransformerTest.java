@@ -480,7 +480,7 @@ class GcpTransformerTest {
         });
         assertEquals("Tags are not supported by GCP", exception.getMessage());
     }
-
+  
     @Test
     void testToBlobListOptions() {
         ListBlobsPageRequest request = ListBlobsPageRequest

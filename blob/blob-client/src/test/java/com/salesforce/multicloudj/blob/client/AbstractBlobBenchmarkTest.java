@@ -64,7 +64,7 @@ import org.junit.jupiter.api.Disabled;
 
 public abstract class AbstractBlobBenchmarkTest {
 
-    // Blob size constants
+    // Blob size constants 
     protected static final int SMALL_BLOB = 1024;           // 1KB
     protected static final int MEDIUM_BLOB = 1024 * 1024;   // 1MB
     protected static final int LARGE_BLOB = 10 * 1024 * 1024; // 10MB
@@ -96,10 +96,8 @@ public abstract class AbstractBlobBenchmarkTest {
     @Setup(Level.Trial)
     public void setupBenchmark() {
         try {
-            // Initialize harness
             harness = createHarness();
             
-            // Setup test data
             bucketName = harness.getBucketName();
             blobKeys = new ArrayList<>();
             testBlobs = new ArrayList<>();
@@ -183,12 +181,10 @@ public abstract class AbstractBlobBenchmarkTest {
         if (blobKeys == null || bucketClient == null) {
             return;
         }
-        
         for (String key : blobKeys) {
             try {
                 bucketClient.delete(key, null);
             } catch (Exception e) {
-                // Ignore cleanup failures - key might not exist
             }
         }
     }
@@ -234,7 +230,7 @@ public abstract class AbstractBlobBenchmarkTest {
         final String baseKey = "benchmarksingleaction-get-";
 
         try {
-            // Pre-populate data for this benchmark iteration
+            // Pre-populate data
             List<String> keys = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 String key = baseKey + nextGetId.incrementAndGet();
@@ -417,7 +413,7 @@ public abstract class AbstractBlobBenchmarkTest {
                 bh.consume(downloadResponse);
             }
             
-            // Verify content matches
+            // Verify content match
             if (!Arrays.equals(readData, content)) {
                 throw new RuntimeException("Read data didn't match written data");
             }
@@ -477,7 +473,7 @@ public abstract class AbstractBlobBenchmarkTest {
      * Benchmark medium blob downloads using helper method
      */
     @Benchmark
-    @Threads(2)
+    @Threads(4)
     public void benchmarkDownloadMediumBlobs(Blackhole bh) {
         benchmarkDownloadByPrefix(bh, "medium/");
     }
@@ -486,7 +482,7 @@ public abstract class AbstractBlobBenchmarkTest {
      * Benchmark large blob downloads using helper method
      */
     @Benchmark
-    @Threads(1)
+    @Threads(4)
     public void benchmarkDownloadLargeBlobs(Blackhole bh) {
         benchmarkDownloadByPrefix(bh, "large/");
     }
@@ -579,4 +575,4 @@ public abstract class AbstractBlobBenchmarkTest {
 
         new Runner(opt).run();
     }
-}
+} 
