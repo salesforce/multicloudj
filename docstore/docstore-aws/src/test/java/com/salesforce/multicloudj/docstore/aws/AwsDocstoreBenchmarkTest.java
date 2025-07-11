@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Disabled;
 
 import java.net.URI;
 
-//@Disabled
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 

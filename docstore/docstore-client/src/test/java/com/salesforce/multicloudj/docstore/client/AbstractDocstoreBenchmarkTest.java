@@ -535,13 +535,13 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Query Benchmark 3: Composite Key Queries
+     *  Composite Key Queries
      */
     @Benchmark
     @Threads(2) 
     public void benchmarkCompositeKeyQuery(Blackhole bh) {
         try {
-            // Query by Game (partition key) + Player (sort key)
+            
             DocumentIterator iter = queryDocStoreClient.query()
                 .where("Game", FilterOperation.EQUAL, game1)
                 .where("Player", FilterOperation.EQUAL, "andy")
@@ -561,7 +561,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Query Benchmark 4: Range Queries
+     * Range Queries
      */
     @Benchmark
     @Threads(1)
@@ -586,7 +586,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Helper method for getting players by prefix
+     * Helper method to get players by prefix
      */
     private void benchmarkGetByPrefix(Blackhole bh, String prefix) {
         try {
@@ -602,8 +602,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Create a Player with varied data types and a string of specified size.
-     * The `size` parameter is for the size of the 's' field in characters.
+     * Create a Player with varied data types and a string of specific size.
+     * `size` parameter is for the size of the 's' field in characters.
      */
     protected Player createPlayer(String pName, int baseValue, int size) {
         char[] chars = new char[size];
@@ -629,7 +629,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
-     * Get a random player key with specific prefix
+     * Get a rand player key with specific prefix
      */
     protected String getRandomPlayerKeyWithPrefix(String prefix) {
         List<String> filteredKeys = documentKeys.stream()
