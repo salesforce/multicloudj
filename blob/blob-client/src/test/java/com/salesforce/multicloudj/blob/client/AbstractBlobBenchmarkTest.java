@@ -64,7 +64,7 @@ import org.junit.jupiter.api.Disabled;
 
 public abstract class AbstractBlobBenchmarkTest {
 
-    // Blob size constants
+    // Blob size constants 
     protected static final int SMALL_BLOB = 1024;           // 1KB
     protected static final int MEDIUM_BLOB = 1024 * 1024;   // 1MB
     protected static final int LARGE_BLOB = 10 * 1024 * 1024; // 10MB
@@ -181,7 +181,6 @@ public abstract class AbstractBlobBenchmarkTest {
         if (blobKeys == null || bucketClient == null) {
             return;
         }
-        
         for (String key : blobKeys) {
             try {
                 bucketClient.delete(key, null);
