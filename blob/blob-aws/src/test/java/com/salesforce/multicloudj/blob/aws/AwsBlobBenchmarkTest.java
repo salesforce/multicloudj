@@ -20,7 +20,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-//@Disabled
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
