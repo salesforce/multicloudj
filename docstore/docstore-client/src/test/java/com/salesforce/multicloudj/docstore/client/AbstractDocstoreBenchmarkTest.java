@@ -38,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Disabled;
+import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
+import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+
 
 
 @Disabled
@@ -53,8 +56,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
     // Test data
     protected List<String> documentKeys;
     protected List<Player> testPlayers;
+    protected List<HighScore> testHighScores;
     protected Random random;
     protected DocStoreClient docStoreClient;
+    protected DocStoreClient queryDocStoreClient; // For composite key table queries
 
     private final AtomicInteger nextPutId = new AtomicInteger(0);
     private final AtomicInteger nextGetId = new AtomicInteger(0);
@@ -66,8 +71,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     // Harness interface
     public interface Harness extends AutoCloseable {
-        AbstractDocStore createDocStore() throws Exception;
-        void cleanup() throws Exception;
+        AbstractDocStore createDocStore() throws Exception; // Single key table
+        AbstractDocStore createQueryDocStore() throws Exception; // Composite key table for queries
     }
 
     protected Harness harness;
@@ -81,12 +86,20 @@ public abstract class AbstractDocstoreBenchmarkTest {
             
             documentKeys = new ArrayList<>();
             testPlayers = new ArrayList<>();
+            testHighScores = new ArrayList<>();
             random = new Random(42); 
 
+            // Setup single key table
             AbstractDocStore docStore = harness.createDocStore();
             docStoreClient = new DocStoreClient(docStore);
+            
+            // Setup composite key table for queries
+            AbstractDocStore queryDocStore = harness.createQueryDocStore();
+            queryDocStoreClient = new DocStoreClient(queryDocStore);
+            
             cleanupTestData();
             generateTestPlayers();
+            generateTestHighScores();
             setupTestData();
         } catch (Exception e) {
             throw new RuntimeException("Failed to setup benchmark", e);
@@ -101,6 +114,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
             if (docStoreClient != null) {
                 docStoreClient.close();
             }
+            
+            if (queryDocStoreClient != null) {
+                queryDocStoreClient.close();
+            }
 
             if (harness != null) {
                 harness.close();
@@ -113,10 +130,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     private void generateTestPlayers() {
         String[] baseNames = {"John", "Taylor", "Leo", "Frank", "David", "King", "Queen", "Tiger", "Lion", "Louis"};
         
-        // Small players - ~1KB document size
-        // For Player object with pName, score, floatValue, isActive, and s, 
-        // a 's' field of ~900 characters will make the document around 1KB.
-        int smallDocSize = 900; // Characters for the 's' field
+
+        int smallDocSize = 900;
         for (int i = 0; i < 100; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkSmall" + i;
@@ -125,9 +140,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
             testPlayers.add(player);
         }
 
-        // Medium players - ~10KB document size
-        // For Player object, an 's' field of ~9900 characters will make the document around 10KB.
-        int mediumDocSize = 9900; // Characters for the 's' field
+        int mediumDocSize = 9900;
         for (int i = 0; i < 20; i++) {
             String baseName = baseNames[i % baseNames.length];
             String pName = baseName + "BenchmarkMedium" + i;
@@ -147,11 +160,40 @@ public abstract class AbstractDocstoreBenchmarkTest {
         }
     }
 
+    private void generateTestHighScores() {
+        // Create test data for query benchmarks
+        List<HighScore> allScores = List.of(
+                new HighScore(game1, "pat", 49, "2024-03-13", false),
+                new HighScore(game1, "mel", 60, "2024-04-10", false),
+                new HighScore(game1, "andy", 81, "2024-02-01", false),
+                new HighScore(game1, "fran", 33, "2024-03-19", false),
+                new HighScore(game2, "pat", 120, "2024-04-01", true),
+                new HighScore(game2, "billie", 111, "2024-04-10", false),
+                new HighScore(game2, "mel", 190, "2024-04-18", true),
+                new HighScore(game2, "fran", 33, "2024-03-20", false),
+                new HighScore(game3, "alex", 75, "2024-05-01", false),
+                new HighScore(game3, "sam", 95, "2024-05-15", true),
+                // Add more test data for better benchmarking
+                new HighScore(game1, "chris", 200, "2024-06-01", false),
+                new HighScore(game1, "jamie", 150, "2024-06-05", true),
+                new HighScore(game2, "taylor", 300, "2024-06-10", false),
+                new HighScore(game2, "jordan", 250, "2024-06-15", true),
+                new HighScore(game3, "morgan", 180, "2024-06-20", false)
+        );
+        testHighScores.addAll(allScores);
+    }
+
     private void setupTestData() {
         try {
             for (Player player : testPlayers) {
                 Document doc = new Document(player);
                 docStoreClient.put(doc);
+            }
+            
+            // Setup HighScore data in composite key table
+            for (HighScore highScore : testHighScores) {
+                Document doc = new Document(highScore);
+                queryDocStoreClient.put(doc);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to setup test data", e);
@@ -159,28 +201,49 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     private void cleanupTestData() {
-        if (documentKeys == null || docStoreClient == null) {
-            return;
+        // Cleanup Player data from single key table
+        if (documentKeys != null && docStoreClient != null) {
+            try {
+                ActionList actionList = docStoreClient.getActions();
+                for (String key : documentKeys) {
+                    try {
+                        if (key.contains("Benchmark")) {
+                            Player deletePlayer = new Player();
+                            deletePlayer.setPName(key);
+                            actionList.delete(new Document(deletePlayer));
+                        } else {
+                            Map<String, Object> deleteDoc = new HashMap<>();
+                            deleteDoc.put("pName", key);
+                            actionList.delete(new Document(deleteDoc));
+                        }
+                    } catch (Exception e) {
+                        // Continue cleanup on error
+                    }
+                }
+                actionList.run();
+            } catch (Exception e) {
+                // Continue cleanup on error
+            }
         }
         
-        try {
-            ActionList actionList = docStoreClient.getActions();
-            for (String key : documentKeys) {
-                try {
-                    if (key.contains("Benchmark")) {
-                        Player deletePlayer = new Player();
-                        deletePlayer.setPName(key);
-                        actionList.delete(new Document(deletePlayer));
-                    } else {
-                        Map<String, Object> deleteDoc = new HashMap<>();
-                        deleteDoc.put("pName", key);
-                        actionList.delete(new Document(deleteDoc));
+        // Cleanup HighScore data from composite key table
+        if (testHighScores != null && queryDocStoreClient != null) {
+            try {
+                ActionList actionList = queryDocStoreClient.getActions();
+                for (HighScore highScore : testHighScores) {
+                    try {
+                        HighScore deleteScore = new HighScore();
+                        deleteScore.setGame(highScore.getGame());
+                        deleteScore.setPlayer(highScore.getPlayer());
+                        actionList.delete(new Document(deleteScore));
+                    } catch (Exception e) {
+                        // Continue cleanup on error
                     }
-                } catch (Exception e) {
                 }
+                actionList.run();
+            } catch (Exception e) {
+                // Continue cleanup on error
             }
-            actionList.run();
-        } catch (Exception e) {
         }
     }
 
@@ -422,6 +485,107 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
 
     /**
+     * Query Benchmark 1: Partition Key Queries
+     */
+    @Benchmark
+    @Threads(2)
+    public void benchmarkPartitionKeyQuery(Blackhole bh) {
+        try {
+            // Query by Game (partition key)
+            DocumentIterator iter = queryDocStoreClient.query()
+                .where("Game", FilterOperation.EQUAL, game2)
+                .get();
+            
+            int count = 0;
+            while (iter.hasNext()) {
+                HighScore score = new HighScore();
+                iter.next(new Document(score));
+                count++;
+                bh.consume(score.getGame());
+            }
+            bh.consume(count);
+        } catch (Exception e) {
+            throw new RuntimeException("Benchmark partition key query failed", e);
+        }
+    }
+
+    /**
+     * Query Benchmark 2: Sort Key Queries  
+     */
+    @Benchmark
+    @Threads(2)
+    public void benchmarkSortKeyQuery(Blackhole bh) {
+        try {
+            // Query by Player (sort key) - this may use Global Secondary Index
+            DocumentIterator iter = queryDocStoreClient.query()
+                .where("Player", FilterOperation.EQUAL, "pat")
+                .get();
+            
+            int count = 0;
+            while (iter.hasNext()) {
+                HighScore score = new HighScore();
+                iter.next(new Document(score));
+                count++;
+                bh.consume(score.getPlayer());
+            }
+            bh.consume(count);
+        } catch (Exception e) {
+            throw new RuntimeException("Benchmark sort key query failed", e);
+        }
+    }
+
+    /**
+     * Query Benchmark 3: Composite Key Queries
+     */
+    @Benchmark
+    @Threads(2) 
+    public void benchmarkCompositeKeyQuery(Blackhole bh) {
+        try {
+            // Query by Game (partition key) + Player (sort key)
+            DocumentIterator iter = queryDocStoreClient.query()
+                .where("Game", FilterOperation.EQUAL, game1)
+                .where("Player", FilterOperation.EQUAL, "andy")
+                .get();
+            
+            int count = 0;
+            while (iter.hasNext()) {
+                HighScore score = new HighScore();
+                iter.next(new Document(score));
+                count++;
+                bh.consume(score.getScore());
+            }
+            bh.consume(count);
+        } catch (Exception e) {
+            throw new RuntimeException("Benchmark composite key query failed", e);
+        }
+    }
+
+    /**
+     * Query Benchmark 4: Range Queries
+     */
+    @Benchmark
+    @Threads(1)
+    public void benchmarkRangeQuery(Blackhole bh) {
+        try {
+            // Query by Score range (may use Local Secondary Index)
+            DocumentIterator iter = queryDocStoreClient.query()
+                .where("Score", FilterOperation.GREATER_THAN, 100)
+                .get();
+            
+            int count = 0;
+            while (iter.hasNext()) {
+                HighScore score = new HighScore();
+                iter.next(new Document(score));
+                count++;
+                bh.consume(score.getScore());
+            }
+            bh.consume(count);
+        } catch (Exception e) {
+            throw new RuntimeException("Benchmark range query failed", e);
+        }
+    }
+
+    /**
      * Helper method for getting players by prefix
      */
     private void benchmarkGetByPrefix(Blackhole bh, String prefix) {
@@ -482,7 +646,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     @Test
     public void runBenchmarks() throws RunnerException {
         Options opt = new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*")
+                .include(".*" + this.getClass().getName() + ".benchmarkPartitionKeyQuery.*")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
@@ -492,4 +656,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
         new Runner(opt).run();
     }
+
+    private static final String game1 = "Praise All Monsters";
+    private static final String game2 = "Zombie DMV";
+    private static final String game3 = "Days Gone";
 }
