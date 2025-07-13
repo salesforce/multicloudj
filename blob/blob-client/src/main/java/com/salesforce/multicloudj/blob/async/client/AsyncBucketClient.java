@@ -11,8 +11,6 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -242,19 +240,6 @@ public class AsyncBucketClient {
     public CompletableFuture<Void> list(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer) {
         return blobStore
                 .list(request, consumer)
-                .exceptionally(this::handleException);
-    }
-
-    /**
-     * Retrieves a single page of blobs from the bucket with pagination support
-     *
-     * @param request The pagination request containing filters, pagination token, and max results
-     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
-     * @throws SubstrateSdkException Thrown if the operation fails
-     */
-    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
-        return blobStore
-                .listPage(request)
                 .exceptionally(this::handleException);
     }
 

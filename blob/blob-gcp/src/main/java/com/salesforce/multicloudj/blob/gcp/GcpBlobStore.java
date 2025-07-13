@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
-import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
@@ -25,8 +24,6 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -205,10 +202,10 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
             listOptions.add(Storage.BlobListOption.delimiter(request.getDelimiter()));
         }
         Storage.BlobListOption[] listOptionsArray = listOptions.toArray(new Storage.BlobListOption[0]);
-        Iterable<com.google.cloud.storage.Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
+        Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
 
         return new Iterator<>() {
-            private final Iterator<com.google.cloud.storage.Blob> it = blobs.iterator();
+            private final Iterator<Blob> it = blobs.iterator();
 
             @Override
             public boolean hasNext() {
@@ -217,38 +214,13 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
             @Override
             public BlobInfo next() {
-                com.google.cloud.storage.Blob blob = it.next();
+                Blob blob = it.next();
                 return BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
                         .build();
             }
         };
-    }
-
-    /**
-     * Lists a single page of objects in the bucket with pagination support
-     *
-     * @param request The list request containing filters and optional pagination token
-     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
-     */
-    @Override
-    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-        // Use the Page API to get proper pagination support
-        Page<com.google.cloud.storage.Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
-        
-        List<BlobInfo> blobs = page.streamAll()
-                .map(blob -> BlobInfo.builder()
-                        .withKey(blob.getName())
-                        .withObjectSize(blob.getSize())
-                        .build())
-                .collect(Collectors.toList());
-
-        return new ListBlobsPageResponse(
-                blobs,
-                page.hasNextPage(),
-                page.getNextPageToken()
-        );
     }
 
     @Override

@@ -173,14 +173,6 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
      * {@inheritDoc}
      */
     @Override
-    public ListBlobsPageResponse listPage(ListBlobsPageRequest request) {
-        return doListPage(request);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
         return doInitiateMultipartUpload(request);
     }
@@ -283,8 +275,6 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected abstract BlobMetadata doGetMetadata(String key, String versionId);
 
     protected abstract Iterator<BlobInfo> doList(ListBlobsRequest request);
-
-    protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
 
     protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 

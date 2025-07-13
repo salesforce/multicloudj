@@ -9,8 +9,6 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -182,14 +180,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
-        return doListPage(request);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public CompletableFuture<MultipartUpload> initiateMultipartUpload(MultipartUploadRequest request) {
         return doInitiateMultipartUpload(request);
     }
@@ -292,8 +282,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<BlobMetadata> doGetMetadata(String key, String versionId);
 
     protected abstract CompletableFuture<Void> doList(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer);
-
-    protected abstract CompletableFuture<ListBlobsPageResponse> doListPage(ListBlobsPageRequest request);
 
     protected abstract CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request);
 

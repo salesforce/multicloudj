@@ -24,12 +24,12 @@ public class MultipartUploadRequest {
         private String key;
         private Map<String, String> metadata;
 
-        public MultipartUploadRequest.Builder withKey(String key) {
+        public Builder withKey(String key) {
             this.key = key;
             return this;
         }
 
-        public MultipartUploadRequest.Builder withMetadata(final Map<String, String> metadata) {
+        public Builder withMetadata(final Map<String, String> metadata) {
             this.metadata = unmodifiableMap(metadata);
             return this;
         }

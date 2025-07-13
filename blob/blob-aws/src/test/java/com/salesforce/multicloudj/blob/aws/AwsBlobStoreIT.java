@@ -24,11 +24,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     private static final String region = "us-west-2";
 
     @Override
-    protected AbstractBlobStoreIT.Harness createHarness() {
-        return new AwsBlobStoreIT.HarnessImpl();
+    protected Harness createHarness() {
+        return new HarnessImpl();
     }
 
-    public static class HarnessImpl implements AbstractBlobStoreIT.Harness {
+    public static class HarnessImpl implements Harness {
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
 
         SdkHttpClient httpClient;
