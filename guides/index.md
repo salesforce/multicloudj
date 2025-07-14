@@ -40,7 +40,7 @@ Work with document-oriented databases using a consistent interface.
 
 Use publish/subscribe systems to send and receive messages.
 
-- [Pubsub](pubsub-guide.md)
+- [Pubsub](pubsub-guide.html)
 
 ---
 
