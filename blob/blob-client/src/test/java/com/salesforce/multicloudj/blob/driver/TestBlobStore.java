@@ -84,17 +84,12 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-        return null;
-    }
-
-    @Override
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
         return null;
     }
 
     @Override
-    protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
+    protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         return null;
     }
 
@@ -104,7 +99,7 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
+    protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
         return null;
     }
 

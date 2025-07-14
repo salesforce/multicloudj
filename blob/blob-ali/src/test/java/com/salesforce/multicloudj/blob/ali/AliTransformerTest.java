@@ -21,7 +21,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 
@@ -425,23 +424,5 @@ public class AliTransformerTest {
         assertEquals("object-1", actual.getKey());
         long diff = Date.from(Instant.now()).getTime() - actual.getExpiration().getTime() + duration.toMillis();
         assertTrue(diff < 1000L);   // The time difference is less than a second from expected
-    }
-
-    @Test
-    void testToListObjectsRequest() {
-        ListBlobsPageRequest request = ListBlobsPageRequest
-                .builder()
-                .withDelimiter(":")
-                .withPrefix("some/prefix/path/thingie")
-                .withPaginationToken("next-token")
-                .withMaxResults(100)
-                .build();
-
-        com.aliyun.oss.model.ListObjectsRequest actual = transformer.toListObjectsRequest(request);
-        assertEquals(BUCKET, actual.getBucketName());
-        assertEquals(request.getDelimiter(), actual.getDelimiter());
-        assertEquals(request.getPrefix(), actual.getPrefix());
-        assertEquals(request.getPaginationToken(), actual.getMarker());
-        assertEquals(request.getMaxResults(), actual.getMaxKeys());
     }
 }

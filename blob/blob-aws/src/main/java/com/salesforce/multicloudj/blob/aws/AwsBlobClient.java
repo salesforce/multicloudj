@@ -68,7 +68,7 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
         this.s3Client = s3Client;
     }
 
-    private static S3Client buildS3Client(AwsBlobClient.Builder builder) {
+    private static S3Client buildS3Client(Builder builder) {
         Region regionObj = Region.of(builder.getRegion());
         S3ClientBuilder b = S3Client.builder();
         b.region(regionObj);
@@ -98,8 +98,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
      * @return a new instance of {@link Builder}.
      */
     @Override
-    public AwsBlobClient.Builder builder() {
-        return new AwsBlobClient.Builder();
+    public Builder builder() {
+        return new Builder();
     }
 
     /**

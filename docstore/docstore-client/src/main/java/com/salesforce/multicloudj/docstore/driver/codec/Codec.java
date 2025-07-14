@@ -232,6 +232,7 @@ public class Codec {
                 && !clazz.isArray()
                 && !Collection.class.isAssignableFrom(clazz)
                 && !Map.class.isAssignableFrom(clazz)
+                && !clazz.getName().startsWith("java.")
                 && !Message.class.isAssignableFrom(clazz);
     }
 

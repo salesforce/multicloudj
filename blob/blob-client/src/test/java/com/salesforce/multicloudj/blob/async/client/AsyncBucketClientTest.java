@@ -67,7 +67,7 @@ public class AsyncBucketClientTest {
     private StsCredentials creds;
     private AsyncBucketClient client;
 
-    private MockedStatic<com.salesforce.multicloudj.blob.async.client.ProviderSupplier> providerSupplier;
+    private MockedStatic<ProviderSupplier> providerSupplier;
     private MockedStatic<ExceptionHandler> mockedExceptionHandler;
 
     @BeforeEach
@@ -78,7 +78,7 @@ public class AsyncBucketClientTest {
                 .thenThrow(UnAuthorizedException.class);
 
         mockBlobStore = mock(AsyncBlobStore.class);
-        providerSupplier = mockStatic(com.salesforce.multicloudj.blob.async.client.ProviderSupplier.class);
+        providerSupplier = mockStatic(ProviderSupplier.class);
         AsyncBlobStoreProvider.Builder mockBuilder = mock(AsyncBlobStoreProvider.Builder.class);
         when(mockBuilder.build()).thenReturn(mockBlobStore);
         providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder(PROVIDER_ID)).thenReturn(mockBuilder);
