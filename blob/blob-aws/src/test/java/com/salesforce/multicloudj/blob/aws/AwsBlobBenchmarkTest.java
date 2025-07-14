@@ -3,7 +3,6 @@ import com.salesforce.multicloudj.blob.client.AbstractBlobBenchmarkTest;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
-
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -34,7 +33,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
     protected Harness createHarness() {
         return new HarnessImpl();
     }
-
+  
     public static class HarnessImpl implements Harness {
         SdkHttpClient httpClient;
         S3Client client;
@@ -113,4 +112,5 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
         }
     }
+
 }
