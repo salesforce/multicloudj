@@ -1,0 +1,31 @@
+{
+  "id" : "68a9e3da-b7f8-4ea9-8e13-6a197532da83",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsbatchget",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"88\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites8\"\n      },\n      \"i\": {\n        \"integerValue\": \"8\"\n      },\n      \"DocstoreRevision\": {\n        \"bytesValue\": \"CJulwcMGEMiXuUk=\"\n      }\n    },\n    \"createTime\": \"2025-07-10T23:54:03.154029Z\",\n    \"updateTime\": \"2025-07-10T23:54:04.243253Z\"\n  },\n  \"readTime\": \"2025-07-10T23:54:05.111754Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "16968738756158790774;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:54:05 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "68a9e3da-b7f8-4ea9-8e13-6a197532da83",
+  "persistent" : true,
+  "insertionIndex" : 121
+}

@@ -32,7 +32,6 @@ public class QueryRunner {
      */
     private Consumer<Predicate<Object>> beforeRun;
 
-
     /**
      * Get the string representation of this query's execution plan
      * 

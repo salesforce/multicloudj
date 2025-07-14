@@ -1,0 +1,31 @@
+{
+  "id" : "ba5feeb0-f169-4c15-8355-ee448cc4e811",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"compositeFilter\":{\"op\":1,\"filters\":[{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Game\"},\"op\":5,\"value\":{\"stringValue\":\"Zombie DMV\"}}},{\"fieldFilter\":{\"field\":{\"fieldPath\":\"WithGlitch\"},\"op\":5,\"value\":{\"booleanValue\":false}}}]}},\"limit\":1}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:billie\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"billie\"\n      },\n      \"Score\": {\n        \"integerValue\": \"111\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-10\"\n      }\n    },\n    \"createTime\": \"2025-07-10T22:07:44.646935Z\",\n    \"updateTime\": \"2025-07-10T22:07:44.646935Z\"\n  },\n  \"readTime\": \"2025-07-10T23:53:31.311407Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "1892732749408997183;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:53:31 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ba5feeb0-f169-4c15-8355-ee448cc4e811",
+  "persistent" : true,
+  "insertionIndex" : 6
+}

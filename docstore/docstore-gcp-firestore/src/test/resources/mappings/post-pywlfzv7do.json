@@ -1,0 +1,31 @@
+{
+  "id" : "8b8b85c8-1f2f-4a19-85db-3ae8496b60e5",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"compositeFilter\":{\"op\":1,\"filters\":[{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Player\"},\"op\":5,\"value\":{\"stringValue\":\"mel\"}}},{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Time\"},\"op\":3,\"value\":{\"stringValue\":\"2024-02-01\"}}}]}},\"orderBy\":[{\"field\":{\"fieldPath\":\"Time\"},\"direction\":1}],\"limit\":1}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"60\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-10\"\n      }\n    },\n    \"createTime\": \"2025-07-10T22:07:43.386705Z\",\n    \"updateTime\": \"2025-07-10T22:07:43.386705Z\"\n  },\n  \"readTime\": \"2025-07-10T23:53:32.514822Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "12321874409139163207;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:53:32 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8b8b85c8-1f2f-4a19-85db-3ae8496b60e5",
+  "persistent" : true,
+  "insertionIndex" : 2
+}

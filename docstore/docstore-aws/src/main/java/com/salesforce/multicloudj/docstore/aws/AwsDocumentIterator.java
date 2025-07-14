@@ -80,45 +80,86 @@ public class AwsDocumentIterator implements DocumentIterator {
     @Override
     public boolean hasNext() {
         // run() should have been run before this function.
+        if (isLimitReached()) {
+            return false;
+        }
+
+        // manually skip to the offset if not pagination token is provided
+        if (paginationToken == null) {
+            if (!skipToOffset()) {
+                return false;
+            }
+        }
+
+        if (!ensureItemsAvailable()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if the limit has been reached and handles pagination token cleanup.
+     * 
+     * @return true if limit is reached, false otherwise
+     */
+    private boolean isLimitReached() {
         if (limit > 0 && count >= offset + limit) {
             if (last == null || last.isEmpty()) {
                 if (paginationToken != null) {
                     paginationToken.setExclusiveStartKey(null);
                 }
             }
-            return false;
+            return true;
         }
+        return false;
+    }
 
-        if (paginationToken == null) {
-            // Move count to offset.
-            while (count < offset) {
-                while (curr >= items.size()) {
-                    // Make a new query request at the end of the page.
-                    if (last == null || last.isEmpty()) {
-                        return false;
-                    }
-                    items.clear();
-                    last = queryRunner.run(last, items, asFunc);
-                    curr = 0;
-                }
-                curr++;
-                count++;
-            }
-        }
-
-        while (curr >= items.size()) {
-            // Make a new query request at the end of the page.
-            if (last == null || last.isEmpty()) {
-                if (paginationToken != null) {
-                    paginationToken.setExclusiveStartKey(null);
-                }
+    /**
+     * Skips documents to reach the offset position.
+     * 
+     * @return true if offset was reached successfully, false if stream ended
+     */
+    private boolean skipToOffset() {
+        while (count < offset) {
+            if (!ensureItemsAvailable()) {
                 return false;
             }
-            items.clear();
-            last = queryRunner.run(last, items, asFunc);
-            curr = 0;
+            curr++;
+            count++;
         }
+        return true;
+    }
 
+    /**
+     * Ensures that items are available for consumption by fetching more if needed.
+     * 
+     * @return true if items are available, false if stream ended
+     */
+    private boolean ensureItemsAvailable() {
+        while (curr >= items.size()) {
+            if (!fetchNextPage()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Fetches the next page of results from the query runner.
+     * 
+     * @return true if page was fetched successfully, false if no more results
+     */
+    private boolean fetchNextPage() {
+        if (last == null || last.isEmpty()) {
+            if (paginationToken != null) {
+                paginationToken.setExclusiveStartKey(null);
+            }
+            return false;
+        }
+        items.clear();
+        last = queryRunner.run(last, items, asFunc);
+        curr = 0;
         return true;
     }
 
