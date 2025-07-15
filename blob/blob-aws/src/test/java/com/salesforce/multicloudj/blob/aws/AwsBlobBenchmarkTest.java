@@ -20,7 +20,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Disabled
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
@@ -43,8 +43,9 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
                     endpoint, bucketName, region);
             
             try {
-                try {
+                URI endpointUri = URI.create(endpoint);
                 logger.debug("Building S3 client with region: {}", Region.US_EAST_2);
+                
                 client = S3Client.builder()
                         .region(Region.US_EAST_2)
                         .endpointOverride(endpointUri)
@@ -98,11 +99,6 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
             if (client != null) {
                 client.close();
             }
-            if (httpClient != null) {
-                httpClient.close();
-            }
-
         }
     }
-
 }
