@@ -163,22 +163,22 @@ public abstract class AbstractDocstoreBenchmarkTest {
     private void generateTestHighScores() {
         // Create test data for query benchmarks
         List<HighScore> allScores = List.of(
-                new HighScore(game1, "pat", 49, "2024-03-13", false),
-                new HighScore(game1, "mel", 60, "2024-04-10", false),
-                new HighScore(game1, "andy", 81, "2024-02-01", false),
-                new HighScore(game1, "fran", 33, "2024-03-19", false),
-                new HighScore(game2, "pat", 120, "2024-04-01", true),
-                new HighScore(game2, "billie", 111, "2024-04-10", false),
-                new HighScore(game2, "mel", 190, "2024-04-18", true),
-                new HighScore(game2, "fran", 33, "2024-03-20", false),
-                new HighScore(game3, "alex", 75, "2024-05-01", false),
-                new HighScore(game3, "sam", 95, "2024-05-15", true),
+                new HighScore(game1, "pat", 49, "2024-03-13", false, (byte)5, (short)3, 45000L, 85.5f, 1.2),
+                new HighScore(game1, "mel", 60, "2024-04-10", false, (byte)7, (short)2, 52000L, 90.0f, 1.5),
+                new HighScore(game1, "andy", 81, "2024-02-01", false, (byte)9, (short)1, 63000L, 95.2f, 2.1),
+                new HighScore(game1, "fran", 33, "2024-03-19", false, (byte)3, (short)4, 28000L, 75.8f, 1.0),
+                new HighScore(game2, "pat", 120, "2024-04-01", true, (byte)12, (short)5, 89000L, 88.9f, 2.5),
+                new HighScore(game2, "billie", 111, "2024-04-10", false, (byte)11, (short)2, 78000L, 92.1f, 2.2),
+                new HighScore(game2, "mel", 190, "2024-04-18", true, (byte)15, (short)1, 120000L, 97.3f, 3.1),
+                new HighScore(game2, "fran", 33, "2024-03-20", false, (byte)4, (short)3, 31000L, 78.5f, 1.1),
+                new HighScore(game3, "alex", 75, "2024-05-01", false, (byte)8, (short)2, 67000L, 89.7f, 1.8),
+                new HighScore(game3, "sam", 95, "2024-05-15", true, (byte)10, (short)4, 84000L, 93.4f, 2.3),
                 // Add more test data for better benchmarking
-                new HighScore(game1, "chris", 200, "2024-06-01", false),
-                new HighScore(game1, "jamie", 150, "2024-06-05", true),
-                new HighScore(game2, "taylor", 300, "2024-06-10", false),
-                new HighScore(game2, "jordan", 250, "2024-06-15", true),
-                new HighScore(game3, "morgan", 180, "2024-06-20", false)
+                new HighScore(game1, "chris", 200, "2024-06-01", false, (byte)20, (short)5, 145000L, 98.1f, 3.5),
+                new HighScore(game1, "jamie", 150, "2024-06-05", true, (byte)14, (short)3, 110000L, 94.7f, 2.8),
+                new HighScore(game2, "taylor", 300, "2024-06-10", false, (byte)25, (short)2, 180000L, 99.2f, 4.2),
+                new HighScore(game2, "jordan", 250, "2024-06-15", true, (byte)22, (short)1, 165000L, 96.8f, 3.8),
+                new HighScore(game3, "morgan", 180, "2024-06-20", false, (byte)18, (short)4, 135000L, 95.5f, 3.2)
         );
         testHighScores.addAll(allScores);
     }

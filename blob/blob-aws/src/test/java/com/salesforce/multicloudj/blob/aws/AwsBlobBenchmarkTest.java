@@ -35,7 +35,6 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
     }
   
     public static class HarnessImpl implements Harness {
-        SdkHttpClient httpClient;
         S3Client client;
 
         @Override
@@ -44,14 +43,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
                     endpoint, bucketName, region);
             
             try {
-                URI endpointUri;
                 try {
-                    endpointUri = URI.create(endpoint);
-                    logger.debug("Successfully parsed endpoint URI: {}", endpointUri);
-                } catch (IllegalArgumentException e) {
-                    logger.error("Invalid endpoint URI: {}", endpoint, e);
-                    throw new RuntimeException("Failed to parse endpoint URI: " + endpoint, e);
-                }
                 logger.debug("Building S3 client with region: {}", Region.US_EAST_2);
                 client = S3Client.builder()
                         .region(Region.US_EAST_2)

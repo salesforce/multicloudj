@@ -5,7 +5,6 @@ import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
@@ -21,7 +20,6 @@ import java.net.URI;
 public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
     private static final Logger logger = LoggerFactory.getLogger(AwsDocstoreBenchmarkTest.class);
-    private static final String endpoint = "https://dynamodb.us-east-2.amazonaws.com";
     private static final String singleKeyTableName = "docstore-benchmark-test1";
     private static final String compositeKeyTableName = "docstore-benchmark-test2";
     private static final String region = "us-east-2";
@@ -35,54 +33,87 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
     }
 
     public static class HarnessImpl implements Harness {
-        SdkHttpClient httpClient;
         DynamoDbClient client;
 
         @Override
         public AbstractDocStore createDocStore() {
-            logger.info("Creating AWS docstore with endpoint: {}, table: {}, region: {}", 
-                    endpoint, singleKeyTableName, region);
+            return createAwsDocStore(
+                singleKeyTableName, 
+                partitionKey, 
+                null, // no sort key for single key table
+                "single key"
+            );
+        }
+
+        @Override
+        public AbstractDocStore createQueryDocStore() {
+            return createAwsDocStore(
+                compositeKeyTableName,
+                queryPartitionKey,
+                querySortKey,
+                "composite key query"
+            );
+        }
+
+        /**
+         * Helper method to create AWS docstore with specified configuration
+         * 
+         * @param tableName the DynamoDB table name
+         * @param partitionKeyName the partition key field name
+         * @param sortKeyName the sort key field name (null for single key tables)
+         * @param storeType description for logging purposes
+         * @return configured AbstractDocStore instance
+         */
+        private AbstractDocStore createAwsDocStore(String tableName, String partitionKeyName, 
+                                                 String sortKeyName, String storeType) {
+            logger.info("Creating AWS {} docstore with table: {}, region: {}", 
+                    storeType, tableName, region);
             
             try {
-                URI endpointUri;
-                try {
-                    endpointUri = URI.create(endpoint);
-                    logger.debug("Successfully parsed endpoint URI: {}", endpointUri);
-                } catch (IllegalArgumentException e) {
-                    logger.error("Invalid endpoint URI: {}", endpoint, e);
-                    throw new RuntimeException("Failed to parse endpoint URI: " + endpoint, e);
-                }
-
                 logger.debug("Building DynamoDB client with region: {}", Region.US_EAST_2);
                 DynamoDbClientBuilder builder = DynamoDbClient.builder()
                         .region(Region.US_EAST_2)
                         .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
                                 System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
                                 System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
-                                System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
-                        .endpointOverride(endpointUri);
+                                System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))));
 
-                client = builder.build();
-                logger.info("Successfully created DynamoDB client");
+                DynamoDbClient dynamoClient = builder.build();
+                logger.info("Successfully created DynamoDB client for {}", storeType);
 
-                
-                CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
-                        .withTableName(singleKeyTableName)
-                        .withPartitionKey(partitionKey)
-                        .withAllowScans(true)
-                        .build();
+                // Store the client reference for cleanup (use the first one created)
+                if (client == null) {
+                    client = dynamoClient;
+                }
 
-                logger.debug("Building AwsDocStore with table: {}, partition key: {}", singleKeyTableName, partitionKey);
+                // Configure collection options
+                CollectionOptions.CollectionOptionsBuilder optionsBuilder = new CollectionOptions.CollectionOptionsBuilder()
+                        .withTableName(tableName)
+                        .withPartitionKey(partitionKeyName)
+                        .withAllowScans(true);
+
+                // Add sort key if provided
+                if (sortKeyName != null) {
+                    optionsBuilder.withSortKey(sortKeyName);
+                    logger.debug("Building AwsDocStore with table: {}, partition key: {}, sort key: {}", 
+                            tableName, partitionKeyName, sortKeyName);
+                } else {
+                    logger.debug("Building AwsDocStore with table: {}, partition key: {}", 
+                            tableName, partitionKeyName);
+                }
+
+                CollectionOptions collectionOptions = optionsBuilder.build();
+
                 AbstractDocStore docStore = new AwsDocStore().builder()
-                        .withDDBClient(client)
+                        .withDDBClient(dynamoClient)
                         .withCollectionOptions(collectionOptions)
                         .build();
 
-                logger.info("Successfully created AWS docstore");
+                logger.info("Successfully created AWS {} docstore", storeType);
                 return docStore;
                 
             } catch (Exception e) {
-                logger.error("Failed to create AWS docstore", e);
+                logger.error("Failed to create AWS {} docstore", storeType, e);
                 
                 if (client != null) {
                     try {
@@ -97,51 +128,8 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
                 if (e instanceof RuntimeException) {
                     throw (RuntimeException) e;
                 } else {
-                    throw new RuntimeException("Failed to create AWS docstore", e);
+                    throw new RuntimeException("Failed to create AWS " + storeType + " docstore", e);
                 }
-            }
-        }
-
-        @Override
-        public AbstractDocStore createQueryDocStore() {
-            logger.info("Creating AWS query docstore with endpoint: {}, table: {}, region: {}", 
-                    endpoint, compositeKeyTableName, region);
-            
-            try {
-                URI endpointUri = URI.create(endpoint);
-                
-                DynamoDbClientBuilder builder = DynamoDbClient.builder()
-                        .region(Region.US_EAST_2)
-                        .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                                System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
-                                System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
-                                System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
-                        .endpointOverride(endpointUri);
-
-                DynamoDbClient queryClient = builder.build();
-                logger.info("Successfully created DynamoDB client for queries");
-
-                // Configure collection options for composite key table
-                CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
-                        .withTableName(compositeKeyTableName)
-                        .withPartitionKey(queryPartitionKey)
-                        .withSortKey(querySortKey)
-                        .withAllowScans(true)
-                        .build();
-
-                logger.debug("Building AwsDocStore with table: {}, partition key: {}, sort key: {}", 
-                        compositeKeyTableName, queryPartitionKey, querySortKey);
-                AbstractDocStore docStore = new AwsDocStore().builder()
-                        .withDDBClient(queryClient)
-                        .withCollectionOptions(collectionOptions)
-                        .build();
-
-                logger.info("Successfully created AWS query docstore");
-                return docStore;
-                
-            } catch (Exception e) {
-                logger.error("Failed to create AWS query docstore", e);
-                throw new RuntimeException("Failed to create AWS query docstore", e);
             }
         }
 
@@ -149,9 +137,6 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
         public void close() throws Exception {
             if (client != null) {
                 client.close();
-            }
-            if (httpClient != null) {
-                httpClient.close();
             }
         }
     }
