@@ -1,3 +1,0 @@
-META-INF/services/com.salesforce.multicloudj.sts.driver.AbstractSts
-com/salesforce/multicloudj/sts/gcp/GcpSts$Builder.class
-com/salesforce/multicloudj/sts/gcp/GcpSts.class

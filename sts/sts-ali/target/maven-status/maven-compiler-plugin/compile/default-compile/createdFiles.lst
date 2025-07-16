@@ -1,6 +1,0 @@
-META-INF/services/com.salesforce.multicloudj.sts.driver.AbstractSts
-com/salesforce/multicloudj/sts/ali/AliStsUtilities.class
-com/salesforce/multicloudj/sts/ali/AliSts.class
-com/salesforce/multicloudj/sts/ali/AliSts$Builder.class
-META-INF/services/com.salesforce.multicloudj.sts.driver.AbstractStsUtilities
-com/salesforce/multicloudj/sts/ali/AliStsUtilities$Builder.class

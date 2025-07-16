@@ -1,3 +1,0 @@
-META-INF/services/com.salesforce.multicloudj.blob.driver.AbstractBlobStore
-com/salesforce/multicloudj/blob/gcp/GcpBlobStore$Builder.class
-com/salesforce/multicloudj/blob/gcp/GcpBlobStore.class

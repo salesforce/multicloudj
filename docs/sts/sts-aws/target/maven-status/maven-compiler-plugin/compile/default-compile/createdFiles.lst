@@ -1,6 +1,0 @@
-META-INF/services/com.salesforce.multicloudj.sts.driver.AbstractSts
-com/salesforce/multicloudj/sts/aws/AwsStsUtilities$Builder.class
-com/salesforce/multicloudj/sts/aws/AwsSts$Builder.class
-com/salesforce/multicloudj/sts/aws/AwsStsUtilities.class
-com/salesforce/multicloudj/sts/aws/AwsSts.class
-META-INF/services/com.salesforce.multicloudj.sts.driver.AbstractStsUtilities

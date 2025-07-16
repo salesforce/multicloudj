@@ -18,11 +18,18 @@ Welcome to the MultiCloudJ Design Guides. This section provides concise, task-fo
 
 MultiCloudJ is built on several key principles:
 
-1. **Substrate Agnosticism**: The SDK provides a unified interface that works consistently across different cloud providers.
+1. **Unified/Cloud Agnostic Interfaces/**: Write once, interact across multiple cloud providers without changing your application code.
 2. **Extensibility**: New cloud providers can be added without modifying existing code.
-3. **Simplicity**: The API is designed to be intuitive and easy to use.
-4. **Performance**: The SDK is optimized for efficient cloud service interactions.
-5. **Reliability**: Robust error handling and retry mechanisms ensure reliable operation.
+3. **Flexibility**: Easily override the default implementations and inject your own custom implementation in the env.
+4. **Simplicity**: The API is designed to be intuitive and easy to use.
+5. **Uniform Semantics**: SDK provides the uniform semantics to the end user irrespective of the cloud provider.
+
+   **Examples:**
+   
+   - **Object Deletion**: AWS S3 returns HTTP 200 when deleting a non-existent object, while Google Cloud Storage returns HTTP 404. MultiCloudJ provides consistent semantics, returning either 200 (success) or 400 (error) regardless of the underlying provider.
+   
+   - **Pagination**: DynamoDB paginated queries return `LastEvaluatedKey` for continuation, while Google Cloud Firestore doesn't provide this field and let the user figure that out using the last document in the page. MultiCloudJ abstracts this complexity and provides a uniform pagination API that works consistently across all providers.
+6. **Reliability**: Robust error handling and retry mechanisms ensure reliable operation.
 
 ## Contributing to Design
 

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<checkstyle version="10.25.1">
-<file name="/Users/sandeeppal/src/opensource/multicloudj/multicloudj-common-ali/src/main/java/com/salesforce/multicloudj/common/ali/AliConstants.java">
-<error line="3" column="1" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocTypeCheck"/>
-<error line="5" column="5" severity="warning" message="&apos;ctor def modifier&apos; has incorrect indentation level 4, expected level should be 2." source="com.puppycrawl.tools.checkstyle.checks.indentation.IndentationCheck"/>
-<error line="7" column="5" severity="warning" message="&apos;member def modifier&apos; has incorrect indentation level 4, expected level should be 2." source="com.puppycrawl.tools.checkstyle.checks.indentation.IndentationCheck"/>
-</file>
-</checkstyle>
