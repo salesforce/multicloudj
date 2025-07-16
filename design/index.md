@@ -22,13 +22,15 @@ MultiCloudJ is built on several key principles:
 2. **Extensibility**: New cloud providers can be added without modifying existing code.
 3. **Flexibility**: Easily override the default implementations and inject your own custom implementation in the env.
 4. **Simplicity**: The API is designed to be intuitive and easy to use.
-5. **Uniform Semantics**: SDK provides the uniform semantics to the end user irrespective of the cloud provider.
+5. **Uniform Semantics***: SDK provides the uniform semantics to the end user irrespective of the cloud provider.
 
    **Examples:**
    
    - **Object Deletion**: AWS S3 returns HTTP 200 when deleting a non-existent object, while Google Cloud Storage returns HTTP 404. MultiCloudJ provides consistent semantics, returning either 200 (success) or 400 (error) regardless of the underlying provider.
    
    - **Pagination**: DynamoDB paginated queries return `LastEvaluatedKey` for continuation, while Google Cloud Firestore doesn't provide this field and let the user figure that out using the last document in the page. MultiCloudJ abstracts this complexity and provides a uniform pagination API that works consistently across all providers.
+
+   **Note**: While MultiCloudJ strives for uniform semantics, certain provider-specific server side features may not be available across all substrates. For example, `global transactions` are supported in Google Cloud Firestore, Azure Cosmos and AWS DynamoDB but not in Alibaba Cloud TableStore. In such cases, the SDK will throw appropriate exceptions when unsupported features are attempted on providers that don't support them. However, these advanced features are rarely required for majority of the use cases.
 6. **Reliability**: Robust error handling and retry mechanisms ensure reliable operation.
 
 ## Contributing to Design
