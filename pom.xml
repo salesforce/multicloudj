@@ -191,17 +191,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.11.2</version>
-                    <configuration>
-                        <links>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                        </links>
-                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -330,17 +319,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <links>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                    </links>
-                </configuration>
             </plugin>
             
             <!-- Maven Flatten Plugin to resolve ${revision} property -->
@@ -448,17 +426,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.11.2</version>
-                <configuration>
-                    <links>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                    </links>
-                </configuration>
             </plugin>
         </plugins>
     </reporting>
