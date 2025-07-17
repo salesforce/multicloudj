@@ -31,14 +31,15 @@ public class GcpStsIT extends AbstractStsIT {
             IamCredentialsSettings.Builder settingsBuilder = IamCredentialsSettings.newBuilder()
                     .setTransportChannelProvider(channelProvider);
             try {
-                client = IamCredentialsClient.create(settingsBuilder.build());
                 if (isRecordingEnabled) {
                     // Live recording path – rely on real ADC
+                    client = IamCredentialsClient.create(settingsBuilder.build());
                     return new GcpSts().builder().build(client);
                 } else {
                     // Replay path - inject mock credentials
                     GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
                     settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
+                    client = IamCredentialsClient.create(settingsBuilder.build());
                     return new GcpSts().builder().build(client, mockCreds);
                 }
             } catch (IOException e) {
