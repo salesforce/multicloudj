@@ -33,9 +33,11 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -167,6 +169,7 @@ public class AliTransformer {
                 .objectSize(objectSize)
                 .metadata(rawMetadata)
                 .lastModified(metadata.getLastModified().toInstant())
+                .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
                 .build();
     }
 
@@ -243,5 +246,27 @@ public class AliTransformer {
         presignedUrlRequest.setExpiration(expirationDate);
         presignedUrlRequest.setMethod(HttpMethod.GET);
         return presignedUrlRequest;
+    }
+
+    public com.aliyun.oss.model.ListObjectsRequest toListObjectsRequest(ListBlobsPageRequest request) {
+        com.aliyun.oss.model.ListObjectsRequest listRequest = new com.aliyun.oss.model.ListObjectsRequest(bucket);
+        
+        if (request.getPrefix() != null) {
+            listRequest.setPrefix(request.getPrefix());
+        }
+        
+        if (request.getDelimiter() != null) {
+            listRequest.setDelimiter(request.getDelimiter());
+        }
+        
+        if (request.getPaginationToken() != null) {
+            listRequest.setMarker(request.getPaginationToken());
+        }
+        
+        if (request.getMaxResults() != null) {
+            listRequest.setMaxKeys(request.getMaxResults());
+        }
+        
+        return listRequest;
     }
 }

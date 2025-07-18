@@ -8,6 +8,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -94,9 +96,11 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -478,7 +482,7 @@ public class AwsBlobStoreTest {
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
         HeadObjectResponse mockResponse = mock(HeadObjectResponse.class);
         when(mockResponse.versionId()).thenReturn("v1");
-        when(mockResponse.eTag()).thenReturn("etag");
+        when(mockResponse.eTag()).thenReturn("\"5d41402abc4b2a76b9719d911017c592\"");
         when(mockResponse.contentLength()).thenReturn(1024L);
         when(mockResponse.metadata()).thenReturn(metadataMap);
         when(mockResponse.lastModified()).thenReturn(now);
@@ -493,10 +497,38 @@ public class AwsBlobStoreTest {
         assertEquals("bucket-1", actualHeadObjectRequest.bucket());
         assertEquals("object-1", metadata.getKey());
         assertEquals("v1", metadata.getVersionId());
-        assertEquals("etag", metadata.getETag());
+        assertEquals("\"5d41402abc4b2a76b9719d911017c592\"", metadata.getETag());
         assertEquals(1024L, metadata.getObjectSize());
         assertEquals(metadataMap, metadata.getMetadata());
         assertEquals(now, metadata.getLastModified());
+        byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
+        assertArrayEquals(expectedMd5, metadata.getMd5());
+    }
+
+    @Test
+    void testBadETag() {
+        HeadObjectResponse mockResponse = mock(HeadObjectResponse.class);
+        when(mockS3Client.headObject((HeadObjectRequest) any())).thenReturn(mockResponse);
+
+        // eTag is null
+        when(mockResponse.eTag()).thenReturn(null);
+        BlobMetadata metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag's length < 2
+        when(mockResponse.eTag()).thenReturn("b");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag does not begin with double-quote
+        when(mockResponse.eTag()).thenReturn("5d41402abc4b2a76b9719d911017c592\"");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag does not end with double-quote
+        when(mockResponse.eTag()).thenReturn("\"5d41402abc4b2a76b9719d911017c592");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
     }
 
     @Test
@@ -536,6 +568,64 @@ public class AwsBlobStoreTest {
                 .mapToObj(this::mockObject)
                 .collect(Collectors.toList());
         when(mockResponse.contents()).thenReturn(list);
+    }
+
+    @Test
+    void testDoListPage() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withPrefix("abc")
+                .withDelimiter("/")
+                .withPaginationToken("next-token")
+                .withMaxResults(50)
+                .build();
+        
+        ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+        when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+        populateList(mockResponse);
+        when(mockResponse.isTruncated()).thenReturn(true);
+        when(mockResponse.nextContinuationToken()).thenReturn("next-page-token");
+
+        ListBlobsPageResponse response = aws.listPage(request);
+
+        // Verify the request is mapped to the SDK
+        ArgumentCaptor<ListObjectsV2Request> requestCaptor = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+        verify(mockS3Client, times(1)).listObjectsV2(requestCaptor.capture());
+        ListObjectsV2Request actualRequest = requestCaptor.getValue();
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals("abc", actualRequest.prefix());
+        assertEquals("/", actualRequest.delimiter());
+        assertEquals("next-token", actualRequest.continuationToken());
+        assertEquals(50, actualRequest.maxKeys());
+
+        // Verify the response is mapped back properly
+        assertNotNull(response);
+        assertEquals(99, response.getBlobs().size()); // 1 to 99
+        assertEquals(true, response.isTruncated());
+        assertEquals("next-page-token", response.getNextPageToken());
+        
+        // Verify first and last blob
+        assertEquals("key-1", response.getBlobs().get(0).getKey());
+        assertEquals(1, response.getBlobs().get(0).getObjectSize());
+        assertEquals("key-99", response.getBlobs().get(98).getKey());
+        assertEquals(99, response.getBlobs().get(98).getObjectSize());
+    }
+
+    @Test
+    void testDoListPageEmpty() {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
+        ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+        when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+        when(mockResponse.contents()).thenReturn(List.of());
+        when(mockResponse.isTruncated()).thenReturn(false);
+        when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+        ListBlobsPageResponse response = aws.listPage(request);
+
+        assertNotNull(response);
+        assertEquals(0, response.getBlobs().size());
+        assertFalse(response.isTruncated());
+        assertNull(response.getNextPageToken());
     }
 
     @Test

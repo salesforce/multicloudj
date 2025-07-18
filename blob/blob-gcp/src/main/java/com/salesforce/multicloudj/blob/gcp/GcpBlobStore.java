@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.client.http.apache.v2.ApacheHttpTransport;
+import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
@@ -24,6 +25,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -33,6 +36,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -94,11 +98,14 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest));
              var channel = Channels.newOutputStream(writer)) {
             ByteStreams.copy(inputStream, channel);
-            Blob blob = storage.get(getBucket(), uploadRequest.getKey());
-            return transformer.toUploadResponse(blob);
         } catch (IOException e) {
             throw new SubstrateSdkException("Request failed while uploading from input stream", e);
         }
+        Blob blob = storage.get(getBucket(), uploadRequest.getKey());
+        if(blob == null) {
+            throw new SubstrateSdkException("Could not locate newly uploaded blob");
+        }
+        return transformer.toUploadResponse(blob);
     }
 
     @Override
@@ -128,15 +135,19 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         try (ReadChannel reader = storage.reader(blobId);
              var channel = Channels.newInputStream(reader)) {
 
-            if(downloadRequest.getStart() != null) {
-                reader.seek(downloadRequest.getStart());
+            Blob blob = storage.get(blobId);
+            if(blob == null) {
+                throw new SubstrateSdkException("Blob not found");
             }
-            if(downloadRequest.getEnd() != null) {
-                reader.limit(downloadRequest.getEnd());
+            var range = transformer.computeRange(downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+            if(range.getLeft() != null) {
+                reader.seek(range.getLeft());
+            }
+            if(range.getRight() != null) {
+                reader.limit(range.getRight());
             }
 
             ByteStreams.copy(channel, outputStream);
-            Blob blob = storage.get(blobId);
             return transformer.toDownloadResponse(blob);
         } catch (IOException e) {
             throw new SubstrateSdkException("Request failed during download", e);
@@ -195,6 +206,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     @Override
     protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
         List<Storage.BlobListOption> listOptions = new ArrayList<>();
+        listOptions.add(Storage.BlobListOption.includeFolders(false));
         if(request.getPrefix() != null) {
             listOptions.add(Storage.BlobListOption.prefix(request.getPrefix()));
         }
@@ -221,6 +233,31 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                         .build();
             }
         };
+    }
+
+    /**
+     * Lists a single page of objects in the bucket with pagination support
+     *
+     * @param request The list request containing filters and optional pagination token
+     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
+     */
+    @Override
+    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+        // Use the Page API to get proper pagination support
+        Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
+
+        List<BlobInfo> blobs = page.streamAll()
+                .map(blob -> BlobInfo.builder()
+                        .withKey(blob.getName())
+                        .withObjectSize(blob.getSize())
+                        .build())
+                .collect(Collectors.toList());
+
+        return new ListBlobsPageResponse(
+                blobs,
+                page.hasNextPage(),
+                page.getNextPageToken()
+        );
     }
 
     @Override
@@ -292,6 +329,8 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
             return CommonErrorCodeMapping.getException(statusCode.getCode());
         } else if (t instanceof StorageException) {
             return CommonErrorCodeMapping.getException(((StorageException) t).getCode());
+        } else if(t instanceof IllegalArgumentException) {
+            return InvalidArgumentException.class;
         }
         return UnknownException.class;
     }

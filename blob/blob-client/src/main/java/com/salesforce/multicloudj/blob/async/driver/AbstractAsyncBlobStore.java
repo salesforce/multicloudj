@@ -6,9 +6,15 @@ import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -180,6 +186,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
      * {@inheritDoc}
      */
     @Override
+    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
+        return doListPage(request);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public CompletableFuture<MultipartUpload> initiateMultipartUpload(MultipartUploadRequest request) {
         return doInitiateMultipartUpload(request);
     }
@@ -257,6 +271,22 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         return doDoesObjectExist(key, versionId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
+        return doDownloadDirectory(directoryDownloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return doUploadDirectory(directoryUploadRequest);
+    }
+
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, byte[] content);
@@ -283,6 +313,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
 
     protected abstract CompletableFuture<Void> doList(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer);
 
+    protected abstract CompletableFuture<ListBlobsPageResponse> doListPage(ListBlobsPageRequest request);
+
     protected abstract CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request);
 
     protected abstract CompletableFuture<UploadPartResponse> doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp);
@@ -300,4 +332,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
 
     protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
+
+    protected abstract CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    protected abstract CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest);
 }

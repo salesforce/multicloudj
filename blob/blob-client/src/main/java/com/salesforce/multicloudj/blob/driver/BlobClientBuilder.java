@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Helper class for combining the configuration inputs for BlobClient or AsyncBlobClient instances.
@@ -112,6 +113,16 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
      */
     public BlobClientBuilder<C, S> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
         this.storeBuilder.withCredentialsOverrider(credentialsOverrider);
+        return this;
+    }
+
+    /**
+     * Method to supply a custom ExecutorService for async operations.
+     * @param executorService The ExecutorService to use
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withExecutorService(ExecutorService executorService) {
+        this.storeBuilder.withExecutorService(executorService);
         return this;
     }
 

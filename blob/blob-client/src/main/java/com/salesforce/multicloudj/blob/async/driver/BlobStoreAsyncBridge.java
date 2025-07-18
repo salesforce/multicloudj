@@ -7,9 +7,15 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -160,6 +166,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     }
 
     @Override
+    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
+        return CompletableFuture.supplyAsync(() -> blobStore.listPage(request), executorService);
+    }
+
+    @Override
     public CompletableFuture<MultipartUpload> initiateMultipartUpload(MultipartUploadRequest request) {
         return CompletableFuture.supplyAsync(() -> blobStore.initiateMultipartUpload(request), executorService);
     }
@@ -207,5 +218,15 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return blobStore.getException(t);
+    }
+
+    @Override
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
+        throw new UnsupportedOperationException("Feature not implemented");
+    }
+
+    @Override
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        throw new UnsupportedOperationException("Feature not implemented");
     }
 } 

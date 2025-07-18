@@ -5,9 +5,15 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -159,6 +165,14 @@ public interface AsyncBlobStore extends SdkService {
     CompletableFuture<Void> list(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer);
 
     /**
+     * Retrieves a single page of blobs from the bucket with pagination support
+     *
+     * @param request The pagination request containing filters, pagination token, and max results
+     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
+     */
+    CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request);
+
+    /**
      * Initiates a multipartUpload for a Blob
      *
      * @param request Contains information about the blob to upload
@@ -223,4 +237,19 @@ public interface AsyncBlobStore extends SdkService {
      * @return Returns true if the object exists. Returns false if it doesn't exist.
      */
     CompletableFuture<Boolean> doesObjectExist(String key, String versionId);
+
+    /**
+     * Downloads the directory content from substrate-specific Blob storage.
+     *
+     * @param directoryDownloadRequest directoryDownloadRequest Wrapper, containing directory download data
+     * @return Returns a DirectoryDownloadResponse object that contains metadata about the blob
+     */
+    CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    /**
+     * Passes the call to substrate-specific directory upload method
+     *
+     * @param directoryUploadRequest Wrapper, containing directory upload data
+     */
+    CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest);
 }

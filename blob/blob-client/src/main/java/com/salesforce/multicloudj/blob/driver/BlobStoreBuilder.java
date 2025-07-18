@@ -8,6 +8,7 @@ import lombok.Getter;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 @Getter
 public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvider.Builder<T> {
@@ -21,6 +22,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private Duration socketTimeout;
     private Duration idleConnectionTimeout;
     private CredentialsOverrider credentialsOverrider;
+    private ExecutorService executorService;
     private Properties properties = new Properties();
     private BlobStoreValidator validator = new BlobStoreValidator();
 
@@ -113,6 +115,16 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
      */
     public BlobStoreBuilder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
         this.credentialsOverrider = credentialsOverrider;
+        return this;
+    }
+
+    /**
+     * Method to supply a custom ExecutorService for async operations.
+     * @param executorService The ExecutorService to use
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
         return this;
     }
 

@@ -7,8 +7,13 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
@@ -44,6 +49,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PROVIDER_ID;
@@ -102,6 +108,7 @@ public class AsyncBucketClientTest {
                 .withSocketTimeout(Duration.ofSeconds(60))
                 .withIdleConnectionTimeout(Duration.ofMinutes(10))
                 .withProperties(properties)
+                .withExecutorService(ForkJoinPool.commonPool())
                 .build();
     }
 
@@ -534,5 +541,40 @@ public class AsyncBucketClientTest {
         CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).doesObjectExist(any(), any());
         assertFailed(client.doesObjectExist("object-1", "version-1"), UnAuthorizedException.class);
+    }
+
+    @Test
+    void testDownloadDirectory() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        DirectoryDownloadResponse expectedResponse = mock(DirectoryDownloadResponse.class);
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(future(expectedResponse));
+        DirectoryDownloadResponse actualResponse = client.downloadDirectory(request).get();
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+        assertEquals(expectedResponse, actualResponse);
+    }
+
+    @Test
+    void testUploadDirectory() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        FailedBlobUpload response1 = mock(FailedBlobUpload.class);
+        FailedBlobUpload response2 = mock(FailedBlobUpload.class);
+        DirectoryUploadResponse expectedResponse = DirectoryUploadResponse.builder()
+                .failedTransfers(List.of(response1, response2))
+                .build();
+
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(future(expectedResponse));
+        DirectoryUploadResponse actualResponse = client.uploadDirectory(request).get();
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+        assertEquals(expectedResponse, actualResponse);
     }
 }

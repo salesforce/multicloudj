@@ -39,9 +39,22 @@ public class DownloadRequest {
         }
 
         /**
-         * Specifies the versionId of the blob to download. This field is optional and only used if your bucket
-         * has versioning enabled. This value should be null unless you're targeting a specific key/version blob.
-         * If this value is set to null for a versioned bucket, it'll download the latest version of the blob.
+         * (Optional) Specifies the versionId of the blob to download.
+         *
+         * <p>For buckets without versioning enabled:</p>
+         * <ul>
+         *     <li>This field has no purpose for non-versioned buckets. Leave it null</li>
+         *     <li>Note: Some substrates do return a value for this field, and it can be used in requests,
+         *         but it doesn't do anything</li>
+         * </ul>
+         *
+         * <p>For buckets with versioning enabled:</p>
+         * <ul>
+         *     <li>This field is optional</li>
+         *     <li>If you set the value to null then it will target the latest version of the blob</li>
+         *     <li>If you set the value to a specific versionId, then it will target that version of the blob</li>
+         *     <li>If you use an invalid versionId it will not be able to find your blob</li>
+         * </ul>
          */
         public Builder withVersionId(String versionId) {
             this.versionId = versionId;

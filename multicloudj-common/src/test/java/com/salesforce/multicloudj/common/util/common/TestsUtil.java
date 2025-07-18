@@ -75,6 +75,7 @@ public class TestsUtil {
                 .keystorePath("wiremock-keystore.jks")
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)
+                .gzipDisabled(true)
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{request.method}}-{{randomValue length=10}}.json")
                 .extensions(new TruncateRequestBodyTransformer())

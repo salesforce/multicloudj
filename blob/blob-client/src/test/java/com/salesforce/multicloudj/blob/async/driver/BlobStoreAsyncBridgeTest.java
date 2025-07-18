@@ -7,6 +7,8 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -492,5 +494,21 @@ class BlobStoreAsyncBridgeTest {
         assertEquals(expectedResponse, actualResponse);
         assertEquals(1, callCount.get());
         verify(mockBlobStore).upload(uploadRequest, content);
+    }
+
+    @Test
+    void doDownloadDirectory() {
+        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+        assertThrows(UnsupportedOperationException.class, () -> {
+            asyncWrapper.downloadDirectory(request);
+        });
+    }
+
+    @Test
+    void doUploadDirectory() {
+        DirectoryUploadRequest request = mock(DirectoryUploadRequest.class);
+        assertThrows(UnsupportedOperationException.class, () -> {
+            asyncWrapper.uploadDirectory(request);
+        });
     }
 } 

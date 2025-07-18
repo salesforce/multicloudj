@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Singular;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,10 +15,17 @@ import java.util.Map;
 public class BlobMetadata {
 
     private final String key;
+
+    /**
+     * The versionId of this blob. This value only serves a purpose for buckets with versioning enabled,
+     * although non-versioned buckets may still return a value for it. Non-versioned buckets should simply
+     * ignore the versionId value as it serves no purpose for them.
+     */
     private final String versionId;
     private final String eTag;
     private final long objectSize;
     @Singular("metadata")
     private final Map<String, String> metadata;
     private final Instant lastModified;
+    private final byte[] md5;
 }

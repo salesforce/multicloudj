@@ -3,9 +3,14 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -23,6 +28,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
@@ -33,9 +39,20 @@ import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.FailedFileDownload;
+import software.amazon.awssdk.transfer.s3.model.FailedFileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -44,6 +61,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -133,6 +152,24 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actual.bucket());
         assertEquals(request.getDelimiter(), actual.delimiter());
         assertEquals(request.getPrefix(), actual.prefix());
+    }
+
+    @Test
+    void testToListObjectsV2PageRequest() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withDelimiter(":")
+                .withPrefix("some/prefix/path/thingie")
+                .withPaginationToken("next-token")
+                .withMaxResults(100)
+                .build();
+
+        ListObjectsV2Request actual = transformer.toRequest(request);
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(request.getDelimiter(), actual.delimiter());
+        assertEquals(request.getPrefix(), actual.prefix());
+        assertEquals(request.getPaginationToken(), actual.continuationToken());
+        assertEquals(request.getMaxResults(), actual.maxKeys());
     }
 
     @Test
@@ -404,5 +441,128 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.getObjectRequest().bucket());
         assertEquals("object-1", actualRequest.getObjectRequest().key());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    }
+
+    @Test
+    void testGetPrefixExclusionsFilter() {
+        List<String> prefixesToExclude = List.of("files/images", "files/personal");
+        DownloadFilter downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/personal/taxes.csv").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/documents/business.doc").build()));
+
+        prefixesToExclude = List.of();
+        downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/personal/taxes.csv").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/documents/business.doc").build()));
+    }
+
+    @Test
+    void testToDownloadDirectoryRequest() {
+        String destination = "/home/documents";
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .localDestinationDirectory(destination)
+                .prefixToDownload("/files")
+                .prefixesToExclude(List.of("files/images", "files/personal"))
+                .build();
+
+        DownloadDirectoryRequest downloadDirectoryRequest = transformer.toDownloadDirectoryRequest(request);
+
+        assertEquals(BUCKET, downloadDirectoryRequest.bucket());
+        assertEquals(destination, downloadDirectoryRequest.destination().toString());
+        assertNotNull(downloadDirectoryRequest.filter());
+        assertNotNull(downloadDirectoryRequest.listObjectsRequestTransformer());
+    }
+
+    @Test
+    void testToDirectoryDownloadResponse() {
+        Exception exception1 = new RuntimeException("Exception1!");
+        Path path1 = Paths.get("/files/document1.txt");
+        DownloadFileRequest request1 = mock(DownloadFileRequest.class);
+        doReturn(path1).when(request1).destination();
+        FailedFileDownload failedDownload1 = FailedFileDownload.builder()
+                .request(request1)
+                .exception(exception1)
+                .build();
+
+        Exception exception2 = new RuntimeException("Exception2!");
+        Path path2 = Paths.get("/files/document2.txt");
+        DownloadFileRequest request2 = mock(DownloadFileRequest.class);
+        doReturn(path2).when(request2).destination();
+        FailedFileDownload failedDownload2 = FailedFileDownload.builder()
+                .request(request2)
+                .exception(exception2)
+                .build();
+        List<FailedFileDownload> failedTransfers = List.of(failedDownload1, failedDownload2);
+        CompletedDirectoryDownload completedDirectoryDownload = mock(CompletedDirectoryDownload.class);
+        doReturn(failedTransfers).when(completedDirectoryDownload).failedTransfers();
+
+        DirectoryDownloadResponse response = transformer.toDirectoryDownloadResponse(completedDirectoryDownload);
+
+        assertEquals(2, response.getFailedTransfers().size());
+        assertEquals(path1, response.getFailedTransfers().get(0).getDestination());
+        assertEquals(exception1, response.getFailedTransfers().get(0).getException());
+        assertEquals(path2, response.getFailedTransfers().get(1).getDestination());
+        assertEquals(exception2, response.getFailedTransfers().get(1).getException());
+    }
+
+    @Test
+    void testToUploadDirectoryRequest() {
+        DirectoryUploadRequest directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(true)
+                .build();
+        UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        assertEquals(BUCKET, request.bucket());
+        assertTrue(request.maxDepth().isPresent());
+        assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
+        assertTrue(request.s3Prefix().isPresent());
+        assertEquals("/files", request.s3Prefix().get());
+        assertEquals("/home/documents", request.source().toString());
+
+
+        directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(false)
+                .build();
+        request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        assertTrue(request.maxDepth().isPresent());
+    }
+
+    @Test
+    void testToDirectoryUploadResponse() {
+        Exception exception1 = new RuntimeException("Exception1!");
+        Path path1 = Paths.get("/home/documents/files/document1.txt");
+        UploadFileRequest request1 = mock(UploadFileRequest.class);
+        doReturn(path1).when(request1).source();
+        FailedFileUpload failedUpload1 = FailedFileUpload.builder()
+                .request(request1)
+                .exception(exception1)
+                .build();
+
+        Exception exception2 = new RuntimeException("Exception2!");
+        Path path2 = Paths.get("/home/documents/files/document2.txt");
+        UploadFileRequest request2 = mock(UploadFileRequest.class);
+        doReturn(path2).when(request2).source();
+        FailedFileUpload failedUpload2 = FailedFileUpload.builder()
+                .request(request2)
+                .exception(exception2)
+                .build();
+        List<FailedFileUpload> failedTransfers = List.of(failedUpload1, failedUpload2);
+        CompletedDirectoryUpload completedDirectoryUpload = mock(CompletedDirectoryUpload.class);
+        doReturn(failedTransfers).when(completedDirectoryUpload).failedTransfers();
+
+        DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completedDirectoryUpload);
+
+        assertEquals(2, response.getFailedTransfers().size());
+        assertEquals(path1, response.getFailedTransfers().get(0).getSource());
+        assertEquals(exception1, response.getFailedTransfers().get(0).getException());
+        assertEquals(path2, response.getFailedTransfers().get(1).getSource());
+        assertEquals(exception2, response.getFailedTransfers().get(1).getException());
     }
 }

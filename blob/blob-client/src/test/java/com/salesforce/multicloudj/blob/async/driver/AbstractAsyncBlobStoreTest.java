@@ -4,6 +4,8 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -380,5 +382,41 @@ public class AbstractAsyncBlobStoreTest {
         mockBlobStore.doesObjectExist("object-1", "version-1");
         verify(validator, times(1)).validateKey(any());
         verify(mockBlobStore, times(1)).doDoesObjectExist("object-1", "version-1");
+    }
+
+    @Test
+    void testDoUploadDirectory() {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("prefix-1")
+                .includeSubFolders(true)
+                .build();
+        mockBlobStore.uploadDirectory(request);
+
+        ArgumentCaptor<DirectoryUploadRequest> requestCaptor = ArgumentCaptor.forClass(DirectoryUploadRequest.class);
+        verify(mockBlobStore, times(1)).doUploadDirectory(requestCaptor.capture());
+        DirectoryUploadRequest actualUploadRequest = requestCaptor.getValue();
+
+        assertEquals("/home/files", actualUploadRequest.getLocalSourceDirectory());
+        assertEquals("prefix-1", actualUploadRequest.getPrefix());
+        assertEquals(true, actualUploadRequest.isIncludeSubFolders());
+    }
+
+    @Test
+    void testDoDownloadDirectory() {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+        mockBlobStore.downloadDirectory(request);
+
+        ArgumentCaptor<DirectoryDownloadRequest> requestCaptor = ArgumentCaptor.forClass(DirectoryDownloadRequest.class);
+        verify(mockBlobStore, times(1)).doDownloadDirectory(requestCaptor.capture());
+        DirectoryDownloadRequest actualUploadRequest = requestCaptor.getValue();
+
+        assertEquals("prefix-1", actualUploadRequest.getPrefixToDownload());
+        assertEquals("/home/files", actualUploadRequest.getLocalDestinationDirectory());
+        assertEquals(List.of("abc", "xyz"), actualUploadRequest.getPrefixesToExclude());
     }
 }

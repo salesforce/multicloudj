@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -78,6 +79,7 @@ public class AbstractBlobStoreTest {
                 .withBucket("bucket-1")
                 .withRegion("us-west-2")
                 .withCredentialsOverrider(credsOverrider)
+                .withExecutorService(ForkJoinPool.commonPool())
                 .build();
 
         assertEquals("bucket-1", blobStore.bucket);
