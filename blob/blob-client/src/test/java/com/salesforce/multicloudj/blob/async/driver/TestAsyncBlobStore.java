@@ -6,9 +6,15 @@ import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -114,6 +120,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     }
 
     @Override
+    protected CompletableFuture<ListBlobsPageResponse> doListPage(ListBlobsPageRequest request) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request) {
         return null;
     }
@@ -161,6 +172,16 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return SubstrateSdkException.class;
+    }
+
+    @Override
+    protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return CompletableFuture.completedFuture(null);
     }
 
     public static Builder builder() {

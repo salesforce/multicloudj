@@ -9,6 +9,8 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -277,6 +279,23 @@ public class BucketClient {
     public Iterator<BlobInfo> list(ListBlobsRequest request) {
         try {
             return blobStore.list(request);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Retrieves a single page of blobs from the bucket with pagination support
+     *
+     * @param request The pagination request containing filters, pagination token, and max results
+     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public ListBlobsPageResponse listPage(ListBlobsPageRequest request) {
+        try {
+            return blobStore.listPage(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);

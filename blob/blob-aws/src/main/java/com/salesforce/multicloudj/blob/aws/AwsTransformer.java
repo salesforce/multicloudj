@@ -4,9 +4,16 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -14,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.util.HexUtil;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
@@ -41,8 +49,14 @@ import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -91,6 +105,24 @@ public class AwsTransformer {
                 .delimiter(request.getDelimiter())
                 .prefix(request.getPrefix())
                 .build();
+    }
+
+    public ListObjectsV2Request toRequest(ListBlobsPageRequest request) {
+        ListObjectsV2Request.Builder builder = ListObjectsV2Request
+                .builder()
+                .bucket(getBucket())
+                .delimiter(request.getDelimiter())
+                .prefix(request.getPrefix());
+
+        if (request.getMaxResults() != null) {
+            builder.maxKeys(request.getMaxResults());
+        }
+
+        if (request.getPaginationToken() != null) {
+            builder.continuationToken(request.getPaginationToken());
+        }
+
+        return builder.build();
     }
 
     public AsyncRequestBody toAsyncRequestBody(UploadRequest uploadRequest, InputStream inputStream) {
@@ -195,16 +227,30 @@ public class AwsTransformer {
     public BlobMetadata toMetadata(HeadObjectResponse response, String key) {
         Long objectSize = response.contentLength();
         Map<String, String> metadata = response.metadata();
-
+        String eTag = response.eTag();
         return BlobMetadata
                 .builder()
                 .key(key)
                 .versionId(response.versionId())
-                .eTag(response.eTag())
+                .eTag(eTag)
                 .objectSize(objectSize)
                 .metadata(metadata)
                 .lastModified(response.lastModified())
+                .md5(eTagToMD5(eTag))
                 .build();
+    }
+
+    byte[] eTagToMD5(String eTag) {
+        if (eTag == null) {
+            return new byte[0];
+        }
+
+        if (eTag.length() < 2 || eTag.charAt(0) != '"' || eTag.charAt(eTag.length() - 1) != '"') {
+            return new byte[0];
+        }
+
+        String unquoted = eTag.substring(1, eTag.length() - 1);
+        return HexUtil.convertToBytes(unquoted);
     }
 
     public CreateMultipartUploadRequest toCreateMultipartUploadRequest(MultipartUploadRequest request) {
@@ -302,6 +348,68 @@ public class AwsTransformer {
         return GetObjectPresignRequest.builder()
                 .signatureDuration(request.getDuration())
                 .getObjectRequest(getObjectRequest)
+                .build();
+    }
+
+    public DownloadDirectoryRequest toDownloadDirectoryRequest(DirectoryDownloadRequest request) {
+        var downloadDirectoryRequestBuilder = DownloadDirectoryRequest.builder()
+                .bucket(getBucket())
+                .destination(Paths.get(request.getLocalDestinationDirectory()));
+
+        // Download every blob that starts with this prefix
+        if(request.getPrefixToDownload() != null && !request.getPrefixToDownload().isEmpty()) {
+            downloadDirectoryRequestBuilder.listObjectsV2RequestTransformer(builder -> builder.prefix(request.getPrefixToDownload()));
+        }
+
+        // If we have prefixes to exclude from the download, then add in a filter here
+        if(request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty()) {
+            downloadDirectoryRequestBuilder.filter(getPrefixExclusionsFilter(request.getPrefixesToExclude()));
+        }
+        return downloadDirectoryRequestBuilder.build();
+    }
+
+    // Return false if we want to exclude this blob from the download
+    protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
+        return s3Object -> {
+            for(String prefixToExclude : prefixesToExclude) {
+                if(s3Object.key().startsWith(prefixToExclude)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    }
+
+    public DirectoryDownloadResponse toDirectoryDownloadResponse(CompletedDirectoryDownload completedDirectoryDownload) {
+        return DirectoryDownloadResponse.builder()
+                .failedTransfers(completedDirectoryDownload.failedTransfers()
+                        .stream()
+                        .map(item -> FailedBlobDownload.builder()
+                                .destination(item.request().destination())
+                                .exception(item.exception())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
+        return UploadDirectoryRequest.builder()
+                .bucket(getBucket())
+                .source(Paths.get(request.getLocalSourceDirectory()))
+                .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+                .s3Prefix(request.getPrefix())
+                .build();
+    }
+
+    public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
+        return DirectoryUploadResponse.builder()
+                .failedTransfers(completedDirectoryUpload.failedTransfers()
+                        .stream()
+                        .map(item -> FailedBlobUpload.builder()
+                                .source(item.request().source())
+                                .exception(item.exception())
+                                .build())
+                        .collect(Collectors.toList()))
                 .build();
     }
 }

@@ -12,9 +12,15 @@ import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -50,6 +56,7 @@ import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,6 +79,7 @@ import java.util.stream.Collectors;
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
 
     private final S3AsyncClient client;
+    private final S3TransferManager transferManager;
     private final AwsTransformer transformer;
 
     public AwsAsyncBlobStore(
@@ -80,9 +88,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             CredentialsOverrider credentialsOverrider,
             BlobStoreValidator validator,
             S3AsyncClient client,
+            S3TransferManager transferManager,
             AwsTransformerSupplier transformerSupplier) {
         super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
         this.client = client;
+        this.transferManager = transferManager;
         this.transformer = transformerSupplier.get(bucket);
     }
 
@@ -206,6 +216,23 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     }
 
     @Override
+    protected CompletableFuture<ListBlobsPageResponse> doListPage(ListBlobsPageRequest request) {
+        ListObjectsV2Request awsRequest = transformer.toRequest(request);
+        return client.listObjectsV2(awsRequest)
+                .thenApply(response -> {
+                    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = response.contents().stream()
+                            .map(transformer::toInfo)
+                            .collect(Collectors.toList());
+
+                    return new ListBlobsPageResponse(
+                            blobs,
+                            response.isTruncated(),
+                            response.nextContinuationToken()
+                    );
+                });
+    }
+
+    @Override
     protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request) {
         return client.createMultipartUpload(transformer.toCreateMultipartUploadRequest(request))
                 .thenApply(response -> new MultipartUpload(
@@ -281,6 +308,20 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         });
     }
 
+    @Override
+    protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        return transferManager.downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest))
+                .completionFuture()
+                .thenApply(transformer::toDirectoryDownloadResponse);
+    }
+
+    @Override
+    protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return transferManager.uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
+                .completionFuture()
+                .thenApply(transformer::toDirectoryUploadResponse);
+    }
+
     /**
      * Returns an S3Presigner for the current credentials
      * @return Returns an S3Presigner for the current credentials
@@ -318,6 +359,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     public static class Builder extends AsyncBlobStoreProvider.Builder {
 
         private S3AsyncClient s3Client;
+        private S3TransferManager transferManager;
         private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
         public Builder() {
@@ -365,6 +407,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             return this;
         }
 
+        public Builder withTransferManager(S3TransferManager transferManager) {
+            this.transferManager = transferManager;
+            return this;
+        }
+
         public Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
             return this;
@@ -372,8 +419,18 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
         @Override
         public AsyncBlobStore build() {
-            if (s3Client == null) {
-                s3Client = buildS3Client(this);
+            S3AsyncClient client = getS3Client();
+            if (client == null) {
+                client = buildS3Client(this);
+            }
+            S3TransferManager transferManager = getTransferManager();
+            if (transferManager == null) {
+                var transferManagerBuilder = S3TransferManager.builder()
+                        .s3Client(client);
+                if(getExecutorService() != null)  {
+                    transferManagerBuilder.executor(getExecutorService());
+                }
+                transferManager = transferManagerBuilder.build();
             }
 
             return new AwsAsyncBlobStore(
@@ -381,7 +438,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     getRegion(),
                     getCredentialsOverrider(),
                     getValidator(),
-                    getS3Client(),
+                    client,
+                    transferManager,
                     getTransformerSupplier()
             );
         }

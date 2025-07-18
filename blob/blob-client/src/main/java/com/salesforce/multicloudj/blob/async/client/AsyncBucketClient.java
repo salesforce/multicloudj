@@ -8,9 +8,15 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -36,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
@@ -244,6 +251,19 @@ public class AsyncBucketClient {
     }
 
     /**
+     * Retrieves a single page of blobs from the bucket with pagination support
+     *
+     * @param request The pagination request containing filters, pagination token, and max results
+     * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
+        return blobStore
+                .listPage(request)
+                .exceptionally(this::handleException);
+    }
+
+    /**
      * Initiates a multipartUpload for a Blob
      *
      * @param request Contains information about the blob to upload
@@ -354,6 +374,35 @@ public class AsyncBucketClient {
                 .exceptionally(this::handleException);
     }
 
+    /**
+     * Uploads the directory content to substrate-specific Blob storage
+     * Note: Specifying the contentLength in the UploadRequest can dramatically improve upload efficiency
+     * because the substrate SDKs do not need to buffer the contents and calculate it themselves.
+     *
+     * @param directoryUploadRequest Wrapper, containing directory upload data
+     * @return Returns an DirectoryUploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return blobStore
+                .uploadDirectory(directoryUploadRequest)
+                .exceptionally(this::handleException);
+    }
+
+    /**
+     * Downloads the directory content from substrate-specific Blob storage.
+     * Throws an exception if the file already exists in the destination directory.
+     *
+     * @param directoryDownloadRequest downloadRequest Wrapper, containing directory download data
+     * @return Returns a DirectoryDownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file already exists.
+     */
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        return blobStore
+                .downloadDirectory(directoryDownloadRequest)
+                .exceptionally(this::handleException);
+    }
+
     public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
 
         public Builder(String providerId) {
@@ -415,6 +464,12 @@ public class AsyncBucketClient {
         @Override
         public Builder withIdleConnectionTimeout(Duration idleConnectionTimeout) {
             super.withIdleConnectionTimeout(idleConnectionTimeout);
+            return this;
+        }
+
+        @Override
+        public Builder withExecutorService(ExecutorService executorService) {
+            super.withExecutorService(executorService);
             return this;
         }
 

@@ -1,8 +1,11 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import lombok.Getter;
+
 /**
  * Wrapper object for list filters
  */
+@Getter
 public class ListBlobsRequest {
 
     private final String prefix;
@@ -11,14 +14,6 @@ public class ListBlobsRequest {
     private ListBlobsRequest(Builder builder) {
         this.prefix = builder.prefix;
         this.delimiter = builder.delimiter;
-    }
-
-    public String getPrefix() {
-        return prefix;
-    }
-
-    public String getDelimiter() {
-        return delimiter;
     }
 
     public static Builder builder() {

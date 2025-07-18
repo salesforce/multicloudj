@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -34,6 +35,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -239,6 +241,7 @@ public class AliTransformerTest {
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
         doReturn(metadata).when(objectMetadata).getUserMetadata();
         doReturn(100L).when(objectMetadata).getContentLength();
+        doReturn("5d41402abc4b2a76b9719d911017c592").when(objectMetadata).getContentMD5();
 
         var actual = transformer.toBlobMetadata("key", objectMetadata);
 
@@ -248,6 +251,9 @@ public class AliTransformerTest {
         assertEquals(metadata, actual.getMetadata());
         assertEquals(date.toInstant(), actual.getLastModified());
         assertEquals(100L, actual.getObjectSize());
+
+        byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
+        assertArrayEquals(expectedMd5, actual.getMd5());
     }
 
     @Test
@@ -424,5 +430,23 @@ public class AliTransformerTest {
         assertEquals("object-1", actual.getKey());
         long diff = Date.from(Instant.now()).getTime() - actual.getExpiration().getTime() + duration.toMillis();
         assertTrue(diff < 1000L);   // The time difference is less than a second from expected
+    }
+
+    @Test
+    void testToListObjectsRequest() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withDelimiter(":")
+                .withPrefix("some/prefix/path/thingie")
+                .withPaginationToken("next-token")
+                .withMaxResults(100)
+                .build();
+
+        com.aliyun.oss.model.ListObjectsRequest actual = transformer.toListObjectsRequest(request);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(request.getDelimiter(), actual.getDelimiter());
+        assertEquals(request.getPrefix(), actual.getPrefix());
+        assertEquals(request.getPaginationToken(), actual.getMarker());
+        assertEquals(request.getMaxResults(), actual.getMaxKeys());
     }
 }

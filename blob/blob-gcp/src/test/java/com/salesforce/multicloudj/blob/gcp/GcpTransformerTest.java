@@ -12,8 +12,10 @@ import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +38,7 @@ class GcpTransformerTest {
     private static final String TEST_KEY = "test-key";
     private static final String TEST_VERSION_ID = "12345";
     private static final String TEST_ETAG = "test-etag";
+    private static final String TEST_DEST_BUCKET = "test-dest-bucket";
     private static final Long TEST_GENERATION = 12345L;
     private static final Long TEST_SIZE = 1024L;
 
@@ -227,6 +230,29 @@ class GcpTransformerTest {
     }
 
     @Test
+    void testComputeRange() {
+        Pair<Long, Long> result = transformer.computeRange(null, null, 2000L);
+        assertNull(result.getLeft());
+        assertNull(result.getRight());
+
+        result = transformer.computeRange(0L, 500L, 2000L);
+        assertEquals(result.getLeft(), 0);
+        assertEquals(result.getRight(), 501);
+
+        result = transformer.computeRange(100L, 600L, 2000L);
+        assertEquals(result.getLeft(), 100);
+        assertEquals(result.getRight(), 601);
+
+        result = transformer.computeRange(null, 500L, 2000L);
+        assertEquals(result.getLeft(), 1500);
+        assertEquals(result.getRight(), 2001);
+
+        result = transformer.computeRange(500L, null, 2000L);
+        assertEquals(result.getLeft(), 500);
+        assertNull(result.getRight());
+    }
+
+    @Test
     void testToGenerationId_WithValidVersionId() {
         // When
         Long generationId = transformer.toGenerationId(TEST_VERSION_ID);
@@ -329,6 +355,7 @@ class GcpTransformerTest {
         when(mockBlob.getSize()).thenReturn(TEST_SIZE);
         when(mockBlob.getMetadata()).thenReturn(metadata);
         when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
 
         // When
         BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
@@ -338,6 +365,9 @@ class GcpTransformerTest {
         assertEquals(TEST_VERSION_ID, blobMetadata.getVersionId());
         assertEquals(TEST_ETAG, blobMetadata.getETag());
         assertEquals(TEST_SIZE, blobMetadata.getObjectSize());
+
+        byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
+        assertArrayEquals(expectedMd5, blobMetadata.getMd5());
         
         // Only non-tag metadata should be included
         Map<String, String> expectedMetadata = new HashMap<>();
@@ -356,6 +386,7 @@ class GcpTransformerTest {
         when(mockBlob.getEtag()).thenReturn(null);
         when(mockBlob.getMetadata()).thenReturn(null);
         when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(null);
+        when(mockBlob.getMd5()).thenReturn(null);
 
         // When
         BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
@@ -366,6 +397,7 @@ class GcpTransformerTest {
         assertNull(blobMetadata.getETag());
         assertTrue(blobMetadata.getMetadata().isEmpty());
         assertNull(blobMetadata.getLastModified());
+        assertArrayEquals(new byte[0], blobMetadata.getMd5());
     }
 
     @Test
@@ -374,6 +406,7 @@ class GcpTransformerTest {
         CopyRequest copyRequest = CopyRequest.builder()
                 .srcKey("source-key")
                 .srcVersionId(TEST_VERSION_ID)
+                .destBucket(TEST_DEST_BUCKET)
                 .destKey("dest-key")
                 .build();
 
@@ -385,7 +418,7 @@ class GcpTransformerTest {
         assertEquals(TEST_BUCKET, gcpCopyRequest.getSource().getBucket());
         assertEquals("source-key", gcpCopyRequest.getSource().getName());
         assertEquals(TEST_GENERATION, gcpCopyRequest.getSource().getGeneration());
-        assertEquals(TEST_BUCKET, gcpCopyRequest.getTarget().getBucket());
+        assertEquals(TEST_DEST_BUCKET, gcpCopyRequest.getTarget().getBucket());
         assertEquals("dest-key", gcpCopyRequest.getTarget().getName());
         assertNull(gcpCopyRequest.getTarget().getGeneration());
     }
@@ -395,6 +428,7 @@ class GcpTransformerTest {
         // Given
         CopyRequest copyRequest = CopyRequest.builder()
                 .srcKey("source-key")
+                .destBucket(TEST_DEST_BUCKET)
                 .destKey("dest-key")
                 .build();
 
@@ -406,7 +440,7 @@ class GcpTransformerTest {
         assertEquals(TEST_BUCKET, gcpCopyRequest.getSource().getBucket());
         assertEquals("source-key", gcpCopyRequest.getSource().getName());
         assertNull(gcpCopyRequest.getSource().getGeneration());
-        assertEquals(TEST_BUCKET, gcpCopyRequest.getTarget().getBucket());
+        assertEquals(TEST_DEST_BUCKET, gcpCopyRequest.getTarget().getBucket());
         assertEquals("dest-key", gcpCopyRequest.getTarget().getName());
         assertNull(gcpCopyRequest.getTarget().getGeneration());
     }
@@ -478,5 +512,29 @@ class GcpTransformerTest {
             transformer.toBlobInfo(presignedUrlRequest);
         });
         assertEquals("Tags are not supported by GCP", exception.getMessage());
+    }
+
+    @Test
+    void testToBlobListOptions() {
+        ListBlobsPageRequest request = ListBlobsPageRequest
+                .builder()
+                .withDelimiter(":")
+                .withPrefix("some/prefix/path/thingie")
+                .withPaginationToken("next-token")
+                .withMaxResults(100)
+                .build();
+
+        Storage.BlobListOption[] actual = transformer.toBlobListOptions(request);
+        
+        assertEquals(4, actual.length);
+    }
+
+    @Test
+    void testToBlobListOptions_WithNullValues() {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
+
+        Storage.BlobListOption[] actual = transformer.toBlobListOptions(request);
+        
+        assertEquals(0, actual.length);
     }
 } 

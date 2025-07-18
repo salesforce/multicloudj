@@ -55,7 +55,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>4.2.3</guice.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <revision>0.2.2-SNAPSHOT</revision>
+        <revision>0.2.3-SNAPSHOT</revision>
     </properties>
     <!-- All module dependencies and versions -->
     <dependencyManagement>

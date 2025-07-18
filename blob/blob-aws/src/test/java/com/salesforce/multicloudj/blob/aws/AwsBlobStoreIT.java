@@ -12,6 +12,7 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -55,7 +56,7 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             return createBlobStore(bucketNameToUse, credentialsOverrider);
         }
 
-        private AbstractBlobStore<?> createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider){
+        private AbstractBlobStore<?> createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider) {
 
             AwsSessionCredentials awsCredentials = AwsSessionCredentials.create(
                     credentialsOverrider.getSessionCredentials().getAccessKeyId(),
