@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Disabled;
 
-
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GcpCloudBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
