@@ -37,11 +37,16 @@ import java.util.Map;
 public class GcpSts extends AbstractSts<GcpSts> {
     private final String scope = "https://www.googleapis.com/auth/cloud-platform";
     private IamCredentialsClient stsClient;
+    /**
+     * Optionally injected GoogleCredentials (used primarily for testing). If null the
+     * class falls back to {@code GoogleCredentials.getApplicationDefault()} at runtime.
+     */
+    private GoogleCredentials googleCredentials;
 
     public GcpSts(Builder builder) {
         super(builder);
         try {
-            stsClient = IamCredentialsClient.create();
+            this.stsClient = IamCredentialsClient.create();
         } catch (IOException e) {
             throw new SubstrateSdkException("Could not create IAM client ", e);
         }
@@ -50,6 +55,12 @@ public class GcpSts extends AbstractSts<GcpSts> {
     public GcpSts(Builder builder, IamCredentialsClient stsClient) {
         super(builder);
         this.stsClient = stsClient;
+    }
+
+    public GcpSts(Builder builder, IamCredentialsClient stsClient, GoogleCredentials credentials) {
+        super(builder);
+        this.stsClient = stsClient;
+        this.googleCredentials = credentials;
     }
 
     public GcpSts() {
@@ -71,7 +82,7 @@ public class GcpSts extends AbstractSts<GcpSts> {
     @Override
     protected CallerIdentity getCallerIdentityFromProvider() {
         try {
-            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+            GoogleCredentials credentials = getCredentials();
             credentials.refreshIfExpired();
             return new CallerIdentity(StringUtils.EMPTY, credentials.getAccessToken().getTokenValue(), StringUtils.EMPTY);
         } catch (IOException e) {
@@ -82,7 +93,7 @@ public class GcpSts extends AbstractSts<GcpSts> {
     @Override
     protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
         try {
-            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+            GoogleCredentials credentials = getCredentials();
             credentials.refreshIfExpired();
             return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, credentials.getAccessToken().getTokenValue());
         } catch (IOException e) {
@@ -93,6 +104,17 @@ public class GcpSts extends AbstractSts<GcpSts> {
     @Override
     public Builder builder() {
         return new Builder();
+    }
+
+    private GoogleCredentials getCredentials() {
+        if (googleCredentials != null) {
+            return googleCredentials;
+        }
+        try {
+            return GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Could not create credentials in given environment", e);
+        }
     }
 
     @Override
@@ -128,6 +150,10 @@ public class GcpSts extends AbstractSts<GcpSts> {
     public static class Builder extends AbstractSts.Builder<GcpSts> {
         protected Builder() {
             providerId(GcpConstants.PROVIDER_ID);
+        }
+
+        public GcpSts build(IamCredentialsClient stsClient, GoogleCredentials credentials) {
+            return new GcpSts(this, stsClient, credentials);
         }
 
         public GcpSts build(IamCredentialsClient stsClient) {
