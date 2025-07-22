@@ -1,13 +1,13 @@
 {
-  "id" : "9b4c8c24-7c3d-4b17-a81a-eb6ea3175913",
+  "id" : "2529d209-f28e-4951-b9ed-ff99d8b95f9f",
   "name" : "v1_projects_-_serviceaccounts_chameleonsubstrate-sdk-gcp-poc1.iam.gserviceaccount.comgenerateaccesstoken",
   "request" : {
-    "url" : "/v1/projects/-/serviceAccounts/chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com:generateAccessToken",
+    "urlPath" : "/v1/projects/-/serviceAccounts/chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com:generateAccessToken",
     "method" : "POST",
     "bodyPatterns" : [ {
       "equalToJson" : "{\"scope\":[\"https://www.googleapis.com/auth/cloud-platform\"]}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {
@@ -20,11 +20,11 @@
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Thu, 17 Jul 2025 18:47:43 GMT",
+      "Date" : "Mon, 21 Jul 2025 22:54:17 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "9b4c8c24-7c3d-4b17-a81a-eb6ea3175913",
+  "uuid" : "2529d209-f28e-4951-b9ed-ff99d8b95f9f",
   "persistent" : true,
   "insertionIndex" : 3
 }
