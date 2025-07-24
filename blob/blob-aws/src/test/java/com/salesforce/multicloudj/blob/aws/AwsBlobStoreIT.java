@@ -84,6 +84,68 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             return builder.build();
         }
 
+        private AbstractBlobStore<?> createBlobStoreParallelUpload(final String bucketName, final CredentialsOverrider credentialsOverrider) {
+
+            AwsSessionCredentials awsCredentials = AwsSessionCredentials.create(
+                    credentialsOverrider.getSessionCredentials().getAccessKeyId(),
+                    credentialsOverrider.getSessionCredentials().getAccessKeySecret(),
+                    credentialsOverrider.getSessionCredentials().getSecurityToken());
+
+            httpClient = TestsUtilAws.getProxyClient("https", port);
+            client = S3Client.builder()
+                    .region(Region.US_WEST_2)
+                    .httpClient(httpClient)
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+                    .endpointOverride(URI.create(endpoint))
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(true)
+                            .build())
+                    .build();
+
+            AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
+            builder.withS3Client(client)
+                    .withEndpoint(URI.create(endpoint))
+                    .withBucket(bucketName)
+                    .withRegion(region)
+                    .withCredentialsOverrider(credentialsOverrider)
+                    .withThresholdBytes(5 * 1024 * 1024L)           // 5MB threshold
+                    .withPartBufferSize(1024 * 1024L)               // 1MB part buffer size
+                    .withParallelUploadsEnabled(true);              // Enable parallel uploads
+
+            return builder.build();
+        }
+
+        private AbstractBlobStore<?> createBlobStoreParallelDownloads(final String bucketName, final CredentialsOverrider credentialsOverrider) {
+
+            AwsSessionCredentials awsCredentials = AwsSessionCredentials.create(
+                    credentialsOverrider.getSessionCredentials().getAccessKeyId(),
+                    credentialsOverrider.getSessionCredentials().getAccessKeySecret(),
+                    credentialsOverrider.getSessionCredentials().getSecurityToken());
+
+            httpClient = TestsUtilAws.getProxyClient("https", port);
+            client = S3Client.builder()
+                    .region(Region.US_WEST_2)
+                    .httpClient(httpClient)
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+                    .endpointOverride(URI.create(endpoint))
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(true)
+                            .build())
+                    .build();
+
+            AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
+            builder.withS3Client(client)
+                    .withEndpoint(URI.create(endpoint))
+                    .withBucket(bucketName)
+                    .withRegion(region)
+                    .withCredentialsOverrider(credentialsOverrider)
+                    .withParallelDownloadsEnabled(true)             // Enable parallel downloads (CRT client)
+                    .withTargetThroughputInGbps(10.0)               // 10 Gbps target throughput
+                    .withMaxNativeMemoryLimitInBytes(1024L * 1024L * 1024L); // 1GB memory limit
+
+            return builder.build();
+        }
+
         @Override
         public String getEndpoint() {
             return endpoint;

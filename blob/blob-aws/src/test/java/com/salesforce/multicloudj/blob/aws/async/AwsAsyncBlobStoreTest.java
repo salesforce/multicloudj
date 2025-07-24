@@ -49,6 +49,7 @@ import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransfor
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
+import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -157,12 +158,17 @@ public class AwsAsyncBlobStoreTest {
     void setup() {
         S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
         when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        S3CrtAsyncClientBuilder mockCrtBuilder = mock(S3CrtAsyncClientBuilder.class);
+        when(mockCrtBuilder.region(any())).thenReturn(mockCrtBuilder);
 
         s3Client = mockStatic(S3AsyncClient.class);
         s3Client.when(S3AsyncClient::builder).thenReturn(mockBuilder);
 
+        s3Client.when(S3AsyncClient::crtBuilder).thenReturn(mockCrtBuilder);
         mockS3Client = mock(S3AsyncClient.class);
         when(mockBuilder.build()).thenReturn(mockS3Client);
+        when(mockCrtBuilder.build()).thenReturn(mockS3Client);
+
         when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
         mockS3TransferManager = mock(S3TransferManager.class);
         StsCredentials sessionCreds = new StsCredentials("key-1", "secret-1", "token-1");
@@ -221,6 +227,88 @@ public class AwsAsyncBlobStoreTest {
                 .build();
 
         assertNotNull(store);
+    }
+
+    @Test
+    void testCrtClientConfiguration() {
+        // Test CRT client configuration with parallel downloads enabled
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withParallelDownloadsEnabled(true)             // This should trigger CRT client
+                .withTargetThroughputInGbps(20.0)               // CRT-specific
+                .withMaxNativeMemoryLimitInBytes(2L * 1024L * 1024L * 1024L) // CRT-specific
+                .withPartBufferSize(8 * 1024 * 1024L)           // Common config
+                .withThresholdBytes(10 * 1024 * 1024L)          // Common config
+                .withExecutorService(ForkJoinPool.commonPool()) // Common config
+                .withEndpoint(URI.create("https://crt-endpoint.example.com")) // Common config
+                .withProxyEndpoint(URI.create("https://crt-proxy.example.com:443")) // Common config
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
+    }
+
+    @Test
+    void testStandardClientConfiguration() {
+        // Test standard client configuration with parallel downloads disabled
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withParallelUploadsEnabled(true)               // Standard-specific
+                .withThresholdBytes(5 * 1024 * 1024L)           // Common config
+                .withPartBufferSize(1024 * 1024L)               // Common config
+                .withExecutorService(ForkJoinPool.commonPool()) // Common config
+                .withEndpoint(URI.create("https://standard-endpoint.example.com")) // Common config
+                .withProxyEndpoint(URI.create("https://standard-proxy.example.com:443")) // Common config
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
+    }
+
+    @Test
+    void testAllConfigurationOptions() {
+        // Test all configuration options together
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        ExecutorService executorService = ForkJoinPool.commonPool();
+        URI endpoint = URI.create("https://all-config-endpoint.example.com");
+        URI proxyEndpoint = URI.create("https://all-config-proxy.example.com:443");
+        Long thresholdBytes = 10 * 1024 * 1024L; // 10MB
+        Long partBufferSize = 2 * 1024 * 1024L; // 2MB
+        Double targetThroughputInGbps = 25.0;
+        Long maxNativeMemoryLimitInBytes = 2L * 1024L * 1024L * 1024L; // 2GB
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withThresholdBytes(thresholdBytes)
+                .withPartBufferSize(partBufferSize)
+                .withParallelUploadsEnabled(true)
+                .withParallelDownloadsEnabled(true)
+                .withTargetThroughputInGbps(targetThroughputInGbps)
+                .withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes)
+                .withExecutorService(executorService)
+                .withEndpoint(endpoint)
+                .withProxyEndpoint(proxyEndpoint)
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
     }
 
     @Test
