@@ -102,9 +102,6 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
             throw new SubstrateSdkException("Request failed while uploading from input stream", e);
         }
         Blob blob = storage.get(getBucket(), uploadRequest.getKey());
-        if(blob == null) {
-            throw new SubstrateSdkException("Could not locate newly uploaded blob");
-        }
         return transformer.toUploadResponse(blob);
     }
 
