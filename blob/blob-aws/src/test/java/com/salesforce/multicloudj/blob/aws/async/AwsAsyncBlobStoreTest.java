@@ -263,12 +263,12 @@ public class AwsAsyncBlobStoreTest {
         var store = builder
                 .withBucket(BUCKET)
                 .withRegion(REGION)
-                .withParallelUploadsEnabled(true)               // Standard-specific
-                .withThresholdBytes(5 * 1024 * 1024L)           // Common config
-                .withPartBufferSize(1024 * 1024L)               // Common config
-                .withExecutorService(ForkJoinPool.commonPool()) // Common config
-                .withEndpoint(URI.create("https://standard-endpoint.example.com")) // Common config
-                .withProxyEndpoint(URI.create("https://standard-proxy.example.com:443")) // Common config
+                .withParallelUploadsEnabled(true)
+                .withThresholdBytes(5 * 1024 * 1024L)
+                .withPartBufferSize(1024 * 1024L)
+                .withExecutorService(ForkJoinPool.commonPool())
+                .withEndpoint(URI.create("https://standard-endpoint.example.com"))
+                .withProxyEndpoint(URI.create("https://standard-proxy.example.com:443"))
                 .build();
 
         assertNotNull(store);
