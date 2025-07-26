@@ -585,7 +585,7 @@ public class AsyncBucketClientTest {
         AsyncBucketClient asyncBucketClient = builder
                 .withBucket("test-bucket")
                 .withRegion("us-west-1")
-                .withParallelUploadsEnabled(true)
+                .withParallelDownloadsEnabled(true)
                 .withTargetThroughputInGbps(12.12)
                 .withMaxNativeMemoryLimitInBytes(21L)
                 .build();
