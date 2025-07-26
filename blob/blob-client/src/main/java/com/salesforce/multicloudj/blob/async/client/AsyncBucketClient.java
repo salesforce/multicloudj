@@ -474,6 +474,72 @@ public class AsyncBucketClient {
         }
 
         /**
+         * Method to supply multipart threshold in bytes
+         * @param thresholdBytes The threshold in bytes above which multipart upload will be used
+         * @return An instance of self
+         */
+        @Override
+        public Builder withThresholdBytes(Long thresholdBytes) {
+            super.withThresholdBytes(thresholdBytes);
+            return this;
+        }
+
+        /**
+         * Method to supply multipart part buffer size in bytes
+         * @param partBufferSize The buffer size in bytes for each part in a multipart upload
+         * @return An instance of self
+         */
+        @Override
+        public Builder withPartBufferSize(Long partBufferSize) {
+            super.withPartBufferSize(partBufferSize);
+            return this;
+        }
+
+        /**
+         * Method to enable/disable parallel uploads
+         * @param parallelUploadsEnabled Whether to enable parallel uploads
+         * @return An instance of self
+         */
+        @Override
+        public Builder withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
+            super.withParallelUploadsEnabled(parallelUploadsEnabled);
+            return this;
+        }
+
+        /**
+         * Method to enable/disable parallel downloads
+         * @param parallelDownloadsEnabled Whether to enable parallel downloads
+         * @return An instance of self
+         */
+        @Override
+        public Builder withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
+            super.withParallelDownloadsEnabled(parallelDownloadsEnabled);
+            return this;
+        }
+
+        /**
+         * Method to set target throughput in Gbps
+         * @param targetThroughputInGbps The target throughput in Gbps
+         * @return An instance of self
+         */
+        @Override
+        public Builder withTargetThroughputInGbps(Double targetThroughputInGbps) {
+            super.withTargetThroughputInGbps(targetThroughputInGbps);
+            return this;
+        }
+
+        /**
+         * Method to set maximum native memory limit in bytes
+         * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
+         * @return An instance of self
+         */
+        @Override
+        public Builder withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
+            super.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
+            return this;
+        }
+
+        /**
          * {@inheritDoc}
          */
         @Override
