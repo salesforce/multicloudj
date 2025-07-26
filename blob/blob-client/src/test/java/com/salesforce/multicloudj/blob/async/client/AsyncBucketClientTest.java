@@ -577,4 +577,34 @@ public class AsyncBucketClientTest {
         verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
         assertEquals(expectedResponse, actualResponse);
     }
+
+    @Test
+    void testBuilderWithParallelUDownloadsEnabledConfiguration() {
+        AsyncBucketClient.Builder builder = AsyncBucketClient.builder(PROVIDER_ID);
+        
+        AsyncBucketClient asyncBucketClient = builder
+                .withBucket("test-bucket")
+                .withRegion("us-west-1")
+                .withParallelUploadsEnabled(true)
+                .withTargetThroughputInGbps(12.12)
+                .withMaxNativeMemoryLimitInBytes(21L)
+                .build();
+
+        assertInstanceOf(AsyncBucketClient.class, asyncBucketClient);
+    }
+
+    @Test
+    void testBuilderWithParallelUploadsEnabledConfiguration() {
+        AsyncBucketClient.Builder builder = AsyncBucketClient.builder(PROVIDER_ID);
+        
+        AsyncBucketClient client = builder
+                .withBucket("test-bucket")
+                .withRegion("us-west-1")
+                .withThresholdBytes(5 * 1024 * 1024L)
+                .withPartBufferSize(1024 * 1024L)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+        assertInstanceOf(AsyncBucketClient.class, client);
+    }
 }
