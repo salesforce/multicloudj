@@ -359,7 +359,11 @@ public class BucketClientTest {
 
     @Test
     void testUploadMultipartPart() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         client.uploadMultipartPart(multipartUpload, multipartPart);
         verify(mockBlobStore, times(1)).uploadMultipartPart(multipartUpload, multipartPart);
@@ -367,7 +371,11 @@ public class BucketClientTest {
 
     @Test
     void testUploadMultipartPartException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         when(mockBlobStore.uploadMultipartPart(multipartUpload, multipartPart)).thenThrow(RuntimeException.class);
 
@@ -378,7 +386,11 @@ public class BucketClientTest {
 
     @Test
     void testCompleteMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         client.completeMultipartUpload(multipartUpload, listOfParts);
         verify(mockBlobStore, times(1)).completeMultipartUpload(multipartUpload, listOfParts);
@@ -386,7 +398,11 @@ public class BucketClientTest {
 
     @Test
     void testCompleteMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         when(mockBlobStore.completeMultipartUpload(multipartUpload, listOfParts)).thenThrow(RuntimeException.class);
 
@@ -397,14 +413,22 @@ public class BucketClientTest {
 
     @Test
     void testListMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         client.listMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
     }
 
     @Test
     void testListMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         when(mockBlobStore.listMultipartUpload(multipartUpload)).thenThrow(RuntimeException.class);
 
         assertThrows(UnAuthorizedException.class, () -> {
@@ -414,14 +438,22 @@ public class BucketClientTest {
 
     @Test
     void testAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         client.abortMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
     }
 
     @Test
     void testAbortMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doThrow(RuntimeException.class).when(mockBlobStore).abortMultipartUpload(eq(multipartUpload));
 
         assertThrows(UnAuthorizedException.class, () -> {

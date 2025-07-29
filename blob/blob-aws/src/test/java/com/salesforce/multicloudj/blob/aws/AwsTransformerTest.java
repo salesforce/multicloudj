@@ -342,7 +342,13 @@ public class AwsTransformerTest {
 
     @Test
     void testToUploadPartRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .metadata(metadata)
+                .build();
         byte[] content = "This is test data".getBytes();
         MultipartPart multipartPart = new MultipartPart(1, content);
         UploadPartRequest request = transformer.toUploadPartRequest(multipartUpload, multipartPart);
@@ -354,7 +360,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToCompleteMultipartUploadRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         var listOfParts = List.of(
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag1", 3000),
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag2", 2000),
@@ -376,7 +386,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToListPartsRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         ListPartsRequest request = transformer.toListPartsRequest(multipartUpload);
         assertEquals("object-1", request.key());
         assertEquals(BUCKET, request.bucket());
@@ -385,7 +399,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToAbortMultipartUploadRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         AbortMultipartUploadRequest request = transformer.toAbortMultipartUploadRequest(multipartUpload);
         assertEquals("object-1", request.key());
         assertEquals(BUCKET, request.bucket());

@@ -65,6 +65,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -262,27 +263,56 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
-        throw new UnSupportedOperationException("MultipartUploads are not supported by GCP");
+        String uploadId = UUID.randomUUID().toString();
+        return MultipartUpload.builder()
+                .bucket(getBucket())
+                .key(request.getKey())
+                .id(uploadId)
+                .metadata(request.getMetadata())
+                .build();
     }
 
     @Override
     protected UploadPartResponse doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
-        throw new UnSupportedOperationException("MultipartUploads are not supported by GCP");
+        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
+        UploadResponse uploadResponse = doUpload(uploadRequest, mpp.getInputStream());
+        return new UploadPartResponse(mpp.getPartNumber(), uploadResponse.getETag(), mpp.getContentLength());
     }
 
     @Override
     protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<UploadPartResponse> parts) {
-        throw new UnSupportedOperationException("MultipartUploads are not supported by GCP");
+        List<BlobId> sourceBlobs = parts.stream()
+                .map(part -> BlobId.of(getBucket(), transformer.toPartName(mpu, part.getPartNumber())))
+                .collect(Collectors.toList());
+        List<String> blobPartKeys = sourceBlobs.stream()
+                .map(part -> part.getName())
+                .collect(Collectors.toList());
+
+        Blob composedBlob = storage.compose(Storage.ComposeRequest.newBuilder()
+                .setTarget(transformer.toBlobInfo(mpu))
+                .addSource(blobPartKeys)
+                .build());
+
+        // Clean up the temporary part objects
+        storage.delete(sourceBlobs);
+
+        return new MultipartUploadResponse(composedBlob.getEtag());
     }
 
     @Override
     protected List<UploadPartResponse> doListMultipartUpload(MultipartUpload mpu) {
-        throw new UnSupportedOperationException("MultipartUploads are not supported by GCP");
+        return transformer.toUploadPartResponseList(listMultipartParts(mpu));
     }
 
     @Override
     protected void doAbortMultipartUpload(MultipartUpload mpu) {
-        throw new UnSupportedOperationException("MultipartUploads are not supported by GCP");
+        Page<Blob> blobs = listMultipartParts(mpu);
+        List<BlobId> blobIds = transformer.toBlobIdList(blobs);
+        storage.delete(blobIds);
+    }
+
+    private Page<Blob> listMultipartParts(MultipartUpload mpu) {
+        return storage.list(getBucket(), Storage.BlobListOption.prefix(mpu.getKey() + "/" + mpu.getId() + "/part-"));
     }
 
     @Override

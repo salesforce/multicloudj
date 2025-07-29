@@ -412,7 +412,11 @@ class GcpAsyncBlobStoreTest {
         MultipartUploadRequest mpuRequest = new MultipartUploadRequest.Builder()
                 .withKey(TEST_KEY)
                 .build();
-        MultipartUpload expectedMpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "upload-id");
+        MultipartUpload expectedMpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("upload-id")
+                .build();
         when(mockBlobStore.initiateMultipartUpload(mpuRequest)).thenReturn(expectedMpu);
 
         CompletableFuture<MultipartUpload> initiateResult = gcpAsyncBlobStore.initiateMultipartUpload(mpuRequest);

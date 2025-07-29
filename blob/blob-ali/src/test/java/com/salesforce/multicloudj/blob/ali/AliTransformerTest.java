@@ -277,17 +277,25 @@ public class AliTransformerTest {
         doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
         doReturn("key").when(initiateMultipartUploadResult).getKey();
         doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
 
-        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult);
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata);
 
         assertEquals(BUCKET, actual.getBucket());
         assertEquals("key", actual.getKey());
         assertEquals("uploadId", actual.getId());
+        assertEquals(metadata, actual.getMetadata());
     }
 
     @Test
     void testToUploadPartRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .metadata(metadata)
+                .build();
         byte[] content = "Test data".getBytes();
         InputStream inputStream = new ByteArrayInputStream(content);
         MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
@@ -321,7 +329,11 @@ public class AliTransformerTest {
 
     @Test
     void testToCompleteMultipartUploadRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
         List<UploadPartResponse> parts = List.of(
                 new UploadPartResponse(1, "etag1", 50),
                 new UploadPartResponse(2, "etag2", 50));
@@ -340,7 +352,11 @@ public class AliTransformerTest {
 
     @Test
     void testToListPartsRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
 
         var actual = transformer.toListPartsRequest(mpu);
 
@@ -375,7 +391,11 @@ public class AliTransformerTest {
 
     @Test
     void testToAbortMultipartUploadRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
 
         var actual = transformer.toAbortMultipartUploadRequest(mpu);
 

@@ -285,7 +285,8 @@ public class Main {
         BucketClient bucketClient = getBucketClient(getProvider());
 
         // Create a MultipartUpload object
-        MultipartUpload multipartUpload = new MultipartUpload("multipart-upload", "key", "id");
+        MultipartUploadRequest multipartUploadRequest = createMultipartUploadRequest();
+        MultipartUpload multipartUpload = bucketClient.initiateMultipartUpload(multipartUploadRequest);
 
         // Create a MultipartPart object
         MultipartPart multipartPart = new MultipartPart(1, "data-part-1".getBytes());
@@ -307,7 +308,9 @@ public class Main {
         List<UploadPartResponse> uploadPartResponses = new ArrayList<>();
 
         // Create a MultipartUpload object
-        MultipartUpload multipartUpload = new MultipartUpload("multipart-upload", "key", "id");
+        MultipartUploadRequest multipartUploadRequest = createMultipartUploadRequest();
+        MultipartUpload multipartUpload = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+        // Upload some parts here
         MultipartUploadResponse response = bucketClient.completeMultipartUpload(multipartUpload, uploadPartResponses);
         getLogger().info("response received is {}", response);
         getLogger().info("Etag of the response {}", response.getEtag());

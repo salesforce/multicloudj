@@ -25,6 +25,7 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
@@ -69,7 +70,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -880,52 +883,102 @@ class GcpBlobStoreTest {
 
     @Test
     void testDoInitiateMultipartUpload() {
-        MultipartUploadRequest mpu = new MultipartUploadRequest.Builder()
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
                 .withKey(TEST_KEY)
                 .withMetadata(Map.of("key1","value1","key2","value2"))
                 .build();
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doInitiateMultipartUpload(mpu);
-        });
-        assertEquals("MultipartUploads are not supported by GCP", exception.getMessage());
+
+        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        assertEquals(TEST_BUCKET, mpu.getBucket());
+        assertEquals(TEST_KEY, mpu.getKey());
+        assertNotNull(mpu.getId());
     }
 
     @Test
     void testDoUploadMultipartPart() {
-        MultipartUpload mpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "id");
-        MultipartPart mpp = new MultipartPart(1, "TestData".getBytes(StandardCharsets.UTF_8));
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doUploadMultipartPart(mpu, mpp);
-        });
-        assertEquals("MultipartUploads are not supported by GCP", exception.getMessage());
+        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .build();
+            UploadResponse expectedResponse = UploadResponse.builder()
+                    .key(TEST_KEY)
+                    .versionId(TEST_VERSION_ID)
+                    .eTag(TEST_ETAG)
+                    .build();
+
+            when(mockTransformer.toUploadRequest(any(), any())).thenReturn(uploadRequest);
+            when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+            when(mockStorage.writer(mockBlobInfo)).thenReturn(mockWriteChannel);
+            when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(mockBlob);
+            when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
+
+            MultipartUpload mpu = MultipartUpload.builder()
+                    .bucket(TEST_BUCKET)
+                    .key(TEST_KEY)
+                    .id("id")
+                    .build();
+            MultipartPart mpp = new MultipartPart(1, "TestData".getBytes(StandardCharsets.UTF_8));
+            UploadPartResponse response = gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+
+            assertEquals(1, response.getPartNumber());
+            assertEquals(8, response.getSizeInBytes());
+            assertEquals(TEST_ETAG, response.getEtag());
+        }
+
     }
 
     @Test
     void testDoCompleteMultipartUpload() {
-        MultipartUpload mpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "id");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .build();
         List<UploadPartResponse> parts = List.of(new UploadPartResponse(1,"etag", 100));
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
-        });
-        assertEquals("MultipartUploads are not supported by GCP", exception.getMessage());
+        Blob mockBlob = mock(Blob.class);
+        doReturn(TEST_ETAG).when(mockBlob).getEtag();
+        doReturn(mockBlob).when(mockStorage).compose(any());
+        when(mockTransformer.toPartName(any(MultipartUpload.class), anyInt())).thenCallRealMethod();
+        when(mockTransformer.toBlobInfo(any(MultipartUpload.class))).thenReturn(mock(BlobInfo.class));
+
+        MultipartUploadResponse response = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        assertEquals(TEST_ETAG, response.getEtag());
     }
 
     @Test
     void testDoListMultipartUpload() {
-        MultipartUpload mpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "id");
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doListMultipartUpload(mpu);
-        });
-        assertEquals("MultipartUploads are not supported by GCP", exception.getMessage());
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .build();
+        List<UploadPartResponse> expectedParts = List.of(
+                new UploadPartResponse(1, "etag1", 100L),
+                new UploadPartResponse(2, "etag2", 200L));
+        doReturn(expectedParts).when(mockTransformer).toUploadPartResponseList(any(Page.class));
+        doReturn(mock(Page.class)).when(mockStorage).list(anyString(), any(Storage.BlobListOption.class));
+
+        List<UploadPartResponse> actualParts = gcpBlobStore.doListMultipartUpload(mpu);
+
+        assertEquals(expectedParts, actualParts);
     }
 
     @Test
     void testDoAbortMultipartUpload() {
-        MultipartUpload mpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "id");
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doAbortMultipartUpload(mpu);
-        });
-        assertEquals("MultipartUploads are not supported by GCP", exception.getMessage());
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .build();
+        doReturn(mock(Page.class)).when(mockStorage).list(anyString(), any(Storage.BlobListOption.class));
+        List<BlobId> blobIds = List.of(mock(BlobId.class), mock(BlobId.class));
+        doReturn(blobIds).when(mockTransformer).toBlobIdList(any());
+
+        gcpBlobStore.doAbortMultipartUpload(mpu);
+
+        verify(mockStorage).delete(blobIds);
     }
 
     @Test

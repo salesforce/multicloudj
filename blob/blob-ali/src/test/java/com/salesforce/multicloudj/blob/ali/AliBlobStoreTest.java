@@ -83,7 +83,6 @@ import java.util.NoSuchElementException;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -541,7 +540,11 @@ public class AliBlobStoreTest {
         UploadPartResult mockResponse = mock(UploadPartResult.class);
         doReturn(new PartETag(1, "etag")).when(mockResponse).getPartETag();
         when(mockOssClient.uploadPart(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
         MultipartPart multipartPart = new MultipartPart(1, content);
 
@@ -560,7 +563,11 @@ public class AliBlobStoreTest {
     void testDoCompleteMultipartUpload() {
         CompleteMultipartUploadResult mockResponse = mock(CompleteMultipartUploadResult.class);
         when(mockOssClient.completeMultipartUpload(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts = List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
 
         ali.completeMultipartUpload(multipartUpload, listOfParts);
@@ -581,7 +588,11 @@ public class AliBlobStoreTest {
     void testDoListMultipartUpload() {
         PartListing mockResponse = mock(PartListing.class);
         when(mockOssClient.listParts(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         ali.listMultipartUpload(multipartUpload);
 
@@ -595,7 +606,11 @@ public class AliBlobStoreTest {
 
     @Test
     void testDoAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         ali.abortMultipartUpload(multipartUpload);
 

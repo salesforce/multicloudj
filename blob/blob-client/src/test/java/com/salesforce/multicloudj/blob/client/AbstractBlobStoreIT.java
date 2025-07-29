@@ -228,7 +228,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload mpu = new MultipartUpload(bucketClient.getBucket(), key + "multipart2", "multipart2");
+            MultipartUpload mpu = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart2")
+                    .id("multipart2")
+                    .build();
             MultipartPart multipartPart = new MultipartPart(1, utf8BlobBytes);
             bucketClient.uploadMultipartPart(mpu, multipartPart);
         } catch (Throwable t) {
@@ -238,7 +242,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart3", "multipart3");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart3")
+                    .id("multipart3")
+                    .build();
             List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", utf8BlobBytes.length));
             bucketClient.completeMultipartUpload(request, listOfParts);
         } catch (Throwable t) {
@@ -248,7 +256,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart4", "multipart4");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart4")
+                    .id("multipart4")
+                    .build();
             bucketClient.listMultipartUpload(request);
         } catch (Throwable t) {
             multipartUploadFailed = true;
@@ -257,7 +269,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart5", "multipart5");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart5")
+                    .id("multipart5")
+                    .build();
             bucketClient.abortMultipartUpload(request);
         } catch (Throwable t) {
             multipartUploadFailed = true;
@@ -1819,7 +1835,11 @@ public abstract class AbstractBlobStoreIT {
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Call each operation with an invalid MPU
-        MultipartUpload invalidMPU = new MultipartUpload("fakeBucket", DEFAULT_MULTIPART_KEY_PREFIX+"invalidKey", "invalidUploadId");
+        MultipartUpload invalidMPU = MultipartUpload.builder()
+                .bucket("fakeBucket")
+                .key(DEFAULT_MULTIPART_KEY_PREFIX+"invalidKey")
+                .id("invalidUploadId")
+                .build();
 
         boolean multipartUploadFailed = false;
         try {
