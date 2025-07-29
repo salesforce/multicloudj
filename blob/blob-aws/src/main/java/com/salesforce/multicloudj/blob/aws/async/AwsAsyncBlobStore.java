@@ -385,7 +385,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
         private static S3AsyncClient buildCrtS3Client(Builder builder, Region regionObj) {
             // Use AWS CRT-based S3 client for optimal parallel download performance
-            var crtBuilder = S3AsyncClient.crtBuilder();
+            S3CrtAsyncClientBuilder crtBuilder = S3AsyncClient.crtBuilder();
 
             // Configure CRT-specific settings only
             if (builder.getTargetThroughputInGbps() != null) {
@@ -396,7 +396,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             }
 
             // Apply common configuration (credentials, endpoint, proxy, part buffer size)
-            applyCommonConfig(crtBuilder, builder, regionObj);
+            applyCommonConfig((S3AsyncClientBuilder) crtBuilder, builder, regionObj);
 
             return crtBuilder.build();
         }
@@ -459,44 +459,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 builder.asyncConfiguration(ClientAsyncConfiguration.builder()
                         .advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, config.getExecutorService())
                         .build());
-            }
-        }
-
-        private static void applyCommonConfig(S3CrtAsyncClientBuilder builder, Builder config, Region regionObj) {
-            // Configure region
-            builder.region(regionObj);
-
-            // Configure credentials
-            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
-                    config.getCredentialsOverrider(),
-                    regionObj
-            );
-            if (credentialsProvider != null) {
-                builder.credentialsProvider(credentialsProvider);
-            }
-
-            // Configure endpoint override if specified
-            if (config.getEndpoint() != null) {
-                builder.endpointOverride(config.getEndpoint());
-            }
-
-            // Configure proxy if specified
-            if (config.getProxyEndpoint() != null) {
-                // Note: CRT client has limited proxy support compared to standard client
-                // For proxy support with CRT client, additional configuration may be needed
-                // This is a placeholder for future CRT proxy configuration
-            }
-
-            // Configure part buffer size (common for both clients)
-            if (config.getPartBufferSize() != null) {
-                builder.minimumPartSizeInBytes(config.getPartBufferSize());
-            }
-
-            // Configure executor service if specified
-            if (config.getExecutorService() != null) {
-                // Note: CRT client manages its own thread pool internally
-                // The executor service configuration is primarily for the standard client
-                // but we keep it consistent in the common configuration
             }
         }
 
