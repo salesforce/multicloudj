@@ -49,6 +49,8 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
+import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.Part;
@@ -385,7 +387,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
         private static S3AsyncClient buildCrtS3Client(Builder builder, Region regionObj) {
             // Use AWS CRT-based S3 client for optimal parallel download performance
-            S3CrtAsyncClientBuilder crtBuilder = S3AsyncClient.crtBuilder();
+            var crtBuilder = S3AsyncClient.crtBuilder();
 
             // Configure CRT-specific settings only
             if (builder.getTargetThroughputInGbps() != null) {
@@ -396,7 +398,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             }
 
             // Apply common configuration (credentials, endpoint, proxy, part buffer size)
-            applyCommonConfig((S3AsyncClientBuilder) crtBuilder, builder, regionObj);
+            applyCommonConfig(crtBuilder, builder, regionObj);
 
             return crtBuilder.build();
         }
@@ -459,6 +461,46 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 builder.asyncConfiguration(ClientAsyncConfiguration.builder()
                         .advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, config.getExecutorService())
                         .build());
+            }
+        }
+
+        private static void applyCommonConfig(S3CrtAsyncClientBuilder builder, Builder config, Region regionObj) {
+            // Configure region
+            builder.region(regionObj);
+
+            // Configure credentials
+            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
+                    config.getCredentialsOverrider(),
+                    regionObj
+            );
+            if (credentialsProvider != null) {
+                builder.credentialsProvider(credentialsProvider);
+            }
+
+            // Configure endpoint override if specified
+            if (config.getEndpoint() != null) {
+                builder.endpointOverride(config.getEndpoint());
+            }
+
+            // Configure proxy if specified
+            if (config.getProxyEndpoint() != null) {
+                S3CrtHttpConfiguration httpConfig = S3CrtHttpConfiguration.builder()
+                        .proxyConfiguration(proxyBuilder -> proxyBuilder
+                                .scheme(config.getProxyEndpoint().getScheme())
+                                .host(config.getProxyEndpoint().getHost())
+                                .port(config.getProxyEndpoint().getPort()))
+                        .build();
+                builder.httpConfiguration(httpConfig);
+            }
+
+            // Configure part buffer size (common for both clients)
+            if (config.getPartBufferSize() != null) {
+                builder.minimumPartSizeInBytes(config.getPartBufferSize());
+            }
+
+            // Configure executor service if specified
+            if (config.getExecutorService() != null) {
+               builder.futureCompletionExecutor(config.getExecutorService());
             }
         }
 
