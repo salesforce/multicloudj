@@ -48,12 +48,16 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
+import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.crt.S3CrtProxyConfiguration;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
@@ -168,7 +172,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         var aws = transformer.toDeleteRequest(key, versionId);
         return client
                 .deleteObject(aws)
-                .thenAccept(response -> {});
+                .thenAccept(response -> {
+                });
     }
 
     @Override
@@ -176,7 +181,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         var request = transformer.toDeleteRequests(objects);
         return client
                 .deleteObjects(request)
-                .thenAccept(response -> {});
+                .thenAccept(response -> {
+                });
     }
 
     @Override
@@ -275,7 +281,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     @Override
     protected CompletableFuture<Void> doAbortMultipartUpload(MultipartUpload mpu) {
         return client.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu))
-                .thenAccept(response -> {});
+                .thenAccept(response -> {
+                });
     }
 
     @Override
@@ -290,13 +297,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     @Override
     protected CompletableFuture<Void> doSetTags(String key, Map<String, String> tags) {
         return client.putObjectTagging(transformer.toPutObjectTaggingRequest(key, tags))
-                        .thenAccept(response -> {});
+                .thenAccept(response -> {
+                });
     }
 
     @Override
     protected CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request) {
         return CompletableFuture.supplyAsync(() -> {
-            try(S3Presigner presigner = getPresigner()) {
+            try (S3Presigner presigner = getPresigner()) {
                 switch (request.getType()) {
                     case UPLOAD:
                         return presigner.presignPutObject(transformer.toPutObjectPresignRequest(request)).url();
@@ -324,6 +332,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
     /**
      * Returns an S3Presigner for the current credentials
+     *
      * @return Returns an S3Presigner for the current credentials
      */
     protected S3Presigner getPresigner() {
@@ -342,10 +351,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 .headObject(transformer.toHeadRequest(key, versionId))
                 .thenApply(response -> true)
                 .exceptionally(e -> {
-                    if(e.getCause() instanceof S3Exception && ((S3Exception)e.getCause()).statusCode() == 404) {
+                    if (e.getCause() instanceof S3Exception && ((S3Exception) e.getCause()).statusCode() == 404) {
                         return false;
-                    }
-                    else {
+                    } else {
                         throw new SubstrateSdkException("Request failed. Reason=" + e.getMessage(), e);
                     }
                 });
@@ -368,38 +376,132 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
         private static S3AsyncClient buildS3Client(Builder builder) {
             Region regionObj = Region.of(builder.getRegion());
-            S3AsyncClientBuilder b = S3AsyncClient.builder();
-            b.region(regionObj);
 
+            // Use CRT-based client for parallel downloads, standard client otherwise
+            if (Boolean.TRUE.equals(builder.getParallelDownloadsEnabled())) {
+                return buildCrtS3Client(builder, regionObj);
+            } else {
+                return buildStandardS3Client(builder, regionObj);
+            }
+        }
+
+        private static S3AsyncClient buildCrtS3Client(Builder builder, Region regionObj) {
+            // Use AWS CRT-based S3 client for optimal parallel download performance
+            var crtBuilder = S3AsyncClient.crtBuilder();
+
+            // Configure CRT-specific settings only
+            if (builder.getTargetThroughputInGbps() != null) {
+                crtBuilder.targetThroughputInGbps(builder.getTargetThroughputInGbps());
+            }
+            if (builder.getMaxNativeMemoryLimitInBytes() != null) {
+                crtBuilder.maxNativeMemoryLimitInBytes(builder.getMaxNativeMemoryLimitInBytes());
+            }
+
+            // Apply common configuration (credentials, endpoint, proxy, part buffer size)
+            applyCommonConfig(crtBuilder, builder, regionObj);
+
+            return crtBuilder.build();
+        }
+
+        private static S3AsyncClient buildStandardS3Client(Builder builder, Region regionObj) {
+            S3AsyncClientBuilder b = S3AsyncClient.builder();
+
+            // Configure standard client specific settings only
+            if (builder.getParallelUploadsEnabled() != null) {
+                b.multipartEnabled(builder.getParallelUploadsEnabled());
+            }
+
+            // Apply common configuration (credentials, endpoint, proxy, multipart config, executor)
+            applyCommonConfig(b, builder, regionObj);
+
+            return b.build();
+        }
+
+        private static void applyCommonConfig(S3AsyncClientBuilder builder, Builder config, Region regionObj) {
+            // Configure credentials
             AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
-                    builder.getCredentialsOverrider(),
+                    config.getCredentialsOverrider(),
                     regionObj
             );
-
-            if(builder.getExecutorService() != null)  {
-                b.asyncConfiguration(ClientAsyncConfiguration.builder()
-                        .advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, builder.getExecutorService())
-                        .build());
-            }
+            builder.region(regionObj);
             if (credentialsProvider != null) {
-                b.credentialsProvider(credentialsProvider);
+                builder.credentialsProvider(credentialsProvider);
             }
-            if (builder.getEndpoint() != null) {
-                b.endpointOverride(builder.getEndpoint());
+
+            // Configure endpoint override if specified
+            if (config.getEndpoint() != null) {
+                builder.endpointOverride(config.getEndpoint());
             }
-            if (builder.getProxyEndpoint() != null) {
+
+            // Configure proxy if specified
+            if (config.getProxyEndpoint() != null) {
                 ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
-                        .scheme(builder.getProxyEndpoint().getScheme())
-                        .host(builder.getProxyEndpoint().getHost())
-                        .port(builder.getProxyEndpoint().getPort())
+                        .scheme(config.getProxyEndpoint().getScheme())
+                        .host(config.getProxyEndpoint().getHost())
+                        .port(config.getProxyEndpoint().getPort())
                         .build();
                 SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder()
                         .proxyConfiguration(proxyConfig)
                         .build();
-                b.httpClient(httpClient);
+                builder.httpClient(httpClient);
             }
 
-            return b.build();
+            // Configure multipart configuration (common for both clients)
+            MultipartConfiguration.Builder configBuilder = MultipartConfiguration.builder();
+            if (config.getThresholdBytes() != null) {
+                configBuilder.thresholdInBytes(config.getThresholdBytes());
+            }
+            if (config.getPartBufferSize() != null) {
+                configBuilder.minimumPartSizeInBytes(config.getPartBufferSize());
+            }
+            builder.multipartConfiguration(configBuilder.build());
+
+            // Configure async configuration if executor service is specified
+            if (config.getExecutorService() != null) {
+                builder.asyncConfiguration(ClientAsyncConfiguration.builder()
+                        .advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, config.getExecutorService())
+                        .build());
+            }
+        }
+
+        private static void applyCommonConfig(S3CrtAsyncClientBuilder builder, Builder config, Region regionObj) {
+            // Configure region
+            builder.region(regionObj);
+
+            // Configure credentials
+            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
+                    config.getCredentialsOverrider(),
+                    regionObj
+            );
+            if (credentialsProvider != null) {
+                builder.credentialsProvider(credentialsProvider);
+            }
+
+            // Configure endpoint override if specified
+            if (config.getEndpoint() != null) {
+                builder.endpointOverride(config.getEndpoint());
+            }
+
+            // Configure proxy if specified
+            if (config.getProxyEndpoint() != null) {
+                S3CrtHttpConfiguration httpConfig = S3CrtHttpConfiguration.builder()
+                        .proxyConfiguration(proxyBuilder -> proxyBuilder
+                                .scheme(config.getProxyEndpoint().getScheme())
+                                .host(config.getProxyEndpoint().getHost())
+                                .port(config.getProxyEndpoint().getPort()))
+                        .build();
+                builder.httpConfiguration(httpConfig);
+            }
+
+            // Configure part buffer size (common for both clients)
+            if (config.getPartBufferSize() != null) {
+                builder.minimumPartSizeInBytes(config.getPartBufferSize());
+            }
+
+            // Configure executor service if specified
+            if (config.getExecutorService() != null) {
+               builder.futureCompletionExecutor(config.getExecutorService());
+            }
         }
 
         public Builder withS3Client(S3AsyncClient s3Client) {
@@ -423,14 +525,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             if (client == null) {
                 client = buildS3Client(this);
             }
-            S3TransferManager transferManager = getTransferManager();
-            if (transferManager == null) {
+            S3TransferManager tm = getTransferManager();
+            if (tm == null) {
                 var transferManagerBuilder = S3TransferManager.builder()
                         .s3Client(client);
-                if(getExecutorService() != null)  {
+                if (getExecutorService() != null) {
                     transferManagerBuilder.executor(getExecutorService());
                 }
-                transferManager = transferManagerBuilder.build();
+                tm = transferManagerBuilder.build();
             }
 
             return new AwsAsyncBlobStore(
@@ -439,7 +541,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     getCredentialsOverrider(),
                     getValidator(),
                     client,
-                    transferManager,
+                    tm,
                     getTransformerSupplier()
             );
         }

@@ -127,6 +127,66 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
     }
 
     /**
+     * Method to supply multipart threshold in bytes
+     * @param thresholdBytes The threshold in bytes above which multipart upload will be used
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withThresholdBytes(Long thresholdBytes) {
+        this.storeBuilder.withThresholdBytes(thresholdBytes);
+        return this;
+    }
+
+    /**
+     * Method to supply multipart part buffer size in bytes
+     * @param partBufferSize The buffer size in bytes for each part in a multipart upload
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withPartBufferSize(Long partBufferSize) {
+        this.storeBuilder.withPartBufferSize(partBufferSize);
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel uploads
+     * @param parallelUploadsEnabled Whether to enable parallel uploads
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
+        this.storeBuilder.withParallelUploadsEnabled(parallelUploadsEnabled);
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel downloads
+     * @param parallelDownloadsEnabled Whether to enable parallel downloads
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
+        this.storeBuilder.withParallelDownloadsEnabled(parallelDownloadsEnabled);
+        return this;
+    }
+
+    /**
+     * Method to set target throughput in Gbps
+     * @param targetThroughputInGbps The target throughput in Gbps
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withTargetThroughputInGbps(Double targetThroughputInGbps) {
+        this.storeBuilder.withTargetThroughputInGbps(targetThroughputInGbps);
+        return this;
+    }
+
+    /**
+     * Method to set maximum native memory limit in bytes
+     * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
+        this.storeBuilder.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
+        return this;
+    }
+
+    /**
      * Builds and returns an instance of the target client implementation.
      * @return A fully constructed client implementation.
      */

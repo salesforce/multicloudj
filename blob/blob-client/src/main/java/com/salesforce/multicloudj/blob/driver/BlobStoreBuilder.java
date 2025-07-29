@@ -25,6 +25,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private ExecutorService executorService;
     private Properties properties = new Properties();
     private BlobStoreValidator validator = new BlobStoreValidator();
+    private Long thresholdBytes;
+    private Long partBufferSize;
+    private Boolean parallelUploadsEnabled;
+    private Boolean parallelDownloadsEnabled;
+    private Double targetThroughputInGbps;
+    private Long maxNativeMemoryLimitInBytes;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -140,6 +146,66 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
 
     public BlobStoreBuilder<T> withProperties(Properties properties) {
         this.properties = properties;
+        return this;
+    }
+
+    /**
+     * Method to supply multipart threshold in bytes
+     * @param thresholdBytes The threshold in bytes above which multipart upload will be used
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withThresholdBytes(Long thresholdBytes) {
+        this.thresholdBytes = thresholdBytes;
+        return this;
+    }
+
+    /**
+     * Method to supply multipart part buffer size in bytes
+     * @param partBufferSize The buffer size in bytes for each part in a multipart upload
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withPartBufferSize(Long partBufferSize) {
+        this.partBufferSize = partBufferSize;
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel uploads
+     * @param parallelUploadsEnabled Whether to enable parallel uploads
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
+        this.parallelUploadsEnabled = parallelUploadsEnabled;
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel downloads
+     * @param parallelDownloadsEnabled Whether to enable parallel downloads
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
+        this.parallelDownloadsEnabled = parallelDownloadsEnabled;
+        return this;
+    }
+
+    /**
+     * Method to set target throughput in Gbps
+     * @param targetThroughputInGbps The target throughput in Gbps
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withTargetThroughputInGbps(Double targetThroughputInGbps) {
+        this.targetThroughputInGbps = targetThroughputInGbps;
+        return this;
+    }
+
+    /**
+     * Method to set maximum native memory limit in bytes
+     * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
+        this.maxNativeMemoryLimitInBytes = maxNativeMemoryLimitInBytes;
         return this;
     }
 
