@@ -314,7 +314,11 @@ public class AbstractBlobStoreTest {
 
     @Test
     void testDoUploadMultipartPart() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         mockBlobStore.uploadMultipartPart(multipartUpload, multipartPart);
         verify(mockBlobStore, times(1)).doUploadMultipartPart(multipartUpload, multipartPart);
@@ -323,7 +327,11 @@ public class AbstractBlobStoreTest {
 
     @Test
     void testDoCompleteMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         mockBlobStore.completeMultipartUpload(multipartUpload, listOfParts);
         verify(mockBlobStore, times(1)).doCompleteMultipartUpload(multipartUpload, listOfParts);
@@ -332,7 +340,11 @@ public class AbstractBlobStoreTest {
 
     @Test
     void testDoListMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         mockBlobStore.listMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).doListMultipartUpload(multipartUpload);
         verify(validator, times(1)).requireEqualsIgnoreCase(any(), any(), any());
@@ -340,7 +352,11 @@ public class AbstractBlobStoreTest {
 
     @Test
     void testDoAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         mockBlobStore.abortMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).doAbortMultipartUpload(multipartUpload);
         verify(validator, times(1)).requireEqualsIgnoreCase(any(), any(), any());

@@ -241,10 +241,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     @Override
     protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request) {
         return client.createMultipartUpload(transformer.toCreateMultipartUploadRequest(request))
-                .thenApply(response -> new MultipartUpload(
-                        response.bucket(),
-                        response.key(),
-                        response.uploadId()));
+                .thenApply(response -> MultipartUpload.builder()
+                        .bucket(response.bucket())
+                        .key(response.key())
+                        .id(response.uploadId())
+                        .metadata(request.getMetadata())
+                        .build());
     }
 
     @Override

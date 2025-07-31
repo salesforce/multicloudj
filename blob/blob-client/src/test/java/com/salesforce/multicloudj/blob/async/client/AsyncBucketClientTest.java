@@ -422,7 +422,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testUploadMultipartPart() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         doReturn(future(mock(UploadPartResponse.class))).when(mockBlobStore).uploadMultipartPart(multipartUpload, multipartPart);
         client.uploadMultipartPart(multipartUpload, multipartPart);
@@ -431,7 +435,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testUploadMultipartPartException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).uploadMultipartPart(multipartUpload, multipartPart);
@@ -440,7 +448,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testCompleteMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         doReturn(future(mock(MultipartUploadResponse.class))).when(mockBlobStore).completeMultipartUpload(multipartUpload, listOfParts);
         client.completeMultipartUpload(multipartUpload, listOfParts);
@@ -449,7 +461,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testCompleteMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).completeMultipartUpload(multipartUpload, listOfParts);
@@ -458,7 +474,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testListMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doReturn(future(mock(List.class))).when(mockBlobStore).listMultipartUpload(multipartUpload);
         client.listMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
@@ -466,7 +486,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testListMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         when(mockBlobStore.listMultipartUpload(multipartUpload)).thenThrow(RuntimeException.class);
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).listMultipartUpload(multipartUpload);
@@ -475,7 +499,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doReturn(futureVoid()).when(mockBlobStore).abortMultipartUpload(multipartUpload);
         client.abortMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
@@ -483,7 +511,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testAbortMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).abortMultipartUpload(multipartUpload);
         assertFailed(client.abortMultipartUpload(multipartUpload), UnAuthorizedException.class);

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -9,8 +10,11 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -26,9 +30,13 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -536,5 +544,106 @@ class GcpTransformerTest {
         Storage.BlobListOption[] actual = transformer.toBlobListOptions(request);
         
         assertEquals(0, actual.length);
+    }
+
+    @Test
+    public void testToBlobInfo() {
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        BlobInfo blobInfo = transformer.toBlobInfo(TEST_KEY, metadata);
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(metadata, blobInfo.getMetadata());
+
+        blobInfo = transformer.toBlobInfo(TEST_KEY, new HashMap<>());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(0, blobInfo.getMetadata().size());
+
+        blobInfo = transformer.toBlobInfo(TEST_KEY, null);
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(0, blobInfo.getMetadata().size());
+    }
+
+    @Test
+    public void testToPartName() {
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .build();
+        assertEquals(TEST_KEY+"/id/part-1", transformer.toPartName(mpu, 1));
+        assertEquals(TEST_KEY+"/id/part-8", transformer.toPartName(mpu, 8));
+        mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY+"_test")
+                .id("id2")
+                .build();
+        assertEquals(TEST_KEY+"_test/id2/part-4", transformer.toPartName(mpu, 4));
+    }
+
+    @Test
+    public void testToUploadRequest() {
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .build();
+        MultipartPart mpp = new MultipartPart(1, "Test Data".getBytes());
+
+        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
+        assertEquals(TEST_KEY+"/id/part-1", uploadRequest.getKey());
+        assertEquals(9, uploadRequest.getContentLength());
+    }
+
+    @Test
+    public void testToBlobInfo_multipartUpload() {
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("uuid1")
+                .build();
+        BlobInfo blobInfo = transformer.toBlobInfo(mpu);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertEquals(0, blobInfo.getMetadata().size());
+    }
+
+    @Test
+    public void testToBlobIdList() {
+        Page<Blob> page = mock(Page.class);
+        Blob mockBlob1 = mock(Blob.class);
+        BlobId mockBlobId1 = mock(BlobId.class);
+        doReturn(mockBlobId1).when(mockBlob1).getBlobId();
+        Blob mockBlob2 = mock(Blob.class);
+        BlobId mockBlobId2 = mock(BlobId.class);
+        doReturn(mockBlobId2).when(mockBlob2).getBlobId();
+        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
+        doReturn(stream).when(page).streamAll();
+        transformer.toBlobIdList(page);
+    }
+
+    @Test
+    public void testToUploadPartResponseList() {
+        Page<Blob> page = mock(Page.class);
+        Blob mockBlob1 = mock(Blob.class);
+        doReturn(TEST_KEY+"/123456/part-1").when(mockBlob1).getName();
+        doReturn("part-1-etag").when(mockBlob1).getEtag();
+        doReturn(100L).when(mockBlob1).getSize();
+        Blob mockBlob2 = mock(Blob.class);
+        doReturn(TEST_KEY+"/123456/part-2").when(mockBlob2).getName();
+        doReturn("part-2-etag").when(mockBlob2).getEtag();
+        doReturn(200L).when(mockBlob2).getSize();
+        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
+        doReturn(stream).when(page).streamAll();
+
+        List<UploadPartResponse> response = transformer.toUploadPartResponseList(page);
+
+        assertEquals(1, response.get(0).getPartNumber());
+        assertEquals(100L, response.get(0).getSizeInBytes());
+        assertEquals("part-1-etag", response.get(0).getEtag());
+        assertEquals(2, response.get(1).getPartNumber());
+        assertEquals(200L, response.get(1).getSizeInBytes());
+        assertEquals("part-2-etag", response.get(1).getEtag());
     }
 } 

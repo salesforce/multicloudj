@@ -750,6 +750,7 @@ public class AwsAsyncBlobStoreTest {
         assertEquals("object-1", response.getKey());
         assertEquals("bucket-1", response.getBucket());
         assertEquals("mpu-id", response.getId());
+        assertEquals(metadata, response.getMetadata());
     }
 
     @Test
@@ -757,7 +758,11 @@ public class AwsAsyncBlobStoreTest {
         UploadPartResponse mockResponse = mock(UploadPartResponse.class);
         doReturn("etag").when(mockResponse).eTag();
         doReturn(future(mockResponse)).when(mockS3Client).uploadPart(any(UploadPartRequest.class), any(AsyncRequestBody.class));
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
         MultipartPart multipartPart = new MultipartPart(1, content);
 
@@ -786,7 +791,11 @@ public class AwsAsyncBlobStoreTest {
         doReturn("object-1").when(mockResponse).key();
         doReturn("complete-etag").when(mockResponse).eTag();
         doReturn(future(mockResponse)).when(mockS3Client).completeMultipartUpload((CompleteMultipartUploadRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts = List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
 
         MultipartUploadResponse response = aws.completeMultipartUpload(multipartUpload, listOfParts).get();
@@ -819,7 +828,11 @@ public class AwsAsyncBlobStoreTest {
                 Part.builder().partNumber(3).eTag("etag3").size(1000L).build());
         doReturn(parts).when(mockResponse).parts();
         doReturn(future(mockResponse)).when(mockS3Client).listParts((ListPartsRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         var response = aws.listMultipartUpload(multipartUpload).get();
 
@@ -847,7 +860,11 @@ public class AwsAsyncBlobStoreTest {
     void testDoAbortMultipartUpload() throws ExecutionException, InterruptedException {
         AbortMultipartUploadResponse mockResponse = mock(AbortMultipartUploadResponse.class);
         doReturn(future(mockResponse)).when(mockS3Client).abortMultipartUpload((AbortMultipartUploadRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         aws.abortMultipartUpload(multipartUpload).get();
 

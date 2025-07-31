@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -11,7 +12,10 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
@@ -21,8 +25,9 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
 public class GcpTransformer {
@@ -34,12 +39,10 @@ public class GcpTransformer {
     }
 
     public BlobInfo toBlobInfo(UploadRequest uploadRequest) {
-        BlobInfo.Builder blobInfoBuilder = BlobInfo.newBuilder(getBucket(), uploadRequest.getKey());
-        blobInfoBuilder.setMetadata(new HashMap<>(uploadRequest.getMetadata()));
         if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
             throw new UnSupportedOperationException("Tags are not supported by GCP");
         }
-        return blobInfoBuilder.build();
+        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -137,18 +140,14 @@ public class GcpTransformer {
     }
 
     public BlobInfo toBlobInfo(PresignedUrlRequest presignedUrlRequest) {
-        BlobInfo.Builder blobInfoBuilder = BlobInfo.newBuilder(getBucket(), presignedUrlRequest.getKey());
-        Map<String, String> metadata = presignedUrlRequest.getMetadata() != null ?
-                ImmutableMap.copyOf(presignedUrlRequest.getMetadata()) : Collections.emptyMap();
-        blobInfoBuilder.setMetadata(metadata);
         if(presignedUrlRequest.getTags() != null && !presignedUrlRequest.getTags().isEmpty()) {
             throw new UnSupportedOperationException("Tags are not supported by GCP");
         }
-        return blobInfoBuilder.build();
+        return toBlobInfo(presignedUrlRequest.getKey(), presignedUrlRequest.getMetadata());
     }
 
     public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
-        java.util.List<Storage.BlobListOption> options = new java.util.ArrayList<>();
+        List<Storage.BlobListOption> options = new java.util.ArrayList<>();
         
         if (request.getPrefix() != null) {
             options.add(Storage.BlobListOption.prefix(request.getPrefix()));
@@ -167,5 +166,41 @@ public class GcpTransformer {
         }
         
         return options.toArray(new Storage.BlobListOption[0]);
+    }
+
+    protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
+        metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
+        return BlobInfo.newBuilder(getBucket(), key).setMetadata(metadata).build();
+    }
+
+    public String toPartName(MultipartUpload mpu, int partNumber) {
+        return String.format("%s/%s/part-%d", mpu.getKey(), mpu.getId(), partNumber);
+    }
+
+    public UploadRequest toUploadRequest(MultipartUpload mpu, MultipartPart mpp) {
+        String partKey = toPartName(mpu, mpp.getPartNumber());
+        return UploadRequest.builder()
+                .withKey(partKey)
+                .withContentLength(mpp.getContentLength())
+                .build();
+    }
+
+    public BlobInfo toBlobInfo(MultipartUpload mpu) {
+        return toBlobInfo(mpu.getKey(), mpu.getMetadata());
+    }
+
+    public List<BlobId> toBlobIdList(Page<Blob> blobs) {
+        return blobs.streamAll()
+                .map(Blob::getBlobId)
+                .collect(Collectors.toList());
+    }
+
+    public List<UploadPartResponse> toUploadPartResponseList(Page<Blob> blobs) {
+        return blobs.streamAll()
+                .map(blob -> {
+                    String partNumber = blob.getName().substring(blob.getName().lastIndexOf("-") + 1);
+                    return new UploadPartResponse(Integer.parseInt(partNumber), blob.getEtag(), blob.getSize());
+                })
+                .collect(Collectors.toList());
     }
 }
