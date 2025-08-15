@@ -183,6 +183,18 @@ public class AsyncBucketClient {
     }
 
     /**
+     * Downloads the Blob content and returns an InputStream for reading the content
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        return blobStore
+                .download(downloadRequest)
+                .exceptionally(this::handleException);
+    }
+    /**
      * Deletes a single Blob from substrate-specific Blob storage
      *
      * @param key Object name of the Blob

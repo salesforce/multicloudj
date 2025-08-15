@@ -164,6 +164,35 @@ public class AliTransformerTest {
     }
 
     @Test
+    void testToDownloadResponseWithInputStream() {
+        OSSObject ossObject = mock(OSSObject.class);
+        doReturn("key").when(ossObject).getKey();
+        ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
+        doReturn(objectMetadata).when(ossObject).getObjectMetadata();
+        doReturn("version-1").when(objectMetadata).getVersionId();
+        doReturn("etag").when(objectMetadata).getETag();
+        Date date = Date.from(Instant.now());
+        doReturn(date).when(objectMetadata).getLastModified();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        doReturn(metadata).when(objectMetadata).getUserMetadata();
+        doReturn(100L).when(objectMetadata).getContentLength();
+
+        InputStream inputStream = new ByteArrayInputStream("test content".getBytes());
+
+        var actual = transformer.toDownloadResponse(ossObject, inputStream);
+
+        assertEquals("key", actual.getKey());
+        assertEquals(inputStream, actual.getInputStream());
+        BlobMetadata blobMetadata = actual.getMetadata();
+        assertEquals("key", blobMetadata.getKey());
+        assertEquals("version-1", blobMetadata.getVersionId());
+        assertEquals("etag", blobMetadata.getETag());
+        assertEquals(metadata, blobMetadata.getMetadata());
+        assertEquals(date.toInstant(), blobMetadata.getLastModified());
+        assertEquals(100L, blobMetadata.getObjectSize());
+    }
+
+    @Test
     void testToDeleteObjectsRequest() {
         Collection<BlobIdentifier> objects = List.of(new BlobIdentifier("key1", null), new BlobIdentifier("key2", null));
 
