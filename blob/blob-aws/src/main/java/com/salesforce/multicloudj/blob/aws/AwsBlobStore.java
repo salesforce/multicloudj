@@ -75,7 +75,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.core.ResponseInputStream;
-import java.io.IOException;
 
 /**
  * AWS implementation of BlobStore
