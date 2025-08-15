@@ -55,6 +55,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -582,5 +584,38 @@ public class AwsTransformerTest {
         assertEquals(exception1, response.getFailedTransfers().get(0).getException());
         assertEquals(path2, response.getFailedTransfers().get(1).getSource());
         assertEquals(exception2, response.getFailedTransfers().get(1).getException());
+    }
+
+    @Test
+    public void testPartitionList() {
+        List<BlobInfo> blobInfos = new ArrayList<>();
+        for(int i=0; i<50; i++) {
+            blobInfos.add(BlobInfo.builder().withKey("blob"+i).build());
+        }
+        List<List<BlobInfo>> partitionedLists = transformer.partitionList(blobInfos, 10);
+        assertEquals(5, partitionedLists.size());
+        partitionedLists = transformer.partitionList(blobInfos, 25);
+        assertEquals(2, partitionedLists.size());
+        partitionedLists = transformer.partitionList(blobInfos, 40);
+        assertEquals(2, partitionedLists.size());
+        assertEquals(40, partitionedLists.get(0).size());
+        assertEquals(10, partitionedLists.get(1).size());
+        partitionedLists = transformer.partitionList(List.of(BlobInfo.builder().withKey("blob1").build()), 10);
+        assertEquals(1, partitionedLists.size());
+        assertEquals(1, partitionedLists.get(0).size());
+    }
+
+    @Test
+    public void testToBlobIdentifiers() {
+        List<BlobInfo> blobList = new ArrayList<>();
+        for(int i=0; i<50; i++) {
+            blobList.add(BlobInfo.builder().withKey("blob"+i).build());
+        }
+        List<BlobIdentifier> blobIdentifiers = transformer.toBlobIdentifiers(blobList);
+        assertEquals(50, blobIdentifiers.size());
+        for(int i=0; i<50; i++) {
+            assertEquals("blob"+i, blobIdentifiers.get(i).getKey());
+            assertNull(blobIdentifiers.get(i).getVersionId());
+        }
     }
 }

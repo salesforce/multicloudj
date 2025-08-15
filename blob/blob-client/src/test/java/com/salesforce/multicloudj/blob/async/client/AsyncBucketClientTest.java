@@ -611,6 +611,14 @@ public class AsyncBucketClientTest {
     }
 
     @Test
+    void testDeleteDirectory() throws ExecutionException, InterruptedException {
+        String prefix = "files";
+        when(mockBlobStore.deleteDirectory(any())).thenReturn(futureVoid());
+        client.deleteDirectory(prefix).get();
+        verify(mockBlobStore, times(1)).deleteDirectory(eq(prefix));
+    }
+
+    @Test
     void testBuilderWithParallelUDownloadsEnabledConfiguration() {
         AsyncBucketClient.Builder builder = AsyncBucketClient.builder(PROVIDER_ID);
         

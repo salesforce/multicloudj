@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.aws.AwsSdkService;
 import com.salesforce.multicloudj.blob.aws.AwsTransformer;
 import com.salesforce.multicloudj.blob.aws.AwsTransformerSupplier;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -68,11 +69,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -81,6 +84,8 @@ import java.util.stream.Collectors;
  * AWS implementation of AsyncBlobStore
  */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
+
+    private static final int MAX_OBJECTS_PER_DELETE = 1000;
 
     private final S3AsyncClient client;
     private final S3TransferManager transferManager;
@@ -226,7 +231,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         ListObjectsV2Request awsRequest = transformer.toRequest(request);
         return client.listObjectsV2(awsRequest)
                 .thenApply(response -> {
-                    List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = response.contents().stream()
+                    List<BlobInfo> blobs = response.contents().stream()
                             .map(transformer::toInfo)
                             .collect(Collectors.toList());
 
@@ -330,6 +335,24 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         return transferManager.uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
                 .completionFuture()
                 .thenApply(transformer::toDirectoryUploadResponse);
+    }
+
+    @Override
+    protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
+        List<CompletableFuture> futures = new ArrayList<>();
+
+        // When listed batches of blobs come in, partition them into groups, then delete them
+        Consumer<ListBlobsBatch> consumer = batch -> {
+            List<List<BlobInfo>> partitionedBlobLists = transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
+            for(List<BlobInfo> blobList : partitionedBlobLists) {
+                futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+            }
+        };
+        CompletableFuture<Void> listFuture = doList(ListBlobsRequest.builder()
+                .withPrefix(prefix)
+                .build(), consumer);
+        futures.add(listFuture);
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**

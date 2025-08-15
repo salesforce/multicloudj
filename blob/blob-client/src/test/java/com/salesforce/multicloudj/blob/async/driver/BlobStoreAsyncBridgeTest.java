@@ -515,4 +515,11 @@ class BlobStoreAsyncBridgeTest {
             asyncWrapper.uploadDirectory(request);
         });
     }
+
+    @Test
+    void doDeleteDirectory() {
+        assertThrows(UnsupportedOperationException.class, () -> {
+            asyncWrapper.deleteDirectory("files");
+        });
+    }
 } 

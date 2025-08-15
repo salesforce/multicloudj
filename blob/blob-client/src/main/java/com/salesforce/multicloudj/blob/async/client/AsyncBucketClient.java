@@ -403,6 +403,18 @@ public class AsyncBucketClient {
                 .exceptionally(this::handleException);
     }
 
+    /**
+     * Deletes all blobs in the bucket which have keys that start with the given prefix.
+     *
+     * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file already exists.
+     */
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        return blobStore
+                .deleteDirectory(prefix)
+                .exceptionally(this::handleException);
+    }
+
     public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
 
         public Builder(String providerId) {
