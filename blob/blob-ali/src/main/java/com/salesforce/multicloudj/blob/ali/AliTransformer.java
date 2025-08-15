@@ -118,6 +118,21 @@ public class AliTransformer {
                 .build();
     }
 
+    public DownloadResponse toDownloadResponse(OSSObject ossObject, InputStream inputStream) {
+        return DownloadResponse.builder()
+                .key(ossObject.getKey())
+                .metadata(BlobMetadata.builder()
+                        .key(ossObject.getKey())
+                        .versionId(ossObject.getObjectMetadata().getVersionId())
+                        .eTag(ossObject.getObjectMetadata().getETag())
+                        .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                        .metadata(ossObject.getObjectMetadata().getUserMetadata())
+                        .objectSize(ossObject.getObjectMetadata().getContentLength())
+                        .build())
+                .inputStream(inputStream)
+                .build();
+    }
+
     public DeleteObjectsRequest toDeleteObjectsRequest(Collection<BlobIdentifier> objects) {
         return new DeleteObjectsRequest(bucket)
                 .withKeys(

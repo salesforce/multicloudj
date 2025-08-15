@@ -202,6 +202,23 @@ public class BucketClient {
     }
 
     /**
+     * Downloads the Blob content and returns an InputStream for reading the content
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public DownloadResponse download(DownloadRequest downloadRequest) {
+        try {
+            return blobStore.download(downloadRequest);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
      * Deletes a single blob from substrate-specific Blob storage.
      *
      * @param key Object name of the Blob

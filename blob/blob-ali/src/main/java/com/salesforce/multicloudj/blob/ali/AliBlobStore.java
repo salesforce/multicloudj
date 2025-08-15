@@ -224,6 +224,20 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         }
     }
 
+    /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    public DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
+        OSSObject ossObject = ossClient.getObject(request);
+        InputStream downloadedInputstream = ossObject.getObjectContent();
+        return transformer.toDownloadResponse(ossObject, downloadedInputstream);
+    }
+
     private void copyStream(InputStream in, OutputStream out) {
         try {
             byte[] buffer = new byte[1024];

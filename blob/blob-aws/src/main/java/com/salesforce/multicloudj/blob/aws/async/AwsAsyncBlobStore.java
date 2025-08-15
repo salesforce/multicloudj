@@ -62,6 +62,8 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+
 
 import java.io.File;
 import java.io.IOException;
@@ -166,10 +168,30 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 .thenApply(response -> transformer.toDownloadResponse(request, response));
     }
 
+    /**
+     * Performs Blob download
+     *
+     * @param request the download request
+     * @param path The Path that blob content will be written to
+     * @return Returns a DownloadResponse object that contains metadata about the blob
+     */
     @Override
     protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path) {
         return client.getObject(transformer.toRequest(request), path)
                 .thenApply(response -> transformer.toDownloadResponse(request, response));
+    }
+
+    /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param request the download request
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
+        GetObjectRequest getObjectRequest = transformer.toRequest(request);
+        return client.getObject(getObjectRequest, AsyncResponseTransformer.toBlockingInputStream())
+                .thenApply(responseInputStream -> transformer.toDownloadResponse(request, responseInputStream.response(), responseInputStream));
     }
 
     @Override

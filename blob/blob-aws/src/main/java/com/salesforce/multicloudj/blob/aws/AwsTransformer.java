@@ -54,6 +54,7 @@ import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.core.ResponseInputStream;
 
 import java.io.InputStream;
 import java.nio.file.Paths;
@@ -180,6 +181,21 @@ public class AwsTransformer {
                         .metadata(response.metadata())
                         .objectSize(response.contentLength())
                         .build())
+                .build();
+    }
+
+    public DownloadResponse toDownloadResponse(DownloadRequest downloadRequest, GetObjectResponse response, ResponseInputStream<GetObjectResponse> responseInputStream) {
+        return DownloadResponse.builder()
+                .key(downloadRequest.getKey())
+                .metadata(BlobMetadata.builder()
+                        .key(downloadRequest.getKey())
+                        .versionId(response.versionId())
+                        .eTag(response.eTag())
+                        .lastModified(response.lastModified())
+                        .metadata(response.metadata())
+                        .objectSize(response.contentLength())
+                        .build())
+                .inputStream(responseInputStream)
                 .build();
     }
 

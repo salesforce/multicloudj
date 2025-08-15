@@ -126,6 +126,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     }
 
     @Override
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        return CompletableFuture.supplyAsync(() -> blobStore.download(downloadRequest), executorService);
+    }
+
+    @Override
     public CompletableFuture<Void> delete(String key, String versionId) {
         return CompletableFuture.runAsync(() -> blobStore.delete(key, versionId), executorService);
     }

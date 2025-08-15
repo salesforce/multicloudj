@@ -142,6 +142,15 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
      * {@inheritDoc}
      */
     @Override
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        validator.validate(downloadRequest);
+        return doDownload(downloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public CompletableFuture<Void> delete(String key, String versionId) {
         validator.validateDelete(key);
         return doDelete(key, versionId);
@@ -310,6 +319,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, File file);
 
     protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path);
+
+    protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request);
 
     protected abstract CompletableFuture<Void> doDelete(String key, String versionId);
 

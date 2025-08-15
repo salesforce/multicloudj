@@ -95,6 +95,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     }
 
     @Override
+    protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
+        return null;
+    }
+
+    @Override
     protected CompletableFuture<Void> doDelete(String key, String versionId) {
         return CompletableFuture.completedFuture(null);
     }

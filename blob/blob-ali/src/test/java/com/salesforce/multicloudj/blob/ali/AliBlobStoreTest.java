@@ -227,6 +227,13 @@ public class AliBlobStoreTest {
     }
 
     @Test
+    void testDoDownloadInputStream() {
+        Instant now = Instant.now();
+        doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+        verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest()), now);
+    }
+
+    @Test
     void testDoDownloadByteArrayWrapper() {
         Instant now = Instant.now();
         doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
