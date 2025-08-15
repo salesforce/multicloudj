@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Disabled
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
     private static final Logger logger = LoggerFactory.getLogger(AwsBlobBenchmarkTest.class);

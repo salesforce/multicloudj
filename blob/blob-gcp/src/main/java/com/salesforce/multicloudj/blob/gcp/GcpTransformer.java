@@ -24,6 +24,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +107,14 @@ public class GcpTransformer {
         return DownloadResponse.builder()
                 .key(blob.getName())
                 .metadata(toBlobMetadata(blob))
+                .build();
+    }
+
+    public DownloadResponse toDownloadResponse(Blob blob, InputStream inputStream) {
+        return DownloadResponse.builder()
+                .key(blob.getName())
+                .metadata(toBlobMetadata(blob))
+                .inputStream(inputStream)
                 .build();
     }
 

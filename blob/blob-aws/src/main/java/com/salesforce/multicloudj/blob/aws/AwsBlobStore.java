@@ -74,6 +74,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.core.ResponseInputStream;
+import java.io.IOException;
 
 /**
  * AWS implementation of BlobStore
@@ -242,6 +244,19 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
         GetObjectRequest request = transformer.toRequest(downloadRequest);
         GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(path));
         return transformer.toDownloadResponse(downloadRequest, response);
+    }
+
+    /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        GetObjectRequest request = transformer.toRequest(downloadRequest);
+        ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
+        return transformer.toDownloadResponse(downloadRequest, responseInputStream.response(), responseInputStream);
     }
 
     /**
