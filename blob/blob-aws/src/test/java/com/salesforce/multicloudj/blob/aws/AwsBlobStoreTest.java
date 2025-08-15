@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -113,6 +114,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import software.amazon.awssdk.core.ResponseInputStream;
 
 public class AwsBlobStoreTest {
 
@@ -329,6 +332,16 @@ public class AwsBlobStoreTest {
         doReturn("downloadedData".getBytes()).when(responseBytes).asByteArray();
         doReturn(responseBytes).when(mockS3Client).getObject(any(GetObjectRequest.class), eq(ResponseTransformer.toBytes()));
         doReturn(getObjectResponse).when(responseBytes).response();
+
+
+        ResponseInputStream<GetObjectResponse> responseInputStream = mock(ResponseInputStream.class);
+        try {
+            doReturn("downloadedDataFromStream".getBytes()).when(responseInputStream).readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        doReturn(responseInputStream).when(mockS3Client).getObject(any(GetObjectRequest.class));
+        doReturn(getObjectResponse).when(responseInputStream).response();
     }
 
     @Test
@@ -337,7 +350,7 @@ public class AwsBlobStoreTest {
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
         DownloadResponse response = aws.doDownload(buildTestDownloadRequest(), mockContent);
-        verifyDownloadTestResults(response, now);
+        verifyDownloadTestResults(response, now, true);
     }
 
     @Test
@@ -345,7 +358,7 @@ public class AwsBlobStoreTest {
         ByteArray byteArray = new ByteArray();
         Instant now = Instant.now();
         setupMockGetObjectResponse(now);
-        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), byteArray), now);
+        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), byteArray), now, true);
         assertEquals("downloadedData", new String(byteArray.getBytes()));
     }
 
@@ -356,7 +369,7 @@ public class AwsBlobStoreTest {
         Path path = Path.of("tempFile.txt");
         try {
             Files.deleteIfExists(path);
-            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now, true);
         } catch (IOException e) {
             Assertions.fail();
         } finally {
@@ -375,7 +388,7 @@ public class AwsBlobStoreTest {
         Path path = Path.of("tempPath.txt");
         try {
             Files.deleteIfExists(path);
-            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now, true);
         } catch (IOException e) {
             Assertions.fail();
         } finally {
@@ -387,10 +400,27 @@ public class AwsBlobStoreTest {
         }
     }
 
-    void verifyDownloadTestResults(DownloadResponse response, Instant now) {
+    @Test
+    void testDoDownloadInputStream() {
+        Instant now = Instant.now();
+        setupMockGetObjectResponse(now);
+        DownloadResponse response = aws.download(buildTestDownloadRequest());
+        verifyDownloadTestResults(response, now, false);
+        try {
+            assertArrayEquals("downloadedDataFromStream".getBytes(), response.getInputStream().readAllBytes());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    void verifyDownloadTestResults(DownloadResponse response, Instant now, Boolean responseTransfer) {
 
         ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
-        verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), (ResponseTransformer<GetObjectResponse, Object>) any());
+        if (responseTransfer) {
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), (ResponseTransformer<GetObjectResponse, Object>) any());
+        } else {
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture());
+        }
         GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
         assertEquals("bucket-1", actualGetObjectRequest.bucket());
         assertEquals("object-1", actualGetObjectRequest.key());

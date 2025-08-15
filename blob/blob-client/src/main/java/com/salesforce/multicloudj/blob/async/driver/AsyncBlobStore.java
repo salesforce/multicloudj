@@ -125,6 +125,15 @@ public interface AsyncBlobStore extends SdkService {
     CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path);
 
     /**
+     * Downloads the Blob content from substrate-specific Blob storage.
+     * Throws an exception if a file already exists at the path location.
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob
+     */
+    CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest);
+
+    /**
      * Performs args validation and passes the call to substrate-specific delete method
      *
      * @param key Object name of the Blob

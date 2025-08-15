@@ -129,6 +129,15 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
      * {@inheritDoc}
      */
     @Override
+    public DownloadResponse download(DownloadRequest downloadRequest) {
+        validator.validate(downloadRequest);
+        return doDownload(downloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void delete(String key, String versionId) {
         validator.validateDelete(key);
         doDelete(key, versionId);
@@ -273,6 +282,8 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest, File file);
 
     protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest, Path path);
+
+    protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest);
 
     protected abstract void doDelete(String key, String versionId);
 

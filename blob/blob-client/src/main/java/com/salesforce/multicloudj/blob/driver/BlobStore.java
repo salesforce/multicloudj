@@ -105,6 +105,14 @@ public interface BlobStore extends SdkService, Provider {
     DownloadResponse download(DownloadRequest downloadRequest, Path path);
 
     /**
+     * Performs args validation and passes the call to substrate-specific download method
+     *
+     * @param downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    DownloadResponse download(DownloadRequest downloadRequest);
+
+    /**
      * Performs args validation and passes the call to substrate-specific delete method
      *
      * @param key Object name of the Blob
