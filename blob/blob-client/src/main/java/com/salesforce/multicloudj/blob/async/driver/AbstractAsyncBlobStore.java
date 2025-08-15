@@ -287,6 +287,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         return doUploadDirectory(directoryUploadRequest);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        return doDeleteDirectory(prefix);
+    }
+
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, byte[] content);
@@ -336,4 +344,6 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
 
     protected abstract CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    protected abstract CompletableFuture<Void> doDeleteDirectory(String prefix);
 }

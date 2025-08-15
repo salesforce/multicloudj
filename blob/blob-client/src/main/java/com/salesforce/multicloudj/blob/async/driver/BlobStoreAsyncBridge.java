@@ -229,4 +229,9 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
         throw new UnsupportedOperationException("Feature not implemented");
     }
+
+    @Override
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        throw new UnsupportedOperationException("Feature not implemented");
+    }
 } 

@@ -184,6 +184,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
+        return CompletableFuture.completedFuture(null);
+    }
+
     public static Builder builder() {
         return new Builder();
     }

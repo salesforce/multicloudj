@@ -252,4 +252,10 @@ public interface AsyncBlobStore extends SdkService {
      * @param directoryUploadRequest Wrapper, containing directory upload data
      */
     CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    /**
+     * Deletes the content from the substrate-specific Blob storage that contains the prefix
+     * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
+     */
+    CompletableFuture<Void> deleteDirectory(String prefix);
 }

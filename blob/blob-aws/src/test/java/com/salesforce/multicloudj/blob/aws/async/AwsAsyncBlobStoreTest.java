@@ -134,6 +134,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -1068,5 +1069,44 @@ public class AwsAsyncBlobStoreTest {
         assertEquals(1, response.getFailedTransfers().size());
         assertEquals(failedUploadException, response.getFailedTransfers().get(0).getException());
         assertEquals(failedUploadPath, response.getFailedTransfers().get(0).getSource());
+    }
+
+    @Test
+    void doDeleteDirectory() throws ExecutionException, InterruptedException {
+
+        // Arrange it so calling doList() returns these blobs via the async publisher
+        ListObjectsV2Publisher publisher = mock(ListObjectsV2Publisher.class);
+        S3Object object1 = S3Object.builder().key("file1.txt").size(123L).build();
+        S3Object object2 = S3Object.builder().key("file2.txt").size(456L).build();
+        S3Object object3 = S3Object.builder().key("file3.txt").size(789L).build();
+        doAnswer(invocation -> {
+            Consumer consumer = invocation.getArgument(0);
+            consumer.accept(ListObjectsV2Response.builder().contents(object1, object2).build());
+            consumer.accept(ListObjectsV2Response.builder().contents(object3).build());
+            return futureVoid();
+        }).when(publisher).subscribe(any(Consumer.class));
+        DeleteObjectsResponse response = mock(DeleteObjectsResponse.class);
+        when(mockS3Client.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(future(response));
+        when(mockS3Client.listObjectsV2Paginator(any(ListObjectsV2Request.class))).thenReturn(publisher);
+
+        // Perform the request
+        aws.doDeleteDirectory("files").get();
+
+        // Verify the wiring
+        verify(mockS3Client).listObjectsV2Paginator(any(ListObjectsV2Request.class));
+        verify(publisher).subscribe(any(ConsumerWrapper.class));
+        ArgumentCaptor<DeleteObjectsRequest> requestCaptor = ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+        verify(mockS3Client, times(2)).deleteObjects(requestCaptor.capture());
+
+        // Verify every object was deleted
+        List<DeleteObjectsRequest> actualDeleteRequests = requestCaptor.getAllValues();
+        assertEquals(2, actualDeleteRequests.size());
+        List<ObjectIdentifier> firstObjectsDeleted = actualDeleteRequests.get(0).delete().objects();
+        assertEquals(2, firstObjectsDeleted.size());
+        assertEquals(object1.key(), firstObjectsDeleted.get(0).key());
+        assertEquals(object2.key(), firstObjectsDeleted.get(1).key());
+        List<ObjectIdentifier> secondObjectsDeleted = actualDeleteRequests.get(1).delete().objects();
+        assertEquals(1, secondObjectsDeleted.size());
+        assertEquals(object3.key(), secondObjectsDeleted.get(0).key());
     }
 }

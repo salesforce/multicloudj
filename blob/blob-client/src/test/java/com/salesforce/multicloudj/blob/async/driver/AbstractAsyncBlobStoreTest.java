@@ -435,4 +435,15 @@ public class AbstractAsyncBlobStoreTest {
         assertEquals("/home/files", actualUploadRequest.getLocalDestinationDirectory());
         assertEquals(List.of("abc", "xyz"), actualUploadRequest.getPrefixesToExclude());
     }
+
+    @Test
+    void testDoDeleteDirectory() {
+        mockBlobStore.deleteDirectory("files");
+
+        ArgumentCaptor<String> requestCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockBlobStore, times(1)).doDeleteDirectory(requestCaptor.capture());
+        String actualParam = requestCaptor.getValue();
+
+        assertEquals("files", actualParam);
+    }
 }
