@@ -524,6 +524,18 @@ public class AwsAsyncBlobStoreTest {
         }
     }
 
+    @Test
+    void testDoDownloadInputStream() throws ExecutionException, InterruptedException, IOException {
+        Instant now = Instant.now();
+        setupMockGetObjectResponse(now);
+
+        DownloadResponse response = aws.doDownload(generateTestDownloadRequest()).get();
+        ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(InputStreamResponseTransformer.class));
+        verifyDownloadTestResults(response, getObjectRequestCaptor, now);
+
+    }
+
     void verifyDownloadTestResults(DownloadResponse response, ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor, Instant now) {
         GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
         assertEquals("bucket-1", actualGetObjectRequest.bucket());

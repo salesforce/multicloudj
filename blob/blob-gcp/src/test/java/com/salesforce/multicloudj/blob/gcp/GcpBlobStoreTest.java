@@ -1081,4 +1081,96 @@ class GcpBlobStoreTest {
                 any(Storage.SignUrlOption.class),
                 any(Storage.SignUrlOption.class));
     }
+
+    // Test class to access protected methods
+    private static class TestGcpBlobStore extends GcpBlobStore {
+        public TestGcpBlobStore(Builder builder, Storage storage) {
+            super(builder, storage);
+        }
+    }
+
+    @Test
+    void testDoDownloadWithInputStream() {
+        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+            // Given
+            DownloadRequest downloadRequest = DownloadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .build();
+
+            DownloadResponse expectedResponse = DownloadResponse.builder()
+                    .key(TEST_KEY)
+                    .build();
+
+            when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+            when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+            when(mockBlob.reader()).thenReturn(mockReadChannel);
+            when(mockBlob.getSize()).thenReturn(100L);
+            when(mockTransformer.computeRange(any(), any(), anyLong())).thenReturn(new ImmutablePair<>(null, null));
+            when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class))).thenReturn(expectedResponse);
+
+            DownloadResponse response = gcpBlobStore.doDownload(downloadRequest);
+
+            assertEquals(expectedResponse, response);
+            verify(mockTransformer).toBlobId(downloadRequest);
+            verify(mockStorage).get(mockBlobId);
+            verify(mockBlob).reader();
+            verify(mockTransformer).computeRange(null, null, 100L);
+            verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
+        }
+    }
+
+    @Test
+    void tesDoDownloadWithInputStreamBlobNotFound() {
+        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+            // Given
+            DownloadRequest downloadRequest = DownloadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .build();
+
+            when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+            when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+            // When & Then
+            SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+                gcpBlobStore.doDownload(downloadRequest);
+            });
+            assertEquals("Blob not found", exception.getMessage());
+            verify(mockTransformer).toBlobId(downloadRequest);
+            verify(mockStorage).get(mockBlobId);
+        }
+    }
+
+    @Test
+    void testDoDownloadWithRangeInputStream() throws IOException {
+        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+            // Given
+            DownloadRequest downloadRequest = DownloadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .withRange(10L, 20L)
+                    .build();
+
+            DownloadResponse expectedResponse = DownloadResponse.builder()
+                    .key(TEST_KEY)
+                    .build();
+
+            when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+            when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+            when(mockBlob.reader()).thenReturn(mockReadChannel);
+            when(mockBlob.getSize()).thenReturn(100L);
+            when(mockTransformer.computeRange(10L, 20L, 100L)).thenReturn(new ImmutablePair<>(10L, 21L));
+            when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class))).thenReturn(expectedResponse);
+
+            DownloadResponse response = gcpBlobStore.doDownload(downloadRequest);
+
+            // Then
+            assertEquals(expectedResponse, response);
+            verify(mockTransformer).toBlobId(downloadRequest);
+            verify(mockStorage).get(mockBlobId);
+            verify(mockBlob).reader();
+            verify(mockReadChannel).seek(10L);
+            verify(mockReadChannel).limit(21L);
+            verify(mockTransformer).computeRange(10L, 20L, 100L);
+            verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
+        }
+    }
 }

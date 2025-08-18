@@ -675,9 +675,17 @@ public abstract class AbstractBlobStoreIT {
         DownloadResponse response = null;
         switch (downloadType) {
             case InputStream:
-                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                    response = bucketClient.download(request, outputStream);
-                    content = outputStream.toByteArray();
+                response = bucketClient.download(request);
+                if (response.getInputStream() != null) {
+                    try (InputStream inputStream = response.getInputStream();
+                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                        }
+                        content = outputStream.toByteArray();
+                    }
                 }
                 break;
             case ByteArray:

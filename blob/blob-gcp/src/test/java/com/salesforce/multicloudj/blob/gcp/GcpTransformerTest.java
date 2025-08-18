@@ -26,6 +26,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -324,6 +326,38 @@ class GcpTransformerTest {
         assertEquals(expectedMetadata, response.getMetadata().getMetadata());
         
         assertEquals(updateTime.toInstant(), response.getMetadata().getLastModified());
+    }
+
+    @Test
+    void testToDownloadResponseInputStream_WithAllFields() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        metadata.put("custom-header", "custom-value"); // Non-tag metadata that should be included
+
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+
+        DownloadResponse response = transformer.toDownloadResponse(mockBlob, new InputStream() {
+            @Override
+            public int read() throws IOException {
+                return 0;
+            }
+        });
+
+        assertEquals(TEST_KEY, response.getKey());
+        assertNotNull(response.getMetadata());
+        assertEquals(TEST_KEY, response.getMetadata().getKey());
+        assertEquals(TEST_VERSION_ID, response.getMetadata().getVersionId());
+        assertEquals(TEST_ETAG, response.getMetadata().getETag());
+        assertEquals(TEST_SIZE, response.getMetadata().getObjectSize());
+        assertNotNull(response.getInputStream());
     }
 
     @Test

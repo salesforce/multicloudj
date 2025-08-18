@@ -202,11 +202,19 @@ public class BucketClientTest {
     }
 
     @Test
+    void testDownloadInputStream() {
+        DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
+        client.download(request);
+        verify(mockBlobStore, times(1)).download(eq(request));
+    }
+
+    @Test
     void testDownloadThrowsException() throws IOException {
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(OutputStream.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(ByteArray.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(File.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(Path.class));
+        doThrow(RuntimeException.class).when(mockBlobStore).download(any());
 
         DownloadRequest request = mock(DownloadRequest.class);
         try(OutputStream outputStream = mock(OutputStream.class)) {
@@ -222,6 +230,9 @@ public class BucketClientTest {
         });
         assertThrows(UnAuthorizedException.class, () -> {
             client.download(request, Paths.get("testfile.txt"));
+        });
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.download(request);
         });
     }
 

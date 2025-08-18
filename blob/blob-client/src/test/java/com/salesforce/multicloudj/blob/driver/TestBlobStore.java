@@ -54,6 +54,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
+    protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        return null;
+    }
+
+    @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
         return null;
     }

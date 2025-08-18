@@ -245,6 +245,22 @@ public class AbstractAsyncBlobStoreTest {
         assertEquals(path, contentCaptor.getValue());
     }
 
+    @Test
+    void testDoDownloadInputStream() {
+        DownloadRequest request = getTestDownloadRequest();
+        mockBlobStore.download(request);
+
+        verify(validator, times(1)).validate(any(DownloadRequest.class));
+        verify(validator, times(1)).validateKey(any());
+        verify(validator, times(1)).validateRange(any(), any());
+        ArgumentCaptor<DownloadRequest> requestCaptor = ArgumentCaptor.forClass(DownloadRequest.class);
+        verify(mockBlobStore, times(1)).doDownload(requestCaptor.capture());
+
+        DownloadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.getKey());
+        assertEquals("version-1", actualRequest.getVersionId());
+    }
+
     private DownloadRequest getTestDownloadRequest() {
         return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").build();
     }

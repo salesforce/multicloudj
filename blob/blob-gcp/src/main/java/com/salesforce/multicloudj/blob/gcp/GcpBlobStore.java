@@ -168,6 +168,42 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         return doDownload(downloadRequest, file.toPath());
     }
 
+    /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        BlobId blobId = transformer.toBlobId(downloadRequest);
+        Blob blob = storage.get(blobId);
+        if(blob == null) {
+            throw new SubstrateSdkException("Blob not found");
+        }
+        try {
+            ReadChannel reader = blob.reader();
+            var range = transformer.computeRange(downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+            if(range.getLeft() != null) {
+                reader.seek(range.getLeft());
+            }
+            if(range.getRight() != null) {
+                reader.limit(range.getRight());
+            }
+            InputStream inputStream = Channels.newInputStream(reader);
+            return transformer.toDownloadResponse(blob, inputStream);
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Failed to create input stream for download", e);
+        }
+    }
+
+    /**
+     * Performs Blob download
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @param path The Path that blob content will be written to
+     * @return Returns a DownloadResponse object that contains metadata about the blob
+     */
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
         try (OutputStream outputStream = Files.newOutputStream(path)) {
