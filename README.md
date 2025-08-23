@@ -93,7 +93,7 @@ public class DocstoreExample {
 }
 ```
 
-For more examples: please refer to [multicloudj-examples](https://github.com/salesforce/multicloudj-examples/src/main/java/com/salesforce/multicloudj) where we have detailed examples on blob store, docstore and sts.
+For more examples: please refer to [examples](https://github.com/salesforce/multicloudj/tree/main/examples) where we have detailed examples on blob store, docstore and sts.
 
 ---
 
