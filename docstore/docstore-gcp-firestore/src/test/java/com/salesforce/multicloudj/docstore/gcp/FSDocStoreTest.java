@@ -163,6 +163,29 @@ public class FSDocStoreTest {
     }
 
     @Test
+    void testGetKeyWithForwardSlash() throws Exception {
+        // Test getting key from document with valid partition key
+        com.salesforce.multicloudj.docstore.driver.Document doc =
+                new com.salesforce.multicloudj.docstore.driver.Document(
+                        Map.of("title", "TestTitle/1", "publisher", "TestPublisher/1"));
+
+        Object key = docStore.getKey(doc);
+        Assertions.assertNotNull(key);
+
+        // Since Key is private, use reflection to check the documentId
+        Field documentIdField = key.getClass().getDeclaredField("documentId");
+        documentIdField.setAccessible(true);
+        Assertions.assertEquals("TestTitle%2F1:TestPublisher%2F1", documentIdField.get(key));
+
+        // Test that exception is thrown when partition key is missing
+        com.salesforce.multicloudj.docstore.driver.Document docWithoutKey =
+                new com.salesforce.multicloudj.docstore.driver.Document(
+                        Map.of("publisher", "TestPublisher"));
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> docStore.getKey(docWithoutKey));
+    }
+
+    @Test
     void testRunActions() throws Exception {
         // Create a document for our test
         Map<String, Object> docMap = new HashMap<>();
