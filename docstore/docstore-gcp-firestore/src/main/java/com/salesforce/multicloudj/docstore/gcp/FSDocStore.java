@@ -193,7 +193,33 @@ public class FSDocStore extends AbstractDocStore {
         if (collectionOptions.getSortKey() != null && document.getField(collectionOptions.getSortKey()) != null) {
             docId += ":" + document.getField(collectionOptions.getSortKey());
         }
-        return new Key(docId);
+        
+        // Encode the document ID to handle special characters gracefully
+        String encodedDocId = encodeDocumentId(docId);
+        return new Key(encodedDocId);
+    }
+
+    /**
+     * Encodes a document ID to ensure compatibility with Firestore.
+     * <p>
+     * Firestore document IDs cannot contain forward slashes (/) as they are used as path separators.
+     * This method encodes problematic characters to ensure the document ID is valid.
+     * <p>
+     * Encoding rules:
+     * - Forward slash (/) becomes %2F
+     * - Other potentially problematic characters are also encoded
+     *
+     * @param documentId The original document ID
+     * @return The encoded document ID safe for Firestore
+     */
+    public static String encodeDocumentId(String documentId) {
+        if (documentId == null) {
+            return null;
+        }
+        
+        // Encode problematic characters that could cause issues in Firestore paths
+        return documentId
+                .replace("/", "%2F");
     }
 
     /**
