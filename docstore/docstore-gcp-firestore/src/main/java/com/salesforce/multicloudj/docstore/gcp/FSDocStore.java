@@ -212,7 +212,7 @@ public class FSDocStore extends AbstractDocStore {
      * @param documentId The original document ID
      * @return The encoded document ID safe for Firestore
      */
-    public static String encodeDocumentId(String documentId) {
+    private String encodeDocumentId(String documentId) {
         if (documentId == null) {
             return null;
         }
