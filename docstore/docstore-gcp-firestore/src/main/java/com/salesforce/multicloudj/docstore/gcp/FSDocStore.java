@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.AbortedException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
@@ -44,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -1047,7 +1049,12 @@ public class FSDocStore extends AbstractDocStore {
                 if (credentials != null) {
                     settingsBuilder.setCredentialsProvider(() -> credentials);
                 }
-
+                if (getEndpoint() != null) {
+                    settingsBuilder.setEndpoint(getEndpoint().toString());
+                }
+                Optional.ofNullable(System.getenv("FIRESTORE_EMULATOR_HOST"))
+                        .filter(h -> !h.isEmpty())
+                        .ifPresent(host -> settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create()));
                 // Build the client
                 return FirestoreClient.create(settingsBuilder.build());
             } catch (Exception e) {
