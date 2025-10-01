@@ -31,8 +31,11 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
+import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.provider.Provider;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +52,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -59,6 +63,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -1172,5 +1177,30 @@ class GcpBlobStoreTest {
             verify(mockTransformer).computeRange(10L, 20L, 100L);
             verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
         }
+    }
+
+    @Test
+    void testProviderBuilder() {
+        GcpAsyncBlobStoreProvider provider = new GcpAsyncBlobStoreProvider();
+        GcpAsyncBlobStoreProvider.Builder builder = provider.builder();
+        assertInstanceOf(GcpAsyncBlobStore.Builder.class, builder);
+
+        var store = builder
+                .withEndpoint(URI.create("https://endpoint.example.com"))
+                .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                .withSocketTimeout(Duration.ofMinutes(1))
+                .withIdleConnectionTimeout(Duration.ofMinutes(5))
+                .withMaxConnections(100)
+                .withExecutorService(ForkJoinPool.commonPool())
+                .build();
+
+        assertNotNull(store);
+        assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
+    }
+
+    @Test
+    void testProxyProviderId() {
+        GcpAsyncBlobStoreProvider provider = new GcpAsyncBlobStoreProvider();
+        assertEquals(GcpConstants.PROVIDER_ID, provider.getProviderId());
     }
 }

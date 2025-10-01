@@ -28,6 +28,10 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
         super(blobStore, executorService);
     }
 
+    public static GcpAsyncBlobStore.Builder builder() {
+        return new GcpAsyncBlobStore.Builder();
+    }
+
     @Getter
     public static class Builder extends AsyncBlobStoreProvider.Builder {
 
