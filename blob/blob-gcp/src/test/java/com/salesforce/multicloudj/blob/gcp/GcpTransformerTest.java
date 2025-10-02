@@ -34,7 +34,44 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.stream.Stream;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
@@ -220,7 +257,7 @@ class GcpTransformerTest {
     @Test
     void testToBlobId_WithKeyAndVersionId() {
         // When
-        BlobId blobId = transformer.toBlobId(TEST_KEY, TEST_VERSION_ID);
+        BlobId blobId = transformer.toBlobId(TEST_BUCKET, TEST_KEY, TEST_VERSION_ID);
 
         // Then
         assertEquals(TEST_BUCKET, blobId.getBucket());
@@ -231,7 +268,7 @@ class GcpTransformerTest {
     @Test
     void testToBlobId_WithKeyAndNullVersionId() {
         // When
-        BlobId blobId = transformer.toBlobId(TEST_KEY, null);
+        BlobId blobId = transformer.toBlobId(TEST_BUCKET, TEST_KEY, null);
 
         // Then
         assertEquals(TEST_BUCKET, blobId.getBucket());
@@ -679,5 +716,317 @@ class GcpTransformerTest {
         assertEquals(2, response.get(1).getPartNumber());
         assertEquals(200L, response.get(1).getSizeInBytes());
         assertEquals("part-2-etag", response.get(1).getEtag());
+    }
+
+    @Test
+    public void testToFilePaths_UploadRequest() throws IOException {
+        // Create a temporary directory structure
+        Path tempDir = Files.createTempDirectory("test-upload");
+        Path file1 = tempDir.resolve("file1.txt");
+        Path file2 = tempDir.resolve("subdir/file2.txt");
+        Files.createDirectories(file2.getParent());
+        Files.write(file1, "content1".getBytes());
+        Files.write(file2, "content2".getBytes());
+
+        try {
+            DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                    .localSourceDirectory(tempDir.toString())
+                    .prefix("uploads/")
+                    .includeSubFolders(true)
+                    .build();
+
+            List<Path> filePaths = transformer.toFilePaths(request);
+
+            assertEquals(2, filePaths.size());
+            assertTrue(filePaths.contains(file1));
+            assertTrue(filePaths.contains(file2));
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        }
+    }
+
+    @Test
+    public void testToFilePaths_UploadRequest_NoSubFolders() throws IOException {
+        // Create a temporary directory structure
+        Path tempDir = Files.createTempDirectory("test-upload");
+        Path file1 = tempDir.resolve("file1.txt");
+        Path file2 = tempDir.resolve("subdir/file2.txt");
+        Files.createDirectories(file2.getParent());
+        Files.write(file1, "content1".getBytes());
+        Files.write(file2, "content2".getBytes());
+
+        try {
+            DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                    .localSourceDirectory(tempDir.toString())
+                    .prefix("uploads/")
+                    .includeSubFolders(false)
+                    .build();
+
+            List<Path> filePaths = transformer.toFilePaths(request);
+
+            assertEquals(1, filePaths.size());
+            assertTrue(filePaths.contains(file1));
+            assertFalse(filePaths.contains(file2));
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+        }
+    }
+
+    @Test
+    public void testToBlobKey() {
+        Path sourceDir = Paths.get("/source");
+        Path filePath = Paths.get("/source/subdir/file.txt");
+        String prefix = "uploads/";
+
+        String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
+
+        assertEquals("uploads/subdir/file.txt", blobKey);
+    }
+
+    @Test
+    public void testToBlobKey_NoPrefix() {
+        Path sourceDir = Paths.get("/source");
+        Path filePath = Paths.get("/source/subdir/file.txt");
+        String prefix = null;
+
+        String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
+
+        assertEquals("subdir/file.txt", blobKey);
+    }
+
+
+
+    @Test
+    public void testComputeRange_EdgeCases() {
+        // Test with null start and end
+        Pair<Long, Long> range1 = transformer.computeRange(null, null, 1000L);
+        assertNull(range1.getLeft());
+        assertNull(range1.getRight());
+
+        // Test with start = 0, end = null
+        Pair<Long, Long> range2 = transformer.computeRange(0L, null, 1000L);
+        assertEquals(0L, range2.getLeft().longValue());
+        assertNull(range2.getRight());
+
+        // Test with start = null, end = 500
+        // When start is null and end is not null, it calculates start = fileSize - end
+        Pair<Long, Long> range3 = transformer.computeRange(null, 500L, 1000L);
+        assertEquals(500L, range3.getLeft().longValue()); // fileSize - end = 1000 - 500 = 500
+        assertEquals(1001L, range3.getRight().longValue()); // fileSize + 1 = 1000 + 1 = 1001
+
+        // Test with start = 100, end = 200
+        Pair<Long, Long> range4 = transformer.computeRange(100L, 200L, 1000L);
+        assertEquals(100L, range4.getLeft().longValue());
+        assertEquals(201L, range4.getRight().longValue());
+    }
+
+    @Test
+    public void testPartitionList_EmptyList() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> emptyList = new ArrayList<>();
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(emptyList, 10);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testPartitionList_SingleElement() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> singleList = new ArrayList<>();
+        singleList.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                .withKey("test-key")
+                .withObjectSize(100L)
+                .build());
+
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(singleList, 10);
+        assertEquals(1, result.size());
+        assertEquals(1, result.get(0).size());
+        assertEquals("test-key", result.get(0).get(0).getKey());
+    }
+
+    @Test
+    public void testPartitionList_ExactPartitionSize() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                    .withKey("key-" + i)
+                    .withObjectSize(100L)
+                    .build());
+        }
+
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(list, 10);
+        assertEquals(2, result.size());
+        assertEquals(10, result.get(0).size());
+        assertEquals(10, result.get(1).size());
+    }
+
+    @Test
+    public void testPartitionList_RemainderElements() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
+        for (int i = 0; i < 25; i++) {
+            list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                    .withKey("key-" + i)
+                    .withObjectSize(100L)
+                    .build());
+        }
+
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(list, 10);
+        assertEquals(3, result.size());
+        assertEquals(10, result.get(0).size());
+        assertEquals(10, result.get(1).size());
+        assertEquals(5, result.get(2).size());
+    }
+
+    @Test
+    public void testToBlobIdentifiers_EmptyList() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> emptyList = new ArrayList<>();
+        List<com.salesforce.multicloudj.blob.driver.BlobIdentifier> result = transformer.toBlobIdentifiers(emptyList);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testToBlobIdentifiers_SingleElement() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
+        list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                .withKey("test-key")
+                .withObjectSize(100L)
+                .build());
+
+        List<com.salesforce.multicloudj.blob.driver.BlobIdentifier> result = transformer.toBlobIdentifiers(list);
+        assertEquals(1, result.size());
+        assertEquals("test-key", result.get(0).getKey());
+        assertNull(result.get(0).getVersionId());
+    }
+
+    @Test
+    public void testToBlobIdentifiers_MultipleElements() {
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                    .withKey("key-" + i)
+                    .withObjectSize(100L)
+                    .build());
+        }
+
+        List<com.salesforce.multicloudj.blob.driver.BlobIdentifier> result = transformer.toBlobIdentifiers(list);
+        assertEquals(5, result.size());
+        for (int i = 0; i < 5; i++) {
+            assertEquals("key-" + i, result.get(i).getKey());
+            assertNull(result.get(i).getVersionId());
+        }
+    }
+
+    @Test
+    public void testToFilePaths_IOException() throws IOException {
+        // Create a temporary directory that we'll delete to cause IOException
+        Path tempDir = Files.createTempDirectory("test-dir");
+        Files.delete(tempDir); // Delete the directory to cause IOException
+
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory(tempDir.toString())
+                .prefix("test/")
+                .includeSubFolders(true)
+                .build();
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            transformer.toFilePaths(request);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to traverse directory"));
+        assertTrue(exception.getCause() instanceof IOException);
+    }
+
+    @Test
+    public void testToBlobKey_WindowsPathSeparator() {
+        // Use actual Windows-style paths that exist on the filesystem
+        Path sourceDir = Paths.get("source", "dir");
+        Path filePath = Paths.get("source", "dir", "subdir", "file.txt");
+        String prefix = "uploads/";
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("uploads/subdir/file.txt", result);
+    }
+
+    @Test
+    public void testToBlobKey_UnixPathSeparator() {
+        Path sourceDir = Paths.get("/source/dir");
+        Path filePath = Paths.get("/source/dir/subdir/file.txt");
+        String prefix = "uploads/";
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("uploads/subdir/file.txt", result);
+    }
+
+    @Test
+    public void testToBlobKey_EmptyPrefix() {
+        Path sourceDir = Paths.get("/source/dir");
+        Path filePath = Paths.get("/source/dir/file.txt");
+        String prefix = "";
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("file.txt", result);
+    }
+
+    @Test
+    public void testToBlobKey_NullPrefix() {
+        Path sourceDir = Paths.get("/source/dir");
+        Path filePath = Paths.get("/source/dir/file.txt");
+        String prefix = null;
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("file.txt", result);
+    }
+
+    @Test
+    public void testToBlobKey_PrefixWithoutSlash() {
+        Path sourceDir = Paths.get("/source/dir");
+        Path filePath = Paths.get("/source/dir/file.txt");
+        String prefix = "uploads";
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("uploads/file.txt", result);
+    }
+
+    @Test
+    public void testToBlobKey_PrefixWithSlash() {
+        Path sourceDir = Paths.get("/source/dir");
+        Path filePath = Paths.get("/source/dir/file.txt");
+        String prefix = "uploads/";
+
+        String result = transformer.toBlobKey(sourceDir, filePath, prefix);
+        assertEquals("uploads/file.txt", result);
+    }
+
+    @Test
+    public void testComputeRange_ZeroFileSize() {
+        Pair<Long, Long> range = transformer.computeRange(0L, 0L, 0L);
+        assertEquals(0L, range.getLeft().longValue());
+        assertEquals(1L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_StartEqualsEnd() {
+        Pair<Long, Long> range = transformer.computeRange(5L, 5L, 100L);
+        assertEquals(5L, range.getLeft().longValue());
+        assertEquals(6L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_EndGreaterThanFileSize() {
+        Pair<Long, Long> range = transformer.computeRange(0L, 150L, 100L);
+        assertEquals(0L, range.getLeft().longValue());
+        assertEquals(151L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_StartGreaterThanFileSize() {
+        Pair<Long, Long> range = transformer.computeRange(150L, 200L, 100L);
+        assertEquals(150L, range.getLeft().longValue());
+        assertEquals(201L, range.getRight().longValue());
     }
 } 

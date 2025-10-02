@@ -83,6 +83,17 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import static org.mockito.Mockito.never;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 
 @ExtendWith(MockitoExtension.class)
 class GcpBlobStoreTest {
@@ -107,6 +118,12 @@ class GcpBlobStoreTest {
 
     @Mock
     private BlobId mockBlobId;
+
+    @Mock
+    private Page<Blob> mockPage;
+
+    @Mock
+    private UploadResponse mockUploadResponse;
 
     @Mock
     private BlobInfo mockBlobInfo;
@@ -547,7 +564,7 @@ class GcpBlobStoreTest {
     @Test
     void testDoDelete_WithKeyAndVersionId() {
         // Given
-        when(mockTransformer.toBlobId(TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
+        when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
 
         // When
         gcpBlobStore.doDelete(TEST_KEY, TEST_VERSION_ID);
@@ -559,7 +576,7 @@ class GcpBlobStoreTest {
     @Test
     void testDoDelete_WithKeyAndNullVersionId() {
         // Given
-        when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
 
         // When
         gcpBlobStore.doDelete(TEST_KEY, null);
@@ -578,8 +595,8 @@ class GcpBlobStoreTest {
         BlobId mockBlobId1 = mock(BlobId.class);
         BlobId mockBlobId2 = mock(BlobId.class);
 
-        when(mockTransformer.toBlobId("key1", "version1")).thenReturn(mockBlobId1);
-        when(mockTransformer.toBlobId("key2", "version2")).thenReturn(mockBlobId2);
+        when(mockTransformer.toBlobId(TEST_BUCKET, "key1", "version1")).thenReturn(mockBlobId1);
+        when(mockTransformer.toBlobId(TEST_BUCKET, "key2", "version2")).thenReturn(mockBlobId2);
 
         // When
         gcpBlobStore.doDelete(objects);
@@ -625,7 +642,7 @@ class GcpBlobStoreTest {
                 .eTag(TEST_ETAG)
                 .build();
 
-        when(mockTransformer.toBlobId(TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
+        when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
         when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
         when(mockTransformer.toBlobMetadata(mockBlob)).thenReturn(expectedMetadata);
 
@@ -1202,5 +1219,351 @@ class GcpBlobStoreTest {
     void testProxyProviderId() {
         GcpAsyncBlobStoreProvider provider = new GcpAsyncBlobStoreProvider();
         assertEquals(GcpConstants.PROVIDER_ID, provider.getProviderId());
+    }
+
+    @Test
+    void testDoDownload_WithRange_EdgeCases() throws IOException {
+        // Test with start = 0, end = 0 (single byte)
+        DownloadRequest request1 = DownloadRequest.builder()
+                .withKey(TEST_KEY)
+                .withRange(0L, 0L)
+                .build();
+
+        when(mockTransformer.toBlobId(request1)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockBlob.getSize()).thenReturn(100L);
+        when(mockTransformer.computeRange(0L, 0L, 100L)).thenReturn(new ImmutablePair<>(0L, 1L));
+        when(mockBlob.reader()).thenReturn(mockReadChannel);
+        when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class))).thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
+
+        DownloadResponse response1 = gcpBlobStore.doDownload(request1);
+
+        assertNotNull(response1);
+        verify(mockTransformer).computeRange(0L, 0L, 100L);
+    }
+
+    @Test
+    void testDoDownload_WithRange_NullEnd() throws IOException {
+        // Test with start = 50, end = null (from 50 to end)
+        DownloadRequest request = DownloadRequest.builder()
+                .withKey(TEST_KEY)
+                .withRange(50L, null)
+                .build();
+
+        when(mockTransformer.toBlobId(request)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockBlob.getSize()).thenReturn(100L);
+        when(mockTransformer.computeRange(50L, null, 100L)).thenReturn(new ImmutablePair<>(50L, null));
+        when(mockBlob.reader()).thenReturn(mockReadChannel);
+        when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class))).thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
+
+        DownloadResponse response = gcpBlobStore.doDownload(request);
+
+        assertNotNull(response);
+        verify(mockTransformer).computeRange(50L, null, 100L);
+    }
+
+    @Test
+    void testDoDownload_WithRange_NullStart() throws IOException {
+        // Test with start = null, end = 25 (last 25 bytes)
+        DownloadRequest request = DownloadRequest.builder()
+                .withKey(TEST_KEY)
+                .withRange(null, 25L)
+                .build();
+
+        when(mockTransformer.toBlobId(request)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockBlob.getSize()).thenReturn(100L);
+        when(mockTransformer.computeRange(null, 25L, 100L)).thenReturn(new ImmutablePair<>(75L, 101L));
+        when(mockBlob.reader()).thenReturn(mockReadChannel);
+        when(mockTransformer.toDownloadResponse(any(Blob.class), any(InputStream.class))).thenReturn(DownloadResponse.builder().key(TEST_KEY).build());
+
+        DownloadResponse response = gcpBlobStore.doDownload(request);
+
+        assertNotNull(response);
+        verify(mockTransformer).computeRange(null, 25L, 100L);
+    }
+
+    @Test
+    void testDoList_WithEmptyPrefix() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix("")
+                .build();
+
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertFalse(iterator.hasNext());
+        verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+    }
+
+    @Test
+    void testDoList_WithNullPrefix() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix(null)
+                .build();
+
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertFalse(iterator.hasNext());
+        verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+    }
+
+    @Test
+    void testDoListPage_WithMaxResults() {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+                .withPrefix("test/")
+                .withMaxResults(10)
+                .build();
+
+        when(mockTransformer.toBlobListOptions(request)).thenReturn(new Storage.BlobListOption[0]);
+        when(mockStorage.list(TEST_BUCKET)).thenReturn(mockPage);
+        when(mockPage.getNextPageToken()).thenReturn(null);
+
+        ListBlobsPageResponse response = gcpBlobStore.doListPage(request);
+
+        assertNotNull(response);
+        assertNull(response.getNextPageToken());
+        verify(mockStorage).list(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoListPage_WithPageToken() {
+        ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+                .withPrefix("test/")
+                .withPaginationToken("token-123")
+                .build();
+
+        when(mockTransformer.toBlobListOptions(request)).thenReturn(new Storage.BlobListOption[0]);
+        when(mockStorage.list(TEST_BUCKET)).thenReturn(mockPage);
+        when(mockPage.getNextPageToken()).thenReturn(null);
+
+        ListBlobsPageResponse response = gcpBlobStore.doListPage(request);
+
+        assertNotNull(response);
+        assertNull(response.getNextPageToken());
+        verify(mockStorage).list(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoGetMetadata_WithNullBlob() {
+        when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+        BlobMetadata metadata = gcpBlobStore.doGetMetadata(TEST_KEY, null);
+
+        assertNull(metadata);
+        verify(mockStorage).get(mockBlobId);
+    }
+
+    @Test
+    void testDoCopy_WithNullBlob() {
+        CopyRequest request = CopyRequest.builder()
+                .srcKey(TEST_KEY)
+                .destKey("dest-key")
+                .build();
+
+        when(mockTransformer.toCopyRequest(request)).thenReturn(mockCopyRequest);
+        CopyWriter mockCopyWriter = mock(CopyWriter.class);
+        when(mockStorage.copy(mockCopyRequest)).thenReturn(mockCopyWriter);
+        when(mockCopyWriter.getResult()).thenReturn(null);
+
+        CopyResponse response = gcpBlobStore.doCopy(request);
+
+        assertNull(response);
+        verify(mockStorage).copy(mockCopyRequest);
+    }
+
+    @Test
+    void testDoGeneratePresignedUrl_WithNullBlob() throws Exception {
+        PresignedUrlRequest request = PresignedUrlRequest.builder()
+                .key(TEST_KEY)
+                .type(PresignedOperation.DOWNLOAD)
+                .duration(Duration.ofHours(1))
+                .build();
+
+        when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+        when(mockStorage.signUrl(eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any())).thenReturn(null);
+
+        URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+
+        assertNull(url);
+        verify(mockStorage).signUrl(eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any());
+    }
+
+    @Test
+    void testDoGeneratePresignedUrl_WithZeroExpiration() throws Exception {
+        PresignedUrlRequest request = PresignedUrlRequest.builder()
+                .key(TEST_KEY)
+                .type(PresignedOperation.DOWNLOAD)
+                .duration(Duration.ZERO)
+                .build();
+
+        when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+        when(mockStorage.signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any())).thenReturn(new URL("https://example.com"));
+
+        URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+
+        assertNotNull(url);
+        verify(mockStorage).signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any());
+    }
+
+    @Test
+    void testDoSetTags_WithEmptyMap() {
+        Map<String, String> emptyTags = new HashMap<>();
+
+        assertThrows(UnSupportedOperationException.class, () -> {
+            gcpBlobStore.doSetTags(TEST_KEY, emptyTags);
+        });
+    }
+
+    @Test
+    void testDoSetTags_WithNullMap() {
+        assertThrows(UnSupportedOperationException.class, () -> {
+            gcpBlobStore.doSetTags(TEST_KEY, null);
+        });
+    }
+
+    @Test
+    void testDoGetTags_WithNullBlob() {
+        assertThrows(UnSupportedOperationException.class, () -> {
+            gcpBlobStore.doGetTags(TEST_KEY);
+        });
+    }
+
+    @Test
+    void testDoUpload_WithPath_EmptyFile() throws IOException {
+        Path tempFile = Files.createTempFile("empty", ".txt");
+        try {
+            UploadRequest request = UploadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .build();
+
+            when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+            when(mockStorage.createFrom(mockBlobInfo, tempFile)).thenReturn(mockBlob);
+            when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
+
+            UploadResponse response = gcpBlobStore.doUpload(request, tempFile);
+
+            assertNotNull(response);
+            verify(mockStorage).createFrom(mockBlobInfo, tempFile);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    void testDoUpload_WithPath_NonExistentFile() throws IOException {
+        Path nonExistentFile = Paths.get("/non/existent/file.txt");
+        UploadRequest request = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+        when(mockStorage.createFrom(any(), any(Path.class))).thenThrow(new IOException("File not found"));
+
+        assertThrows(SubstrateSdkException.class, () -> {
+            gcpBlobStore.doUpload(request, nonExistentFile);
+        });
+    }
+
+    @Test
+    void testDoUpload_WithByteArray_EmptyArray() {
+        byte[] emptyArray = new byte[0];
+        UploadRequest request = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+        when(mockStorage.create(mockBlobInfo, emptyArray)).thenReturn(mockBlob);
+        when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
+
+        UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
+
+        assertNotNull(response);
+        verify(mockStorage).create(mockBlobInfo, emptyArray);
+    }
+
+    @Test
+    void testDoUpload_WithFile_EmptyFile() throws IOException {
+        Path emptyFile = Files.createTempFile("empty", ".txt");
+        try {
+            UploadRequest request = UploadRequest.builder()
+                    .withKey(TEST_KEY)
+                    .build();
+
+            when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+            when(mockStorage.createFrom(mockBlobInfo, emptyFile)).thenReturn(mockBlob);
+            when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
+
+            UploadResponse response = gcpBlobStore.doUpload(request, emptyFile);
+
+            assertNotNull(response);
+            verify(mockStorage).createFrom(mockBlobInfo, emptyFile);
+        } finally {
+            Files.deleteIfExists(emptyFile);
+        }
+    }
+
+    @Test
+    void testDoDelete_WithEmptyCollection() {
+        Collection<BlobIdentifier> emptyCollection = Collections.emptyList();
+
+        gcpBlobStore.doDelete(emptyCollection);
+
+        // Should not throw exception and not call storage
+        verify(mockStorage, never()).delete(any(BlobId[].class));
+    }
+
+    @Test
+    void testDoDelete_WithNullCollection() {
+        assertThrows(NullPointerException.class, () -> {
+            gcpBlobStore.doDelete(null);
+        });
+    }
+
+    @Test
+    void testDoList_Iterator_EmptyList() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix("test/")
+                .build();
+
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.emptyList());
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertFalse(iterator.hasNext());
+
+        // Test calling next() on empty iterator
+        assertThrows(NoSuchElementException.class, () -> {
+            iterator.next();
+        });
+    }
+
+    @Test
+    void testDoList_Iterator_SingleElement() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix("test/")
+                .build();
+
+        Blob mockBlobForList = mock(Blob.class);
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertTrue(iterator.hasNext());
+        assertNotNull(iterator.next()); // The actual BlobInfo will be created by the transformer
+        assertFalse(iterator.hasNext());
     }
 }
