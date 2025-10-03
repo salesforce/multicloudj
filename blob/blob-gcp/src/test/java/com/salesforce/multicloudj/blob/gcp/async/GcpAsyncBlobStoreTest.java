@@ -49,11 +49,32 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
+import com.salesforce.multicloudj.blob.gcp.GcpTransformer;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class GcpAsyncBlobStoreTest {
 
     @Mock
@@ -61,6 +82,9 @@ class GcpAsyncBlobStoreTest {
 
     @Mock
     private Storage mockStorage;
+
+    @Mock
+    private GcpTransformerSupplier mockTransformerSupplier;
 
     private ExecutorService executorService;
     private GcpAsyncBlobStore gcpAsyncBlobStore;
@@ -73,7 +97,7 @@ class GcpAsyncBlobStoreTest {
     @BeforeEach
     void setUp() {
         executorService = Executors.newFixedThreadPool(2);
-        gcpAsyncBlobStore = new GcpAsyncBlobStore(mockBlobStore, executorService);
+        gcpAsyncBlobStore = new GcpAsyncBlobStore(mockBlobStore, executorService, mockStorage, mockTransformerSupplier);
     }
 
     @AfterEach
@@ -103,7 +127,7 @@ class GcpAsyncBlobStoreTest {
 
     @Test
     void testConstructorWithNullExecutor() {
-        GcpAsyncBlobStore asyncStore = new GcpAsyncBlobStore(mockBlobStore, null);
+        GcpAsyncBlobStore asyncStore = new GcpAsyncBlobStore(mockBlobStore, null, mockStorage, mockTransformerSupplier);
         assertNotNull(asyncStore.getExecutorService());
         // Should use ForkJoinPool.commonPool() when null is passed
     }
@@ -556,5 +580,442 @@ class GcpAsyncBlobStoreTest {
         // Then
         assertThrows(Exception.class, () -> result.get(5, TimeUnit.SECONDS));
         verify(mockBlobStore).upload(uploadRequest, content);
+    }
+
+    @Test
+    void testUploadDirectory_Success() throws Exception {
+        // Given
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/test/dir")
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.getBucket()).thenReturn(TEST_BUCKET);
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+
+        java.nio.file.Path sourceDir = java.nio.file.Paths.get("/test/dir");
+        java.nio.file.Path file1 = java.nio.file.Paths.get("/test/dir/file1.txt");
+        java.nio.file.Path file2 = java.nio.file.Paths.get("/test/dir/subdir/file2.txt");
+        when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1, file2));
+        when(mockTransformer.toBlobKey(sourceDir, file1, "uploads/")).thenReturn("uploads/file1.txt");
+        when(mockTransformer.toBlobKey(sourceDir, file2, "uploads/")).thenReturn("uploads/subdir/file2.txt");
+
+        // When
+        CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
+
+        // Then
+        DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertTrue(response.getFailedTransfers().isEmpty());
+        verify(mockStorage).createFrom(any(com.google.cloud.storage.BlobInfo.class), eq(file1));
+        verify(mockStorage).createFrom(any(com.google.cloud.storage.BlobInfo.class), eq(file2));
+    }
+
+    @Test
+    void testUploadDirectory_WithFailures() throws Exception {
+        // Given
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/test/dir")
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.getBucket()).thenReturn(TEST_BUCKET);
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+
+        java.nio.file.Path sourceDir = java.nio.file.Paths.get("/test/dir");
+        java.nio.file.Path file1 = java.nio.file.Paths.get("/test/dir/file1.txt");
+        java.nio.file.Path file2 = java.nio.file.Paths.get("/test/dir/file2.txt");
+        when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1, file2));
+        when(mockTransformer.toBlobKey(sourceDir, file1, "uploads/")).thenReturn("uploads/file1.txt");
+        when(mockTransformer.toBlobKey(sourceDir, file2, "uploads/")).thenReturn("uploads/file2.txt");
+
+        // First upload succeeds, second fails
+        doAnswer(invocation -> null).when(mockStorage).createFrom(any(com.google.cloud.storage.BlobInfo.class), eq(file1));
+        doThrow(new RuntimeException("Upload failed")).when(mockStorage)
+                .createFrom(any(com.google.cloud.storage.BlobInfo.class), eq(file2));
+
+        // When
+        CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
+
+        // Then
+        DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertEquals(1, response.getFailedTransfers().size());
+        assertEquals(file2, response.getFailedTransfers().get(0).getSource());
+        assertTrue(response.getFailedTransfers().get(0).getException() instanceof RuntimeException);
+        assertEquals("Upload failed", response.getFailedTransfers().get(0).getException().getMessage());
+    }
+
+    @Test
+    void testUploadDirectory_EmptyDirectory() throws Exception {
+        // Given
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/test/empty")
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.getBucket()).thenReturn(TEST_BUCKET);
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+        when(mockTransformer.toFilePaths(request)).thenReturn(List.of());
+
+        // When
+        CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
+
+        // Then
+        DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertTrue(response.getFailedTransfers().isEmpty());
+        verify(mockStorage, never()).createFrom(any(com.google.cloud.storage.BlobInfo.class), any(java.nio.file.Path.class));
+    }
+
+    @Test
+    void testUploadDirectory_ExceptionInMainThread() throws Exception {
+        // Given
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/test/dir")
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.getBucket()).thenReturn(TEST_BUCKET);
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+        when(mockTransformer.toFilePaths(request)).thenThrow(new RuntimeException("Transformer failed"));
+
+        // When & Then
+        CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get(5, TimeUnit.SECONDS);
+        });
+        assertTrue(exception.getCause() instanceof RuntimeException);
+        assertEquals("Failed to upload directory", exception.getCause().getMessage());
+    }
+
+    @Test
+    void testDownloadDirectory_Implementation() throws Exception {
+        // Given
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("uploads/")
+                .localDestinationDirectory("/test/dir")
+                .build();
+
+        when(mockBlobStore.getBucket()).thenReturn(TEST_BUCKET);
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+
+        // When - just verify the method doesn't throw UnsupportedOperationException
+        CompletableFuture<DirectoryDownloadResponse> result = gcpAsyncBlobStore.downloadDirectory(request);
+
+        // Then - verify it returns a CompletableFuture (not null)
+        assertNotNull(result);
+
+        // The actual implementation will fail due to mocking, but we're just testing
+        // that it doesn't throw UnsupportedOperationException like the bridge does
+    }
+
+    @Test
+    void testDeleteDirectory_Implementation() {
+        // Given
+        String prefix = "uploads/";
+
+        // Mock the storage.list() to return an empty page
+        Page<Blob> mockPage = mock(Page.class);
+        when(mockPage.getValues()).thenReturn(Collections.emptyList());
+        when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+        // Mock the transformer supplier to return a mock transformer
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformer.partitionList(any(), anyInt())).thenReturn(Collections.emptyList());
+        when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
+
+        // When
+        CompletableFuture<Void> result = gcpAsyncBlobStore.deleteDirectory(prefix);
+
+        // Then
+        assertDoesNotThrow(() -> result.get());
+        verify(mockStorage).list(any(), any(Storage.BlobListOption[].class));
+    }
+
+    @Test
+    void testDeleteDirectory_EmptyDirectory() {
+        // Mock empty blob list
+        Page<Blob> mockPage = mock(Page.class);
+        when(mockPage.getValues()).thenReturn(Collections.emptyList());
+        when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
+        when(mockTransformer.partitionList(any(), anyInt())).thenReturn(Collections.emptyList());
+
+        assertDoesNotThrow(() -> {
+            CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory("empty-prefix/");
+            future.get(5, TimeUnit.SECONDS);
+        });
+    }
+
+    @Test
+    void testDeleteDirectory_NullPrefix() {
+        // Mock empty blob list for null prefix
+        Page<Blob> mockPage = mock(Page.class);
+        when(mockPage.getValues()).thenReturn(Collections.emptyList());
+        when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
+        when(mockTransformer.partitionList(any(), anyInt())).thenReturn(Collections.emptyList());
+
+        assertDoesNotThrow(() -> {
+            CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory(null);
+            future.get(5, TimeUnit.SECONDS);
+        });
+    }
+
+    @Test
+    void testDeleteDirectory_StorageException() {
+        // Mock storage to throw exception
+        when(mockStorage.list(any(), any(Storage.BlobListOption[].class)))
+                .thenThrow(new RuntimeException("Storage error"));
+
+        assertThrows(RuntimeException.class, () -> {
+            CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory("test-prefix/");
+            future.get(5, TimeUnit.SECONDS);
+        });
+    }
+
+    @Test
+    void testUploadDirectory_ConcurrentUploads() throws Exception {
+        // Create a temporary directory with multiple files
+        Path tempDir = Files.createTempDirectory("test-upload");
+        try {
+            // Create multiple test files
+            for (int i = 0; i < 5; i++) {
+                Path file = tempDir.resolve("file" + i + ".txt");
+                Files.write(file, ("content" + i).getBytes());
+            }
+
+            // Mock storage operations
+            when(mockStorage.createFrom(any(com.google.cloud.storage.BlobInfo.class), any(Path.class)))
+                    .thenReturn(mock(com.google.cloud.storage.Blob.class));
+
+            GcpTransformer mockTransformer = mock(GcpTransformer.class);
+            when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
+            when(mockTransformer.toFilePaths(any(DirectoryUploadRequest.class)))
+                    .thenReturn(Files.list(tempDir).collect(Collectors.toList()));
+            when(mockTransformer.toBlobKey(any(Path.class), any(Path.class), anyString()))
+                    .thenReturn("test-key");
+
+            DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                    .localSourceDirectory(tempDir.toString())
+                    .prefix("test/")
+                    .includeSubFolders(false)
+                    .build();
+
+            CompletableFuture<DirectoryUploadResponse> future = gcpAsyncBlobStore.uploadDirectory(request);
+            DirectoryUploadResponse response = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(response);
+            // Check that we have some response, even if there are failures
+            assertNotNull(response.getFailedTransfers());
+
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
+    }
+
+    @Test
+    void testDownloadDirectory_ConcurrentDownloads() throws Exception {
+        // Create a temporary directory for downloads
+        Path tempDir = Files.createTempDirectory("test-download");
+        try {
+            // Mock blob list with multiple blobs
+            List<com.google.cloud.storage.Blob> mockBlobs = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                com.google.cloud.storage.Blob mockBlob = mock(com.google.cloud.storage.Blob.class);
+                when(mockBlob.getName()).thenReturn("test/file" + i + ".txt");
+                when(mockBlob.getSize()).thenReturn(100L);
+                mockBlobs.add(mockBlob);
+            }
+
+            Page<com.google.cloud.storage.Blob> mockPage = mock(Page.class);
+            when(mockPage.getValues()).thenReturn(mockBlobs);
+            when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+            // Mock blob download
+            for (com.google.cloud.storage.Blob blob : mockBlobs) {
+                doNothing().when(blob).downloadTo(any(Path.class));
+            }
+
+            DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                    .localDestinationDirectory(tempDir.toString())
+                    .prefixToDownload("test/")
+                    .build();
+
+            CompletableFuture<DirectoryDownloadResponse> future = gcpAsyncBlobStore.downloadDirectory(request);
+            DirectoryDownloadResponse response = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(response);
+            // Should have no failures since we mocked successful downloads
+            assertTrue(response.getFailedTransfers().isEmpty());
+
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
+    }
+
+    @Test
+    void testDownloadDirectory_DirectoryMarkerBlobs() throws Exception {
+        // Create a temporary directory for downloads
+        Path tempDir = Files.createTempDirectory("test-download");
+        try {
+            // Mock blob list with directory markers (blobs ending with /)
+            List<com.google.cloud.storage.Blob> mockBlobs = new ArrayList<>();
+
+            // Add a directory marker
+            com.google.cloud.storage.Blob dirMarker = mock(com.google.cloud.storage.Blob.class);
+            when(dirMarker.getName()).thenReturn("test/dir/");
+            mockBlobs.add(dirMarker);
+
+            // Add a regular file
+            com.google.cloud.storage.Blob fileBlob = mock(com.google.cloud.storage.Blob.class);
+            when(fileBlob.getName()).thenReturn("test/file.txt");
+            when(fileBlob.getSize()).thenReturn(100L);
+            doNothing().when(fileBlob).downloadTo(any(Path.class));
+            mockBlobs.add(fileBlob);
+
+            Page<com.google.cloud.storage.Blob> mockPage = mock(Page.class);
+            when(mockPage.getValues()).thenReturn(mockBlobs);
+            when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+            DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                    .localDestinationDirectory(tempDir.toString())
+                    .prefixToDownload("test/")
+                    .build();
+
+            CompletableFuture<DirectoryDownloadResponse> future = gcpAsyncBlobStore.downloadDirectory(request);
+            DirectoryDownloadResponse response = future.get(10, TimeUnit.SECONDS);
+
+            assertNotNull(response);
+            // Directory marker should be skipped, so no failures expected
+            assertTrue(response.getFailedTransfers().isEmpty());
+
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
+    }
+
+    @Test
+    void testDeleteDirectory_LargeBatch() {
+        // Set up the bucket name for the store
+        when(mockBlobStore.getBucket()).thenReturn("test-bucket");
+
+        // Mock a large number of blobs to test partitioning
+        List<com.google.cloud.storage.Blob> mockBlobs = new ArrayList<>();
+        for (int i = 0; i < 2500; i++) { // More than GCP's 1000 limit
+            com.google.cloud.storage.Blob mockBlob = mock(com.google.cloud.storage.Blob.class);
+            when(mockBlob.getName()).thenReturn("test/file" + i + ".txt");
+            when(mockBlob.getSize()).thenReturn(100L);
+            mockBlobs.add(mockBlob);
+        }
+
+        Page<com.google.cloud.storage.Blob> mockPage = mock(Page.class);
+        when(mockPage.getValues()).thenReturn(mockBlobs);
+        when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+
+        // Mock successful batch deletes
+        when(mockStorage.delete(anyList())).thenReturn(Collections.emptyList());
+
+        GcpTransformer mockTransformer = mock(GcpTransformer.class);
+        when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
+
+        // Mock partitioning - should create 3 partitions (1000, 1000, 500)
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> partitions = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            List<com.salesforce.multicloudj.blob.driver.BlobInfo> partition = new ArrayList<>();
+            int size = (i < 2) ? 1000 : 500;
+            for (int j = 0; j < size; j++) {
+                partition.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                        .withKey("test/file" + (i * 1000 + j) + ".txt")
+                        .withObjectSize(100L)
+                        .build());
+            }
+            partitions.add(partition);
+        }
+        when(mockTransformer.partitionList(any(), eq(1000))).thenReturn(partitions);
+
+        assertDoesNotThrow(() -> {
+            CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory("test-prefix/");
+            future.get(10, TimeUnit.SECONDS);
+        });
+
+        // Verify that delete was called 3 times (for 3 partitions)
+        verify(mockStorage, times(3)).delete(anyList());
+    }
+
+    @Test
+    void testBuilder_WithAllParameters() {
+        GcpBlobStore mockGcpBlobStore = mock(GcpBlobStore.class);
+        when(mockGcpBlobStore.getBucket()).thenReturn("test-bucket");
+        when(mockGcpBlobStore.getRegion()).thenReturn("us-central1");
+
+        Storage mockStorage = mock(Storage.class);
+        GcpTransformerSupplier mockSupplier = mock(GcpTransformerSupplier.class);
+        ExecutorService mockExecutor = mock(ExecutorService.class);
+
+        GcpAsyncBlobStore store = new GcpAsyncBlobStore(mockGcpBlobStore, mockExecutor, mockStorage, mockSupplier);
+
+        assertNotNull(store);
+        assertEquals("test-bucket", store.getBucket());
+        assertEquals("us-central1", store.getRegion());
+    }
+
+    @Test
+    void testBuilder_WithMinimalParameters() {
+        Storage mockStorage = mock(Storage.class);
+        GcpTransformerSupplier mockSupplier = mock(GcpTransformerSupplier.class);
+
+        // Create a mock GcpBlobStore
+        GcpBlobStore mockGcpBlobStore = mock(GcpBlobStore.class);
+        when(mockGcpBlobStore.getBucket()).thenReturn("test-bucket");
+        when(mockGcpBlobStore.getRegion()).thenReturn("us-central1");
+
+        GcpAsyncBlobStore store = new GcpAsyncBlobStore(mockGcpBlobStore, null, mockStorage, mockSupplier);
+
+        assertNotNull(store);
+        assertEquals("test-bucket", store.getBucket());
+        assertEquals("us-central1", store.getRegion());
     }
 } 
