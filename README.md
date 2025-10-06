@@ -1,5 +1,10 @@
 # MultiCloudJ
 
+[![Build Status](https://github.com/salesforce/multicloudj/actions/workflows/build-test-codecov.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/build-test-codecov.yml)
+[![codecov](https://codecov.io/gh/salesforce/multicloudj/branch/main/graph/badge.svg)](https://codecov.io/gh/salesforce/multicloudj)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Maven Central](https://img.shields.io/maven-central/v/com.salesforce.multicloudj/multicloudj-parent.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.salesforce.multicloudj/multicloudj-parent)
+
 Write once, deploy to any cloud provider...
 
 **Multi-substrate Java SDK providing unified and substrate-neutral interfaces for cloud services such as Security Token Service (STS), Blob Storage, Key-Value Store, and more.**
