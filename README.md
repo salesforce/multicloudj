@@ -63,7 +63,7 @@ Detailed documentation can be found on our [official documentation site](https:/
 
 ---
 
-ommunity
+Community
 ------------------------
 - **Issues and Bug Reports**: [Github Issues](https://www.github.com/salesforce/multicloudj/issues)
 - **Discussion and Q&A**: [Discussions](https://www.github.com/salesforce/multicloudj/issues)
