@@ -12,9 +12,7 @@ import com.alicloud.openservices.tablestore.model.DescribeTableRequest;
 import com.alicloud.openservices.tablestore.model.DescribeTableResponse;
 import com.alicloud.openservices.tablestore.model.IndexMeta;
 import com.alicloud.openservices.tablestore.model.IndexType;
-import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyBuilder;
-import com.alicloud.openservices.tablestore.model.PrimaryKeyColumn;
 import com.alicloud.openservices.tablestore.model.PrimaryKeyValue;
 import com.alicloud.openservices.tablestore.model.PutRowRequest;
 import com.alicloud.openservices.tablestore.model.PutRowResponse;
@@ -24,13 +22,10 @@ import com.alicloud.openservices.tablestore.model.RowDeleteChange;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.TableMeta;
-import com.alicloud.openservices.tablestore.model.search.ParallelScanRequest;
-import com.alicloud.openservices.tablestore.model.search.ParallelScanResponse;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryResponse;
 import com.google.protobuf.Timestamp;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -68,7 +63,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AliDocStoreTest {
-    BookWithoutNest book = new BookWithoutNest("YellowBook", "Neil", "WA", Timestamp.newBuilder().setNanos(1000).build(), 3.99f);
+    BookWithoutNest book = new BookWithoutNest("YellowBook", "Neil", "WA", Timestamp.newBuilder().setNanos(1000).build(), 3.99f, null);
     TestDocStore docStore;
     SyncClient syncClient;
     IndexMeta localIndex1;
@@ -148,8 +143,9 @@ class AliDocStoreTest {
                 .withInstanceId("something")
                 .withCollectionOptions(
                         new CollectionOptions.CollectionOptionsBuilder()
-                                .withPartitionKey("title").withSortKey("publisher").
-                                withTableName("my-table").build()
+                                .withPartitionKey("title").withSortKey("publisher")
+                                .withTableName("my-table")
+                                .withRevisionField("docRevision").build()
                 ).withCredentialsOverrider(credsOverrider).withTableStoreClient(syncClient).build();
 
         localIndex1 = new IndexMeta("local_index_1");
@@ -330,7 +326,7 @@ class AliDocStoreTest {
         List<String> fp3 = new ArrayList<>(List.of("title"));
         List<String> fp4 = new ArrayList<>(List.of("publisher"));
 
-        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0);
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
         List<Action> gets = new ArrayList<>();
 
         TestAction get1 = new TestAction(ActionKind.ACTION_KIND_GET, new Document(bookObj), fp1, null);
@@ -375,7 +371,7 @@ class AliDocStoreTest {
         List<String> fp1 = new ArrayList<>(List.of("title", "publisher"));
         List<String> fp2 = new ArrayList<>(List.of("publisher", "title"));  // Different order of fp1, treated as a different fp.
 
-        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0);
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
         List<Action> gets = new ArrayList<>();
 
         TestAction get1 = new TestAction(ActionKind.ACTION_KIND_GET, new Document(bookObj), fp1, null);
@@ -427,7 +423,7 @@ class AliDocStoreTest {
 
     @Test
     void testBatchGetWithMissingKeys() {
-        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0);
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
         List<Action> gets = new ArrayList<>();
         List<String> fp1 = new ArrayList<>(List.of("d"));
         TestAction get1 = new TestAction(ActionKind.ACTION_KIND_GET, new Document(bookObj), fp1, null);
@@ -458,7 +454,7 @@ class AliDocStoreTest {
 
     @Test
     void testBatchGet() {
-        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0);
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
         List<Action> gets = new ArrayList<>();
         List<String> fp1 = new ArrayList<>(List.of("title", "publisher", "author"));
         TestAction get1 = new TestAction(ActionKind.ACTION_KIND_GET, new Document(bookObj), fp1, null);
@@ -510,7 +506,27 @@ class AliDocStoreTest {
     @Test
     void testCreate() {
         Document document = new Document(book);
-        ali.getActions().create(document).run();
+        Assertions.assertDoesNotThrow(() -> ali.getActions().create(document).run());
+    }
+
+    @Test
+    void testPut() {
+        Document document = new Document(book);
+        Assertions.assertDoesNotThrow(() -> ali.getActions().put(document).run());
+    }
+
+    @Test
+    void testPutWithRevision() {
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, "something");
+        Document document = new Document(bookObj);
+        Assertions.assertDoesNotThrow(() -> ali.getActions().put(document).run());
+    }
+
+    @Test
+    void testDeleteWithRevision() {
+        BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, "something");
+        Document document = new Document(bookObj);
+        Assertions.assertDoesNotThrow(() -> ali.getActions().delete(document).run());
     }
 
     @Test
@@ -577,7 +593,7 @@ class AliDocStoreTest {
                     .withAllowScans(false)
                     .withMaxOutstandingActionRPCs(10)
                     .build();
-            BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0);
+            BookWithoutNest bookObj = new BookWithoutNest("YellowBook", null, "WA", Timestamp.newBuilder().setNanos(1000).build(), 0, null);
             List<Action> deletes = new ArrayList<>();
 
             TestAction delete1 = new TestAction(ActionKind.ACTION_KIND_DELETE, new Document(bookObj), null, null);

@@ -18,4 +18,5 @@ public class BookWithoutNest {
     @JsonDeserialize(using = TimestampPbDeserializer.class)
     public Timestamp publishedDate;
     public float price;
+    String docRevision;
 }
