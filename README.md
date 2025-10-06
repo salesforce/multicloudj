@@ -8,7 +8,7 @@
 
 ---
 
-### MultiCloudJ
+ MultiCloudJ
 ----------------------
 Write once, deploy to any cloud provider...
 
@@ -24,24 +24,26 @@ For more information, see [the MulticloudJ official web site](https://opensource
 
 ---
 
-### Requirements
+Requirements
+--------------------
 
 - Java 11 or higher
 - Maven 3.8 or higher build automation
 
-### Getting Started
+Getting Started
+---------------------
 
-This short guide will walk you through basic operations on document store, 
-and demonstrate some simple reads and writes. 
-For a more-complete guide, please see the MultiCloudJ [Getting Started Guide](https://opensource.salesforce.com/multicloudj/getting-started).
-
-
+This short [Getting Started Guide](https://opensource.salesforce.com/multicloudj/getting-started) will walk you through basic operations on blob store, 
+and demonstrate some simple reads and writes.
 
 For more examples: please refer to [examples](https://github.com/salesforce/multicloudj/tree/main/examples) where we have detailed examples on blob store, docstore and sts.
 
 ---
 
-### Building and Contributing
+
+Building and Contributing
+------------------------
+
 
 To build MultiCloudJ from source:
 
@@ -55,19 +57,19 @@ Visit our [Contribution Guidelines](CONTRIBUTING.md) for more information on how
 
 ---
 
-### Documentation
-
+Documentation
+------------------------
 Detailed documentation can be found on our [official documentation site](https://opensource.salesforce.com/multicloudj).
 
 ---
 
-### Community
-
+ommunity
+------------------------
 - **Issues and Bug Reports**: [Github Issues](https://www.github.com/salesforce/multicloudj/issues)
 - **Discussion and Q&A**: [Discussions](https://www.github.com/salesforce/multicloudj/issues)
 
 ---
 
-### License
-
+License
+------------------------
 MultiCloudJ is released under the [Apache License 2.0](LICENSE.txt).
