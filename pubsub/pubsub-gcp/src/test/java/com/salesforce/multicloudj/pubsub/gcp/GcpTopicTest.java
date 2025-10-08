@@ -49,7 +49,6 @@ public class GcpTopicTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         mockCredentialsOverrider = mock(CredentialsOverrider.class);
         
         // Create topic with injected mock Publisher

@@ -9,9 +9,10 @@ import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -31,6 +32,11 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
 public class SubscriptionClientTest {
 
     @Mock
@@ -43,7 +49,6 @@ public class SubscriptionClientTest {
 
     @BeforeEach
     public void setUp() {
-        MockitoAnnotations.openMocks(this);
         subscriptionClient = new SubscriptionClient(mockSubscription);
     }
 
@@ -95,7 +100,6 @@ public class SubscriptionClientTest {
     public void testSendNack() {
         // Arrange
         AckID ackID = new TestAckID("test-ack-id");
-        when(mockSubscription.canNack()).thenReturn(true);
 
         // Act
         subscriptionClient.sendNack(ackID);
@@ -112,7 +116,6 @@ public class SubscriptionClientTest {
             new TestAckID("test-ack-id-2")
         );
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
-        when(mockSubscription.canNack()).thenReturn(true);
         when(mockSubscription.sendNacks(ackIDs)).thenReturn(future);
 
         // Act

@@ -58,7 +58,6 @@ public class GcpSubscriptionTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         
         subscription = new GcpSubscription.Builder()
             .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
