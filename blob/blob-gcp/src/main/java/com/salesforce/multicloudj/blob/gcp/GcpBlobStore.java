@@ -86,7 +86,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     public GcpBlobStore(Builder builder, Storage storage) {
         super(builder);
         this.storage = storage;
-        this.transformer = builder.getTransformerSupplier().get(bucket);
+        this.transformer = builder.transformerSupplier.get(bucket);
     }
 
     @Override
@@ -215,13 +215,13 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected void doDelete(String key, String versionId) {
-        storage.delete(transformer.toBlobId(key, versionId));
+        storage.delete(transformer.toBlobId(bucket, key, versionId));
     }
 
     @Override
     protected void doDelete(Collection<BlobIdentifier> objects) {
         List<BlobId> blobIds = objects.stream()
-                .map(obj -> transformer.toBlobId(obj.getKey(), obj.getVersionId()))
+                .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
         storage.delete(blobIds);
     }
@@ -235,7 +235,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
-        BlobId blobId = transformer.toBlobId(key, versionId);
+        BlobId blobId = transformer.toBlobId(bucket, key, versionId);
         Blob blob = storage.get(blobId);
         return transformer.toBlobMetadata(blob);
     }
@@ -482,7 +482,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
         @Override
         public GcpBlobStore build() {
-            Storage storage = getStorage();
+            Storage storage = this.storage;
             if(storage == null) {
                 storage = buildStorage(this);
             }
