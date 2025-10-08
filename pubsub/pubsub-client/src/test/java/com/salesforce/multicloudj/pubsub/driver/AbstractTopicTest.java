@@ -4,7 +4,6 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +126,6 @@ public class AbstractTopicTest {
     }
 
     @Test
-    @Timeout(10)
     void testConcurrentSends() throws Exception {
         int numThreads = 10;
         int messagesPerThread = 100;

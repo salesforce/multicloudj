@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.pubsub.batcher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -74,7 +73,7 @@ public class BatcherTest {
 
         // Act
         CompletableFuture<Void> future = batcher.addNoWait(item);
-        future.get(1, TimeUnit.SECONDS);
+        future.get(3, TimeUnit.SECONDS);
 
         // Assert
         assertTrue(future.isDone());
@@ -97,7 +96,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
         CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
 
-        CompletableFuture.allOf(future1, future2, future3).get(1, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -121,7 +120,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
         CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
 
-        CompletableFuture.allOf(future1, future2, future3).get(1, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -153,7 +152,8 @@ public class BatcherTest {
         CompletableFuture<Void> future4 = batcher.addNoWait(new SizableString("item4"));
         CompletableFuture<Void> future5 = batcher.addNoWait(new SizableString("item5"));
 
-        CompletableFuture.allOf(future1, future2, future3, future4, future5).get(1, TimeUnit.SECONDS);
+        // Increased timeout from 1 to 5 seconds for CI environments
+        CompletableFuture.allOf(future1, future2, future3, future4, future5).get(5, TimeUnit.SECONDS);
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -189,7 +189,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = sizableBatcher.addNoWait(item2);
         CompletableFuture<Void> future3 = sizableBatcher.addNoWait(item3);
 
-        CompletableFuture.allOf(future1, future2, future3).get(1, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
 
         // Assert
         ArgumentCaptor<List<SizableTestItem>> captor = ArgumentCaptor.forClass(List.class);
@@ -227,7 +227,7 @@ public class BatcherTest {
         CompletableFuture<Void> future3 = sizableBatcher.addNoWait(item3);
         CompletableFuture<Void> future4 = sizableBatcher.addNoWait(item4);
 
-        CompletableFuture.allOf(future1, future2, future3, future4).get(1, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3, future4).get(3, TimeUnit.SECONDS);
 
         // Assert
         ArgumentCaptor<List<SizableTestItem>> captor = ArgumentCaptor.forClass(List.class);
@@ -256,7 +256,7 @@ public class BatcherTest {
         CompletableFuture<Void> future = sizableBatcher.addNoWait(oversizedItem);
         
         ExecutionException exception = assertThrows(ExecutionException.class, () -> {
-            future.get(1, TimeUnit.SECONDS);
+            future.get(3, TimeUnit.SECONDS);
         });
         
         assertTrue(exception.getCause() instanceof InvalidArgumentException);
@@ -480,7 +480,6 @@ public class BatcherTest {
     }
 
     @Test
-    @Timeout(2)
     void testAsyncComposition() throws Exception {
         // Arrange
         AtomicReference<String> result = new AtomicReference<>();

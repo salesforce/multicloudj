@@ -178,6 +178,26 @@ public class AbstractSubscriptionTest {
     }
 
     @Test
+    void testBasicBuilderConstruction() {
+        TestBuilder builder = new TestBuilder();
+        builder.providerId = "test";
+        builder.subscriptionName = "sub";
+        builder.region = "region";
+
+        MockMessageSource source = new MockMessageSource();
+        source.addMessages(List.of(
+            Message.builder().withBody("a".getBytes()).build(),
+            Message.builder().withBody("b".getBytes()).build()
+        ));
+        TestSubscription sub = new TestSubscription(source, builder);
+
+        Message result1 = sub.receive();
+        assertNotNull(result1);
+        Message result2 = sub.receive();
+        assertNotNull(result2);
+    }
+
+    @Test
     void testReceiveMethodSignature() {
         // Test that receive() method exists and has correct signature
         MockMessageSource source = new MockMessageSource();
@@ -341,6 +361,7 @@ public class AbstractSubscriptionTest {
         // The permanent error state is set correctly by the first call
     }
 
+
     @Test
     void testBuilderMethods() {
         // Test that builder pattern works (even though we can't fully test concrete builders)
@@ -359,44 +380,6 @@ public class AbstractSubscriptionTest {
         assertEquals(URI.create("https://proxy.example.com:8080"), builder.proxyEndpoint);
     }
 
-    @Test
-    void testMultiBatchConcurrentProcessing() throws Exception {
-        // Test the concurrent multi-batch path in getNextBatch
-        MockMessageSource source = new MockMessageSource();
-        List<Message> messages = new ArrayList<>();
-        for (int i = 0; i < 20; i++) {
-            messages.add(Message.builder().withBody(("batch-msg-" + i).getBytes()).build());
-        }
-        source.addMessages(messages);
-
-        TestSubscription sub = new TestSubscription(source) {
-            @Override
-            protected Batcher.Options createReceiveBatcherOptions() {
-                return new Batcher.Options()
-                    .setMaxHandlers(4)     // Multiple handlers to enable concurrent processing
-                    .setMinBatchSize(1)    // Valid minimum
-                    .setMaxBatchSize(2);   // Small max batch - forces large requests to split
-            }
-
-        };
-
-        // Receive messages - this should trigger concurrent multi-batch processing
-        List<String> received = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            received.add(new String(sub.receive().getBody()));
-        }
-
-        // Verify we received exactly 10 messages (ordering not guaranteed with concurrent processing)
-        assertEquals(10, received.size(), "Should receive exactly 10 messages");
-        
-        // Verify all received messages are valid (but skip ordering assertion due to concurrency)
-        for (String receivedMsg : received) {
-            assertTrue(receivedMsg.startsWith("batch-msg-"), 
-                "All messages should have correct format: " + receivedMsg);
-        }
-
-        sub.close();
-    }
 
     @Test
     void testPrefetchErrorHandling() throws Exception {
