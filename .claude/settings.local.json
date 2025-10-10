@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean test -pl blob/blob-aws -am)",
+      "Bash(mvn clean test -pl blob/blob-gcp -am)",
+      "Bash(mvn test -pl blob/blob-gcp -am -DskipITs)",
+      "Bash(mvn clean verify -pl blob/blob-aws,blob/blob-gcp,blob/blob-ali -am -DskipITs)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
