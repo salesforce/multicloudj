@@ -104,6 +104,50 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testUploadWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+        var kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertEquals("aws:kms", actual.serverSideEncryptionAsString());
+        assertEquals(kmsKeyId, actual.ssekmsKeyId());
+    }
+
+    @Test
+    void testUploadWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertNull(actual.serverSideEncryptionAsString());
+        assertNull(actual.ssekmsKeyId());
+    }
+
+    @Test
     void testListBlobsBatch() {
         var prefixes = Arrays.asList("some/prefix", "some/other/prefix");
         var awsPrefixes = prefixes
