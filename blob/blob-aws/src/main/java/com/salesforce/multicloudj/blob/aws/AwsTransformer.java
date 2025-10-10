@@ -138,13 +138,19 @@ public class AwsTransformer {
         List<Tag> tags = request.getTags().entrySet().stream()
                 .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
                 .collect(Collectors.toList());
-        return PutObjectRequest
+        PutObjectRequest.Builder builder = PutObjectRequest
                 .builder()
                 .bucket(getBucket())
                 .key(request.getKey())
                 .metadata(request.getMetadata())
-                .tagging(Tagging.builder().tagSet(tags).build())
-                .build();
+                .tagging(Tagging.builder().tagSet(tags).build());
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            builder.serverSideEncryption("aws:kms")
+                   .ssekmsKeyId(request.getKmsKeyId());
+        }
+
+        return builder.build();
     }
 
     public GetObjectRequest toRequest(DownloadRequest request) {
