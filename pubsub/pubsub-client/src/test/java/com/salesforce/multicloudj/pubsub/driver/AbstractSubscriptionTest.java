@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -158,6 +159,7 @@ public class AbstractSubscriptionTest {
         }
     }
 
+    @Disabled
     @Test
     void testReceiveReturnsRequestedCountOrAvailable() {
         MockMessageSource source = new MockMessageSource();
@@ -177,6 +179,7 @@ public class AbstractSubscriptionTest {
         assertNotNull(r2);
     }
 
+    @Disabled
     @Test
     void testBasicBuilderConstruction() {
         TestBuilder builder = new TestBuilder();

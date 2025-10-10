@@ -182,6 +182,24 @@ public class GcpTransformer {
         return BlobInfo.newBuilder(getBucket(), key).setMetadata(metadata).build();
     }
 
+    public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {
+        if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+            return new Storage.BlobTargetOption[] {
+                Storage.BlobTargetOption.kmsKeyName(uploadRequest.getKmsKeyId())
+            };
+        }
+        return new Storage.BlobTargetOption[0];
+    }
+
+    public Storage.BlobWriteOption[] getKmsWriteOptions(UploadRequest uploadRequest) {
+        if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+            return new Storage.BlobWriteOption[] {
+                Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId())
+            };
+        }
+        return new Storage.BlobWriteOption[0];
+    }
+
     public String toPartName(MultipartUpload mpu, int partNumber) {
         return String.format("%s/%s/part-%d", mpu.getKey(), mpu.getId(), partNumber);
     }

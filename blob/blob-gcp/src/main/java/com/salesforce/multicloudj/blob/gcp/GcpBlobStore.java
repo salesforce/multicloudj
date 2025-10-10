@@ -96,7 +96,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-        try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest));
+        try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest), transformer.getKmsWriteOptions(uploadRequest));
              var channel = Channels.newOutputStream(writer)) {
             ByteStreams.copy(inputStream, channel);
         } catch (IOException e) {
@@ -111,7 +111,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-        Blob blob = storage.create(transformer.toBlobInfo(uploadRequest), content);
+        Blob blob = storage.create(transformer.toBlobInfo(uploadRequest), content, transformer.getKmsTargetOptions(uploadRequest));
         return transformer.toUploadResponse(blob);
     }
 
@@ -123,7 +123,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
         try {
-            Blob blob = storage.createFrom(transformer.toBlobInfo(uploadRequest), path);
+            Blob blob = storage.createFrom(transformer.toBlobInfo(uploadRequest), path, transformer.getKmsWriteOptions(uploadRequest));
             return transformer.toUploadResponse(blob);
         } catch (IOException e) {
             throw new SubstrateSdkException("Request failed while uploading from path", e);

@@ -161,7 +161,8 @@ class GcpBlobStoreTest {
                     .build();
 
             when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-            when(mockStorage.writer(mockBlobInfo)).thenReturn(mockWriteChannel);
+            when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class))).thenReturn(mockWriteChannel);
             when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(mockBlob);
             when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
@@ -170,7 +171,7 @@ class GcpBlobStoreTest {
 
             // Then
             assertEquals(expectedResponse, response);
-            verify(mockStorage).writer(mockBlobInfo);
+            verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
             verify(mockStorage).get(TEST_BUCKET, TEST_KEY);
             verify(mockTransformer).toUploadResponse(mockBlob);
         }
@@ -185,7 +186,8 @@ class GcpBlobStoreTest {
                     .build();
 
             when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-            when(mockStorage.writer(mockBlobInfo)).thenReturn(mockWriteChannel);
+            when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class))).thenReturn(mockWriteChannel);
             mockedStatic.when(() -> ByteStreams.copy(any(InputStream.class), any(OutputStream.class)))
                     .thenThrow(new IOException("Test exception"));
 
@@ -206,7 +208,8 @@ class GcpBlobStoreTest {
                     .build();
 
             when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-            when(mockStorage.writer(mockBlobInfo)).thenReturn(mockWriteChannel);
+            when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class))).thenReturn(mockWriteChannel);
             when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(null);
 
             // When
@@ -234,7 +237,8 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-        when(mockStorage.create(mockBlobInfo, TEST_CONTENT)).thenReturn(mockBlob);
+        when(mockTransformer.getKmsTargetOptions(uploadRequest)).thenReturn(new Storage.BlobTargetOption[0]);
+        when(mockStorage.create(eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class))).thenReturn(mockBlob);
         when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
         // When
@@ -242,7 +246,7 @@ class GcpBlobStoreTest {
 
         // Then
         assertEquals(expectedResponse, response);
-        verify(mockStorage).create(mockBlobInfo, TEST_CONTENT);
+        verify(mockStorage).create(eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class));
         verify(mockTransformer).toUploadResponse(mockBlob);
     }
 
@@ -263,7 +267,8 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-        when(mockStorage.createFrom(mockBlobInfo, testFile)).thenReturn(mockBlob);
+        when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+        when(mockStorage.createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class))).thenReturn(mockBlob);
         when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
         // When
@@ -271,7 +276,7 @@ class GcpBlobStoreTest {
 
         // Then
         assertEquals(expectedResponse, response);
-        verify(mockStorage).createFrom(mockBlobInfo, testFile);
+        verify(mockStorage).createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
         verify(mockTransformer).toUploadResponse(mockBlob);
     }
 
@@ -292,7 +297,8 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-        when(mockStorage.createFrom(mockBlobInfo, testFile)).thenReturn(mockBlob);
+        when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+        when(mockStorage.createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class))).thenReturn(mockBlob);
         when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
         // When
@@ -300,7 +306,7 @@ class GcpBlobStoreTest {
 
         // Then
         assertEquals(expectedResponse, response);
-        verify(mockStorage).createFrom(mockBlobInfo, testFile);
+        verify(mockStorage).createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
         verify(mockTransformer).toUploadResponse(mockBlob);
     }
 
@@ -315,7 +321,8 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-        when(mockStorage.createFrom(mockBlobInfo, testFile)).thenThrow(new IOException("Test exception"));
+        when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+        when(mockStorage.createFrom(eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class))).thenThrow(new IOException("Test exception"));
 
         // When & Then
         SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
@@ -914,7 +921,8 @@ class GcpBlobStoreTest {
 
             when(mockTransformer.toUploadRequest(any(), any())).thenReturn(uploadRequest);
             when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-            when(mockStorage.writer(mockBlobInfo)).thenReturn(mockWriteChannel);
+            when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class))).thenReturn(mockWriteChannel);
             when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(mockBlob);
             when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 

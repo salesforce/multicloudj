@@ -38,6 +38,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -80,6 +81,46 @@ public class AliTransformerTest {
         assertEquals(metadata, actual.getMetadata().getUserMetadata());
         assertEquals("tag-key=tag-value", actual.getMetadata().getRawMetadata().get("x-oss-tagging"));
         assertEquals(file, actual.getFile());
+    }
+
+    @Test
+    void testToPutObjectRequestWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var kmsKeyId = "alias/my-kms-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actual.getMetadata().getServerSideEncryption());
+    }
+
+    @Test
+    void testToPutObjectRequestWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertNull(actual.getMetadata().getServerSideEncryption());
     }
 
     @Test
