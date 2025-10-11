@@ -62,6 +62,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -373,11 +374,21 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 httpMethod = HttpMethod.GET;
                 break;
         }
+        List<Storage.SignUrlOption> options = new ArrayList<>();
+        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
+        options.add(Storage.SignUrlOption.withV4Signature());
+
+        // Add KMS encryption header if specified
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            Map<String, String> extHeaders = new HashMap<>();
+            extHeaders.put("x-goog-encryption-kms-key-name", request.getKmsKeyId());
+            options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+        }
+
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                Storage.SignUrlOption.httpMethod(httpMethod),
-                Storage.SignUrlOption.withV4Signature());
+                options.toArray(new Storage.SignUrlOption[0]));
     }
 
     @Override

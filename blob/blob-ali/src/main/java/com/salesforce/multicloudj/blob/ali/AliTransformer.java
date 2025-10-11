@@ -260,6 +260,13 @@ public class AliTransformer {
         if(encodedTagging instanceof String) {
             presignedUrlRequest.addHeader(OSSHeaders.OSS_TAGGING, (String)encodedTagging);
         }
+
+        // Add KMS encryption headers if KMS key is specified
+        if(request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            presignedUrlRequest.addHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION, ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
+            presignedUrlRequest.addHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+        }
+
         return presignedUrlRequest;
     }
 

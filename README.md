@@ -1,6 +1,8 @@
-# 
+#
 
-[![Build Status](https://github.com/salesforce/multicloudj/actions/workflows/build-test-codecov.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/build-test-codecov.yml)
+[![Java 11 Build](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml)
+[![Java 17 Build](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml)
+[![Java 21 Build](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml)
 [![codecov](https://codecov.io/gh/salesforce/multicloudj/branch/main/graph/badge.svg)](https://codecov.io/gh/salesforce/multicloudj)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Maven Central](https://img.shields.io/maven-central/v/com.salesforce.multicloudj/multicloudj-parent.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.salesforce.multicloudj/multicloudj-parent)

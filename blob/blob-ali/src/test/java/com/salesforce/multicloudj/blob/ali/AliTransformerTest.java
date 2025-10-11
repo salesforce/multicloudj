@@ -505,6 +505,54 @@ public class AliTransformerTest {
     }
 
     @Test
+    void testToPresignedUrlUploadRequestWithKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "alias/my-kms-key";
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .kmsKeyId(kmsKeyId)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertEquals(kmsKeyId, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
+    void testToPresignedUrlUploadRequestWithoutKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
     void testToPresignedUrlDownloadRequest() {
         Duration duration = Duration.ofHours(12);
         PresignedUrlRequest presignedDownloadRequest = PresignedUrlRequest.builder()
