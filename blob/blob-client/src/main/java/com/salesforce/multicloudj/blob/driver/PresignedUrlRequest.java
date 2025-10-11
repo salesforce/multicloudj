@@ -37,4 +37,9 @@ public class PresignedUrlRequest {
      * Optional: Specify the tags to be used in a presignedUrl upload
      */
     private final Map<String, String> tags;
+
+    /**
+     * Optional: Specify the KMS key ID to be used for encryption in a presignedUrl upload
+     */
+    private final String kmsKeyId;
 }

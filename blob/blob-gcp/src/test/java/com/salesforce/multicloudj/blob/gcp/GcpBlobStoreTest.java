@@ -1012,8 +1012,7 @@ class GcpBlobStoreTest {
         when(mockStorage.signUrl(eq(mockBlobInfo),
                 any(Long.class),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class)))
+                any(Storage.SignUrlOption[].class)))
                 .thenReturn(expectedUrl);
 
         // When
@@ -1025,8 +1024,7 @@ class GcpBlobStoreTest {
         verify(mockStorage).signUrl(eq(mockBlobInfo),
                 eq(duration.toMillis()),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class));
+                any(Storage.SignUrlOption[].class));
     }
 
     @Test
@@ -1045,8 +1043,7 @@ class GcpBlobStoreTest {
         when(mockStorage.signUrl(eq(mockBlobInfo),
                 any(Long.class),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class)))
+                any(Storage.SignUrlOption[].class)))
                 .thenReturn(expectedUrl);
 
         // When
@@ -1058,8 +1055,7 @@ class GcpBlobStoreTest {
         verify(mockStorage).signUrl(eq(mockBlobInfo),
                 eq(duration.toMillis()),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class));
+                any(Storage.SignUrlOption[].class));
     }
 
     @Test
@@ -1078,8 +1074,7 @@ class GcpBlobStoreTest {
         when(mockStorage.signUrl(eq(mockBlobInfo),
                 any(Long.class),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class)))
+                any(Storage.SignUrlOption[].class)))
                 .thenReturn(expectedUrl);
 
         // When
@@ -1091,8 +1086,72 @@ class GcpBlobStoreTest {
         verify(mockStorage).signUrl(eq(mockBlobInfo),
                 eq(duration.toMillis()),
                 eq(TimeUnit.MILLISECONDS),
-                any(Storage.SignUrlOption.class),
-                any(Storage.SignUrlOption.class));
+                any(Storage.SignUrlOption[].class));
+    }
+
+    @Test
+    void testDoGeneratePresignedUrl_WithKmsKey() throws Exception {
+        // Given
+        Duration duration = Duration.ofHours(4);
+        String kmsKeyId = "projects/my-project/locations/us-east1/keyRings/my-ring/cryptoKeys/my-key";
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key(TEST_KEY)
+                .duration(duration)
+                .kmsKeyId(kmsKeyId)
+                .build();
+
+        URL expectedUrl = new URL("https://signed-url-with-kms.example.com");
+
+        when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+        when(mockStorage.signUrl(eq(mockBlobInfo),
+                any(Long.class),
+                eq(TimeUnit.MILLISECONDS),
+                any(Storage.SignUrlOption[].class)))
+                .thenReturn(expectedUrl);
+
+        // When
+        URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+        // Then
+        assertEquals(expectedUrl, actualUrl);
+        verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+        // Verify signUrl was called with the correct parameters including KMS extension header
+        verify(mockStorage).signUrl(eq(mockBlobInfo),
+                eq(duration.toMillis()),
+                eq(TimeUnit.MILLISECONDS),
+                any(Storage.SignUrlOption[].class));
+    }
+
+    @Test
+    void testDoGeneratePresignedUrl_WithoutKmsKey() throws Exception {
+        // Given
+        Duration duration = Duration.ofHours(4);
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key(TEST_KEY)
+                .duration(duration)
+                .build();
+
+        URL expectedUrl = new URL("https://signed-url-without-kms.example.com");
+
+        when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+        when(mockStorage.signUrl(eq(mockBlobInfo),
+                any(Long.class),
+                eq(TimeUnit.MILLISECONDS),
+                any(Storage.SignUrlOption[].class)))
+                .thenReturn(expectedUrl);
+
+        // When
+        URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+        // Then
+        assertEquals(expectedUrl, actualUrl);
+        verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+        verify(mockStorage).signUrl(eq(mockBlobInfo),
+                eq(duration.toMillis()),
+                eq(TimeUnit.MILLISECONDS),
+                any(Storage.SignUrlOption[].class));
     }
 
     // Test class to access protected methods

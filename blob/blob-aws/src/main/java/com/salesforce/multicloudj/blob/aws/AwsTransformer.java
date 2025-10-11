@@ -355,6 +355,9 @@ public class AwsTransformer {
         if(request.getTags() != null) {
             builder.withTags(request.getTags());
         }
+        if(request.getKmsKeyId() != null) {
+            builder.withKmsKeyId(request.getKmsKeyId());
+        }
         UploadRequest uploadRequest = builder.build();
 
         return PutObjectPresignRequest.builder()
