@@ -67,6 +67,74 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
+
+import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PROVIDER_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 public class AsyncBucketClientTest {
 
     private AsyncBlobStore mockBlobStore;
@@ -646,5 +714,88 @@ public class AsyncBucketClientTest {
                 .build();
 
         assertInstanceOf(AsyncBucketClient.class, client);
+    }
+
+    @Test
+    void testUploadDirectory_WithException() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        RuntimeException expectedException = new RuntimeException("Upload failed");
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<DirectoryUploadResponse> future = client.uploadDirectory(request);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+    }
+
+    @Test
+    void testDownloadDirectory_WithException() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        RuntimeException expectedException = new RuntimeException("Download failed");
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<DirectoryDownloadResponse> future = client.downloadDirectory(request);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+    }
+
+    @Test
+    void testDeleteDirectory_WithException() throws ExecutionException, InterruptedException {
+        String prefix = "files";
+        RuntimeException expectedException = new RuntimeException("Delete failed");
+        when(mockBlobStore.deleteDirectory(prefix)).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<Void> future = client.deleteDirectory(prefix);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).deleteDirectory(eq(prefix));
+    }
+
+    @Test
+    void testUploadDirectory_WithNullResponse() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(future(null));
+        DirectoryUploadResponse actualResponse = client.uploadDirectory(request).get();
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+        assertNull(actualResponse);
+    }
+
+    @Test
+    void testDownloadDirectory_WithNullResponse() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(future(null));
+        DirectoryDownloadResponse actualResponse = client.downloadDirectory(request).get();
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+        assertNull(actualResponse);
     }
 }
