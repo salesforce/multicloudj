@@ -2,21 +2,20 @@ package com.salesforce.multicloudj.pubsub.gcp;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.core.ApiFuture;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
-import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.auth.Credentials;
 import com.google.auto.service.AutoService;
-import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PublishRequest;
+import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.TopicName;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
-import com.salesforce.multicloudj.blob.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -29,25 +28,28 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
+
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractTopic.class)
 public class GcpTopic extends AbstractTopic<GcpTopic> {
 
-    private volatile Publisher publisher;
-    
+    private volatile TopicAdminClient topicAdminClient;
     public GcpTopic() {
         this(new Builder());
     }
-    
     public GcpTopic(Builder builder) {
         super(builder);
         validateTopicName(topicName);
-        // Use injected Publisher if provided (for testing)
-        if (builder.publisher != null) {
-            this.publisher = builder.publisher;
-        }
     }
     
+    public GcpTopic(Builder builder, TopicAdminClient topicAdminClient) {
+        super(builder);
+        validateTopicName(topicName);
+        this.topicAdminClient = topicAdminClient;
+    }
     /**
      * Override batcher options to align with GCP Pub/Sub limits.
      * GCP supports up to 1000 messages or 10MB per batch.
@@ -66,53 +68,49 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
         if (messages == null || messages.isEmpty()) {
             return;
         }
-
-        Publisher pub = getOrCreatePublisher();
-        if (pub == null) {
-            throw new SubstrateSdkException("Failed to initialize GCP Publisher");
+        TopicAdminClient topicAdminClient = getOrCreateTopicAdminClient();
+        if (topicAdminClient == null) {
+            throw new SubstrateSdkException("Failed to initialize Pub/Sub TopicAdminClient");
         }
 
-        List<ApiFuture<String>> futures = messages.stream()
-            .map(message -> {
-                PubsubMessage.Builder pubsubMessageBuilder = PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFrom(message.getBody()));
-                Map<String, String> metadata = message.getMetadata();
+        // Build PubsubMessage list
+        List<PubsubMessage> pubsubMessages = messages.stream()
+                .map(m -> {
+                    PubsubMessage.Builder b = PubsubMessage.newBuilder()
+                            .setData(ByteString.copyFrom(m.getBody()));
+                    Map<String, String> metadata = m.getMetadata();
                 if (metadata != null && !metadata.isEmpty()) {
-                    pubsubMessageBuilder.putAllAttributes(metadata);
+                        b.putAllAttributes(metadata);
                 }
-                return pubsubMessageBuilder.build();
+                    return b.build();
             })
-            .map(pub::publish)
             .collect(Collectors.toList());
 
+        PublishRequest req = PublishRequest.newBuilder()
+                .setTopic(this.topicName)
+                .addAllMessages(pubsubMessages)
+                .build();
+
         try {
-            for (ApiFuture<String> future : futures) {
-                future.get();
-            }
+            PublishResponse resp = topicAdminClient.publishCallable().futureCall(req).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new SubstrateSdkException("Interrupted while waiting for messages to publish.", e);
         } catch (ExecutionException e) {
-            if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else if (e.getCause() != null) {
-                throw new SubstrateSdkException("One or more messages failed to publish.", e.getCause());
-            } else {
-                throw new SubstrateSdkException("One or more messages failed to publish.", e);
-            }
+            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            throw new SubstrateSdkException("Publish failed.", cause);
         }
     }
 
-    /** Closes the GCP topic and releases all resources.
-    *
-    * This method shuts down any GCP resources, then calls the
-    * parent close method to handle common cleanup.
+    /**
+     * Closes the GCP topic and releases all resources.
     */
     @Override
     public void close() throws Exception {
         super.close();
-        if (publisher != null) {
-            publisher.shutdown();
+        if (topicAdminClient != null) {
+            topicAdminClient.close();
         }
     }
 
@@ -167,52 +165,52 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     }
 
     /**
-     * Initializes the GCP PublisherStub with built-in retries for direct batch publishing.
+     * Initializes the GCP TopicAdminClient with built-in retries for direct batch publishing.
      */
-    private synchronized Publisher getOrCreatePublisher() {
-        if (publisher == null) {
+    private synchronized TopicAdminClient getOrCreateTopicAdminClient() {
+        if (topicAdminClient != null) return topicAdminClient;
+
             try {
-                TopicName topicNameObj = TopicName.parse(this.topicName);
-                Publisher.Builder publisherBuilder = Publisher.newBuilder(topicNameObj);
+            TopicAdminSettings.Builder settingsBuilder = TopicAdminSettings.newHttpJsonBuilder();
+
+            if (this.endpoint != null) {
+                settingsBuilder.setEndpoint(this.endpoint.toString());
+            }
 
                 if (credentialsOverrider != null) {
                     Credentials credentials = GcpCredentialsProvider.getCredentials(credentialsOverrider);
                     if (credentials != null) {
-                        publisherBuilder.setCredentialsProvider(() -> credentials);
+                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
                     }
                 }
 
-                if (this.endpoint != null) {
-                    publisherBuilder.setEndpoint(this.endpoint.toString());
-                }
-
+            InstantiatingHttpJsonChannelProvider.Builder httpJson = InstantiatingHttpJsonChannelProvider.newBuilder();
                 if (this.proxyEndpoint != null) {
                     HttpTransport httpTransport = new NetHttpTransport.Builder()
-                        .setProxy(new Proxy(Proxy.Type.HTTP,
-                            new InetSocketAddress(this.proxyEndpoint.getHost(), this.proxyEndpoint.getPort())))
+                        .setProxy(new Proxy(
+                                Proxy.Type.HTTP,
+                                new InetSocketAddress(this.proxyEndpoint.getHost(), this.proxyEndpoint.getPort())
+                        ))
                         .build();
-                    TransportChannelProvider channelProvider = InstantiatingHttpJsonChannelProvider.newBuilder()
-                        .setHttpTransport(httpTransport)
-                        .build();
-                    publisherBuilder.setChannelProvider(channelProvider);
+                httpJson.setHttpTransport(httpTransport);
                 }
+            TransportChannelProvider channelProvider = httpJson.build();
+            settingsBuilder.setTransportChannelProvider(channelProvider);
 
-                publisher = publisherBuilder.build();
+            topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
+            return topicAdminClient;
 
             } catch (IOException e) {
-                throw new SubstrateSdkException("Failed to create GCP Publisher for topic: " + this.topicName, e);
+            throw new SubstrateSdkException(
+                    "Failed to create topicAdminClient for topic: " + this.topicName, e);
             }
         }
-        return publisher;
-    }
 
     /**
      * Builder for creating GcpTopic instances.
      */
     public static class Builder extends AbstractTopic.Builder<GcpTopic> {
         
-        private Publisher publisher; // For dependency injection in tests
-
         public Builder() {
             providerId(GcpConstants.PROVIDER_ID);
         }
@@ -222,16 +220,6 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
             return this;
         }
         
-        /**
-         * Inject a Publisher for testing purposes.
-         * @param publisher The Publisher to use instead of creating one
-         * @return this builder
-         */
-        public Builder withPublisher(Publisher publisher) {
-            this.publisher = publisher;
-            return this;
-        }
-
         @Override
         public GcpTopic build() {
             return new GcpTopic(this);

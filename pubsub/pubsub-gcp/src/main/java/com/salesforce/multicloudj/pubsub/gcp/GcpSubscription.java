@@ -2,65 +2,54 @@ package com.salesforce.multicloudj.pubsub.gcp;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
-import com.google.api.gax.retrying.RetrySettings;
-import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.AckReplyConsumer;
-import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.cloud.pubsub.v1.Subscriber;
-import com.google.cloud.pubsub.v1.stub.GrpcSubscriberStub;
-import com.google.cloud.pubsub.v1.stub.SubscriberStub;
-import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
+import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
+import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ModifyAckDeadlineRequest;
-import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
-import com.salesforce.multicloudj.blob.gcp.GcpCredentialsProvider;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.google.pubsub.v1.PullRequest;
+import com.google.pubsub.v1.PullResponse;
+import com.google.pubsub.v1.ReceivedMessage;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.google.auto.service.AutoService;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.StatusCode;
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import org.threeten.bp.Duration;
 
+import java.net.URI;
 import java.io.IOException;
+
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("rawtypes")
+@AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
-    private volatile Subscriber subscriber;
     private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
     private Batcher.Options receiveBatcherOptions;
-    private volatile SubscriberStub subscriberStub;
+    private volatile SubscriptionAdminClient subscriptionAdminClient;
     private final boolean nackLazy;
 
-    private static final RetrySettings RETRY_SETTINGS = RetrySettings.newBuilder()
-            .setMaxAttempts(0)                               // Unlimited attempts, controlled by timeout
-            .setInitialRetryDelay(Duration.ofMillis(100))
-            .setRetryDelayMultiplier(1.3)
-            .setMaxRetryDelay(Duration.ofSeconds(60))
-            .setTotalTimeout(Duration.ofMinutes(5))          // context timeout
-            .build();
-    
-    private static final int DEFAULT_HTTPS_PORT = 443;
-    private static final int DEFAULT_HTTP_PORT = 80;
-    
     public GcpSubscription() {
         this(new Builder());
     }
@@ -71,125 +60,62 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         validateSubscriptionName(this.subscriptionName);
     }
     
-    /**
-     * Gets or creates the SubscriberStub lazily.
-     * @return the SubscriberStub instance
-     * @throws SubstrateSdkException if stub creation fails
-     */
-    private SubscriberStub getOrCreateSubscriberStub() {
-        if (subscriberStub == null) {
-            synchronized (this) {
-                if (subscriberStub == null) {
-                    try {
-                        subscriberStub = createStubWithRetry();
-                    } catch (IOException e) {
-                        throw new SubstrateSdkException("Failed to create subscriber stub", e);
-                    }
-                }
-            }
-        }
-        return subscriberStub;
-    }
-    
-    /**
-     * Creates a SubscriberStub configured with GAX retry settings.      
-     * @return a configured SubscriberStub with retry settings applied
-     * @throws IOException if stub creation fails
-     */
-    private SubscriberStub createStubWithRetry() throws IOException {
-        SubscriberStubSettings.Builder builder = SubscriberStubSettings.newBuilder();
-        
-        // This applies our RETRY_SETTINGS to all acknowledge calls made through this stub
-        builder.acknowledgeSettings()
-            .setRetrySettings(RETRY_SETTINGS);
-            
-        builder.modifyAckDeadlineSettings()
-            .setRetrySettings(RETRY_SETTINGS);
-            
-        // Use same credentials as Subscriber 
-        if (credentialsOverrider != null) {
-            Credentials credentials = GcpCredentialsProvider.getCredentials(credentialsOverrider);
-            if (credentials != null) {
-                builder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
-            }
-        }
-        
-        // Use same endpoint and proxy configuration as Subscriber 
-        if (this.endpoint != null) {
-            // Extract host and port from URI for GAX compatibility
-            String host = this.endpoint.getHost();
-            int port = this.endpoint.getPort();
-            if (port == -1) {
-                // Use default port based on scheme
-                port = "https".equals(this.endpoint.getScheme()) ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT;
-            }
-            builder.setEndpoint(host + ":" + port);
-        }
-        
-        // SubscriberStubSettings doesn't support channel provider configuration
-        // Proxy configuration is handled at the Subscriber level only
-        
-        return GrpcSubscriberStub.create(builder.build());
+    public GcpSubscription(Builder builder, SubscriptionAdminClient subscriptionAdminClient) {
+        super(builder);
+        this.nackLazy = builder.nackLazy;
+        validateSubscriptionName(this.subscriptionName);
+        this.subscriptionAdminClient = subscriptionAdminClient;
     }
 
     /**
-     * Initializes the GCP Subscriber with built-in retries for message consumption.
+     * Gets or creates the SubscriptionAdminClient lazily.
+     * @return the SubscriptionAdminClient instance
+     * @throws SubstrateSdkException if client creation fails
      */
-    private synchronized Subscriber getOrCreateSubscriber() {
-        if (subscriber == null) {
+    private SubscriptionAdminClient getOrCreateSubscriptionAdminClient() {
+        if (subscriptionAdminClient == null) {
+            synchronized (this) {
+                if (subscriptionAdminClient == null) {
             try {
-                // Validate and parse the subscription name
-                validateSubscriptionName(subscriptionName);
-                ProjectSubscriptionName projectSubscriptionName = ProjectSubscriptionName.parse(subscriptionName);
+                        SubscriptionAdminSettings.Builder settingsBuilder = SubscriptionAdminSettings.newHttpJsonBuilder();
                 
-                MessageReceiver receiver = (message, consumer) -> {
-                    Message convertedMessage = convertToMessage(message, consumer);
-                    messageQueue.offer(convertedMessage);
-                };
-                
-                Subscriber.Builder subscriberBuilder = Subscriber.newBuilder(projectSubscriptionName, receiver);
-                
+                        // Configure credentials if available
                 if (credentialsOverrider != null) {
                     Credentials credentials = GcpCredentialsProvider.getCredentials(credentialsOverrider);
                     if (credentials != null) {
-                        subscriberBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+                                settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
                     }
                 }
                 
+                        // Configure endpoint if specified
                 if (this.endpoint != null) {
-                    subscriberBuilder.setEndpoint(this.endpoint.toString());
+                            settingsBuilder.setEndpoint(this.endpoint.toString());
                 }
                 
+                        // Configure proxy if specified
+                        InstantiatingHttpJsonChannelProvider.Builder httpJson = InstantiatingHttpJsonChannelProvider.newBuilder();
                 if (this.proxyEndpoint != null) {
                     HttpTransport httpTransport = new NetHttpTransport.Builder()
                         .setProxy(new Proxy(Proxy.Type.HTTP,
                             new InetSocketAddress(this.proxyEndpoint.getHost(), this.proxyEndpoint.getPort())))
                         .build();
-                    TransportChannelProvider channelProvider = InstantiatingHttpJsonChannelProvider.newBuilder()
-                        .setHttpTransport(httpTransport)
-                        .build();
-                    subscriberBuilder.setChannelProvider(channelProvider);
+                            httpJson.setHttpTransport(httpTransport);
                 }
+                        TransportChannelProvider channelProvider = httpJson.build();
+                        settingsBuilder.setTransportChannelProvider(channelProvider);
                 
-                subscriber = subscriberBuilder.build();
-                subscriber.startAsync();
-                
-            } catch (IllegalArgumentException e) {
-                throw new InvalidArgumentException("Invalid subscription name or configuration: " + subscriptionName, e);
-            } catch (RuntimeException e) {
-                throw new SubstrateSdkException("Failed to create GCP Subscriber for subscription: " + subscriptionName, e);
+                        subscriptionAdminClient = SubscriptionAdminClient.create(settingsBuilder.build());
+                    } catch (IOException e) {
+                        throw new SubstrateSdkException("Failed to create subscription admin client", e);
             }
         }
-        return subscriber;
+            }
+        }
+        return subscriptionAdminClient;
     }
 
     @Override
     protected void doSendAcks(List<AckID> ackIDs) {
-        if (isShutdown.get()) {
-            throw new IllegalStateException("Subscription is closed, cannot send ack");
-        }
-        
-        try {
             List<String> ackIds = new ArrayList<>();
             for (AckID ackID : ackIDs) {
                 ackIds.add(ackID.toString());
@@ -200,30 +126,16 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .addAllAckIds(ackIds)
                 .build();
             
-            getOrCreateSubscriberStub().acknowledgeCallable().call(request);
-            
-        } catch (Exception e) {
-            if (!isRetryable(e)) {
-                permanentError.set(e);
-            }
-            unreportedAckErr.set(e);
-            throw new SubstrateSdkException("Failed to send acks", e);
-        }
+        getOrCreateSubscriptionAdminClient().acknowledgeCallable().call(request);
     }
     
     @Override
     protected void doSendNacks(List<AckID> ackIDs) {
-        if (isShutdown.get()) {
-            throw new IllegalStateException("Subscription is closed, cannot send nack");
-        }
-        
-        try {
             // NackLazy mode: bypass ModifyAckDeadline call
             // Messages will be redelivered after existing ack deadline expires
             if (nackLazy) {
                 return;
             }
-            
             // Normal mode: immediate redelivery by setting deadline to 0
             List<String> ackIds = new ArrayList<>();
             for (AckID ackID : ackIDs) {
@@ -240,20 +152,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
                 .build();
             
-            getOrCreateSubscriberStub().modifyAckDeadlineCallable().call(request);
-            
-        } catch (Exception e) {
-            if (!isRetryable(e)) {
-                permanentError.set(e);
-            }
-            unreportedAckErr.set(e);
-            throw new SubstrateSdkException("Failed to send nacks", e);
-        }
-    }
-    
-    @Override
-    protected String getMessageId(AckID ackID) {
-        return ackID != null ? ackID.toString() : null;
+        getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
     }
     
     @Override
@@ -268,7 +167,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         }
     }
     
-
     @Override
     public boolean canNack() {
         return true;
@@ -276,20 +174,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
     @Override
     public boolean isRetryable(Throwable error) {
-        if (error == null) {
-            return false;
+        if (error instanceof ApiException) {
+            ApiException apiException = (ApiException) error;
+            StatusCode.Code code = apiException.getStatusCode().getCode();
+            return code == StatusCode.Code.DEADLINE_EXCEEDED;
         }
 
-        Throwable t = error;
-        if (t instanceof java.util.concurrent.ExecutionException && t.getCause() != null) {
-            t = t.getCause();
-        }
-
-        if (t instanceof ApiException) {
-            com.google.api.gax.rpc.StatusCode.Code code = ((ApiException) t).getStatusCode().getCode();
-            // Same as Go CDK, only retry DeadlineExceeded errors
-            return code == com.google.api.gax.rpc.StatusCode.Code.DEADLINE_EXCEEDED;
-        }
         return false;
     }
 
@@ -323,49 +213,45 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
     
     @Override
+    protected Batcher.Options createAckBatcherOptions() {
+        return new Batcher.Options()
+                .setMaxHandlers(2)
+                .setMinBatchSize(1)
+                .setMaxBatchSize(1000)
+                .setMaxBatchByteSize(0);
+            }
+            
+    @Override
     protected List<Message> doReceiveBatch(int batchSize) {
-        try {
-            Subscriber sub = getOrCreateSubscriber();
-            if (sub == null) {
-                throw new SubstrateSdkException("Failed to initialize GCP Subscriber");
-            }
+        PullRequest req = PullRequest.newBuilder()
+                .setSubscription(subscriptionName)
+                .setMaxMessages(Math.max(1, batchSize))
+                .setReturnImmediately(true)
+                .build();
             
-            List<Message> messages = new ArrayList<>();
-            for (int i = 0; i < batchSize; i++) {
-                // Use 0 timeout to make it behave like synchronous calls
-                Message message = messageQueue.poll(0, TimeUnit.SECONDS);
-                if (message == null) {
-                    break; 
-                }
-                messages.add(message);
-            }
-            
-            return messages;
+        PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
                     
-        } catch (Exception e) {
-            return Collections.emptyList();
+        List<Message> receivedMessages = new ArrayList<>();
+        for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
+            Message m = convertToMessage(rm);
+            receivedMessages.add(m);
         }
+        return receivedMessages;
     }
 
     /**
      * Closes the GCP subscription and releases all resources.
-     * 
-     * This method shuts down any GCP resources, then calls the
-     * parent close method to handle common cleanup.
      */
     @Override
     public void close() throws Exception {
-        if (subscriber != null) {
-            subscriber.stopAsync().awaitTerminated();
-            subscriber = null;
+        try {
+            super.close();
+        } finally {
+            if (subscriptionAdminClient != null) {
+                subscriptionAdminClient.close();
+                subscriptionAdminClient = null;
         }
-        
-        if (subscriberStub != null) {
-            subscriberStub.close();
-            subscriberStub = null;
         }
-        
-        super.close();
     }
 
     /**
@@ -385,8 +271,9 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         }
     }
 
-    Message convertToMessage(PubsubMessage pubsubMessage, AckReplyConsumer ackReplyConsumer) {
-        String ackId = extractAckId(ackReplyConsumer, pubsubMessage.getMessageId());
+    Message convertToMessage(ReceivedMessage receivedMessage) {
+        PubsubMessage pubsubMessage = receivedMessage.getMessage();
+        String ackId = receivedMessage.getAckId();
         
         AckID ackID = new GcpAckID(ackId);
         
@@ -396,20 +283,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .withAckID(ackID)
                 .withLoggableID(pubsubMessage.getMessageId())
                 .build();
-    }
-    
-    /**
-     * Extracts the ackId from AckReplyConsumer using reflection.
-     * This is necessary because GCP Pub/Sub Java client doesn't expose ackId directly.
-     */
-    private String extractAckId(AckReplyConsumer ackReplyConsumer, String messageId) {
-        try {
-            java.lang.reflect.Field ackIdField = ackReplyConsumer.getClass().getDeclaredField("ackId");
-            ackIdField.setAccessible(true);
-            return (String) ackIdField.get(ackReplyConsumer);
-        } catch (Exception e) {
-            return messageId;
-        }
     }
     
     /**
@@ -431,7 +304,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         }
     }
 
-    
     public static class Builder extends AbstractSubscription.Builder<GcpSubscription> {
         private boolean nackLazy = false;
         
@@ -469,6 +341,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             return this;
         }
         
+        @Override
+        public GcpSubscription.Builder withReceiveTimeoutSeconds(long receiveTimeoutSeconds) {
+            super.withReceiveTimeoutSeconds(receiveTimeoutSeconds);
+            return this;
+        }
+
         /**
          * Sets the nackLazy mode for negative acknowledgments.
          *
@@ -494,5 +372,4 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             return new GcpSubscription(this);
         }
     }
-
 }

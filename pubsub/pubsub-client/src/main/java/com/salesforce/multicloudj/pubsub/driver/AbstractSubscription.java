@@ -1,18 +1,13 @@
 package com.salesforce.multicloudj.pubsub.driver;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.pubsub.batcher.Batcher;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-
 import java.net.URI;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Queue;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,6 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 /**
  * Abstract base class for subscription implementations.
@@ -36,6 +37,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     protected final String region;
     protected final URI endpoint;
     protected final URI proxyEndpoint;
+    protected final long receiveTimeoutSeconds;
+
+    private static final long DEFAULT_RECEIVE_TIMEOUT_SECONDS = 30;
 
     /**
      * Constants class for queue batching and sizing parameters.
@@ -124,10 +128,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     /** In-memory queue holding messages that have been fetched but not yet delivered to callers. */
     private final Queue<Message> queue = new ArrayDeque<>();
 
-    /** Set when a fetch, ack, or nack call to the cloud API fails with non-retryable error
-     * causing the subscription to stop functioning. */
-    protected final AtomicReference<Throwable> permanentError = new AtomicReference<>(null);
-
     /** Flag indicating whether a prefetch operation is currently in progress. */
     private final AtomicBoolean prefetchInFlight = new AtomicBoolean(false);
 
@@ -143,18 +143,27 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     /** Number of messages processed in the current throughput measurement window. */
     private int throughputCount = 0;
 
+    /** Batcher for handling both acknowledgment and negative acknowledgment operations. */
+    private final Batcher<AckInfo> ackBatcher;
+
+    // permanent error
+    protected final AtomicReference<Throwable> permanentError = new AtomicReference<>(null);
+
+    // permanent error from background SendAcks that hasn't been returned to the user yet
+    protected final AtomicReference<Throwable> unreportedAckErr = new AtomicReference<>(null);
+
     protected AbstractSubscription(String providerId, String subscriptionName, String region, CredentialsOverrider credentialsOverrider) {
         this.providerId = providerId;
         this.subscriptionName = subscriptionName;
         this.region = region;
         this.endpoint = null;
         this.proxyEndpoint = null;
+        this.receiveTimeoutSeconds = DEFAULT_RECEIVE_TIMEOUT_SECONDS;
 
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = credentialsOverrider;
         
         this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckBatch);
-        this.nackBatcher = new Batcher<>(createNackBatcherOptions(), this::handleNackBatch);
 
         int poolSize = Math.max(1, this.receiveBatcherOptions.getMaxHandlers());
         this.backgroundPool = Executors.newFixedThreadPool(poolSize, r -> {
@@ -170,12 +179,12 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         this.region = builder.region;
         this.endpoint = builder.endpoint;
         this.proxyEndpoint = builder.proxyEndpoint;
+        this.receiveTimeoutSeconds = builder.receiveTimeoutSeconds;
 
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = builder.credentialsOverrider;
         
         this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckBatch);
-        this.nackBatcher = new Batcher<>(createNackBatcherOptions(), this::handleNackBatch);
 
         int poolSize = Math.max(1, this.receiveBatcherOptions.getMaxHandlers());
         this.backgroundPool = Executors.newFixedThreadPool(poolSize, r -> {
@@ -215,7 +224,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             while (true) {
                 // Check if subscription has been shut down
                 if (isShutdown.get()) {
-                    throw new SubstrateSdkException("Subscription has been shut down");
+                    throw new FailedPreconditionException("Subscription has been shut down");
                 }
 
                 // Check for permanent error state
@@ -238,7 +247,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 if (prefetchInFlight.get()) {
                     try {
                         // Wait with timeout to avoid indefinite blocking
-                        if (!batchArrived.await(30, TimeUnit.SECONDS)) {
+                        if (!batchArrived.await(receiveTimeoutSeconds, TimeUnit.SECONDS)) {
                             throw new SubstrateSdkException("Timeout waiting for messages - prefetch operation took too long");
                         }
                     } catch (InterruptedException ie) {
@@ -280,11 +289,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             .setMaxBatchSize(3000)
             .setMaxBatchByteSize(0); // No limit
     }
-
-    private final Batcher<AckID> ackBatcher;
-    private final Batcher<AckID> nackBatcher;
-    protected final AtomicReference<Throwable> unreportedAckErr = new AtomicReference<>(); // Unreported error from background SendAcks
-    
     /**
      * Sends acknowledgment for a single message.
      * 
@@ -294,6 +298,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * @param ackID the acknowledgment identifier
      */
     public void sendAck(AckID ackID) {
+        if (isShutdown.get()) {
+            throw new FailedPreconditionException("Subscription has been shut down");
+        }
+
         if (ackID == null) {
             RuntimeException error = new InvalidArgumentException("AckID cannot be null");
             permanentError.set(error);
@@ -302,7 +310,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         
         validateAckIDType(ackID);
         
-        ackBatcher.addNoWait(ackID);
+        ackBatcher.addNoWait(new AckInfo(ackID, true));
     }
 
     /**
@@ -315,6 +323,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * @return a CompletableFuture that completes when acknowledgments are enqueued
      */
     public CompletableFuture<Void> sendAcks(List<AckID> ackIDs) {
+        if (isShutdown.get()) {
+            throw new FailedPreconditionException("Subscription has been shut down");
+        }
+
         if (ackIDs == null || ackIDs.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -329,7 +341,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         }
         
         for (AckID ackID : ackIDs) {
-            ackBatcher.addNoWait(ackID);
+            ackBatcher.addNoWait(new AckInfo(ackID, true));
         }
         
         return CompletableFuture.completedFuture(null);
@@ -344,7 +356,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      */
     public void sendNack(AckID ackID) {
         if (isShutdown.get()) {
-            throw new SubstrateSdkException("Subscription has been shut down");
+            throw new FailedPreconditionException("Subscription has been shut down");
         }
         
         if (ackID == null) {
@@ -354,7 +366,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         }
         
         validateAckIDType(ackID);
-        nackBatcher.addNoWait(ackID);
+        ackBatcher.addNoWait(new AckInfo(ackID, false));
     }
     
     /**
@@ -367,7 +379,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      */
     public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
         if (isShutdown.get()) {
-            throw new SubstrateSdkException("Subscription has been shut down");
+            throw new FailedPreconditionException("Subscription has been shut down");
         }
         
         if (ackIDs == null) {
@@ -390,7 +402,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         }
         
         for (AckID ackID : ackIDs) {
-            nackBatcher.addNoWait(ackID);
+            ackBatcher.addNoWait(new AckInfo(ackID, false));
         }
         
         return CompletableFuture.completedFuture(null);
@@ -402,94 +414,60 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     
     protected abstract void doSendAcks(List<AckID> ackIDs);
     protected abstract void doSendNacks(List<AckID> ackIDs);
-    protected abstract String getMessageId(AckID ackID);
     protected void validateAckIDType(AckID ackID) {}
+    protected abstract Batcher.Options createAckBatcherOptions();
     
     /**
-     * Handles a batch of acknowledgments.
-     * This is called by the ackBatcher for efficient batch processing.
+     * Handles a batch of acknowledgments and negative acknowledgments.
+     * This is called by the ackBatcher for batch processing.
      */
-    private Void handleAckBatch(List<AckID> ackIDs) {
-        if (ackIDs.isEmpty()) {
+    private Void handleAckBatch(List<AckInfo> ackInfos) {
+        if (ackInfos.isEmpty()) {
             return null;
         }
 
-        try {
-            doSendAcks(ackIDs);
+        List<AckID> acks = new ArrayList<>();
+        List<AckID> nacks = new ArrayList<>();
             
-        } catch (Exception e) {
-            if (!isRetryable(e)) {
-                permanentError.set(e);
-            }
-            unreportedAckErr.set(e);
-            throw new SubstrateSdkException("Batch acknowledge failed", e);
-        }
-        
-        return null;
+        for (AckInfo info : ackInfos) {
+            if (info.isAck()) {
+                acks.add(info.getAckID());
+            } else {
+                nacks.add(info.getAckID());
     }
-    
-    /**
-     * Handles a batch of negative acknowledgments.
-     * This is called by the nackBatcher for efficient batch processing.
-     */
-    private Void handleNackBatch(List<AckID> ackIDs) {
-        if (ackIDs.isEmpty()) {
-            return null;
         }
 
+        // Send acks
+        if (!acks.isEmpty()) {
         try {
-            doSendNacks(ackIDs);
-            
+                doSendAcks(acks);
         } catch (Exception e) {
-            if (!isRetryable(e)) {
-                permanentError.set(e);
+                boolean permanent = !isRetryable(e);
+                if (permanent) {
+                    if (permanentError.compareAndSet(null, e)) {
+                        unreportedAckErr.compareAndSet(null, e);
             }
-            unreportedAckErr.set(e);
-            throw new SubstrateSdkException("Batch negative acknowledge failed", e);
         }
-        
+                throw new SubstrateSdkException("Batch acknowledge failed", e);
+    }
+    }
+    
+        // Send nacks
+        if (!nacks.isEmpty()) {
+            try {
+                doSendNacks(nacks);
+            } catch (Exception e) {
+                boolean permanent = !isRetryable(e);
+                if (permanent) {
+                    if (permanentError.compareAndSet(null, e)) {
+                        unreportedAckErr.compareAndSet(null, e);
+    }
+    }
+                throw new SubstrateSdkException("Batch negative acknowledge failed", e);
+            }
+    }
+    
         return null;
-    }
-    
-    /**
-     * Creates batcher options for acknowledgment operations.
-     */
-    protected Batcher.Options createAckBatcherOptions() {
-        return new Batcher.Options()
-            .setMaxHandlers(2)
-            .setMinBatchSize(1)
-            .setMaxBatchSize(1000)
-            .setMaxBatchByteSize(0);
-    }
-    
-    protected Batcher.Options createNackBatcherOptions() {
-        return new Batcher.Options()
-            .setMaxHandlers(2)
-            .setMinBatchSize(1)
-            .setMaxBatchSize(1000)
-            .setMaxBatchByteSize(0);
-    }
-    
-    
-    /**
-     * Stores an unreported ack error from background SendAcks.
-     */
-    protected void storeAckError(Throwable error) {
-        unreportedAckErr.set(error);
-    }
-    
-    /**
-     * Gets the permanent error and clears it.
-     */
-    public Throwable getLastError() {
-        return permanentError.getAndSet(null);
-    }
-    
-    /**
-     * Gets the unreported ack error and clears it.
-     */
-    public Throwable getLastAckError() {
-        return unreportedAckErr.getAndSet(null);
     }
 
     private void maybePrefetch() {
@@ -624,7 +602,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             try {
                 // Set permanentError if the error is not retryable
                 if (!isRetryable(t)) {
-                    permanentError.set(t);
+                    permanentError.compareAndSet(null, t);
                 }
                 batchArrived.signalAll();
             } finally {
@@ -665,10 +643,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             ackBatcher.shutdownAndDrain();
         }
         
-        if (nackBatcher != null) {
-            nackBatcher.shutdownAndDrain();
-        }
-        
         // Now shutdown background pool to stop all ongoing prefetch operations
         if (backgroundPool != null && !backgroundPool.isShutdown()) {
             backgroundPool.shutdown();
@@ -694,6 +668,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         protected URI endpoint;
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
+        protected long receiveTimeoutSeconds = DEFAULT_RECEIVE_TIMEOUT_SECONDS;
 
         public Builder<T> withSubscriptionName(String subscriptionName) {
             this.subscriptionName = subscriptionName;
@@ -717,6 +692,11 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
 
         public Builder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
             this.credentialsOverrider = credentialsOverrider;
+            return this;
+        }
+
+        public Builder<T> withReceiveTimeoutSeconds(long receiveTimeoutSeconds) {
+            this.receiveTimeoutSeconds = receiveTimeoutSeconds;
             return this;
         }
 

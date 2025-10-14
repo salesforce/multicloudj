@@ -42,6 +42,7 @@ import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationExceptio
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.provider.Provider;
 import lombok.Getter;
 import org.apache.http.HttpHost;

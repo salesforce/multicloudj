@@ -1,11 +1,11 @@
 package com.salesforce.multicloudj.pubsub.client;
 
-import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
-import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+
+import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
+import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 
 /**
  * This class will attempt to find a PubSub provider in the classpath by providerId.

@@ -1,14 +1,12 @@
 package com.salesforce.multicloudj.pubsub.client;
 
+import java.net.URI;
+
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
-
-import java.net.URI;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 /**
  * High-level client for publishing messages to a pubsub topic.

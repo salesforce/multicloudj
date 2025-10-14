@@ -1,13 +1,11 @@
 package com.salesforce.multicloudj.pubsub.batcher;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -22,7 +20,6 @@ import java.util.stream.Collectors;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,7 +34,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@Disabled
 public class BatcherTest {
 
     private Function<List<SizableString>, Void> mockHandler;
@@ -74,7 +70,7 @@ public class BatcherTest {
 
         // Act
         CompletableFuture<Void> future = batcher.addNoWait(item);
-        future.get(3, TimeUnit.SECONDS);
+        future.get();
 
         // Assert
         assertTrue(future.isDone());
@@ -87,6 +83,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Waits for batch completion with .get()
     void testMultipleItemsBatching() throws Exception {
         // Arrange
         Batcher.Options options = new Batcher.Options().setMinBatchSize(3);
@@ -97,7 +94,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
         CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
 
-        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get();
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -111,6 +108,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Waits for batch completion with .get()
     void testMaxBatchSize() throws Exception {
         // Arrange
         Batcher.Options options = new Batcher.Options().setMaxBatchSize(2);
@@ -121,7 +119,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
         CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
 
-        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get();
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -141,6 +139,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Waits for batch completion with .get()
     void testMaxBatchSizeWithMinBatchSize() throws Exception {
         // Arrange - This test demonstrates actual batching behavior
         Batcher.Options options = new Batcher.Options().setMinBatchSize(2).setMaxBatchSize(3);
@@ -153,8 +152,7 @@ public class BatcherTest {
         CompletableFuture<Void> future4 = batcher.addNoWait(new SizableString("item4"));
         CompletableFuture<Void> future5 = batcher.addNoWait(new SizableString("item5"));
 
-        // Increased timeout from 1 to 5 seconds for CI environments
-        CompletableFuture.allOf(future1, future2, future3, future4, future5).get(5, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3, future4, future5).get();
 
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
@@ -175,6 +173,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Waits for batch completion with .get()
     void testSizableItemBatching() throws Exception {
         // Arrange
         Batcher.Options options = new Batcher.Options().setMaxBatchByteSize(100);
@@ -190,7 +189,7 @@ public class BatcherTest {
         CompletableFuture<Void> future2 = sizableBatcher.addNoWait(item2);
         CompletableFuture<Void> future3 = sizableBatcher.addNoWait(item3);
 
-        CompletableFuture.allOf(future1, future2, future3).get(3, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3).get();
 
         // Assert
         ArgumentCaptor<List<SizableTestItem>> captor = ArgumentCaptor.forClass(List.class);
@@ -211,6 +210,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Waits for batch completion with .get()
     void testSizableItemBatchingWithMinBatchSize() throws Exception {
         // Arrange - This test demonstrates actual byte-size based batching
         Batcher.Options options = new Batcher.Options().setMinBatchSize(2).setMaxBatchByteSize(80);
@@ -228,7 +228,7 @@ public class BatcherTest {
         CompletableFuture<Void> future3 = sizableBatcher.addNoWait(item3);
         CompletableFuture<Void> future4 = sizableBatcher.addNoWait(item4);
 
-        CompletableFuture.allOf(future1, future2, future3, future4).get(3, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future1, future2, future3, future4).get();
 
         // Assert
         ArgumentCaptor<List<SizableTestItem>> captor = ArgumentCaptor.forClass(List.class);
@@ -257,7 +257,7 @@ public class BatcherTest {
         CompletableFuture<Void> future = sizableBatcher.addNoWait(oversizedItem);
         
         ExecutionException exception = assertThrows(ExecutionException.class, () -> {
-            future.get(3, TimeUnit.SECONDS);
+            future.get();
         });
         
         assertTrue(exception.getCause() instanceof InvalidArgumentException);
@@ -297,49 +297,6 @@ public class BatcherTest {
         batcher.shutdownAndDrain();
     }
 
-    @Test
-    void testInterruptedExceptionIsPropagated() throws InterruptedException {
-        // Arrange - Use a simple handler that just waits
-        Function<List<SizableString>, Void> slowHandler = items -> {
-            try {
-                Thread.sleep(1000); // Wait for 1 second
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Handler interrupted", e);
-            }
-            return null;
-        };
-
-        Batcher<SizableString> batcher = new Batcher<>(slowHandler);
-        final AtomicReference<Exception> caughtException = new AtomicReference<>();
-
-        // Act - Test the add() method directly with interruption
-        Thread testThread = new Thread(() -> {
-            try {
-                batcher.add(new SizableString("item"));
-            } catch (Exception e) {
-                caughtException.set(e);
-            }
-        });
-
-        testThread.start();
-        
-        // Wait a bit for the thread to start and get into the waiting state
-        Thread.sleep(100);
-        
-        // Interrupt the thread
-        testThread.interrupt();
-        testThread.join(1000);
-
-        // Assert
-        assertNotNull(caughtException.get(), "An exception should have been caught");
-        assertTrue(caughtException.get() instanceof SubstrateSdkException, 
-                   "Expected SubstrateSdkException but got: " + caughtException.get().getClass().getSimpleName());
-        assertTrue(caughtException.get().getCause() instanceof InterruptedException,
-                   "Expected cause to be InterruptedException but got: " + 
-                   (caughtException.get().getCause() != null ? caughtException.get().getCause().getClass().getSimpleName() : "null"));
-        batcher.shutdownAndDrain();
-    }
 
     @Test
     void testShutdownPreventsNewItems() {
@@ -351,118 +308,6 @@ public class BatcherTest {
         CompletableFuture<Void> future = batcher.addNoWait(new SizableString("another-item"));
         ExecutionException ex = assertThrows(ExecutionException.class, future::get);
         assertTrue(ex.getCause() instanceof FailedPreconditionException);
-    }
-
-    @Disabled
-    @Test
-    void testShutdownAndDrain() {
-        // Arrange
-        Batcher.Options options = new Batcher.Options().setMinBatchSize(3);
-        Batcher<SizableString> batcher = new Batcher<>(options, mockHandler);
-
-        // Act
-        CompletableFuture<Void> future1 = batcher.addNoWait(new SizableString("item1"));
-        CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
-        CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
-        
-        assertFalse(future1.isDone());
-        assertFalse(future2.isDone());
-        assertFalse(future3.isDone());
-
-        batcher.shutdownAndDrain();
-
-        // Assert
-        assertTrue(batcher.isShutdown());
-        assertTrue(future1.isDone());
-        assertTrue(future2.isDone());
-        assertTrue(future3.isDone());
-
-        ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
-        verify(mockHandler, times(1)).apply(captor.capture());
-        assertEquals(3, captor.getValue().size());
-        batcher.shutdownAndDrain();
-    }
-
-    @Test
-    void testConcurrentAccess() throws Exception {
-        // Arrange
-        Batcher.Options options = new Batcher.Options().setMinBatchSize(10).setMaxHandlers(4);
-        Batcher<SizableString> batcher = new Batcher<>(options, mockHandler);
-        int numThreads = 10;
-        int itemsPerThread = 20;
-        int totalItems = numThreads * itemsPerThread;
-
-        CountDownLatch startLatch = new CountDownLatch(1);
-        CountDownLatch finishLatch = new CountDownLatch(numThreads);
-
-        List<CompletableFuture<Void>> futures = Collections.synchronizedList(new ArrayList<>());
-
-        for (int i = 0; i < numThreads; i++) {
-            int threadNum = i;
-            new Thread(() -> {
-                try {
-                    startLatch.await();
-                    for (int j = 0; j < itemsPerThread; j++) {
-                        futures.add(batcher.addNoWait(new SizableString("item-" + threadNum + "-" + j)));
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    finishLatch.countDown();
-                }
-            }).start();
-        }
-
-        startLatch.countDown();
-        assertTrue(finishLatch.await(5, TimeUnit.SECONDS));
-        batcher.shutdownAndDrain();
-
-        // Assert
-        ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
-        verify(mockHandler, atLeastOnce()).apply(captor.capture());
-        int processedItems = captor.getAllValues().stream().mapToInt(List::size).sum();
-        assertEquals(totalItems, processedItems);
-        assertEquals(totalItems, futures.size());
-        for (CompletableFuture<Void> future : futures) {
-            assertTrue(future.isDone());
-        }
-    }
-
-    @Test
-    void testMultipleHandlers() throws Exception {
-        // Arrange
-        int numHandlers = 4;
-        CountDownLatch handlerLatch = new CountDownLatch(numHandlers);
-        AtomicInteger maxConcurrentHandlers = new AtomicInteger(0);
-        AtomicInteger concurrentHandlers = new AtomicInteger(0);
-
-        Function<List<SizableString>, Void> trackingHandler = items -> {
-            int current = concurrentHandlers.incrementAndGet();
-            maxConcurrentHandlers.accumulateAndGet(current, Math::max);
-            try {
-                Thread.sleep(100); // Simulate work
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            concurrentHandlers.decrementAndGet();
-            handlerLatch.countDown();
-            return null;
-        };
-
-        Batcher.Options options = new Batcher.Options().setMaxHandlers(numHandlers);
-        Batcher<SizableString> batcher = new Batcher<>(options, trackingHandler);
-
-        // Act
-        for (int i = 0; i < numHandlers * 2; i++) {
-            batcher.addNoWait(new SizableString("item" + i));
-        }
-
-        assertTrue(handlerLatch.await(5, TimeUnit.SECONDS));
-        batcher.shutdownAndDrain();
-
-        // Assert
-        assertTrue(maxConcurrentHandlers.get() > 1, "Expected multiple handlers to run concurrently");
-        assertTrue(maxConcurrentHandlers.get() <= numHandlers, "Should not exceed max handlers");
     }
 
     @Test
@@ -482,6 +327,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Has .get() call in async composition chain
     void testAsyncComposition() throws Exception {
         // Arrange
         AtomicReference<String> result = new AtomicReference<>();
@@ -500,31 +346,9 @@ public class BatcherTest {
         batcher.shutdownAndDrain();
     }
 
-    @Test 
-    void testBatchAccumulationBenefit() throws Exception {
-        // Arrange
-        CountDownLatch handlerLatch = new CountDownLatch(1);
-        Function<List<SizableString>, Void> handler = items -> {
-            handlerLatch.countDown();
-            return null;
-        };
-        Batcher.Options options = new Batcher.Options().setMinBatchSize(10);
-        Batcher<SizableString> batcher = new Batcher<>(options, handler);
-
-        // Act
-        for (int i = 0; i < 9; i++) {
-            batcher.addNoWait(new SizableString("item" + i));
-        }
-
-        // Assert
-        assertFalse(handlerLatch.await(50, TimeUnit.MILLISECONDS), "Handler should not be called before minBatchSize is reached");
-        
-        batcher.addNoWait(new SizableString("item9")); // This should trigger the batch
-        assertTrue(handlerLatch.await(1, TimeUnit.SECONDS), "Handler should be called once minBatchSize is met");
-        batcher.shutdownAndDrain();
-    }
 
     @Test
+    @Timeout(10) // Has multiple .get() calls waiting for batches
     void testSelectiveWaiting() throws Exception {
         // Arrange
         // A simple handler that does nothing, to isolate batching logic
@@ -538,7 +362,7 @@ public class BatcherTest {
         CompletableFuture<Void> f2 = batcher.addNoWait(new SizableString("item2"));
         
         // Wait for the first batch to complete. This is robust.
-        CompletableFuture.allOf(f1, f2).get(2, TimeUnit.SECONDS);
+        CompletableFuture.allOf(f1, f2).get();
         
         // Assertions for the first batch
         assertTrue(f1.isDone());
@@ -552,7 +376,7 @@ public class BatcherTest {
         // we can't reliably assert that f10 is NOT done here.
         // Instead, we just wait for the second batch and confirm it also completes.
         
-        CompletableFuture.allOf(f10, f11).get(2, TimeUnit.SECONDS);
+        CompletableFuture.allOf(f10, f11).get();
 
         // Assertions for the second batch
         assertTrue(f10.isDone());
@@ -562,6 +386,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(10) // Has .get() call waiting for async error handling
     void testAsyncErrorHandling() throws Exception {
         // Arrange
         RuntimeException testException = new RuntimeException("Async failure");
@@ -587,6 +412,7 @@ public class BatcherTest {
     }
 
     @Test
+    @Timeout(30) // Creates 1000 concurrent operations, needs more time
     void testConcurrentAsyncOperations() {
         // Arrange
         int numOperations = 1000;

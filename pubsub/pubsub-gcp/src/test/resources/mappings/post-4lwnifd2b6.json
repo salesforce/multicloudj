@@ -1,0 +1,37 @@
+{
+  "id": "489542e7-819f-4181-b3d9-7c8524827f8c",
+  "name": "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionpull",
+  "request": {
+    "method": "POST",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$.returnImmediately"
+      },
+      {
+        "matchesJsonPath": "$.maxMessages"
+      }
+    ],
+    "urlPath": "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:pull"
+  },
+  "response": {
+    "status": 200,
+    "body": "{\n  \"receivedMessages\": [\n    {\n      \"ackId\": \"SFE3GQhoUQ5PXiM_NSAoRRIEC08CKF15C0QtDwEtVgMQG3ESYXVqWhMAC0wAKA0KGgk6DVZ0BlsNC0N9eYLi3-Q3IGRSeFxdEwtuXl93AlkNEHJ_Z12GzazYrt6yX0VnI_rg2atDJ4TzlpdPZik9XhJLLD5-NDJFQV5AEkw_B0RJUytDCypYEU4EISE-MD5FU0RQBhYsXUY\",\n      \"message\": {\n        \"data\": \"MQ==\",\n        \"messageId\": \"16368662325809026\",\n        \"publishTime\": \"2025-10-10T21:30:28.563Z\"\n      }\n    },\n    {\n      \"ackId\": \"SFE3GQhoUQ5PXiM_NSAoRRIEC08CKF15C0QtDwEtVgMQG3ESYXVqWhMAC0wAKA0KGgk6DVZ0BVsNC0N9eYLi3-Q3IGRSeFxdEwtuXl93AlkNEHN_YF2GzazYrt6yX0VnI_rg2atDJ4TzlpdPZik9XhJLLD5-NDJFQV5AEkw_B0RJUytDCypYEU4EISE-MD5FU0RQBhYsXUY\",\n      \"message\": {\n        \"data\": \"Mg==\",\n        \"messageId\": \"16368662325809121\",\n        \"publishTime\": \"2025-10-10T21:30:28.692Z\"\n      }\n    }\n  ]\n}\n",
+    "headers": {
+      "X-Frame-Options": "SAMEORIGIN",
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "ESF",
+      "X-Content-Type-Options": "nosniff",
+      "Vary": [
+        "Origin",
+        "X-Origin",
+        "Referer"
+      ],
+      "X-XSS-Protection": "0",
+      "Date": "Mon, 13 Oct 2025 20:08:39 GMT",
+      "Content-Type": "application/json; charset=UTF-8"
+    }
+  },
+  "uuid": "489542e7-819f-4181-b3d9-7c8524827f8c",
+  "persistent": true,
+  "insertionIndex": 14
+}

@@ -1,17 +1,16 @@
 package com.salesforce.multicloudj.pubsub.client;
 
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-
-import java.net.URI;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * High-level client for receiving messages from a pubsub subscription.
