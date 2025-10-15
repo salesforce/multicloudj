@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.common.gcp;
+package com.salesforce.multicloudj.common.gcp.util;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;

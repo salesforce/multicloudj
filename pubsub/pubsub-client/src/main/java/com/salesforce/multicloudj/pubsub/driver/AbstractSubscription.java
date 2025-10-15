@@ -163,7 +163,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = credentialsOverrider;
         
-        this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckBatch);
+        this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckAndNackBatch);
 
         int poolSize = Math.max(1, this.receiveBatcherOptions.getMaxHandlers());
         this.backgroundPool = Executors.newFixedThreadPool(poolSize, r -> {
@@ -184,7 +184,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = builder.credentialsOverrider;
         
-        this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckBatch);
+        this.ackBatcher = new Batcher<>(createAckBatcherOptions(), this::handleAckAndNackBatch);
 
         int poolSize = Math.max(1, this.receiveBatcherOptions.getMaxHandlers());
         this.backgroundPool = Executors.newFixedThreadPool(poolSize, r -> {
@@ -421,7 +421,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * Handles a batch of acknowledgments and negative acknowledgments.
      * This is called by the ackBatcher for batch processing.
      */
-    private Void handleAckBatch(List<AckInfo> ackInfos) {
+    private Void handleAckAndNackBatch(List<AckInfo> ackInfos) {
         if (ackInfos.isEmpty()) {
             return null;
         }
@@ -434,23 +434,23 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 acks.add(info.getAckID());
             } else {
                 nacks.add(info.getAckID());
-    }
+            }
         }
 
         // Send acks
         if (!acks.isEmpty()) {
-        try {
+            try {
                 doSendAcks(acks);
-        } catch (Exception e) {
+            } catch (Exception e) {
                 boolean permanent = !isRetryable(e);
                 if (permanent) {
                     if (permanentError.compareAndSet(null, e)) {
                         unreportedAckErr.compareAndSet(null, e);
+                    }
+                }
+                throw new SubstrateSdkException("Batch acknowledge failed", e);
             }
         }
-                throw new SubstrateSdkException("Batch acknowledge failed", e);
-    }
-    }
     
         // Send nacks
         if (!nacks.isEmpty()) {
@@ -461,11 +461,11 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 if (permanent) {
                     if (permanentError.compareAndSet(null, e)) {
                         unreportedAckErr.compareAndSet(null, e);
-    }
-    }
+                    }
+                }
                 throw new SubstrateSdkException("Batch negative acknowledge failed", e);
             }
-    }
+        }
     
         return null;
     }

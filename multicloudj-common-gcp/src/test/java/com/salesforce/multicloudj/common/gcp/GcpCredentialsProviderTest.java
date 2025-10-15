@@ -12,7 +12,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Test;
 
-class GcpCredentialsProviderTest {
+public class GcpCredentialsProviderTest {
 
     @Test
     void testGetCredentialsWithNullOverrider() {
@@ -61,39 +61,5 @@ class GcpCredentialsProviderTest {
             GcpCredentialsProvider.getCredentials(overrider);
         }, "NullPointerException expected when sessionCredentials is null");
     }
-
-    // Note: ASSUME_ROLE tests are commented out because they require real GCP Application Default Credentials
-    // which are not available in the test environment. In a real environment with ADC configured,
-    // these tests would verify that ImpersonatedCredentials are created correctly.
-    
-    /*
-    @Test
-    void testGetCredentialsWithAssumeRoleType() {
-        // This test would require real Google Application Default Credentials to be available
-        // which is not practical in a unit test environment
-        
-        CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
-                .withRole("test-service-account@project.iam.gserviceaccount.com")
-                .withDurationSeconds(3600)
-                .build();
-
-        Credentials credentials = GcpCredentialsProvider.getCredentials(overrider);
-        
-        assertNotNull(credentials);
-        assertTrue(credentials instanceof ImpersonatedCredentials);
-    }
-    
-    @Test
-    void testGetCredentialsWithAssumeRoleTypeAndNullDuration() {
-        CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
-                .withRole("test-service-account@project.iam.gserviceaccount.com")
-                .build();
-
-        Credentials credentials = GcpCredentialsProvider.getCredentials(overrider);
-        
-        assertNotNull(credentials);
-        assertTrue(credentials instanceof ImpersonatedCredentials);
-    }
-    */
 }
 
