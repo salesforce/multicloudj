@@ -1,0 +1,31 @@
+{
+  "id" : "1ed47372-05bf-4b0d-b398-fae9e27ac226",
+  "name" : "storage_v1_b_java-bucket-does-not-exist_o_conformance-tests_blob-for-failing_testnonexistentbucketmultipart3_compose",
+  "request" : {
+    "url" : "/storage/v1/b/java-bucket-does-not-exist/o/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart3/compose",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"destination\":{\"bucket\":\"java-bucket-does-not-exist\",\"metadata\":{},\"name\":\"conformance-tests/blob-for-failing/testNonexistentBucketmultipart3\"},\"sourceObjects\":[{\"name\":\"conformance-tests/blob-for-failing/testNonexistentBucketmultipart3/multipart3/part-1\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"The specified bucket does not exist.\",\n    \"errors\": [\n      {\n        \"message\": \"The specified bucket does not exist.\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3IN2xzP9FhdGJhEC7hwnhnSxdbkdajmNK2YfLfXB5OGLUvBH3ZVzE8kJwhTUCextw7C",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:19:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1ed47372-05bf-4b0d-b398-fae9e27ac226",
+  "persistent" : true,
+  "insertionIndex" : 477
+}

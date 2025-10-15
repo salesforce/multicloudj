@@ -1,0 +1,26 @@
+{
+  "id" : "ddbc8517-02ee-473e-95a0-625d4e3e2a8e",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_upload_emptycontent_versioned_path",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/upload/emptyContent_versioned_Path/1759452503523488\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path?generation=1759452503523488&alt=media\",\n  \"name\": \"conformance-tests/upload/emptyContent_versioned_Path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1759452503523488\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"0\",\n  \"md5Hash\": \"1B2M2Y8AsgTpgAmY7PhCfg==\",\n  \"crc32c\": \"AAAAAA==\",\n  \"etag\": \"CKCB46vnhpADEAE=\",\n  \"timeCreated\": \"2025-10-03T00:48:23.549Z\",\n  \"updated\": \"2025-10-03T00:48:23.549Z\",\n  \"timeStorageClassUpdated\": \"2025-10-03T00:48:23.549Z\",\n  \"timeFinalized\": \"2025-10-03T00:48:23.549Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CKCB46vnhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3JZo-Xp6BQCahEXYJ5mPeFbc2-JLkMvKyHEQQ7DUrqGYzeBNp0po0oWopJve7N8tiPS",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 03 Oct 2025 00:48:23 GMT",
+      "Date" : "Fri, 03 Oct 2025 00:48:23 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ddbc8517-02ee-473e-95a0-625d4e3e2a8e",
+  "persistent" : true,
+  "insertionIndex" : 44
+}

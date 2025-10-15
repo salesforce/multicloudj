@@ -1,0 +1,26 @@
+{
+  "id" : "c2e7d3e4-a280-4751-9430-ce2975344e27",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_upload_happypath_path",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_Path?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/upload/happyPath_Path/1759452464847394\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_Path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_Path?generation=1759452464847394&alt=media\",\n  \"name\": \"conformance-tests/upload/happyPath_Path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1759452464847394\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CKK0qpnnhpADEAE=\",\n  \"timeCreated\": \"2025-10-03T00:47:44.874Z\",\n  \"updated\": \"2025-10-03T00:47:44.874Z\",\n  \"timeStorageClassUpdated\": \"2025-10-03T00:47:44.874Z\",\n  \"timeFinalized\": \"2025-10-03T00:47:44.874Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CKK0qpnnhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3L9s3RzghJbNndchO6GuAurrtc9LFPzJlJ_QPODnpctUEHk88krZS5I8bzYrroL5Rw8",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 03 Oct 2025 00:47:45 GMT",
+      "Date" : "Fri, 03 Oct 2025 00:47:45 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c2e7d3e4-a280-4751-9430-ce2975344e27",
+  "persistent" : true,
+  "insertionIndex" : 23
+}
