@@ -34,7 +34,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private Long initialReadBufferSizeInBytes;
     private Integer maxConcurrency;
     private Integer transferManagerThreadPoolSize;
-    private Integer maxDirectoryConcurrency;
+    private Integer transferDirectoryMaxConcurrency;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -244,12 +244,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     }
 
     /**
-     * Method to set maximum concurrency for directory transfers
-     * @param maxDirectoryConcurrency The maximum number of concurrent file transfers during directory operations
+     * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+     * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during directory operations
      * @return An instance of self
      */
-    public BlobStoreBuilder<T> withMaxDirectoryConcurrency(Integer maxDirectoryConcurrency) {
-        this.maxDirectoryConcurrency = maxDirectoryConcurrency;
+    public BlobStoreBuilder<T> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
+        this.transferDirectoryMaxConcurrency = transferDirectoryMaxConcurrency;
         return this;
     }
 

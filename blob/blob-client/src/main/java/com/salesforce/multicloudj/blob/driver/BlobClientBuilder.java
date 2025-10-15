@@ -217,12 +217,12 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
     }
 
     /**
-     * Method to set maximum concurrency for directory transfers
-     * @param maxDirectoryConcurrency The maximum number of concurrent file transfers during directory operations
+     * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+     * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during directory operations
      * @return An instance of self
      */
-    public BlobClientBuilder<C, S> withMaxDirectoryConcurrency(Integer maxDirectoryConcurrency) {
-        this.storeBuilder.withMaxDirectoryConcurrency(maxDirectoryConcurrency);
+    public BlobClientBuilder<C, S> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
+        this.storeBuilder.withTransferDirectoryMaxConcurrency(transferDirectoryMaxConcurrency);
         return this;
     }
 

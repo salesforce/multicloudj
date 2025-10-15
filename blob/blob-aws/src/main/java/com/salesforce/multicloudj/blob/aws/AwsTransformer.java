@@ -378,10 +378,6 @@ public class AwsTransformer {
     }
 
     public DownloadDirectoryRequest toDownloadDirectoryRequest(DirectoryDownloadRequest request) {
-        return toDownloadDirectoryRequest(request, null);
-    }
-
-    public DownloadDirectoryRequest toDownloadDirectoryRequest(DirectoryDownloadRequest request, Integer maxDirectoryConcurrency) {
         var downloadDirectoryRequestBuilder = DownloadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .destination(Paths.get(request.getLocalDestinationDirectory()));
@@ -395,10 +391,6 @@ public class AwsTransformer {
         if(request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty()) {
             downloadDirectoryRequestBuilder.filter(getPrefixExclusionsFilter(request.getPrefixesToExclude()));
         }
-
-        // Note: maxDirectoryConcurrency is controlled by the executor service passed to S3TransferManager
-        // The AWS SDK does not provide a direct way to set max concurrency per directory operation
-
         return downloadDirectoryRequestBuilder.build();
     }
 
@@ -427,13 +419,6 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        return toUploadDirectoryRequest(request, null);
-    }
-
-    public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request, Integer maxDirectoryConcurrency) {
-        // Note: maxDirectoryConcurrency is controlled by the executor service passed to S3TransferManager
-        // The AWS SDK does not provide a direct way to set max concurrency per directory operation
-
         return UploadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))

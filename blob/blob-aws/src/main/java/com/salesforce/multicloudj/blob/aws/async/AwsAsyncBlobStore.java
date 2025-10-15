@@ -92,7 +92,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     private final S3AsyncClient client;
     private final S3TransferManager transferManager;
     private final AwsTransformer transformer;
-    private final Integer maxDirectoryConcurrency;
 
     public AwsAsyncBlobStore(
             String bucket,
@@ -101,13 +100,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             BlobStoreValidator validator,
             S3AsyncClient client,
             S3TransferManager transferManager,
-            AwsTransformerSupplier transformerSupplier,
-            Integer maxDirectoryConcurrency) {
+            AwsTransformerSupplier transformerSupplier) {
         super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
         this.client = client;
         this.transferManager = transferManager;
         this.transformer = transformerSupplier.get(bucket);
-        this.maxDirectoryConcurrency = maxDirectoryConcurrency;
     }
 
     @Override
@@ -350,14 +347,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
     @Override
     protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
-        return transferManager.downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest, maxDirectoryConcurrency))
+        return transferManager.downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest))
                 .completionFuture()
                 .thenApply(transformer::toDirectoryDownloadResponse);
     }
 
     @Override
     protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
-        return transferManager.uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest, maxDirectoryConcurrency))
+        return transferManager.uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
                 .completionFuture()
                 .thenApply(transformer::toDirectoryUploadResponse);
     }
@@ -614,17 +611,16 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     transferManagerBuilder.executor(getExecutorService());
                 } else {
                     // Determine thread pool size for transfer manager
-                    // Use transferManagerThreadPoolSize if specified, otherwise use maxDirectoryConcurrency
-                    // Note: The executor service controls concurrency for all transfer manager operations,
-                    // including individual file transfers and directory operations
                     Integer poolSize = getTransferManagerThreadPoolSize();
-                    if (poolSize == null && getMaxDirectoryConcurrency() != null) {
-                        poolSize = getMaxDirectoryConcurrency();
-                    }
 
                     if (poolSize != null) {
                         transferManagerBuilder.executor(Executors.newFixedThreadPool(poolSize));
                     }
+                }
+
+                // Configure transferDirectoryMaxConcurrency if specified
+                if (getTransferDirectoryMaxConcurrency() != null) {
+                    transferManagerBuilder.transferDirectoryMaxConcurrency(getTransferDirectoryMaxConcurrency());
                 }
 
                 tm = transferManagerBuilder.build();
@@ -637,8 +633,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                     getValidator(),
                     client,
                     tm,
-                    getTransformerSupplier(),
-                    getMaxDirectoryConcurrency()
+                    getTransformerSupplier()
             );
         }
     }

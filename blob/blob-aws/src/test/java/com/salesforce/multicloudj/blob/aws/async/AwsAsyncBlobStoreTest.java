@@ -184,8 +184,7 @@ public class AwsAsyncBlobStoreTest {
                 validator,
                 mockS3Client,
                 mockS3TransferManager,
-                transformerSupplier,
-                null
+                transformerSupplier
         );
     }
 
