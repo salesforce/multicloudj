@@ -256,6 +256,28 @@ public class AwsAsyncBlobStoreTest {
     }
 
     @Test
+    void testCrtClientWithNewConfigurations() {
+        // Test CRT client with new configuration options
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withParallelDownloadsEnabled(true)             // This should trigger CRT client
+                .withInitialReadBufferSizeInBytes(16 * 1024L)   // New CRT-specific config
+                .withMaxConcurrency(50)                         // New CRT-specific config
+                .withTargetThroughputInGbps(20.0)
+                .withMaxNativeMemoryLimitInBytes(2L * 1024L * 1024L * 1024L)
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
+    }
+
+    @Test
     void testStandardClientConfiguration() {
         // Test standard client configuration with parallel downloads disabled
         AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
@@ -291,6 +313,13 @@ public class AwsAsyncBlobStoreTest {
         Long partBufferSize = 2 * 1024 * 1024L; // 2MB
         Double targetThroughputInGbps = 25.0;
         Long maxNativeMemoryLimitInBytes = 2L * 1024L * 1024L * 1024L; // 2GB
+        Long initialReadBufferSizeInBytes = 16 * 1024L; // 16KB
+        Integer maxConcurrency = 50;
+        Integer maxConnections = 100;
+        Duration socketTimeout = Duration.ofMinutes(1);
+        Duration idleConnectionTimeout = Duration.ofMinutes(5);
+        Integer transferManagerThreadPoolSize = 10;
+        Integer transferDirectoryMaxConcurrency = 20;
 
         var store = builder
                 .withBucket(BUCKET)
@@ -301,9 +330,64 @@ public class AwsAsyncBlobStoreTest {
                 .withParallelDownloadsEnabled(true)
                 .withTargetThroughputInGbps(targetThroughputInGbps)
                 .withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes)
+                .withInitialReadBufferSizeInBytes(initialReadBufferSizeInBytes)
+                .withMaxConcurrency(maxConcurrency)
+                .withMaxConnections(maxConnections)
+                .withSocketTimeout(socketTimeout)
+                .withIdleConnectionTimeout(idleConnectionTimeout)
+                .withTransferManagerThreadPoolSize(transferManagerThreadPoolSize)
+                .withTransferDirectoryMaxConcurrency(transferDirectoryMaxConcurrency)
                 .withExecutorService(executorService)
                 .withEndpoint(endpoint)
                 .withProxyEndpoint(proxyEndpoint)
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
+    }
+
+    @Test
+    void testHttpClientConfiguration() {
+        // Test HTTP client configuration with standard async client
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        Integer maxConnections = 100;
+        Duration socketTimeout = Duration.ofSeconds(30);
+        Duration idleConnectionTimeout = Duration.ofMinutes(2);
+        URI proxyEndpoint = URI.create("https://http-proxy.example.com:8080");
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withMaxConnections(maxConnections)
+                .withSocketTimeout(socketTimeout)
+                .withIdleConnectionTimeout(idleConnectionTimeout)
+                .withProxyEndpoint(proxyEndpoint)
+                .build();
+
+        assertNotNull(store);
+        assertEquals(AwsConstants.PROVIDER_ID, store.getProviderId());
+        assertEquals(BUCKET, store.getBucket());
+        assertEquals(REGION, store.getRegion());
+    }
+
+    @Test
+    void testTransferManagerConfiguration() {
+        // Test transfer manager specific configurations
+        AwsAsyncBlobStoreProvider provider = new AwsAsyncBlobStoreProvider();
+        AwsAsyncBlobStoreProvider.Builder builder = provider.builder();
+
+        Integer transferManagerThreadPoolSize = 15;
+        Integer transferDirectoryMaxConcurrency = 25;
+
+        var store = builder
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withTransferManagerThreadPoolSize(transferManagerThreadPoolSize)
+                .withTransferDirectoryMaxConcurrency(transferDirectoryMaxConcurrency)
                 .build();
 
         assertNotNull(store);
