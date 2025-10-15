@@ -1,0 +1,20 @@
+{
+  "id" : "be7c7655-00f3-4e95-b256-63328a786dfe",
+  "name" : "chameleon-jcloud_conformance-tests_presigneddownloadurls_negativeduration2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presignedDownloadUrls/negativeDuration2",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "JVQQPBGRA889CV3Z",
+      "x-amz-id-2" : "QGyonP48MD3phnX3eUNznISd6FNcckj/n7LIaY2W8zU0Ke0AlZQzpdqkvdGkZP8EXlCwpxls8n0=",
+      "Date" : "Wed, 15 Oct 2025 05:43:37 GMT"
+    }
+  },
+  "uuid" : "be7c7655-00f3-4e95-b256-63328a786dfe",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

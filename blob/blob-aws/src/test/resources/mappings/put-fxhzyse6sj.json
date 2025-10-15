@@ -1,0 +1,25 @@
+{
+  "id" : "00ebd985-786d-480d-9c20-882630feda7c",
+  "name" : "chameleon-jcloud_conformance-tests_copied-blob",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/copied-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2025-10-15T05:44:28.000Z</LastModified><ETag>\"70a2b8957d07af666aad6080c576a74d\"</ETag><ChecksumCRC32>GYfr0w==</ChecksumCRC32></CopyObjectResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "QJ9M38XDJ3H3C1F6",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "eqZBXJriky4R8QMPEoaWbgt4ewgeBjHe8WtgLVmvwwUqVwPcuPZ+/cotDbZKXRTABKCIIkh4Bfs=",
+      "Date" : "Wed, 15 Oct 2025 05:44:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "00ebd985-786d-480d-9c20-882630feda7c",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-copied-blob",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-blob-2",
+  "insertionIndex" : 143
+}

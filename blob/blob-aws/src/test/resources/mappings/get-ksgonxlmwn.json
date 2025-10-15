@@ -1,0 +1,27 @@
+{
+  "id" : "afcd3e5e-6a58-4361-913f-4a6fd2f72566",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_bulkdeletebyversion_happy7",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy7",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy7</Key><RequestId>Z78WJXTQGAPV3G1Y</RequestId><HostId>5pKpz8zzqOV9C3HM9wGlDT2w/FYZfFyd1ejBEOMor1694e/OmKint5Z/C/8Mp6Viza+swKKQMwf10SAX8pfM4FLVzAFPyB1rpyq++Cqq/ys=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "Z78WJXTQGAPV3G1Y",
+      "x-amz-id-2" : "5pKpz8zzqOV9C3HM9wGlDT2w/FYZfFyd1ejBEOMor1694e/OmKint5Z/C/8Mp6Viza+swKKQMwf10SAX8pfM4FLVzAFPyB1rpyq++Cqq/ys=",
+      "x-amz-version-id" : "WWKcw_.b7s_B_7Vs43q6jqgehhnumEny",
+      "Date" : "Wed, 15 Oct 2025 05:45:43 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "afcd3e5e-6a58-4361-913f-4a6fd2f72566",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-happy7",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-happy7-2",
+  "insertionIndex" : 351
+}

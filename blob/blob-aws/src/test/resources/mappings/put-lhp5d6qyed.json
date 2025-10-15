@@ -1,0 +1,30 @@
+{
+  "id" : "056c9031-cb1d-47be-a2bc-c6697515e934",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_versioned_download_no_versionid_versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_no_versionId_versioned",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "MTENClRoaXMgaXMgdGVzdCBkYXRhDQowDQp4LWFtei1jaGVja3N1bS1jcmMzMjpBL2xzY3c9PQ0KDQo="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-checksum-crc32" : "A/lscw==",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "DG12A9EV09P7JD1D",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "wZQKccW6st/X6XVvNwxOb70s8k+Ogl3mABcw8OnlioGODoj3yIbXbIY7djcYaEx16w7+S+A1LoU=",
+      "x-amz-version-id" : ".w0dyqvRjaA5IS7nvkRJj2DxoxLG0JDs",
+      "Date" : "Wed, 15 Oct 2025 05:43:54 GMT"
+    }
+  },
+  "uuid" : "056c9031-cb1d-47be-a2bc-c6697515e934",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-versioned-conformance-tests-versioned_download_no_versionId_versioned-4",
+  "insertionIndex" : 40
+}

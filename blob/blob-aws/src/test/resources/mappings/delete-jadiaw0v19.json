@@ -1,0 +1,24 @@
+{
+  "id" : "31397ceb-e5a0-448d-8e33-76fd147f825f",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_delete_happypath",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath?versionId=H9fybP7acTxPp.YhlOIeRLOnHl9WaiII",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "DEDBK0ZA2XDD8H4F",
+      "x-amz-id-2" : "Rt/x5mUYJGMa6TrSgf+W96vEA2WMLikVTQU+Uu553tusq1aMfC4qDrYsUGtnQ1nUYy4vd3fMpxPn7sJxlYYUlrOukYDcL7eFK1TPHY3ZgWI=",
+      "x-amz-version-id" : "H9fybP7acTxPp.YhlOIeRLOnHl9WaiII",
+      "Date" : "Wed, 15 Oct 2025 05:45:07 GMT"
+    }
+  },
+  "uuid" : "31397ceb-e5a0-448d-8e33-76fd147f825f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-delete-happyPath",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-delete-happyPath-2",
+  "insertionIndex" : 238
+}

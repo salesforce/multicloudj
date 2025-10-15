@@ -1,0 +1,28 @@
+{
+  "id" : "7342842e-50a8-4c26-99d4-0c658e71285e",
+  "name" : "chameleon-jcloud_conformance-tests_doesblobexist_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/doesBlobExist/unversioned",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"c0a508abb648ff06209f605c1839820f\"",
+      "Last-Modified" : "Wed, 15 Oct 2025 05:44:03 GMT",
+      "x-amz-request-id" : "ZJ2EHQSA84MD44WA",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "zbEjaLn14q+Wct2ilKQlT9QI0YlskzrrukC+PdJgbB1vYGsR6tjfa92uRBv5wH/178Vqr4wJm9c=",
+      "Date" : "Wed, 15 Oct 2025 05:44:03 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "7342842e-50a8-4c26-99d4-0c658e71285e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned-2",
+  "insertionIndex" : 69
+}

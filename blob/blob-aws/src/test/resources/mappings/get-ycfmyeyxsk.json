@@ -1,0 +1,31 @@
+{
+  "id" : "80eef0f8-06b1-4f0a-919d-9b4686daf1e5",
+  "name" : "chameleon-jcloud_conformance-tests_testrangedread_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/testRangedRead_unversioned",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "cwPHwKzjldgBgtsHriww8DQ=",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"4fe58d952a4f5588f32b30a5f9b62cda\"",
+      "Last-Modified" : "Wed, 15 Oct 2025 05:45:50 GMT",
+      "x-amz-request-id" : "A7Z7GJM0FX162P77",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "8raO7iecRguZkTY/rd+68+meiDXfBx1g4/+YRluaqhtFz507b2vzwiS/OXOOx5QbrYStPwRd8n4pBBGDHt88VS+4LxLhkVXBMtXlO8dvf+8=",
+      "x-amz-content-range" : "bytes 10-10/47",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Wed, 15 Oct 2025 05:45:51 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "80eef0f8-06b1-4f0a-919d-9b4686daf1e5",
+  "persistent" : true,
+  "scenarioName" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-13",
+  "newScenarioState" : "scenario-8-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-14",
+  "insertionIndex" : 421
+}

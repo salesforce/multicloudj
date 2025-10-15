@@ -61,7 +61,6 @@ import org.junit.jupiter.api.Disabled;
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-
 public abstract class AbstractBlobBenchmarkTest {
 
     // Blob size constants 
