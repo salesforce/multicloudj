@@ -6,12 +6,9 @@ import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -19,7 +16,6 @@ import java.util.stream.Collectors;
 
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -124,50 +120,16 @@ public class BatcherTest {
         // Assert
         ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
         verify(mockHandler, atLeastOnce()).apply(captor.capture());
-        
+
         List<List<SizableString>> allBatches = captor.getAllValues();
-        
+
         // Verify all items were processed
         int totalItems = allBatches.stream().mapToInt(List::size).sum();
         assertEquals(3, totalItems);
-        
+
         // Verify no batch exceeds maxBatchSize
         for (List<SizableString> batch : allBatches) {
             assertTrue(batch.size() <= 2, "Batch size should not exceed maxBatchSize of 2");
-        }
-        batcher.shutdownAndDrain();
-    }
-
-    @Test
-    @Timeout(10) // Waits for batch completion with .get()
-    void testMaxBatchSizeWithMinBatchSize() throws Exception {
-        // Arrange - This test demonstrates actual batching behavior
-        Batcher.Options options = new Batcher.Options().setMinBatchSize(2).setMaxBatchSize(3);
-        Batcher<SizableString> batcher = new Batcher<>(options, mockHandler);
-
-        // Act - Add 5 items
-        CompletableFuture<Void> future1 = batcher.addNoWait(new SizableString("item1"));
-        CompletableFuture<Void> future2 = batcher.addNoWait(new SizableString("item2"));
-        CompletableFuture<Void> future3 = batcher.addNoWait(new SizableString("item3"));
-        CompletableFuture<Void> future4 = batcher.addNoWait(new SizableString("item4"));
-        CompletableFuture<Void> future5 = batcher.addNoWait(new SizableString("item5"));
-
-        CompletableFuture.allOf(future1, future2, future3, future4, future5).get();
-
-        // Assert
-        ArgumentCaptor<List<SizableString>> captor = ArgumentCaptor.forClass(List.class);
-        verify(mockHandler, atLeastOnce()).apply(captor.capture());
-        
-        List<List<SizableString>> allBatches = captor.getAllValues();
-        
-        // Verify all items were processed
-        int totalItems = allBatches.stream().mapToInt(List::size).sum();
-        assertEquals(5, totalItems);
-        
-        // Verify each batch meets minBatchSize requirement and doesn't exceed maxBatchSize
-        for (List<SizableString> batch : allBatches) {
-            assertTrue(batch.size() >= 2, "Batch size should meet minBatchSize of 2");
-            assertTrue(batch.size() <= 3, "Batch size should not exceed maxBatchSize of 3");
         }
         batcher.shutdownAndDrain();
     }

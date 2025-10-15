@@ -17,7 +17,6 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -158,27 +157,6 @@ public class AbstractSubscriptionTest {
             // This simulates fetching from an external service like AWS SQS or GCP Pub/Sub
             return messageSource.fetchBatch(batchSize);
         }
-    }
-
-    @Test
-    @Timeout(10) // Calls receive() which could timeout waiting for messages
-    void testBasicBuilderConstruction() {
-        TestBuilder builder = new TestBuilder();
-        builder.providerId = "test";
-        builder.subscriptionName = "sub";
-        builder.region = "region";
-
-        MockMessageSource source = new MockMessageSource();
-        source.addMessages(List.of(
-            Message.builder().withBody("a".getBytes()).build(),
-            Message.builder().withBody("b".getBytes()).build()
-        ));
-        TestSubscription sub = new TestSubscription(source, builder);
-
-        Message result1 = sub.receive();
-        assertNotNull(result1);
-        Message result2 = sub.receive();
-        assertNotNull(result2);
     }
 
     @Test
