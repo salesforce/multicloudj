@@ -1,0 +1,25 @@
+{
+  "id" : "31b3bec0-1429-4561-a4cd-e094cefa5244",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-badetag",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-badETag?uploadId=MONJPL7BPaC4EISVmlp7R4f6szvjw00ikPtxiFfIG_BQRexaMxKN_OpQppLywTaQwqRHSJeE8M74A5oeuFZDlB5jXH_QxNiP1OmMH_C.f.ouNs.KxWtofrrhqPs6ACTPpcDUkFiDlHtFqXYG15tigpaNHdyxYwij13SEkWHl9znvqgX0oBtTiaxq3.NVEW.Ifh7jLXTBDXErnidkCUNAbw--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;fake</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>MONJPL7BPaC4EISVmlp7R4f6szvjw00ikPtxiFfIG_BQRexaMxKN_OpQppLywTaQwqRHSJeE8M74A5oeuFZDlB5jXH_QxNiP1OmMH_C.f.ouNs.KxWtofrrhqPs6ACTPpcDUkFiDlHtFqXYG15tigpaNHdyxYwij13SEkWHl9znvqgX0oBtTiaxq3.NVEW.Ifh7jLXTBDXErnidkCUNAbw--</UploadId><PartNumber>3</PartNumber><ETag>267c038cc2ec32ffd0ee2512ff5da5a5fake</ETag><RequestId>CGSGP87J0X319XGT</RequestId><HostId>AfRRXtf0xj5p+iSzbteQbUcYrwthDVkbKl9NeXd3kwTJR+v/+JvWim1mtljAJYKGlHZe3U96zPOs28zxs843tvuXDwiLL5kvKdRrw18MlhU=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "CGSGP87J0X319XGT",
+      "x-amz-id-2" : "AfRRXtf0xj5p+iSzbteQbUcYrwthDVkbKl9NeXd3kwTJR+v/+JvWim1mtljAJYKGlHZe3U96zPOs28zxs843tvuXDwiLL5kvKdRrw18MlhU=",
+      "Date" : "Wed, 15 Oct 2025 23:38:17 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "31b3bec0-1429-4561-a4cd-e094cefa5244",
+  "persistent" : true,
+  "insertionIndex" : 7
+}

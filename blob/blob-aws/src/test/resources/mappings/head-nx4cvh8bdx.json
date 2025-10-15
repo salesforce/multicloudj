@@ -1,0 +1,29 @@
+{
+  "id" : "036ae4d3-98b5-41b3-97a3-248b53d2edd4",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-copying",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-copying",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "x-amz-meta-key1" : "value1",
+      "x-amz-meta-key2" : "value2",
+      "Server" : "AmazonS3",
+      "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
+      "Last-Modified" : "Wed, 15 Oct 2025 23:39:16 GMT",
+      "x-amz-request-id" : "H59YNQR5MXS6V0V9",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "8VsXmARgbDqxC2TFzTSrXMISjCpIaHLjpYYY8kgduxYTcD7W1iC/6UL0Qhnh673ZOJ9trhR9spJ1IgGDfiuZR/FYAZs938qJ2631JeQX3sg=",
+      "Date" : "Wed, 15 Oct 2025 23:39:21 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "036ae4d3-98b5-41b3-97a3-248b53d2edd4",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-copying",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-copying-2",
+  "insertionIndex" : 142
+}

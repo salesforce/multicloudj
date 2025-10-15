@@ -1,0 +1,25 @@
+{
+  "id" : "455d426d-e315-4a7f-87fb-78371b03dcaf",
+  "name" : "chameleon-jcloud_conformance-tests_copied-blob",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/copied-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>blob-that-doesnt-exist</Key><RequestId>K9BD0CKTYPP0SEF7</RequestId><HostId>7XflZfN6WILhY8+BMav+tyIWSnxa+gem+PUCoxAcyTdapFmV2xVwWV0AivOxdX6oHREFIR8QzgR1zBPMFk0+209XcWtrTaIprVpEfz6Fa+I=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "K9BD0CKTYPP0SEF7",
+      "x-amz-id-2" : "7XflZfN6WILhY8+BMav+tyIWSnxa+gem+PUCoxAcyTdapFmV2xVwWV0AivOxdX6oHREFIR8QzgR1zBPMFk0+209XcWtrTaIprVpEfz6Fa+I=",
+      "Date" : "Wed, 15 Oct 2025 23:39:14 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "455d426d-e315-4a7f-87fb-78371b03dcaf",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-copied-blob",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-blob-2",
+  "insertionIndex" : 154
+}

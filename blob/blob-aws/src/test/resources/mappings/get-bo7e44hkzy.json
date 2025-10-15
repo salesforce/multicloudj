@@ -1,0 +1,23 @@
+{
+  "id" : "62900d44-ef64-465e-ad5d-afb24066a07f",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=2&prefix=conformance-tests%2Fblob-for-list-page&continuation-token=13VRnL%2FlOO%2FmCEsuozQL3r2efdOcyOxzzeK7nXIzaPfXoACBO6%2BNdCIPYrui9QQ4KyhRUFn9LznYrkuY%2BUHBm5icYkmsyJ5cU",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><ContinuationToken>13VRnL/lOO/mCEsuozQL3r2efdOcyOxzzeK7nXIzaPfXoACBO6+NdCIPYrui9QQ4KyhRUFn9LznYrkuY+UHBm5icYkmsyJ5cU</ContinuationToken><NextContinuationToken>1HpmZg8FpGQGwxpl/5dfzHUfbOum1WxOjIL0/robR+BkTCFJj3eGIQApwieo+s+eKC/hlxnJVaCHBT7/4eg0yQiVaflxL2lH+</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix-5</Key><LastModified>2025-10-15T23:42:25.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix_3</Key><LastModified>2025-10-15T23:42:24.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "N3MFGHCCSG631QZM",
+      "x-amz-id-2" : "o+O3Yopc/6ZbNsjkq2QlbYWbph0M7L4rT5eOPBRRPfoHaWQmtUR5BsITvf0SDc8UGQGQ/CfzrB8=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 15 Oct 2025 23:42:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "62900d44-ef64-465e-ad5d-afb24066a07f",
+  "persistent" : true,
+  "insertionIndex" : 531
+}

@@ -1,0 +1,23 @@
+{
+  "id" : "2b5b94ae-2361-4727-ba51-ad29fd19d84f",
+  "name" : "chameleon-jcloud_conformance-tests_download_happy_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_happy_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3DJ4Y0STNQPFBNBQ",
+      "x-amz-id-2" : "nnCdn+RVlZOhUUB5tMZjohIGhQLWJm80LRwjAtUON37weBYab3bvNdI7en1CYJPnk25vJrdJnLjmjyyHQ35BaVbtC4PvGnRfHjt2OpBcFnE=",
+      "Date" : "Wed, 15 Oct 2025 23:40:01 GMT"
+    }
+  },
+  "uuid" : "2b5b94ae-2361-4727-ba51-ad29fd19d84f",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-download_happy_unversioned",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-download_happy_unversioned-2",
+  "newScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-download_happy_unversioned-3",
+  "insertionIndex" : 245
+}

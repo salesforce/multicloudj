@@ -1,0 +1,26 @@
+{
+  "id" : "c8e0ba9d-dd53-4794-9603-a8d20c0d8b96",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-multipleparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts?uploadId=zbkvTbcXoutZXq5UhzNG2LR2KBrXqoaLyUa4tVs4xKATyCTiRR.n2TiR6i5Xx6nmWT10Pi8KTPwkHdO0IvqcyAzku8PDXy1MM6d3lE42RhLAJD9SRFqNAMNo.ahQsy8MSbVWItDUbXazfbB0e52pqNSH1GXG2pR1PAbDFxs5UaKTPgOQM.mee_sGYAOVAZJxEPbiEsEcdtPoE6fh4bPKOQ--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-multipleParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag><ChecksumCRC64NVME>FsUGvKjF98M=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "M4GH5SFHKS8B5T3Z",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "EF8cd85iNF1+j7hRrswWS7adRBPvaDNaPd24dv5ZPu9EqRfLcxtpMHUK7ly0l3+JOko7fOzwXgVxuS7KG82uuR9YHam1AyZJG0dXG+hySNA=",
+      "Date" : "Wed, 15 Oct 2025 23:41:03 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c8e0ba9d-dd53-4794-9603-a8d20c0d8b96",
+  "persistent" : true,
+  "insertionIndex" : 346
+}

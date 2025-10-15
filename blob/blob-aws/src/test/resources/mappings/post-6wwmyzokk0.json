@@ -1,0 +1,25 @@
+{
+  "id" : "2443df86-336d-44b6-b47d-81d6f250168f",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?delete",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/blob-for-failing/testInvalidCredentials</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 403,
+    "body" : "<Error><Code>InvalidAccessKeyId</Code><Message>The AWS Access Key Id you provided does not exist in our records.</Message><AWSAccessKeyId>invalidAccessKey</AWSAccessKeyId><RequestId>43V12KNMHMQBWS4J</RequestId><HostId>3EcFqQY2J/Xl7oaheJc+C0MQKIUEJp+ZfbDbrCpyU6zxXDKgqPENm8BQGvw8DEASUWZeszBfWxM=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "43V12KNMHMQBWS4J",
+      "x-amz-id-2" : "3EcFqQY2J/Xl7oaheJc+C0MQKIUEJp+ZfbDbrCpyU6zxXDKgqPENm8BQGvw8DEASUWZeszBfWxM=",
+      "Date" : "Wed, 15 Oct 2025 23:42:32 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2443df86-336d-44b6-b47d-81d6f250168f",
+  "persistent" : true,
+  "insertionIndex" : 555
+}

@@ -1653,7 +1653,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) throws IOException {
-        Assumptions.assumeTrue(false);
+        //Assumptions.assumeTrue(false);
 
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);

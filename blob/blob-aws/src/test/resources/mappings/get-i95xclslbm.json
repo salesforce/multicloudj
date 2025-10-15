@@ -1,0 +1,23 @@
+{
+  "id" : "bf96f13d-327f-47f4-a93f-bac3476429b9",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=2&prefix=conformance-tests%2Fblob-for-list-page&continuation-token=1gt3sXHI%2Fw5RU3%2FLyZczTstrep%2BubVpZCaf0kZ%2F4s0ejfYO%2FuAiczTY2ethUgR5cR9KdRRWRY5PPKv1Yg5mIgrMUoxeOgNYDh",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><ContinuationToken>1gt3sXHI/w5RU3/LyZczTstrep+ubVpZCaf0kZ/4s0ejfYO/uAiczTY2ethUgR5cR9KdRRWRY5PPKv1Yg5mIgrMUoxeOgNYDh</ContinuationToken><NextContinuationToken>13VRnL/lOO/mCEsuozQL3r2efdOcyOxzzeK7nXIzaPfXoACBO6+NdCIPYrui9QQ4KyhRUFn9LznYrkuY+UHBm5icYkmsyJ5cU</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix-2</Key><LastModified>2025-10-15T23:42:23.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-4</Key><LastModified>2025-10-15T23:42:24.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "N3M4DB0AC9Q5ZDXK",
+      "x-amz-id-2" : "2+SoADjQRxtJa/tYvx77q2N62gOHGH19MVeGi7k263DqM1UZH/0PY6Sm+9jdZLO1v/pphc8P35Y=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 15 Oct 2025 23:42:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "bf96f13d-327f-47f4-a93f-bac3476429b9",
+  "persistent" : true,
+  "insertionIndex" : 532
+}

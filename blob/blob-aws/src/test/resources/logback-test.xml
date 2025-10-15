@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>target/test-logs/wiremock-debug.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- WireMock loggers - detailed request/response logging -->
+    <logger name="WireMock" level="DEBUG"/>
+    <logger name="com.github.tomakehurst.wiremock" level="DEBUG"/>
+    <logger name="wiremock.org.eclipse.jetty" level="INFO"/>
+
+    <!-- WireMock request matching details -->
+    <logger name="com.github.tomakehurst.wiremock.stubbing.StubMapping" level="DEBUG"/>
+    <logger name="com.github.tomakehurst.wiremock.matching" level="DEBUG"/>
+
+    <!-- Root logger - logs to both console and file -->
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

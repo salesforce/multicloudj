@@ -1,0 +1,24 @@
+{
+  "id" : "5732a161-9e7d-441c-845d-fe1e2ae89854",
+  "name" : "chameleon-jcloud__unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/_unversioned",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>_unversioned</Key><RequestId>KWV7GPB7A7D5W0V1</RequestId><HostId>umfhFpFVJoAdY3rm0FpAPjd1Bg5BerbBdrQgpoBh9ND5PwweFau8BfJj4r5PJPU3xQaxqYozVoOBe0EDPCNAaROHzP/CMFiILQ/F9GP59xA=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KWV7GPB7A7D5W0V1",
+      "x-amz-id-2" : "umfhFpFVJoAdY3rm0FpAPjd1Bg5BerbBdrQgpoBh9ND5PwweFau8BfJj4r5PJPU3xQaxqYozVoOBe0EDPCNAaROHzP/CMFiILQ/F9GP59xA=",
+      "Date" : "Wed, 15 Oct 2025 23:39:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5732a161-9e7d-441c-845d-fe1e2ae89854",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-chameleon-jcloud-_unversioned",
+  "requiredScenarioState" : "scenario-4-chameleon-jcloud-_unversioned-4",
+  "insertionIndex" : 122
+}
