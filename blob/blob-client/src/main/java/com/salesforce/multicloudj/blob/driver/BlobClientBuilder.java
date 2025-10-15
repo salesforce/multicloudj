@@ -187,6 +187,46 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
     }
 
     /**
+     * Method to set initial read buffer size in bytes
+     * @param initialReadBufferSizeInBytes The initial read buffer size in bytes
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withInitialReadBufferSizeInBytes(Long initialReadBufferSizeInBytes) {
+        this.storeBuilder.withInitialReadBufferSizeInBytes(initialReadBufferSizeInBytes);
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency
+     * @param maxConcurrency The maximum number of concurrent operations
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxConcurrency(Integer maxConcurrency) {
+        this.storeBuilder.withMaxConcurrency(maxConcurrency);
+        return this;
+    }
+
+    /**
+     * Method to set transfer manager thread pool size
+     * @param transferManagerThreadPoolSize The number of threads in the transfer manager thread pool
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withTransferManagerThreadPoolSize(Integer transferManagerThreadPoolSize) {
+        this.storeBuilder.withTransferManagerThreadPoolSize(transferManagerThreadPoolSize);
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency for directory transfers
+     * @param maxDirectoryConcurrency The maximum number of concurrent file transfers during directory operations
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxDirectoryConcurrency(Integer maxDirectoryConcurrency) {
+        this.storeBuilder.withMaxDirectoryConcurrency(maxDirectoryConcurrency);
+        return this;
+    }
+
+    /**
      * Builds and returns an instance of the target client implementation.
      * @return A fully constructed client implementation.
      */

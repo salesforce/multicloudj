@@ -1,0 +1,24 @@
+{
+  "id" : "015a6cf5-3091-4f86-b268-1dd07f69c9a7",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_bulkdeletebyversion_happy1",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy1",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy1</Key><RequestId>WV207C5ZJFF83KGF</RequestId><HostId>e2Kw8zb6udRmxtQ6hBh0ET57bjaczfx/lq9+tBiDcei4yDlAtG+rmmngU533IrtrJygiULRBG2A=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "WV207C5ZJFF83KGF",
+      "x-amz-id-2" : "e2Kw8zb6udRmxtQ6hBh0ET57bjaczfx/lq9+tBiDcei4yDlAtG+rmmngU533IrtrJygiULRBG2A=",
+      "x-amz-version-id" : "exQf0oKSIV67l1fBSnmFTW9za96nv4sP",
+      "Date" : "Wed, 15 Oct 2025 01:31:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "015a6cf5-3091-4f86-b268-1dd07f69c9a7",
+  "persistent" : true,
+  "insertionIndex" : 64
+}

@@ -1,0 +1,25 @@
+{
+  "id" : "2210de05-375b-47b0-a864-3c12ab5c0caa",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-badetag",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-badETag?uploadId=adSIqo2iQxq0Btlaa5PkfmAHg3uhfDpE2swV6N693iWiRg7BMP5CKpaAMJMkcVFETNdBx2XmEXMRhRZnZxW_ZTWIjYqymbraJIooL1_ylmRLcgcQrqiDj71OxLldOdM6YcJJJd5oaW1OkaDmM.nTsyKl1ivQqAK5L.1AompFcSO1LfgJc_5EBGT86fpQM9uhXtm3RRgltSJJSlerXdnx5w--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;fake</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>adSIqo2iQxq0Btlaa5PkfmAHg3uhfDpE2swV6N693iWiRg7BMP5CKpaAMJMkcVFETNdBx2XmEXMRhRZnZxW_ZTWIjYqymbraJIooL1_ylmRLcgcQrqiDj71OxLldOdM6YcJJJd5oaW1OkaDmM.nTsyKl1ivQqAK5L.1AompFcSO1LfgJc_5EBGT86fpQM9uhXtm3RRgltSJJSlerXdnx5w--</UploadId><PartNumber>3</PartNumber><ETag>267c038cc2ec32ffd0ee2512ff5da5a5fake</ETag><RequestId>SJ0SQJYJYTHB07KD</RequestId><HostId>VId7ltF5Gagyh0m2RZyEDKpLiEQ1jTuaj5hU9fWANDS5UAyHnRf8iZ8Z98TWKFmcjSg/OyiKOko=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "SJ0SQJYJYTHB07KD",
+      "x-amz-id-2" : "VId7ltF5Gagyh0m2RZyEDKpLiEQ1jTuaj5hU9fWANDS5UAyHnRf8iZ8Z98TWKFmcjSg/OyiKOko=",
+      "Date" : "Wed, 15 Oct 2025 01:30:57 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2210de05-375b-47b0-a864-3c12ab5c0caa",
+  "persistent" : true,
+  "insertionIndex" : 7
+}

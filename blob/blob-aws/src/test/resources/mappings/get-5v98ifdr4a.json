@@ -1,0 +1,22 @@
+{
+  "id" : "4fcd335c-dfcc-408c-bb0b-bce06f2434c5",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_delete_happypath",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath?versionId=Fbe8Zd0oCYZj8LSUAWPoDmCTmxSpHOti",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchVersion</Code><Message>The specified version does not exist.</Message><Key>conformance-tests/delete/happyPath</Key><VersionId>Fbe8Zd0oCYZj8LSUAWPoDmCTmxSpHOti</VersionId><RequestId>KRSD3T9CZTA9184E</RequestId><HostId>q60OwnsFItDsBuhsL/R7Z191swdgZ3BJPSisbEVOyaqS1H1tfnkXBdAfM4eGv5ndnOzBesV+LGI=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KRSD3T9CZTA9184E",
+      "x-amz-id-2" : "q60OwnsFItDsBuhsL/R7Z191swdgZ3BJPSisbEVOyaqS1H1tfnkXBdAfM4eGv5ndnOzBesV+LGI=",
+      "Date" : "Wed, 15 Oct 2025 01:32:46 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "4fcd335c-dfcc-408c-bb0b-bce06f2434c5",
+  "persistent" : true,
+  "insertionIndex" : 264
+}

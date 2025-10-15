@@ -1,0 +1,25 @@
+{
+  "id" : "8480b8f5-d402-4a97-aba6-4813444de9ab",
+  "name" : "chameleon-jcloud_null_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/null_unversioned",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>null_unversioned</Key><RequestId>3BC0WDC8E8BVCSG1</RequestId><HostId>/fyV0PkVBbDpqEQmjkGm2Kw9DSyMnHVGjpWiwIXTCd/kKq7dbaMdGYoVUoYRQ3+5pHqXpxTGNUo=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3BC0WDC8E8BVCSG1",
+      "x-amz-id-2" : "/fyV0PkVBbDpqEQmjkGm2Kw9DSyMnHVGjpWiwIXTCd/kKq7dbaMdGYoVUoYRQ3+5pHqXpxTGNUo=",
+      "Date" : "Wed, 15 Oct 2025 01:31:34 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8480b8f5-d402-4a97-aba6-4813444de9ab",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-chameleon-jcloud-null_unversioned",
+  "requiredScenarioState" : "scenario-4-chameleon-jcloud-null_unversioned-3",
+  "newScenarioState" : "scenario-4-chameleon-jcloud-null_unversioned-4",
+  "insertionIndex" : 100
+}

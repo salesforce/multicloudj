@@ -1,0 +1,20 @@
+{
+  "id" : "65db62d6-0909-4963-aa75-b6e26e186c12",
+  "name" : "chameleon-jcloud_conformance-tests_upload_emptycontent_bytearray",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/emptyContent_ByteArray",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "6X3CTGPXXRCMSXFM",
+      "x-amz-id-2" : "60alZC437CIKNtBPKgpw4BSSRq9tCPkY175oCdnKIEPfL1zTrOdB1D73w5oBVcjLIm79WE41GXU=",
+      "Date" : "Wed, 15 Oct 2025 01:34:40 GMT"
+    }
+  },
+  "uuid" : "65db62d6-0909-4963-aa75-b6e26e186c12",
+  "persistent" : true,
+  "insertionIndex" : 519
+}

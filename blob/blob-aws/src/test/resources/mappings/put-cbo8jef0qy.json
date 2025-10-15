@@ -1,0 +1,28 @@
+{
+  "id" : "4bce3009-e20a-41d6-81f2-06b8331f32a8",
+  "name" : "chameleon-jcloud_conformance-tests_upload_happypath_path",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/happyPath_Path",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "11\r\nThis is test data\r\n0\r\nx-amz-checksum-crc32:A/lscw==\r\n\r\n",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-checksum-crc32" : "A/lscw==",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "TKC1W1TJKQ9VFZRT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "Jx4HgViOxmhfeodaJ/Xrta6wqhjGHmMrTYGzPwPEdq11v8/vaqe1CrePXjlolyrhY90HsWMzXdw=",
+      "Date" : "Wed, 15 Oct 2025 01:33:11 GMT"
+    }
+  },
+  "uuid" : "4bce3009-e20a-41d6-81f2-06b8331f32a8",
+  "persistent" : true,
+  "insertionIndex" : 319
+}

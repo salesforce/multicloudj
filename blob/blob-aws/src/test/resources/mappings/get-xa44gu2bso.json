@@ -1,0 +1,22 @@
+{
+  "id" : "2ef26482-5ace-4c47-ad81-315ce7258bce",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-duplicateparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts?uploadId=5oFEhvoDWBKyqxWACLI5s0ryHI_VR5KF2uSjYCMT4g6dud2z8wqWRnOTHYD8DboPRTLWetpVpgY9e0InFSSuvigkLSBlZYTLF02nDhjVKB38Uvlw6CMBDzBR5V2GQjFrRUhEpiikZdNZ6QzAY2wz7oGKvY1EdFxrw94aoR3976Vge677n8uvU2DpyY2aZkAmKHjFEdRgvtygvN8iuqOMqg--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><UploadId>5oFEhvoDWBKyqxWACLI5s0ryHI_VR5KF2uSjYCMT4g6dud2z8wqWRnOTHYD8DboPRTLWetpVpgY9e0InFSSuvigkLSBlZYTLF02nDhjVKB38Uvlw6CMBDzBR5V2GQjFrRUhEpiikZdNZ6QzAY2wz7oGKvY1EdFxrw94aoR3976Vge677n8uvU2DpyY2aZkAmKHjFEdRgvtygvN8iuqOMqg--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID><DisplayName>pcsk-aws+2e080b17111009838202251711100983820193</DisplayName></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>3</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2025-10-15T01:33:38.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2025-10-15T01:33:36.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PK8W6A43F2JFE00Y",
+      "x-amz-id-2" : "vv9FgXc8vRuPd0edxf+hkE3BZIatoUJZFgX7NGWPulWp+XIG7vGJMj8qcX9WhSAB4RAoJ4Axu6Q=",
+      "Date" : "Wed, 15 Oct 2025 01:33:39 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2ef26482-5ace-4c47-ad81-315ce7258bce",
+  "persistent" : true,
+  "insertionIndex" : 369
+}

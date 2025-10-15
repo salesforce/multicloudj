@@ -1,0 +1,22 @@
+{
+  "id" : "7b750bee-4a98-4b19-9882-8058c446bd9b",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-skippingnumbers",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers?uploads",
+    "method" : "POST"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEluaXRpYXRlTXVsdGlwYXJ0VXBsb2FkUmVzdWx0IHhtbG5zPSJodHRwOi8vczMuYW1hem9uYXdzLmNvbS9kb2MvMjAwNi0wMy0wMS8iPjxCdWNrZXQ+Y2hhbWVsZW9uLWpjbG91ZDwvQnVja2V0PjxLZXk+Y29uZm9ybWFuY2UtdGVzdHMvbXVsdGlwYXJ0LXNraXBwaW5nTnVtYmVyczwvS2V5PjxVcGxvYWRJZD5MTFhmc294UFhCelp0cUxtNGhLbDVuM1BGT3NsNGNpazdraXJybmhVSWZsT0ZLYk9yblFPb0JGZWVvalJDZDE1elJRUHh4VGhJNG1WcE9HeVRwVGFlQXdSWFpuYXBUXy5PRWZqbDZrMmsycGx2dmNGYnpUdkZzdzIxME5LMHB0SWhTVzJnN0RMWDJMVC54eDU5S1dTUVVMa05lTklEWW5sZGlpaDZZTU5XOTlKVDE2Wmg0djN0Y29nUllLR1M3aGg1MVBJUVp6SWR3cmdJMUJ5ZU9xUmNnLS08L1VwbG9hZElkPjwvSW5pdGlhdGVNdWx0aXBhcnRVcGxvYWRSZXN1bHQ+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "ZFT89Q0K1BBC1E7B",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "qFYv4IAgrGjq5PfPsy8aEwWEoxVNxq+K4MjTVq9yHjFl5DtinWeg71Qs7/l5Tgso8Ei+/aN6/34=",
+      "Date" : "Wed, 15 Oct 2025 01:32:23 GMT"
+    }
+  },
+  "uuid" : "7b750bee-4a98-4b19-9882-8058c446bd9b",
+  "persistent" : true,
+  "insertionIndex" : 216
+}

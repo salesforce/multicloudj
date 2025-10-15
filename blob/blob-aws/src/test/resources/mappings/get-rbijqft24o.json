@@ -1,0 +1,23 @@
+{
+  "id" : "28f12f82-bdc8-4c9c-b772-5abb65c1f9bf",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=1000",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "chameleon-jcloud-28f12f82-bdc8-4c9c-b772-5abb65c1f9bf.xml",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4Y11N53F2768SS9Q",
+      "x-amz-id-2" : "5lYzSQ6gnWq2dkMC+enALmklGDl6Ifc9G4dlu31kw7yvJ505rSfLzLGVJMatkJ7p+aHdm4x0BZY=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 15 Oct 2025 01:32:04 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "28f12f82-bdc8-4c9c-b772-5abb65c1f9bf",
+  "persistent" : true,
+  "insertionIndex" : 162
+}

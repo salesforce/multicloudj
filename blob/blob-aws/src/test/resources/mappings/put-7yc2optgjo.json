@@ -1,0 +1,30 @@
+{
+  "id" : "883aa794-917e-4937-aead-fd6f735315de",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_testrangedread_versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/testRangedRead_versioned",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "MmYNClRoaXMgaXMgdGVzdCBkYXRhIGZvciB0aGUgcmFuZ2VkIHJlYWQgdGVzdCBmaWxlDQowDQp4LWFtei1jaGVja3N1bS1jcmMzMjpHb2RiUXc9PQ0KDQo="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-checksum-crc32" : "GodbQw==",
+      "ETag" : "\"4fe58d952a4f5588f32b30a5f9b62cda\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "TVD091VFJE59R08Y",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "5zlokJK7YAhOmCI7LeR2GR4YJDIX8Tddgia9z86PaZlFahwr4Sdgdo7maM4aNwKJKY4U8YJc+eE=",
+      "x-amz-version-id" : "CduL8Ha9PRDoP4gQyx.Ur2S.LNL7aX2B",
+      "Date" : "Wed, 15 Oct 2025 01:34:33 GMT"
+    }
+  },
+  "uuid" : "883aa794-917e-4937-aead-fd6f735315de",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned-4",
+  "insertionIndex" : 429
+}
