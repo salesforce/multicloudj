@@ -98,8 +98,7 @@ public abstract class AbstractBlobStoreIT {
     @BeforeAll
     public void initializeWireMockServer() {
         harness = createHarness();
-    String path = String.format("src/test/resources", harness.getProviderId());
-    TestsUtil.startWireMockServer(path, harness.getPort());
+    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
 
     /**
