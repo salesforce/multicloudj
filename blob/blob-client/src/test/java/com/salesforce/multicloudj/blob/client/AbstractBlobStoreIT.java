@@ -22,7 +22,6 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -92,6 +91,8 @@ public abstract class AbstractBlobStoreIT {
 
     private Harness harness;
 
+    private static final String GCP_PROVIDER_ID = "gcp";
+
     /**
      * Initializes the WireMock server before all tests.
      */
@@ -135,14 +136,14 @@ public abstract class AbstractBlobStoreIT {
 
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
-    if (harness.getProviderId() != GcpConstants.PROVIDER_ID) {
+    if (harness.getProviderId() != GCP_PROVIDER_ID) {
         runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
     }
   }
 
     @Test
     public void testInvalidCredentials() {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
 
         // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, false, false);
@@ -150,7 +151,7 @@ public abstract class AbstractBlobStoreIT {
 
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
-    if (harness.getProviderId() != GcpConstants.PROVIDER_ID) {
+    if (harness.getProviderId() != GCP_PROVIDER_ID) {
         runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
     }
   }
@@ -343,13 +344,13 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUpload_emptyContent() {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runUploadTests("testUpload_emptyContent",  "conformance-tests/upload/emptyContent", new byte[]{}, false);
     }
 
     @Test
     public void testUpload_happyPath() {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runUploadTests("testUpload_happyPath", "conformance-tests/upload/happyPath", "This is test data".getBytes(), false);
     }
 
@@ -877,7 +878,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1246,7 +1247,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testList() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1742,7 +1743,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_singlePart() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "single part", DEFAULT_MULTIPART_KEY_PREFIX + "singlePart",
                 Map.of("123", "456"),
@@ -1753,7 +1754,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleParts() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "multipleParts",
                 Map.of("234", "456"),
@@ -1772,7 +1773,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_unorderedMultipleParts() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "unordered multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "unorderedMultipleParts",
                 Map.of("345", "456"),
@@ -1787,7 +1788,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_skippingNumbers() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "skipping numbers", DEFAULT_MULTIPART_KEY_PREFIX + "skippingNumbers",
                 Map.of("456", "456"),
@@ -1804,7 +1805,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_duplicateParts() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "duplicates parts", DEFAULT_MULTIPART_KEY_PREFIX + "duplicateParts",
                 Map.of("567", "456"),
@@ -1834,7 +1835,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_badETag() throws IOException {
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "bad etag", DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
                 Map.of("789", "456"),
@@ -1933,7 +1934,7 @@ public abstract class AbstractBlobStoreIT {
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
 
-    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
