@@ -1653,8 +1653,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) throws IOException {
-        Assumptions.assumeTrue(false);
-
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1840,7 +1838,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_invalidMultipartUpload(){
-        Assumptions.assumeTrue(false);
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -1888,7 +1885,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleMultipartUploadsForSameKey(){
-        Assumptions.assumeTrue(false);
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -1923,8 +1919,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
-        Assumptions.assumeTrue(false);
-
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 

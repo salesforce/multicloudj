@@ -1,0 +1,23 @@
+{
+  "id" : "478edfe8-c65d-44c1-ad8b-7943eb24ce29",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=3&prefix=conformance-tests%2Fblob-for-list-page&continuation-token=1lzb3BbXmCco4IIyrqoay755KYAR59odXsLocfZesYEy4TvuBcYbBR7%2FrLJUzbd3GFXzitPeWOKglbrgpzHw1uHJY%2BmIC267i",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><ContinuationToken>1lzb3BbXmCco4IIyrqoay755KYAR59odXsLocfZesYEy4TvuBcYbBR7/rLJUzbd3GFXzitPeWOKglbrgpzHw1uHJY+mIC267i</ContinuationToken><NextContinuationToken>16pay6JohuHKqqSOnBDal1IxcA0rH5SI1yT6FkKhMErzdjLHBvY4xTSEwCGqYpQ8Q5GlgB8KHNXq52EVmkgur8WeUUT3/a54S</NextContinuationToken><KeyCount>3</KeyCount><MaxKeys>3</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix-4</Key><LastModified>2025-10-16T04:12:43.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-5</Key><LastModified>2025-10-16T04:12:43.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix_3</Key><LastModified>2025-10-16T04:12:42.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3T4TPSDGRGF2RV1S",
+      "x-amz-id-2" : "oa4yGUSoVRT5Sp2NQe63hX5qWYgzAqiFd+b9G1VuTP2QFUZBsCTQ+7/9ICR20cVXxiaBDUG5jh8=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 16 Oct 2025 04:12:45 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "478edfe8-c65d-44c1-ad8b-7943eb24ce29",
+  "persistent" : true,
+  "insertionIndex" : 547
+}

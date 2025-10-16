@@ -1,0 +1,22 @@
+{
+  "id" : "0db1a774-2315-4396-83c5-1da9c6a6b032",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-multipleparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts?uploadId=iHkP3SPV6VULC19zT7nT4VVWWS8YtS.eFLX359lZjI4jn4xsUUgQEIvdI2jynSJjfHikqQAnyN9g0z6dke6rVzYBB24UKlGtOXyD9Bex54MvMOy6KnDsyWgjoXyCAQ7eZPa3zy7I8X6cJRhBtZULzkbvUw56lVKd98d55MkYL025_mQb.iJxnvzOtwTuFZVMc41tXaadLCM1nIankh8y8w--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><UploadId>iHkP3SPV6VULC19zT7nT4VVWWS8YtS.eFLX359lZjI4jn4xsUUgQEIvdI2jynSJjfHikqQAnyN9g0z6dke6rVzYBB24UKlGtOXyD9Bex54MvMOy6KnDsyWgjoXyCAQ7eZPa3zy7I8X6cJRhBtZULzkbvUw56lVKd98d55MkYL025_mQb.iJxnvzOtwTuFZVMc41tXaadLCM1nIankh8y8w--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID><DisplayName>pcsk-aws+2e080b17111009838202251711100983820193</DisplayName></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>4</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2025-10-16T04:11:10.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2025-10-16T04:11:12.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2025-10-16T04:11:13.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>4</PartNumber><LastModified>2025-10-16T04:11:15.000Z</LastModified><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "1GV9K1KMKNTDFTDV",
+      "x-amz-id-2" : "D2wLP61S89QdSIf0oKddhNAZOQ1MnP82TFOubYbs8VZi2q5jOJZ0JRBPSbnEag5MeWvQMHt4muA=",
+      "Date" : "Thu, 16 Oct 2025 04:11:16 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0db1a774-2315-4396-83c5-1da9c6a6b032",
+  "persistent" : true,
+  "insertionIndex" : 347
+}

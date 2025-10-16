@@ -1,0 +1,25 @@
+{
+  "id" : "b7cb850b-2d8d-4dee-a3a0-5ca9df7644c0",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-failing_testinvalidcredentialsmultipart2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-failing/testInvalidCredentialsmultipart2?partNumber=1&uploadId=multipart2",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 403,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidAccessKeyId</Code><Message>The AWS Access Key Id you provided does not exist in our records.</Message><AWSAccessKeyId>invalidAccessKey</AWSAccessKeyId><RequestId>WS81N1RAVSX3V61K</RequestId><HostId>L5Ww/PskfrKDnDvr006Lvm/EDdcJi65IYCUW1bU9oUp9qoidb9X6/JacA20ojHUxGgfljRHVNzI=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "WS81N1RAVSX3V61K",
+      "x-amz-id-2" : "L5Ww/PskfrKDnDvr006Lvm/EDdcJi65IYCUW1bU9oUp9qoidb9X6/JacA20ojHUxGgfljRHVNzI=",
+      "Date" : "Thu, 16 Oct 2025 04:12:52 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b7cb850b-2d8d-4dee-a3a0-5ca9df7644c0",
+  "persistent" : true,
+  "insertionIndex" : 562
+}

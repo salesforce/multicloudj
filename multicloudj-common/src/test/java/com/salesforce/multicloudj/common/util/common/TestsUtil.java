@@ -6,7 +6,9 @@ import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
+import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
+import com.github.tomakehurst.wiremock.matching.EqualToPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
@@ -14,7 +16,9 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -37,13 +41,13 @@ public class TestsUtil {
             List<ContentPattern<?>> bodyPatterns = requestPattern.getBodyPatterns();
             if(bodyPatterns != null && !bodyPatterns.isEmpty()) {
 
+                /*
                 List<ContentPattern<?>> newPatterns = new ArrayList<>();
                 int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUST_BODY_OVER);
 
                 // See if any of the existing body patterns exceed our length limit
                 for(ContentPattern<?> pattern : bodyPatterns) {
                     if(pattern.getExpected().length() > truncateMatcherRequestBodyOver){
-
                         // We've exceeded our desired matcher length, so truncate it
                         String truncatedString = pattern.getExpected().substring(0, truncateMatcherRequestBodyOver);
                         newPatterns.add(new RegexPattern("^" + truncatedString +"*"));
@@ -55,6 +59,8 @@ public class TestsUtil {
                     bodyPatterns.clear();
                     bodyPatterns.addAll(newPatterns);
                 }
+
+                 */
             }
 
             return stubMapping;

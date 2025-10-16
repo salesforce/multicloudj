@@ -1,0 +1,25 @@
+{
+  "id" : "7ff8c3c9-d0b6-4df8-a60d-dccf1f3ec6b8",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-completeanaborted",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-completeAnAborted?uploadId=Ht3LLee8bcwkCWa0qTqjssEwY63iw5CT78gmMzV85lwxSjYIbz8Iuci1aVAZwd7OWmRa6fsbaMRd6j5VShXwCwIDVTWkbY7wGzAedI3JAL3B8A2KTADp59TZUTWdf69czqC.IhNWWnIId2OI6ryIDSPckG6oBxYO3kIGvv07ay.5f_kFBDdL17dzRxRexmdHhIQn9LdlH1SP2jNHpbdZIw--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchUpload</Code><Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message><UploadId>Ht3LLee8bcwkCWa0qTqjssEwY63iw5CT78gmMzV85lwxSjYIbz8Iuci1aVAZwd7OWmRa6fsbaMRd6j5VShXwCwIDVTWkbY7wGzAedI3JAL3B8A2KTADp59TZUTWdf69czqC.IhNWWnIId2OI6ryIDSPckG6oBxYO3kIGvv07ay.5f_kFBDdL17dzRxRexmdHhIQn9LdlH1SP2jNHpbdZIw--</UploadId><RequestId>49M1N081R70EDKQH</RequestId><HostId>oBk+fCUoLIeNiBo52xSm1TwNDFproaMbbNT8x6b0qIHca1nfYlY5byYwAaR53Omlt8jIjHc5Q8U=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "49M1N081R70EDKQH",
+      "x-amz-id-2" : "oBk+fCUoLIeNiBo52xSm1TwNDFproaMbbNT8x6b0qIHca1nfYlY5byYwAaR53Omlt8jIjHc5Q8U=",
+      "Date" : "Thu, 16 Oct 2025 04:11:46 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7ff8c3c9-d0b6-4df8-a60d-dccf1f3ec6b8",
+  "persistent" : true,
+  "insertionIndex" : 415
+}
