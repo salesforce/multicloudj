@@ -40,8 +40,6 @@ public class TestsUtil {
             RequestPattern requestPattern = stubMapping.getRequest();
             List<ContentPattern<?>> bodyPatterns = requestPattern.getBodyPatterns();
             if(bodyPatterns != null && !bodyPatterns.isEmpty()) {
-
-                /*
                 List<ContentPattern<?>> newPatterns = new ArrayList<>();
                 int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUST_BODY_OVER);
 
@@ -59,8 +57,6 @@ public class TestsUtil {
                     bodyPatterns.clear();
                     bodyPatterns.addAll(newPatterns);
                 }
-
-                 */
             }
 
             return stubMapping;
@@ -84,7 +80,7 @@ public class TestsUtil {
                 .gzipDisabled(true)
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{request.method}}-{{randomValue length=10}}.json")
-                .extensions(new TruncateRequestBodyTransformer())
+                //.extensions(new TruncateRequestBodyTransformer()) // TODO: enable it after converting to plain text body in multipart uploads for tests
                 .enableBrowserProxying(true));
         wireMockServer.start();
     }
