@@ -1,15 +1,17 @@
 package com.salesforce.multicloudj.pubsub.driver;
 
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.pubsub.batcher.Batcher;
-import com.salesforce.multicloudj.pubsub.driver.utils.MessageUtils;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
+import com.salesforce.multicloudj.pubsub.driver.utils.MessageUtils;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 /**
  * Abstract base class for topic implementations.
@@ -37,6 +39,7 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
     protected final URI proxyEndpoint;
     protected final CredentialsOverrider credentialsOverrider;
     protected final Batcher<Message> batcher;
+    protected final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     protected AbstractTopic(String providerId, String topicName, String region, URI endpoint, URI proxyEndpoint, CredentialsOverrider credentialsOverrider) {
         this.providerId = providerId;
@@ -79,6 +82,10 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
      * Handler method called by Batcher when a batch is ready to be processed.
      */
     private Void handleBatch(List<Message> messages) {
+        if (isShutdown.get()) {
+            throw new FailedPreconditionException("Topic has been shut down");
+        }
+
         executeBeforeSendBatchHooks(messages);
         try {
             doSendBatch(messages);
@@ -93,6 +100,10 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
      * This method blocks until the message is successfully sent or an error occurs.
      */
     public final void send(Message message) {
+        if (isShutdown.get()) {
+            throw new FailedPreconditionException("Topic has been shut down");
+        }
+
         MessageUtils.validateMessage(message);
         sendBatch(List.of(message));
     }
@@ -102,6 +113,10 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
      * This method blocks until all messages are successfully sent or an error occurs.
      */
     private final void sendBatch(List<Message> messages) {
+        if (isShutdown.get()) {
+            throw new FailedPreconditionException("Topic has been shut down");
+        }
+
         MessageUtils.validateMessageBatch(messages);
         if (messages.isEmpty()) {
             return;
@@ -166,6 +181,8 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
      */
     @Override
     public void close() throws Exception {
+        isShutdown.set(true);
+
         if (batcher != null) {
             batcher.shutdownAndDrain();
         }

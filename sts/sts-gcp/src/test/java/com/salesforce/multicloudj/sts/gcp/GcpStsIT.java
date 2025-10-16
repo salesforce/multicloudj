@@ -6,6 +6,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
 import com.google.cloud.iam.credentials.v1.IamCredentialsSettings;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;

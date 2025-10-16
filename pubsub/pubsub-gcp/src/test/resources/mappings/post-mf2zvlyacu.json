@@ -1,0 +1,37 @@
+{
+  "id": "2958dd80-67a5-420a-ab66-d3fd301c435a",
+  "name": "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionacknowledge",
+  "request": {
+    "method": "POST",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$.ackIds"
+      },
+      {
+        "matchesJsonPath": "$.ackIds[*]"
+      }
+    ],
+    "urlPath": "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:acknowledge"
+  },
+  "response": {
+    "status": 200,
+    "body": "{}\n",
+    "headers": {
+      "X-Frame-Options": "SAMEORIGIN",
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "ESF",
+      "X-Content-Type-Options": "nosniff",
+      "Vary": [
+        "Origin",
+        "X-Origin",
+        "Referer"
+      ],
+      "X-XSS-Protection": "0",
+      "Date": "Mon, 13 Oct 2025 20:08:47 GMT",
+      "Content-Type": "application/json; charset=UTF-8"
+    }
+  },
+  "uuid": "2958dd80-67a5-420a-ab66-d3fd301c435a",
+  "persistent": true,
+  "insertionIndex": 43
+}

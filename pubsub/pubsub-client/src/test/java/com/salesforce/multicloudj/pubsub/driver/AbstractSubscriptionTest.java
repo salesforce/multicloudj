@@ -2,10 +2,9 @@ package com.salesforce.multicloudj.pubsub.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.net.URI;
 import java.util.ArrayDeque;
@@ -18,7 +17,6 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,11 +121,13 @@ public class AbstractSubscriptionTest {
         protected void doSendNacks(List<AckID> ackIDs) { }
 
         @Override
-        protected String getMessageId(AckID ackID) {
-            return ackID != null ? ackID.toString() : null;
+        protected Batcher.Options createAckBatcherOptions() {
+            return new Batcher.Options()
+                    .setMaxHandlers(2)
+                    .setMinBatchSize(1)
+                    .setMaxBatchSize(1000)
+                    .setMaxBatchByteSize(0);
         }
-
-
 
         @Override
         public boolean canNack() { return false; }
@@ -159,48 +159,8 @@ public class AbstractSubscriptionTest {
         }
     }
 
-    @Disabled
     @Test
-    void testReceiveReturnsRequestedCountOrAvailable() {
-        MockMessageSource source = new MockMessageSource();
-        source.addMessages(List.of(
-            Message.builder().withBody("a".getBytes()).build(),
-            Message.builder().withBody("b".getBytes()).build(),
-            Message.builder().withBody("c".getBytes()).build()
-        ));
-        TestSubscription sub = new TestSubscription(source);
-
-        Message r1 = sub.receive();
-        assertNotNull(r1);
-        Message r1_2 = sub.receive();
-        assertNotNull(r1_2);
-
-        Message r2 = sub.receive();
-        assertNotNull(r2);
-    }
-
-    @Disabled
-    @Test
-    void testBasicBuilderConstruction() {
-        TestBuilder builder = new TestBuilder();
-        builder.providerId = "test";
-        builder.subscriptionName = "sub";
-        builder.region = "region";
-
-        MockMessageSource source = new MockMessageSource();
-        source.addMessages(List.of(
-            Message.builder().withBody("a".getBytes()).build(),
-            Message.builder().withBody("b".getBytes()).build()
-        ));
-        TestSubscription sub = new TestSubscription(source, builder);
-
-        Message result1 = sub.receive();
-        assertNotNull(result1);
-        Message result2 = sub.receive();
-        assertNotNull(result2);
-    }
-
-    @Test
+    @Timeout(10) // Calls receive() which could timeout
     void testReceiveMethodSignature() {
         // Test that receive() method exists and has correct signature
         MockMessageSource source = new MockMessageSource();
@@ -520,6 +480,7 @@ public class AbstractSubscriptionTest {
     }
     
     @Test
+    @Timeout(30) // Creates 10 threads with 100 ops each, uses latch.await() without timeout
     void testSendNacksConcurrentAccess() throws InterruptedException {
         TestSubscription testSubscription = new TestSubscription();
         int numThreads = 10;
@@ -543,7 +504,7 @@ public class AbstractSubscriptionTest {
             }).start();
         }
         
-        latch.await(5, TimeUnit.SECONDS);
+        latch.await();
         assertTrue(exceptions.isEmpty(), "No exceptions should occur during concurrent access");
     }
     
