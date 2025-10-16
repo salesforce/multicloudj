@@ -1,0 +1,25 @@
+{
+  "id" : "3b9e565c-e134-4298-8303-5ba6bde6488d",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucket",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucket",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>3BBEEWZMR6JT1J44</RequestId><HostId>4S26nGhURqkm7d13Tyi+2pMyNXqUn/z0P8W0l+BdYE0OYWU7ryEM48BGAv7gM1rhSalAZzrvTns=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3BBEEWZMR6JT1J44",
+      "x-amz-id-2" : "4S26nGhURqkm7d13Tyi+2pMyNXqUn/z0P8W0l+BdYE0OYWU7ryEM48BGAv7gM1rhSalAZzrvTns=",
+      "Date" : "Thu, 16 Oct 2025 03:17:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "3b9e565c-e134-4298-8303-5ba6bde6488d",
+  "persistent" : true,
+  "insertionIndex" : 193
+}

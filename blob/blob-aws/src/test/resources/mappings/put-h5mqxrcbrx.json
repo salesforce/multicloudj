@@ -1,0 +1,30 @@
+{
+  "id" : "f9d2011f-741d-47e1-ac52-b6bcf5b7e84e",
+  "name" : "chameleon-jcloud_conformance-tests_download_happy_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_happy_unversioned",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-checksum-crc64nvme" : "4G16TxxAsWw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "ENZH2HA53GJ4FDBC",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "86It/bnpIvhQvHO/SmaDBoY8ef4YLsGx3CSo2av5fDI0Vpg2OyokJKZsV04bLM1wXqJ1V6lxW4A=",
+      "Date" : "Thu, 16 Oct 2025 03:17:28 GMT"
+    }
+  },
+  "uuid" : "f9d2011f-741d-47e1-ac52-b6bcf5b7e84e",
+  "persistent" : true,
+  "scenarioName" : "scenario-5-chameleon-jcloud-conformance-tests-download_happy_unversioned",
+  "requiredScenarioState" : "scenario-5-chameleon-jcloud-conformance-tests-download_happy_unversioned-3",
+  "newScenarioState" : "scenario-5-chameleon-jcloud-conformance-tests-download_happy_unversioned-4",
+  "insertionIndex" : 220
+}

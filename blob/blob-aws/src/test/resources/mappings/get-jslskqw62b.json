@@ -1,0 +1,22 @@
+{
+  "id" : "fc6f0ff7-1d2f-4f26-a9e0-542e9b098444",
+  "name" : "java-bucket-does-not-exist",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist?list-type=2&max-keys=1000&prefix=prefix",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>S2B449GM1V8MYK81</RequestId><HostId>Tuxw0j+ECk8qN2LWSp2dKIjmw0oBeLJB5LZAhKgNS2o6rkKClbEThU2NNT7X0+lM68lZ7CzrSa0=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "S2B449GM1V8MYK81",
+      "x-amz-id-2" : "Tuxw0j+ECk8qN2LWSp2dKIjmw0oBeLJB5LZAhKgNS2o6rkKClbEThU2NNT7X0+lM68lZ7CzrSa0=",
+      "Date" : "Thu, 16 Oct 2025 03:17:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fc6f0ff7-1d2f-4f26-a9e0-542e9b098444",
+  "persistent" : true,
+  "insertionIndex" : 190
+}

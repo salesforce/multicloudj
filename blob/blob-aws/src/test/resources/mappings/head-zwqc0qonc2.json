@@ -1,0 +1,21 @@
+{
+  "id" : "760786a9-44e8-407f-bcf8-8896e53660c5",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucket",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucket",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0FXNETAFD8DGQF8G",
+      "x-amz-id-2" : "l23YioG2duDnAYO3ijsypIK26zSuW9Kt11txFtVAil37mG9Xbx8n6UMCuNQyiJg+XT/9Umwsnr0=",
+      "Date" : "Thu, 16 Oct 2025 03:17:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "760786a9-44e8-407f-bcf8-8896e53660c5",
+  "persistent" : true,
+  "insertionIndex" : 189
+}

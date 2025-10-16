@@ -1,0 +1,25 @@
+{
+  "id" : "d1bbedde-9c67-47a3-98b4-f4de621f07ef",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucketmultipart3",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucketmultipart3?uploadId=multipart3",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>etag</ETag><PartNumber>1</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>HAC551B4V4ZTTJ1X</RequestId><HostId>obOCQZ/OvNRYnbUwlnaqqJW7t4MIFE9LZ+pePnwuCJq2YPS+PPOS7evwPU6UcZFuLAkfD4I7uaI=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "HAC551B4V4ZTTJ1X",
+      "x-amz-id-2" : "obOCQZ/OvNRYnbUwlnaqqJW7t4MIFE9LZ+pePnwuCJq2YPS+PPOS7evwPU6UcZFuLAkfD4I7uaI=",
+      "Date" : "Thu, 16 Oct 2025 03:17:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d1bbedde-9c67-47a3-98b4-f4de621f07ef",
+  "persistent" : true,
+  "insertionIndex" : 186
+}

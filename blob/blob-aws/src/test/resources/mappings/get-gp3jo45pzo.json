@@ -1,0 +1,23 @@
+{
+  "id" : "286357af-3483-4016-97de-6dca3924406c",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=-&max-keys=1000&prefix=conformance-tests%2Fblob-for-list%2Fprefix",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list/prefix</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>-</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/blob-for-list/prefix_3</Key><LastModified>2025-10-16T03:17:06.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/blob-for-list/prefix-</Prefix></CommonPrefixes></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3SGFPFTTHJPTTHCS",
+      "x-amz-id-2" : "SKB7nnUppqPMcft5H4FyBodO1R4p3Krqy5dDcrpcLRd6ypqZf5Ct0Lj5jBkZm5DhaOmPA4SfueU=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 16 Oct 2025 03:17:07 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "286357af-3483-4016-97de-6dca3924406c",
+  "persistent" : true,
+  "insertionIndex" : 152
+}
