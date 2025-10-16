@@ -1,0 +1,26 @@
+{
+  "id" : "22d4a1e5-3c37-47bb-8254-63db9a084e06",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-skippingnumbers",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"eec45a21cb3a20f919a040b07435380a-3\"",
+      "x-amz-meta-456" : "456",
+      "Last-Modified" : "Thu, 16 Oct 2025 04:10:02 GMT",
+      "x-amz-request-id" : "DQFTTK0DXVH5KRYJ",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "FCErf4tKC6MYToMhnBqVyjFIZWllF/Vju9++TmnfuogSdpMKD6x3j91X3Fdu7fG6r6fi/Ku3dwc=",
+      "Date" : "Thu, 16 Oct 2025 04:10:10 GMT",
+      "Content-Type" : "binary/octet-stream"
+    }
+  },
+  "uuid" : "22d4a1e5-3c37-47bb-8254-63db9a084e06",
+  "persistent" : true,
+  "insertionIndex" : 210
+}

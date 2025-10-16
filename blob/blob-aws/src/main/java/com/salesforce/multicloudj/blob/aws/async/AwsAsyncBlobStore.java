@@ -443,6 +443,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             if (builder.getMaxNativeMemoryLimitInBytes() != null) {
                 crtBuilder.maxNativeMemoryLimitInBytes(builder.getMaxNativeMemoryLimitInBytes());
             }
+            if (builder.getInitialReadBufferSizeInBytes() != null) {
+                crtBuilder.initialReadBufferSizeInBytes(builder.getInitialReadBufferSizeInBytes());
+            }
+            if (builder.getMaxConcurrency() != null) {
+                crtBuilder.maxConcurrency(builder.getMaxConcurrency());
+            }
 
             // Apply common configuration (credentials, endpoint, proxy, part buffer size)
             applyCommonConfig(crtBuilder, builder, regionObj);
@@ -480,17 +486,39 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 builder.endpointOverride(config.getEndpoint());
             }
 
-            // Configure proxy if specified
-            if (config.getProxyEndpoint() != null) {
-                ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
-                        .scheme(config.getProxyEndpoint().getScheme())
-                        .host(config.getProxyEndpoint().getHost())
-                        .port(config.getProxyEndpoint().getPort())
-                        .build();
-                SdkAsyncHttpClient httpClient = NettyNioAsyncHttpClient.builder()
-                        .proxyConfiguration(proxyConfig)
-                        .build();
-                builder.httpClient(httpClient);
+            // Configure HTTP client if any settings are specified
+            if (config.getProxyEndpoint() != null || config.getMaxConnections() != null ||
+                config.getSocketTimeout() != null || config.getIdleConnectionTimeout() != null) {
+
+                NettyNioAsyncHttpClient.Builder httpClientBuilder = NettyNioAsyncHttpClient.builder();
+
+                // Configure proxy if specified
+                if (config.getProxyEndpoint() != null) {
+                    ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
+                            .scheme(config.getProxyEndpoint().getScheme())
+                            .host(config.getProxyEndpoint().getHost())
+                            .port(config.getProxyEndpoint().getPort())
+                            .build();
+                    httpClientBuilder.proxyConfiguration(proxyConfig);
+                }
+
+                // Configure max connections if specified
+                if (config.getMaxConnections() != null) {
+                    httpClientBuilder.maxConcurrency(config.getMaxConnections());
+                }
+
+                // Configure socket timeout if specified
+                if (config.getSocketTimeout() != null) {
+                    httpClientBuilder.writeTimeout(config.getSocketTimeout());
+                    httpClientBuilder.readTimeout(config.getSocketTimeout());
+                }
+
+                // Configure idle connection timeout if specified
+                if (config.getIdleConnectionTimeout() != null) {
+                    httpClientBuilder.connectionMaxIdleTime(config.getIdleConnectionTimeout());
+                }
+
+                builder.httpClient(httpClientBuilder.build());
             }
 
             // Configure multipart configuration (common for both clients)
@@ -576,9 +604,25 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             if (tm == null) {
                 var transferManagerBuilder = S3TransferManager.builder()
                         .s3Client(client);
+
+                // Configure executor service for transfer manager
                 if (getExecutorService() != null) {
+                    // Use custom executor service if provided
                     transferManagerBuilder.executor(getExecutorService());
+                } else {
+                    // Determine thread pool size for transfer manager
+                    Integer poolSize = getTransferManagerThreadPoolSize();
+
+                    if (poolSize != null) {
+                        transferManagerBuilder.executor(Executors.newFixedThreadPool(poolSize));
+                    }
                 }
+
+                // Configure transferDirectoryMaxConcurrency if specified
+                if (getTransferDirectoryMaxConcurrency() != null) {
+                    transferManagerBuilder.transferDirectoryMaxConcurrency(getTransferDirectoryMaxConcurrency());
+                }
+
                 tm = transferManagerBuilder.build();
             }
 

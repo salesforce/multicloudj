@@ -1,0 +1,23 @@
+{
+  "id" : "9e29cd20-0911-40f3-8310-0b06a28d4327",
+  "name" : "chameleon-jcloud_conformance-tests_testrangedread_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/testRangedRead_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "M1G0MNKQ5VHVT8EZ",
+      "x-amz-id-2" : "WwmA2/gwKN5OM0te1anK+NUruPTaX/Cgy+nj1sUZztchY70U+0McETBTMKSEBMnO3Jw6NYFRdB4=",
+      "Date" : "Thu, 16 Oct 2025 04:11:58 GMT"
+    }
+  },
+  "uuid" : "9e29cd20-0911-40f3-8310-0b06a28d4327",
+  "persistent" : true,
+  "scenarioName" : "scenario-7-chameleon-jcloud-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-7-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-2",
+  "newScenarioState" : "scenario-7-chameleon-jcloud-conformance-tests-testRangedRead_unversioned-3",
+  "insertionIndex" : 480
+}

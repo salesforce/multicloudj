@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -67,10 +68,12 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             client = S3Client.builder()
                     .region(Region.US_WEST_2)
                     .httpClient(httpClient)
+                    .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                     .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                     .endpointOverride(URI.create(endpoint))
                     .serviceConfiguration(S3Configuration.builder()
                             .pathStyleAccessEnabled(true)
+                            .chunkedEncodingEnabled(false)
                             .build())
                     .build();
 

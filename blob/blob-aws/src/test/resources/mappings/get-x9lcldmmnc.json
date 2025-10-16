@@ -1,0 +1,22 @@
+{
+  "id" : "8be78e73-1fa5-4eb9-96e5-503b1b1434d3",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-nonexistentparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts?uploadId=M_buLxdMiO8DHur501paUwbeN0J2113KkDcyDwOFfPF90m6f4R_fsDy8zDnhiWOI1GMpT8MNb6X5oono23c96pE1IwVHlX89SJYEFMEpyAjJ8BhRmV912IlAQaiMbliPZ_HXFaTQMdXhHURerCmcHBPIDtG_ETN9dyJ.Cdzh89tYlH_bFc2h2wTxqFNo7ypFipy0CksV3ZdWwcTTRD4_tA--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-nonExistentParts</Key><UploadId>M_buLxdMiO8DHur501paUwbeN0J2113KkDcyDwOFfPF90m6f4R_fsDy8zDnhiWOI1GMpT8MNb6X5oono23c96pE1IwVHlX89SJYEFMEpyAjJ8BhRmV912IlAQaiMbliPZ_HXFaTQMdXhHURerCmcHBPIDtG_ETN9dyJ.Cdzh89tYlH_bFc2h2wTxqFNo7ypFipy0CksV3ZdWwcTTRD4_tA--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@d2999721-cb95-450c-8455-96b96fdcdc84</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID><DisplayName>pcsk-aws+2e080b17111009838202251711100983820193</DisplayName></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2025-10-16T04:10:36.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "J68QM49779CYJVKM",
+      "x-amz-id-2" : "8pCTL826+AwdqBf77m3NwYbNR0MYh/Kjh/05APA4jv1t2Y/sucSaiM2G7fvJ7Ah607/WW3ynfX0=",
+      "Date" : "Thu, 16 Oct 2025 04:10:37 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8be78e73-1fa5-4eb9-96e5-503b1b1434d3",
+  "persistent" : true,
+  "insertionIndex" : 279
+}
