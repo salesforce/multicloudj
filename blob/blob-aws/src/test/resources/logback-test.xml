@@ -26,7 +26,7 @@
     <logger name="com.github.tomakehurst.wiremock.matching" level="DEBUG"/>
 
     <!-- Root logger - logs to both console and file -->
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </root>
