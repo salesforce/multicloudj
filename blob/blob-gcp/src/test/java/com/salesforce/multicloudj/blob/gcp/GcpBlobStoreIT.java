@@ -113,6 +113,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         }
 
         @Override
+        public String getKmsKeyId() {
+            return "projects/chameleon-jcloud/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+        }
+
+        @Override
         public void close() {
             try {
                 storage.close();

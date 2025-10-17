@@ -113,6 +113,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
         }
 
         @Override
+        public String getKmsKeyId() {
+            return "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89";
+        }
+
+        @Override
         public void close() {
            client.close();
            httpClient.close();

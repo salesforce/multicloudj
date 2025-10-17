@@ -1,0 +1,20 @@
+{
+  "id" : "0d139b94-16b0-43d1-8b2d-ac3aaf4a57ce",
+  "name" : "chameleon-jcloud_conformance-tests_kms_download-happy-path",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/download-happy-path",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KR2NQGSZCJ6KN3QX",
+      "x-amz-id-2" : "KVFAVSGDF0cSFHCSZbAXgGjilIsgt38sc7KbMtf4ykE1hL2Ea9hoPhTwe2R8i6dWRwoCRdLNfz8=",
+      "Date" : "Fri, 17 Oct 2025 22:26:02 GMT"
+    }
+  },
+  "uuid" : "0d139b94-16b0-43d1-8b2d-ac3aaf4a57ce",
+  "persistent" : true,
+  "insertionIndex" : 521
+}

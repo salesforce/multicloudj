@@ -31,6 +31,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -84,6 +86,9 @@ public abstract class AbstractBlobStoreIT {
         // to run tests in parallel. Each provider can provide the
         // randomly selected port number.
         int getPort();
+
+        // Returns the KMS key ID for encryption tests (provider-specific)
+        String getKmsKeyId();
     }
 
     protected abstract Harness createHarness();
@@ -2386,6 +2391,193 @@ public abstract class AbstractBlobStoreIT {
             catch(Throwable t){
                 // Ignore
             }
+        }
+    }
+
+    @Test
+    public void testUploadWithKmsKey_happyPath() {
+        String key = "conformance-tests/kms/upload-happy-path";
+        String kmsKeyId = harness.getKmsKeyId();
+        runUploadWithKmsKeyTest(key, kmsKeyId, "Test data with KMS encryption".getBytes());
+    }
+
+    @Test
+    public void testUploadWithKmsKey_nullKmsKeyId() {
+        String key = "conformance-tests/kms/upload-null-key";
+        runUploadWithKmsKeyTest(key, null, "Test data without KMS".getBytes());
+    }
+
+    @Test
+    public void testUploadWithKmsKey_emptyKmsKeyId() {
+        String key = "conformance-tests/kms/upload-empty-key";
+        runUploadWithKmsKeyTest(key, "", "Test data with empty KMS key".getBytes());
+    }
+
+    private void runUploadWithKmsKeyTest(String key, String kmsKeyId, byte[] content) {
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload with KMS key
+            UploadResponse uploadResponse;
+            try (InputStream inputStream = new ByteArrayInputStream(content)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(content.length)
+                        .withKmsKeyId(kmsKeyId)
+                        .build();
+                uploadResponse = bucketClient.upload(request, inputStream);
+            }
+
+            Assertions.assertNotNull(uploadResponse, "testUploadWithKmsKey: No response returned");
+            Assertions.assertNotNull(uploadResponse.getETag(), "testUploadWithKmsKey: No eTag returned");
+
+            // Download and verify
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                DownloadRequest downloadRequest = new DownloadRequest.Builder()
+                        .withKey(key)
+                        .build();
+                bucketClient.download(downloadRequest, outputStream);
+
+                Assertions.assertEquals(content.length, outputStream.toByteArray().length, "testUploadWithKmsKey: Content length mismatch");
+                Assertions.assertArrayEquals(content, outputStream.toByteArray(), "testUploadWithKmsKey: Content mismatch");
+            }
+        } catch (Exception e) {
+            Assertions.fail("testUploadWithKmsKey: Test failed with exception: " + e.getMessage());
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testDownloadWithKmsKey() throws IOException {
+        String key = "conformance-tests/kms/download-happy-path";
+        String kmsKeyId = harness.getKmsKeyId();
+        byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload with KMS key
+            try (InputStream inputStream = new ByteArrayInputStream(content)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(content.length)
+                        .withKmsKeyId(kmsKeyId)
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // Download and verify
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                DownloadRequest downloadRequest = new DownloadRequest.Builder()
+                        .withKey(key)
+                        .build();
+                bucketClient.download(downloadRequest, outputStream);
+                byte[] downloadedContent = outputStream.toByteArray();
+
+                Assertions.assertEquals(content.length, downloadedContent.length,
+                        "testDownloadWithKmsKey: Content length mismatch");
+                Assertions.assertArrayEquals(content, downloadedContent,
+                        "testDownloadWithKmsKey: Content mismatch");
+            }
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testRangedReadWithKmsKey() throws IOException {
+        String key = "conformance-tests/kms/ranged-read";
+        String kmsKeyId = harness.getKmsKeyId();
+        runRangedReadWithKmsKeyTest(key, kmsKeyId);
+    }
+
+    private void runRangedReadWithKmsKeyTest(String key, String kmsKeyId) throws IOException {
+        String blobData = "This is test data for the KMS ranged read test file";
+        byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+            UploadRequest request = new UploadRequest.Builder()
+                    .withKey(key)
+                    .withContentLength(blobBytes.length)
+                    .withKmsKeyId(kmsKeyId)
+                    .build();
+            bucketClient.upload(request, inputStream);
+        }
+
+        try {
+            DownloadRequest.Builder requestBuilder = new DownloadRequest.Builder()
+                    .withKey(key)
+                    .withKmsKeyId(kmsKeyId);
+
+            // Try downloading the first 10 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(0L, 9L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 0, 10), content);
+            }
+
+            // Try downloading a middle 20 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(10L, 29L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(20, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, 30), content);
+            }
+
+            // Try downloading from byte 10 onward
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(10L, null).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(blobBytes.length - 10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, blobBytes.length), content);
+            }
+
+            // Try downloading the last 10 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(null, 10L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, blobBytes.length - 10, blobBytes.length), content);
+            }
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
+        String key = "conformance-tests/kms/presigned-url-null-key";
+        Map<String, String> metadata = Map.of("key2", "value2");
+        byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
+
+        runPresignedUrlWithKmsKeyTest(key, null, metadata, content);
+    }
+
+    private void runPresignedUrlWithKmsKeyTest(String key, String kmsKeyId,
+                                               Map<String, String> metadata, byte[] content) throws IOException {
+        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Generate presigned URL with KMS key
+            PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key(key)
+                    .duration(Duration.ofHours(1))
+                    .metadata(metadata)
+                    .kmsKeyId(kmsKeyId)
+                    .build();
+
+            URL presignedUrl = bucketClient.generatePresignedUrl(presignedUrlRequest);
+            Assertions.assertNotNull(presignedUrl);
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
         }
     }
 }
