@@ -1,0 +1,26 @@
+{
+  "id" : "de52258a-1e61-4f6d-bfc5-27764c7e8e5b",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-list",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-list/1759442187970443\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list?generation=1759442187970443&alt=media\",\n  \"name\": \"conformance-tests/blob-for-list\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1759442187970443\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"29\",\n  \"md5Hash\": \"16GqxDYUIo8tWi7aRir4ig==\",\n  \"crc32c\": \"TteLWg==\",\n  \"etag\": \"CIvP9/TAhpADEAE=\",\n  \"timeCreated\": \"2025-10-02T21:56:28.004Z\",\n  \"updated\": \"2025-10-02T21:56:28.004Z\",\n  \"timeStorageClassUpdated\": \"2025-10-02T21:56:28.004Z\",\n  \"timeFinalized\": \"2025-10-02T21:56:28.004Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CIvP9/TAhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3K6vtyJgWUwd5ljfOs30FnY90YQ9gENVGipFOCio6VEJi0W3JwxGAC_g6aiX7BZn8yrL7Mon7A",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Oct 2025 21:56:28 GMT",
+      "Date" : "Thu, 02 Oct 2025 21:56:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "de52258a-1e61-4f6d-bfc5-27764c7e8e5b",
+  "persistent" : true,
+  "insertionIndex" : 21
+}

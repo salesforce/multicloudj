@@ -1,0 +1,26 @@
+{
+  "id" : "2c0899a0-41b0-4c21-8c33-a602a7e27939",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_multipart-multiplempu",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-multipleMPU",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-multipleMPU\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-multipleMPU\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3IaYQx9dSxw6AZ0mae7oK6RoD5xE-SiCJpwVLboUZRp-FX2_Bu37ZvR8CMMwTLyLNeJ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:21:32 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "2c0899a0-41b0-4c21-8c33-a602a7e27939",
+  "persistent" : true,
+  "insertionIndex" : 887
+}

@@ -1,0 +1,26 @@
+{
+  "id" : "ba260b27-0ca1-413c-be56-36f0838f3957",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_null_unversioned",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/null_unversioned?generation=1759443551502652&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/null_unversioned\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/null_unversioned\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3LD0_8SU2mXaqsJiXDRU9V_W68c3glu30hbeJ1up18mnpYVpF7QfO540IFdjV1J-xZX",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:19:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ba260b27-0ca1-413c-be56-36f0838f3957",
+  "persistent" : true,
+  "insertionIndex" : 338
+}

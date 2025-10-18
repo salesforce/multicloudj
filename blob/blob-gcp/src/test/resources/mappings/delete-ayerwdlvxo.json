@@ -1,0 +1,28 @@
+{
+  "id" : "a07c6953-c8aa-4213-b098-7c3940a70cdc",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_versioned_download_bad_versionid_versioned",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fversioned_download_bad_versionId_versioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3KRM4Zl4WrSmZj8oDU19W4LHRFI5WeqEqCobYoCkXSA2jRbvpj2pxBcLM8XowWr_ECo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:20:20 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "a07c6953-c8aa-4213-b098-7c3940a70cdc",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_bad_versionId_versioned",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_bad_versionId_versioned-2",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versioned_download_bad_versionId_versioned-3",
+  "insertionIndex" : 591
+}

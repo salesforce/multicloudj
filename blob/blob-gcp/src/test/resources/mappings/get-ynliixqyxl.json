@@ -1,0 +1,26 @@
+{
+  "id" : "1f3cd790-bfba-453d-ab7b-009f98555994",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_metadata_versioned-blob",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1759443613365975&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/metadata/versioned-blob/1759443613365975\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1759443613365975&alt=media\",\n  \"name\": \"conformance-tests/metadata/versioned-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1759443613365975\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"35\",\n  \"md5Hash\": \"vqAfhCbyBN/UwNavQn8G9g==\",\n  \"crc32c\": \"OPaQhA==\",\n  \"etag\": \"CNftzpzGhpADEAE=\",\n  \"timeCreated\": \"2025-10-02T22:20:13.449Z\",\n  \"updated\": \"2025-10-02T22:20:13.449Z\",\n  \"timeStorageClassUpdated\": \"2025-10-02T22:20:13.449Z\",\n  \"timeFinalized\": \"2025-10-02T22:20:13.449Z\",\n  \"metadata\": {\n    \"key3\": \"value3\",\n    \"key4\": \"value4\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CNftzpzGhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3KQ8xJx6CvlwkeM-n24Bg6qe88_OKhBW5XudLVKnbNrKxOnBoEIm8NtZ3PZ8oAKlkMx",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Oct 2025 22:20:14 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:20:14 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1f3cd790-bfba-453d-ab7b-009f98555994",
+  "persistent" : true,
+  "insertionIndex" : 558
+}

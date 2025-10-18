@@ -1,0 +1,26 @@
+{
+  "id" : "51e79be4-aa7c-4c04-959c-1a52fe50c8d7",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_presigneddownloadurls_zeroduration",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedDownloadUrls%2FzeroDuration?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedDownloadUrls/zeroDuration/1759443615247114\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedDownloadUrls%2FzeroDuration\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedDownloadUrls%2FzeroDuration?generation=1759443615247114&alt=media\",\n  \"name\": \"conformance-tests/presignedDownloadUrls/zeroDuration\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1759443615247114\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CIrWwZ3GhpADEAE=\",\n  \"timeCreated\": \"2025-10-02T22:20:15.273Z\",\n  \"updated\": \"2025-10-02T22:20:15.273Z\",\n  \"timeStorageClassUpdated\": \"2025-10-02T22:20:15.273Z\",\n  \"timeFinalized\": \"2025-10-02T22:20:15.273Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CIrWwZ3GhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3IsPPIF2G7ThhQxqCbNyVeUrZsJQ-ONqYPbdFJDAwf6R35fa3aMDiyFvjX-oPQE2_MX",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Oct 2025 22:20:15 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:20:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "51e79be4-aa7c-4c04-959c-1a52fe50c8d7",
+  "persistent" : true,
+  "insertionIndex" : 571
+}

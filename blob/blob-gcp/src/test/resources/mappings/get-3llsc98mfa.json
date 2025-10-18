@@ -1,0 +1,26 @@
+{
+  "id" : "b523c333-8131-44ac-9547-2e93553dc9e4",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-list-page",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-list-page/1759443693182101\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page?generation=1759443693182101&alt=media\",\n  \"name\": \"conformance-tests/blob-for-list-page\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1759443693182101\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"29\",\n  \"md5Hash\": \"16GqxDYUIo8tWi7aRir4ig==\",\n  \"crc32c\": \"TteLWg==\",\n  \"etag\": \"CJW51sLGhpADEAE=\",\n  \"timeCreated\": \"2025-10-02T22:21:33.207Z\",\n  \"updated\": \"2025-10-02T22:21:33.207Z\",\n  \"timeStorageClassUpdated\": \"2025-10-02T22:21:33.207Z\",\n  \"timeFinalized\": \"2025-10-02T22:21:33.207Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CJW51sLGhpADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3I8l0SSueisv3VehzSZdHmbL8xs-S5k-m4CimrjXIvqHZno1q87qLCv7L5rICdt78TQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Oct 2025 22:21:33 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:21:33 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b523c333-8131-44ac-9547-2e93553dc9e4",
+  "persistent" : true,
+  "insertionIndex" : 932
+}

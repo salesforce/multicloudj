@@ -1,0 +1,28 @@
+{
+  "id" : "daec138a-f722-41f8-a041-de7093b0286b",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_bulkdeletebyversion_happy7",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy7?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy7\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy7\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3L6BKp2RR5_RYArrIXjkXXFmdFyrBqZGu5ilzaQ4e9zEYEMY0ZT_M9xv7C1ZodK25qJ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 22:20:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "daec138a-f722-41f8-a041-de7093b0286b",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-happy7",
+  "requiredScenarioState" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-happy7-3",
+  "insertionIndex" : 709
+}

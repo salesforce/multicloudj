@@ -772,4 +772,34 @@ class GcpTransformerTest {
         assertEquals(200L, response.get(1).getSizeInBytes());
         assertEquals("part-2-etag", response.get(1).getEtag());
     }
+
+    @Test
+    public void testComputeRange_ZeroFileSize() {
+        Pair<Long, Long> range = transformer.computeRange(0L, 0L, 0L);
+        assertEquals(0L, range.getLeft().longValue());
+        assertEquals(1L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_StartEqualsEnd() {
+        Pair<Long, Long> range = transformer.computeRange(5L, 5L, 100L);
+        assertEquals(5L, range.getLeft().longValue());
+        assertEquals(6L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_EndGreaterThanFileSize() {
+        Pair<Long, Long> range = transformer.computeRange(0L, 150L, 100L);
+        assertEquals(0L, range.getLeft().longValue());
+        assertEquals(151L, range.getRight().longValue());
+    }
+
+    @Test
+    public void testComputeRange_StartGreaterThanFileSize() {
+        // When start is greater than file size, should throw IllegalArgumentException
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            transformer.computeRange(150L, 200L, 100L);
+        });
+        assertEquals("Start of range cannot be greater than file size: 150", exception.getMessage());
+    }
 } 

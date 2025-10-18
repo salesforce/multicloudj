@@ -1,0 +1,30 @@
+{
+  "id" : "f9d2f2a0-9eef-4366-93e3-00af229ec9b7",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-failing_testinvalidcredentials",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-failing%2FtestInvalidCredentials?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 401,
+    "body" : "{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"Invalid Credentials\",\n    \"errors\": [\n      {\n        \"message\": \"Invalid Credentials\",\n        \"domain\": \"global\",\n        \"reason\": \"authError\",\n        \"locationType\": \"header\",\n        \"location\": \"Authorization\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "WWW-Authenticate" : "Bearer realm=\"https://accounts.google.com/\", error=invalid_token",
+      "X-GUploader-UploadID" : "AAwnv3JYZfcgSiI6cuP9-dKv_yYE-uYh7q2RxRZJo6YWV5t3M3Nmi0dqv7qoD02jlVna9MWXT9kX7CA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Oct 2025 21:56:40 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f9d2f2a0-9eef-4366-93e3-00af229ec9b7",
+  "persistent" : true,
+  "scenarioName" : "scenario-6-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-failing-testInvalidCredentials",
+  "requiredScenarioState" : "scenario-6-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-failing-testInvalidCredentials-7",
+  "newScenarioState" : "scenario-6-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-failing-testInvalidCredentials-8",
+  "insertionIndex" : 159
+}

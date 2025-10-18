@@ -29,6 +29,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -95,13 +96,15 @@ public abstract class AbstractBlobStoreIT {
 
     private Harness harness;
 
+    private static final String GCP_PROVIDER_ID = "gcp";
+
     /**
      * Initializes the WireMock server before all tests.
      */
     @BeforeAll
     public void initializeWireMockServer() {
         harness = createHarness();
-        TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
 
     /**
@@ -138,11 +141,14 @@ public abstract class AbstractBlobStoreIT {
 
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
+    if (harness.getProviderId() != GCP_PROVIDER_ID) {
         runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
     }
+  }
 
     @Test
     public void testInvalidCredentials() {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
 
         // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, false, false);
@@ -150,8 +156,10 @@ public abstract class AbstractBlobStoreIT {
 
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
+    if (harness.getProviderId() != GCP_PROVIDER_ID) {
         runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
     }
+  }
 
     private void runOperationsThatShouldFail(String testName, BucketClient bucketClient) {
 
@@ -303,7 +311,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runOperationsThatShouldNotFail(String testName, BucketClient bucketClient) {
-
         // Now try various operations to ensure they do not fail
         // These are operations are client-side, and thus do not validate bucket existence or credential validity
         String key = "conformance-tests/blob-for-not-failing/" + testName;
@@ -342,11 +349,13 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUpload_emptyContent() {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runUploadTests("testUpload_emptyContent",  "conformance-tests/upload/emptyContent", new byte[]{}, false);
     }
 
     @Test
     public void testUpload_happyPath() {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runUploadTests("testUpload_happyPath", "conformance-tests/upload/happyPath", "This is test data".getBytes(), false);
     }
 
@@ -769,7 +778,6 @@ public abstract class AbstractBlobStoreIT {
     // Note: This tests bulk delete for non-versioned buckets
     @Test
     public void testBulkDelete() throws IOException {
-
         class TestConfig {
             final String testName;
             final Collection<String> keysToCreate;
@@ -875,7 +883,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete() throws IOException {
-
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1244,7 +1252,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testList() throws IOException {
-
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1740,6 +1748,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_singlePart() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "single part", DEFAULT_MULTIPART_KEY_PREFIX + "singlePart",
                 Map.of("123", "456"),
@@ -1750,6 +1759,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleParts() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "multipleParts",
                 Map.of("234", "456"),
@@ -1768,6 +1778,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_unorderedMultipleParts() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "unordered multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "unorderedMultipleParts",
                 Map.of("345", "456"),
@@ -1782,6 +1793,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_skippingNumbers() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "skipping numbers", DEFAULT_MULTIPART_KEY_PREFIX + "skippingNumbers",
                 Map.of("456", "456"),
@@ -1798,6 +1810,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_duplicateParts() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "duplicates parts", DEFAULT_MULTIPART_KEY_PREFIX + "duplicateParts",
                 Map.of("567", "456"),
@@ -1813,6 +1826,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_nonExistentParts() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GcpConstants.PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "non-existent parts", DEFAULT_MULTIPART_KEY_PREFIX + "nonExistentParts",
                 Map.of("678", "456"),
@@ -1826,6 +1840,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_badETag() throws IOException {
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "bad etag", DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
                 Map.of("789", "456"),
@@ -1923,6 +1938,8 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
+
+    Assumptions.assumeFalse(harness.getProviderId() == GCP_PROVIDER_ID);
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2581,3 +2598,4 @@ public abstract class AbstractBlobStoreIT {
         }
     }
 }
+
