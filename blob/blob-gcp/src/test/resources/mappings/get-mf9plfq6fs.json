@@ -1,0 +1,25 @@
+{
+  "id" : "62f0b89c-c129-4477-99fd-ae033e095691",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&includeFoldersAsPrefixes=false&prefix=conformance-tests/delimiter-test-slash/dir1/subdir/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/delimiter-test-slash/dir1/subdir/c.txt/1761158282551670\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdelimiter-test-slash%2Fdir1%2Fsubdir%2Fc.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdelimiter-test-slash%2Fdir1%2Fsubdir%2Fc.txt?generation=1761158282551670&alt=media\",\n      \"name\": \"conformance-tests/delimiter-test-slash/dir1/subdir/c.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1761158282551670\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"22\",\n      \"md5Hash\": \"O5LMkN1qDQlQWn4Kd50Nww==\",\n      \"crc32c\": \"UlZUXQ==\",\n      \"etag\": \"CPbCzO65uJADEAE=\",\n      \"timeCreated\": \"2025-10-22T18:38:02.578Z\",\n      \"updated\": \"2025-10-22T18:38:02.578Z\",\n      \"timeStorageClassUpdated\": \"2025-10-22T18:38:02.578Z\",\n      \"timeFinalized\": \"2025-10-22T18:38:02.578Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/delimiter-test-slash/dir1/subdir/d.txt/1761158283450474\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdelimiter-test-slash%2Fdir1%2Fsubdir%2Fd.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdelimiter-test-slash%2Fdir1%2Fsubdir%2Fd.txt?generation=1761158283450474&alt=media\",\n      \"name\": \"conformance-tests/delimiter-test-slash/dir1/subdir/d.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1761158283450474\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"22\",\n      \"md5Hash\": \"O5LMkN1qDQlQWn4Kd50Nww==\",\n      \"crc32c\": \"UlZUXQ==\",\n      \"etag\": \"COqwg++5uJADEAE=\",\n      \"timeCreated\": \"2025-10-22T18:38:03.475Z\",\n      \"updated\": \"2025-10-22T18:38:03.475Z\",\n      \"timeStorageClassUpdated\": \"2025-10-22T18:38:03.475Z\",\n      \"timeFinalized\": \"2025-10-22T18:38:03.475Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AAwnv3JhRMKJQE0k8fY_qsDDkUxMTbzroz4-eDREnFvlrXlvKtWkSZI64M8eisf1IUZrz1bMfwez7oQDfrIK",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 22 Oct 2025 18:38:06 GMT",
+      "Date" : "Wed, 22 Oct 2025 18:38:06 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "62f0b89c-c129-4477-99fd-ae033e095691",
+  "persistent" : true,
+  "insertionIndex" : 330
+}

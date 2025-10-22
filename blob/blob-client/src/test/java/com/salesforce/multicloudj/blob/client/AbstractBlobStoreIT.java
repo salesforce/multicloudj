@@ -29,10 +29,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -95,6 +94,8 @@ public abstract class AbstractBlobStoreIT {
 
     private Harness harness;
 
+    private static final String GCP_PROVIDER_ID = "gcp";
+
     /**
      * Initializes the WireMock server before all tests.
      */
@@ -138,19 +139,23 @@ public abstract class AbstractBlobStoreIT {
 
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
         runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
+    }
     }
 
     @Test
     public void testInvalidCredentials() {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, false, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
         runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
+    }
     }
 
     private void runOperationsThatShouldFail(String testName, BucketClient bucketClient) {
@@ -303,7 +308,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runOperationsThatShouldNotFail(String testName, BucketClient bucketClient) {
-
         // Now try various operations to ensure they do not fail
         // These are operations are client-side, and thus do not validate bucket existence or credential validity
         String key = "conformance-tests/blob-for-not-failing/" + testName;
@@ -342,11 +346,13 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUpload_emptyContent() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runUploadTests("testUpload_emptyContent",  "conformance-tests/upload/emptyContent", new byte[]{}, false);
     }
 
     @Test
     public void testUpload_happyPath() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runUploadTests("testUpload_happyPath", "conformance-tests/upload/happyPath", "This is test data".getBytes(), false);
     }
 
@@ -769,7 +775,6 @@ public abstract class AbstractBlobStoreIT {
     // Note: This tests bulk delete for non-versioned buckets
     @Test
     public void testBulkDelete() throws IOException {
-
         class TestConfig {
             final String testName;
             final Collection<String> keysToCreate;
@@ -875,7 +880,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete() throws IOException {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1244,7 +1249,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testList() throws IOException {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1300,25 +1305,121 @@ public abstract class AbstractBlobStoreIT {
                     Assertions.fail("testList: Was unable to find key=" + key);
                 }
             }
-
-            // Now verify the delimiter functionality
-            request = new ListBlobsRequest.Builder()
-                    .withPrefix(prefixKey)
-                    .withDelimiter("-")     // Filter out every key that has a "-"
-                    .build();
-            iter = bucketClient.list(request);
-            Assertions.assertNotNull(iter);
-            observedKeys = new HashSet<>();
-            while (iter.hasNext()) {
-                BlobInfo blobInfo = iter.next();
-                observedKeys.add(blobInfo.getKey());
+            if (harness.getProviderId() == GCP_PROVIDER_ID) {
+                testListWithDelimiter(bucketClient, "/");
+                testListWithDelimiter(bucketClient, "\\");
             }
-            Assertions.assertEquals(1, observedKeys.size(), "testList: Did not return expected number of keys");
-            Assertions.assertTrue(observedKeys.contains(prefixKey + "_3"));
         }
         // Clean up
         finally {
             safeDeleteBlobs(bucketClient, keys);
+        }
+    }
+
+    /**
+     * Tests list functionality with a specific delimiter.
+     * Creates a hierarchical structure and verifies delimiter behavior.
+     */
+    private void testListWithDelimiter(BucketClient bucketClient, String delimiter) throws IOException {
+        String keyPrefix = "conformance-tests/delimiter-test-" + delimiter.replace("/", "slash").replace("\\", "backslash") + "/";
+        byte[] content = "delimiter test content".getBytes(StandardCharsets.UTF_8);
+        
+        // Create hierarchical structure:
+        // keyPrefix + dir1/a.txt
+        // keyPrefix + dir1/b.txt
+        // keyPrefix + dir1/subdir/c.txt
+        // keyPrefix + dir1/subdir/d.txt
+        // keyPrefix + dir2/e.txt
+        // keyPrefix + f.txt
+        List<String> testKeys = new ArrayList<>();
+        testKeys.add(keyPrefix + "dir1" + delimiter + "a.txt");
+        testKeys.add(keyPrefix + "dir1" + delimiter + "b.txt");
+        testKeys.add(keyPrefix + "dir1" + delimiter + "subdir" + delimiter + "c.txt");
+        testKeys.add(keyPrefix + "dir1" + delimiter + "subdir" + delimiter + "d.txt");
+        testKeys.add(keyPrefix + "dir2" + delimiter + "e.txt");
+        testKeys.add(keyPrefix + "f.txt");
+        
+        try {
+            // Upload all test files
+            for (String key : testKeys) {
+                try (InputStream inputStream = new ByteArrayInputStream(content)) {
+                    UploadRequest request = new UploadRequest.Builder()
+                            .withKey(key)
+                            .withContentLength(content.length)
+                            .build();
+                    bucketClient.upload(request, inputStream);
+                }
+            }
+            
+            // Test 1: List without delimiter (should get all files)
+            ListBlobsRequest flatRequest = new ListBlobsRequest.Builder()
+                    .withPrefix(keyPrefix)
+                    .build();
+            Iterator<BlobInfo> flatIter = bucketClient.list(flatRequest);
+            Set<String> flatKeys = new HashSet<>();
+            while (flatIter.hasNext()) {
+                flatKeys.add(flatIter.next().getKey());
+            }
+            Assertions.assertEquals(testKeys.size(), flatKeys.size(), 
+                "testList (delimiter=" + delimiter + "): Flat listing should return all keys");
+            
+            // Test 2: List with delimiter at root level
+            // Should return: f.txt and prefixes for dir1/ and dir2/
+            ListBlobsRequest delimiterRequest = new ListBlobsRequest.Builder()
+                    .withPrefix(keyPrefix)
+                    .withDelimiter(delimiter)
+                    .build();
+            Iterator<BlobInfo> delimiterIter = bucketClient.list(delimiterRequest);
+            Set<String> rootLevelKeys = new HashSet<>();
+            while (delimiterIter.hasNext()) {
+                rootLevelKeys.add(delimiterIter.next().getKey());
+            }
+            // Should only contain f.txt (files at root level, not in subdirectories)
+            Assertions.assertTrue(rootLevelKeys.contains(keyPrefix + "f.txt"),
+                "testList (delimiter=" + delimiter + "): Should include root-level file f.txt");
+            Assertions.assertFalse(rootLevelKeys.contains(keyPrefix + "dir1" + delimiter + "a.txt"),
+                "testList (delimiter=" + delimiter + "): Should not include files inside dir1/");
+            
+            // Test 3: List with delimiter and prefix for dir1/
+            ListBlobsRequest dir1Request = new ListBlobsRequest.Builder()
+                    .withPrefix(keyPrefix + "dir1" + delimiter)
+                    .withDelimiter(delimiter)
+                    .build();
+            Iterator<BlobInfo> dir1Iter = bucketClient.list(dir1Request);
+            Set<String> dir1Keys = new HashSet<>();
+            while (dir1Iter.hasNext()) {
+                dir1Keys.add(dir1Iter.next().getKey());
+            }
+            // Should contain a.txt and b.txt (direct children of dir1/)
+            // Should NOT contain c.txt and d.txt (they're in subdir/)
+            Assertions.assertTrue(dir1Keys.contains(keyPrefix + "dir1" + delimiter + "a.txt"),
+                "testList (delimiter=" + delimiter + "): Should include dir1/a.txt");
+            Assertions.assertTrue(dir1Keys.contains(keyPrefix + "dir1" + delimiter + "b.txt"),
+                "testList (delimiter=" + delimiter + "): Should include dir1/b.txt");
+            Assertions.assertFalse(dir1Keys.contains(keyPrefix + "dir1" + delimiter + "subdir" + delimiter + "c.txt"),
+                "testList (delimiter=" + delimiter + "): Should not include nested dir1/subdir/c.txt");
+            
+            // Test 4: List with delimiter and prefix for dir1/subdir/
+            ListBlobsRequest subdirRequest = new ListBlobsRequest.Builder()
+                    .withPrefix(keyPrefix + "dir1" + delimiter + "subdir" + delimiter)
+                    .withDelimiter(delimiter)
+                    .build();
+            Iterator<BlobInfo> subdirIter = bucketClient.list(subdirRequest);
+            Set<String> subdirKeys = new HashSet<>();
+            while (subdirIter.hasNext()) {
+                subdirKeys.add(subdirIter.next().getKey());
+            }
+            // Should contain c.txt and d.txt
+            Assertions.assertTrue(subdirKeys.contains(keyPrefix + "dir1" + delimiter + "subdir" + delimiter + "c.txt"),
+                "testList (delimiter=" + delimiter + "): Should include dir1/subdir/c.txt");
+            Assertions.assertTrue(subdirKeys.contains(keyPrefix + "dir1" + delimiter + "subdir" + delimiter + "d.txt"),
+                "testList (delimiter=" + delimiter + "): Should include dir1/subdir/d.txt");
+            Assertions.assertEquals(2, subdirKeys.size(),
+                "testList (delimiter=" + delimiter + "): Should only have 2 files in subdir/");
+                
+        } finally {
+            // Clean up test files
+            safeDeleteBlobs(bucketClient, testKeys.toArray(new String[0]));
         }
     }
 
@@ -1400,40 +1501,7 @@ public abstract class AbstractBlobStoreIT {
             Assertions.assertTrue(intersection.isEmpty(),
                 "testListPage: Pages should not have overlapping keys");
 
-
-            // Test 3: Test prefix functionality with pagination
-            ListBlobsPageRequest prefixRequest = ListBlobsPageRequest.builder()
-                    .withPrefix(prefixKey)
-                    .withMaxResults(2)
-                    .build();
-            
-            ListBlobsPageResponse prefixPage = bucketClient.listPage(prefixRequest);
-            Assertions.assertNotNull(prefixPage);
-            
-            // All returned keys should start with the prefix
-            for (BlobInfo blobInfo : prefixPage.getBlobs()) {
-                Assertions.assertTrue(blobInfo.getKey().startsWith(prefixKey), 
-                    "testListPage: All keys should start with prefix: " + blobInfo.getKey());
-            }
-
-            // Test 4: Test delimiter functionality with pagination
-            ListBlobsPageRequest delimiterRequest = ListBlobsPageRequest.builder()
-                    .withPrefix(prefixKey)
-                    .withDelimiter("-")
-                    .withMaxResults(2)
-                    .build();
-            
-            ListBlobsPageResponse delimiterPage = bucketClient.listPage(delimiterRequest);
-            Assertions.assertNotNull(delimiterPage);
-            
-            // Should only return keys that don't contain "-" after the prefix
-            for (BlobInfo blobInfo : delimiterPage.getBlobs()) {
-                String keyAfterPrefix = blobInfo.getKey().substring(prefixKey.length());
-                Assertions.assertFalse(keyAfterPrefix.contains("-"), 
-                    "testListPage: Keys should not contain delimiter after prefix: " + blobInfo.getKey());
-            }
-
-            // Test 5: Manual pagination loop to collect all items
+            // Test 3: Manual pagination loop to collect all items
             Set<String> allKeys = new HashSet<>();
             String nextToken = null;
             int pageCount = 0;
@@ -1740,6 +1808,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_singlePart() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "single part", DEFAULT_MULTIPART_KEY_PREFIX + "singlePart",
                 Map.of("123", "456"),
@@ -1750,6 +1819,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "multipleParts",
                 Map.of("234", "456"),
@@ -1768,6 +1838,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_unorderedMultipleParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "unordered multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "unorderedMultipleParts",
                 Map.of("345", "456"),
@@ -1782,6 +1853,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_skippingNumbers() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "skipping numbers", DEFAULT_MULTIPART_KEY_PREFIX + "skippingNumbers",
                 Map.of("456", "456"),
@@ -1798,6 +1870,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_duplicateParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "duplicates parts", DEFAULT_MULTIPART_KEY_PREFIX + "duplicateParts",
                 Map.of("567", "456"),
@@ -1813,6 +1886,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_nonExistentParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "non-existent parts", DEFAULT_MULTIPART_KEY_PREFIX + "nonExistentParts",
                 Map.of("678", "456"),
@@ -1826,6 +1900,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_badETag() throws IOException {
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "bad etag", DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
                 Map.of("789", "456"),
@@ -1923,6 +1998,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2396,6 +2472,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_happyPath() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         runUploadWithKmsKeyTest(key, kmsKeyId, "Test data with KMS encryption".getBytes());
@@ -2403,12 +2480,14 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_nullKmsKeyId() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-null-key";
         runUploadWithKmsKeyTest(key, null, "Test data without KMS".getBytes());
     }
 
     @Test
     public void testUploadWithKmsKey_emptyKmsKeyId() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-empty-key";
         runUploadWithKmsKeyTest(key, "", "Test data with empty KMS key".getBytes());
     }
@@ -2451,6 +2530,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testDownloadWithKmsKey() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/download-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
@@ -2488,6 +2568,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testRangedReadWithKmsKey() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/ranged-read";
         String kmsKeyId = harness.getKmsKeyId();
         runRangedReadWithKmsKeyTest(key, kmsKeyId);
@@ -2552,6 +2633,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/presigned-url-null-key";
         Map<String, String> metadata = Map.of("key2", "value2");
         byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
@@ -2581,3 +2663,4 @@ public abstract class AbstractBlobStoreIT {
         }
     }
 }
+

@@ -8,6 +8,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -80,6 +81,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -123,6 +125,9 @@ class GcpBlobStoreTest {
     @Mock
     private CopyWriter mockCopyWriter;
 
+    @Mock
+    private Bucket mockBucket;
+
     @TempDir
     Path tempDir;
 
@@ -136,6 +141,8 @@ class GcpBlobStoreTest {
                 .withBucket(TEST_BUCKET);
 
         when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(mockTransformer);
+        // Mock bucket validation to always succeed (lenient because not all tests validate bucket)
+        lenient().when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
         gcpBlobStore = new GcpBlobStore(builder, mockStorage);
     }
 
@@ -706,17 +713,22 @@ class GcpBlobStoreTest {
                 .withMaxResults(50)
                 .build();
 
-        List<Blob> mockBlobs = Arrays.asList(mockBlob, mockBlob);
+        Blob mockBlob1 = mock(Blob.class);
+        Blob mockBlob2 = mock(Blob.class);
+        when(mockBlob1.getName()).thenReturn("test-prefixfile1");
+        when(mockBlob1.getSize()).thenReturn(1024L);
+        when(mockBlob2.getName()).thenReturn("test-prefixfile2");
+        when(mockBlob2.getSize()).thenReturn(2048L);
+        
+        List<Blob> mockBlobs = Arrays.asList(mockBlob1, mockBlob2);
         Page mockPage = mock(Page.class);
         Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
         
         when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
         doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
-        when(mockPage.streamAll()).thenReturn(mockBlobs.stream());
+        when(mockPage.getValues()).thenReturn(mockBlobs);
         when(mockPage.hasNextPage()).thenReturn(true);
         when(mockPage.getNextPageToken()).thenReturn("next-page-token");
-        when(mockBlob.getName()).thenReturn("test-key-1", "test-key-2");
-        when(mockBlob.getSize()).thenReturn(1024L, 2048L);
 
         // When
         ListBlobsPageResponse response = gcpBlobStore.listPage(request);
@@ -728,9 +740,9 @@ class GcpBlobStoreTest {
         assertEquals("next-page-token", response.getNextPageToken());
         
         // Verify first and second blob
-        assertEquals("test-key-1", response.getBlobs().get(0).getKey());
+        assertEquals("test-prefixfile1", response.getBlobs().get(0).getKey());
         assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
-        assertEquals("test-key-2", response.getBlobs().get(1).getKey());
+        assertEquals("test-prefixfile2", response.getBlobs().get(1).getKey());
         assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
     }
 
@@ -743,9 +755,8 @@ class GcpBlobStoreTest {
         
         when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
         doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
-        when(mockPage.streamAll()).thenReturn(Collections.emptyList().stream());
+        when(mockPage.getValues()).thenReturn(Collections.emptyList());
         when(mockPage.hasNextPage()).thenReturn(false);
-        when(mockPage.getNextPageToken()).thenReturn(null);
 
         // When
         ListBlobsPageResponse response = gcpBlobStore.listPage(request);
@@ -766,17 +777,22 @@ class GcpBlobStoreTest {
                 .withMaxResults(2)
                 .build();
 
-        List<Blob> mockBlobs = Arrays.asList(mockBlob, mockBlob);
+        Blob mockBlob1 = mock(Blob.class);
+        Blob mockBlob2 = mock(Blob.class);
+        when(mockBlob1.getName()).thenReturn("test-prefixfile1");
+        when(mockBlob1.getSize()).thenReturn(1024L);
+        when(mockBlob2.getName()).thenReturn("test-prefixfile2");
+        when(mockBlob2.getSize()).thenReturn(2048L);
+        
+        List<Blob> mockBlobs = Arrays.asList(mockBlob1, mockBlob2);
         Page mockPage = mock(Page.class);
         Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
         
         when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
         doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
-        when(mockPage.streamAll()).thenReturn(mockBlobs.stream());
+        when(mockPage.getValues()).thenReturn(mockBlobs);
         when(mockPage.hasNextPage()).thenReturn(true);
         when(mockPage.getNextPageToken()).thenReturn("next-page-token");
-        when(mockBlob.getName()).thenReturn("test-key-1", "test-key-2");
-        when(mockBlob.getSize()).thenReturn(1024L, 2048L);
 
         // When
         ListBlobsPageResponse response = gcpBlobStore.listPage(request);
@@ -788,9 +804,9 @@ class GcpBlobStoreTest {
         assertEquals("next-page-token", response.getNextPageToken());
         
         // Verify first and second blob
-        assertEquals("test-key-1", response.getBlobs().get(0).getKey());
+        assertEquals("test-prefixfile1", response.getBlobs().get(0).getKey());
         assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
-        assertEquals("test-key-2", response.getBlobs().get(1).getKey());
+        assertEquals("test-prefixfile2", response.getBlobs().get(1).getKey());
         assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
     }
 

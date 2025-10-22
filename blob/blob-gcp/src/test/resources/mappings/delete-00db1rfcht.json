@@ -1,0 +1,26 @@
+{
+  "id" : "b6fae15b-5b12-4f4d-8add-cf8e3aa89dcb",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_presigneddownloadurls_nonexistingfile",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedDownloadUrls%2FnonExistingFile",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedDownloadUrls/nonExistingFile\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedDownloadUrls/nonExistingFile\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3IB9J1UnspUPGJdbdT2LAQH_k8B9prTsrbAXkr6eYrMhrZ2wKLNFSS5XoJnN9frF6yFNhh_hK9Uol2R",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Wed, 22 Oct 2025 18:39:02 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b6fae15b-5b12-4f4d-8add-cf8e3aa89dcb",
+  "persistent" : true,
+  "insertionIndex" : 508
+}

@@ -11,6 +11,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -18,6 +19,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -37,13 +39,13 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
-import com.salesforce.multicloudj.common.provider.Provider;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -61,13 +63,7 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -217,14 +213,17 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected void doDelete(String key, String versionId) {
+        validateBucketExists();
         storage.delete(transformer.toBlobId(key, versionId));
     }
 
     @Override
     protected void doDelete(Collection<BlobIdentifier> objects) {
+        validateBucketExists();
         List<BlobId> blobIds = objects.stream()
                 .map(obj -> transformer.toBlobId(obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
+
         storage.delete(blobIds);
     }
 
@@ -256,16 +255,16 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
 
         return new Iterator<>() {
-            private final Iterator<Blob> it = blobs.iterator();
+            private final Iterator<Blob> blobIterator = blobs.iterator();
 
             @Override
             public boolean hasNext() {
-                return it.hasNext();
+                return blobIterator.hasNext();
             }
 
             @Override
             public BlobInfo next() {
-                Blob blob = it.next();
+                Blob blob = blobIterator.next();
                 return BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
@@ -285,12 +284,13 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         // Use the Page API to get proper pagination support
         Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
 
-        List<BlobInfo> blobs = page.streamAll()
-                .map(blob -> BlobInfo.builder()
+        List<BlobInfo> blobs = new ArrayList<>();
+        for (Blob blob : page.getValues()) {
+            blobs.add(BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
-                        .build())
-                .collect(Collectors.toList());
+                    .build());
+        }
 
         return new ListBlobsPageResponse(
                 blobs,
@@ -301,7 +301,10 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
+        validateBucketExists();
+
         String uploadId = UUID.randomUUID().toString();
+
         return MultipartUpload.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
@@ -347,6 +350,22 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         Page<Blob> blobs = listMultipartParts(mpu);
         List<BlobId> blobIds = transformer.toBlobIdList(blobs);
         storage.delete(blobIds);
+    }
+
+    /**
+     * Validates that the bucket exists, throwing ResourceNotFoundException if not found.
+     *
+     * @throws ResourceNotFoundException if the bucket does not exist
+     */
+    private void validateBucketExists() {
+        try {
+            Bucket bucketObj = storage.get(bucket);
+            if (bucketObj == null) {
+                throw new ResourceNotFoundException("Bucket not found: " + bucket);
+            }
+        } catch (StorageException e) {
+            throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+        }
     }
 
     private Page<Blob> listMultipartParts(MultipartUpload mpu) {
