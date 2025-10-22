@@ -34,6 +34,7 @@
     </scm>
 
     <modules>
+        <module>iam</module>
         <module>blob</module>
         <module>docstore</module>
         <module>examples</module>
