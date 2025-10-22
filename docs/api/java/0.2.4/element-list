@@ -23,11 +23,6 @@ com.salesforce.multicloudj.docstore.client
 com.salesforce.multicloudj.docstore.driver
 com.salesforce.multicloudj.docstore.driver.codec
 com.salesforce.multicloudj.docstore.gcp
-com.salesforce.multicloudj.pubsub.batcher
-com.salesforce.multicloudj.pubsub.client
-com.salesforce.multicloudj.pubsub.driver
-com.salesforce.multicloudj.pubsub.driver.utils
-com.salesforce.multicloudj.pubsub.gcp
 com.salesforce.multicloudj.sts
 com.salesforce.multicloudj.sts.ali
 com.salesforce.multicloudj.sts.aws
