@@ -33,36 +33,33 @@ public class CreateOptionsTest {
     }
 
     @Test
-    public void testCreateOptionsBuilderWithPath() {
-        CreateOptions options = CreateOptions.builder()
+    public void testCreateOptionsBuilderIndividualFields() {
+        // Test path only
+        CreateOptions pathOptions = CreateOptions.builder()
             .path("/application/backend/")
             .build();
 
-        assertEquals("/application/backend/", options.getPath());
-        assertNull(options.getMaxSessionDuration());
-        assertNull(options.getPermissionBoundary());
-    }
+        assertEquals("/application/backend/", pathOptions.getPath());
+        assertNull(pathOptions.getMaxSessionDuration());
+        assertNull(pathOptions.getPermissionBoundary());
 
-    @Test
-    public void testCreateOptionsBuilderWithMaxSessionDuration() {
-        CreateOptions options = CreateOptions.builder()
+        // Test maxSessionDuration only
+        CreateOptions durationOptions = CreateOptions.builder()
             .maxSessionDuration(7200)
             .build();
 
-        assertNull(options.getPath());
-        assertEquals(Integer.valueOf(7200), options.getMaxSessionDuration());
-        assertNull(options.getPermissionBoundary());
-    }
+        assertNull(durationOptions.getPath());
+        assertEquals(Integer.valueOf(7200), durationOptions.getMaxSessionDuration());
+        assertNull(durationOptions.getPermissionBoundary());
 
-    @Test
-    public void testCreateOptionsBuilderWithPermissionBoundary() {
-        CreateOptions options = CreateOptions.builder()
+        // Test permissionBoundary only
+        CreateOptions boundaryOptions = CreateOptions.builder()
             .permissionBoundary("arn:aws:iam::123456789012:policy/DeveloperBoundary")
             .build();
 
-        assertNull(options.getPath());
-        assertNull(options.getMaxSessionDuration());
-        assertEquals("arn:aws:iam::123456789012:policy/DeveloperBoundary", options.getPermissionBoundary());
+        assertNull(boundaryOptions.getPath());
+        assertNull(boundaryOptions.getMaxSessionDuration());
+        assertEquals("arn:aws:iam::123456789012:policy/DeveloperBoundary", boundaryOptions.getPermissionBoundary());
     }
 
     @Test
@@ -86,41 +83,6 @@ public class CreateOptionsTest {
         assertEquals(Integer.valueOf(7200), commonOptions.getMaxSessionDuration());
     }
 
-    @Test
-    public void testCreateOptionsBuilderWithDifferentPaths() {
-        // Test root path
-        CreateOptions rootOptions = CreateOptions.builder()
-            .path("/")
-            .build();
-        assertEquals("/", rootOptions.getPath());
-
-        // Test nested path
-        CreateOptions nestedOptions = CreateOptions.builder()
-            .path("/division/team/service/")
-            .build();
-        assertEquals("/division/team/service/", nestedOptions.getPath());
-
-        // Test simple path
-        CreateOptions simpleOptions = CreateOptions.builder()
-            .path("/service-roles/")
-            .build();
-        assertEquals("/service-roles/", simpleOptions.getPath());
-    }
-
-    @Test
-    public void testCreateOptionsBuilderWithDifferentPermissionBoundaries() {
-        // Test AWS IAM policy ARN
-        CreateOptions awsOptions = CreateOptions.builder()
-            .permissionBoundary("arn:aws:iam::123456789012:policy/PowerUserBoundary")
-            .build();
-        assertEquals("arn:aws:iam::123456789012:policy/PowerUserBoundary", awsOptions.getPermissionBoundary());
-
-        // Test different policy name
-        CreateOptions devOptions = CreateOptions.builder()
-            .permissionBoundary("arn:aws:iam::987654321098:policy/DeveloperBoundary")
-            .build();
-        assertEquals("arn:aws:iam::987654321098:policy/DeveloperBoundary", devOptions.getPermissionBoundary());
-    }
 
     @Test
     public void testCreateOptionsBuilderComplexScenario() {
@@ -136,7 +98,7 @@ public class CreateOptionsTest {
     }
 
     @Test
-    public void testCreateOptionsEquality() {
+    public void testCreateOptionsEqualsAndHashCode() {
         CreateOptions options1 = CreateOptions.builder()
             .path("/test/")
             .maxSessionDuration(3600)
@@ -149,29 +111,69 @@ public class CreateOptionsTest {
             .permissionBoundary("arn:aws:iam::123456789012:policy/TestBoundary")
             .build();
 
-        CreateOptions options3 = CreateOptions.builder()
+        CreateOptions differentPath = CreateOptions.builder()
             .path("/different/")
             .maxSessionDuration(3600)
             .permissionBoundary("arn:aws:iam::123456789012:policy/TestBoundary")
             .build();
 
+        CreateOptions differentDuration = CreateOptions.builder()
+            .path("/test/")
+            .maxSessionDuration(7200)
+            .permissionBoundary("arn:aws:iam::123456789012:policy/TestBoundary")
+            .build();
+
+        CreateOptions nullOptions = CreateOptions.builder().build();
+        CreateOptions anotherNullOptions = CreateOptions.builder().build();
+
+        // Test equals
         assertEquals(options1, options2);
-        assertNotEquals(options1, options3);
+        assertEquals(options1, options1); // same object
+        assertNotEquals(options1, differentPath);
+        assertNotEquals(options1, differentDuration);
+        assertNotEquals(options1, null);
+        assertNotEquals(options1, "not create options");
+        assertEquals(nullOptions, anotherNullOptions);
+
+        // Test hashCode
         assertEquals(options1.hashCode(), options2.hashCode());
+        assertNotEquals(options1.hashCode(), differentPath.hashCode());
+        assertEquals(nullOptions.hashCode(), anotherNullOptions.hashCode());
     }
 
     @Test
     public void testCreateOptionsToString() {
+        // Test with all fields populated
         CreateOptions options = CreateOptions.builder()
             .path("/test/")
             .maxSessionDuration(7200)
             .permissionBoundary("arn:aws:iam::123456789012:policy/TestBoundary")
             .build();
 
-        String toString = options.toString();
-        assertTrue(toString.contains("path='/test/'"));
-        assertTrue(toString.contains("maxSessionDuration=7200"));
-        assertTrue(toString.contains("permissionBoundary='arn:aws:iam::123456789012:policy/TestBoundary'"));
+        String result = options.toString();
+        assertTrue(result.contains("path='/test/'"));
+        assertTrue(result.contains("maxSessionDuration=7200"));
+        assertTrue(result.contains("permissionBoundary='arn:aws:iam::123456789012:policy/TestBoundary'"));
+
+        // Test with null values
+        CreateOptions nullOptions = CreateOptions.builder().build();
+        String nullResult = nullOptions.toString();
+        assertTrue(nullResult.contains("CreateOptions"));
+        assertTrue(nullResult.contains("path='null'"));
+        assertTrue(nullResult.contains("maxSessionDuration=null"));
+        assertTrue(nullResult.contains("permissionBoundary='null'"));
+
+        // Test with partial values
+        CreateOptions partialOptions = CreateOptions.builder()
+            .path("/test/")
+            .maxSessionDuration(null)
+            .permissionBoundary("arn:aws:iam::123456789012:policy/TestBoundary")
+            .build();
+
+        String partialResult = partialOptions.toString();
+        assertTrue(partialResult.contains("path='/test/'"));
+        assertTrue(partialResult.contains("maxSessionDuration=null"));
+        assertTrue(partialResult.contains("permissionBoundary='arn:aws:iam::123456789012:policy/TestBoundary'"));
     }
 
     @Test
@@ -195,5 +197,22 @@ public class CreateOptionsTest {
         assertNull(options.getPath());
         assertNull(options.getMaxSessionDuration());
         assertNull(options.getPermissionBoundary());
+    }
+
+
+    @Test
+    public void testCreateOptionsBuilderOverwriteValues() {
+        CreateOptions options = CreateOptions.builder()
+            .path("/first/")
+            .path("/second/") // This should overwrite the first value
+            .maxSessionDuration(3600)
+            .maxSessionDuration(7200) // This should overwrite the first value
+            .permissionBoundary("arn:aws:iam::123456789012:policy/FirstBoundary")
+            .permissionBoundary("arn:aws:iam::123456789012:policy/SecondBoundary") // This should overwrite
+            .build();
+
+        assertEquals("/second/", options.getPath());
+        assertEquals(Integer.valueOf(7200), options.getMaxSessionDuration());
+        assertEquals("arn:aws:iam::123456789012:policy/SecondBoundary", options.getPermissionBoundary());
     }
 }
