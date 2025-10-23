@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
+import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -98,7 +99,7 @@ public class AwsTransformerTest {
                 .bucket(BUCKET)
                 .key(key)
                 .metadata(metadata)
-                .tagging("tag-key=tag-value")
+                .tagging(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build())
                 .build();
 
         assertEquals(expected, transformer.toRequest(request));
@@ -491,7 +492,7 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
         assertEquals("object-1", actualRequest.putObjectRequest().key());
         assertEquals(metadata, actualRequest.putObjectRequest().metadata());
-        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
+        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), actualRequest.putObjectRequest().tagging());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
     }
 
@@ -512,7 +513,7 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
         assertEquals("object-1", actualRequest.putObjectRequest().key());
         assertEquals(metadata, actualRequest.putObjectRequest().metadata());
-        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
+        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), actualRequest.putObjectRequest().tagging());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
         assertEquals("aws:kms", actualRequest.putObjectRequest().serverSideEncryptionAsString());
         assertEquals(kmsKeyId, actualRequest.putObjectRequest().ssekmsKeyId());
@@ -724,7 +725,7 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, result.bucket());
         assertEquals(key, result.key());
         assertEquals(metadata, result.metadata());
-        assertEquals("tag-key=tag-value", result.tagging());
+        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), result.tagging());
         assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD_IA, result.storageClass());
     }
 
@@ -857,7 +858,7 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, result.bucket());
         assertEquals(key, result.key());
         assertEquals(metadata, result.metadata());
-        assertEquals("tag-key=tag-value", result.tagging());
+        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), result.tagging());
         assertNull(result.storageClass());
     }   
 }
