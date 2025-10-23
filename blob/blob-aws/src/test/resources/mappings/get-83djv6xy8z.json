@@ -1,0 +1,23 @@
+{
+  "id" : "913b2531-3643-46d0-b6f8-a2b91016ef27",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=2&prefix=conformance-tests%2Fblob-for-list-page%2Fprefix",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page/prefix</Prefix><NextContinuationToken>1kaww1gsuCfI0pY+CBob0uRelcsv3gSlCZqzzklMDs2AXttNrNkaZoOgUKadXWKDlryPbWb+SQCdb2iIduR5hwWP/P1pU8wDo</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix-1</Key><LastModified>2025-10-16T04:12:41.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-2</Key><LastModified>2025-10-16T04:12:42.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3T4XXQ01MS96A2YE",
+      "x-amz-id-2" : "D5uiWINOqzzcQ1eP9d3DfwqBVNi7DDuW3iUEGezifTwJaSWhx8mN4P/otRRsS6uE8lgjwso1rZo=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 16 Oct 2025 04:12:45 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "913b2531-3643-46d0-b6f8-a2b91016ef27",
+  "persistent" : true,
+  "insertionIndex" : 546
+}

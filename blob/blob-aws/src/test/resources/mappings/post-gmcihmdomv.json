@@ -1,0 +1,26 @@
+{
+  "id" : "10224f5d-1048-4e81-8006-465ee4bbf5e2",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-multipleparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts?uploadId=iHkP3SPV6VULC19zT7nT4VVWWS8YtS.eFLX359lZjI4jn4xsUUgQEIvdI2jynSJjfHikqQAnyN9g0z6dke6rVzYBB24UKlGtOXyD9Bex54MvMOy6KnDsyWgjoXyCAQ7eZPa3zy7I8X6cJRhBtZULzkbvUw56lVKd98d55MkYL025_mQb.iJxnvzOtwTuFZVMc41tXaadLCM1nIankh8y8w--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-multipleParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag><ChecksumCRC64NVME>FsUGvKjF98M=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VBMWP8XWBV51GYY1",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "b5SIed4gIV1t0rzYQxTQW8B6SXVHM09F/8wNJqFtQzlp2bzpnbtz8HrkFZ1FlLP0oYWl9clZtfY=",
+      "Date" : "Thu, 16 Oct 2025 04:11:17 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "10224f5d-1048-4e81-8006-465ee4bbf5e2",
+  "persistent" : true,
+  "insertionIndex" : 346
+}

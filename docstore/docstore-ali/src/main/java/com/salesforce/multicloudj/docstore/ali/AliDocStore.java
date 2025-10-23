@@ -27,6 +27,7 @@ import com.alicloud.openservices.tablestore.model.RowExistenceExpectation;
 import com.alicloud.openservices.tablestore.model.RowPutChange;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
+import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -305,6 +306,26 @@ public class AliDocStore extends AbstractDocStore {
         );
     }
 
+    private Condition buildRevisionPrecondition(Document doc, String revField) {
+        Object object = doc.getField(revField);
+        if (object == null) {
+            return null;
+        }
+        if (!(object instanceof String)) {
+            throw new IllegalArgumentException(String.format("Invalid revision field %s type as %s, expect String type.", revField, object == null ? null : object.getClass().getName()));
+        }
+        String v = (String) doc.getField(revField);
+        if (v == null || v.isEmpty()) {
+            return null;
+        }
+
+        Condition condition = new Condition();
+        SingleColumnValueCondition singleColumnValueCondition = new SingleColumnValueCondition(revField,
+                SingleColumnValueCondition.CompareOperator.EQUAL, ColumnValue.fromString(v));
+        condition.setColumnCondition(singleColumnValueCondition);
+        return condition;
+    }
+
     private void buildPreCondition(Action a, RowPutChange rowPutChange) {
         switch (a.getKind()) {
             case ACTION_KIND_CREATE:
@@ -312,9 +333,20 @@ public class AliDocStore extends AbstractDocStore {
                 return;
             case ACTION_KIND_UPDATE:
             case ACTION_KIND_REPLACE:
-                rowPutChange.setCondition(new Condition(RowExistenceExpectation.EXPECT_EXIST));
+                Condition condition = buildRevisionPrecondition(a.getDocument(), getRevisionField());
+                rowPutChange.setCondition(Objects.requireNonNullElseGet(condition, () -> new Condition(RowExistenceExpectation.EXPECT_NOT_EXIST)));
+                return;
+            case ACTION_KIND_DELETE:
+            case ACTION_KIND_PUT:
+                // Precondition: the revision matches, if any.
+                rowPutChange.setCondition(buildRevisionPrecondition(a.getDocument(), getRevisionField()));
+                return;
+            case ACTION_KIND_GET:
+                // No preconditions on a Get.
+                return;
+            default:
+                throw new IllegalArgumentException("Invalid action kind: " + a.getKind());
         }
-
     }
 
     protected void runPut(RowPutChange put, Action action, Consumer<Predicate<Object>> beforeDo) {

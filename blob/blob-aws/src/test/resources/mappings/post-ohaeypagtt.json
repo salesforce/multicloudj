@@ -1,0 +1,26 @@
+{
+  "id" : "5092fc87-465e-4ad6-b507-1c6088ee75f4",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-duplicateparts",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts?uploadId=EQO8rRH6TnzofHiMw8qJTQXTA8.D3UtuJXmFMIMRhqtedjOxHRajR3pbWjs2Jwal23.M.bIcJU6nTbBqb7C51S1BWUBOb39g7vCt_x22__s06HufCwoQtcrGFVCedreZgXQJY8kiSbSj3dkcBjGP58LLRDSKSgiWE047fY0C2xDCmxWg6e0Vf.7D9COMIXYgCmJePHZ2WXCkgFtg4J9rSA--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>3</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-duplicateParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><ETag>\"24b97d17bef4abbe4769ada99ebf91c9-2\"</ETag><ChecksumCRC64NVME>r1lraKgRakQ=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "MS49Z5MN79E2EQC2",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "VIu8gASkoiwRzrAnCBZHxF76RQ48uVHWD0YPdb5JoBf1s/LLcunNXhWgbIKK6zEU5IdqCLaJ1Ng=",
+      "Date" : "Thu, 16 Oct 2025 04:11:29 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5092fc87-465e-4ad6-b507-1c6088ee75f4",
+  "persistent" : true,
+  "insertionIndex" : 368
+}

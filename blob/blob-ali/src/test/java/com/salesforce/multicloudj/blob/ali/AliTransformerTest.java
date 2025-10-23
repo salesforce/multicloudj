@@ -39,6 +39,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -81,6 +82,46 @@ public class AliTransformerTest {
         assertEquals(metadata, actual.getMetadata().getUserMetadata());
         assertEquals("tag-key=tag-value", actual.getMetadata().getRawMetadata().get("x-oss-tagging"));
         assertEquals(file, actual.getFile());
+    }
+
+    @Test
+    void testToPutObjectRequestWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var kmsKeyId = "alias/my-kms-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actual.getMetadata().getServerSideEncryption());
+    }
+
+    @Test
+    void testToPutObjectRequestWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertNull(actual.getMetadata().getServerSideEncryption());
     }
 
     @Test
@@ -460,6 +501,54 @@ public class AliTransformerTest {
         assertEquals("object-1", actual.getKey());
         Map<String,String> headers = actual.getHeaders();
         assertEquals("tag-1=tag-value-1", headers.get(OSSHeaders.OSS_TAGGING));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
+    void testToPresignedUrlUploadRequestWithKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "alias/my-kms-key";
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .kmsKeyId(kmsKeyId)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertEquals(kmsKeyId, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
+    void testToPresignedUrlUploadRequestWithoutKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
         assertEquals("value-1", actual.getUserMetadata().get("key-1"));
         assertNotNull(actual.getExpiration());
     }

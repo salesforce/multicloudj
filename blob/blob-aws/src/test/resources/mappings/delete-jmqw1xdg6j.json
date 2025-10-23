@@ -1,0 +1,20 @@
+{
+  "id" : "f700e42e-0ee3-4a66-9be1-34ca48be6104",
+  "name" : "chameleon-jcloud_conformance-tests_clobbered-blob",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/clobbered-blob",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "9J08QCGK3S2SQ9F4",
+      "x-amz-id-2" : "6M9kvPwq94Umn+h1T53God6b2F0KHmQmcQtg3M/wVZSGxxU5S0MtWjhhHZoUMS/5vxVHA91lLzs=",
+      "Date" : "Thu, 16 Oct 2025 04:09:42 GMT"
+    }
+  },
+  "uuid" : "f700e42e-0ee3-4a66-9be1-34ca48be6104",
+  "persistent" : true,
+  "insertionIndex" : 138
+}

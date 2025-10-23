@@ -35,6 +35,10 @@ public class UploadRequest {
      * (Optional parameter) The storage class for the blob (e.g., STANDARD, NEARLINE, COLDLINE, ARCHIVE for GCP)
      */
     private final String storageClass;
+    /**
+     * (Optional parameter) The KMS key ID or ARN to use for server-side encryption
+     */
+    private final String kmsKeyId;
 
     private UploadRequest(Builder builder) {
         this.key = builder.key;
@@ -42,6 +46,7 @@ public class UploadRequest {
         this.metadata = builder.metadata;
         this.tags = builder.tags;
         this.storageClass = builder.storageClass;
+        this.kmsKeyId = builder.kmsKeyId;
     }
 
     public Map<String, String> getMetadata() {
@@ -62,6 +67,7 @@ public class UploadRequest {
         private Map<String, String> metadata = Collections.emptyMap();
         private Map<String, String> tags = Collections.emptyMap();
         private String storageClass;
+        private String kmsKeyId;
 
         public Builder withKey(String key) {
             this.key = key;
@@ -85,6 +91,11 @@ public class UploadRequest {
 
         public Builder withStorageClass(String storageClass) {
             this.storageClass = storageClass;
+            return this;
+        }
+
+        public Builder withKmsKeyId(String kmsKeyId) {
+            this.kmsKeyId = kmsKeyId;
             return this;
         }
 

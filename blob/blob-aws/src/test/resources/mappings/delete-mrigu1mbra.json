@@ -1,0 +1,22 @@
+{
+  "id" : "daa640a2-1910-407c-8572-773d271dc32b",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_bulkdeletebyversion_happy1",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy1",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "HQGGJXB68BP6NZ5C",
+      "x-amz-id-2" : "bmHL4saVhsy7jLdhisJzvKcVTWgXA6Ot7mchmiYXUoGSp86UhnGKTOhMVTLxcawlmI73e9kf+Qs=",
+      "x-amz-version-id" : "RKyo7A1yIc4RTBUPPk9E7Gbsd0bUy1oH",
+      "Date" : "Thu, 16 Oct 2025 04:09:04 GMT"
+    }
+  },
+  "uuid" : "daa640a2-1910-407c-8572-773d271dc32b",
+  "persistent" : true,
+  "insertionIndex" : 60
+}

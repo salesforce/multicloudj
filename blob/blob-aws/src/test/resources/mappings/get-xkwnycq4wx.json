@@ -1,0 +1,23 @@
+{
+  "id" : "51e06e11-cffa-44bb-8e52-a2efadb97076",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&max-keys=3&prefix=conformance-tests%2Fblob-for-list-page",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><NextContinuationToken>1lzb3BbXmCco4IIyrqoay755KYAR59odXsLocfZesYEy4TvuBcYbBR7/rLJUzbd3GFXzitPeWOKglbrgpzHw1uHJY+mIC267i</NextContinuationToken><KeyCount>3</KeyCount><MaxKeys>3</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page</Key><LastModified>2025-10-16T04:12:40.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-1</Key><LastModified>2025-10-16T04:12:41.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-2</Key><LastModified>2025-10-16T04:12:42.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PH23NV984HBGVFHX",
+      "x-amz-id-2" : "ooVwwad73CvocvAOMcGYcjqb3pnep2NBQI+IaiZNVaIFrfksNC5HZLjnJF7MFk2tFcgoR52B5jc=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 16 Oct 2025 04:12:44 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "51e06e11-cffa-44bb-8e52-a2efadb97076",
+  "persistent" : true,
+  "insertionIndex" : 548
+}

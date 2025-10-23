@@ -1,0 +1,25 @@
+{
+  "id" : "93447ada-d3ca-426b-acc2-5aab8dd262e0",
+  "name" : "chameleon-jcloud-versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned?delete",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/happy7</Key><VersionId>xdPTVulGBbaguSSDBD3jKoXB2PLWbB9i</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy7</Key><VersionId>xdPTVulGBbaguSSDBD3jKoXB2PLWbB9i</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy8</Key><VersionId>6SOb1PAsy2QBxU8mmfVj9aj9NAOpD4nG</VersionId></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/happy8</Key><VersionId>6SOb1PAsy2QBxU8mmfVj9aj9NAOpD4nG</VersionId></Deleted><Deleted><Key>conformance-tests/bulkDeleteByVersion/happy7</Key><VersionId>xdPTVulGBbaguSSDBD3jKoXB2PLWbB9i</VersionId></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "FNRTP56T05BEW509",
+      "x-amz-id-2" : "iwKAoUBk8Kt8AneGH8p5jgAJ3WKDpAt7ib7+PUhSWRVpSTp9d/3HaTYNPUP2BAmPq9bLZe6xVxE=",
+      "Date" : "Thu, 16 Oct 2025 04:11:43 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "93447ada-d3ca-426b-acc2-5aab8dd262e0",
+  "persistent" : true,
+  "insertionIndex" : 409
+}

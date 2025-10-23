@@ -11,6 +11,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -44,12 +45,13 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
-import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -69,6 +71,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +107,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-        try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest));
+        try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest), transformer.getKmsWriteOptions(uploadRequest));
              var channel = Channels.newOutputStream(writer)) {
             ByteStreams.copy(inputStream, channel);
         } catch (IOException e) {
@@ -119,7 +122,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-        Blob blob = storage.create(transformer.toBlobInfo(uploadRequest), content);
+        Blob blob = storage.create(transformer.toBlobInfo(uploadRequest), content, transformer.getKmsTargetOptions(uploadRequest));
         return transformer.toUploadResponse(blob);
     }
 
@@ -131,7 +134,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
         try {
-            Blob blob = storage.createFrom(transformer.toBlobInfo(uploadRequest), path);
+            Blob blob = storage.createFrom(transformer.toBlobInfo(uploadRequest), path, transformer.getKmsWriteOptions(uploadRequest));
             return transformer.toUploadResponse(blob);
         } catch (IOException e) {
             throw new SubstrateSdkException("Request failed while uploading from path", e);
@@ -223,14 +226,17 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected void doDelete(String key, String versionId) {
+        validateBucketExists();
         storage.delete(transformer.toBlobId(bucket, key, versionId));
     }
 
     @Override
     protected void doDelete(Collection<BlobIdentifier> objects) {
+        validateBucketExists();
         List<BlobId> blobIds = objects.stream()
                 .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
+
         storage.delete(blobIds);
     }
 
@@ -262,16 +268,16 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
 
         return new Iterator<>() {
-            private final Iterator<Blob> it = blobs.iterator();
+            private final Iterator<Blob> blobIterator = blobs.iterator();
 
             @Override
             public boolean hasNext() {
-                return it.hasNext();
+                return blobIterator.hasNext();
             }
 
             @Override
             public BlobInfo next() {
-                Blob blob = it.next();
+                Blob blob = blobIterator.next();
                 return BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
@@ -291,12 +297,13 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         // Use the Page API to get proper pagination support
         Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
 
-        List<BlobInfo> blobs = page.streamAll()
-                .map(blob -> BlobInfo.builder()
-                        .withKey(blob.getName())
-                        .withObjectSize(blob.getSize())
-                        .build())
-                .collect(Collectors.toList());
+        List<BlobInfo> blobs = new ArrayList<>();
+        for (Blob blob : page.getValues()) {
+            blobs.add(BlobInfo.builder()
+                            .withKey(blob.getName())
+                            .withObjectSize(blob.getSize())
+                            .build());
+        }
 
         return new ListBlobsPageResponse(
                 blobs,
@@ -307,7 +314,10 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
+        validateBucketExists();
+
         String uploadId = UUID.randomUUID().toString();
+
         return MultipartUpload.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
@@ -355,6 +365,22 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         storage.delete(blobIds);
     }
 
+    /**
+     * Validates that the bucket exists, throwing ResourceNotFoundException if not found.
+     *
+     * @throws ResourceNotFoundException if the bucket does not exist
+     */
+    private void validateBucketExists() {
+        try {
+            Bucket bucketObj = storage.get(bucket);
+            if (bucketObj == null) {
+                throw new ResourceNotFoundException("Bucket not found: " + bucket);
+            }
+        } catch (StorageException e) {
+            throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+        }
+    }
+
     private Page<Blob> listMultipartParts(MultipartUpload mpu) {
         return storage.list(getBucket(), Storage.BlobListOption.prefix(mpu.getKey() + "/" + mpu.getId() + "/part-"));
     }
@@ -381,11 +407,21 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 httpMethod = HttpMethod.GET;
                 break;
         }
+        List<Storage.SignUrlOption> options = new ArrayList<>();
+        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
+        options.add(Storage.SignUrlOption.withV4Signature());
+
+        // Add KMS encryption header if specified
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            Map<String, String> extHeaders = new HashMap<>();
+            extHeaders.put("x-goog-encryption-kms-key-name", request.getKmsKeyId());
+            options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+        }
+
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                Storage.SignUrlOption.httpMethod(httpMethod),
-                Storage.SignUrlOption.withV4Signature());
+                options.toArray(new Storage.SignUrlOption[0]));
     }
 
     @Override

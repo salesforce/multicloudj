@@ -31,6 +31,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private Boolean parallelDownloadsEnabled;
     private Double targetThroughputInGbps;
     private Long maxNativeMemoryLimitInBytes;
+    private Long initialReadBufferSizeInBytes;
+    private Integer maxConcurrency;
+    private Integer transferManagerThreadPoolSize;
+    private Integer transferDirectoryMaxConcurrency;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -206,6 +210,46 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
      */
     public BlobStoreBuilder<T> withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
         this.maxNativeMemoryLimitInBytes = maxNativeMemoryLimitInBytes;
+        return this;
+    }
+
+    /**
+     * Method to set initial read buffer size in bytes
+     * @param initialReadBufferSizeInBytes The initial read buffer size in bytes
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withInitialReadBufferSizeInBytes(Long initialReadBufferSizeInBytes) {
+        this.initialReadBufferSizeInBytes = initialReadBufferSizeInBytes;
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency
+     * @param maxConcurrency The maximum number of concurrent operations
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withMaxConcurrency(Integer maxConcurrency) {
+        this.maxConcurrency = maxConcurrency;
+        return this;
+    }
+
+    /**
+     * Method to set transfer manager thread pool size
+     * @param transferManagerThreadPoolSize The number of threads in the transfer manager thread pool
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withTransferManagerThreadPoolSize(Integer transferManagerThreadPoolSize) {
+        this.transferManagerThreadPoolSize = transferManagerThreadPoolSize;
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+     * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during directory operations
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
+        this.transferDirectoryMaxConcurrency = transferDirectoryMaxConcurrency;
         return this;
     }
 

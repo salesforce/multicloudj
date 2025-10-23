@@ -76,7 +76,6 @@ public abstract class AbstractBlobClientIT {
         TestsUtil.stopWireMockRecording();
     }
 
-
     @Test
     public void testListBuckets() {
 

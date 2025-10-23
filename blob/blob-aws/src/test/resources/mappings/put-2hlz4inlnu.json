@@ -1,0 +1,27 @@
+{
+  "id" : "b9ab8b8b-ad2f-4ab5-bef3-7018c048b02c",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-copying",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-copying",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "UGxlYXNlIGNvcHkgdGhpcyBkYXRhIQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
+      "x-amz-checksum-crc64nvme" : "p4GJSOlB5kg=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "DD04E88Y49GZFT7N",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "Y6XWtdBm9QEJXGUxeZbyUtn8OeL09DI+bkxY6nyRBMXh3toM2CPaAXLDA4/fHcATVdL1D/V98KY=",
+      "Date" : "Thu, 16 Oct 2025 04:09:36 GMT"
+    }
+  },
+  "uuid" : "b9ab8b8b-ad2f-4ab5-bef3-7018c048b02c",
+  "persistent" : true,
+  "insertionIndex" : 153
+}

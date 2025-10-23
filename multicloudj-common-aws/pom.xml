@@ -59,7 +59,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>auth</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-core</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -81,7 +81,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>regions</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -92,7 +92,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -103,7 +103,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3-transfer-manager</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -114,7 +114,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sdk-core</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -125,7 +125,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -292,7 +292,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>annotations</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -303,7 +303,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -314,7 +314,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>arns</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -325,7 +325,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-query-protocol</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -336,7 +336,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-xml-protocol</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -347,7 +347,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>checksums</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -358,7 +358,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>checksums-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -369,7 +369,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>crt-core</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -380,7 +380,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>endpoints-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -391,7 +391,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -402,7 +402,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-aws</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -413,7 +413,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -424,7 +424,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-client-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -435,7 +435,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>identity-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -446,7 +446,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>json-utils</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -457,7 +457,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>metrics-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -468,7 +468,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>netty-nio-client</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -479,7 +479,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>profiles</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -490,7 +490,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>protocol-core</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -501,7 +501,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>retries</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -512,7 +512,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>retries-spi</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -523,7 +523,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>third-party-jackson-core</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -534,7 +534,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>utils</artifactId>
-            <version>2.29.47</version>
+            <version>2.35.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>

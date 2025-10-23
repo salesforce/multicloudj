@@ -190,6 +190,98 @@ class GcpTransformerTest {
     }
 
     @Test
+    void testGetKmsTargetOptions_WithKmsKey() {
+        // Given
+        String kmsKeyId = "projects/my-project/locations/us-east1/keyRings/my-ring/cryptoKeys/my-key";
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        // When
+        Storage.BlobTargetOption[] options = transformer.getKmsTargetOptions(uploadRequest);
+
+        // Then
+        assertEquals(1, options.length);
+        assertEquals(Storage.BlobTargetOption.kmsKeyName(kmsKeyId), options[0]);
+    }
+
+    @Test
+    void testGetKmsTargetOptions_WithoutKmsKey() {
+        // Given
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        // When
+        Storage.BlobTargetOption[] options = transformer.getKmsTargetOptions(uploadRequest);
+
+        // Then
+        assertEquals(0, options.length);
+    }
+
+    @Test
+    void testGetKmsTargetOptions_WithEmptyKmsKey() {
+        // Given
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId("")
+                .build();
+
+        // When
+        Storage.BlobTargetOption[] options = transformer.getKmsTargetOptions(uploadRequest);
+
+        // Then
+        assertEquals(0, options.length);
+    }
+
+    @Test
+    void testGetKmsWriteOptions_WithKmsKey() {
+        // Given
+        String kmsKeyId = "projects/my-project/locations/us-east1/keyRings/my-ring/cryptoKeys/my-key";
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        // When
+        Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+
+        // Then
+        assertEquals(1, options.length);
+        assertEquals(Storage.BlobWriteOption.kmsKeyName(kmsKeyId), options[0]);
+    }
+
+    @Test
+    void testGetKmsWriteOptions_WithoutKmsKey() {
+        // Given
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        // When
+        Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+
+        // Then
+        assertEquals(0, options.length);
+    }
+
+    @Test
+    void testGetKmsWriteOptions_WithEmptyKmsKey() {
+        // Given
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId("")
+                .build();
+
+        // When
+        Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+
+        // Then
+        assertEquals(0, options.length);
+    }
+
+    @Test
     void testToUploadResponse_WithAllFields() {
         // Given
         when(mockBlob.getName()).thenReturn(TEST_KEY);
@@ -1153,5 +1245,11 @@ class GcpTransformerTest {
         assertEquals(key, result.getName());
         assertEquals(metadata, result.getMetadata());
         assertNull(result.getStorageClass());
+
+        // When start is greater than file size, should throw IllegalArgumentException
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            transformer.computeRange(150L, 200L, 100L);
+        });
+        assertEquals("Start of range cannot be greater than file size: 150", exception.getMessage());
     }
 } 

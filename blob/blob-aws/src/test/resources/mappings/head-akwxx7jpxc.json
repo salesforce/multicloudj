@@ -1,0 +1,28 @@
+{
+  "id" : "a6aae607-ae83-4274-ab6a-b61632628657",
+  "name" : "chameleon-jcloud_conformance-tests_doesblobexist_unversioned",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/doesBlobExist/unversioned",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"c0a508abb648ff06209f605c1839820f\"",
+      "Last-Modified" : "Thu, 16 Oct 2025 04:09:09 GMT",
+      "x-amz-request-id" : "12B1ZYYYWB8HS350",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "O9lOpIdUueVFY1DL5YwLJyEuGUVRJyI5PGlfyQIQdCzEat0LDJBF4dyQT7mv3SYFWkt9cJxaFO8=",
+      "Date" : "Thu, 16 Oct 2025 04:09:10 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "a6aae607-ae83-4274-ab6a-b61632628657",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned-2",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned-3",
+  "insertionIndex" : 76
+}

@@ -105,6 +105,50 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testUploadWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+        var kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertEquals("aws:kms", actual.serverSideEncryptionAsString());
+        assertEquals(kmsKeyId, actual.ssekmsKeyId());
+    }
+
+    @Test
+    void testUploadWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertNull(actual.serverSideEncryptionAsString());
+        assertNull(actual.ssekmsKeyId());
+    }
+
+    @Test
     void testListBlobsBatch() {
         var prefixes = Arrays.asList("some/prefix", "some/other/prefix");
         var awsPrefixes = prefixes
@@ -449,6 +493,46 @@ public class AwsTransformerTest {
         assertEquals(metadata, actualRequest.putObjectRequest().metadata());
         assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    }
+
+    @Test
+    void testToPutObjectPresignRequestWithKmsKey() {
+        Map<String, String> metadata = Map.of("some-key", "some-value");
+        Map<String, String> tags = Map.of("tag-key", "tag-value");
+        String kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .metadata(metadata)
+                .tags(tags)
+                .kmsKeyId(kmsKeyId)
+                .build();
+        PutObjectPresignRequest actualRequest = transformer.toPutObjectPresignRequest(presignedUrlRequest);
+        assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
+        assertEquals("object-1", actualRequest.putObjectRequest().key());
+        assertEquals(metadata, actualRequest.putObjectRequest().metadata());
+        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
+        assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+        assertEquals("aws:kms", actualRequest.putObjectRequest().serverSideEncryptionAsString());
+        assertEquals(kmsKeyId, actualRequest.putObjectRequest().ssekmsKeyId());
+    }
+
+    @Test
+    void testToPutObjectPresignRequestWithoutKmsKey() {
+        Map<String, String> metadata = Map.of("some-key", "some-value");
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .metadata(metadata)
+                .build();
+        PutObjectPresignRequest actualRequest = transformer.toPutObjectPresignRequest(presignedUrlRequest);
+        assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
+        assertEquals("object-1", actualRequest.putObjectRequest().key());
+        assertEquals(metadata, actualRequest.putObjectRequest().metadata());
+        assertNull(actualRequest.putObjectRequest().serverSideEncryptionAsString());
+        assertNull(actualRequest.putObjectRequest().ssekmsKeyId());
     }
 
     @Test

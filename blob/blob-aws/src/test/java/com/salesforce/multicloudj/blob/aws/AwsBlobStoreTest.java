@@ -34,6 +34,7 @@ import org.mockito.MockedStatic;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -105,7 +106,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -114,8 +114,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import software.amazon.awssdk.core.ResponseInputStream;
 
 public class AwsBlobStoreTest {
 
@@ -318,7 +316,7 @@ public class AwsBlobStoreTest {
         return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").withRange(10L, 110L).build();
     }
 
-    private void setupMockGetObjectResponse(Instant now) {
+    private void setupMockGetObjectResponse(Instant now, Boolean getBytes) {
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
         GetObjectResponse getObjectResponse = mock(GetObjectResponse.class);
         doReturn("version-1").when(getObjectResponse).versionId();
@@ -326,13 +324,18 @@ public class AwsBlobStoreTest {
         doReturn(now).when(getObjectResponse).lastModified();
         doReturn(metadataMap).when(getObjectResponse).metadata();
         doReturn(100L).when(getObjectResponse).contentLength();
-        doReturn(getObjectResponse).when(mockS3Client).getObject(any(GetObjectRequest.class), (ResponseTransformer<GetObjectResponse, Object>) any());
 
         ResponseBytes<GetObjectResponse> responseBytes = mock(ResponseBytes.class);
         doReturn("downloadedData".getBytes()).when(responseBytes).asByteArray();
-        doReturn(responseBytes).when(mockS3Client).getObject(any(GetObjectRequest.class), eq(ResponseTransformer.toBytes()));
         doReturn(getObjectResponse).when(responseBytes).response();
 
+        if (getBytes) {
+            // For toBytes transformer, return ResponseBytes
+            doReturn(responseBytes).when(mockS3Client).getObject(any(GetObjectRequest.class), ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any());
+        } else {
+            // For other transformers (toOutputStream, toFile, etc.), return GetObjectResponse
+            doReturn(getObjectResponse).when(mockS3Client).getObject(any(GetObjectRequest.class), ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any());
+        }
 
         ResponseInputStream<GetObjectResponse> responseInputStream = mock(ResponseInputStream.class);
         try {
@@ -348,7 +351,7 @@ public class AwsBlobStoreTest {
     void testDoDownloadOutputStream() {
         OutputStream mockContent = mock(OutputStream.class);
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         DownloadResponse response = aws.doDownload(buildTestDownloadRequest(), mockContent);
         verifyDownloadTestResults(response, now, true);
     }
@@ -357,7 +360,7 @@ public class AwsBlobStoreTest {
     void testDoDownloadByteArrayWrapper() {
         ByteArray byteArray = new ByteArray();
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, true);
         verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), byteArray), now, true);
         assertEquals("downloadedData", new String(byteArray.getBytes()));
     }
@@ -365,7 +368,7 @@ public class AwsBlobStoreTest {
     @Test
     void testDoDownloadFile() {
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         Path path = Path.of("tempFile.txt");
         try {
             Files.deleteIfExists(path);
@@ -384,7 +387,7 @@ public class AwsBlobStoreTest {
     @Test
     void testDoDownloadPath() {
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         Path path = Path.of("tempPath.txt");
         try {
             Files.deleteIfExists(path);
@@ -403,7 +406,7 @@ public class AwsBlobStoreTest {
     @Test
     void testDoDownloadInputStream() {
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         DownloadResponse response = aws.download(buildTestDownloadRequest());
         verifyDownloadTestResults(response, now, false);
         try {
