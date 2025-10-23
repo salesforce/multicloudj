@@ -171,6 +171,34 @@ public class BlobStoreValidator {
         validateBucket(request.getDestBucket());
     }
 
+        /**
+     * Validates the input request. This validates that the request is not null
+     * and that the local source directory is not null or empty.
+     * @param request the request to inspect.
+     */
+    public void validate(DirectoryUploadRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("DirectoryUploadRequest cannot be null");
+        }
+        if (request.getLocalSourceDirectory() == null || request.getLocalSourceDirectory().trim().isEmpty()) {
+            throw new IllegalArgumentException("Local source directory cannot be null or empty");
+        }
+    }
+
+    /**
+     * Validates the input request. This validates that the request is not null
+     * and that the local destination directory is not null or empty.
+     * @param request the request to inspect.
+     */
+    public void validate(DirectoryDownloadRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("DirectoryDownloadRequest cannot be null");
+        }
+        if (request.getLocalDestinationDirectory() == null || request.getLocalDestinationDirectory().trim().isEmpty()) {
+            throw new IllegalArgumentException("Local destination directory cannot be null or empty");
+        }
+    }
+
     /**
      * Validates the input key. This is identical to calling {@code validateKey(key)}
      * @param key the key to inspect.
