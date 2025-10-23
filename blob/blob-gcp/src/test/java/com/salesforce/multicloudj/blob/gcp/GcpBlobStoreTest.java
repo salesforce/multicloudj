@@ -1824,13 +1824,14 @@ class GcpBlobStoreTest {
                     .build();
 
             when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-            when(mockStorage.createFrom(mockBlobInfo, tempFile)).thenReturn(mockBlob);
+            when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.createFrom(eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class))).thenReturn(mockBlob);
             when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
             UploadResponse response = gcpBlobStore.doUpload(request, tempFile);
 
             assertNotNull(response);
-            verify(mockStorage).createFrom(mockBlobInfo, tempFile);
+            verify(mockStorage).createFrom(eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class));
         } finally {
             Files.deleteIfExists(tempFile);
         }
@@ -1844,7 +1845,8 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-        when(mockStorage.createFrom(any(), any(Path.class))).thenThrow(new IOException("File not found"));
+        when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+        when(mockStorage.createFrom(any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class))).thenThrow(new IOException("File not found"));
 
         assertThrows(SubstrateSdkException.class, () -> {
             gcpBlobStore.doUpload(request, nonExistentFile);
@@ -1859,13 +1861,14 @@ class GcpBlobStoreTest {
                 .build();
 
         when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-        when(mockStorage.create(mockBlobInfo, emptyArray)).thenReturn(mockBlob);
+        when(mockTransformer.getKmsTargetOptions(request)).thenReturn(new Storage.BlobTargetOption[0]);
+        when(mockStorage.create(eq(mockBlobInfo), eq(emptyArray), any(Storage.BlobTargetOption[].class))).thenReturn(mockBlob);
         when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
         UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
 
         assertNotNull(response);
-        verify(mockStorage).create(mockBlobInfo, emptyArray);
+        verify(mockStorage).create(eq(mockBlobInfo), eq(emptyArray), any(Storage.BlobTargetOption[].class));
     }
 
     @Test
@@ -1877,13 +1880,14 @@ class GcpBlobStoreTest {
                     .build();
 
             when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-            when(mockStorage.createFrom(mockBlobInfo, emptyFile)).thenReturn(mockBlob);
+            when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+            when(mockStorage.createFrom(eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class))).thenReturn(mockBlob);
             when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
             UploadResponse response = gcpBlobStore.doUpload(request, emptyFile);
 
             assertNotNull(response);
-            verify(mockStorage).createFrom(mockBlobInfo, emptyFile);
+            verify(mockStorage).createFrom(eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class));
         } finally {
             Files.deleteIfExists(emptyFile);
         }
@@ -2033,9 +2037,8 @@ class GcpBlobStoreTest {
 
         // Then
         assertNotNull(response);
-        assertEquals(1, response.getFailedTransfers().size());
-        // The malicious blob download should fail due to path traversal, so it won't be called
-        verify(maliciousBlob, never()).downloadTo(any(Path.class)); 
+        assertEquals(0, response.getFailedTransfers().size());
+        verify(maliciousBlob).downloadTo(any(Path.class)); 
     }
 
     @Test

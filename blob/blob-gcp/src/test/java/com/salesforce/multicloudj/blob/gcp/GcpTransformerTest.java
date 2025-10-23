@@ -1117,9 +1117,11 @@ class GcpTransformerTest {
 
     @Test
     public void testComputeRange_StartGreaterThanFileSize() {
-        Pair<Long, Long> range = transformer.computeRange(150L, 200L, 100L);
-        assertEquals(150L, range.getLeft().longValue());
-        assertEquals(201L, range.getRight().longValue());
+        // When start is greater than file size, should throw IllegalArgumentException
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            transformer.computeRange(150L, 200L, 100L);
+        });
+        assertEquals("Start of range cannot be greater than file size: 150", exception.getMessage());
     }
 
     @Test
