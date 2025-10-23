@@ -293,9 +293,9 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         List<BlobInfo> blobs = new ArrayList<>();
         for (Blob blob : page.getValues()) {
             blobs.add(BlobInfo.builder()
-                        .withKey(blob.getName())
-                        .withObjectSize(blob.getSize())
-                    .build());
+                            .withKey(blob.getName())
+                            .withObjectSize(blob.getSize())
+                            .build());
         }
 
         return new ListBlobsPageResponse(

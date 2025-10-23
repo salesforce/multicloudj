@@ -1,0 +1,26 @@
+{
+  "id" : "0ea6b0aa-6e30-4d56-8023-c11eb3063b06",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_presigneduploadurls_missingmetadataonurlgeneration",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedUploadUrls%2FmissingMetadataOnUrlGeneration",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedUploadUrls/missingMetadataOnUrlGeneration\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedUploadUrls/missingMetadataOnUrlGeneration\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AOCedOEtUTryaqmijpj1rI2jRSG5aMfvicUJ6rwZTleOBP5WLRIx6met3pHiG4Eij1eK4bFi",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 23 Oct 2025 00:50:25 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "0ea6b0aa-6e30-4d56-8023-c11eb3063b06",
+  "persistent" : true,
+  "insertionIndex" : 139
+}

@@ -1,0 +1,26 @@
+{
+  "id" : "4b72177d-baae-4bb8-a168-af273c32f917",
+  "name" : "storage_v1_b_java-bucket-does-not-exist_o",
+  "request" : {
+    "url" : "/storage/v1/b/java-bucket-does-not-exist/o?prefix=conformance-tests/blob-for-failing/testNonexistentBucketmultipart4/multipart4/part-&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"The specified bucket does not exist.\",\n    \"errors\": [\n      {\n        \"message\": \"The specified bucket does not exist.\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3Kc78fNUPZjitPv1LLaovSxkWMKpTzvwuFkS1yBVIY-S1LFi-Y7wh71vOP4QrJXGUuQPQb5Jr-ZEEXnHA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 23 Oct 2025 00:51:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4b72177d-baae-4bb8-a168-af273c32f917",
+  "persistent" : true,
+  "insertionIndex" : 315
+}
