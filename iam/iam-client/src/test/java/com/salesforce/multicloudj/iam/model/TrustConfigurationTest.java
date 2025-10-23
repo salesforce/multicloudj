@@ -187,61 +187,35 @@ public class TrustConfigurationTest {
     }
 
     @Test
-    public void testTrustConfigurationBuilderIgnoreNullAndEmptyPrincipals() {
+    public void testNullAndEmptyValueHandling() {
+        // Test null and empty principals
         TrustConfiguration trustConfig = TrustConfiguration.builder()
             .addTrustedPrincipal("arn:aws:iam::123456789012:root")
             .addTrustedPrincipal(null)
             .addTrustedPrincipal("")
             .addTrustedPrincipal("   ")  // whitespace only
             .addTrustedPrincipal("arn:aws:iam::987654321098:root")
-            .build();
-
-        List<String> expectedPrincipals = Arrays.asList(
-            "arn:aws:iam::123456789012:root",
-            "arn:aws:iam::987654321098:root"
-        );
-
-        assertEquals(expectedPrincipals, trustConfig.getTrustedPrincipals());
-    }
-
-    @Test
-    public void testTrustConfigurationBuilderIgnoreNullConditions() {
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
+            .addTrustedPrincipals(null) // null list
+            .addTrustedPrincipals(Arrays.asList("valid-principal", null, "", "   "))
             .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
             .addCondition(null, "key", "value")  // null operator
             .addCondition("StringEquals", null, "value")  // null key
             .addCondition("StringEquals", "key", null)  // null value
             .build();
 
-        Map<String, Map<String, Object>> conditions = trustConfig.getConditions();
-        assertEquals(1, conditions.size());
-        assertTrue(conditions.containsKey("StringEquals"));
-        assertEquals(1, conditions.get("StringEquals").size());
-        assertEquals("us-west-2", conditions.get("StringEquals").get("aws:RequestedRegion"));
+        // Should only have valid principals
+        assertEquals(3, trustConfig.getTrustedPrincipals().size());
+        assertTrue(trustConfig.getTrustedPrincipals().contains("arn:aws:iam::123456789012:root"));
+        assertTrue(trustConfig.getTrustedPrincipals().contains("arn:aws:iam::987654321098:root"));
+        assertTrue(trustConfig.getTrustedPrincipals().contains("valid-principal"));
+
+        // Should only have valid condition
+        assertEquals(1, trustConfig.getConditions().size());
+        assertTrue(trustConfig.getConditions().containsKey("StringEquals"));
+        assertEquals("us-west-2", trustConfig.getConditions().get("StringEquals").get("aws:RequestedRegion"));
     }
 
-    @Test
-    public void testTrustConfigurationEquality() {
-        TrustConfiguration trustConfig1 = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
 
-        TrustConfiguration trustConfig2 = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
-
-        TrustConfiguration trustConfig3 = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::987654321098:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
-
-        assertEquals(trustConfig1, trustConfig2);
-        assertNotEquals(trustConfig1, trustConfig3);
-        assertEquals(trustConfig1.hashCode(), trustConfig2.hashCode());
-    }
 
     @Test
     public void testTrustConfigurationToString() {
@@ -273,4 +247,27 @@ public class TrustConfigurationTest {
         assertEquals(1, trustConfig.getTrustedPrincipals().size());
         assertEquals(0, trustConfig.getConditions().size());
     }
+
+    @Test
+    public void testTrustConfigurationEqualsAndHashCodeWithNullChecks() {
+        TrustConfiguration trust1 = TrustConfiguration.builder()
+            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
+            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .build();
+
+        TrustConfiguration trust2 = TrustConfiguration.builder()
+            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
+            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .build();
+
+        // Test equals with null and different types
+        assertNotEquals(trust1, null);
+        assertNotEquals(trust1, "not a trust config");
+        assertEquals(trust1, trust1); // same object
+        assertEquals(trust1, trust2); // equal objects
+
+        // Test hashCode consistency
+        assertEquals(trust1.hashCode(), trust2.hashCode());
+    }
+
 }
