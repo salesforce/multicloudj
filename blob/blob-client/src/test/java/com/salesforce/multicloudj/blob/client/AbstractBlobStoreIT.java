@@ -1431,16 +1431,6 @@ public abstract class AbstractBlobStoreIT {
             ListBlobsPageResponse delimiterPage = bucketClient.listPage(delimiterRequest);
             Assertions.assertNotNull(delimiterPage);
 
-            // Should only return keys that don't contain "-" after the prefix
-
-            // GCP API returns the keys conformance-tests/blob-for-list-page/prefix_3 and conformance-tests/blob-for-list-page/prefix-
-
-//            for (BlobInfo blobInfo : delimiterPage.getBlobs()) {
-//                String keyAfterPrefix = blobInfo.getKey().substring(prefixKey.length());
-//                Assertions.assertFalse(keyAfterPrefix.contains("-"),
-//                        "testListPage: Keys should not contain delimiter after prefix: " + blobInfo.getKey());
-//            }
-
             // Test 5: Manual pagination loop to collect all items
             Set<String> allKeys = new HashSet<>();
             String nextToken = null;
