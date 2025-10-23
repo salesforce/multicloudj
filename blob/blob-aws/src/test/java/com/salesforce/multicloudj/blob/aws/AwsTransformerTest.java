@@ -492,7 +492,7 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
         assertEquals("object-1", actualRequest.putObjectRequest().key());
         assertEquals(metadata, actualRequest.putObjectRequest().metadata());
-        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), actualRequest.putObjectRequest().tagging());
+        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
     }
 
@@ -513,11 +513,12 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
         assertEquals("object-1", actualRequest.putObjectRequest().key());
         assertEquals(metadata, actualRequest.putObjectRequest().metadata());
-        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), actualRequest.putObjectRequest().tagging());
+        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
         assertEquals("aws:kms", actualRequest.putObjectRequest().serverSideEncryptionAsString());
         assertEquals(kmsKeyId, actualRequest.putObjectRequest().ssekmsKeyId());
     }
+
 
     @Test
     void testToPutObjectPresignRequestWithoutKmsKey() {
@@ -721,11 +722,11 @@ public class AwsTransformerTest {
                 .build();
 
         var result = transformer.toRequest(request);
-
+        
         assertEquals(BUCKET, result.bucket());
         assertEquals(key, result.key());
         assertEquals(metadata, result.metadata());
-        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), result.tagging());
+        assertEquals("tag-key=tag-value", result.tagging());
         assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD_IA, result.storageClass());
     }
 
@@ -741,7 +742,7 @@ public class AwsTransformerTest {
                 .build();
 
         var result = transformer.toRequest(request);
-
+        
         assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD, result.storageClass());
     }
 
@@ -854,11 +855,11 @@ public class AwsTransformerTest {
                 .build();
 
         var result = transformer.toRequest(request);
-
+        
         assertEquals(BUCKET, result.bucket());
         assertEquals(key, result.key());
         assertEquals(metadata, result.metadata());
-        assertEquals(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build(), result.tagging());
+        assertEquals("tag-key=tag-value", result.tagging());
         assertNull(result.storageClass());
-    }   
+    }  
 }
