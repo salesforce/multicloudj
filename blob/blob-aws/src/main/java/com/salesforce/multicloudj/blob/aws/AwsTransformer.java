@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.util.HexUtil;
@@ -141,7 +142,6 @@ public class AwsTransformer {
         List<Tag> tags = request.getTags().entrySet().stream()
                 .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
                 .collect(Collectors.toList());
-
         PutObjectRequest.Builder builder = PutObjectRequest
                 .builder()
                 .bucket(getBucket())
@@ -149,6 +149,11 @@ public class AwsTransformer {
                 .metadata(request.getMetadata())
                 .tagging(Tagging.builder().tagSet(tags).build());
 
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            builder.serverSideEncryption("aws:kms")
+                   .ssekmsKeyId(request.getKmsKeyId());
+        }
+        
         // Set storage class if provided
         if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
             try {
@@ -158,9 +163,10 @@ public class AwsTransformer {
                 throw new InvalidArgumentException("Invalid storage class: " + request.getStorageClass(), e);
             }
         }
-
+        
         return builder.build();
     }
+
 
     public GetObjectRequest toRequest(DownloadRequest request) {
         var builder = GetObjectRequest
@@ -363,6 +369,9 @@ public class AwsTransformer {
         }
         if(request.getTags() != null) {
             builder.withTags(request.getTags());
+        }
+        if(request.getKmsKeyId() != null) {
+            builder.withKmsKeyId(request.getKmsKeyId());
         }
         UploadRequest uploadRequest = builder.build();
 
