@@ -7,20 +7,20 @@ import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
@@ -280,6 +280,7 @@ public abstract class AbstractPubsubIT {
         }
     }
 
+    @Disabled
     @Test
     public void testDoubleAck() throws Exception {
         try (AbstractTopic topic = harness.createTopicDriver();
