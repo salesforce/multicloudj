@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
@@ -24,6 +25,8 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.junit.jupiter.api.AfterEach;
+
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -566,26 +569,4 @@ class BlobStoreAsyncBridgeTest {
         verify(mockBlobStore).deleteDirectory(prefix);
     }
 
-    @Test
-    void doDownloadDirectory() {
-        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
-        assertThrows(UnsupportedOperationException.class, () -> {
-            asyncWrapper.downloadDirectory(request);
-        });
-    }
-
-    @Test
-    void doUploadDirectory() {
-        DirectoryUploadRequest request = mock(DirectoryUploadRequest.class);
-        assertThrows(UnsupportedOperationException.class, () -> {
-            asyncWrapper.uploadDirectory(request);
-        });
-    }
-
-    @Test
-    void doDeleteDirectory() {
-        assertThrows(UnsupportedOperationException.class, () -> {
-            asyncWrapper.deleteDirectory("files");
-        });
-    }
 } 

@@ -1950,8 +1950,9 @@ class GcpBlobStoreTest {
 
         // Then
         assertNotNull(response);
-        assertEquals(0, response.getFailedTransfers().size());
-        verify(maliciousBlob).downloadTo(any(Path.class)); 
+        assertEquals(1, response.getFailedTransfers().size());
+        // The malicious blob download should fail due to path traversal, so it won't be called
+        verify(maliciousBlob, never()).downloadTo(any(Path.class)); 
     }
 
     @Test

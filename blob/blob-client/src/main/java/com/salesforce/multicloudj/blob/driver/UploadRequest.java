@@ -48,6 +48,10 @@ public class UploadRequest {
         return metadata == null ? Map.of() : unmodifiableMap(metadata);
     }
 
+    public String getStorageClass() {
+        return storageClass;
+    }
+
     public static Builder builder() {
         return new Builder();
     }

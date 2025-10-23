@@ -28,6 +28,8 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
@@ -397,7 +399,6 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
      */
     private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
 
-    @Override
     protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
         try {
             Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
@@ -443,7 +444,6 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
-    @Override
     protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest req) {
         try {
             Path targetDir = Paths.get(req.getLocalDestinationDirectory());
@@ -498,7 +498,6 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
-    @Override
     protected void doDeleteDirectory(String prefix) {
         try {
             // List all blobs with the given prefix and delete them in batches

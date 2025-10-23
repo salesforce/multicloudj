@@ -678,6 +678,9 @@ class GcpAsyncBlobStoreTest {
 
         CompletableFuture<DirectoryDownloadResponse> result = gcpAsyncBlobStore.downloadDirectory(request);
 
+        // Wait for the async operation to complete
+        result.get(5, TimeUnit.SECONDS);
+
         verify(mockBlobStore).downloadDirectory(request);
     }
 

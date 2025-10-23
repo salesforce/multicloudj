@@ -441,40 +441,66 @@ public class Main {
     }
 
     private static BucketClient getBucketClient(String provider) {
-        if ("gcp".equals(provider)) {
-            // For GCP, we don't need STS credentials - GCP uses service account or default credentials
-            return BucketClient.builder(provider)
-                    .withBucket("example-test-bucket-barry")  // Your actual GCP bucket name
-                    .withRegion("us")  // Your bucket's region
-                    .build();
-        } else {
-            // For AWS, use STS credentials
-            StsCredentials credentials = new StsCredentials(
-                    System.getenv("ACCESS_KEY_ID"),
-                    System.getenv("SECRET_ACCESS_KEY"),
-                    System.getenv("SESSION_TOKEN"));
-            CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build();
-            return BucketClient.builder(provider)
-                    .withBucket("bucket-1")
-                    .withRegion("us-west-2")
-                    .withEndpoint(URI.create("https://s3.us-west-2.amazonaws.com"))
-                    .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
-                    .withCredentialsOverrider(credsOverrider).build();
+        // Get configuration from environment variables or system properties
+        String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));
+        String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
+        String endpoint = System.getProperty("bucket.endpoint", System.getenv("BUCKET_ENDPOINT"));
+        String proxyEndpoint = System.getProperty("bucket.proxy.endpoint", System.getenv("BUCKET_PROXY_ENDPOINT"));
+        
+        if (bucketName == null || bucketName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Bucket name must be provided via 'bucket.name' system property or 'BUCKET_NAME' environment variable");
         }
+        
+        BucketClient.BlobBuilder builder = BucketClient.builder(provider)
+                .withBucket(bucketName);
+        
+        if (region != null && !region.trim().isEmpty()) {
+            builder.withRegion(region);
+        }
+        
+        if (endpoint != null && !endpoint.trim().isEmpty()) {
+            builder.withEndpoint(URI.create(endpoint));
+        }
+        
+        if (proxyEndpoint != null && !proxyEndpoint.trim().isEmpty()) {
+            builder.withProxyEndpoint(URI.create(proxyEndpoint));
+        }
+        
+        // Add credentials if available (for providers that need them)
+        String accessKeyId = System.getenv("ACCESS_KEY_ID");
+        String secretAccessKey = System.getenv("SECRET_ACCESS_KEY");
+        String sessionToken = System.getenv("SESSION_TOKEN");
+        
+        if (accessKeyId != null && secretAccessKey != null) {
+            StsCredentials credentials = new StsCredentials(accessKeyId, secretAccessKey, sessionToken);
+            CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                    .withSessionCredentials(credentials).build();
+            builder.withCredentialsOverrider(credsOverrider);
+        }
+        
+        return builder.build();
     }
 
 
     private static AsyncBucketClient getAsyncBucketClient(String provider) {
-        if ("gcp".equals(provider)) {
-            ExecutorService executorService = Executors.newFixedThreadPool(4);
-            return AsyncBucketClient.builder(provider)
-                    .withBucket("example-test-bucket-barry")  // Your actual GCP bucket name
-                    .withRegion("us")  // Your bucket's region
-                    .withExecutorService(executorService)
-                    .build();
-        } else {
-            throw new UnsupportedOperationException("Async bucket client not implemented for provider: " + provider);
+        // Get configuration from environment variables or system properties
+        String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));
+        String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
+        
+        if (bucketName == null || bucketName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Bucket name must be provided via 'bucket.name' system property or 'BUCKET_NAME' environment variable");
         }
+        
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        AsyncBucketClient.Builder builder = AsyncBucketClient.builder(provider)
+                .withBucket(bucketName)
+                .withExecutorService(executorService);
+        
+        if (region != null && !region.trim().isEmpty()) {
+            builder.withRegion(region);
+        }
+        
+        return builder.build();
     }
 
     private static String getProvider() {
