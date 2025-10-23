@@ -6,8 +6,10 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableMap;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
@@ -18,17 +20,26 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.google.cloud.storage.StorageClass;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.stream.Stream;
 
 @Getter
 public class GcpTransformer {
@@ -43,7 +54,7 @@ public class GcpTransformer {
         if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
             throw new UnSupportedOperationException("Tags are not supported by GCP");
         }
-        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata());
+        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata(), uploadRequest.getStorageClass());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -55,21 +66,25 @@ public class GcpTransformer {
     }
 
     public BlobId toBlobId(DownloadRequest downloadRequest) {
-        return toBlobId(downloadRequest.getKey(), downloadRequest.getVersionId());
-    }
-
-    /**
-     * Note: If the versionId is null, then the BlobId refers to the latest version of the blob
-     */
-    public BlobId toBlobId(String key, String versionId) {
-        return toBlobId(getBucket(), key, versionId);
+        return toBlobId(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
     }
 
     /**
      * Note: If the versionId is null, then the BlobId refers to the latest version of the blob
      */
     public BlobId toBlobId(String bucket, String key, String versionId) {
-        return BlobId.of(bucket, key, toGenerationId(versionId));
+        if (versionId == null) {
+            return BlobId.of(bucket, key);
+        } else {
+            return BlobId.of(bucket, key, Long.parseLong(versionId));
+        }
+    }
+
+    /**
+     * Convenience method that uses the bucket from the transformer context
+     */
+    public BlobId toBlobId(String key, String versionId) {
+        return toBlobId(getBucket(), key, versionId);
     }
 
     /**
@@ -135,7 +150,7 @@ public class GcpTransformer {
     }
 
     public Storage.CopyRequest toCopyRequest(CopyRequest request) {
-        BlobId source = toBlobId(request.getSrcKey(), request.getSrcVersionId());
+        BlobId source = toBlobId(bucket, request.getSrcKey(), request.getSrcVersionId());
         BlobId target = toBlobId(request.getDestBucket(), request.getDestKey(), null);
         return Storage.CopyRequest.newBuilder()
                 .setSource(source)
@@ -160,7 +175,7 @@ public class GcpTransformer {
     }
 
     public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
-        List<Storage.BlobListOption> options = new java.util.ArrayList<>();
+        List<Storage.BlobListOption> options = new ArrayList<>();
         
         if (request.getPrefix() != null) {
             options.add(Storage.BlobListOption.prefix(request.getPrefix()));
@@ -182,8 +197,24 @@ public class GcpTransformer {
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
+        return toBlobInfo(key, metadata, null);
+    }
+
+    protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
         metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
-        return BlobInfo.newBuilder(getBucket(), key).setMetadata(metadata).build();
+        BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
+
+        // Set storage class if provided
+        if (storageClass != null && !storageClass.isEmpty()) {
+            try {
+                StorageClass gcpStorageClass = StorageClass.valueOf(storageClass.toUpperCase());
+                builder.setStorageClass(gcpStorageClass);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidArgumentException("Invalid storage class: " + storageClass, e);
+            }
+        }
+
+        return builder.build();
     }
 
     public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {
@@ -232,6 +263,88 @@ public class GcpTransformer {
                     String partNumber = blob.getName().substring(blob.getName().lastIndexOf("-") + 1);
                     return new UploadPartResponse(Integer.parseInt(partNumber), blob.getEtag(), blob.getSize());
                 })
+                .collect(Collectors.toList());
+    }
+
+
+    /**
+     * Converts a DirectoryUploadRequest to a list of file paths to upload.
+     * This method handles directory traversal and filtering based on the request parameters.
+     *
+     * @param request the directory upload request
+     * @return list of file paths to upload
+     */
+    public List<Path> toFilePaths(DirectoryUploadRequest request) {
+        Path sourceDir = Paths.get(request.getLocalSourceDirectory());
+        List<Path> filePaths = new ArrayList<>();
+
+        try (Stream<Path> paths = Files.walk(sourceDir)) {
+            filePaths = paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        // If includeSubFolders is false, only include files in the root directory
+                        if (!request.isIncludeSubFolders()) {
+                            Path relativePath = sourceDir.relativize(path);
+                            return relativePath.getParent() == null;
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to traverse directory: " + sourceDir, e);
+        }
+
+        return filePaths;
+    }
+
+    /**
+     * Converts a file path to a blob key by applying the prefix and maintaining directory structure.
+     *
+     * @param sourceDir the source directory path
+     * @param filePath the file path to convert
+     * @param prefix the S3 prefix to apply
+     * @return the blob key
+     */
+    public String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+        Path relativePath = sourceDir.relativize(filePath);
+        String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
+
+        if (prefix != null && !prefix.isEmpty()) {
+            // Ensure prefix ends with "/" if it doesn't already
+            String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
+            key = normalizedPrefix + key;
+        }
+
+        return key;
+    }
+
+    /**
+     * Partitions a list of BlobInfo objects into smaller chunks for batch operations.
+     *
+     * @param blobInfos the list of BlobInfo objects to partition
+     * @param partitionSize the maximum size of each partition
+     * @return a list of partitioned BlobInfo lists
+     */
+    public List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> partitionList(List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobInfos, int partitionSize) {
+        List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> partitionedList = new ArrayList<>();
+        int listSize = blobInfos.size();
+
+        for (int i = 0; i < listSize; i += partitionSize) {
+            int endIndex = Math.min(i + partitionSize, listSize);
+            partitionedList.add(new ArrayList<>(blobInfos.subList(i, endIndex)));
+        }
+        return partitionedList;
+    }
+
+    /**
+     * Converts a list of BlobInfo objects to BlobIdentifier objects for deletion.
+     *
+     * @param blobList the list of BlobInfo objects
+     * @return a list of BlobIdentifier objects
+     */
+    public List<BlobIdentifier> toBlobIdentifiers(List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobList) {
+        return blobList.stream()
+                .map(blob -> new BlobIdentifier(blob.getKey(), null))
                 .collect(Collectors.toList());
     }
 }

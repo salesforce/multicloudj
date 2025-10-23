@@ -75,6 +75,11 @@ public class AliTransformer {
         metadata.setUserMetadata(uploadRequest.getMetadata());
         metadata.setObjectTagging(uploadRequest.getTags());
 
+        // Set storage class if provided
+        if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
+            metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
+        }
+        
         if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
             metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
             metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());

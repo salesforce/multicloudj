@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
+import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -48,6 +49,7 @@ import software.amazon.awssdk.transfer.s3.model.FailedFileDownload;
 import software.amazon.awssdk.transfer.s3.model.FailedFileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -97,7 +99,7 @@ public class AwsTransformerTest {
                 .bucket(BUCKET)
                 .key(key)
                 .metadata(metadata)
-                .tagging("tag-key=tag-value")
+                .tagging(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build())
                 .build();
 
         assertEquals(expected, transformer.toRequest(request));
@@ -517,6 +519,7 @@ public class AwsTransformerTest {
         assertEquals(kmsKeyId, actualRequest.putObjectRequest().ssekmsKeyId());
     }
 
+
     @Test
     void testToPutObjectPresignRequestWithoutKmsKey() {
         Map<String, String> metadata = Map.of("some-key", "some-value");
@@ -702,4 +705,161 @@ public class AwsTransformerTest {
             assertNull(blobIdentifiers.get(i).getVersionId());
         }
     }
+
+    @Test
+    void testUploadRequestWithStorageClass() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+        var storageClass = "STANDARD_IA";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+        
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(metadata, result.metadata());
+        assertEquals("tag-key=tag-value", result.tagging());
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD_IA, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithStandardStorageClass() {
+        var key = "some-key";
+        var storageClass = "STANDARD";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+        
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithGlacierStorageClass() {
+        var key = "some-key";
+        var storageClass = "GLACIER";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithIntelligentTieringStorageClass() {
+        var key = "some-key";
+        var storageClass = "INTELLIGENT_TIERING";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.INTELLIGENT_TIERING, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithDeepArchiveStorageClass() {
+        var key = "some-key";
+        var storageClass = "DEEP_ARCHIVE";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.DEEP_ARCHIVE, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithGlacierIrStorageClass() {
+        var key = "some-key";
+        var storageClass = "GLACIER_IR";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER_IR, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithNullStorageClass() {
+        var key = "some-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(null)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertNull(result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithEmptyStorageClass() {
+        var key = "some-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass("")
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertNull(result.storageClass());
+    }
+
+
+    @Test
+    void testUploadRequestWithoutStorageClass() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        var result = transformer.toRequest(request);
+        
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(metadata, result.metadata());
+        assertEquals("tag-key=tag-value", result.tagging());
+        assertNull(result.storageClass());
+    }  
 }

@@ -43,6 +43,7 @@ import java.util.function.Consumer;
 public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
 
     public static final String PROVIDER_ID = "async-test";
+    private boolean throwUnsupportedOperation = false;
 
     public TestAsyncBlobStore(
             String providerId,
@@ -52,6 +53,10 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
             BlobStoreValidator validator
     ) {
         super(providerId, bucket, region, credentialsOverrider, validator);
+    }
+
+    public void setThrowUnsupportedOperation(boolean throwUnsupportedOperation) {
+        this.throwUnsupportedOperation = throwUnsupportedOperation;
     }
 
     @Override
@@ -181,6 +186,9 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
 
     @Override
     protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        if (throwUnsupportedOperation) {
+            throw new UnsupportedOperationException("Directory download not supported in test implementation");
+        }
         return CompletableFuture.completedFuture(null);
     }
 
@@ -191,6 +199,9 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
 
     @Override
     protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
+        if (throwUnsupportedOperation) {
+            throw new UnsupportedOperationException("Directory delete not supported in test implementation");
+        }
         return CompletableFuture.completedFuture(null);
     }
 
