@@ -1,0 +1,29 @@
+{
+  "id" : "579ccd74-2cfc-4b81-832c-8c43b2a4702d",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-deleting",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-deleting?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-deleting/1761180718739496\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-deleting\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-deleting?generation=1761180718739496&alt=media\",\n  \"name\": \"conformance-tests/blob-for-deleting\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1761180718739496\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CKjggLmNuZADEAE=\",\n  \"timeCreated\": \"2025-10-23T00:51:58.763Z\",\n  \"updated\": \"2025-10-23T00:51:58.763Z\",\n  \"timeStorageClassUpdated\": \"2025-10-23T00:51:58.763Z\",\n  \"timeFinalized\": \"2025-10-23T00:51:58.763Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CKjggLmNuZADEAE=",
+      "X-GUploader-UploadID" : "AOCedOEjBARPWfdaD6UItI2e0WjGQTeZ4gR8nDm7WsGtMnRNKfCDODxAoRo97qmfgtt90B8O",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 23 Oct 2025 00:51:59 GMT",
+      "Date" : "Thu, 23 Oct 2025 00:51:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "579ccd74-2cfc-4b81-832c-8c43b2a4702d",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-deleting",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-deleting-2",
+  "insertionIndex" : 536
+}

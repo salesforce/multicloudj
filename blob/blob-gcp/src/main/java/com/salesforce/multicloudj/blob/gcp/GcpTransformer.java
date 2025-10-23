@@ -80,6 +80,10 @@ public class GcpTransformer {
      * Reading everything but first 500 bytes - computeRange(500, null)  -   (500, null)
      */
     protected Pair<Long, Long> computeRange(Long start, Long end, long fileSize) {
+        // Need to validate range here because read from blob store API fails silently without any exception
+        if (start != null && start > fileSize) {
+            throw new IllegalArgumentException("Start of range cannot be greater than file size: " + start);
+        }
         Long startValue = start;
         Long endValue = null;
         if(end != null){
