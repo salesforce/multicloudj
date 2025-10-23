@@ -147,8 +147,7 @@ public class AwsTransformer {
                 .bucket(getBucket())
                 .key(request.getKey())
                 .metadata(request.getMetadata())
-                .tagging(Tagging.builder().tagSet(tags)
-                .build());
+                .tagging(Tagging.builder().tagSet(tags).build());
 
         // Set storage class if provided
         if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
@@ -157,12 +156,7 @@ public class AwsTransformer {
                 builder.storageClass(awsStorageClass);
             } catch (IllegalArgumentException e) {
                 throw new InvalidArgumentException("Invalid storage class: " + request.getStorageClass(), e);
-        }
-
-
-        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
-            builder.serverSideEncryption("aws:kms")
-                   .ssekmsKeyId(request.getKmsKeyId());
+            }
         }
 
         return builder.build();
@@ -369,9 +363,6 @@ public class AwsTransformer {
         }
         if(request.getTags() != null) {
             builder.withTags(request.getTags());
-        }
-        if(request.getKmsKeyId() != null) {
-            builder.withKmsKeyId(request.getKmsKeyId());
         }
         UploadRequest uploadRequest = builder.build();
 
