@@ -267,6 +267,33 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
         return doDoesObjectExist(key, versionId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DirectoryDownloadResponse downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        validator.validate(directoryDownloadRequest);
+        return doDownloadDirectory(directoryDownloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        validator.validate(directoryUploadRequest);
+        return doUploadDirectory(directoryUploadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Allow null/empty prefix for deleting all objects in bucket
+     */
+    @Override
+    public void deleteDirectory(String prefix) {
+        doDeleteDirectory(prefix);
+    }
+
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, byte[] content);
@@ -314,6 +341,18 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
 
     protected abstract boolean doDoesObjectExist(String key, String versionId);
+
+    protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        throw new UnsupportedOperationException("Directory download is not supported by this substrate implementation");
+    }
+
+    protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        throw new UnsupportedOperationException("Directory upload is not supported by this substrate implementation");
+    }
+
+    protected void doDeleteDirectory(String prefix) {
+        throw new UnsupportedOperationException("Directory delete is not supported by this substrate implementation");
+    }
 
     public abstract static class Builder<T extends AbstractBlobStore<T>>
             extends BlobStoreBuilder<T>

@@ -74,6 +74,12 @@ public class AliTransformer {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setUserMetadata(uploadRequest.getMetadata());
         metadata.setObjectTagging(uploadRequest.getTags());
+
+                // Set storage class if provided
+        if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
+            metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
+        }
+        
         return metadata;
     }
 

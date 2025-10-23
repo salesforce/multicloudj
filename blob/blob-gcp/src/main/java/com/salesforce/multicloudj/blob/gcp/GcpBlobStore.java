@@ -18,6 +18,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -25,8 +26,12 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -68,6 +73,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.nio.file.Paths;
 
 /**
  * GCP implementation of BlobStore
@@ -383,6 +389,153 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {
         return storage.get(transformer.toBlobId(key, versionId)) != null;
+    }
+
+        /**
+     * Maximum number of objects that can be deleted in a single batch operation.
+     * GCP supports up to 1000 objects per batch delete.
+     */
+    private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
+
+    @Override
+    protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        try {
+            Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
+            List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
+            List<FailedBlobUpload> failedUploads = new ArrayList<>();
+
+            // Create directory marker object if prefix is specified
+            if (directoryUploadRequest.getPrefix() != null && !directoryUploadRequest.getPrefix().isEmpty()) {
+                try {
+                    String dirMarkerKey = directoryUploadRequest.getPrefix();
+                    if (!dirMarkerKey.endsWith("/")) {
+                        dirMarkerKey += "/";
+                    }
+                    com.google.cloud.storage.BlobInfo dirMarkerInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
+                    storage.create(dirMarkerInfo, new byte[0]); // Create empty object as directory marker
+                } catch (Exception e) {
+                    // Don't fail the entire upload if directory marker creation fails
+                }
+            }
+
+            for (Path filePath : filePaths) {
+                try {
+                    // Generate blob key
+                    String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
+
+                    // Upload file to GCS - use same approach as single file upload
+                    com.google.cloud.storage.BlobInfo blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey).build();
+                    storage.createFrom(blobInfo, filePath);
+                } catch (Exception e) {
+                    failedUploads.add(FailedBlobUpload.builder()
+                            .source(filePath)
+                            .exception(e)
+                            .build());
+                }
+            }
+
+            return DirectoryUploadResponse.builder()
+                    .failedTransfers(failedUploads)
+                    .build();
+
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to upload directory", e);
+        }
+    }
+
+    @Override
+    protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest req) {
+        try {
+            Path targetDir = Paths.get(req.getLocalDestinationDirectory());
+            Files.createDirectories(targetDir);
+
+            final String rawPrefix = req.getPrefixToDownload();
+            final String prefix = (rawPrefix != null && !rawPrefix.isEmpty() && !rawPrefix.endsWith("/"))
+                    ? rawPrefix + "/"
+                    : rawPrefix;
+
+            //This can optimize performance by fetching minimal metadata instead of full blob details.
+            Storage.BlobListOption[] options = (prefix != null)
+                    ? new Storage.BlobListOption[] {
+                            Storage.BlobListOption.prefix(prefix),
+                            Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+                      }
+                    : new Storage.BlobListOption[] {
+                            Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+                      };
+
+            List<FailedBlobDownload> failed = new ArrayList<>();
+
+            for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
+                final String name = blob.getName();
+
+                String relativePath = (prefix != null) ? name.substring(prefix.length()) : name;
+                if (relativePath.isEmpty()) {
+                    continue;
+                }
+
+                Path localFilePath = targetDir.resolve(relativePath).normalize();
+
+                try {
+                    Path parent = localFilePath.getParent();
+
+                    Files.createDirectories(parent);
+                    blob.downloadTo(localFilePath);
+                } catch (Exception e) {
+                    failed.add(FailedBlobDownload.builder()
+                            .destination(localFilePath)
+                            .exception(e)
+                            .build());
+                }
+            }
+
+            return DirectoryDownloadResponse.builder()
+                    .failedTransfers(failed)
+                    .build();
+
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to download directory", e);
+        }
+    }
+
+    @Override
+    protected void doDeleteDirectory(String prefix) {
+        try {
+            // List all blobs with the given prefix and delete them in batches
+            Storage.BlobListOption[] options = prefix != null ?
+                    new Storage.BlobListOption[]{
+                            Storage.BlobListOption.prefix(prefix)
+                    } : new Storage.BlobListOption[0];
+
+            List<Blob> blobs = new ArrayList<>();
+            for (Blob blob : storage.list(getBucket(), options).getValues()) {
+                blobs.add(blob);
+            }
+
+            // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
+            var blobInfos = new ArrayList<BlobInfo>();
+            for (Blob blob : blobs) {
+                blobInfos.add(BlobInfo.builder()
+                        .withKey(blob.getName())
+                        .withObjectSize(blob.getSize())
+                        .build());
+            }
+
+            // Partition the blobs into smaller chunks for batch deletion
+            var partitionedBlobLists = transformer.partitionList(blobInfos, MAX_OBJECTS_PER_BATCH_DELETE);
+
+            // Delete each partition
+            for (var blobList : partitionedBlobLists) {
+                List<BlobId> blobIds = blobList.stream()
+                        .map(blobInfo -> BlobId.of(getBucket(), blobInfo.getKey()))
+                        .collect(Collectors.toList());
+
+                storage.delete(blobIds);
+            }
+
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to delete directory", e);
+        }
     }
 
     @Override

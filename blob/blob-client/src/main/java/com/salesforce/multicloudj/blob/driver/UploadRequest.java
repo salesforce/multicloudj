@@ -31,12 +31,17 @@ public class UploadRequest {
      * (Optional parameter) The map of tagName->tagValue to be associated with the blob
      */
     private final Map<String, String> tags;
+    /**
+     * (Optional parameter) The storage class for the blob (e.g., STANDARD, NEARLINE, COLDLINE, ARCHIVE for GCP)
+     */
+    private final String storageClass;
 
     private UploadRequest(Builder builder) {
         this.key = builder.key;
         this.contentLength = builder.contentLength;
         this.metadata = builder.metadata;
         this.tags = builder.tags;
+        this.storageClass = builder.storageClass;
     }
 
     public Map<String, String> getMetadata() {
@@ -52,6 +57,7 @@ public class UploadRequest {
         private long contentLength;
         private Map<String, String> metadata = Collections.emptyMap();
         private Map<String, String> tags = Collections.emptyMap();
+        private String storageClass;
 
         public Builder withKey(String key) {
             this.key = key;
@@ -70,6 +76,11 @@ public class UploadRequest {
 
         public Builder withTags(Map<String, String> tags) {
             this.tags = unmodifiableMap(tags);
+            return this;
+        }
+
+        public Builder withStorageClass(String storageClass) {
+            this.storageClass = storageClass;
             return this;
         }
 

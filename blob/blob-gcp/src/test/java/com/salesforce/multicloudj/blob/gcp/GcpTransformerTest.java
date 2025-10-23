@@ -1029,4 +1029,129 @@ class GcpTransformerTest {
         assertEquals(150L, range.getLeft().longValue());
         assertEquals(201L, range.getRight().longValue());
     }
+
+    @Test
+    public void testToBlobInfoWithStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "NEARLINE";
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(key, result.getName());
+        assertEquals(metadata, result.getMetadata());
+        assertEquals(com.google.cloud.storage.StorageClass.NEARLINE, result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfoWithStandardStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "STANDARD";
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(com.google.cloud.storage.StorageClass.STANDARD, result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfoWithColdlineStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "COLDLINE";
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(com.google.cloud.storage.StorageClass.COLDLINE, result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfoWithArchiveStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "ARCHIVE";
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(com.google.cloud.storage.StorageClass.ARCHIVE, result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfoWithNullStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = null;
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(key, result.getName());
+        assertEquals(metadata, result.getMetadata());
+        assertNull(result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfoWithEmptyStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "";
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(key, result.getName());
+        assertEquals(metadata, result.getMetadata());
+        assertNull(result.getStorageClass());
+    }
+
+
+    @Test
+    public void testToBlobInfoWithCaseInsensitiveStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "nearline"; // lowercase
+
+        BlobInfo result = transformer.toBlobInfo(key, metadata, storageClass);
+
+        assertEquals(com.google.cloud.storage.StorageClass.NEARLINE, result.getStorageClass());
+    }
+
+    @Test
+    public void testUploadRequestWithStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+        String storageClass = "NEARLINE";
+
+        UploadRequest request = UploadRequest.builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withStorageClass(storageClass)
+                .build();
+
+        BlobInfo result = transformer.toBlobInfo(request);
+
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(key, result.getName());
+        assertEquals(metadata, result.getMetadata());
+        assertEquals(com.google.cloud.storage.StorageClass.NEARLINE, result.getStorageClass());
+    }
+
+    @Test
+    public void testUploadRequestWithoutStorageClass() {
+        String key = "test-key";
+        Map<String, String> metadata = Map.of("key1", "value1");
+
+        UploadRequest request = UploadRequest.builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+
+        BlobInfo result = transformer.toBlobInfo(request);
+
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(key, result.getName());
+        assertEquals(metadata, result.getMetadata());
+        assertNull(result.getStorageClass());
+    }
 } 

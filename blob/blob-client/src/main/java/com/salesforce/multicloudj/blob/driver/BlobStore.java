@@ -232,4 +232,27 @@ public interface BlobStore extends SdkService, Provider {
      * @return Returns true if the object exists. Returns false if it doesn't exist.
      */
     boolean doesObjectExist(String key, String versionId);
+
+    /**
+     * Downloads a directory from the blob store
+     *
+     * @param directoryDownloadRequest the directory download request
+     * @return DirectoryDownloadResponse containing any failed downloads
+     */
+    DirectoryDownloadResponse downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    /**
+     * Uploads a directory to the blob store
+     *
+     * @param directoryUploadRequest the directory upload request
+     * @return DirectoryUploadResponse containing any failed uploads
+     */
+    DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    /**
+     * Deletes a directory (all objects with a given prefix) from the blob store
+     *
+     * @param prefix the prefix to delete
+     */
+    void deleteDirectory(String prefix);
 }

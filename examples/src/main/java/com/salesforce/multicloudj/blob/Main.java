@@ -1,11 +1,16 @@
 package com.salesforce.multicloudj.blob;
 
+import com.salesforce.multicloudj.blob.async.client.AsyncBucketClient;
 import com.salesforce.multicloudj.blob.client.BucketClient;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -40,6 +45,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
     /**
@@ -276,6 +284,109 @@ public class Main {
         client.setTags("blob-key", tags);
     }
 
+    /**
+     * Uploads a directory to blob storage
+     */
+    public static void uploadDirectory() {
+        System.out.println("Creating AsyncBucketClient for provider: " + getProvider());
+
+        // Get the AsyncBucketClient instance
+        AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+        System.out.println("AsyncBucketClient created successfully");
+
+        // Check if test directory exists
+        java.nio.file.Path testDir = java.nio.file.Paths.get("/tmp/test-directory");
+        if (!java.nio.file.Files.exists(testDir)) {
+            System.out.println("ERROR: Test directory does not exist at " + testDir);
+            return;
+        }
+        System.out.println("Test directory exists: " + testDir);
+
+        // Create a DirectoryUploadRequest
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/tmp/test-directory")  // Change this to your test directory
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        System.out.println("DirectoryUploadRequest created: " + request);
+
+        try {
+            System.out.println("Calling asyncClient.uploadDirectory()...");
+            
+            // Use async method and wait for completion
+            CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
+            System.out.println("Got CompletableFuture, waiting for completion...");
+            DirectoryUploadResponse response = future.get(); // Block until completion
+
+            // Log the response
+            System.out.println("Directory upload completed");
+            System.out.println("Failed transfers: " + response.getFailedTransfers().size());
+            
+            if (!response.getFailedTransfers().isEmpty()) {
+                System.out.println("Some files failed to upload:");
+                response.getFailedTransfers().forEach(failure -> {
+                    System.out.println("Failed: " + failure.getSource() + " - " + failure.getException().getMessage());
+                });
+            } else {
+                System.out.println("All files uploaded successfully!");
+            }
+        } catch (Exception e) {
+            System.out.println("Directory upload failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Downloads a directory from blob storage
+     */
+    public static void downloadDirectory() {
+        // Get the AsyncBucketClient instance
+        AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+
+        // Create a DirectoryDownloadRequest
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("uploads/")
+                .localDestinationDirectory("/tmp/downloaded-directory")  // Change this to your download directory
+                .build();
+
+        try {
+            // Download the directory using async method
+            CompletableFuture<DirectoryDownloadResponse> future = asyncClient.downloadDirectory(request);
+            DirectoryDownloadResponse response = future.get(); // Block until completion
+            
+            // Log the response
+            getLogger().info("Directory download completed");
+            getLogger().info("Failed transfers: {}", response.getFailedTransfers().size());
+            
+            if (!response.getFailedTransfers().isEmpty()) {
+                getLogger().error("Some files failed to download:");
+                response.getFailedTransfers().forEach(failure -> {
+                    getLogger().error("Failed: {} - {}", failure.getDestination(), failure.getException().getMessage());
+                });
+            }
+        } catch (Exception e) {
+            getLogger().error("Directory download failed: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Deletes a directory from blob storage
+     */
+    public static void deleteDirectory() {
+        // Get the AsyncBucketClient instance
+        AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+
+        try {
+            // Delete the directory using async method
+            CompletableFuture<Void> future = asyncClient.deleteDirectory("uploads/");
+            future.get(); // Block until completion
+            getLogger().info("Directory deleted successfully");
+        } catch (Exception e) {
+            getLogger().error("Directory delete failed: {}", e.getMessage(), e);
+        }
+    }
+
 
     /**
      * This method uploads a part of the multipartUpload operation
@@ -330,22 +441,45 @@ public class Main {
     }
 
     private static BucketClient getBucketClient(String provider) {
-        StsCredentials credentials = new StsCredentials(
-                System.getenv("ACCESS_KEY_ID"),
-                System.getenv("SECRET_ACCESS_KEY"),
-                System.getenv("SESSION_TOKEN"));
-        CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build();
-        return BucketClient.builder(provider)
-                .withBucket("bucket-1")
-                .withRegion("us-west-2")
-                .withEndpoint(URI.create("https://s3.us-west-2.amazonaws.com"))
-                .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
-                .withCredentialsOverrider(credsOverrider).build();
+        if ("gcp".equals(provider)) {
+            // For GCP, we don't need STS credentials - GCP uses service account or default credentials
+            return BucketClient.builder(provider)
+                    .withBucket("example-test-bucket-barry")  // Your actual GCP bucket name
+                    .withRegion("us")  // Your bucket's region
+                    .build();
+        } else {
+            // For AWS, use STS credentials
+            StsCredentials credentials = new StsCredentials(
+                    System.getenv("ACCESS_KEY_ID"),
+                    System.getenv("SECRET_ACCESS_KEY"),
+                    System.getenv("SESSION_TOKEN"));
+            CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build();
+            return BucketClient.builder(provider)
+                    .withBucket("bucket-1")
+                    .withRegion("us-west-2")
+                    .withEndpoint(URI.create("https://s3.us-west-2.amazonaws.com"))
+                    .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                    .withCredentialsOverrider(credsOverrider).build();
+        }
+    }
+
+
+    private static AsyncBucketClient getAsyncBucketClient(String provider) {
+        if ("gcp".equals(provider)) {
+            ExecutorService executorService = Executors.newFixedThreadPool(4);
+            return AsyncBucketClient.builder(provider)
+                    .withBucket("example-test-bucket-barry")  // Your actual GCP bucket name
+                    .withRegion("us")  // Your bucket's region
+                    .withExecutorService(executorService)
+                    .build();
+        } else {
+            throw new UnsupportedOperationException("Async bucket client not implemented for provider: " + provider);
+        }
     }
 
     private static String getProvider() {
-        // or "ali"
-        return "aws";
+        // Change this to test different providers
+        return "gcp";  // or "aws" or "ali"
     }
 
     private static InputStream getInputStream() {
@@ -354,5 +488,60 @@ public class Main {
 
     private static Logger getLogger() {
         return LoggerFactory.getLogger("Main");
+    }
+
+    /**
+     * Creates a test directory with sample files for testing
+     */
+    public static void createTestDirectory() {
+        try {
+            java.nio.file.Path testDir = java.nio.file.Paths.get("/tmp/test-directory");
+            java.nio.file.Files.createDirectories(testDir);
+            
+            // Create some test files
+            java.nio.file.Files.write(testDir.resolve("file1.txt"), "Hello from file1".getBytes());
+            java.nio.file.Files.write(testDir.resolve("file2.txt"), "Hello from file2".getBytes());
+            
+            // Create a subdirectory
+            java.nio.file.Path subDir = testDir.resolve("subdir");
+            java.nio.file.Files.createDirectories(subDir);
+            java.nio.file.Files.write(subDir.resolve("file3.txt"), "Hello from subdir/file3".getBytes());
+            
+            getLogger().info("Test directory created at: {}", testDir);
+        } catch (Exception e) {
+            getLogger().error("Failed to create test directory: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Main method to test directory operations
+     */
+    public static void main(String[] args) {
+        System.out.println("=== STARTING DIRECTORY OPERATIONS TEST ===");
+        System.out.println("Provider: " + getProvider());
+        
+        try {
+            // Create test directory first
+            System.out.println("=== Creating Test Directory ===");
+            createTestDirectory();
+            
+            // Test directory upload only
+            System.out.println("=== Testing Directory Upload ===");
+            uploadDirectory();
+
+            // Test directory download
+            getLogger().info("=== Testing Directory Download ===");
+            downloadDirectory();
+                       
+            // Test directory delete
+            getLogger().info("=== Testing Directory Delete ===");
+            deleteDirectory();
+            
+            System.out.println("Directory operations test completed!");
+            
+        } catch (Exception e) {
+            System.out.println("Test failed: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

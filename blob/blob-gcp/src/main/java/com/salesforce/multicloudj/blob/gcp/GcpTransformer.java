@@ -20,11 +20,13 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.google.cloud.storage.StorageClass;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
 import java.io.InputStream;
 import java.util.Collections;
@@ -52,7 +54,7 @@ public class GcpTransformer {
         if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
             throw new UnSupportedOperationException("Tags are not supported by GCP");
         }
-        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata());
+        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata(), uploadRequest.getStorageClass());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -191,8 +193,24 @@ public class GcpTransformer {
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
+        return toBlobInfo(key, metadata, null);
+    }
+
+    protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
         metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
-        return BlobInfo.newBuilder(bucket, key).setMetadata(metadata).build();
+        BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
+
+        // Set storage class if provided
+        if (storageClass != null && !storageClass.isEmpty()) {
+            try {
+                StorageClass gcpStorageClass = StorageClass.valueOf(storageClass.toUpperCase());
+                builder.setStorageClass(gcpStorageClass);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidArgumentException("Invalid storage class: " + storageClass, e);
+            }
+        }
+
+        return builder.build();
     }
 
     public String toPartName(MultipartUpload mpu, int partNumber) {

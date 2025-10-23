@@ -501,6 +501,72 @@ class BlobStoreAsyncBridgeTest {
     }
 
     @Test
+    void doDownloadDirectory() throws Exception {
+        // Given
+        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+        DirectoryDownloadResponse expectedResponse = mock(DirectoryDownloadResponse.class);
+        when(mockBlobStore.downloadDirectory(request)).thenReturn(expectedResponse);
+
+        // When
+        CompletableFuture<DirectoryDownloadResponse> result = asyncWrapper.downloadDirectory(request);
+
+        // Then
+        DirectoryDownloadResponse actualResponse = result.get();
+        assertEquals(expectedResponse, actualResponse);
+        verify(mockBlobStore).downloadDirectory(request);
+    }
+
+    @Test
+    void doDeleteDirectory() throws Exception {
+        // Given
+        String prefix = "files";
+        doNothing().when(mockBlobStore).deleteDirectory(prefix);
+
+        // When
+        CompletableFuture<Void> result = asyncWrapper.deleteDirectory(prefix);
+
+        // Then
+        result.get(); // Should complete without exception
+        verify(mockBlobStore).deleteDirectory(prefix);
+    }
+
+    @Test
+    void testDownloadDirectory_UnsupportedOperation() throws Exception {
+        // Given
+        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+        when(mockBlobStore.downloadDirectory(request))
+                .thenThrow(new UnsupportedOperationException("Directory download not supported"));
+
+        // When
+        CompletableFuture<DirectoryDownloadResponse> result = asyncWrapper.downloadDirectory(request);
+
+        // Then
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get();
+        });
+        assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        verify(mockBlobStore).downloadDirectory(request);
+    }
+
+    @Test
+    void testDeleteDirectory_UnsupportedOperation() throws Exception {
+        // Given
+        String prefix = "test-prefix";
+        doThrow(new UnsupportedOperationException("Directory delete not supported"))
+                .when(mockBlobStore).deleteDirectory(prefix);
+
+        // When
+        CompletableFuture<Void> result = asyncWrapper.deleteDirectory(prefix);
+
+        // Then
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get();
+        });
+        assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        verify(mockBlobStore).deleteDirectory(prefix);
+    }
+
+    @Test
     void doDownloadDirectory() {
         DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
         assertThrows(UnsupportedOperationException.class, () -> {

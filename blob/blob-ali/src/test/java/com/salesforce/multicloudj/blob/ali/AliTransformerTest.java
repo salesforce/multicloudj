@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -497,5 +498,117 @@ public class AliTransformerTest {
         assertEquals(request.getPrefix(), actual.getPrefix());
         assertEquals(request.getPaginationToken(), actual.getMarker());
         assertEquals(request.getMaxResults(), actual.getMaxKeys());
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .withStorageClass("IA")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithStandardStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Standard")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithArchiveStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Archive")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithNullStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass(null)
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithEmptyStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithoutStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
+        assertNotNull(result);
+    }
+
+    @Test
+    void testToPutObjectRequestWithStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("IA")
+                .build();
+
+        InputStream inputStream = new ByteArrayInputStream("test data".getBytes());
+        com.aliyun.oss.model.PutObjectRequest result = transformer.toPutObjectRequest(uploadRequest, inputStream);
+
+        assertEquals(BUCKET, result.getBucketName());
+        assertEquals("test-key", result.getKey());
+        assertNotNull(result.getMetadata());
+    }
+
+    @Test
+    void testToPutObjectRequestWithFileAndStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Archive")
+                .build();
+
+        File file = new File("test-file.txt");
+        com.aliyun.oss.model.PutObjectRequest result = transformer.toPutObjectRequest(uploadRequest, file);
+
+        assertEquals(BUCKET, result.getBucketName());
+        assertEquals("test-key", result.getKey());
+        // Verify the request was created successfully with metadata
+        assertNotNull(result.getMetadata());
     }
 }

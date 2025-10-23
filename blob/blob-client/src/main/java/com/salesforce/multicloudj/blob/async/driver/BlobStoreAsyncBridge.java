@@ -227,16 +227,16 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
 
     @Override
     public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
-        throw new UnsupportedOperationException("Feature not implemented");
+        return CompletableFuture.supplyAsync(() -> blobStore.downloadDirectory(directoryDownloadRequest), executorService);
     }
 
     @Override
     public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
-        throw new UnsupportedOperationException("Feature not implemented");
+        return CompletableFuture.supplyAsync(() -> blobStore.uploadDirectory(directoryUploadRequest), executorService);
     }
 
     @Override
     public CompletableFuture<Void> deleteDirectory(String prefix) {
-        throw new UnsupportedOperationException("Feature not implemented");
+        return CompletableFuture.runAsync(() -> blobStore.deleteDirectory(prefix), executorService);
     }
 } 
