@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>${revision}</version>
+        <version>0.2.6</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>sts</artifactId>
