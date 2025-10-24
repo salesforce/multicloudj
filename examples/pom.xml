@@ -37,12 +37,12 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-gcp-firestore</artifactId>
-            <version>0.2.8-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-aws</artifactId>
-            <version>0.2.8-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
