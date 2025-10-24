@@ -72,8 +72,8 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag
-          PREVIOUS_TAG=$(git describe --abbrev=0 --tags HEAD^ 2>/dev/null || echo "")
+          # Get the previous tag (2nd most recent, since we just created the new tag)
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | sed -n '2p')
 
           if [ -z "$PREVIOUS_TAG" ]; then
             CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
