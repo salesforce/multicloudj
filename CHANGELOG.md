@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.8...multicloudj-v0.2.9) (2025-10-24)
+
+
+### Document Store
+
+* release please and fix the test ([#105](https://github.com/salesforce/multicloudj/issues/105)) ([d7458bd](https://github.com/salesforce/multicloudj/commit/d7458bd16fc9134a2faa6878d28716f66a3f2ea4))
+
 ## [0.2.8](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.7...multicloudj-v0.2.8) (2025-10-24)
 
 
