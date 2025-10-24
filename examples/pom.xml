@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.2.6</version>
+        <version>0.2.7-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>multicloudj-examples</artifactId>
@@ -39,12 +39,12 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-gcp-firestore</artifactId>
-            <version>0.2.6</version>
+            <version>0.2.7-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-aws</artifactId>
-            <version>0.2.6</version>
+            <version>0.2.7-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
