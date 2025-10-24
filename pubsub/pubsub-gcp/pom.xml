@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>pubsub</artifactId>
-        <version>${revision}</version>
+        <version>0.2.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -22,7 +22,7 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-gcp</artifactId>
-            <version>${revision}</version>
+            <version>0.2.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
@@ -63,7 +63,7 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>pubsub-client</artifactId>
-            <version>${revision}</version>
+            <version>0.2.8-SNAPSHOT</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
