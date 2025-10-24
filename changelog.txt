@@ -1,0 +1,3 @@
+* chore: release version 0.2.7 (6385efb)
+* fix: correct changelog to show commits between releases (#97) (f41d143)
+* Add pull-requests write permission to release workflow (#96) (df2db57)

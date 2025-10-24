@@ -10,7 +10,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>${revision}</version>
+        <version>0.2.8-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
