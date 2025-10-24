@@ -98,7 +98,19 @@ jobs:
 
       - name: Update to next development version
         run: |
+          git checkout -b release/prepare-${{ inputs.nextVersion }}
           mvn versions:set -DnewVersion=${{ inputs.nextVersion }} -DgenerateBackupPoms=false
           git add .
           git commit -m "chore: prepare next development iteration ${{ inputs.nextVersion }}"
-          git push origin main
+          git push origin release/prepare-${{ inputs.nextVersion }}
+
+      - name: Create PR for next version
+        run: |
+          gh pr create \
+            --base main \
+            --head release/prepare-${{ inputs.nextVersion }} \
+            --title "chore: prepare next development iteration ${{ inputs.nextVersion }}" \
+            --body "Automated version bump after release ${{ inputs.releaseVersion }}" \
+            --assignee ${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
