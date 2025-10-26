@@ -1,7 +1,7 @@
 ---
 layout: default
 title: How to Pub/Sub
-nav_order: 5
+nav_order: 4
 parent: Usage Guides
 ---
 # Pub/Sub

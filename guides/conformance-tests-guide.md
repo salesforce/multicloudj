@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "How to: Conformance tests in multicloudj"
-nav_order: 4
+nav_order: 5
 parent: Usage Guides
 ---
 

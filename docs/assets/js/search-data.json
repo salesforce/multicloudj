@@ -503,62 +503,125 @@
     
     "relUrl": "/design/layers.html#common-pitfalls"
   },"72": {
+    "doc": "How to Pub/Sub",
+    "title": "Pub/Sub",
+    "content": "The TopicClient and SubscriptionClient classes in the multicloudj library provide a comprehensive, cloud-agnostic interface to interact with publish/subscribe messaging services like Google Cloud Pub/Sub, AWS SNS/SQS, and Alibaba Cloud Message Service. These clients enable sending messages to topics, receiving messages from subscriptions, and managing message acknowledgment across multiple cloud providers with a consistent API. ",
+    "url": "/multicloudj/guides/pubsub-guide.html#pubsub",
+    
+    "relUrl": "/guides/pubsub-guide.html#pubsub"
+  },"73": {
+    "doc": "How to Pub/Sub",
+    "title": "Feature Support Across Providers",
+    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Send messages to topics | . | Receive Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Reject messages for redelivery | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Safe to ack same message multiple times | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Endpoint Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom endpoint configuration | . | Proxy Support | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | HTTP proxy configuration | . | Credentials Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom credential providers via STS | . Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#feature-support-across-providers",
+    
+    "relUrl": "/guides/pubsub-guide.html#feature-support-across-providers"
+  },"74": {
+    "doc": "How to Pub/Sub",
+    "title": "Creating Clients",
+    "content": "Topic Client . TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#creating-clients",
+    
+    "relUrl": "/guides/pubsub-guide.html#creating-clients"
+  },"75": {
+    "doc": "How to Pub/Sub",
+    "title": "Sending Messages",
+    "content": "Basic Message . try (TopicClient topic = topicClient) { Message message = Message.builder() .withBody(\"Hello, World!\".getBytes()) .build(); topic.send(message); } . Message with Metadata . Message message = Message.builder() .withBody(\"Order processed\".getBytes()) .withMetadata(Map.of( \"order-id\", \"12345\", \"priority\", \"high\", \"source\", \"api-service\" )) .build(); topic.send(message); . Sending Multiple Messages . List&lt;Message&gt; messages = List.of( Message.builder().withBody(\"Message 1\".getBytes()).withMetadata(Map.of(\"batch-id\", \"1\")).build(), Message.builder().withBody(\"Message 2\".getBytes()).withMetadata(Map.of(\"batch-id\", \"2\")).build(), Message.builder().withBody(\"Message 3\".getBytes()).withMetadata(Map.of(\"batch-id\", \"3\")).build() ); for (Message message : messages) { topic.send(message); } . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#sending-messages",
+    
+    "relUrl": "/guides/pubsub-guide.html#sending-messages"
+  },"76": {
+    "doc": "How to Pub/Sub",
+    "title": "Receiving Messages",
+    "content": "Single Message Receive . The receive() method blocks until a message is available: . try (SubscriptionClient subscription = subscriptionClient) { Message message = subscription.receive(); String data = new String(message.getBody()); System.out.println(\"Received: \" + data); // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Continuous Message Processing . try (SubscriptionClient subscription = subscriptionClient) { while (true) { Message message = subscription.receive(); try { String data = new String(message.getBody()); // Process the message processMessage(data); // Acknowledge on success subscription.sendAck(message.getAckID()); } catch (Exception e) { // Nack on failure for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } } } } . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#receiving-messages",
+    
+    "relUrl": "/guides/pubsub-guide.html#receiving-messages"
+  },"77": {
+    "doc": "How to Pub/Sub",
+    "title": "Message Acknowledgment",
+    "content": "Single Acknowledgment . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Batch Acknowledgment . Batch acknowledgment returns a CompletableFuture: . List&lt;AckID&gt; ackIDs = new ArrayList&lt;&gt;(); // Collect messages for (int i = 0; i &lt; 10; i++) { Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process message... ackIDs.add(message.getAckID()); } } // Acknowledge all at once subscription.sendAcks(ackIDs).join(); . Negative Acknowledgment (Nack) . Use nack to reject a message and make it available for redelivery. Check if nacking is supported first: . Message message = subscription.receive(); if (message != null) { try { // Try to process processMessage(message); subscription.sendAck(message.getAckID()); } catch (Exception e) { // Failed to process, nack for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } else { // Provider doesn't support nack System.err.println(\"Nack not supported\"); } } } . Batch Negative Acknowledgment . List&lt;AckID&gt; nackIDs = new ArrayList&lt;&gt;(); for (Message message : messages) { if (shouldReject(message)) { nackIDs.add(message.getAckID()); } } if (subscription.canNack()) { subscription.sendNacks(nackIDs).join(); } . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#message-acknowledgment",
+    
+    "relUrl": "/guides/pubsub-guide.html#message-acknowledgment"
+  },"78": {
+    "doc": "How to Pub/Sub",
+    "title": "Subscription Information",
+    "content": "Check Nack Support . Not all providers support negative acknowledgment. Check before using: . if (subscription.canNack()) { System.out.println(\"This subscription supports nacking\"); } else { System.out.println(\"This subscription does not support nacking\"); } . Get Subscription Attributes . Retrieve provider-specific subscription metadata: . Map&lt;String, String&gt; attributes = subscription.getAttributes(); for (Map.Entry&lt;String, String&gt; entry : attributes.entrySet()) { System.out.println(entry.getKey() + \": \" + entry.getValue()); } . Important GCP Format Requirements: . | Topic names: projects/{projectId}/topics/{topicId} | Subscription names: projects/{projectId}/subscriptions/{subscriptionId} | . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#subscription-information",
+    
+    "relUrl": "/guides/pubsub-guide.html#subscription-information"
+  },"79": {
+    "doc": "How to Pub/Sub",
+    "title": "Error Handling",
+    "content": "Null Check for AckID . Always validate that an AckID is not null before acknowledging: . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { subscription.sendAck(message.getAckID()); } . Attempting to acknowledge with a null AckID will throw InvalidArgumentException: . try { subscription.sendAck(null); } catch (InvalidArgumentException e) { System.err.println(\"Cannot acknowledge null AckID\"); } . Exception Handling . All topic operations may throw SubstrateSdkException: . try { topic.send(message); } catch (SubstrateSdkException e) { // Handle access denied, quota exceeded, network errors, etc. e.printStackTrace(); } . All subscription operations may throw SubstrateSdkException: . try { Message message = subscription.receive(); subscription.sendAck(message.getAckID()); } catch (SubstrateSdkException e) { // Handle access denied, network errors, etc. e.printStackTrace(); } . ",
+    "url": "/multicloudj/guides/pubsub-guide.html#error-handling",
+    
+    "relUrl": "/guides/pubsub-guide.html#error-handling"
+  },"80": {
+    "doc": "How to Pub/Sub",
+    "title": "How to Pub/Sub",
+    "content": " ",
+    "url": "/multicloudj/guides/pubsub-guide.html",
+    
+    "relUrl": "/guides/pubsub-guide.html"
+  },"81": {
     "doc": "How to STS",
     "title": "STS (Security Token Service)",
     "content": "The StsClient class in the multicloudj library provides a portable interface for interacting with cloud provider security token services such as AWS STS, GCP IAM Credentials, or any other compatible implementation. It allows you to obtain temporary credentials, access tokens, and caller identity information in a cloud-neutral way. ",
     "url": "/multicloudj/guides/sts-guide.html#sts-security-token-service",
     
     "relUrl": "/guides/sts-guide.html#sts-security-token-service"
-  },"73": {
+  },"82": {
     "doc": "How to STS",
     "title": "Overview",
     "content": "The StsClient is built on top of provider-specific implementations of AbstractSts. Each provider registers its implementation and is selected dynamically at runtime. ",
     "url": "/multicloudj/guides/sts-guide.html#overview",
     
     "relUrl": "/guides/sts-guide.html#overview"
-  },"74": {
+  },"83": {
     "doc": "How to STS",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Assume Role | ✅ Supported | ✅ Supported | ✅ Supported | Core feature for temporary credentials for role/service account | . | Get Caller Identity | ✅ Supported | ✅ Supported | ✅ Supported | Returns identity information of the current caller | . | Get Access Token | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region Support | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration | . Provider-Specific Notes . GCP (Google Cloud Platform) . | Uses Google’s OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity | . ",
     "url": "/multicloudj/guides/sts-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/sts-guide.html#feature-support-across-providers"
-  },"75": {
+  },"84": {
     "doc": "How to STS",
     "title": "Creating a Client",
     "content": "StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Optionally, you can set a custom endpoint: . URI endpoint = URI.create(\"https://sts.custom-endpoint.com\"); StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .withEndpoint(endpoint) .build(); . ",
     "url": "/multicloudj/guides/sts-guide.html#creating-a-client",
     
     "relUrl": "/guides/sts-guide.html#creating-a-client"
-  },"76": {
+  },"85": {
     "doc": "How to STS",
     "title": "Getting Caller Identity",
     "content": "Retrieve the caller identity associated with the current credentials: . CallerIdentity identity = stsClient.getCallerIdentity(); System.out.println(\"Caller: \" + identity.getArn()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-caller-identity",
     
     "relUrl": "/guides/sts-guide.html#getting-caller-identity"
-  },"77": {
+  },"86": {
     "doc": "How to STS",
     "title": "Getting an Access Token",
     "content": "Use this when you need an OAuth2-style token (provider support may vary): . GetAccessTokenRequest request = new GetAccessTokenRequest(); StsCredentials token = stsClient.getAccessToken(request); System.out.println(\"Access Token: \" + token.getAccessToken()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-an-access-token",
     
     "relUrl": "/guides/sts-guide.html#getting-an-access-token"
-  },"78": {
+  },"87": {
     "doc": "How to STS",
     "title": "Assuming a Role",
     "content": "To assume a different identity (e.g., for cross-account access): . AssumedRoleRequest request = new AssumedRoleRequest(); request.setRoleArn(\"arn:aws:iam::123456789012:role/example-role\"); request.setSessionName(\"example-session\"); StsCredentials credentials = stsClient.getAssumeRoleCredentials(request); System.out.println(\"Temporary Credentials: \" + credentials.getAccessKeyId()); . ",
     "url": "/multicloudj/guides/sts-guide.html#assuming-a-role",
     
     "relUrl": "/guides/sts-guide.html#assuming-a-role"
-  },"79": {
+  },"88": {
     "doc": "How to STS",
     "title": "Error Handling",
     "content": "All errors are translated to SubstrateSdkException subclasses by the underlying driver. The client will automatically map exceptions to meaningful runtime errors based on the provider: . try { CallerIdentity identity = stsClient.getCallerIdentity(); } catch (SubstrateSdkException e) { // Handle known errors: AccessDenied, Timeout, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/sts-guide.html#error-handling",
     
     "relUrl": "/guides/sts-guide.html#error-handling"
-  },"80": {
+  },"89": {
     "doc": "How to STS",
     "title": "How to STS",
     "content": " ",
