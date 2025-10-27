@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
@@ -323,6 +324,27 @@ public abstract class AbstractPubsubIT {
             // Test double ack on individual messages 
             subscription.sendAck(receivedMessages.get(0).getAckID());
             subscription.sendAck(receivedMessages.get(0).getAckID());
+        }
+    }
+
+    @Test
+    public void testGetAttributes() throws Exception {
+        try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+            GetAttributeResult attributes = subscription.getAttributes();
+
+            // Verify that attributes are returned
+            Assertions.assertNotNull(attributes, "Attributes should not be null");
+
+            // Verify essential attributes that should be present across all providers
+            Assertions.assertNotNull(attributes.getName(), "Name should not be null");
+            Assertions.assertFalse(attributes.getName().isEmpty(), "Name should not be empty");
+
+            Assertions.assertNotNull(attributes.getTopic(), "Topic should not be null");
+            Assertions.assertFalse(attributes.getTopic().isEmpty(), "Topic should not be empty");
+
+            // Verify that we have the essential attributes
+            Assertions.assertNotNull(attributes.getName(), "Should have name attribute");
+            Assertions.assertNotNull(attributes.getTopic(), "Should have topic attribute");
         }
     }
 }

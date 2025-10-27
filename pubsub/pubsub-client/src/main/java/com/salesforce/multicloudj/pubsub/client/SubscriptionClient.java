@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.pubsub.client;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
@@ -145,10 +144,10 @@ public class SubscriptionClient implements AutoCloseable {
      * This may include provider-specific configuration like delivery delay,
      * message retention period, etc.
      *
-     * @return A map of subscription attributes
+     * @return A GetAttributeResult containing subscription attributes
      * @throws SubstrateSdkException If the operation fails
      */
-    public Map<String, String> getAttributes() {
+    public GetAttributeResult getAttributes() {
         try {
             return subscription.getAttributes();
         } catch (Throwable t) {
