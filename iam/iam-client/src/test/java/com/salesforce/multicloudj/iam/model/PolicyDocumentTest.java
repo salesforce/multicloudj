@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public class PolicyDocumentTest {
 
+    private static final String TEST_VERSION = "TEST_VERSION";
+
     @Test
     public void testPolicyDocumentBuilder() {
         PolicyDocument policy = PolicyDocument.builder()
@@ -46,6 +48,7 @@ public class PolicyDocumentTest {
     @Test
     public void testMultipleStatements() {
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .statement("ReadAccess")
                 .effect("Allow")
                 .addAction("storage:GetObject")
@@ -73,6 +76,7 @@ public class PolicyDocumentTest {
             .build();
 
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .addStatement(statement)
             .build();
 
@@ -88,9 +92,23 @@ public class PolicyDocumentTest {
     }
 
     @Test
+    public void testMissingVersionThrowsException() {
+        assertThrows(InvalidArgumentException.class, () -> {
+            PolicyDocument.builder()
+                .statement("TestStatement")
+                    .effect("Allow")
+                    .addAction("storage:GetObject")
+                    .addResource("storage://test-bucket/*")
+                .endStatement()
+                .build();
+        });
+    }
+
+    @Test
     public void testStatementWithoutEffectThrowsException() {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
+                .version(TEST_VERSION)
                 .statement("TestStatement")
                     .addAction("storage:GetObject")
                 .endStatement()
@@ -102,6 +120,7 @@ public class PolicyDocumentTest {
     public void testStatementWithoutActionsThrowsException() {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
+                .version(TEST_VERSION)
                 .statement("TestStatement")
                     .effect("Allow")
                 .endStatement()
@@ -125,6 +144,7 @@ public class PolicyDocumentTest {
 
         // Test default version
         PolicyDocument defaultVersionPolicy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .statement("TestStatement")
                 .effect("Allow")
                 .addAction("storage:GetObject")
@@ -132,12 +152,13 @@ public class PolicyDocumentTest {
             .endStatement()
             .build();
 
-        assertEquals("2024-01-01", defaultVersionPolicy.getVersion());
+        assertEquals(TEST_VERSION, defaultVersionPolicy.getVersion());
     }
 
     @Test
     public void testBuilderMethodsWithMultipleValues() {
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .statement("TestStatement")
                 .effect("Allow")
                 .addAction("storage:GetObject")
@@ -213,6 +234,7 @@ public class PolicyDocumentTest {
     @Test
     public void testAddNullStatement() {
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .addStatement(null)
             .statement("ValidStatement")
                 .effect("Allow")
@@ -235,6 +257,7 @@ public class PolicyDocumentTest {
             .build();
 
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .addStatement(preBuiltStatement)
             .statement("BuiltInline")
                 .effect("Allow")
@@ -311,6 +334,7 @@ public class PolicyDocumentTest {
     public void testEndStatementWithoutCurrentStatement() {
         // endStatement() should be safe to call even when no statement is being built
         PolicyDocument policy = PolicyDocument.builder()
+            .version(TEST_VERSION)
             .endStatement() // This should do nothing
             .statement("TestStatement")
                 .effect("Allow")
