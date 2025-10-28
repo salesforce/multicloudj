@@ -56,7 +56,7 @@ public class CreateOptionsTest {
         assertEquals(Integer.valueOf(7200), durationOptions.getMaxSessionDuration());
         assertNull(durationOptions.getPermissionBoundary());
 
-        // Test permissionBoundary only
+        // Test permissionBoundary only (AWS example)
         CreateOptions boundaryOptions = CreateOptions.builder()
             .permissionBoundary("arn:aws:iam::123456789012:policy/DeveloperBoundary")
             .build();
@@ -218,5 +218,41 @@ public class CreateOptionsTest {
         assertEquals("/second/", options.getPath());
         assertEquals(Integer.valueOf(7200), options.getMaxSessionDuration());
         assertEquals("arn:aws:iam::123456789012:policy/SecondBoundary", options.getPermissionBoundary());
+    }
+
+    @Test
+    public void testCreateOptionsBuilderProviderSpecificExamples() {
+        // AWS Example
+        CreateOptions awsOptions = CreateOptions.builder()
+            .path("/foo/")
+            .maxSessionDuration(43200) // 12 hours
+            .permissionBoundary("arn:aws:iam::123456789012:policy/PowerUserBoundary")
+            .build();
+
+        assertEquals("/foo/", awsOptions.getPath());
+        assertEquals(Integer.valueOf(43200), awsOptions.getMaxSessionDuration());
+        assertEquals("arn:aws:iam::123456789012:policy/PowerUserBoundary", awsOptions.getPermissionBoundary());
+
+        // GCP Example
+        CreateOptions gcpOptions = CreateOptions.builder()
+            .path("/foo/")
+            .maxSessionDuration(3600) // 1 hour
+            .permissionBoundary("constraints/compute.restrictLoadBalancerCreationForTypes")
+            .build();
+
+        assertEquals("/foo/", gcpOptions.getPath());
+        assertEquals(Integer.valueOf(3600), gcpOptions.getMaxSessionDuration());
+        assertEquals("constraints/compute.restrictLoadBalancerCreationForTypes", gcpOptions.getPermissionBoundary());
+
+        // AliCloud Example (permission boundaries not supported)
+        CreateOptions aliOptions = CreateOptions.builder()
+            .path("/foo/")
+            .maxSessionDuration(7200) // 2 hours
+            // Permission boundaries not supported in AliCloud RAM
+            .build();
+
+        assertEquals("/foo/", aliOptions.getPath());
+        assertEquals(Integer.valueOf(7200), aliOptions.getMaxSessionDuration());
+        assertNull(aliOptions.getPermissionBoundary()); // AliCloud doesn't support permission boundaries
     }
 }

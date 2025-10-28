@@ -10,12 +10,32 @@ import java.util.Objects;
  * <p>This class provides additional options that can be set during identity creation,
  * such as path specifications, session duration limits, and permission boundaries.
  *
- * <p>Usage example:
+ * <p>Permission boundary identifiers are provider-specific and translated internally:
+ * - AWS: IAM Policy ARN format (arn:aws:iam::account:policy/name)
+ * - GCP: Organization Policy constraint name or IAM Condition expression
+ * - AliCloud: Not supported (AliCloud RAM does not have permission boundaries)
+ *
+ * <p>Usage examples by provider:
  * <pre>
- * CreateOptions options = CreateOptions.builder()
+ * // AWS Example
+ * CreateOptions awsOptions = CreateOptions.builder()
  *     .path("/foo/")
  *     .maxSessionDuration(43200) // 12 hours
  *     .permissionBoundary("arn:aws:iam::123456789012:policy/PowerUserBoundary")
+ *     .build();
+ *
+ * // GCP Example (using organization policy constraint)
+ * CreateOptions gcpOptions = CreateOptions.builder()
+ *     .path("/foo/")
+ *     .maxSessionDuration(3600)  // 1 hour
+ *     .permissionBoundary("constraints/compute.restrictLoadBalancerCreationForTypes")
+ *     .build();
+ *
+ * // AliCloud Example (permission boundaries not supported)
+ * CreateOptions aliOptions = CreateOptions.builder()
+ *     .path("/foo/")
+ *     .maxSessionDuration(7200)  // 2 hours
+ *     // .permissionBoundary() - Not supported in AliCloud RAM
  *     .build();
  * </pre>
  */
@@ -99,9 +119,10 @@ public class CreateOptions {
         }
 
         /**
-         * Sets the permission boundary ARN.
+         * Sets the permission boundary policy identifier.
          *
-         * @param permissionBoundary the ARN of the policy that acts as a permissions boundary
+         * @param permissionBoundary the cloud-native identifier of the policy that acts as a permission boundary
+         *                          (AWS: policy ARN, GCP: constraint name, AliCloud: not supported)
          * @return this Builder instance
          */
         public Builder permissionBoundary(String permissionBoundary) {
