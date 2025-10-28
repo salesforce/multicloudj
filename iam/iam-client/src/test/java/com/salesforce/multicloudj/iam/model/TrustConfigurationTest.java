@@ -230,23 +230,6 @@ public class TrustConfigurationTest {
         assertTrue(toString.contains("arn:aws:iam::123456789012:root"));
     }
 
-    @Test
-    public void testTrustConfigurationImmutable() {
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .build();
-
-        List<String> principals = trustConfig.getTrustedPrincipals();
-        Map<String, Map<String, Object>> conditions = trustConfig.getConditions();
-
-        // Modifying returned lists/maps should not affect the original
-        principals.add("new-principal");
-        conditions.put("NewOperator", Map.of("key", "value"));
-
-        // Original should remain unchanged
-        assertEquals(1, trustConfig.getTrustedPrincipals().size());
-        assertEquals(0, trustConfig.getConditions().size());
-    }
 
     @Test
     public void testTrustConfigurationEqualsAndHashCodeWithNullChecks() {

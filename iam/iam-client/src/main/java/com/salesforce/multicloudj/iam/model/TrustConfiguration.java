@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.iam.model;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,9 +22,8 @@ import java.util.Objects;
  *     .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
  *     .build();
  * </pre>
- *
- * @since 0.3.0
  */
+@Getter
 public class TrustConfiguration {
     private final List<String> trustedPrincipals;
     private final Map<String, Map<String, Object>> conditions;
@@ -41,23 +42,6 @@ public class TrustConfiguration {
         return new Builder();
     }
 
-    /**
-     * Gets the list of trusted principals.
-     *
-     * @return an immutable copy of the trusted principals list
-     */
-    public List<String> getTrustedPrincipals() {
-        return new ArrayList<>(trustedPrincipals);
-    }
-
-    /**
-     * Gets the trust conditions.
-     *
-     * @return an immutable copy of the conditions map
-     */
-    public Map<String, Map<String, Object>> getConditions() {
-        return new HashMap<>(conditions);
-    }
 
     @Override
     public boolean equals(Object o) {

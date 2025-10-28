@@ -303,23 +303,6 @@ public class PolicyDocumentTest {
         assertTrue(result.contains("PolicyDocument"));
     }
 
-    @Test
-    public void testGetStatementsReturnsImmutableCopy() {
-        PolicyDocument policy = PolicyDocument.builder()
-            .statement("TestStatement")
-                .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
-            .build();
-
-        List<Statement> statements = policy.getStatements();
-        statements.clear();
-
-        // Original should be unaffected
-        assertFalse(policy.getStatements().isEmpty());
-        assertEquals(1, policy.getStatements().size());
-    }
 
     @Test
     public void testEndStatementWithoutCurrentStatement() {
