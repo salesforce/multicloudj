@@ -40,8 +40,6 @@ import java.util.Optional;
  * // Attach policy
  * client.attachInlinePolicy(policy, "123456789012", "us-west-2", "my-bucket");
  * </pre>
- *
- * @since 0.3.0
  */
 public class IamClient {
 

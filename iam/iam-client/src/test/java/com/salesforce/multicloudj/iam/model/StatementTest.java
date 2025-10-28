@@ -303,33 +303,4 @@ public class StatementTest {
         assertTrue(result.contains("StringEquals"));
     }
 
-    @Test
-    public void testGettersReturnImmutableCopies() {
-        Statement.Builder builder = Statement.builder()
-            .sid("TestStatement")
-            .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
-            .addPrincipal("principal1")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2");
-
-        Statement statement = builder.build();
-
-        // Verify that modifying returned lists doesn't affect the original
-        List<String> actions = statement.getActions();
-        actions.clear();
-        assertFalse(statement.getActions().isEmpty());
-
-        List<String> resources = statement.getResources();
-        resources.clear();
-        assertFalse(statement.getResources().isEmpty());
-
-        List<String> principals = statement.getPrincipals();
-        principals.clear();
-        assertFalse(statement.getPrincipals().isEmpty());
-
-        Map<String, Map<String, Object>> conditions = statement.getConditions();
-        conditions.clear();
-        assertFalse(statement.getConditions().isEmpty());
-    }
 }

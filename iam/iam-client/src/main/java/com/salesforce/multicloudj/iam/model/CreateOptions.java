@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.iam.model;
 
+import lombok.Getter;
+
 import java.util.Objects;
 
 /**
@@ -11,14 +13,13 @@ import java.util.Objects;
  * <p>Usage example:
  * <pre>
  * CreateOptions options = CreateOptions.builder()
- *     .path("/orgstore/")
+ *     .path("/foo/")
  *     .maxSessionDuration(43200) // 12 hours
  *     .permissionBoundary("arn:aws:iam::123456789012:policy/PowerUserBoundary")
  *     .build();
  * </pre>
- *
- * @since 0.3.0
  */
+@Getter
 public class CreateOptions {
     private final String path;
     private final Integer maxSessionDuration;
@@ -39,32 +40,6 @@ public class CreateOptions {
         return new Builder();
     }
 
-    /**
-     * Gets the path for the identity.
-     *
-     * @return the path, or null if not set
-     */
-    public String getPath() {
-        return path;
-    }
-
-    /**
-     * Gets the maximum session duration in seconds.
-     *
-     * @return the maximum session duration, or null if not set
-     */
-    public Integer getMaxSessionDuration() {
-        return maxSessionDuration;
-    }
-
-    /**
-     * Gets the permission boundary ARN.
-     *
-     * @return the permission boundary ARN, or null if not set
-     */
-    public String getPermissionBoundary() {
-        return permissionBoundary;
-    }
 
     @Override
     public boolean equals(Object o) {
@@ -104,7 +79,7 @@ public class CreateOptions {
         /**
          * Sets the path for the identity.
          *
-         * @param path the path (e.g., "/orgstore/") for organizing identities
+         * @param path the path (e.g., "/foo/") for organizing identities
          * @return this Builder instance
          */
         public Builder path(String path) {

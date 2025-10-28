@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.iam.model;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -25,9 +27,8 @@ import java.util.Objects;
  *     .endStatement()
  *     .build();
  * </pre>
- *
- * @since 0.3.0
  */
+@Getter
 public class PolicyDocument {
     private final String version;
     private final List<Statement> statements;
@@ -46,23 +47,7 @@ public class PolicyDocument {
         return new Builder();
     }
 
-    /**
-     * Gets the policy version.
-     *
-     * @return the policy version
-     */
-    public String getVersion() {
-        return version;
-    }
 
-    /**
-     * Gets the list of statements.
-     *
-     * @return an immutable copy of the statements list
-     */
-    public List<Statement> getStatements() {
-        return new ArrayList<>(statements);
-    }
 
     @Override
     public boolean equals(Object o) {
