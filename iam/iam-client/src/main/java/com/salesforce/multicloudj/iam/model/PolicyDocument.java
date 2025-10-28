@@ -81,6 +81,7 @@ public class PolicyDocument {
         private Statement.Builder currentStatementBuilder;
 
         private Builder() {
+            this.currentStatementBuilder = Statement.builder();
         }
 
         /**
@@ -113,7 +114,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder effect(String effect) {
-            validateCurrentStatement();
             this.currentStatementBuilder.effect(effect);
             return this;
         }
@@ -125,7 +125,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addPrincipal(String principal) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addPrincipal(principal);
             return this;
         }
@@ -137,7 +136,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addPrincipals(List<String> principals) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addPrincipals(principals);
             return this;
         }
@@ -149,7 +147,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addAction(String action) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addAction(action);
             return this;
         }
@@ -161,7 +158,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addActions(List<String> actions) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addActions(actions);
             return this;
         }
@@ -173,7 +169,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addResource(String resource) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addResource(resource);
             return this;
         }
@@ -185,7 +180,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addResources(List<String> resources) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addResources(resources);
             return this;
         }
@@ -199,7 +193,6 @@ public class PolicyDocument {
          * @return this Builder instance
          */
         public Builder addCondition(String operator, String key, Object value) {
-            validateCurrentStatement();
             this.currentStatementBuilder.addCondition(operator, key, value);
             return this;
         }
@@ -245,16 +238,16 @@ public class PolicyDocument {
             return new PolicyDocument(this);
         }
 
-        private void validateCurrentStatement() {
-            if (currentStatementBuilder == null) {
-                throw new InvalidArgumentException("No statement is currently being built. Call statement(sid) first.");
-            }
-        }
 
         private void finalizeCurrentStatement() {
             if (currentStatementBuilder != null) {
-                statements.add(currentStatementBuilder.build());
-                currentStatementBuilder = null;
+                // Only finalize statements that have the minimum required content
+                if (currentStatementBuilder.hasMinimumContent()) {
+                    Statement statement = currentStatementBuilder.build();
+                    statements.add(statement);
+                }
+                // Always reinitialize for the next statement
+                currentStatementBuilder = Statement.builder();
             }
         }
     }

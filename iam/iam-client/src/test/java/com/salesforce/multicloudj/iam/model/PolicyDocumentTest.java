@@ -204,31 +204,34 @@ public class PolicyDocumentTest {
     }
 
     @Test
-    public void testBuilderStateValidation() {
-        // Test that trying to use statement methods without calling statement() throws exception
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addAction("storage:GetObject").build());
+    public void testBuilderAutoInitialization() {
+        // Test that statement methods work without calling statement() first due to auto-initialization
+        PolicyDocument policy1 = PolicyDocument.builder()
+            .version("2024-01-01")
+            .addAction("storage:GetObject")
+            .effect("Allow")
+            .addResource("storage://test-bucket/*")
+            .build();
 
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().effect("Allow").build());
+        assertEquals(1, policy1.getStatements().size());
+        assertEquals("Allow", policy1.getStatements().get(0).getEffect());
 
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addResource("storage://test-bucket/*").build());
+        PolicyDocument policy2 = PolicyDocument.builder()
+            .version("2024-01-01")
+            .addPrincipal("principal1")
+            .addCondition("StringEquals", "key", "value")
+            .addActions(Arrays.asList("storage:GetObject"))
+            .addResources(Arrays.asList("storage://test-bucket/*"))
+            .addPrincipals(Arrays.asList("principal2"))
+            .effect("Allow")
+            .build();
 
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addPrincipal("principal1").build());
-
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addCondition("StringEquals", "key", "value").build());
-
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addActions(Arrays.asList("storage:GetObject")).build());
-
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addResources(Arrays.asList("storage://test-bucket/*")).build());
-
-        assertThrows(InvalidArgumentException.class, () ->
-            PolicyDocument.builder().addPrincipals(Arrays.asList("principal1")).build());
+        assertEquals(1, policy2.getStatements().size());
+        Statement statement = policy2.getStatements().get(0);
+        assertEquals("Allow", statement.getEffect());
+        assertEquals(1, statement.getActions().size());
+        assertEquals(1, statement.getResources().size());
+        assertEquals(2, statement.getPrincipals().size());
     }
 
     @Test
