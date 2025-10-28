@@ -223,6 +223,15 @@ public class Statement {
         }
 
         /**
+         * Checks if the statement has the minimum required content to be built.
+         *
+         * @return true if the statement has both effect and at least one action
+         */
+        public boolean hasMinimumContent() {
+            return effect != null && !effect.trim().isEmpty() && !actions.isEmpty();
+        }
+
+        /**
          * Builds and returns a Statement instance.
          *
          * @return a new Statement instance
