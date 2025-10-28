@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.model;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -225,14 +226,14 @@ public class Statement {
          * Builds and returns a Statement instance.
          *
          * @return a new Statement instance
-         * @throws IllegalArgumentException if required fields are missing
+         * @throws InvalidArgumentException if required fields are missing
          */
         public Statement build() {
             if (effect == null || effect.trim().isEmpty()) {
-                throw new IllegalArgumentException("effect is required");
+                throw new InvalidArgumentException("effect is required");
             }
             if (actions.isEmpty()) {
-                throw new IllegalArgumentException("at least one action is required");
+                throw new InvalidArgumentException("at least one action is required");
             }
             return new Statement(this);
         }
