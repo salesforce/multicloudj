@@ -127,6 +127,7 @@ public class TrustConfigurationTest {
         TrustConfiguration trustConfig = TrustConfiguration.builder()
             .addTrustedPrincipal("service-account@my-project.iam.gserviceaccount.com")
             .addTrustedPrincipal("another-sa@different-project.iam.gserviceaccount.com")
+            .addCondition("expression", "location", "resource.name.startsWith('projects/my-project/zones/us-west')")
             .build();
 
         List<String> expectedPrincipals = Arrays.asList(
@@ -135,6 +136,10 @@ public class TrustConfigurationTest {
         );
 
         assertEquals(expectedPrincipals, trustConfig.getTrustedPrincipals());
+
+        Map<String, Map<String, Object>> conditions = trustConfig.getConditions();
+        assertTrue(conditions.containsKey("expression"));
+        assertEquals("resource.name.startsWith('projects/my-project/zones/us-west')", conditions.get("expression").get("location"));
     }
 
     @Test
@@ -142,6 +147,7 @@ public class TrustConfigurationTest {
         TrustConfiguration trustConfig = TrustConfiguration.builder()
             .addTrustedPrincipal("1234567890123456")  // AliCloud account ID
             .addTrustedPrincipal("acs:ram::1234567890123456:user/AliUser")  // AliCloud RAM user
+            .addCondition("StringEquals", "acs:CurrentRegion", "us-west-1")
             .build();
 
         List<String> expectedPrincipals = Arrays.asList(
@@ -150,6 +156,10 @@ public class TrustConfigurationTest {
         );
 
         assertEquals(expectedPrincipals, trustConfig.getTrustedPrincipals());
+
+        Map<String, Map<String, Object>> conditions = trustConfig.getConditions();
+        assertTrue(conditions.containsKey("StringEquals"));
+        assertEquals("us-west-1", conditions.get("StringEquals").get("acs:CurrentRegion"));
     }
 
     @Test

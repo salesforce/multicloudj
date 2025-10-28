@@ -14,14 +14,10 @@ import java.util.Objects;
  * <p>This class defines which principals can assume or impersonate the identity being created,
  * along with any conditions that must be met for the trust relationship to be valid.
  *
- * <p>Usage example:
- * <pre>
- * TrustConfiguration trust = TrustConfiguration.builder()
- *     .addTrustedPrincipal("arn:aws:iam::111122223333:root")
- *     .addTrustedPrincipal("arn:aws:iam::444455556666:user/ExampleUser")
- *     .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
- *     .build();
- * </pre>
+ * <p>Principal identifiers are accepted in their native cloud format and translated internally:
+ * - AWS: ARN format (arn:aws:iam::account:type/name)
+ * - GCP: Email format (serviceaccount@project.iam.gserviceaccount.com)
+ * - AliCloud: ACS format (acs:ram::account:type/name) or account ID
  */
 @Getter
 public class TrustConfiguration {
@@ -78,7 +74,7 @@ public class TrustConfiguration {
         /**
          * Adds a trusted principal to the trust configuration.
          *
-         * @param principal the principal ARN or identifier that can assume this identity
+         * @param principal the principal identifier in cloud-native format (AWS ARN, GCP email, AliCloud ACS ARN or account ID)
          * @return this Builder instance
          */
         public Builder addTrustedPrincipal(String principal) {
@@ -91,7 +87,7 @@ public class TrustConfiguration {
         /**
          * Adds multiple trusted principals to the trust configuration.
          *
-         * @param principals the list of principal ARNs or identifiers
+         * @param principals the list of principal identifiers in cloud-native formats
          * @return this Builder instance
          */
         public Builder addTrustedPrincipals(List<String> principals) {
@@ -106,8 +102,8 @@ public class TrustConfiguration {
         /**
          * Adds a condition to the trust configuration.
          *
-         * @param operator the condition operator (e.g., "StringEquals", "IpAddress")
-         * @param key the condition key (e.g., "aws:RequestedRegion", "aws:SourceIp")
+         * @param operator the condition operator (e.g., "StringEquals", "IpAddress", "DateGreaterThan")
+         * @param key the condition key in cloud-native format (e.g., "aws:RequestedRegion", ""aws:SourceIp")
          * @param value the condition value
          * @return this Builder instance
          */
