@@ -17,7 +17,7 @@ import java.util.Objects;
  * <p>Usage example:
  * <pre>
  * PolicyDocument policy = PolicyDocument.builder()
- *     .version("2024-01-01")
+ *     .version("2012-10-17")  // Use provider-specific version (AWS example)
  *     .statement("StorageAccess")
  *         .effect("Allow")
  *         .addAction("storage:GetObject")
@@ -76,7 +76,7 @@ public class PolicyDocument {
      * Builder class for PolicyDocument.
      */
     public static class Builder {
-        private String version = "2024-01-01";
+        private String version;
         private final List<Statement> statements = new ArrayList<>();
         private Statement.Builder currentStatementBuilder;
 
@@ -86,7 +86,7 @@ public class PolicyDocument {
         /**
          * Sets the policy version.
          *
-         * @param version the policy version (default: "2024-01-01")
+         * @param version the policy version (required)
          * @return this Builder instance
          */
         public Builder version(String version) {
@@ -232,10 +232,13 @@ public class PolicyDocument {
          * Builds and returns a PolicyDocument instance.
          *
          * @return a new PolicyDocument instance
-         * @throws InvalidArgumentException if no statements are defined
+         * @throws InvalidArgumentException if version or statements are missing
          */
         public PolicyDocument build() {
             finalizeCurrentStatement();
+            if (version == null || version.trim().isEmpty()) {
+                throw new InvalidArgumentException("version is required");
+            }
             if (statements.isEmpty()) {
                 throw new InvalidArgumentException("at least one statement is required");
             }

@@ -29,7 +29,7 @@ import java.util.Optional;
  *
  * // Create policy
  * PolicyDocument policy = PolicyDocument.builder()
- *     .version("2024-01-01")
+ *     .version("2012-10-17")  // Use provider-specific version (AWS example)
  *     .statement("StorageAccess")
  *         .effect("Allow")
  *         .addAction("storage:GetObject")
