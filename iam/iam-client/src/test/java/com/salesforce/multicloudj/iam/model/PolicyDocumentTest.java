@@ -1,9 +1,9 @@
 package com.salesforce.multicloudj.iam.model;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -82,14 +82,14 @@ public class PolicyDocumentTest {
 
     @Test
     public void testEmptyPolicyThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder().build();
         });
     }
 
     @Test
     public void testStatementWithoutEffectThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
                 .statement("TestStatement")
                     .addAction("storage:GetObject")
@@ -100,7 +100,7 @@ public class PolicyDocumentTest {
 
     @Test
     public void testStatementWithoutActionsThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
                 .statement("TestStatement")
                     .effect("Allow")
@@ -185,28 +185,28 @@ public class PolicyDocumentTest {
     @Test
     public void testBuilderStateValidation() {
         // Test that trying to use statement methods without calling statement() throws exception
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addAction("storage:GetObject").build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().effect("Allow").build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addResource("storage://test-bucket/*").build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addPrincipal("principal1").build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addCondition("StringEquals", "key", "value").build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addActions(Arrays.asList("storage:GetObject")).build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addResources(Arrays.asList("storage://test-bucket/*")).build());
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(InvalidArgumentException.class, () ->
             PolicyDocument.builder().addPrincipals(Arrays.asList("principal1")).build());
     }
 

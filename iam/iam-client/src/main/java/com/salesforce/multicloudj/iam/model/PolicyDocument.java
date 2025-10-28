@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.model;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -231,19 +232,19 @@ public class PolicyDocument {
          * Builds and returns a PolicyDocument instance.
          *
          * @return a new PolicyDocument instance
-         * @throws IllegalArgumentException if no statements are defined
+         * @throws InvalidArgumentException if no statements are defined
          */
         public PolicyDocument build() {
             finalizeCurrentStatement();
             if (statements.isEmpty()) {
-                throw new IllegalArgumentException("at least one statement is required");
+                throw new InvalidArgumentException("at least one statement is required");
             }
             return new PolicyDocument(this);
         }
 
         private void validateCurrentStatement() {
             if (currentStatementBuilder == null) {
-                throw new IllegalStateException("No statement is currently being built. Call statement(sid) first.");
+                throw new InvalidArgumentException("No statement is currently being built. Call statement(sid) first.");
             }
         }
 

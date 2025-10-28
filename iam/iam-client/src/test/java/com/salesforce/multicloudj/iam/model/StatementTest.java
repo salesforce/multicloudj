@@ -1,10 +1,10 @@
 package com.salesforce.multicloudj.iam.model;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -121,14 +121,14 @@ public class StatementTest {
 
     @Test
     public void testEmptyStatementThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder().build();
         });
     }
 
     @Test
     public void testStatementWithoutEffectThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder()
                 .sid("NoEffectStatement")
                 .addAction("storage:GetObject")
@@ -139,7 +139,7 @@ public class StatementTest {
 
     @Test
     public void testStatementWithoutActionsThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder()
                 .sid("NoActionsStatement")
                 .effect("Allow")
@@ -150,7 +150,7 @@ public class StatementTest {
 
     @Test
     public void testStatementWithEmptyEffect() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder()
                 .sid("EmptyEffectStatement")
                 .effect("")
@@ -161,7 +161,7 @@ public class StatementTest {
 
     @Test
     public void testStatementWithWhitespaceEffect() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder()
                 .sid("WhitespaceEffectStatement")
                 .effect("   ")
