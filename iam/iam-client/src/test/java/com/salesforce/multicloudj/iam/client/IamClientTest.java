@@ -6,7 +6,6 @@ import java.net.URI;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Unit tests for IamClient builder pattern and basic functionality.
@@ -63,88 +62,4 @@ public class IamClientTest {
         assertNotNull(client);
     }
 
-    // TODO: Modify this test to verify actual createIdentity functionality
-    // Expected behavior: Should return the unique identifier of the created identity
-    @Test
-    public void testCreateIdentity() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.createIdentity("TestRole", "Test description", "123456789012", "us-west-2",
-                java.util.Optional.empty(), java.util.Optional.empty());
-        });
-    }
-
-    // TODO: Modify this test to verify actual attachInlinePolicy functionality
-    // Expected behavior: Should successfully attach policy without throwing exceptions
-    @Test
-    public void testAttachInlinePolicy() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.attachInlinePolicy(null, "123456789012", "us-west-2", "test-resource");
-        });
-    }
-
-    // TODO: Modify this test to verify actual getInlinePolicyDetails functionality
-    // Expected behavior: Should return the policy document details as a string
-    @Test
-    public void testGetInlinePolicyDetails() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.getInlinePolicyDetails("TestRole", "TestPolicy", "123456789012", "us-west-2");
-        });
-    }
-
-    // TODO: Modify this test to verify actual getAttachedPolicies functionality
-    // Expected behavior: Should return a list of policy names attached to the identity
-    @Test
-    public void testGetAttachedPolicies() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.getAttachedPolicies("TestRole", "123456789012", "us-west-2");
-        });
-    }
-
-    // TODO: Modify this test to verify actual removePolicy functionality
-    // Expected behavior: Should successfully remove policy without throwing exceptions
-    @Test
-    public void testRemovePolicy() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.removePolicy("TestRole", "TestPolicy", "123456789012", "us-west-2");
-        });
-    }
-
-    // TODO: Modify this test to verify actual deleteIdentity functionality
-    // Expected behavior: Should successfully delete identity without throwing exceptions
-    @Test
-    public void testDeleteIdentity() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.deleteIdentity("TestRole", "123456789012", "us-west-2");
-        });
-    }
-
-    // TODO: Modify this test to verify actual getIdentity functionality
-    // Expected behavior: Should return the unique identity identifier (ARN, email, or roleId)
-    @Test
-    public void testGetIdentity() {
-        IamClient client = IamClient.builder("aws").build();
-
-        // Currently throws UnsupportedOperationException, will be implemented later
-        assertThrows(UnsupportedOperationException.class, () -> {
-            client.getIdentity("TestRole", "123456789012", "us-west-2");
-        });
-    }
 }
