@@ -11,32 +11,16 @@ import java.util.Objects;
  * <p>This class provides additional options that can be set during identity creation,
  * such as path specifications, session duration limits, and permission boundaries.
  *
- * <p>Permission boundary identifiers are provider-specific and translated internally:
- * - AWS: IAM Policy ARN format (arn:aws:iam::account:policy/name)
- * - GCP: Organization Policy constraint name or IAM Condition expression
- * - AliCloud: Control Policy name or ID (Resource Directory Control Policies)
+ * <p>Permission boundary identifiers are provider-specific and translated internally
+ * by the implementation layer. The client accepts the native format for the target
+ * cloud provider.
  *
- * <p>Usage examples by provider:
+ * <p>Usage example:
  * <pre>
- * // AWS Example
- * CreateOptions awsOptions = CreateOptions.builder()
- *     .path("/foo/")
- *     .maxSessionDuration(43200) // 12 hours
- *     .permissionBoundary("arn:aws:iam::123456789012:policy/PowerUserBoundary")
- *     .build();
- *
- * // GCP Example (using organization policy constraint)
- * CreateOptions gcpOptions = CreateOptions.builder()
- *     .path("/foo/")
- *     .maxSessionDuration(3600)  // 1 hour
- *     .permissionBoundary("constraints/compute.restrictLoadBalancerCreationForTypes")
- *     .build();
- *
- * // AliCloud Example (using Control Policy)
- * CreateOptions aliOptions = CreateOptions.builder()
- *     .path("/foo/")
- *     .maxSessionDuration(7200)  // 2 hours
- *     .permissionBoundary("cp-bp1example") // Control Policy ID
+ * CreateOptions options = CreateOptions.builder()
+ *     .path("/service-roles/")
+ *     .maxSessionDuration(3600) // 1 hour in seconds
+ *     .permissionBoundary("policy-identifier") // Provider-specific format
  *     .build();
  * </pre>
  */
