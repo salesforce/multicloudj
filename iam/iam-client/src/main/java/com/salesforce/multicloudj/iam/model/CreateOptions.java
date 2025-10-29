@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.model;
 
+import lombok.Builder;
 import lombok.Getter;
 
 import java.util.Objects;
@@ -13,7 +14,7 @@ import java.util.Objects;
  * <p>Permission boundary identifiers are provider-specific and translated internally:
  * - AWS: IAM Policy ARN format (arn:aws:iam::account:policy/name)
  * - GCP: Organization Policy constraint name or IAM Condition expression
- * - AliCloud: Not supported (AliCloud RAM does not have permission boundaries)
+ * - AliCloud: Control Policy name or ID (Resource Directory Control Policies)
  *
  * <p>Usage examples by provider:
  * <pre>
@@ -31,34 +32,20 @@ import java.util.Objects;
  *     .permissionBoundary("constraints/compute.restrictLoadBalancerCreationForTypes")
  *     .build();
  *
- * // AliCloud Example (permission boundaries not supported)
+ * // AliCloud Example (using Control Policy)
  * CreateOptions aliOptions = CreateOptions.builder()
  *     .path("/foo/")
  *     .maxSessionDuration(7200)  // 2 hours
- *     // .permissionBoundary() - Not supported in AliCloud RAM
+ *     .permissionBoundary("cp-bp1example") // Control Policy ID
  *     .build();
  * </pre>
  */
 @Getter
+@Builder
 public class CreateOptions {
     private final String path;
     private final Integer maxSessionDuration;
     private final String permissionBoundary;
-
-    private CreateOptions(Builder builder) {
-        this.path = builder.path;
-        this.maxSessionDuration = builder.maxSessionDuration;
-        this.permissionBoundary = builder.permissionBoundary;
-    }
-
-    /**
-     * Creates a new builder for CreateOptions.
-     *
-     * @return a new Builder instance
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
 
 
     @Override
@@ -83,60 +70,5 @@ public class CreateOptions {
                 ", maxSessionDuration=" + maxSessionDuration +
                 ", permissionBoundary='" + permissionBoundary + '\'' +
                 '}';
-    }
-
-    /**
-     * Builder class for CreateOptions.
-     */
-    public static class Builder {
-        private String path;
-        private Integer maxSessionDuration;
-        private String permissionBoundary;
-
-        private Builder() {
-        }
-
-        /**
-         * Sets the path for the identity.
-         *
-         * @param path the path (e.g., "/foo/") for organizing identities
-         * @return this Builder instance
-         */
-        public Builder path(String path) {
-            this.path = path;
-            return this;
-        }
-
-        /**
-         * Sets the maximum session duration in seconds.
-         *
-         * @param maxSessionDuration the maximum session duration (typically up to 12 hours = 43200 seconds)
-         * @return this Builder instance
-         */
-        public Builder maxSessionDuration(Integer maxSessionDuration) {
-            this.maxSessionDuration = maxSessionDuration;
-            return this;
-        }
-
-        /**
-         * Sets the permission boundary policy identifier.
-         *
-         * @param permissionBoundary the cloud-native identifier of the policy that acts as a permission boundary
-         *                          (AWS: policy ARN, GCP: constraint name, AliCloud: not supported)
-         * @return this Builder instance
-         */
-        public Builder permissionBoundary(String permissionBoundary) {
-            this.permissionBoundary = permissionBoundary;
-            return this;
-        }
-
-        /**
-         * Builds and returns a CreateOptions instance.
-         *
-         * @return a new CreateOptions instance
-         */
-        public CreateOptions build() {
-            return new CreateOptions(this);
-        }
     }
 }
