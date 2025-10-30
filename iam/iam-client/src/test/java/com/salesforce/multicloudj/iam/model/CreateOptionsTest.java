@@ -182,7 +182,7 @@ public class CreateOptionsTest {
 
     @Test
     public void testCreateOptionsBuilderMethodChaining() {
-        CreateOptions.Builder builder = CreateOptions.builder();
+        CreateOptions.CreateOptionsBuilder builder = CreateOptions.builder();
 
         // Test that each method returns the same builder instance
         assertSame(builder, builder.path("/test/"));
@@ -244,15 +244,15 @@ public class CreateOptionsTest {
         assertEquals(Integer.valueOf(3600), gcpOptions.getMaxSessionDuration());
         assertEquals("constraints/compute.restrictLoadBalancerCreationForTypes", gcpOptions.getPermissionBoundary());
 
-        // AliCloud Example (permission boundaries not supported)
+        // AliCloud Example (using Control Policy)
         CreateOptions aliOptions = CreateOptions.builder()
             .path("/foo/")
             .maxSessionDuration(7200) // 2 hours
-            // Permission boundaries not supported in AliCloud RAM
+            .permissionBoundary("cp-bp1example") // Control Policy ID
             .build();
 
         assertEquals("/foo/", aliOptions.getPath());
         assertEquals(Integer.valueOf(7200), aliOptions.getMaxSessionDuration());
-        assertNull(aliOptions.getPermissionBoundary()); // AliCloud doesn't support permission boundaries
+        assertEquals("cp-bp1example", aliOptions.getPermissionBoundary()); // AliCloud Control Policy
     }
 }

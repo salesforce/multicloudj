@@ -144,6 +144,17 @@
             </dependency>
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>blob-client</artifactId>
                 <version>${project.version}</version>
             </dependency>

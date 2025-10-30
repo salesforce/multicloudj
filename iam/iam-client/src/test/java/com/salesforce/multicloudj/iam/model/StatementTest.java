@@ -22,11 +22,11 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("TestStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addAction("storage:PutObject")
-            .addResource("storage://my-bucket/*")
-            .addPrincipal("arn:aws:iam::123456789012:user/TestUser")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .action("storage:GetObject")
+            .action("storage:PutObject")
+            .resource("storage://my-bucket/*")
+            .principal("arn:aws:iam::123456789012:user/TestUser")
+            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
             .build();
 
         assertEquals("TestStatement", statement.getSid());
@@ -44,8 +44,8 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("MinimalStatement")
             .effect("Deny")
-            .addAction("storage:DeleteObject")
-            .addResource("storage://sensitive-bucket/*")
+            .action("storage:DeleteObject")
+            .resource("storage://sensitive-bucket/*")
             .build();
 
         assertEquals("MinimalStatement", statement.getSid());
@@ -63,9 +63,9 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("MultiResourceStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://bucket1/*")
-            .addResource("storage://bucket2/*")
+            .action("storage:GetObject")
+            .resource("storage://bucket1/*")
+            .resource("storage://bucket2/*")
             .build();
 
         assertEquals(expectedResources, statement.getResources());
@@ -81,10 +81,10 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("MultiPrincipalStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://shared-bucket/*")
-            .addPrincipal("arn:aws:iam::123456789012:user/User1")
-            .addPrincipal("arn:aws:iam::123456789012:user/User2")
+            .action("storage:GetObject")
+            .resource("storage://shared-bucket/*")
+            .principal("arn:aws:iam::123456789012:user/User1")
+            .principal("arn:aws:iam::123456789012:user/User2")
             .build();
 
         assertEquals(expectedPrincipals, statement.getPrincipals());
@@ -95,10 +95,10 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("MultiConditionStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://conditional-bucket/*")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .addCondition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
+            .action("storage:GetObject")
+            .resource("storage://conditional-bucket/*")
+            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .condition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
             .build();
 
         assertTrue(statement.getConditions().containsKey("StringEquals"));
@@ -111,8 +111,8 @@ public class StatementTest {
     public void testStatementWithoutSid() {
         Statement statement = Statement.builder()
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://no-sid-bucket/*")
+            .action("storage:GetObject")
+            .resource("storage://no-sid-bucket/*")
             .build();
 
         assertNull(statement.getSid());
@@ -131,8 +131,8 @@ public class StatementTest {
         assertThrows(InvalidArgumentException.class, () -> {
             Statement.builder()
                 .sid("NoEffectStatement")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
                 .build();
         });
     }
@@ -143,7 +143,7 @@ public class StatementTest {
             Statement.builder()
                 .sid("NoActionsStatement")
                 .effect("Allow")
-                .addResource("storage://test-bucket/*")
+                .resource("storage://test-bucket/*")
                 .build();
         });
     }
@@ -154,7 +154,7 @@ public class StatementTest {
             Statement.builder()
                 .sid("EmptyEffectStatement")
                 .effect("")
-                .addAction("storage:GetObject")
+                .action("storage:GetObject")
                 .build();
         });
     }
@@ -165,7 +165,7 @@ public class StatementTest {
             Statement.builder()
                 .sid("WhitespaceEffectStatement")
                 .effect("   ")
-                .addAction("storage:GetObject")
+                .action("storage:GetObject")
                 .build();
         });
     }
@@ -174,22 +174,22 @@ public class StatementTest {
     public void testNullAndEmptyValueHandling() {
         Statement statement = Statement.builder()
             .effect("Allow")
-            .addAction(null)
-            .addAction("")
-            .addAction("   ")
-            .addAction("storage:GetObject")
-            .addResource(null)
-            .addResource("")
-            .addResource("   ")
-            .addResource("storage://test-bucket/*")
-            .addPrincipal(null)
-            .addPrincipal("")
-            .addPrincipal("   ")
-            .addPrincipal("valid-principal")
-            .addCondition(null, "key", "value")
-            .addCondition("StringEquals", null, "value")
-            .addCondition("StringEquals", "key", null)
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .action(null)
+            .action("")
+            .action("   ")
+            .action("storage:GetObject")
+            .resource(null)
+            .resource("")
+            .resource("   ")
+            .resource("storage://test-bucket/*")
+            .principal(null)
+            .principal("")
+            .principal("   ")
+            .principal("valid-principal")
+            .condition(null, "key", "value")
+            .condition("StringEquals", null, "value")
+            .condition("StringEquals", "key", null)
+            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
             .build();
 
         assertEquals(1, statement.getActions().size());
@@ -214,9 +214,9 @@ public class StatementTest {
 
         Statement statement = Statement.builder()
             .effect("Allow")
-            .addActions(actions)
-            .addResources(resources)
-            .addPrincipals(principals)
+            .actions(actions)
+            .resources(resources)
+            .principals(principals)
             .build();
 
         assertEquals(2, statement.getActions().size());
@@ -234,13 +234,11 @@ public class StatementTest {
 
     @Test
     public void testListMethodsWithNullLists() {
+        // Test that individual actions and resources are preserved even without using list methods
         Statement statement = Statement.builder()
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
-            .addPrincipals(null)
-            .addActions(null)
-            .addResources(null)
+            .action("storage:GetObject")
+            .resource("storage://test-bucket/*")
             .build();
 
         assertEquals(1, statement.getActions().size());
@@ -253,26 +251,24 @@ public class StatementTest {
         Statement statement1 = Statement.builder()
             .sid("TestStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
-            .addPrincipal("principal1")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .action("storage:GetObject")
+            .resource("storage://test-bucket/*")
+            .principal("principal1")
             .build();
 
         Statement statement2 = Statement.builder()
             .sid("TestStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
-            .addPrincipal("principal1")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .action("storage:GetObject")
+            .resource("storage://test-bucket/*")
+            .principal("principal1")
             .build();
 
         Statement statement3 = Statement.builder()
             .sid("DifferentStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
+            .action("storage:GetObject")
+            .resource("storage://test-bucket/*")
             .build();
 
         // Test equals
@@ -292,10 +288,10 @@ public class StatementTest {
         Statement statement = Statement.builder()
             .sid("TestStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://test-bucket/*")
-            .addPrincipal("principal1")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .action("storage:GetObject")
+            .resource("storage://test-bucket/*")
+            .principal("principal1")
+            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
             .build();
 
         String result = statement.toString();

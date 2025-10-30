@@ -1,12 +1,12 @@
 package com.salesforce.multicloudj.iam.model;
 
-import lombok.Getter;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import lombok.Getter;
 
 /**
  * Configuration for trust relationships in identity creation.

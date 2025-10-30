@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,14 +22,15 @@ public class PolicyDocumentTest {
     public void testPolicyDocumentBuilder() {
         PolicyDocument policy = PolicyDocument.builder()
             .version("2024-01-01")
-            .statement("StorageAccess")
+            .statement(Statement.builder()
+                .sid("StorageAccess")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addAction("storage:PutObject")
-                .addPrincipal("arn:aws:iam::123456789012:user/ExampleUser")
-                .addResource("storage://my-bucket/*")
-                .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .endStatement()
+                .action("storage:GetObject")
+                .action("storage:PutObject")
+                .principal("arn:aws:iam::123456789012:user/ExampleUser")
+                .resource("storage://my-bucket/*")
+                .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+                .build())
             .build();
 
         assertEquals("2024-01-01", policy.getVersion());
@@ -49,16 +51,18 @@ public class PolicyDocumentTest {
     public void testMultipleStatements() {
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .statement("ReadAccess")
+            .statement(Statement.builder()
+                .sid("ReadAccess")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://my-bucket/*")
-            .endStatement()
-            .statement("WriteAccess")
+                .action("storage:GetObject")
+                .resource("storage://my-bucket/*")
+                .build())
+            .statement(Statement.builder()
+                .sid("WriteAccess")
                 .effect("Allow")
-                .addAction("storage:PutObject")
-                .addResource("storage://my-bucket/*")
-            .endStatement()
+                .action("storage:PutObject")
+                .resource("storage://my-bucket/*")
+                .build())
             .build();
 
         assertEquals(2, policy.getStatements().size());
@@ -71,13 +75,13 @@ public class PolicyDocumentTest {
         Statement statement = Statement.builder()
             .sid("TestStatement")
             .effect("Allow")
-            .addAction("storage:GetObject")
-            .addResource("storage://my-bucket/*")
+            .action("storage:GetObject")
+            .resource("storage://my-bucket/*")
             .build();
 
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .addStatement(statement)
+            .statement(statement)
             .build();
 
         assertEquals(1, policy.getStatements().size());
@@ -95,11 +99,12 @@ public class PolicyDocumentTest {
     public void testMissingVersionThrowsException() {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
-                .statement("TestStatement")
+                .statement(Statement.builder()
+                    .sid("TestStatement")
                     .effect("Allow")
-                    .addAction("storage:GetObject")
-                    .addResource("storage://test-bucket/*")
-                .endStatement()
+                    .action("storage:GetObject")
+                    .resource("storage://test-bucket/*")
+                    .build())
                 .build();
         });
     }
@@ -109,9 +114,10 @@ public class PolicyDocumentTest {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
                 .version(TEST_VERSION)
-                .statement("TestStatement")
-                    .addAction("storage:GetObject")
-                .endStatement()
+                .statement(Statement.builder()
+                    .sid("TestStatement")
+                    .action("storage:GetObject")
+                    .build())
                 .build();
         });
     }
@@ -121,9 +127,10 @@ public class PolicyDocumentTest {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
                 .version(TEST_VERSION)
-                .statement("TestStatement")
+                .statement(Statement.builder()
+                    .sid("TestStatement")
                     .effect("Allow")
-                .endStatement()
+                    .build())
                 .build();
         });
     }
@@ -133,11 +140,12 @@ public class PolicyDocumentTest {
         // Test custom version
         PolicyDocument customVersionPolicy = PolicyDocument.builder()
             .version("2023-06-01")
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         assertEquals("2023-06-01", customVersionPolicy.getVersion());
@@ -145,11 +153,12 @@ public class PolicyDocumentTest {
         // Test default version
         PolicyDocument defaultVersionPolicy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         assertEquals(TEST_VERSION, defaultVersionPolicy.getVersion());
@@ -159,20 +168,24 @@ public class PolicyDocumentTest {
     public void testBuilderMethodsWithMultipleValues() {
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addAction("storage:PutObject")
-                .addActions(Arrays.asList("storage:DeleteObject", "storage:ListObjects"))
-                .addResource("storage://bucket1/*")
-                .addResource("storage://bucket2/*")
-                .addResources(Arrays.asList("storage://bucket3/*", "storage://bucket4/*"))
-                .addPrincipal("principal1")
-                .addPrincipal("principal2")
-                .addPrincipals(Arrays.asList("principal3", "principal4"))
-                .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-                .addCondition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
-            .endStatement()
+                .action("storage:GetObject")
+                .action("storage:PutObject")
+                .action("storage:DeleteObject")
+                .action("storage:ListObjects")
+                .resource("storage://bucket1/*")
+                .resource("storage://bucket2/*")
+                .resource("storage://bucket3/*")
+                .resource("storage://bucket4/*")
+                .principal("principal1")
+                .principal("principal2")
+                .principal("principal3")
+                .principal("principal4")
+                .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+                .condition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
+                .build())
             .build();
 
         Statement statement = policy.getStatements().get(0);
@@ -205,12 +218,14 @@ public class PolicyDocumentTest {
 
     @Test
     public void testBuilderAutoInitialization() {
-        // Test that statement methods work without calling statement() first due to auto-initialization
+        // Test simple statement creation with Lombok builder
         PolicyDocument policy1 = PolicyDocument.builder()
             .version("2024-01-01")
-            .addAction("storage:GetObject")
-            .effect("Allow")
-            .addResource("storage://test-bucket/*")
+            .statement(Statement.builder()
+                .effect("Allow")
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         assertEquals(1, policy1.getStatements().size());
@@ -218,12 +233,14 @@ public class PolicyDocumentTest {
 
         PolicyDocument policy2 = PolicyDocument.builder()
             .version("2024-01-01")
-            .addPrincipal("principal1")
-            .addCondition("StringEquals", "key", "value")
-            .addActions(Arrays.asList("storage:GetObject"))
-            .addResources(Arrays.asList("storage://test-bucket/*"))
-            .addPrincipals(Arrays.asList("principal2"))
-            .effect("Allow")
+            .statement(Statement.builder()
+                .effect("Allow")
+                .principal("principal1")
+                .principal("principal2")
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .condition("StringEquals", "key", "value")
+                .build())
             .build();
 
         assertEquals(1, policy2.getStatements().size());
@@ -238,15 +255,16 @@ public class PolicyDocumentTest {
     public void testAddNullStatement() {
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .addStatement(null)
-            .statement("ValidStatement")
+            .statement((Statement) null)
+            .statement(Statement.builder()
+                .sid("ValidStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
-        assertEquals(1, policy.getStatements().size());
+        assertEquals(1, policy.getStatements().size()); // Null statements are filtered out
         assertEquals("ValidStatement", policy.getStatements().get(0).getSid());
     }
 
@@ -255,18 +273,19 @@ public class PolicyDocumentTest {
         Statement preBuiltStatement = Statement.builder()
             .sid("PreBuilt")
             .effect("Deny")
-            .addAction("storage:DeleteObject")
-            .addResource("storage://sensitive-bucket/*")
+            .action("storage:DeleteObject")
+            .resource("storage://sensitive-bucket/*")
             .build();
 
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .addStatement(preBuiltStatement)
-            .statement("BuiltInline")
+            .statement(preBuiltStatement)
+            .statement(Statement.builder()
+                .sid("BuiltInline")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://public-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://public-bucket/*")
+                .build())
             .build();
 
         assertEquals(2, policy.getStatements().size());
@@ -278,29 +297,32 @@ public class PolicyDocumentTest {
     public void testPolicyDocumentEqualsAndHashCode() {
         PolicyDocument policy1 = PolicyDocument.builder()
             .version("2024-01-01")
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         PolicyDocument policy2 = PolicyDocument.builder()
             .version("2024-01-01")
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         PolicyDocument policy3 = PolicyDocument.builder()
             .version("2023-01-01")
-            .statement("DifferentStatement")
+            .statement(Statement.builder()
+                .sid("DifferentStatement")
                 .effect("Deny")
-                .addAction("storage:DeleteObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:DeleteObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         // Test equals
@@ -319,11 +341,12 @@ public class PolicyDocumentTest {
     public void testPolicyDocumentToString() {
         PolicyDocument policy = PolicyDocument.builder()
             .version("2024-01-01")
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         String result = policy.toString();
@@ -335,15 +358,15 @@ public class PolicyDocumentTest {
 
     @Test
     public void testEndStatementWithoutCurrentStatement() {
-        // endStatement() should be safe to call even when no statement is being built
+        // Simple test with Lombok builder
         PolicyDocument policy = PolicyDocument.builder()
             .version(TEST_VERSION)
-            .endStatement() // This should do nothing
-            .statement("TestStatement")
+            .statement(Statement.builder()
+                .sid("TestStatement")
                 .effect("Allow")
-                .addAction("storage:GetObject")
-                .addResource("storage://test-bucket/*")
-            .endStatement()
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
             .build();
 
         assertEquals(1, policy.getStatements().size());
