@@ -1,0 +1,30 @@
+{
+  "id" : "953d4cc3-478a-4b1b-83d8-4e6396b34eb9",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionpull",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:pull?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.returnImmediately"
+    }, {
+      "matchesJsonPath" : "$.maxMessages"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"receivedMessages\": [\n    {\n      \"ackId\": \"BhYsXUZIUTcZCGhRDk9eIz81IChFGgkCTwIoXXkwXzNBXXEEPg0Zcn1hdGMLEARTTVt5WFoRDWJcTkQHSaLXz4VXV0tbFQkLRlt_W1kSBG9fX3MOVyX15cK42fG7Mhs-ffyw4qMtLcXg-aY2ZiI9XhJLLD5-Jz1FQV5AEkwsCERJUytDCypYEU4EISE-MD5FU0RQ\",\n      \"message\": {\n        \"data\": \"YmF0Y2gtYWNrLTM=\",\n        \"attributes\": {\n          \"batch\": \"ack\"\n        },\n        \"messageId\": \"16893814299733696\",\n        \"publishTime\": \"2025-10-30T15:07:08.534Z\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 30 Oct 2025 15:07:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "953d4cc3-478a-4b1b-83d8-4e6396b34eb9",
+  "persistent" : true,
+  "insertionIndex" : 39
+}

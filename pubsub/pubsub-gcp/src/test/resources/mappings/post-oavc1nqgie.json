@@ -1,0 +1,33 @@
+{
+  "id" : "9f9aad21-c582-4891-b691-4b91fa2bd5a6",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionmodifyackdeadline",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:modifyAckDeadline?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.ackIds"
+    }, {
+      "matchesJsonPath" : "$.ackIds[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 30 Oct 2025 15:09:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "9f9aad21-c582-4891-b691-4b91fa2bd5a6",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:modifyAckDeadline",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:modifyAckDeadline-2",
+  "insertionIndex" : 46
+}
