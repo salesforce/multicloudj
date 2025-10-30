@@ -16,4 +16,5 @@ public class MultipartUpload {
     private final String key;
     private final String id;
     private final Map<String, String> metadata;
+    private final String kmsKeyId;
 }
