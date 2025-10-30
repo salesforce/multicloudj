@@ -1,0 +1,30 @@
+{
+  "id" : "f2de49ee-b81c-4ae4-9453-c5d47d881e35",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_topics_test-topicpublish",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/topics/test-topic:publish?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.messages"
+    }, {
+      "matchesJsonPath" : "$.messages[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"messageIds\": [\n    \"16894417656865712\"\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 30 Oct 2025 18:40:23 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f2de49ee-b81c-4ae4-9453-c5d47d881e35",
+  "persistent" : true,
+  "insertionIndex" : 26
+}
