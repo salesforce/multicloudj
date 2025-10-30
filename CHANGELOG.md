@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.9...multicloudj-v0.2.10) (2025-10-30)
+
+
+### Blob Store
+
+* add getTag and setTag apis ([#117](https://github.com/salesforce/multicloudj/issues/117)) ([942347e](https://github.com/salesforce/multicloudj/commit/942347ef2ef428f0a19742078349b22df21cf6a9))
+* Add SSE in multi-part upload ([#112](https://github.com/salesforce/multicloudj/issues/112)) ([32a920f](https://github.com/salesforce/multicloudj/commit/32a920fb6625cfdd30be6d4c9035429a0ebc2d0b))
+
 ## [0.2.9](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.8...multicloudj-v0.2.9) (2025-10-24)
 
 
