@@ -1636,6 +1636,7 @@ public abstract class AbstractBlobStoreIT {
         final List<MultipartUploadPartResult> partsToComplete;
         final boolean abortUpload;
         final boolean wantCompletionError;
+        final String kmsKeyId;
 
         public MultipartUploadTestConfig(String testName,
                           String key,
@@ -1644,6 +1645,17 @@ public abstract class AbstractBlobStoreIT {
                           List<MultipartUploadPartResult> partsToComplete,
                           boolean abortUpload,
                           boolean wantCompletionError) {
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null);
+        }
+
+        public MultipartUploadTestConfig(String testName,
+                          String key,
+                          Map<String,String> metadata,
+                          List<MultipartUploadTestPart> partsToUpload,
+                          List<MultipartUploadPartResult> partsToComplete,
+                          boolean abortUpload,
+                          boolean wantCompletionError,
+                          String kmsKeyId) {
             this.testName = testName;
             this.key = key;
             this.metadata = metadata;
@@ -1651,6 +1663,7 @@ public abstract class AbstractBlobStoreIT {
             this.partsToComplete = partsToComplete;
             this.abortUpload = abortUpload;
             this.wantCompletionError = wantCompletionError;
+            this.kmsKeyId = kmsKeyId;
         }
     }
 
@@ -1664,10 +1677,13 @@ public abstract class AbstractBlobStoreIT {
         try {
 
             // Initiate the multipartUpload
-            MultipartUploadRequest multipartUploadRequest = new MultipartUploadRequest.Builder()
+            MultipartUploadRequest.Builder requestBuilder = new MultipartUploadRequest.Builder()
                     .withKey(testConfig.key)
-                    .withMetadata(testConfig.metadata)
-                    .build();
+                    .withMetadata(testConfig.metadata);
+            if (testConfig.kmsKeyId != null) {
+                requestBuilder.withKmsKeyId(testConfig.kmsKeyId);
+            }
+            MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
             mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
 
             // Upload the individual parts
@@ -1966,6 +1982,24 @@ public abstract class AbstractBlobStoreIT {
                 // Ignore
             }
         }
+    }
+
+    @Test
+    public void testMultipartUpload_withKms() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String kmsKeyId = harness.getKmsKeyId();
+        Assumptions.assumeTrue(kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key ID not configured");
+
+        runMultipartUploadTest(new MultipartUploadTestConfig(
+                "multipart with KMS", DEFAULT_MULTIPART_KEY_PREFIX + "withKms",
+                Map.of("encryption", "kms"),
+                List.of(
+                        new MultipartUploadTestPart(1, multipartBytes1),
+                        new MultipartUploadTestPart(2, multipartBytes2)),
+                List.of(
+                        new MultipartUploadPartResult(1, true),
+                        new MultipartUploadPartResult(2, true)),
+                false, false, kmsKeyId));
     }
 
     //@Test

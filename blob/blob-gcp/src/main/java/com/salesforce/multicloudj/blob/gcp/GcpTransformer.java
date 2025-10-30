@@ -241,10 +241,15 @@ public class GcpTransformer {
 
     public UploadRequest toUploadRequest(MultipartUpload mpu, MultipartPart mpp) {
         String partKey = toPartName(mpu, mpp.getPartNumber());
-        return UploadRequest.builder()
+        UploadRequest.Builder builder = UploadRequest.builder()
                 .withKey(partKey)
-                .withContentLength(mpp.getContentLength())
-                .build();
+                .withContentLength(mpp.getContentLength());
+
+        if (mpu.getKmsKeyId() != null && !mpu.getKmsKeyId().isEmpty()) {
+            builder.withKmsKeyId(mpu.getKmsKeyId());
+        }
+
+        return builder.build();
     }
 
     public BlobInfo toBlobInfo(MultipartUpload mpu) {

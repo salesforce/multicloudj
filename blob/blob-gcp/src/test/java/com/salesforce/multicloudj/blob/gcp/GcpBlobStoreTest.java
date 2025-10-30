@@ -950,6 +950,23 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithKms() {
+        String kmsKeyId = "projects/test-project/locations/us/keyRings/test-ring/cryptoKeys/test-key";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withMetadata(Map.of("key1","value1","key2","value2"))
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        assertEquals(TEST_BUCKET, mpu.getBucket());
+        assertEquals(TEST_KEY, mpu.getKey());
+        assertEquals(kmsKeyId, mpu.getKmsKeyId());
+        assertNotNull(mpu.getId());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             UploadRequest uploadRequest = UploadRequest.builder()

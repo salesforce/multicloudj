@@ -70,6 +70,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
@@ -685,6 +686,40 @@ public class AwsBlobStoreTest {
         assertEquals("object-1", response.getKey());
         assertEquals("bucket-1", response.getBucket());
         assertEquals("mpu-id", response.getId());
+    }
+
+    @Test
+    void testDoInitiateMultipartUploadWithKms() {
+        CreateMultipartUploadResponse mockResponse = mock(CreateMultipartUploadResponse.class);
+        doReturn("bucket-1").when(mockResponse).bucket();
+        doReturn("object-1").when(mockResponse).key();
+        doReturn("mpu-id").when(mockResponse).uploadId();
+        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        MultipartUpload response = aws.initiateMultipartUpload(request);
+
+        // Verify the request is mapped to the SDK with KMS encryption
+        ArgumentCaptor<CreateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mockS3Client, times(1)).createMultipartUpload(requestCaptor.capture());
+        CreateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals(metadata, actualRequest.metadata());
+        assertEquals(ServerSideEncryption.AWS_KMS, actualRequest.serverSideEncryption());
+        assertEquals(kmsKeyId, actualRequest.ssekmsKeyId());
+
+        // Verify the response is mapped back properly with KMS key
+        assertEquals("object-1", response.getKey());
+        assertEquals("bucket-1", response.getBucket());
+        assertEquals("mpu-id", response.getId());
+        assertEquals(kmsKeyId, response.getKmsKeyId());
     }
 
     @Test

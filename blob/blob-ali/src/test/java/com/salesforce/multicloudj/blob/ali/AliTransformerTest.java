@@ -350,12 +350,30 @@ public class AliTransformerTest {
         doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
 
-        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata);
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, null);
 
         assertEquals(BUCKET, actual.getBucket());
         assertEquals("key", actual.getKey());
         assertEquals("uploadId", actual.getId());
         assertEquals(metadata, actual.getMetadata());
+    }
+
+    @Test
+    void testToMultipartUploadWithKms() {
+        InitiateMultipartUploadResult initiateMultipartUploadResult = mock(InitiateMultipartUploadResult.class);
+        doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
+        doReturn("key").when(initiateMultipartUploadResult).getKey();
+        doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        String kmsKeyId = "test-kms-key-id";
+
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, kmsKeyId);
+
+        assertEquals(BUCKET, actual.getBucket());
+        assertEquals("key", actual.getKey());
+        assertEquals("uploadId", actual.getId());
+        assertEquals(metadata, actual.getMetadata());
+        assertEquals(kmsKeyId, actual.getKmsKeyId());
     }
 
     @Test

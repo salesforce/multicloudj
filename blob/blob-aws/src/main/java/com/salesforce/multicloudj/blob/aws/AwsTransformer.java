@@ -150,7 +150,7 @@ public class AwsTransformer {
                 .tagging(Tagging.builder().tagSet(tags).build());
 
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
-            builder.serverSideEncryption("aws:kms")
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
         }
         
@@ -292,11 +292,17 @@ public class AwsTransformer {
     }
 
     public CreateMultipartUploadRequest toCreateMultipartUploadRequest(MultipartUploadRequest request) {
-        return CreateMultipartUploadRequest.builder()
+        CreateMultipartUploadRequest.Builder builder = CreateMultipartUploadRequest.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
-                .metadata(request.getMetadata())
-                .build();
+                .metadata(request.getMetadata());
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
+                   .ssekmsKeyId(request.getKmsKeyId());
+        }
+
+        return builder.build();
     }
 
     public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {

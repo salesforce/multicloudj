@@ -323,6 +323,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 .key(request.getKey())
                 .id(uploadId)
                 .metadata(request.getMetadata())
+                .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
 
