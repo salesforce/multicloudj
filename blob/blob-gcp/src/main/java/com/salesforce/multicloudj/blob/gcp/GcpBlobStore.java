@@ -75,6 +75,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -87,6 +89,8 @@ import java.nio.file.Paths;
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
+    private static final String TAG_PREFIX = "gcp-tag-";
+    
     private final Storage storage;
     private final GcpTransformer transformer;
 
@@ -388,13 +392,43 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected Map<String, String> doGetTags(String key) {
-        throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Blob blob = storage.get(transformer.toBlobId(key, null));
+        if(blob == null) {
+            throw new SubstrateSdkException("Blob not found");
+        }
+        if(blob.getMetadata() == null) {
+            return Collections.emptyMap();
+        }
+        return blob.getMetadata().entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(TAG_PREFIX))
+                .filter(entry -> entry.getValue()!=null)
+                .map(entry -> Map.entry(entry.getKey().substring(TAG_PREFIX.length()), entry.getValue()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
-
+    
     @Override
     protected void doSetTags(String key, Map<String, String> tags) {
-        throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Blob blob = storage.get(transformer.toBlobId(key, null));
+        if(blob == null) {
+            throw new SubstrateSdkException("Blob not found");
+        }
+
+        Map<String, String> metadata = new HashMap<>();
+        if(blob.getMetadata() != null) {
+            metadata.putAll(blob.getMetadata());
+        }
+        // Remove all existing tags
+        metadata.entrySet().removeIf(entry -> entry.getKey().startsWith(TAG_PREFIX));
+
+        // Add in all the new tags
+        if(tags != null) {
+            tags.forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+
+        Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
+        storage.update(updatedBlob);
     }
+
 
     @Override
     protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
