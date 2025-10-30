@@ -53,6 +53,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayInputStream;
@@ -773,6 +774,91 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoGetTags_FiltersAndStripsPrefix() {
+        when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("gcp-tag-env", "prod");
+        metadata.put("gcp-tag-team", "sre");
+        metadata.put("unrelated", "keep");
+        metadata.put("gcp-tag-empty", null);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+
+        Map<String, String> tags = gcpBlobStore.doGetTags(TEST_KEY);
+
+        assertEquals(2, tags.size());
+        assertEquals("prod", tags.get("env"));
+        assertEquals("sre", tags.get("team"));
+    }
+
+    @Test
+    void testDoGetTags_NoMetadataReturnsEmpty() {
+        when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockBlob.getMetadata()).thenReturn(null);
+
+        Map<String, String> tags = gcpBlobStore.doGetTags(TEST_KEY);
+        assertTrue(tags.isEmpty());
+    }
+
+    @Test
+    void testDoSetTags_ReplacesPrefixedKeepsOthers() {
+        when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        Map<String, String> existing = new HashMap<>();
+        existing.put("owner", "alice");
+        existing.put("gcp-tag-old", "toRemove");
+        when(mockBlob.getMetadata()).thenReturn(existing);
+
+        // Mock builder chain to capture metadata map
+        Blob.Builder mockBuilder = mock(Blob.Builder.class);
+        Blob updatedBlob = mock(Blob.class);
+        ArgumentCaptor<Map<String, String>> mdCaptor = ArgumentCaptor.forClass(Map.class);
+        when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+        when(mockBuilder.setMetadata(mdCaptor.capture())).thenReturn(mockBuilder);
+        when(mockBuilder.build()).thenReturn(updatedBlob);
+
+        Map<String, String> newTags = Map.of("tag1", "v1", "tag2", "v2");
+
+        gcpBlobStore.doSetTags(TEST_KEY, newTags);
+
+        verify(mockStorage).update(updatedBlob);
+        Map<String, String> finalMd = mdCaptor.getValue();
+        assertEquals("alice", finalMd.get("owner"));
+        assertFalse(finalMd.containsKey("gcp-tag-old"));
+        assertEquals("v1", finalMd.get("gcp-tag-tag1"));
+        assertEquals("v2", finalMd.get("gcp-tag-tag2"));
+    }
+
+    @Test
+    void testDoSetTags_EmptyMapRemovesAllPrefixed() {
+        when(mockTransformer.toBlobId(TEST_KEY, null)).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        Map<String, String> existing = new HashMap<>();
+        existing.put("gcp-tag-a", "1");
+        existing.put("gcp-tag-b", "2");
+        existing.put("keep", "x");
+        when(mockBlob.getMetadata()).thenReturn(existing);
+
+        Blob.Builder mockBuilder = mock(Blob.Builder.class);
+        Blob updatedBlob = mock(Blob.class);
+        ArgumentCaptor<Map<String, String>> mdCaptor = ArgumentCaptor.forClass(Map.class);
+        when(mockBlob.toBuilder()).thenReturn(mockBuilder);
+        when(mockBuilder.setMetadata(mdCaptor.capture())).thenReturn(mockBuilder);
+        when(mockBuilder.build()).thenReturn(updatedBlob);
+
+        gcpBlobStore.doSetTags(TEST_KEY, Collections.emptyMap());
+
+        verify(mockStorage).update(updatedBlob);
+        Map<String, String> finalMd = mdCaptor.getValue();
+        assertEquals("x", finalMd.get("keep"));
+        assertFalse(finalMd.containsKey("gcp-tag-a"));
+        assertFalse(finalMd.containsKey("gcp-tag-b"));
+    }
+
+    @Test
     void testDoListPageEmpty() {
         // Given
         ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
@@ -834,24 +920,6 @@ class GcpBlobStoreTest {
         assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
         assertEquals("test-prefixfile2", response.getBlobs().get(1).getKey());
         assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
-    }
-
-    @Test
-    void testDoGetTags() {
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doGetTags(TEST_KEY);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
-    }
-
-    @Test
-    void testDoSetTags() {
-
-        Map<String, String> tags = Map.of("tag1","value1","tag2","value2");
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            gcpBlobStore.doSetTags(TEST_KEY, tags);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
     }
 
     @Test
@@ -1808,29 +1876,6 @@ class GcpBlobStoreTest {
 
         assertNotNull(url);
         verify(mockStorage).signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any());
-    }
-
-    @Test
-    void testDoSetTags_WithEmptyMap() {
-        Map<String, String> emptyTags = new HashMap<>();
-
-        assertThrows(UnSupportedOperationException.class, () -> {
-            gcpBlobStore.doSetTags(TEST_KEY, emptyTags);
-        });
-    }
-
-    @Test
-    void testDoSetTags_WithNullMap() {
-        assertThrows(UnSupportedOperationException.class, () -> {
-            gcpBlobStore.doSetTags(TEST_KEY, null);
-        });
-    }
-
-    @Test
-    void testDoGetTags_WithNullBlob() {
-        assertThrows(UnSupportedOperationException.class, () -> {
-            gcpBlobStore.doGetTags(TEST_KEY);
-        });
     }
 
     @Test
