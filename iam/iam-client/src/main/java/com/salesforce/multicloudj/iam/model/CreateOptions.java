@@ -1,9 +1,8 @@
 package com.salesforce.multicloudj.iam.model;
 
+import java.util.Objects;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.Objects;
 
 /**
  * Optional configuration for identity creation operations.
@@ -27,32 +26,35 @@ import java.util.Objects;
 @Getter
 @Builder
 public class CreateOptions {
-    private final String path;
-    private final Integer maxSessionDuration;
-    private final String permissionBoundary;
+  private final String path;
+  private final Integer maxSessionDuration;
+  private final String permissionBoundary;
 
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        CreateOptions that = (CreateOptions) o;
-        return Objects.equals(path, that.path) &&
-               Objects.equals(maxSessionDuration, that.maxSessionDuration) &&
-               Objects.equals(permissionBoundary, that.permissionBoundary);
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
     }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(path, maxSessionDuration, permissionBoundary);
+    if (o == null || getClass() != o.getClass()) {
+      return false;
     }
+    CreateOptions that = (CreateOptions) o;
+    return Objects.equals(path, that.path)
+        && Objects.equals(maxSessionDuration, that.maxSessionDuration)
+        && Objects.equals(permissionBoundary, that.permissionBoundary);
+  }
 
-    @Override
-    public String toString() {
-        return "CreateOptions{" +
-                "path='" + path + '\'' +
-                ", maxSessionDuration=" + maxSessionDuration +
-                ", permissionBoundary='" + permissionBoundary + '\'' +
-                '}';
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(path, maxSessionDuration, permissionBoundary);
+  }
+
+  @Override
+  public String toString() {
+    return "CreateOptions{"
+        + "path='" + path + '\''
+        + ", maxSessionDuration=" + maxSessionDuration
+        + ", permissionBoundary='" + permissionBoundary + '\''
+        + '}';
+  }
 }

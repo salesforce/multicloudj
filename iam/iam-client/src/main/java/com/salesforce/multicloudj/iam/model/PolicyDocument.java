@@ -1,12 +1,11 @@
 package com.salesforce.multicloudj.iam.model;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import java.util.List;
+import java.util.Objects;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
-
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Represents a substrate-neutral policy document containing multiple statements.
@@ -33,50 +32,55 @@ import java.util.Objects;
  */
 @Getter
 public class PolicyDocument {
-    private final String version;
-    private final List<Statement> statements;
+  private final String version;
+  private final List<Statement> statements;
 
-    @Builder
-    private PolicyDocument(String version, @Singular List<Statement> statements) {
-        // Validate version is provided
-        if (version == null) {
-            throw new InvalidArgumentException("Version is required");
-        }
-
-        // Filter out null statements and validate at least one exists
-        List<Statement> filteredStatements = statements != null
-            ? statements.stream().filter(Objects::nonNull).collect(java.util.stream.Collectors.toList())
-            : new java.util.ArrayList<>();
-
-        if (filteredStatements.isEmpty()) {
-            throw new InvalidArgumentException("At least one statement is required");
-        }
-
-        this.version = version;
-        this.statements = filteredStatements;
+  @Builder
+  private PolicyDocument(String version, @Singular List<Statement> statements) {
+    // Validate version is provided
+    if (version == null) {
+      throw new InvalidArgumentException("Version is required");
     }
 
+    // Filter out null statements and validate at least one exists
+    List<Statement> filteredStatements = statements != null
+        ? statements.stream().filter(Objects::nonNull)
+            .collect(java.util.stream.Collectors.toList())
+        : new java.util.ArrayList<>();
 
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        PolicyDocument that = (PolicyDocument) o;
-        return Objects.equals(version, that.version) &&
-               Objects.equals(statements, that.statements);
+    if (filteredStatements.isEmpty()) {
+      throw new InvalidArgumentException("At least one statement is required");
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(version, statements);
-    }
+    this.version = version;
+    this.statements = filteredStatements;
+  }
 
-    @Override
-    public String toString() {
-        return "PolicyDocument{" +
-                "version='" + version + '\'' +
-                ", statements=" + statements +
-                '}';
+
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
     }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    PolicyDocument that = (PolicyDocument) o;
+    return Objects.equals(version, that.version)
+        && Objects.equals(statements, that.statements);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(version, statements);
+  }
+
+  @Override
+  public String toString() {
+    return "PolicyDocument{"
+        + "version='" + version + '\''
+        + ", statements=" + statements
+        + '}';
+  }
 }
