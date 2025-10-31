@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.iam.model;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
@@ -93,41 +92,5 @@ public class Statement {
       }
       return this;
     }
-  }
-
-
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    Statement statement = (Statement) o;
-    return Objects.equals(sid, statement.sid)
-        && Objects.equals(effect, statement.effect)
-        && Objects.equals(principals, statement.principals)
-        && Objects.equals(actions, statement.actions)
-        && Objects.equals(resources, statement.resources)
-        && Objects.equals(conditions, statement.conditions);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(sid, effect, principals, actions, resources, conditions);
-  }
-
-  @Override
-  public String toString() {
-    return "Statement{"
-        + "sid='" + sid + '\''
-        + ", effect='" + effect + '\''
-        + ", principals=" + principals
-        + ", actions=" + actions
-        + ", resources=" + resources
-        + ", conditions=" + conditions
-        + '}';
   }
 }

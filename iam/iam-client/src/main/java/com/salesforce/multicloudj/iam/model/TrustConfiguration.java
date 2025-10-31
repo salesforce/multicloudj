@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-
 import lombok.Getter;
 
 /**
@@ -36,29 +34,6 @@ public class TrustConfiguration {
      */
     public static Builder builder() {
         return new Builder();
-    }
-
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        TrustConfiguration that = (TrustConfiguration) o;
-        return Objects.equals(trustedPrincipals, that.trustedPrincipals) &&
-               Objects.equals(conditions, that.conditions);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(trustedPrincipals, conditions);
-    }
-
-    @Override
-    public String toString() {
-        return "TrustConfiguration{" +
-                "trustedPrincipals=" + trustedPrincipals +
-                ", conditions=" + conditions +
-                '}';
     }
 
     /**

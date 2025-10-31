@@ -55,32 +55,4 @@ public class PolicyDocument {
     this.version = version;
     this.statements = filteredStatements;
   }
-
-
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    PolicyDocument that = (PolicyDocument) o;
-    return Objects.equals(version, that.version)
-        && Objects.equals(statements, that.statements);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(version, statements);
-  }
-
-  @Override
-  public String toString() {
-    return "PolicyDocument{"
-        + "version='" + version + '\''
-        + ", statements=" + statements
-        + '}';
-  }
 }

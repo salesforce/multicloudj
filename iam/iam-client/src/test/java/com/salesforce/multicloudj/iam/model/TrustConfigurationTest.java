@@ -229,40 +229,4 @@ public class TrustConfigurationTest {
 
 
 
-    @Test
-    public void testTrustConfigurationToString() {
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
-
-        String toString = trustConfig.toString();
-        assertTrue(toString.contains("trustedPrincipals"));
-        assertTrue(toString.contains("conditions"));
-        assertTrue(toString.contains("arn:aws:iam::123456789012:root"));
-    }
-
-
-    @Test
-    public void testTrustConfigurationEqualsAndHashCodeWithNullChecks() {
-        TrustConfiguration trust1 = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
-
-        TrustConfiguration trust2 = TrustConfiguration.builder()
-            .addTrustedPrincipal("arn:aws:iam::123456789012:root")
-            .addCondition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .build();
-
-        // Test equals with null and different types
-        assertNotEquals(trust1, null);
-        assertNotEquals(trust1, "not a trust config");
-        assertEquals(trust1, trust1); // same object
-        assertEquals(trust1, trust2); // equal objects
-
-        // Test hashCode consistency
-        assertEquals(trust1.hashCode(), trust2.hashCode());
-    }
-
 }

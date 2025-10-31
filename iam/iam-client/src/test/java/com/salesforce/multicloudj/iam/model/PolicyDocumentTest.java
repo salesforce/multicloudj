@@ -294,69 +294,6 @@ public class PolicyDocumentTest {
     }
 
     @Test
-    public void testPolicyDocumentEqualsAndHashCode() {
-        PolicyDocument policy1 = PolicyDocument.builder()
-            .version("2024-01-01")
-            .statement(Statement.builder()
-                .sid("TestStatement")
-                .effect("Allow")
-                .action("storage:GetObject")
-                .resource("storage://test-bucket/*")
-                .build())
-            .build();
-
-        PolicyDocument policy2 = PolicyDocument.builder()
-            .version("2024-01-01")
-            .statement(Statement.builder()
-                .sid("TestStatement")
-                .effect("Allow")
-                .action("storage:GetObject")
-                .resource("storage://test-bucket/*")
-                .build())
-            .build();
-
-        PolicyDocument policy3 = PolicyDocument.builder()
-            .version("2023-01-01")
-            .statement(Statement.builder()
-                .sid("DifferentStatement")
-                .effect("Deny")
-                .action("storage:DeleteObject")
-                .resource("storage://test-bucket/*")
-                .build())
-            .build();
-
-        // Test equals
-        assertEquals(policy1, policy2);
-        assertNotEquals(policy1, policy3);
-        assertNotEquals(policy1, null);
-        assertNotEquals(policy1, "not a policy");
-        assertEquals(policy1, policy1); // same object
-
-        // Test hashCode
-        assertEquals(policy1.hashCode(), policy2.hashCode());
-        assertNotEquals(policy1.hashCode(), policy3.hashCode());
-    }
-
-    @Test
-    public void testPolicyDocumentToString() {
-        PolicyDocument policy = PolicyDocument.builder()
-            .version("2024-01-01")
-            .statement(Statement.builder()
-                .sid("TestStatement")
-                .effect("Allow")
-                .action("storage:GetObject")
-                .resource("storage://test-bucket/*")
-                .build())
-            .build();
-
-        String result = policy.toString();
-        assertTrue(result.contains("2024-01-01"));
-        assertTrue(result.contains("TestStatement"));
-        assertTrue(result.contains("PolicyDocument"));
-    }
-
-
-    @Test
     public void testEndStatementWithoutCurrentStatement() {
         // Simple test with Lombok builder
         PolicyDocument policy = PolicyDocument.builder()
