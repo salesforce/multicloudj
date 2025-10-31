@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>blob</artifactId>
-        <version>0.2.11-SNAPSHOT</version>
+        <version>0.2.11</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
