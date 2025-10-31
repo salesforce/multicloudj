@@ -32,6 +32,7 @@
     </scm>
 
     <modules>
+        <module>iam</module>
         <module>blob</module>
         <module>docstore</module>
         <module>examples</module>
@@ -138,6 +139,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>sts-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
