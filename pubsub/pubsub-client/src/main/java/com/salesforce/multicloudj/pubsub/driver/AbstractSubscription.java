@@ -7,7 +7,6 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Queue;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -21,6 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
@@ -410,7 +410,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     
     public abstract boolean canNack();
     public abstract boolean isRetryable(Throwable error);
-    public abstract Map<String, String> getAttributes();
+    public abstract GetAttributeResult getAttributes();
     
     protected abstract void doSendAcks(List<AckID> ackIDs);
     protected abstract void doSendNacks(List<AckID> ackIDs);

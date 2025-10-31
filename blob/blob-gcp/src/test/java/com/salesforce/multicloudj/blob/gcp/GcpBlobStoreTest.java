@@ -2077,7 +2077,6 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    @Disabled
     void testDoDownloadDirectory_PathTraversalProtection() throws Exception {
         // Given
         String prefix = "test-prefix/";

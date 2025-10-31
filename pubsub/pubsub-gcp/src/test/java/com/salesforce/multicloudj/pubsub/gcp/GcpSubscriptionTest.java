@@ -14,6 +14,7 @@ import com.google.api.gax.rpc.UnaryCallable;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.protobuf.Empty;
 import com.google.pubsub.v1.ModifyAckDeadlineRequest;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
@@ -22,6 +23,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import com.google.pubsub.v1.Subscription;
+import com.google.pubsub.v1.Subscription.State;
+import com.google.pubsub.v1.ExpirationPolicy;
+import com.google.pubsub.v1.PushConfig;
+import com.google.pubsub.v1.PushConfig.OidcToken;
+import com.google.pubsub.v1.DeadLetterPolicy;
+import com.google.pubsub.v1.RetryPolicy;
+import com.google.protobuf.Duration;
+import java.util.Arrays;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -126,10 +137,306 @@ public class GcpSubscriptionTest {
     }
 
     @Test
-    void testGetAttributes() {
-        Map<String, String> attributes = subscription.getAttributes();
+    void testGetAttributesWithBasicSubscription() {
+        // Mock a basic subscription with minimal configuration
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setEnableMessageOrdering(false)
+            .setEnableExactlyOnceDelivery(false)
+            .setRetainAckedMessages(false)
+            .setDetached(false)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
         assertNotNull(attributes);
-        assertTrue(attributes.isEmpty());
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithFilter() {
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setFilter("attributes.event_type = \"user_created\"")
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithMessageRetention() {
+        Duration retentionDuration = Duration.newBuilder().setSeconds(3600).build();
+        Duration topicRetentionDuration = Duration.newBuilder().setSeconds(7200).build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setMessageRetentionDuration(retentionDuration)
+            .setTopicMessageRetentionDuration(topicRetentionDuration)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithExpirationPolicy() {
+        Duration ttl = Duration.newBuilder().setSeconds(86400).build();
+        ExpirationPolicy expirationPolicy = ExpirationPolicy.newBuilder().setTtl(ttl).build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setExpirationPolicy(expirationPolicy)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        // Note: GCP expiration policy is not directly mapped to GetAttributeResult fields
+    }
+
+    @Test
+    void testGetAttributesWithPushConfig() {
+        OidcToken oidcToken = OidcToken.newBuilder()
+            .setServiceAccountEmail("test@example.com")
+            .setAudience("test-audience")
+            .build();
+
+        PushConfig pushConfig = PushConfig.newBuilder()
+            .setPushEndpoint("https://example.com/push")
+            .setOidcToken(oidcToken)
+            .build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setPushConfig(pushConfig)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithDeadLetterPolicy() {
+        DeadLetterPolicy deadLetterPolicy = DeadLetterPolicy.newBuilder()
+            .setDeadLetterTopic("projects/test-project/topics/dead-letter")
+            .setMaxDeliveryAttempts(5)
+            .build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setDeadLetterPolicy(deadLetterPolicy)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        // Note: Dead letter policy is not directly mapped to GetAttributeResult fields
+    }
+
+    @Test
+    void testGetAttributesWithRetryPolicy() {
+        Duration minBackoff = Duration.newBuilder().setSeconds(1).build();
+        Duration maxBackoff = Duration.newBuilder().setSeconds(60).build();
+
+        RetryPolicy retryPolicy = RetryPolicy.newBuilder()
+            .setMinimumBackoff(minBackoff)
+            .setMaximumBackoff(maxBackoff)
+            .build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setRetryPolicy(retryPolicy)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        // Note: Retry policy is not directly mapped to GetAttributeResult fields
+    }
+
+    @Test
+    void testGetAttributesWithLabels() {
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .putLabels("environment", "production")
+            .putLabels("team", "backend")
+            .putLabels("version", "1.0")
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        // Note: Labels are not directly mapped to GetAttributeResult fields
+    }
+
+    @Test
+    void testGetAttributesWithAllFeatures() {
+        Duration retentionDuration = Duration.newBuilder().setSeconds(3600).build();
+        Duration ttl = Duration.newBuilder().setSeconds(86400).build();
+        Duration minBackoff = Duration.newBuilder().setSeconds(1).build();
+        Duration maxBackoff = Duration.newBuilder().setSeconds(60).build();
+
+        OidcToken oidcToken = OidcToken.newBuilder()
+            .setServiceAccountEmail("test@example.com")
+            .setAudience("test-audience")
+            .build();
+
+        PushConfig pushConfig = PushConfig.newBuilder()
+            .setPushEndpoint("https://example.com/push")
+            .setOidcToken(oidcToken)
+            .build();
+
+        DeadLetterPolicy deadLetterPolicy = DeadLetterPolicy.newBuilder()
+            .setDeadLetterTopic("projects/test-project/topics/dead-letter")
+            .setMaxDeliveryAttempts(5)
+            .build();
+
+        RetryPolicy retryPolicy = RetryPolicy.newBuilder()
+            .setMinimumBackoff(minBackoff)
+            .setMaximumBackoff(maxBackoff)
+            .build();
+
+        ExpirationPolicy expirationPolicy = ExpirationPolicy.newBuilder().setTtl(ttl).build();
+
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(120)
+            .setEnableMessageOrdering(true)
+            .setEnableExactlyOnceDelivery(true)
+            .setRetainAckedMessages(true)
+            .setDetached(false)
+            .setFilter("attributes.event_type = \"user_created\"")
+            .setMessageRetentionDuration(retentionDuration)
+            .setExpirationPolicy(expirationPolicy)
+            .setPushConfig(pushConfig)
+            .setDeadLetterPolicy(deadLetterPolicy)
+            .setRetryPolicy(retryPolicy)
+            .putLabels("environment", "production")
+            .putLabels("team", "backend")
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+
+        // Basic attributes
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithApiException() {
+        ApiException apiException = mock(ApiException.class);
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenThrow(apiException);
+
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, 
+            () -> subscription.getAttributes());
+        assertTrue(exception.getMessage().contains("Failed to retrieve subscription attributes"));
+    }
+
+    @Test
+    void testGetAttributesWithEmptyLabels() {
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        // Verify basic attributes are present
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithoutOptionalFields() {
+        Subscription mockSubscription = Subscription.newBuilder()
+            .setName(VALID_SUBSCRIPTION_NAME)
+            .setTopic("projects/test-project/topics/test-topic")
+            .setAckDeadlineSeconds(60)
+            .setState(State.ACTIVE)
+            .build();
+
+        when(mockSubscriptionAdminClient.getSubscription(VALID_SUBSCRIPTION_NAME))
+            .thenReturn(mockSubscription);
+
+        GetAttributeResult attributes = subscription.getAttributes();
+
+        assertNotNull(attributes);
+        assertEquals(VALID_SUBSCRIPTION_NAME, attributes.getName());
+        assertEquals("projects/test-project/topics/test-topic", attributes.getTopic());
     }
 
     @Test

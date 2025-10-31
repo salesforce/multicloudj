@@ -137,11 +137,14 @@ public class SubscriptionClientTest {
     @Test
     public void testGetAttributes() {
         // Arrange
-        Map<String, String> expectedAttributes = Map.of("key", "value");
+        GetAttributeResult expectedAttributes = new GetAttributeResult.Builder()
+        .name("test-subscription")
+        .topic("test-topic")
+        .build();
         when(mockSubscription.getAttributes()).thenReturn(expectedAttributes);
 
         // Act
-        Map<String, String> result = subscriptionClient.getAttributes();
+        GetAttributeResult result = subscriptionClient.getAttributes();
 
         // Assert
         assertEquals(expectedAttributes, result);

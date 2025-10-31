@@ -1,0 +1,25 @@
+{
+  "id" : "1e0da11b-6c5b-4a9a-8f61-7f9cac3eda03",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscription",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription?$alt=json;enum-encoding%3Dint",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription\",\n  \"topic\": \"projects/substrate-sdk-gcp-poc1/topics/test-topic\",\n  \"pushConfig\": {},\n  \"ackDeadlineSeconds\": 10,\n  \"messageRetentionDuration\": \"604800s\",\n  \"expirationPolicy\": {\n    \"ttl\": \"2678400s\"\n  },\n  \"state\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 30 Oct 2025 18:40:27 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1e0da11b-6c5b-4a9a-8f61-7f9cac3eda03",
+  "persistent" : true,
+  "insertionIndex" : 32
+}

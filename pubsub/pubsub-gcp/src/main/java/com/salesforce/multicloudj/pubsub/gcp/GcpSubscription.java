@@ -14,8 +14,10 @@ import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.google.pubsub.v1.Subscription;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
@@ -36,6 +38,9 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -184,9 +189,17 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
 
     @Override
-    public Map<String, String> getAttributes() {
-        // TODO: Implement subscription attributes retrieval
-        return Collections.emptyMap();
+    public GetAttributeResult getAttributes() {
+        try {
+            Subscription sub = getOrCreateSubscriptionAdminClient().getSubscription(subscriptionName);
+
+            return new GetAttributeResult.Builder()
+                    .name(sub.getName())
+                    .topic(sub.getTopic())
+                    .build();
+        } catch (ApiException e) {
+            throw new SubstrateSdkException("Failed to retrieve subscription attributes", e);
+        }
     }
 
     @Override
