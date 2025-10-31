@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.10...multicloudj-v0.2.11) (2025-10-31)
+
+
+### PubSub
+
+* add getAttributes for gcp pubsub ([#120](https://github.com/salesforce/multicloudj/issues/120)) ([228ab6f](https://github.com/salesforce/multicloudj/commit/228ab6fda6f7ad7f963ef3c676cac513c4d62520))
+
+
+### IAM
+
+* onboarding client layer for IAM ([#90](https://github.com/salesforce/multicloudj/issues/90)) ([a57e09d](https://github.com/salesforce/multicloudj/commit/a57e09deb11eae6e0c3abe28a33f912729131d2e))
+
 ## [0.2.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.9...multicloudj-v0.2.10) (2025-10-30)
 
 
