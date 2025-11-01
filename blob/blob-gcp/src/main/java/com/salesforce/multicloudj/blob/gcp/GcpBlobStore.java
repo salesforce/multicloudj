@@ -5,6 +5,7 @@ import com.google.api.gax.paging.Page;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
+import com.google.auth.ServiceAccountSigner;
 import com.google.auto.service.AutoService;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
@@ -25,16 +26,16 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
-import com.salesforce.multicloudj.blob.driver.DownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -59,7 +60,6 @@ import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -69,18 +69,17 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.nio.file.Paths;
 
 /**
  * GCP implementation of BlobStore
@@ -89,10 +88,9 @@ import java.nio.file.Paths;
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
-    private static final String TAG_PREFIX = "gcp-tag-";
-    
     private final Storage storage;
     private final GcpTransformer transformer;
+    private static final String TAG_PREFIX = "gcp-tag-";
 
     public GcpBlobStore() {
         this(new Builder(), null);
@@ -240,7 +238,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         List<BlobId> blobIds = objects.stream()
                 .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
-
+        
         storage.delete(blobIds);
     }
 
@@ -304,9 +302,9 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         List<BlobInfo> blobs = new ArrayList<>();
         for (Blob blob : page.getValues()) {
             blobs.add(BlobInfo.builder()
-                            .withKey(blob.getName())
-                            .withObjectSize(blob.getSize())
-                            .build());
+                    .withKey(blob.getName())
+                    .withObjectSize(blob.getSize())
+                    .build());
         }
 
         return new ListBlobsPageResponse(
@@ -442,21 +440,11 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 httpMethod = HttpMethod.GET;
                 break;
         }
-        List<Storage.SignUrlOption> options = new ArrayList<>();
-        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
-        options.add(Storage.SignUrlOption.withV4Signature());
-
-        // Add KMS encryption header if specified
-        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
-            Map<String, String> extHeaders = new HashMap<>();
-            extHeaders.put("x-goog-encryption-kms-key-name", request.getKmsKeyId());
-            options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
-        }
-
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                options.toArray(new Storage.SignUrlOption[0]));
+                Storage.SignUrlOption.httpMethod(httpMethod),
+                Storage.SignUrlOption.withV4Signature());
     }
 
     @Override
@@ -464,18 +452,18 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         return storage.get(transformer.toBlobId(key, versionId)) != null;
     }
 
-        /**
+    /**
      * Maximum number of objects that can be deleted in a single batch operation.
      * GCP supports up to 1000 objects per batch delete.
      */
     private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
 
+    @Override
     protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
         try {
             Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
             List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
             List<FailedBlobUpload> failedUploads = new ArrayList<>();
-
             // Create directory marker object if prefix is specified
             if (directoryUploadRequest.getPrefix() != null && !directoryUploadRequest.getPrefix().isEmpty()) {
                 try {
@@ -515,6 +503,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
+    @Override
     protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest req) {
         try {
             Path targetDir = Paths.get(req.getLocalDestinationDirectory());
@@ -569,6 +558,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
+    @Override
     protected void doDeleteDirectory(String prefix) {
         try {
             // List all blobs with the given prefix and delete them in batches

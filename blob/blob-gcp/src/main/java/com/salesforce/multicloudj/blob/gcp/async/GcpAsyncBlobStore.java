@@ -10,26 +10,7 @@ import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import lombok.Getter;
 
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
-import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
-import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * GCP implementation of AsyncBlobStore
@@ -55,8 +36,8 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
         this.transformerSupplier = transformerSupplier;
     }
 
-    public static GcpAsyncBlobStore.Builder builder() {
-        return new GcpAsyncBlobStore.Builder();
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Getter
@@ -87,25 +68,16 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
 
         @Override
         public GcpAsyncBlobStore build() {
-            GcpBlobStore blobStore = getGcpBlobStore();
+            GcpBlobStore blobStore = gcpBlobStore;
             if(blobStore == null) {
                 blobStore = new GcpBlobStore.Builder()
-                        .withStorage(getStorage())
-                        .withTransformerSupplier(getTransformerSupplier())
+                        .withStorage(storage)
+                        .withTransformerSupplier(transformerSupplier)
                         .withBucket(getBucket())
-                        .withCredentialsOverrider(getCredentialsOverrider())
-                        .withEndpoint(getEndpoint())
-                        .withIdleConnectionTimeout(getIdleConnectionTimeout())
-                        .withMaxConnections(getMaxConnections())
-                        .withProperties(getProperties())
-                        .withProxyEndpoint(getProxyEndpoint())
                         .withRegion(getRegion())
-                        .withSocketTimeout(getSocketTimeout())
-                        .withValidator(getValidator())
                         .build();
             }
             return new GcpAsyncBlobStore(blobStore, getExecutorService(), storage, transformerSupplier);
         }
     }
-
 }
