@@ -800,16 +800,72 @@ class GcpAsyncBlobStoreTest {
     void testBuilder_WithMinimalParameters() {
         Storage mockStorage = mock(Storage.class);
         GcpTransformerSupplier mockSupplier = mock(GcpTransformerSupplier.class);
-        
+
         // Create a mock GcpBlobStore
         GcpBlobStore mockGcpBlobStore = mock(GcpBlobStore.class);
         when(mockGcpBlobStore.getBucket()).thenReturn("test-bucket");
         when(mockGcpBlobStore.getRegion()).thenReturn("us-central1");
-        
+
         GcpAsyncBlobStore store = new GcpAsyncBlobStore(mockGcpBlobStore, null, mockStorage, mockSupplier);
-        
+
         assertNotNull(store);
         assertEquals("test-bucket", store.getBucket());
         assertEquals("us-central1", store.getRegion());
+    }
+
+    @Test
+    void testBuilder_CopyFromAsyncBuilder() {
+        // Given - Create an AsyncBlobStoreProvider.Builder with various configurations
+        GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+        builder.withBucket("source-bucket");
+        builder.withRegion("us-west-2");
+        builder.withMaxConnections(100);
+        builder.withSocketTimeout(Duration.ofSeconds(30));
+        builder.withIdleConnectionTimeout(Duration.ofMinutes(5));
+        builder.withExecutorService(executorService);
+        builder.withStorage(mockStorage);
+        builder.withTransformerSupplier(mockTransformerSupplier);
+
+        // When - Build the async blob store which internally calls copyFrom
+        GcpAsyncBlobStore asyncBlobStore = builder.build();
+
+        // Then - Verify the configurations were copied to the underlying GcpBlobStore
+        assertNotNull(asyncBlobStore);
+        assertEquals("source-bucket", asyncBlobStore.getBucket());
+        assertEquals("us-west-2", asyncBlobStore.getRegion());
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getProviderId());
+
+        // Verify the underlying GcpBlobStore was created with all copied configurations
+        GcpBlobStore gcpBlobStore = (GcpBlobStore) asyncBlobStore.getBlobStore();
+        assertNotNull(gcpBlobStore);
+        assertEquals("source-bucket", gcpBlobStore.getBucket());
+        assertEquals("us-west-2", gcpBlobStore.getRegion());
+        assertEquals(GcpConstants.PROVIDER_ID, gcpBlobStore.getProviderId());
+
+        // Verify all builder configurations were properly copied by checking the builder's state
+        GcpBlobStore.Builder gcpBuilder = (GcpBlobStore.Builder) gcpBlobStore.builder();
+        gcpBuilder.copyFrom(builder);
+        assertEquals("source-bucket", gcpBuilder.getBucket());
+        assertEquals("us-west-2", gcpBuilder.getRegion());
+        assertEquals(100, gcpBuilder.getMaxConnections());
+        assertEquals(Duration.ofSeconds(30), gcpBuilder.getSocketTimeout());
+        assertEquals(Duration.ofMinutes(5), gcpBuilder.getIdleConnectionTimeout());
+    }
+
+    @Test
+    void testBuilder_CopyFromDoesNotOverrideProviderId() {
+        // Given - Create an AsyncBlobStoreProvider.Builder
+        GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+        builder.withBucket("test-bucket");
+        builder.withRegion("us-central1");
+        builder.withStorage(mockStorage);
+        builder.withTransformerSupplier(mockTransformerSupplier);
+
+        // When - Build the async blob store
+        GcpAsyncBlobStore asyncBlobStore = builder.build();
+
+        // Then - Verify providerId is GCP (not overridden by copyFrom)
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getProviderId());
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getBlobStore().getProviderId());
     }
 } 

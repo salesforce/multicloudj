@@ -71,10 +71,9 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
             GcpBlobStore blobStore = gcpBlobStore;
             if(blobStore == null) {
                 blobStore = new GcpBlobStore.Builder()
+                        .copyFrom(this)
                         .withStorage(storage)
                         .withTransformerSupplier(transformerSupplier)
-                        .withBucket(getBucket())
-                        .withRegion(getRegion())
                         .build();
             }
             return new GcpAsyncBlobStore(blobStore, getExecutorService(), storage, transformerSupplier);

@@ -20,6 +20,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -65,6 +66,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
@@ -631,6 +634,47 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
         public Builder withTransformerSupplier(GcpTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
+            return this;
+        }
+
+        /**
+         * Copies all configuration from another BlobStoreBuilder using reflection.
+         * This automatically handles all fields without needing manual updates when new configs are added.
+         * @param source The source builder to copy from
+         * @return An instance of self
+         */
+        public Builder copyFrom(BlobStoreBuilder<?> source) {
+            try {
+                // Find all "with*" methods in this builder
+                Method[] methods = BlobStoreBuilder.class.getDeclaredMethods();
+
+                for (Method method : methods) {
+                    String methodName = method.getName();
+
+                    // Look for "with*" setter methods
+                    if (methodName.startsWith("with") && method.getParameterCount() == 1) {
+                        // Extract property name (e.g., "withBucket" -> "Bucket")
+                        String propertyName = methodName.substring(4);
+
+                        // Try to find corresponding getter (e.g., "getBucket")
+                        String getterName = "get" + propertyName;
+
+                        try {
+                            Method getter = BlobStoreBuilder.class.getMethod(getterName);
+                            Object value = getter.invoke(source);
+
+                            // Only copy non-null values
+                            if (value != null) {
+                                method.invoke(this, value);
+                            }
+                        } catch (NoSuchMethodException e) {
+                            // Getter doesn't exist, skip this property
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to copy builder configuration", e);
+            }
             return this;
         }
 
