@@ -1,13 +1,17 @@
 package com.salesforce.multicloudj.iam.client;
 
+import com.google.common.collect.ImmutableSet;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 /**
  * Entry point for client code to interact with Identity and Access Management (IAM) services
@@ -42,13 +46,15 @@ import java.util.Optional;
  * </pre>
  */
 public class IamClient {
+    protected AbstractIam<?> iam;
 
     /**
-     * Protected constructor for IamClient.
-     * Use the builder pattern to create instances.
+     * Constructor for IamClient with IamClientBuilder.
+     *
+     * @param iam The abstract IAM driver used to back this client for implementation.
      */
-    protected IamClient() {
-        // Implementation will be added later when AbstractIamService is available
+    protected IamClient(AbstractIam<?> iam) {
+        this.iam = iam;
     }
 
     /**
@@ -59,6 +65,48 @@ public class IamClient {
      */
     public static IamClientBuilder builder(String providerId) {
         return new IamClientBuilder(providerId);
+    }
+
+    /**
+     * Returns an Iterable of all available AbstractIam implementations.
+     * @return An Iterable of AbstractIam instances.
+     */
+    private static Iterable<AbstractIam<?>> all() {
+        ServiceLoader<AbstractIam> services = ServiceLoader.load(AbstractIam.class);
+        ImmutableSet.Builder<AbstractIam<?>> builder = ImmutableSet.builder();
+        for (AbstractIam<?> service : services) {
+            builder.add(service);
+        }
+        return builder.build();
+    }
+
+    /**
+     * Finds the builder for the specified provider.
+     * @param providerId The ID of the provider.
+     * @return The AbstractIam.Builder for the specified provider.
+     * @throws IllegalArgumentException if no provider is found for the given ID.
+     */
+    private static AbstractIam.Builder<?> findProviderBuilder(String providerId) {
+        for (AbstractIam<?> provider : all()) {
+            if (provider.getProviderId().equals(providerId)) {
+                return createBuilderInstance(provider);
+            }
+        }
+        throw new IllegalArgumentException("No cloud provider found for providerId: " + providerId);
+    }
+
+    /**
+     * Creates a builder instance for the given provider.
+     * @param provider The AbstractIam provider.
+     * @return The AbstractIam.Builder for the provider.
+     * @throws RuntimeException if the builder creation fails.
+     */
+    private static AbstractIam.Builder<?> createBuilderInstance(AbstractIam<?> provider) {
+        try {
+            return (AbstractIam.Builder<?>) provider.getClass().getMethod("builder").invoke(provider);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create builder for provider: " + provider.getClass().getName(), e);
+        }
     }
 
     /**
@@ -74,8 +122,13 @@ public class IamClient {
      */
     public String createIdentity(String identityName, String description, String tenantId, String region,
                                 Optional<TrustConfiguration> trustConfig, Optional<CreateOptions> options) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            return this.iam.createIdentity(identityName, description, tenantId, region, trustConfig, options);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
     }
 
     /**
@@ -87,8 +140,12 @@ public class IamClient {
      * @param resource the resource to attach the policy to
      */
     public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            this.iam.attachInlinePolicy(policyDocument, tenantId, region, resource);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
     }
 
     /**
@@ -101,8 +158,13 @@ public class IamClient {
      * @return the policy document details as a string
      */
     public String getInlinePolicyDetails(String identityName, String policyName, String tenantId, String region) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            return this.iam.getInlinePolicyDetails(identityName, policyName, tenantId, region);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
     }
 
     /**
@@ -114,8 +176,13 @@ public class IamClient {
      * @return a list of policy names
      */
     public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            return this.iam.getAttachedPolicies(identityName, tenantId, region);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
     }
 
     /**
@@ -127,8 +194,12 @@ public class IamClient {
      * @param region the region
      */
     public void removePolicy(String identityName, String policyName, String tenantId, String region) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            this.iam.removePolicy(identityName, policyName, tenantId, region);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
     }
 
     /**
@@ -139,8 +210,12 @@ public class IamClient {
      * @param region the region
      */
     public void deleteIdentity(String identityName, String tenantId, String region) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            this.iam.deleteIdentity(identityName, tenantId, region);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
     }
 
     /**
@@ -152,8 +227,13 @@ public class IamClient {
      * @return the unique identity identifier (ARN, email, or roleId)
      */
     public String getIdentity(String identityName, String tenantId, String region) {
-        // Implementation will be added when driver layer is available
-        throw new UnsupportedOperationException("Implementation will be added when driver layer is available");
+        try {
+            return this.iam.getIdentity(identityName, tenantId, region);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
     }
 
     /**
@@ -162,6 +242,8 @@ public class IamClient {
     public static class IamClientBuilder {
         protected String region;
         protected URI endpoint;
+        protected AbstractIam<?> iam;
+        protected AbstractIam.Builder<?> iamBuilder;
 
         /**
          * Constructor for IamClientBuilder.
@@ -169,8 +251,7 @@ public class IamClient {
          * @param providerId the ID of the provider such as "aws", "gcp", or "ali"
          */
         public IamClientBuilder(String providerId) {
-            // Implementation will be added when ServiceLoader and AbstractIamService are available
-            // Will find and initialize the provider builder here
+            this.iamBuilder = findProviderBuilder(providerId);
         }
 
         /**
@@ -181,7 +262,7 @@ public class IamClient {
          */
         public IamClientBuilder withRegion(String region) {
             this.region = region;
-            // Implementation will be added later to delegate to underlying provider builder
+            this.iamBuilder.withRegion(region);
             return this;
         }
 
@@ -193,7 +274,7 @@ public class IamClient {
          */
         public IamClientBuilder withEndpoint(URI endpoint) {
             this.endpoint = endpoint;
-            // Implementation will be added later to delegate to underlying provider builder
+            this.iamBuilder.withEndpoint(endpoint);
             return this;
         }
 
@@ -203,8 +284,8 @@ public class IamClient {
          * @return a new IamClient instance
          */
         public IamClient build() {
-            // Implementation will be added when ServiceLoader and AbstractIamService are available
-            return new IamClient();
+            this.iam = this.iamBuilder.build();
+            return new IamClient(this.iam);
         }
     }
 }
