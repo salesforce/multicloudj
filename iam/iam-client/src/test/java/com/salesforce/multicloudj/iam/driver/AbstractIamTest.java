@@ -299,5 +299,29 @@ public class AbstractIamTest {
         assertEquals("testRegion", regionCaptor.getValue());
         assertEquals("test-identity-arn", identityArn);
     }
+
+    @Test
+    void testBuilderGetters() {
+        AbstractIam.Builder<TestIam> builder = new TestIam.Builder();
+        builder.providerId("testProvider")
+                .withRegion("testRegion")
+                .withEndpoint(URI.create("https://test.example.com"));
+
+        assertEquals("testRegion", builder.getRegion());
+        assertEquals(URI.create("https://test.example.com"), builder.getEndpoint());
+    }
+
+    @Test
+    void testConstructorWithBuilder() {
+        TestIam.Builder builder = new TestIam.Builder();
+        builder.providerId("testProvider2")
+                .withRegion("us-east-1")
+                .withEndpoint(URI.create("https://custom.endpoint.com"));
+
+        TestIam iam = new TestIam(builder);
+
+        assertEquals("testProvider2", iam.getProviderId());
+        assertEquals("us-east-1", iam.region);
+    }
 }
 
