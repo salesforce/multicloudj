@@ -44,7 +44,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
                 // Live recording path – rely on real ADC
                 try {
                     Credentials credentials = GoogleCredentials.getApplicationDefault();
-            return createBlobStore(bucketNameToUse, credentials);
+                    return createBlobStore(bucketNameToUse, credentials);
                 } catch (IOException e) {
                     // Fallback to NoCredentials if unable to load application default credentials
                     return createBlobStore(bucketNameToUse, NoCredentials.getInstance());
