@@ -49,7 +49,6 @@ public class IamClientTest {
         TestIam.Builder mockBuilder = mock(TestIam.Builder.class);
         when(mockBuilder.withRegion(anyString())).thenReturn(mockBuilder);
         when(mockBuilder.withEndpoint(any(URI.class))).thenReturn(mockBuilder);
-        when(mockBuilder.withCredentialsOverrider(any(CredentialsOverrider.class))).thenReturn(mockBuilder);
         when(mockBuilder.build()).thenReturn((TestIam) mockIam);
         when(mockIam.builder()).thenReturn(mockBuilder);
         when(mockIam.getProviderId()).thenReturn("test");
@@ -297,6 +296,28 @@ public class IamClientTest {
 
     @Test
     void testBuilderWithCredentialsOverrider() {
+        // Close existing mock since we need to create a fresh one with additional stubbing
+        if (serviceLoaderStatic != null) {
+            serviceLoaderStatic.close();
+        }
+        
+        // Create fresh mocks with credentialsOverrider support
+        AbstractIam<?> testIam = mock(TestIam.class);
+        TestIam.Builder testBuilder = mock(TestIam.Builder.class);
+        
+        // Only stub methods that are actually called in this test
+        when(testBuilder.withRegion(anyString())).thenReturn(testBuilder);
+        when(testBuilder.withCredentialsOverrider(any(CredentialsOverrider.class))).thenReturn(testBuilder);
+        when(testBuilder.build()).thenReturn((TestIam) testIam);
+        when(testIam.builder()).thenReturn(testBuilder);
+        when(testIam.getProviderId()).thenReturn("test");
+        
+        ServiceLoader<AbstractIam> testLoader = mock(ServiceLoader.class);
+        when(testLoader.iterator()).thenAnswer(invocation -> List.of(testIam).iterator());
+        
+        serviceLoaderStatic = mockStatic(ServiceLoader.class);
+        serviceLoaderStatic.when(() -> ServiceLoader.load(AbstractIam.class)).thenReturn(testLoader);
+        
         CredentialsOverrider mockOverrider = mock(CredentialsOverrider.class);
         
         IamClient builtClient = IamClient.builder("test")
