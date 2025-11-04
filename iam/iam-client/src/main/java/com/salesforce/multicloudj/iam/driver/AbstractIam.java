@@ -20,7 +20,7 @@ import java.util.Optional;
  * and policies across different cloud providers including AWS IAM, GCP IAM, and
  * AliCloud RAM.
  */
-public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider {
+public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider, Identity {
     private final String providerId;
     protected final String region;
     protected final CredentialsOverrider credentialsOverrider;
@@ -128,10 +128,73 @@ public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider 
         public abstract A build();
     }
 
-    // Abstract methods to be implemented by provider-specific classes
+    // Public methods implementing the Identity interface
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String createIdentity(String identityName, String description, String tenantId,
+                                String region, Optional<TrustConfiguration> trustConfig,
+                                Optional<CreateOptions> options) {
+        return doCreateIdentity(identityName, description, tenantId, region, trustConfig, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId,
+                                   String region, String resource) {
+        doAttachInlinePolicy(policyDocument, tenantId, region, resource);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getInlinePolicyDetails(String identityName, String policyName,
+                                        String tenantId, String region) {
+        return doGetInlinePolicyDetails(identityName, policyName, tenantId, region);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
+        return doGetAttachedPolicies(identityName, tenantId, region);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void removePolicy(String identityName, String policyName, String tenantId, String region) {
+        doRemovePolicy(identityName, policyName, tenantId, region);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void deleteIdentity(String identityName, String tenantId, String region) {
+        doDeleteIdentity(identityName, tenantId, region);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getIdentity(String identityName, String tenantId, String region) {
+        return doGetIdentity(identityName, tenantId, region);
+    }
+
+    // Protected abstract methods to be implemented by provider-specific classes
 
     /**
      * Creates a new identity (role/service account) in the cloud provider.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity to create
      * @param description optional description for the identity (can be null)
@@ -141,23 +204,25 @@ public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider 
      * @param options optional creation options
      * @return the unique identifier of the created identity
      */
-    public abstract String createIdentity(String identityName, String description, String tenantId,
-                                         String region, Optional<TrustConfiguration> trustConfig,
-                                         Optional<CreateOptions> options);
+    protected abstract String doCreateIdentity(String identityName, String description, String tenantId,
+                                              String region, Optional<TrustConfiguration> trustConfig,
+                                              Optional<CreateOptions> options);
 
     /**
      * Attaches an inline policy to a resource.
+     * Provider-specific implementations should override this method.
      *
      * @param policyDocument the policy document in substrate-neutral format
      * @param tenantId the tenant ID
      * @param region the region
      * @param resource the resource to attach the policy to
      */
-    public abstract void attachInlinePolicy(PolicyDocument policyDocument, String tenantId,
-                                           String region, String resource);
+    protected abstract void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId,
+                                                String region, String resource);
 
     /**
      * Retrieves the details of a specific inline policy attached to an identity.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity
      * @param policyName the name of the policy
@@ -165,45 +230,49 @@ public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider 
      * @param region the region
      * @return the policy document details as a string
      */
-    public abstract String getInlinePolicyDetails(String identityName, String policyName,
-                                                 String tenantId, String region);
+    protected abstract String doGetInlinePolicyDetails(String identityName, String policyName,
+                                                      String tenantId, String region);
 
     /**
      * Lists all inline policies attached to an identity.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity
      * @param tenantId the tenant ID
      * @param region the region
      * @return a list of policy names
      */
-    public abstract List<String> getAttachedPolicies(String identityName, String tenantId, String region);
+    protected abstract List<String> doGetAttachedPolicies(String identityName, String tenantId, String region);
 
     /**
      * Removes an inline policy from an identity.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity
      * @param policyName the name of the policy to remove
      * @param tenantId the tenant ID
      * @param region the region
      */
-    public abstract void removePolicy(String identityName, String policyName, String tenantId, String region);
+    protected abstract void doRemovePolicy(String identityName, String policyName, String tenantId, String region);
 
     /**
      * Deletes an identity from the cloud provider.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity to delete
      * @param tenantId the tenant ID
      * @param region the region
      */
-    public abstract void deleteIdentity(String identityName, String tenantId, String region);
+    protected abstract void doDeleteIdentity(String identityName, String tenantId, String region);
 
     /**
      * Retrieves metadata about an identity.
+     * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity
      * @param tenantId the tenant ID
      * @param region the region
      * @return the unique identity identifier (ARN, email, or roleId)
      */
-    public abstract String getIdentity(String identityName, String tenantId, String region);
+    protected abstract String doGetIdentity(String identityName, String tenantId, String region);
 }
