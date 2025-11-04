@@ -34,43 +34,36 @@ public class AbstractIamTest {
             super(builder);
         }
 
-        @Override
-        protected String createIdentityInProvider(String identityName, String description, String tenantId,
-                                                  String region, Optional<TrustConfiguration> trustConfig,
-                                                  Optional<CreateOptions> options) {
+        public String createIdentity(String identityName, String description, String tenantId,
+                                    String region, Optional<TrustConfiguration> trustConfig,
+                                    Optional<CreateOptions> options) {
             return null;
         }
 
-        @Override
-        protected void attachInlinePolicyToProvider(PolicyDocument policyDocument, String tenantId,
-                                                    String region, String resource) {
+        public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId,
+                                      String region, String resource) {
             // Mock implementation
         }
 
-        @Override
-        protected String getInlinePolicyDetailsFromProvider(String identityName, String policyName,
-                                                            String tenantId, String region) {
+        public String getInlinePolicyDetails(String identityName, String policyName,
+                                            String tenantId, String region) {
             return null;
         }
 
-        @Override
-        protected List<String> getAttachedPoliciesFromProvider(String identityName, String tenantId, String region) {
+        public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
             return null;
         }
 
-        @Override
-        protected void removePolicyFromProvider(String identityName, String policyName, String tenantId,
-                                                String region) {
+        public void removePolicy(String identityName, String policyName, String tenantId,
+                                String region) {
             // Mock implementation
         }
 
-        @Override
-        protected void deleteIdentityFromProvider(String identityName, String tenantId, String region) {
+        public void deleteIdentity(String identityName, String tenantId, String region) {
             // Mock implementation
         }
 
-        @Override
-        protected String getIdentityFromProvider(String identityName, String tenantId, String region) {
+        public String getIdentity(String identityName, String tenantId, String region) {
             return null;
         }
 
@@ -84,10 +77,15 @@ public class AbstractIamTest {
             return null;
         }
 
-        public static class Builder extends AbstractIam.Builder<TestIam> {
+        public static class Builder extends AbstractIam.Builder<TestIam, Builder> {
 
             protected Builder() {
                 providerId("test");
+            }
+
+            @Override
+            public Builder self() {
+                return this;
             }
 
             @Override
@@ -119,7 +117,7 @@ public class AbstractIamTest {
 
     @Test
     void testBuilder() {
-        AbstractIam.Builder<TestIam> builder = new TestIam.Builder();
+        AbstractIam.Builder<TestIam, TestIam.Builder> builder = new TestIam.Builder();
         AbstractIam<TestIam> iam = builder
                 .providerId("testProvider")
                 .withRegion("testRegion")
@@ -132,7 +130,7 @@ public class AbstractIamTest {
 
     @Test
     void testCreateIdentity() {
-        doReturn("test-identity-id").when(mockIam).createIdentityInProvider(
+        doReturn("test-identity-id").when(mockIam).createIdentity(
                 anyString(), anyString(), anyString(), anyString(), any(), any());
 
         String identityId = mockIam.createIdentity(
@@ -151,7 +149,7 @@ public class AbstractIamTest {
         ArgumentCaptor<Optional<TrustConfiguration>> trustConfigCaptor = ArgumentCaptor.forClass(Optional.class);
         ArgumentCaptor<Optional<CreateOptions>> optionsCaptor = ArgumentCaptor.forClass(Optional.class);
 
-        verify(mockIam, times(1)).createIdentityInProvider(
+        verify(mockIam, times(1)).createIdentity(
                 identityNameCaptor.capture(),
                 descriptionCaptor.capture(),
                 tenantIdCaptor.capture(),
@@ -179,7 +177,7 @@ public class AbstractIamTest {
         ArgumentCaptor<String> regionCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> resourceCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(mockIam, times(1)).attachInlinePolicyToProvider(
+        verify(mockIam, times(1)).attachInlinePolicy(
                 policyCaptor.capture(),
                 tenantIdCaptor.capture(),
                 regionCaptor.capture(),
@@ -194,7 +192,7 @@ public class AbstractIamTest {
 
     @Test
     void testGetInlinePolicyDetails() {
-        doReturn("test-policy-document").when(mockIam).getInlinePolicyDetailsFromProvider(
+        doReturn("test-policy-document").when(mockIam).getInlinePolicyDetails(
                 anyString(), anyString(), anyString(), anyString());
 
         String policyDetails = mockIam.getInlinePolicyDetails(
@@ -209,7 +207,7 @@ public class AbstractIamTest {
         ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> regionCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(mockIam, times(1)).getInlinePolicyDetailsFromProvider(
+        verify(mockIam, times(1)).getInlinePolicyDetails(
                 identityNameCaptor.capture(),
                 policyNameCaptor.capture(),
                 tenantIdCaptor.capture(),
@@ -226,7 +224,7 @@ public class AbstractIamTest {
     @Test
     void testGetAttachedPolicies() {
         List<String> expectedPolicies = Arrays.asList("policy1", "policy2");
-        doReturn(expectedPolicies).when(mockIam).getAttachedPoliciesFromProvider(
+        doReturn(expectedPolicies).when(mockIam).getAttachedPolicies(
                 anyString(), anyString(), anyString());
 
         List<String> policies = mockIam.getAttachedPolicies(
@@ -239,7 +237,7 @@ public class AbstractIamTest {
         ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> regionCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(mockIam, times(1)).getAttachedPoliciesFromProvider(
+        verify(mockIam, times(1)).getAttachedPolicies(
                 identityNameCaptor.capture(),
                 tenantIdCaptor.capture(),
                 regionCaptor.capture()
@@ -258,7 +256,7 @@ public class AbstractIamTest {
     void testRemovePolicy() {
         mockIam.removePolicy("test-role", "test-policy", "123456789012", "testRegion");
 
-        verify(mockIam, times(1)).removePolicyFromProvider(
+        verify(mockIam, times(1)).removePolicy(
                 eq("test-role"),
                 eq("test-policy"),
                 eq("123456789012"),
@@ -270,7 +268,7 @@ public class AbstractIamTest {
     void testDeleteIdentity() {
         mockIam.deleteIdentity("test-role", "123456789012", "testRegion");
 
-        verify(mockIam, times(1)).deleteIdentityFromProvider(
+        verify(mockIam, times(1)).deleteIdentity(
                 eq("test-role"),
                 eq("123456789012"),
                 eq("testRegion")
@@ -279,7 +277,7 @@ public class AbstractIamTest {
 
     @Test
     void testGetIdentity() {
-        doReturn("test-identity-arn").when(mockIam).getIdentityFromProvider(
+        doReturn("test-identity-arn").when(mockIam).getIdentity(
                 anyString(), anyString(), anyString());
 
         String identityArn = mockIam.getIdentity("test-role", "123456789012", "testRegion");
@@ -288,7 +286,7 @@ public class AbstractIamTest {
         ArgumentCaptor<String> tenantIdCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> regionCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(mockIam, times(1)).getIdentityFromProvider(
+        verify(mockIam, times(1)).getIdentity(
                 identityNameCaptor.capture(),
                 tenantIdCaptor.capture(),
                 regionCaptor.capture()
@@ -302,7 +300,7 @@ public class AbstractIamTest {
 
     @Test
     void testBuilderGetters() {
-        AbstractIam.Builder<TestIam> builder = new TestIam.Builder();
+        AbstractIam.Builder<TestIam, TestIam.Builder> builder = new TestIam.Builder();
         builder.providerId("testProvider")
                 .withRegion("testRegion")
                 .withEndpoint(URI.create("https://test.example.com"));

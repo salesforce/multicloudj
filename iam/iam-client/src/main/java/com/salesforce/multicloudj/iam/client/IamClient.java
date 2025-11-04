@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
 import java.util.List;
@@ -86,7 +87,7 @@ public class IamClient {
      * @return The AbstractIam.Builder for the specified provider.
      * @throws IllegalArgumentException if no provider is found for the given ID.
      */
-    private static AbstractIam.Builder<?> findProviderBuilder(String providerId) {
+    private static AbstractIam.Builder<?, ?> findProviderBuilder(String providerId) {
         for (AbstractIam<?> provider : all()) {
             if (provider.getProviderId().equals(providerId)) {
                 return createBuilderInstance(provider);
@@ -101,9 +102,9 @@ public class IamClient {
      * @return The AbstractIam.Builder for the provider.
      * @throws RuntimeException if the builder creation fails.
      */
-    private static AbstractIam.Builder<?> createBuilderInstance(AbstractIam<?> provider) {
+    private static AbstractIam.Builder<?, ?> createBuilderInstance(AbstractIam<?> provider) {
         try {
-            return (AbstractIam.Builder<?>) provider.getClass().getMethod("builder").invoke(provider);
+            return (AbstractIam.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create builder for provider: " + provider.getClass().getName(), e);
         }
@@ -243,7 +244,7 @@ public class IamClient {
         protected String region;
         protected URI endpoint;
         protected AbstractIam<?> iam;
-        protected AbstractIam.Builder<?> iamBuilder;
+        protected AbstractIam.Builder<?, ?> iamBuilder;
 
         /**
          * Constructor for IamClientBuilder.
@@ -275,6 +276,17 @@ public class IamClient {
         public IamClientBuilder withEndpoint(URI endpoint) {
             this.endpoint = endpoint;
             this.iamBuilder.withEndpoint(endpoint);
+            return this;
+        }
+
+        /**
+         * Sets the credentials overrider for the IAM client.
+         *
+         * @param credentialsOverrider the credentials overrider to set
+         * @return this IamClientBuilder instance
+         */
+        public IamClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
+            this.iamBuilder.withCredentialsOverrider(credentialsOverrider);
             return this;
         }
 

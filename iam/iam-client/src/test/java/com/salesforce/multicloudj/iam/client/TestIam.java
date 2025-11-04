@@ -20,43 +20,36 @@ public class TestIam extends AbstractIam<TestIam> {
         super(new Builder());
     }
 
-    @Override
-    protected String createIdentityInProvider(String identityName, String description, String tenantId,
-                                              String region, Optional<TrustConfiguration> trustConfig,
-                                              Optional<CreateOptions> options) {
+    public String createIdentity(String identityName, String description, String tenantId,
+                                String region, Optional<TrustConfiguration> trustConfig,
+                                Optional<CreateOptions> options) {
         return "mock-identity-id";
     }
 
-    @Override
-    protected void attachInlinePolicyToProvider(PolicyDocument policyDocument, String tenantId,
-                                                String region, String resource) {
+    public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId,
+                                   String region, String resource) {
         // Mock implementation
     }
 
-    @Override
-    protected String getInlinePolicyDetailsFromProvider(String identityName, String policyName,
-                                                        String tenantId, String region) {
+    public String getInlinePolicyDetails(String identityName, String policyName,
+                                        String tenantId, String region) {
         return "mock-policy-details";
     }
 
-    @Override
-    protected List<String> getAttachedPoliciesFromProvider(String identityName, String tenantId, String region) {
+    public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
         return Arrays.asList("policy1", "policy2");
     }
 
-    @Override
-    protected void removePolicyFromProvider(String identityName, String policyName, String tenantId,
-                                            String region) {
+    public void removePolicy(String identityName, String policyName, String tenantId,
+                            String region) {
         // Mock implementation
     }
 
-    @Override
-    protected void deleteIdentityFromProvider(String identityName, String tenantId, String region) {
+    public void deleteIdentity(String identityName, String tenantId, String region) {
         // Mock implementation
     }
 
-    @Override
-    protected String getIdentityFromProvider(String identityName, String tenantId, String region) {
+    public String getIdentity(String identityName, String tenantId, String region) {
         return "mock-identity-arn";
     }
 
@@ -70,9 +63,14 @@ public class TestIam extends AbstractIam<TestIam> {
         return new Builder();
     }
 
-    public static class Builder extends AbstractIam.Builder<TestIam> {
+    public static class Builder extends AbstractIam.Builder<TestIam, Builder> {
         protected Builder() {
             providerId("mockProviderId");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override
