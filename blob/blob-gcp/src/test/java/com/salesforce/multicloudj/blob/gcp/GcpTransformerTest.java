@@ -19,7 +19,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,10 +122,21 @@ class GcpTransformerTest {
                 .withTags(tags)
                 .build();
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            transformer.toBlobInfo(uploadRequest);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+        
+        // Verify original metadata is preserved
+        assertEquals("application/json", blobInfo.getMetadata().get("content-type"));
+        assertEquals("custom-value", blobInfo.getMetadata().get("custom-header"));
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
     }
 
     @Test
@@ -163,6 +173,32 @@ class GcpTransformerTest {
         assertEquals(TEST_KEY, blobInfo.getName());
         assertNotNull(blobInfo.getMetadata());
         assertTrue(blobInfo.getMetadata().isEmpty());
+    }
+
+    @Test
+    void testToBlobInfo_WithTagsOnly() {
+        // Given
+        Map<String, String> tags = new HashMap<>();
+        tags.put("environment", "production");
+        tags.put("owner", "team-a");
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withTags(tags)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
+        assertEquals(2, blobInfo.getMetadata().size());
     }
 
     @Test
@@ -655,10 +691,43 @@ class GcpTransformerTest {
                 .tags(tags)
                 .build();
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            transformer.toBlobInfo(presignedUrlRequest);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(presignedUrlRequest);
+
+        // Then
+        assertNotNull(blobInfo);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals("object-1", blobInfo.getName());
+        
+        // Verify original metadata is preserved
+        assertEquals("some-value", blobInfo.getMetadata().get("some-key"));
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("tag-value", blobInfo.getMetadata().get("gcp-tag-tag-key"));
+    }
+
+    @Test
+    void testPresignedToBlobInfo_WithTagsOnly() {
+        Map<String, String> tags = Map.of("tag-key", "tag-value", "environment", "production");
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .tags(tags)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(presignedUrlRequest);
+
+        // Then
+        assertNotNull(blobInfo);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals("object-1", blobInfo.getName());
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("tag-value", blobInfo.getMetadata().get("gcp-tag-tag-key"));
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals(2, blobInfo.getMetadata().size());
     }
 
     @Test
