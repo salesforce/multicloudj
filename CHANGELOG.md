@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.10...multicloudj-v0.2.11) (2025-11-03)
+
+
+### Blob Store
+
+* fix GCP async client builder for configs ([#123](https://github.com/salesforce/multicloudj/issues/123)) ([088f0a2](https://github.com/salesforce/multicloudj/commit/088f0a2be5eb9b5165624167a653540dbcb8d80c))
+
+
+### PubSub
+
+* add getAttributes for gcp pubsub ([#120](https://github.com/salesforce/multicloudj/issues/120)) ([228ab6f](https://github.com/salesforce/multicloudj/commit/228ab6fda6f7ad7f963ef3c676cac513c4d62520))
+
+
+### IAM
+
+* onboarding client layer for IAM ([#90](https://github.com/salesforce/multicloudj/issues/90)) ([a57e09d](https://github.com/salesforce/multicloudj/commit/a57e09deb11eae6e0c3abe28a33f912729131d2e))
+
 ## [0.2.10](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.9...multicloudj-v0.2.10) (2025-10-30)
 
 
