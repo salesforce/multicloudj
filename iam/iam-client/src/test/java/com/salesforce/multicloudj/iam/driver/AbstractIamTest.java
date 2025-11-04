@@ -330,5 +330,100 @@ public class AbstractIamTest {
         assertEquals("testProvider2", iam.getProviderId());
         assertEquals("testRegion", iam.region);
     }
+
+    @Test
+    void testPublicMethodDelegationForCreateIdentity() {
+        TestIam testIam = new TestIam.Builder()
+                .providerId("testProvider")
+                .withRegion("testRegion")
+                .build();
+        
+        TestIam spyIam = spy(testIam);
+        doReturn("identity-id").when(spyIam).doCreateIdentity(
+                anyString(), anyString(), anyString(), anyString(), any(), any());
+        
+        String result = spyIam.createIdentity("role", "desc", "tenant", "region", 
+                Optional.empty(), Optional.empty());
+        
+        assertEquals("identity-id", result);
+        verify(spyIam, times(1)).doCreateIdentity(
+                eq("role"), eq("desc"), eq("tenant"), eq("region"), 
+                eq(Optional.empty()), eq(Optional.empty()));
+    }
+
+    @Test
+    void testPublicMethodDelegationForAttachInlinePolicy() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        
+        PolicyDocument policy = mock(PolicyDocument.class);
+        spyIam.attachInlinePolicy(policy, "tenant", "region", "resource");
+        
+        verify(spyIam, times(1)).doAttachInlinePolicy(
+                eq(policy), eq("tenant"), eq("region"), eq("resource"));
+    }
+
+    @Test
+    void testPublicMethodDelegationForGetInlinePolicyDetails() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        doReturn("policy-json").when(spyIam).doGetInlinePolicyDetails(
+                anyString(), anyString(), anyString(), anyString());
+        
+        String result = spyIam.getInlinePolicyDetails("identity", "policy", "tenant", "region");
+        
+        assertEquals("policy-json", result);
+        verify(spyIam, times(1)).doGetInlinePolicyDetails(
+                eq("identity"), eq("policy"), eq("tenant"), eq("region"));
+    }
+
+    @Test
+    void testPublicMethodDelegationForGetAttachedPolicies() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        List<String> policies = Arrays.asList("p1", "p2");
+        doReturn(policies).when(spyIam).doGetAttachedPolicies(anyString(), anyString(), anyString());
+        
+        List<String> result = spyIam.getAttachedPolicies("identity", "tenant", "region");
+        
+        assertEquals(policies, result);
+        verify(spyIam, times(1)).doGetAttachedPolicies(
+                eq("identity"), eq("tenant"), eq("region"));
+    }
+
+    @Test
+    void testPublicMethodDelegationForRemovePolicy() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        
+        spyIam.removePolicy("identity", "policy", "tenant", "region");
+        
+        verify(spyIam, times(1)).doRemovePolicy(
+                eq("identity"), eq("policy"), eq("tenant"), eq("region"));
+    }
+
+    @Test
+    void testPublicMethodDelegationForDeleteIdentity() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        
+        spyIam.deleteIdentity("identity", "tenant", "region");
+        
+        verify(spyIam, times(1)).doDeleteIdentity(
+                eq("identity"), eq("tenant"), eq("region"));
+    }
+
+    @Test
+    void testPublicMethodDelegationForGetIdentity() {
+        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
+        TestIam spyIam = spy(testIam);
+        doReturn("identity-arn").when(spyIam).doGetIdentity(anyString(), anyString(), anyString());
+        
+        String result = spyIam.getIdentity("identity", "tenant", "region");
+        
+        assertEquals("identity-arn", result);
+        verify(spyIam, times(1)).doGetIdentity(
+                eq("identity"), eq("tenant"), eq("region"));
+    }
 }
 
