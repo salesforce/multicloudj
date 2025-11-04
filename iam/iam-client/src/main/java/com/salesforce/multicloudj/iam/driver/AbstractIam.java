@@ -15,7 +15,7 @@ import java.util.Optional;
  * are supposed to implement it.
  */
 public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider {
-    protected final String providerId;
+    private final String providerId;
     protected final String region;
 
     /**

@@ -126,7 +126,7 @@ public class AbstractIamTest {
                 .withEndpoint(URI.create("https://test.example.com"))
                 .build();
 
-        assertEquals("testProvider", iam.providerId);
+        assertEquals("testProvider", iam.getProviderId());
         assertEquals("testRegion", iam.region);
     }
 
@@ -315,13 +315,13 @@ public class AbstractIamTest {
     void testConstructorWithBuilder() {
         TestIam.Builder builder = new TestIam.Builder();
         builder.providerId("testProvider2")
-                .withRegion("us-east-1")
+                .withRegion("testRegion")
                 .withEndpoint(URI.create("https://custom.endpoint.com"));
 
         TestIam iam = new TestIam(builder);
 
         assertEquals("testProvider2", iam.getProviderId());
-        assertEquals("us-east-1", iam.region);
+        assertEquals("testRegion", iam.region);
     }
 }
 

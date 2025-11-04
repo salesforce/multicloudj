@@ -286,10 +286,10 @@ public class IamClientTest {
     void testBuilderFields() {
         IamClient.IamClientBuilder builder = IamClient.builder("test");
         
-        builder.withRegion("us-west-2");
+        builder.withRegion("testRegion");
         builder.withEndpoint(URI.create("https://custom.endpoint.com"));
         
-        assertEquals("us-west-2", builder.region);
+        assertEquals("testRegion", builder.region);
         assertEquals(URI.create("https://custom.endpoint.com"), builder.endpoint);
     }
 }
