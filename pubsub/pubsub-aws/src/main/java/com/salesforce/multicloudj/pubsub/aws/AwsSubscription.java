@@ -92,7 +92,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         ReceiveMessageResponse response = sqsClient.receiveMessage(requestBuilder.build());
         List<Message> messages = new ArrayList<>();
 
-        for (software.amazon.awssdk.services.sqs.model.Message sqsMessage : response.messages()) {
+        for (var sqsMessage : response.messages()) {
             Message message = convertToMessage(sqsMessage);
             messages.add(message);
         }
@@ -105,10 +105,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                 throw new SubstrateSdkException("Interrupted while waiting for messages", e);
             }
         }
-
         return messages;
-        // AWS exceptions (AwsServiceException, SdkClientException) will propagate directly
-        // to the client layer for handling
     }
 
     /**
@@ -233,11 +230,10 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         if (value == null) return "";
         try {
             return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return value; 
+        } catch (IllegalArgumentException e) {
+            return value;
         }
     }
-
 
     private static void validateSubscriptionName(String subscriptionName) {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {

@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -211,13 +210,11 @@ public class SqsClientUtilTest {
 
         when(mockBuilder.region(any(Region.class))).thenThrow(new RuntimeException("Builder failed"));
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             SqsClientUtil.buildSqsClient(region, endpoint, credentialsOverrider);
         });
 
-        assertEquals("Failed to create SQS client", exception.getMessage());
-        assertNotNull(exception.getCause());
-        assertEquals("Builder failed", exception.getCause().getMessage());
+        assertEquals("Builder failed", exception.getMessage());
     }
 
     @Test
@@ -233,13 +230,11 @@ public class SqsClientUtilTest {
                 any(CredentialsOverrider.class), any(Region.class)))
                 .thenThrow(new RuntimeException("Credentials provider failed"));
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             SqsClientUtil.buildSqsClient(region, endpoint, credentialsOverrider);
         });
 
-        assertEquals("Failed to create SQS client", exception.getMessage());
-        assertNotNull(exception.getCause());
-        assertEquals("Credentials provider failed", exception.getCause().getMessage());
+        assertEquals("Credentials provider failed", exception.getMessage());
     }
 
     @Test
@@ -250,13 +245,11 @@ public class SqsClientUtilTest {
 
         when(mockBuilder.build()).thenThrow(new RuntimeException("Build failed"));
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             SqsClientUtil.buildSqsClient(region, endpoint, credentialsOverrider);
         });
 
-        assertEquals("Failed to create SQS client", exception.getMessage());
-        assertNotNull(exception.getCause());
-        assertEquals("Build failed", exception.getCause().getMessage());
+        assertEquals("Build failed", exception.getMessage());
     }
 }
 

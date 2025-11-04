@@ -72,37 +72,48 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         private SdkHttpClient httpClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
 
+        private SqsClient createSqsClient() {
+            if (sqsClient == null) {
+                httpClient = TestsUtilAws.getProxyClient("https", port);
+                
+                String accessKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+                String secretKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+                String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+                
+                SqsClientBuilder sqsBuilder = SqsClient.builder()
+                    .httpClient(httpClient)
+                    .region(Region.US_WEST_2)  
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
+                        accessKey, secretKey, sessionToken)))
+                    .endpointOverride(URI.create(SQS_ENDPOINT));
+                
+                sqsClient = sqsBuilder.build();
+            }
+            return sqsClient;
+        }
+
         @Override
+        @SuppressWarnings("rawtypes")
         public AbstractTopic createTopicDriver() {
-            httpClient = TestsUtilAws.getProxyClient("https", port);
-            
-            String accessKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-            String secretKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-            String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-            
-            SqsClientBuilder sqsBuilder = SqsClient.builder()
-                .httpClient(httpClient)
-                .region(Region.US_WEST_2)  
-                .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                    accessKey, secretKey, sessionToken)))
-                .endpointOverride(URI.create(SQS_ENDPOINT));
-            
-            sqsClient = sqsBuilder.build();
+            SqsClient client = createSqsClient();
             
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             topicBuilder.withTopicName(TEST_QUEUE_URL);
-            topicBuilder.withSqsClient(sqsClient);
+            topicBuilder.withSqsClient(client);
             topic = new AwsTopic(topicBuilder);
             
             return topic;
         }
 
         @Override
+        @SuppressWarnings("rawtypes")
         public AbstractSubscription createSubscriptionDriver() {
+            SqsClient client = createSqsClient();
+            
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
             subscriptionBuilder.withSubscriptionName(TEST_QUEUE_URL);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
-            subscriptionBuilder.withSqsClient(sqsClient);
+            subscriptionBuilder.withSqsClient(client);
             subscription = new AwsSubscription(subscriptionBuilder);
             
             return subscription;

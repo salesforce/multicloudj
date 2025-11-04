@@ -9,13 +9,6 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
-import software.amazon.awssdk.core.exception.SdkClientException;
-import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
-import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
@@ -24,6 +17,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 
 class MetadataKeys {
     public static final String DEDUPLICATION_ID = "DeduplicationId";
@@ -69,7 +69,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
 
         sendToSqs(messages);
     }
-
 
     /**
      * Send messages to SQS queue.
@@ -122,8 +121,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                     firstFailure.code(),
                     firstFailure.message()));
         }
-        // AWS exceptions (AwsServiceException, SdkClientException) will propagate directly
-        // to the client layer for handling
     }
 
     @Override
@@ -190,9 +187,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
     }
 
-
-
-
     /**
      * Sets SQS-specific attributes on a SendMessageBatchRequestEntry based on message metadata.
      */
@@ -209,7 +203,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             }
         }
     }
-
 
     /**
      * Converts message metadata to SQS message attributes.
@@ -322,7 +315,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             return false;
         }
     }
-
 
     public static Builder builder() {
         return new Builder();

@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -22,33 +21,29 @@ public final class SqsClientUtil {
             String region,
             URI endpoint,
             CredentialsOverrider credentialsOverrider) {
-        try {
-            SqsClientBuilder clientBuilder = SqsClient.builder();
-            
-            // Set region if provided
-            if (region != null) {
-                clientBuilder.region(Region.of(region));
-            }
-            
-            // Set endpoint if provided
-            if (endpoint != null) {
-                clientBuilder.endpointOverride(endpoint);
-            }
-            
-            // Set credentials if provided
-            if (credentialsOverrider != null) {
-                AwsCredentialsProvider credentialsProvider =
-                    CredentialsProvider.getCredentialsProvider(
-                        credentialsOverrider, 
-                        region != null ? Region.of(region) : null);
-                if (credentialsProvider != null) {
-                    clientBuilder.credentialsProvider(credentialsProvider);
-                }
-            }
-            
-            return clientBuilder.build();
-        } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to create SQS client", e);
+        SqsClientBuilder clientBuilder = SqsClient.builder();
+        
+        // Set region if provided
+        if (region != null) {
+            clientBuilder.region(Region.of(region));
         }
+        
+        // Set endpoint if provided
+        if (endpoint != null) {
+            clientBuilder.endpointOverride(endpoint);
+        }
+        
+        // Set credentials if provided
+        if (credentialsOverrider != null) {
+            AwsCredentialsProvider credentialsProvider =
+                CredentialsProvider.getCredentialsProvider(
+                    credentialsOverrider, 
+                    region != null ? Region.of(region) : null);
+            if (credentialsProvider != null) {
+                clientBuilder.credentialsProvider(credentialsProvider);
+            }
+        }
+        
+        return clientBuilder.build();
     }
 }
