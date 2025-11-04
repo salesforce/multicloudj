@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,7 @@ public class IamClientTest {
         TestIam.Builder mockBuilder = mock(TestIam.Builder.class);
         when(mockBuilder.withRegion(anyString())).thenReturn(mockBuilder);
         when(mockBuilder.withEndpoint(any(URI.class))).thenReturn(mockBuilder);
+        when(mockBuilder.withCredentialsOverrider(any(CredentialsOverrider.class))).thenReturn(mockBuilder);
         when(mockBuilder.build()).thenReturn((TestIam) mockIam);
         when(mockIam.builder()).thenReturn(mockBuilder);
         when(mockIam.getProviderId()).thenReturn("test");
@@ -291,6 +293,19 @@ public class IamClientTest {
         
         assertEquals("testRegion", builder.region);
         assertEquals(URI.create("https://custom.endpoint.com"), builder.endpoint);
+    }
+
+    @Test
+    void testBuilderWithCredentialsOverrider() {
+        CredentialsOverrider mockOverrider = mock(CredentialsOverrider.class);
+        
+        IamClient builtClient = IamClient.builder("test")
+                .withRegion("testRegion")
+                .withCredentialsOverrider(mockOverrider)
+                .build();
+        
+        assertNotNull(builtClient);
+        assertNotNull(builtClient.iam);
     }
 }
 

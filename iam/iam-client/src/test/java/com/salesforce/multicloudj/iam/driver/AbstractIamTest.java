@@ -303,10 +303,12 @@ public class AbstractIamTest {
         AbstractIam.Builder<TestIam, TestIam.Builder> builder = new TestIam.Builder();
         builder.providerId("testProvider")
                 .withRegion("testRegion")
-                .withEndpoint(URI.create("https://test.example.com"));
+                .withEndpoint(URI.create("https://test.example.com"))
+                .withCredentialsOverrider(null);
 
         assertEquals("testRegion", builder.getRegion());
         assertEquals(URI.create("https://test.example.com"), builder.getEndpoint());
+        assertEquals(null, builder.getCredentialsOverrider());
     }
 
     @Test
