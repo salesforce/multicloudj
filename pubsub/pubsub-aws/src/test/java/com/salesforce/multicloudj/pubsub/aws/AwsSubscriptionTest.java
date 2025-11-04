@@ -25,8 +25,9 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -413,5 +414,180 @@ public class AwsSubscriptionTest {
         assertEquals("invalid%value", subscription.decodeMetadataValue("invalid%value"));
     }
 
+    @Test
+    void testDoReceiveBatch_InterruptedException() throws Exception {
+        subscription = builder.build();
+        
+        // Create a mock that returns empty messages, triggering sleep
+        when(mockSqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(ReceiveMessageResponse.builder().build());
+        
+        // Interrupt the current thread
+        Thread currentThread = Thread.currentThread();
+        Thread interruptThread = new Thread(() -> {
+            try {
+                Thread.sleep(10); // Wait a bit for the test to start
+                currentThread.interrupt();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        interruptThread.start();
+        
+        // This should throw SubstrateSdkException due to InterruptedException
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+            subscription.doReceiveBatch(5);
+        });
+        
+        assertEquals("Interrupted while waiting for messages", exception.getMessage());
+        assertNotNull(exception.getCause());
+        assertTrue(exception.getCause() instanceof InterruptedException);
+        
+        // Clear interrupt flag
+        Thread.interrupted();
+        interruptThread.join();
+    }
+
+    @Test
+    void testConvertToMessage_WithBase64EncodedFlag() {
+        subscription = builder.build();
+        
+        // Create a message with base64encoded flag
+        String originalBody = "Hello, World!";
+        String base64Body = Base64.getEncoder().encodeToString(originalBody.getBytes(StandardCharsets.UTF_8));
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(base64Body)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of(
+                    "base64encoded", MessageAttributeValue.builder().stringValue("true").build(),
+                    "key1", MessageAttributeValue.builder().stringValue("value1").build()
+                ))
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        assertEquals(originalBody, new String(result.getBody()));
+        // base64encoded key should not appear in metadata
+        assertFalse(result.getMetadata().containsKey("base64encoded"));
+        assertEquals("value1", result.getMetadata().get("key1"));
+    }
+
+    @Test
+    void testConvertToMessage_WithBase64EncodedFlag_InvalidBase64() {
+        subscription = builder.build();
+        
+        // Create a message with base64encoded flag but invalid Base64 string
+        String invalidBase64Body = "!!!Invalid Base64!!!";
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(invalidBase64Body)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of(
+                    "base64encoded", MessageAttributeValue.builder().stringValue("true").build()
+                ))
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        // Should fall back to using raw message as UTF-8 bytes
+        assertEquals(invalidBase64Body, new String(result.getBody(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void testConvertToMessage_WithoutBase64EncodedFlag() {
+        subscription = builder.build();
+        
+        String plainBody = "Hello, World!";
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(plainBody)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of(
+                    "key1", MessageAttributeValue.builder().stringValue("value1").build()
+                ))
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        assertEquals(plainBody, new String(result.getBody(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void testDecodeMetadataKey_InvalidHexFormat() {
+        subscription = builder.build();
+        
+        // Test with invalid hex format "__0xGG__" (G is not a valid hex digit)
+        String invalidHex = "key__0xGG__suffix";
+        String result = subscription.decodeMetadataKey(invalidHex);
+        
+        // Should treat as regular character, not decode
+        assertEquals("key__0xGG__suffix", result);
+    }
+
+    @Test
+    void testDecodeMetadataKey_IncompletePattern() {
+        subscription = builder.build();
+        
+        // Test with incomplete pattern "__0x2F" (no closing "__")
+        String incompletePattern = "key__0x2F";
+        String result = subscription.decodeMetadataKey(incompletePattern);
+        
+        // Should treat as regular characters
+        assertEquals("key__0x2F", result);
+    }
+
+    @Test
+    void testDecodeMetadataKey_IncompletePatternAtEnd() {
+        subscription = builder.build();
+        
+        // Test with incomplete pattern at the end "__0x2F" (no closing "__")
+        String incompletePattern = "prefix__0x2F";
+        String result = subscription.decodeMetadataKey(incompletePattern);
+        
+        // Should treat as regular characters
+        assertEquals("prefix__0x2F", result);
+    }
+
+    @Test
+    void testValidateSubscriptionName_InvalidFormat_NoAmazonaws() {
+        // Test subscription name that doesn't contain ".amazonaws.com/"
+        String invalidName = "https://sqs.us-east-1.example.com/123456789012/test-queue";
+        
+        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
+        testBuilder.withSubscriptionName(invalidName);
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertTrue(exception.getMessage().contains("Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
+    }
+
+    @Test
+    void testValidateSubscriptionName_InvalidFormat_NoSqsPrefix() {
+        // Test subscription name that doesn't start with "https://sqs."
+        String invalidName = "https://example.com/queue";
+        
+        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
+        testBuilder.withSubscriptionName(invalidName);
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertTrue(exception.getMessage().contains("Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
+    }
 
 }

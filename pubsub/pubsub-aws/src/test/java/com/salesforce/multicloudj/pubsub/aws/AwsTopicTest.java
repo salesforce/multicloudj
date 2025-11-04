@@ -89,6 +89,23 @@ public class AwsTopicTest {
     }
 
     @Test
+    void testTopicNameValidation_Null() {
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withSqsClient(mockSqsClient);
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
+        assertTrue(exception.getMessage().contains("SQS topic name cannot be null"));
+    }
+
+    @Test
+    void testTopicNameValidation_Empty() {
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName("");
+        builder.withSqsClient(mockSqsClient);
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
+        assertTrue(exception.getMessage().contains("SQS topic name cannot be empty"));
+    }
+
+    @Test
     void testBuilder() {
         AwsTopic.Builder builder1 = new AwsTopic.Builder();
         builder1.withTopicName(VALID_SQS_TOPIC_NAME);
@@ -290,6 +307,64 @@ public class AwsTopicTest {
     }
 
     @Test
+    void testGetExceptionWithSubstrateSdkExceptionSubclass_InvalidArgumentException() {
+        InvalidArgumentException subException = new InvalidArgumentException("Invalid argument");
+        
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(subException);
+        
+        assertEquals(InvalidArgumentException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithSubstrateSdkExceptionSubclass_UnknownException() {
+        UnknownException subException = new UnknownException("Unknown error");
+        
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(subException);
+        
+        assertEquals(UnknownException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithSubstrateSdkExceptionSubclass_UnAuthorizedException() {
+        UnAuthorizedException subException = new UnAuthorizedException("Unauthorized");
+        
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(subException);
+        
+        assertEquals(UnAuthorizedException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithSubstrateSdkExceptionBaseClass() {
+
+        SubstrateSdkException baseException = new SubstrateSdkException("Base exception");
+        
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(baseException);
+        
+        assertEquals(UnknownException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithAwsServiceExceptionNoErrorDetails() {
+        AwsServiceException serviceException = AwsServiceException.builder()
+            .message("Service error without details")
+            .awsErrorDetails(null)
+            .build();
+
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(serviceException);
+
+        assertEquals(UnknownException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithUnknownException() {
+        RuntimeException runtimeException = new RuntimeException("Generic runtime error");
+
+        Class<? extends SubstrateSdkException> result = sqsTopic.getException(runtimeException);
+
+        assertEquals(UnknownException.class, result);
+    }
+
+    @Test
     void testDoSendBatchEmptyMessages() throws Exception {
         List<Message> messages = new ArrayList<>();
 
@@ -466,5 +541,112 @@ public class AwsTopicTest {
         Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> messageAttributes = 
             requestCaptor.getValue().entries().get(0).messageAttributes();
         assertEquals(10, messageAttributes.size());
+    }
+
+    @Test
+    void testBase64EncodingFlag_NonUtf8Body() throws Exception {
+        // Create a message with non-UTF8 byte array (e.g., binary data)
+        byte[] binaryData = new byte[]{(byte)0xFF, (byte)0xFE, (byte)0xFD, (byte)0xFC};
+        
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody(binaryData)
+            .withMetadata(Map.of("test-key", "test-value"))
+            .build());
+
+        SendMessageBatchResultEntry successEntry = SendMessageBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+            
+        SendMessageBatchResponse mockResponse = SendMessageBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+            
+        when(mockSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        ArgumentCaptor<SendMessageBatchRequest> requestCaptor = ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+
+        assertDoesNotThrow(() -> sqsTopic.doSendBatch(messages));
+        
+        verify(mockSqsClient).sendMessageBatch(requestCaptor.capture());
+        Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> messageAttributes = 
+            requestCaptor.getValue().entries().get(0).messageAttributes();
+        
+        // Verify BASE64_ENCODED flag is present
+        assertTrue(messageAttributes.containsKey("base64encoded"));
+        assertEquals("String", messageAttributes.get("base64encoded").dataType());
+        assertEquals("true", messageAttributes.get("base64encoded").stringValue());
+    }
+
+    @Test
+    void testBase64EncodingFlag_Utf8Body() throws Exception {
+        // Create a message with valid UTF-8 text
+        String utf8Text = "Hello, World!";
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody(utf8Text.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            .withMetadata(Map.of("test-key", "test-value"))
+            .build());
+
+        SendMessageBatchResultEntry successEntry = SendMessageBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+            
+        SendMessageBatchResponse mockResponse = SendMessageBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+            
+        when(mockSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        ArgumentCaptor<SendMessageBatchRequest> requestCaptor = ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+
+        assertDoesNotThrow(() -> sqsTopic.doSendBatch(messages));
+        
+        verify(mockSqsClient).sendMessageBatch(requestCaptor.capture());
+        Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> messageAttributes = 
+            requestCaptor.getValue().entries().get(0).messageAttributes();
+        
+        // Verify BASE64_ENCODED flag is NOT present for UTF-8 content
+        assertFalse(messageAttributes.containsKey("base64encoded"));
+    }
+
+    @Test
+    void testBase64EncodingFlag_EmptyBody() throws Exception {
+        // Test with empty body
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody(new byte[0])
+            .withMetadata(Map.of("test-key", "test-value"))
+            .build());
+
+        SendMessageBatchResultEntry successEntry = SendMessageBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+            
+        SendMessageBatchResponse mockResponse = SendMessageBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+            
+        when(mockSqsClient.sendMessageBatch(any(SendMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        ArgumentCaptor<SendMessageBatchRequest> requestCaptor = ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+
+        assertDoesNotThrow(() -> sqsTopic.doSendBatch(messages));
+        
+        verify(mockSqsClient).sendMessageBatch(requestCaptor.capture());
+        Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> messageAttributes = 
+            requestCaptor.getValue().entries().get(0).messageAttributes();
+        
+        // Empty body is valid UTF-8, so no BASE64_ENCODED flag
+        assertFalse(messageAttributes.containsKey("base64encoded"));
     }
 }

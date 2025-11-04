@@ -16,6 +16,10 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -304,10 +308,17 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
      * Checks if byte array contains valid UTF-8.
      */
     private boolean isValidUtf8(byte[] bytes) {
-        try {
-            new String(bytes, StandardCharsets.UTF_8);
+        if (bytes == null || bytes.length == 0) {
             return true;
-        } catch (Exception e) {
+        }
+        
+        try {
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+            decoder.onMalformedInput(CodingErrorAction.REPORT);
+            decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+            decoder.decode(ByteBuffer.wrap(bytes));
+            return true;
+        } catch (CharacterCodingException e) {
             return false;
         }
     }
