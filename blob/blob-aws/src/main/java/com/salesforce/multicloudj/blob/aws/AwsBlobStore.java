@@ -69,6 +69,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -530,7 +531,16 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
             if (builder.getRetryConfig() != null) {
                 // Create a temporary transformer instance for retry strategy conversion
                 AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
-                b.overrideConfiguration(config -> config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig())));
+                b.overrideConfiguration(config -> {
+                    config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                    // Set API call timeouts if provided
+                    if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                        config.apiCallAttemptTimeout(Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                    }
+                    if (builder.getRetryConfig().getTotalTimeout() != null) {
+                        config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                    }
+                });
             }
 
             return b.build();

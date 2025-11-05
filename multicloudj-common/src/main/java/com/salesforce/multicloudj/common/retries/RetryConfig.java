@@ -27,7 +27,8 @@ import lombok.Getter;
  *     .initialDelayMillis(100L)
  *     .multiplier(2.0)
  *     .maxDelayMillis(5000L)
- *     .totalTimeoutMillis(30000L)
+ *     .attemptTimeout(5000L)
+ *     .totalTimeout(30000L)
  *     .build();
  *
  * // Fixed delay with 5 retries
@@ -100,9 +101,17 @@ public final class RetryConfig {
     private final long fixedDelayMillis;
 
     /**
+     * Optional timeout in milliseconds for a single attempt (including retries within that attempt).
+     * If set, each individual request attempt will be subject to this timeout.
+     * If null, the cloud provider's default attempt timeout will be used.
+     */
+    private final Long attemptTimeout;
+
+    /**
      * Optional total timeout in milliseconds for all retry attempts combined.
      * If set, the retry logic will stop retrying once this timeout is exceeded,
      * even if {@code maxAttempts} has not been reached.
+     * If null, no total timeout limit is applied.
      */
-    private final Long totalTimeoutMillis;
+    private final Long totalTimeout;
 }

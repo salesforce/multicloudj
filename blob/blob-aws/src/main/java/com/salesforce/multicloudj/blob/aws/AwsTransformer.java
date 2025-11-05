@@ -492,7 +492,7 @@ public class AwsTransformer {
 
         // Only set maxAttempts if provided, otherwise use AWS SDK default
         if (retryConfig.getMaxAttempts() != null) {
-        strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
+            strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
         }
 
         // Configure backoff strategy based on mode

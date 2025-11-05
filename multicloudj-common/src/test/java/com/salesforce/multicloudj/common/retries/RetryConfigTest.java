@@ -16,7 +16,7 @@ class RetryConfigTest {
                 .initialDelayMillis(100L)
                 .multiplier(2.0)
                 .maxDelayMillis(5000L)
-                .totalTimeoutMillis(30000L)
+                .totalTimeout(30000L)
                 .build();
 
         assertEquals(RetryConfig.Mode.EXPONENTIAL, config.getMode());
@@ -24,7 +24,7 @@ class RetryConfigTest {
         assertEquals(100L, config.getInitialDelayMillis());
         assertEquals(2.0, config.getMultiplier());
         assertEquals(5000L, config.getMaxDelayMillis());
-        assertEquals(30000L, config.getTotalTimeoutMillis());
+        assertEquals(30000L, config.getTotalTimeout());
     }
 
     @Test
@@ -33,13 +33,13 @@ class RetryConfigTest {
                 .mode(RetryConfig.Mode.FIXED)
                 .maxAttempts(3)
                 .fixedDelayMillis(1000L)
-                .totalTimeoutMillis(10000L)
+                .totalTimeout(10000L)
                 .build();
 
         assertEquals(RetryConfig.Mode.FIXED, config.getMode());
         assertEquals(3, config.getMaxAttempts());
         assertEquals(1000L, config.getFixedDelayMillis());
-        assertEquals(10000L, config.getTotalTimeoutMillis());
+        assertEquals(10000L, config.getTotalTimeout());
     }
 
     @Test
@@ -57,7 +57,7 @@ class RetryConfigTest {
         assertEquals(50L, config.getInitialDelayMillis());
         assertEquals(1.5, config.getMultiplier());
         assertEquals(2000L, config.getMaxDelayMillis());
-        assertNull(config.getTotalTimeoutMillis());
+        assertNull(config.getTotalTimeout());
     }
 
     @Test
