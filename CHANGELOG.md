@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.11...multicloudj-v0.2.12) (2025-11-05)
+
+
+### Blob Store
+
+* Enable tags in the GcpTransformer ([#127](https://github.com/salesforce/multicloudj/issues/127)) ([728a632](https://github.com/salesforce/multicloudj/commit/728a6328721f9e0b146b29ac17b8c75ba8ccabd5))
+
+
+### IAM
+
+* driver layer contract for IAM ([#122](https://github.com/salesforce/multicloudj/issues/122)) ([c929930](https://github.com/salesforce/multicloudj/commit/c929930f041f7de4b2e8129d372be7beabeb5850))
+
 ## [0.2.11](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.10...multicloudj-v0.2.11) (2025-11-03)
 
 
