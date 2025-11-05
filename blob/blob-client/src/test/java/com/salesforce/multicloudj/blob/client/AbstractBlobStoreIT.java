@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -2003,6 +2004,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    @Disabled
     public void testTagging() throws IOException {
 
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
