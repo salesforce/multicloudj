@@ -79,7 +79,6 @@ import software.amazon.awssdk.core.ResponseInputStream;
 /**
  * AWS implementation of BlobStore
  */
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
 

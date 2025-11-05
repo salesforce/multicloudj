@@ -31,11 +31,11 @@ public abstract class AbstractBlobStore implements BlobStore {
 
     protected AbstractBlobStore(Builder<?, ?> builder) {
         this(
-                builder.providerId,
-                builder.bucket,
-                builder.region,
-                builder.credentialsOverrider,
-                builder.validator
+                builder.getProviderId(),
+                builder.getBucket(),
+                builder.getRegion(),
+                builder.getCredentialsOverrider(),
+                builder.getValidator()
         );
     }
 

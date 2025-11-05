@@ -13,28 +13,28 @@ import java.util.concurrent.ExecutorService;
 @Getter
 public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvider.Builder<T> {
 
-    protected String providerId;
-    protected String bucket;
-    protected String region;
-    protected URI endpoint;
-    protected URI proxyEndpoint;
-    protected Integer maxConnections;
-    protected Duration socketTimeout;
-    protected Duration idleConnectionTimeout;
-    protected CredentialsOverrider credentialsOverrider;
-    protected ExecutorService executorService;
-    protected Properties properties = new Properties();
-    protected BlobStoreValidator validator = new BlobStoreValidator();
-    protected Long thresholdBytes;
-    protected Long partBufferSize;
-    protected Boolean parallelUploadsEnabled;
-    protected Boolean parallelDownloadsEnabled;
-    protected Double targetThroughputInGbps;
-    protected Long maxNativeMemoryLimitInBytes;
-    protected Long initialReadBufferSizeInBytes;
-    protected Integer maxConcurrency;
-    protected Integer transferManagerThreadPoolSize;
-    protected Integer transferDirectoryMaxConcurrency;
+    private String providerId;
+    private String bucket;
+    private String region;
+    private URI endpoint;
+    private URI proxyEndpoint;
+    private Integer maxConnections;
+    private Duration socketTimeout;
+    private Duration idleConnectionTimeout;
+    private CredentialsOverrider credentialsOverrider;
+    private ExecutorService executorService;
+    private Properties properties = new Properties();
+    private BlobStoreValidator validator = new BlobStoreValidator();
+    private Long thresholdBytes;
+    private Long partBufferSize;
+    private Boolean parallelUploadsEnabled;
+    private Boolean parallelDownloadsEnabled;
+    private Double targetThroughputInGbps;
+    private Long maxNativeMemoryLimitInBytes;
+    private Long initialReadBufferSizeInBytes;
+    private Integer maxConcurrency;
+    private Integer transferManagerThreadPoolSize;
+    private Integer transferDirectoryMaxConcurrency;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
