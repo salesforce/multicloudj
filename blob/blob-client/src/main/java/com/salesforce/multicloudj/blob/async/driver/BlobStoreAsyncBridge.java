@@ -51,8 +51,8 @@ import java.util.function.Consumer;
 public class BlobStoreAsyncBridge implements AsyncBlobStore {
 
     @Getter
-    private final AbstractBlobStore<?> blobStore;
-    
+    private final AbstractBlobStore blobStore;
+
     @Getter
     private final ExecutorService executorService;
 
@@ -65,7 +65,7 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
      * @param executorService the executor service to use for async operations. If this value is
      *                        null then this will use the ForkJoinPool.commonPool()
      */
-    public BlobStoreAsyncBridge(AbstractBlobStore<?> blobStore, ExecutorService executorService) {
+    public BlobStoreAsyncBridge(AbstractBlobStore blobStore, ExecutorService executorService) {
         this.blobStore = blobStore;
         this.executorService = executorService==null ? ForkJoinPool.commonPool() : executorService;
     }

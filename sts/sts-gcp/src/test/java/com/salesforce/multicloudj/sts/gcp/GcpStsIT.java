@@ -25,7 +25,7 @@ public class GcpStsIT extends AbstractStsIT {
         IamCredentialsClient client;
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         @Override
-        public AbstractSts<?> createStsDriver(boolean longTermCredentials) {
+        public AbstractSts createStsDriver(boolean longTermCredentials) {
             boolean isRecordingEnabled = System.getProperty("record") != null;
             // Transport channel provider to WireMock proxy
             TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);

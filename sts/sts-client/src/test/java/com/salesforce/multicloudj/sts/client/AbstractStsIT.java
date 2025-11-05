@@ -22,7 +22,7 @@ public abstract class AbstractStsIT {
     // Define the Harness interface
     public interface Harness extends AutoCloseable {
         // Method to create a sts driver
-        AbstractSts<?> createStsDriver(boolean longTermCredentials);
+        AbstractSts createStsDriver(boolean longTermCredentials);
 
         // Methods to get various identifiers
         String getRoleName();
@@ -90,7 +90,7 @@ public abstract class AbstractStsIT {
 
     @Test
     public void testGetCallerIdentity() {
-        AbstractSts<?> sts = harness.createStsDriver(false);
+        AbstractSts sts = harness.createStsDriver(false);
         StsClient stsClient = new StsClient(sts);
         CallerIdentity identity = stsClient.getCallerIdentity();
         Assertions.assertNotNull(identity, "Identity shouldn't be empty");
@@ -102,7 +102,7 @@ public abstract class AbstractStsIT {
     @Test
     public void testGetAccessToken() {
         Assumptions.assumeTrue(harness.supportsGetAccessToken(), "Skipping test as harness does not support GetAccessToken");
-        AbstractSts<?> sts = harness.createStsDriver(true);
+        AbstractSts sts = harness.createStsDriver(true);
         StsClient stsClient = new StsClient(sts);
         StsCredentials credentials = stsClient.getAccessToken(GetAccessTokenRequest.newBuilder().build());
         Assertions.assertNotNull(credentials, "Credentials shouldn't be empty");
@@ -110,7 +110,7 @@ public abstract class AbstractStsIT {
 
     @Test
     public void testAssumeRole() {
-        AbstractSts<?> sts = harness.createStsDriver(false);
+        AbstractSts sts = harness.createStsDriver(false);
         StsClient stsClient = new StsClient(sts);
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole(harness.getRoleName()).withSessionName("any-session").build();
         StsCredentials credentials = stsClient.getAssumeRoleCredentials(request);

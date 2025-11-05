@@ -34,7 +34,7 @@ import java.util.Map;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
-public class GcpSts extends AbstractSts<GcpSts> {
+public class GcpSts extends AbstractSts {
     private final String scope = "https://www.googleapis.com/auth/cloud-platform";
     private IamCredentialsClient stsClient;
     /**
@@ -147,9 +147,14 @@ public class GcpSts extends AbstractSts<GcpSts> {
         ERROR_MAPPING.put(StatusCode.Code.UNAUTHENTICATED, UnAuthorizedException.class);
     }
 
-    public static class Builder extends AbstractSts.Builder<GcpSts> {
+    public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {
         protected Builder() {
             providerId(GcpConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         public GcpSts build(IamCredentialsClient stsClient, GoogleCredentials credentials) {

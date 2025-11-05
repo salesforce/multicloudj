@@ -87,7 +87,7 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
-public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
+public class GcpBlobStore extends AbstractBlobStore {
 
     private final Storage storage;
     private final GcpTransformer transformer;
@@ -616,13 +616,18 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     }
 
     @Getter
-    public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 
         private Storage storage;
         private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
 
         public Builder() {
             providerId(GcpConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         public Builder withStorage(Storage storage) {

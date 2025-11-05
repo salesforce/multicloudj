@@ -77,7 +77,7 @@ import static org.mockito.Mockito.*;
 class GcpAsyncBlobStoreTest {
 
     @Mock
-    private AbstractBlobStore<?> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
 
     @Mock
     private Storage mockStorage;

@@ -85,7 +85,7 @@ public abstract class AbstractBlobBenchmarkTest {
 
     // Harness interface
     public interface Harness extends AutoCloseable {
-        AbstractBlobStore<?> createBlobStore();
+        AbstractBlobStore createBlobStore();
         String getBucketName();
     }
 
@@ -102,7 +102,7 @@ public abstract class AbstractBlobBenchmarkTest {
             testBlobs = new ArrayList<>();
             random = new Random(42); 
 
-            AbstractBlobStore<?> blobStore = harness.createBlobStore();
+            AbstractBlobStore blobStore = harness.createBlobStore();
             bucketClient = new BucketClient(blobStore);
             cleanupTestData();
             generateTestBlobs();

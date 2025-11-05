@@ -49,9 +49,9 @@ public class ProviderSupplier {
         throw new IllegalArgumentException("No BlobClient provider found for providerId: " + providerId);
     }
 
-    private static AbstractBlobStore.Builder<?> createBuilderInstance(AbstractBlobStore<?> provider) {
+    private static AbstractBlobStore.Builder<?, ?> createBuilderInstance(AbstractBlobStore provider) {
         try {
-            return (AbstractBlobStore.Builder<?>) provider.getClass().getMethod("builder").invoke(provider);
+            return (AbstractBlobStore.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create builder for provider: " + provider.getClass().getName(), e);
         }
