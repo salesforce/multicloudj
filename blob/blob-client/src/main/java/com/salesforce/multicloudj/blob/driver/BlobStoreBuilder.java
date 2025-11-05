@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import com.salesforce.multicloudj.common.provider.SdkProvider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
@@ -35,6 +36,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private Integer maxConcurrency;
     private Integer transferManagerThreadPoolSize;
     private Integer transferDirectoryMaxConcurrency;
+    private RetryConfig retryConfig;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -250,6 +252,16 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
      */
     public BlobStoreBuilder<T> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
         this.transferDirectoryMaxConcurrency = transferDirectoryMaxConcurrency;
+        return this;
+    }
+
+    /**
+     * Method to supply retry configuration
+     * @param retryConfig The retry configuration to use for retrying failed requests
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withRetryConfig(RetryConfig retryConfig) {
+        this.retryConfig = retryConfig;
         return this;
     }
 

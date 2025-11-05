@@ -69,8 +69,9 @@ public final class RetryConfig {
     /**
      * Maximum number of attempts including the initial request.
      * For example, {@code maxAttempts = 3} means 1 initial attempt + 2 retries.
+     * If null, the cloud provider's default will be used.
      */
-    private final int maxAttempts;
+    private final Integer maxAttempts;
 
     /**
      * Initial delay in milliseconds before the first retry (EXPONENTIAL mode only).

@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -531,6 +532,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             }
             builder.multipartConfiguration(configBuilder.build());
 
+            // Configure retry strategy if specified
+            if (config.getRetryConfig() != null) {
+                // Create a temporary transformer instance for retry strategy conversion
+                AwsTransformer transformer = config.getTransformerSupplier().get(config.getBucket());
+                builder.overrideConfiguration(overrideConfig -> overrideConfig.retryStrategy(transformer.toAwsRetryStrategy(config.getRetryConfig())));
+            }
+
             // Configure async configuration if executor service is specified
             if (config.getExecutorService() != null) {
                 builder.asyncConfiguration(ClientAsyncConfiguration.builder()
@@ -571,6 +579,11 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             // Configure part buffer size (common for both clients)
             if (config.getPartBufferSize() != null) {
                 builder.minimumPartSizeInBytes(config.getPartBufferSize());
+            }
+
+            // Configure retry policy if specified
+            if (config.getRetryConfig() != null) {
+                builder.retryConfiguration(retryConfig -> retryConfig.numRetries(config.getRetryConfig().getMaxAttempts() - 1));
             }
 
             // Configure executor service if specified
