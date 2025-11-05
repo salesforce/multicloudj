@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.iam.client;
 
-import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
@@ -12,7 +11,6 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.ServiceLoader;
 
 /**
  * Entry point for client code to interact with Identity and Access Management (IAM) services
@@ -68,47 +66,6 @@ public class IamClient {
         return new IamClientBuilder(providerId);
     }
 
-    /**
-     * Returns an Iterable of all available AbstractIam implementations.
-     * @return An Iterable of AbstractIam instances.
-     */
-    private static Iterable<AbstractIam<?>> all() {
-        ServiceLoader<AbstractIam> services = ServiceLoader.load(AbstractIam.class);
-        ImmutableSet.Builder<AbstractIam<?>> builder = ImmutableSet.builder();
-        for (AbstractIam<?> service : services) {
-            builder.add(service);
-        }
-        return builder.build();
-    }
-
-    /**
-     * Finds the builder for the specified provider.
-     * @param providerId The ID of the provider.
-     * @return The AbstractIam.Builder for the specified provider.
-     * @throws IllegalArgumentException if no provider is found for the given ID.
-     */
-    private static AbstractIam.Builder<?, ?> findProviderBuilder(String providerId) {
-        for (AbstractIam<?> provider : all()) {
-            if (provider.getProviderId().equals(providerId)) {
-                return createBuilderInstance(provider);
-            }
-        }
-        throw new IllegalArgumentException("No cloud provider found for providerId: " + providerId);
-    }
-
-    /**
-     * Creates a builder instance for the given provider.
-     * @param provider The AbstractIam provider.
-     * @return The AbstractIam.Builder for the provider.
-     * @throws RuntimeException if the builder creation fails.
-     */
-    private static AbstractIam.Builder<?, ?> createBuilderInstance(AbstractIam<?> provider) {
-        try {
-            return (AbstractIam.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create builder for provider: " + provider.getClass().getName(), e);
-        }
-    }
 
     /**
      * Creates a new identity (role/service account) in the cloud provider.
@@ -252,7 +209,7 @@ public class IamClient {
          * @param providerId the ID of the provider such as "aws", "gcp", or "ali"
          */
         public IamClientBuilder(String providerId) {
-            this.iamBuilder = findProviderBuilder(providerId);
+            this.iamBuilder = ProviderSupplier.findProviderBuilder(providerId);
         }
 
         /**

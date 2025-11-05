@@ -10,6 +10,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Test implementation of AbstractIam for unit testing.
+ * This class provides mock implementations of all IAM operations,
+ * returning hardcoded values suitable for testing without requiring
+ * actual cloud provider credentials or infrastructure.
+ */
 public class TestIam extends AbstractIam<TestIam> {
 
     public TestIam(TestIam.Builder builder) {
