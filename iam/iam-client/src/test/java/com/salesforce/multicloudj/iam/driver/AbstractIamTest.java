@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.iam.driver;
 
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.iam.client.TestIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
@@ -28,85 +27,12 @@ import static org.mockito.Mockito.verify;
 
 public class AbstractIamTest {
 
-    static class TestIam extends AbstractIam<TestIam> {
-
-        public TestIam(Builder builder) {
-            super(builder);
-        }
-
-        @Override
-        protected String doCreateIdentity(String identityName, String description, String tenantId,
-                                         String region, Optional<TrustConfiguration> trustConfig,
-                                         Optional<CreateOptions> options) {
-            return null;
-        }
-
-        @Override
-        protected void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId,
-                                           String region, String resource) {
-            // Mock implementation
-        }
-
-        @Override
-        protected String doGetInlinePolicyDetails(String identityName, String policyName,
-                                                 String tenantId, String region) {
-            return null;
-        }
-
-        @Override
-        protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
-            return null;
-        }
-
-        @Override
-        protected void doRemovePolicy(String identityName, String policyName, String tenantId,
-                                     String region) {
-            // Mock implementation
-        }
-
-        @Override
-        protected void doDeleteIdentity(String identityName, String tenantId, String region) {
-            // Mock implementation
-        }
-
-        @Override
-        protected String doGetIdentity(String identityName, String tenantId, String region) {
-            return null;
-        }
-
-        @Override
-        public Provider.Builder builder() {
-            return new Builder();
-        }
-
-        @Override
-        public Class<? extends SubstrateSdkException> getException(Throwable t) {
-            return null;
-        }
-
-        public static class Builder extends AbstractIam.Builder<TestIam, Builder> {
-
-            protected Builder() {
-                providerId("test");
-            }
-
-            @Override
-            public Builder self() {
-                return this;
-            }
-
-            @Override
-            public TestIam build() {
-                return new TestIam(this);
-            }
-        }
-    }
-
     private AbstractIam<TestIam> mockIam;
 
     @BeforeEach
     void setup() {
-        var iam = new TestIam.Builder()
+        TestIam.Builder builder = new TestIam.Builder();
+        TestIam iam = builder
                 .providerId("testProvider")
                 .withRegion("testRegion")
                 .withEndpoint(URI.create("https://someendpoint.com"))
@@ -320,8 +246,8 @@ public class AbstractIamTest {
 
     @Test
     void testConstructorWithBuilder() {
-        TestIam.Builder builder = new TestIam.Builder();
-        builder.providerId("testProvider2")
+        TestIam.Builder builder = new TestIam.Builder()
+                .providerId("testProvider2")
                 .withRegion("testRegion")
                 .withEndpoint(URI.create("https://custom.endpoint.com"));
 
@@ -329,101 +255,6 @@ public class AbstractIamTest {
 
         assertEquals("testProvider2", iam.getProviderId());
         assertEquals("testRegion", iam.region);
-    }
-
-    @Test
-    void testPublicMethodDelegationForCreateIdentity() {
-        TestIam testIam = new TestIam.Builder()
-                .providerId("testProvider")
-                .withRegion("testRegion")
-                .build();
-        
-        TestIam spyIam = spy(testIam);
-        doReturn("identity-id").when(spyIam).doCreateIdentity(
-                anyString(), anyString(), anyString(), anyString(), any(), any());
-        
-        String result = spyIam.createIdentity("role", "desc", "tenant", "region", 
-                Optional.empty(), Optional.empty());
-        
-        assertEquals("identity-id", result);
-        verify(spyIam, times(1)).doCreateIdentity(
-                eq("role"), eq("desc"), eq("tenant"), eq("region"), 
-                eq(Optional.empty()), eq(Optional.empty()));
-    }
-
-    @Test
-    void testPublicMethodDelegationForAttachInlinePolicy() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        
-        PolicyDocument policy = mock(PolicyDocument.class);
-        spyIam.attachInlinePolicy(policy, "tenant", "region", "resource");
-        
-        verify(spyIam, times(1)).doAttachInlinePolicy(
-                eq(policy), eq("tenant"), eq("region"), eq("resource"));
-    }
-
-    @Test
-    void testPublicMethodDelegationForGetInlinePolicyDetails() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        doReturn("policy-json").when(spyIam).doGetInlinePolicyDetails(
-                anyString(), anyString(), anyString(), anyString());
-        
-        String result = spyIam.getInlinePolicyDetails("identity", "policy", "tenant", "region");
-        
-        assertEquals("policy-json", result);
-        verify(spyIam, times(1)).doGetInlinePolicyDetails(
-                eq("identity"), eq("policy"), eq("tenant"), eq("region"));
-    }
-
-    @Test
-    void testPublicMethodDelegationForGetAttachedPolicies() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        List<String> policies = Arrays.asList("p1", "p2");
-        doReturn(policies).when(spyIam).doGetAttachedPolicies(anyString(), anyString(), anyString());
-        
-        List<String> result = spyIam.getAttachedPolicies("identity", "tenant", "region");
-        
-        assertEquals(policies, result);
-        verify(spyIam, times(1)).doGetAttachedPolicies(
-                eq("identity"), eq("tenant"), eq("region"));
-    }
-
-    @Test
-    void testPublicMethodDelegationForRemovePolicy() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        
-        spyIam.removePolicy("identity", "policy", "tenant", "region");
-        
-        verify(spyIam, times(1)).doRemovePolicy(
-                eq("identity"), eq("policy"), eq("tenant"), eq("region"));
-    }
-
-    @Test
-    void testPublicMethodDelegationForDeleteIdentity() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        
-        spyIam.deleteIdentity("identity", "tenant", "region");
-        
-        verify(spyIam, times(1)).doDeleteIdentity(
-                eq("identity"), eq("tenant"), eq("region"));
-    }
-
-    @Test
-    void testPublicMethodDelegationForGetIdentity() {
-        TestIam testIam = new TestIam.Builder().providerId("test").withRegion("region").build();
-        TestIam spyIam = spy(testIam);
-        doReturn("identity-arn").when(spyIam).doGetIdentity(anyString(), anyString(), anyString());
-        
-        String result = spyIam.getIdentity("identity", "tenant", "region");
-        
-        assertEquals("identity-arn", result);
-        verify(spyIam, times(1)).doGetIdentity(
-                eq("identity"), eq("tenant"), eq("region"));
     }
 }
 

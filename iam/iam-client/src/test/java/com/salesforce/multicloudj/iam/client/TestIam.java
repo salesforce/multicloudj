@@ -71,7 +71,7 @@ public class TestIam extends AbstractIam<TestIam> {
     }
 
     public static class Builder extends AbstractIam.Builder<TestIam, Builder> {
-        protected Builder() {
+        public Builder() {
             providerId("mockProviderId");
         }
 
