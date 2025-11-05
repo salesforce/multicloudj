@@ -1,0 +1,23 @@
+{
+  "id" : "0a567fea-882c-415f-88eb-0b80c171af52",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-tagging",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging?tagging",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tag3</Key><Value>value3</Value></Tag><Tag><Key>tag4</Key><Value>value4</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "NB454BNM2WPMNYKR",
+      "x-amz-id-2" : "234RIkXOshIjZD2nlGhyagpFOyzxe3U33UdMOmTrQBqAqrG8W90exfRxiist7MslBFMIMkwxJzQ=",
+      "Date" : "Wed, 05 Nov 2025 01:21:26 GMT"
+    }
+  },
+  "uuid" : "0a567fea-882c-415f-88eb-0b80c171af52",
+  "persistent" : true,
+  "insertionIndex" : 552
+}
