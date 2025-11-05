@@ -408,26 +408,33 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
     @Override
     protected void doSetTags(String key, Map<String, String> tags) {
         Blob blob = storage.get(transformer.toBlobId(key, null));
-        if(blob == null) {
+        if (blob == null) {
             throw new SubstrateSdkException("Blob not found");
         }
 
-        Map<String, String> metadata = new HashMap<>();
-        if(blob.getMetadata() != null) {
-            metadata.putAll(blob.getMetadata());
-        }
-        // Remove all existing tags
-        metadata.entrySet().removeIf(entry -> entry.getKey().startsWith(TAG_PREFIX));
+        // Copy all existing metadata
+        Map<String, String> metadata = blob.getMetadata() != null
+                ? new HashMap<>(blob.getMetadata())
+                : new HashMap<>();
 
-        // Add in all the new tags
-        if(tags != null) {
-            tags.forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        // Delete all existing tags by setting them to null
+        // In GCP Storage, setting a metadata key to null means "delete this key"
+        // The storage.update method only add new tags, it does not remove existing tags.
+        for (String k : new ArrayList<>(metadata.keySet())) {
+            if (k.startsWith(TAG_PREFIX)) {
+                metadata.put(k, null);
+            }
+        }
+
+        // Add new tags (these will overwrite the nulls for those keys)
+        if (tags != null) {
+            tags.forEach((tagName, tagValue) ->
+            metadata.put(TAG_PREFIX + tagName, tagValue));
         }
 
         Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
         storage.update(updatedBlob);
     }
-
 
     @Override
     protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
