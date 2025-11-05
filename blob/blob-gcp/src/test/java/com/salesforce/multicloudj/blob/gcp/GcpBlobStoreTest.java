@@ -889,7 +889,7 @@ class GcpBlobStoreTest {
         verify(mockStorage).update(updatedBlob);
         Map<String, String> finalMd = mdCaptor.getValue();
         assertEquals("alice", finalMd.get("owner"));
-        assertFalse(finalMd.containsKey("gcp-tag-old"));
+        assertNull(finalMd.get("gcp-tag-old")); // Old tag key is set to null to remove it
         assertEquals("v1", finalMd.get("gcp-tag-tag1"));
         assertEquals("v2", finalMd.get("gcp-tag-tag2"));
     }
@@ -917,8 +917,8 @@ class GcpBlobStoreTest {
         verify(mockStorage).update(updatedBlob);
         Map<String, String> finalMd = mdCaptor.getValue();
         assertEquals("x", finalMd.get("keep"));
-        assertFalse(finalMd.containsKey("gcp-tag-a"));
-        assertFalse(finalMd.containsKey("gcp-tag-b"));
+        assertNull(finalMd.get("gcp-tag-a")); // Old tag key is set to null to remove it
+        assertNull(finalMd.get("gcp-tag-b")); // Old tag key is set to null to remove it
     }
 
     @Test
