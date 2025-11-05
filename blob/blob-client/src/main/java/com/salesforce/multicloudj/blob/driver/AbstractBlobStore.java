@@ -18,7 +18,7 @@ import java.util.Map;
  * Base class for substrate-specific implementations.AbstractBlobStore
  * This class serves the purpose of providing common (i.e. substrate-agnostic) functionality
  */
-public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implements BlobStore {
+public abstract class AbstractBlobStore implements BlobStore {
 
     @Getter
     private final String providerId;
@@ -29,7 +29,7 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected final CredentialsOverrider credentialsOverrider;
     protected final BlobStoreValidator validator;
 
-    protected AbstractBlobStore(Builder<T> builder) {
+    protected AbstractBlobStore(Builder<?, ?> builder) {
         this(
                 builder.getProviderId(),
                 builder.getBucket(),
@@ -354,14 +354,23 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
         throw new UnsupportedOperationException("Directory delete is not supported by this substrate implementation");
     }
 
-    public abstract static class Builder<T extends AbstractBlobStore<T>>
-            extends BlobStoreBuilder<T>
+    public abstract static class Builder<A extends AbstractBlobStore, T extends Builder<A, T>>
+            extends BlobStoreBuilder<A>
             implements Provider.Builder {
 
         @Override
-        public Builder<T> providerId(String providerId) {
+        public T providerId(String providerId) {
             super.providerId(providerId);
-            return this;
+            return self();
         }
+
+        public abstract T self();
+
+        /**
+         * Builds and returns an instance of AbstractBlobStore.
+         *
+         * @return An instance of AbstractBlobStore.
+         */
+        public abstract A build();
     }
 }

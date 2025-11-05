@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
 
 public class AbstractStsTest {
 
-    static class TestSts extends AbstractSts<TestSts> {
+    static class TestSts extends AbstractSts {
 
         public TestSts(Builder builder) {
             super(builder);
@@ -48,7 +48,12 @@ public class AbstractStsTest {
             return null;
         }
 
-        public static class Builder extends AbstractSts.Builder<TestSts> {
+        public static class Builder extends AbstractSts.Builder<TestSts, Builder> {
+            @Override
+            public Builder self() {
+                return this;
+            }
+
             @Override
             public TestSts build() {
                 return new TestSts(this);

@@ -59,7 +59,7 @@ import static org.mockito.Mockito.*;
 class BlobStoreAsyncBridgeTest {
 
     @Mock
-    private AbstractBlobStore<?> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
 
     private ExecutorService executorService;
     private BlobStoreAsyncBridge asyncWrapper;

@@ -34,7 +34,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         Storage storage;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
+        public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
 
             String bucketNameToUse = useValidBucket ? (useVersionedBucket ? versionedBucketName : bucketName) : nonExistentBucketName;
 
@@ -56,7 +56,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
             }
         }
 
-        private AbstractBlobStore<?> createBlobStore(final String bucketName, final Credentials credentials){
+        private AbstractBlobStore createBlobStore(final String bucketName, final Credentials credentials){
 
             HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
             HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()

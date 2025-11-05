@@ -13,7 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
+public class TestBlobStore extends AbstractBlobStore {
     public TestBlobStore(Builder builder) {
         super(builder);
     }
@@ -148,10 +148,15 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
         return null;
     }
 
-    public static class Builder extends AbstractBlobStore.Builder<TestBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<TestBlobStore, Builder> {
 
         protected Builder() {
             providerId("test");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override

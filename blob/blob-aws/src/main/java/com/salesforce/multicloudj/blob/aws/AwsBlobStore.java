@@ -79,9 +79,8 @@ import software.amazon.awssdk.core.ResponseInputStream;
 /**
  * AWS implementation of BlobStore
  */
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
-public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
+public class AwsBlobStore extends AbstractBlobStore {
 
     private final S3Client s3Client;
     private final AwsTransformer transformer;
@@ -500,13 +499,18 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     }
 
     @Getter
-    public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore, Builder> {
 
         private S3Client s3Client;
         private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
         public Builder() {
             providerId(AwsConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         /**

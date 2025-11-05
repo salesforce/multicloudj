@@ -13,7 +13,7 @@ import java.net.URI;
  * This class is internal for SDK and all the providers for STS implementations
  * are supposed to implement it.
  */
-public abstract class AbstractSts<T extends AbstractSts<T>> implements Provider {
+public abstract class AbstractSts implements Provider {
     protected final String providerId;
     protected final String region;
 
@@ -21,7 +21,7 @@ public abstract class AbstractSts<T extends AbstractSts<T>> implements Provider 
      * Constructs an AbstractSts instance using a Builder.
      * @param builder The Builder instance to use for construction.
      */
-    public AbstractSts(Builder<T> builder) {
+    public AbstractSts(Builder<?, ?> builder) {
         this(builder.providerId, builder.region);
     }
 
@@ -71,9 +71,10 @@ public abstract class AbstractSts<T extends AbstractSts<T>> implements Provider 
 
     /**
      * Abstract builder class for AbstractSts implementations.
-     * @param <T> The concrete implementation type of AbstractSts.
+     * @param <A> The concrete implementation type of AbstractSts.
+     * @param <T> The concrete implementation type of Builder.
      */
-    public abstract static class Builder<T extends AbstractSts<T>> implements Provider.Builder {
+    public abstract static class Builder<A extends AbstractSts, T extends Builder<A, T>> implements Provider.Builder {
         protected String region;
         protected URI endpoint;
         protected String providerId;
@@ -99,9 +100,9 @@ public abstract class AbstractSts<T extends AbstractSts<T>> implements Provider 
          * @param region The region to set.
          * @return This Builder instance.
          */
-        public Builder<T> withRegion(String region) {
+        public T withRegion(String region) {
             this.region = region;
-            return this;
+            return self();
         }
 
         /**
@@ -109,25 +110,27 @@ public abstract class AbstractSts<T extends AbstractSts<T>> implements Provider 
          * @param endpoint The endpoint to set.
          * @return This Builder instance.
          */
-        public Builder<T> withEndpoint(URI endpoint) {
+        public T withEndpoint(URI endpoint) {
             this.endpoint = endpoint;
-            return this;
+            return self();
         }
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public Builder<T> providerId(String providerId) {
+        public T providerId(String providerId) {
             this.providerId = providerId;
-            return this;
+            return self();
         }
+
+        public abstract T self();
 
         /**
          * Builds and returns an instance of AbstractSts.
          * @return An instance of AbstractSts.
          */
-        public abstract T build();
+        public abstract A build();
     }
 
     /**

@@ -29,7 +29,7 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
      * @param storage         the GCP Storage client for directory operations
      * @param transformerSupplier the transformer supplier for GCP operations
      */
-    public GcpAsyncBlobStore(AbstractBlobStore<?> blobStore, ExecutorService executorService,
+    public GcpAsyncBlobStore(AbstractBlobStore blobStore, ExecutorService executorService,
                              Storage storage, GcpTransformerSupplier transformerSupplier) {
         super(blobStore, executorService);
         this.storage = storage;

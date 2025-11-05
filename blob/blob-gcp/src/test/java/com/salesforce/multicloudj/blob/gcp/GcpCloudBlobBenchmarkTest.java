@@ -27,7 +27,7 @@ public class GcpCloudBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
         Storage storage;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore() {
+        public AbstractBlobStore createBlobStore() {
             logger.info("Creating GCP Cloud Storage blob store with project: {}, bucket: {}",
                     projectId, bucketName);
 
@@ -39,7 +39,7 @@ public class GcpCloudBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
                 logger.info("Successfully created Storage client");
 
-                AbstractBlobStore<?> blobStore = new GcpBlobStore.Builder()
+                AbstractBlobStore blobStore = new GcpBlobStore.Builder()
                         .withStorage(client)
                         .withBucket(bucketName)
                         .build();

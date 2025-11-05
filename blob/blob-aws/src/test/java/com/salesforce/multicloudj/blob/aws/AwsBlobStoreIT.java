@@ -37,7 +37,7 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
         S3Client client;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
+        public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
 
             String accessKeyId = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
             String secretAccessKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
@@ -57,7 +57,7 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             return createBlobStore(bucketNameToUse, credentialsOverrider);
         }
 
-        private AbstractBlobStore<?> createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider) {
+        private AbstractBlobStore createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider) {
 
             AwsSessionCredentials awsCredentials = AwsSessionCredentials.create(
                     credentialsOverrider.getSessionCredentials().getAccessKeyId(),

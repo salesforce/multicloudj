@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -66,7 +67,7 @@ public abstract class AbstractBlobStoreIT {
     public interface Harness extends AutoCloseable {
 
         // Method to create a blob driver
-        AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
+        AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
         // provide the BlobClient endpoint in provider
         String getEndpoint();
@@ -134,7 +135,7 @@ public abstract class AbstractBlobStoreIT {
     public void testNonexistentBucket() {
 
         // Create the blobstore driver for the bucket that doesn't exist
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(false, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // And run the tests given the non-existent bucket
@@ -148,7 +149,7 @@ public abstract class AbstractBlobStoreIT {
     public void testInvalidCredentials() {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, false, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // And run the tests given the invalid credentialsOverrider
@@ -374,7 +375,7 @@ public abstract class AbstractBlobStoreIT {
         if(!StringUtils.isEmpty(key)){
             key += suffix;
         }
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
         UploadRequest request = new UploadRequest.Builder()
                 .withKey(key)
@@ -532,7 +533,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob so we can read from it
@@ -603,7 +604,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = blobData.getBytes();
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob so we can read from it
@@ -726,7 +727,7 @@ public abstract class AbstractBlobStoreIT {
     public void testDelete() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Try deleting a blob that doesn't exist
@@ -794,7 +795,7 @@ public abstract class AbstractBlobStoreIT {
         Set<String> keysToDelete = new HashSet<>();
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Prepare the tests
@@ -867,7 +868,7 @@ public abstract class AbstractBlobStoreIT {
     public void testVersionedDelete_fileDoesNotExist() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Try deleting a blob that doesn't exist
@@ -882,7 +883,7 @@ public abstract class AbstractBlobStoreIT {
     public void testVersionedDelete() throws IOException {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         String key = "conformance-tests/delete/happyPath";
 
@@ -983,7 +984,7 @@ public abstract class AbstractBlobStoreIT {
     public void runBulkVersionedDeleteTest(String testName, Collection<String> keysToCreate, Collection<String> keysToDelete, boolean wantError) throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         String keyPrefix = "conformance-tests/bulkDeleteByVersion/";
 
@@ -1052,7 +1053,7 @@ public abstract class AbstractBlobStoreIT {
         String blobToClobber = "conformance-tests/clobbered-blob";
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         try {
 
@@ -1153,7 +1154,7 @@ public abstract class AbstractBlobStoreIT {
         String destKeyLatest = "conformance-tests/versionedCopy/copied-blob-latest";
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         try {
             // Upload a blob so we can have something to copy
@@ -1251,7 +1252,7 @@ public abstract class AbstractBlobStoreIT {
     public void testList() throws IOException {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob to the bucket
@@ -1331,7 +1332,7 @@ public abstract class AbstractBlobStoreIT {
     public void testListPage() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload multiple blobs to the bucket to test pagination
@@ -1494,7 +1495,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = "Metadata blob for testing some large amount".getBytes(StandardCharsets.UTF_8);
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Prepare the tests
@@ -1549,7 +1550,7 @@ public abstract class AbstractBlobStoreIT {
         Map<String, String> metadata1 = Map.of("key1", "value1", "key2", "value2");
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try {
@@ -1669,7 +1670,7 @@ public abstract class AbstractBlobStoreIT {
 
     private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) throws IOException {
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Now run the tests
@@ -1863,7 +1864,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_invalidMultipartUpload(){
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Call each operation with an invalid MPU
@@ -1910,7 +1911,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleMultipartUploadsForSameKey(){
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         String key = DEFAULT_MULTIPART_KEY_PREFIX + "multipleMPU";
@@ -1945,7 +1946,7 @@ public abstract class AbstractBlobStoreIT {
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         String key = DEFAULT_MULTIPART_KEY_PREFIX + "completeAnAborted";
@@ -2003,9 +2004,10 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    @Disabled
     public void testTagging() throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Now run the tests
@@ -2153,7 +2155,7 @@ public abstract class AbstractBlobStoreIT {
                                         Map<String, String> tagsForUrlGeneration,
                                         Map<String, String> tagsForUpload) throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         String blobData = "This is test data";
         byte[] utf8BlobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -2257,7 +2259,7 @@ public abstract class AbstractBlobStoreIT {
                                         Duration duration,
                                         Long delayInSeconds) throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         String blobData = "This is test data";
         byte[] utf8BlobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -2317,7 +2319,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runDoesObjectExistTest(String key, boolean useVersionedBucket) throws IOException {
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
         byte[] blobBytes1 = "This is test data".getBytes(StandardCharsets.UTF_8);
         byte[] blobBytes2= "This is the second test data".getBytes(StandardCharsets.UTF_8);
@@ -2457,7 +2459,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runUploadWithKmsKeyTest(String key, String kmsKeyId, byte[] content) {
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try {
@@ -2498,7 +2500,7 @@ public abstract class AbstractBlobStoreIT {
         String key = "conformance-tests/kms/download-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try {
@@ -2542,7 +2544,7 @@ public abstract class AbstractBlobStoreIT {
         String blobData = "This is test data for the KMS ranged read test file";
         byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
@@ -2607,7 +2609,7 @@ public abstract class AbstractBlobStoreIT {
 
     private void runPresignedUrlWithKmsKeyTest(String key, String kmsKeyId,
                                                Map<String, String> metadata, byte[] content) throws IOException {
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try {

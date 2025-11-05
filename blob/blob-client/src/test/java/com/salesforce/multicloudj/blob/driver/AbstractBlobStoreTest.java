@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verify;
 
 public class AbstractBlobStoreTest {
 
-    private AbstractBlobStore<TestBlobStore> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
     private BlobStoreValidator validator;
 
     @BeforeEach
@@ -74,8 +74,8 @@ public class AbstractBlobStoreTest {
     void testBuilder() {
         StsCredentials sessionCreds = new StsCredentials("key-1", "secret-1", "token-1");
         CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION).withSessionCredentials(sessionCreds).build();
-        AbstractBlobStore.Builder<TestBlobStore> builder = new TestBlobStore.Builder();
-        AbstractBlobStore<TestBlobStore> blobStore = builder
+        TestBlobStore.Builder builder = new TestBlobStore.Builder();
+        AbstractBlobStore blobStore = builder
                 .withBucket("bucket-1")
                 .withRegion("us-west-2")
                 .withCredentialsOverrider(credsOverrider)
