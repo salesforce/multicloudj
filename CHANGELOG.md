@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.12...multicloudj-v0.2.13) (2025-11-06)
+
+
+### Blob Store
+
+* onboard retry config in the client and aws ([#113](https://github.com/salesforce/multicloudj/issues/113)) ([8df8d31](https://github.com/salesforce/multicloudj/commit/8df8d3169ea65fddb29e997b1b1d32a5c8c5c2d6))
+
+
+### PubSub
+
+* add send and receive apis for AWS SQS ([#125](https://github.com/salesforce/multicloudj/issues/125)) ([37f1e07](https://github.com/salesforce/multicloudj/commit/37f1e072b9d557b6903738a331e4b52be5c79713))
+
+
+### Code Refactoring
+
+* converge to a single patter for type safety ([#130](https://github.com/salesforce/multicloudj/issues/130)) ([3511698](https://github.com/salesforce/multicloudj/commit/351169864f0268c568150ce1d56dd35734ea5ba8))
+
 ## [0.2.12](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.11...multicloudj-v0.2.12) (2025-11-05)
 
 
