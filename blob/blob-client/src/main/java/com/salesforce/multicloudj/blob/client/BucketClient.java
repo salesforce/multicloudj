@@ -41,9 +41,9 @@ import java.util.Map;
  */
 public class BucketClient {
 
-    protected AbstractBlobStore<?> blobStore;
+    protected AbstractBlobStore blobStore;
 
-    protected BucketClient(AbstractBlobStore<?> blobStore) {
+    protected BucketClient(AbstractBlobStore blobStore) {
         this.blobStore = blobStore;
     }
 
@@ -467,7 +467,7 @@ public class BucketClient {
 
     public static class BlobBuilder {
 
-        private final AbstractBlobStore.Builder<?> blobStoreBuilder;
+        private final AbstractBlobStore.Builder<?, ?> blobStoreBuilder;
 
         public BlobBuilder(String providerId) {
             this.blobStoreBuilder = ProviderSupplier.findProviderBuilder(providerId);

@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
-public class AliSts extends AbstractSts<AliSts> {
+public class AliSts extends AbstractSts {
 
     private IAcsClient stsClient;
 
@@ -162,9 +162,14 @@ public class AliSts extends AbstractSts<AliSts> {
             // Add more mappings as needed
     );
 
-    public static class Builder extends AbstractSts.Builder<AliSts> {
+    public static class Builder extends AbstractSts.Builder<AliSts, Builder> {
         protected Builder() {
             providerId("ali");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override

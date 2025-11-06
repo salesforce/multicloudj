@@ -21,15 +21,15 @@ import static org.mockito.Mockito.when;
 public class StsClientTest {
     @Test
     public void testStsClient() {
-        AbstractSts<?> mockProvider = mock(AbstractSts.class);
-        AbstractSts.Builder<?> mockBuilder = mock(AbstractSts.Builder.class);
+        AbstractSts mockProvider = mock(AbstractSts.class);
+        AbstractSts.Builder mockBuilder = mock(AbstractSts.Builder.class);
         when(mockProvider.getProviderId()).thenReturn("mockProviderId");
         when(mockProvider.builder()).thenReturn(mockBuilder);
 
 
         // Mock the ServiceLoader to return mockProvider
         ServiceLoader serviceLoader = mock(ServiceLoader.class);
-        Iterator<? extends AbstractSts<?>> providerIterator = List.of(mockProvider).iterator();
+        Iterator<? extends AbstractSts> providerIterator = List.of(mockProvider).iterator();
         when(serviceLoader.iterator()).thenReturn(providerIterator);
 
         verifyServiceLoader(serviceLoader, false);

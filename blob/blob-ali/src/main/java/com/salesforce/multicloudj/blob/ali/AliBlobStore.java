@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
  * Alibaba implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
-public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
+public class AliBlobStore extends AbstractBlobStore {
 
     private final OSS ossClient;
     private final AliTransformer transformer;
@@ -462,13 +462,18 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
     }
 
     @Getter
-    public static class Builder extends AbstractBlobStore.Builder<AliBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
 
         private OSS client;
         private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
 
         public Builder() {
             providerId(AliConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         public Builder withClient(OSS client) {

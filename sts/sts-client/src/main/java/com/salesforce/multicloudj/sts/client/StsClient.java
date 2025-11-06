@@ -17,13 +17,13 @@ import java.util.ServiceLoader;
  * in a substrate agnostic way.
  */
 public class StsClient {
-    protected AbstractSts<?> sts;
+    protected AbstractSts sts;
 
     /**
      * Constructor for StsClient with StsBuilder.
      * @param sts The abstract used to back this client for implementation.
      */
-    protected StsClient(AbstractSts<?> sts) {
+    protected StsClient(AbstractSts sts) {
         this.sts = sts;
     }
 
@@ -40,10 +40,10 @@ public class StsClient {
      * Returns an Iterable of all available AbstractSts implementations.
      * @return An Iterable of AbstractSts instances.
      */
-    private static Iterable<AbstractSts<?>> all() {
+    private static Iterable<AbstractSts> all() {
         ServiceLoader<AbstractSts> services = ServiceLoader.load(AbstractSts.class);
-        ImmutableSet.Builder<AbstractSts<?>> builder = ImmutableSet.builder();
-        for (AbstractSts<?> service : services) {
+        ImmutableSet.Builder<AbstractSts> builder = ImmutableSet.builder();
+        for (AbstractSts service : services) {
             builder.add(service);
         }
         return builder.build();
@@ -55,8 +55,8 @@ public class StsClient {
      * @return The AbstractSts.Builder for the specified provider.
      * @throws IllegalArgumentException if no provider is found for the given ID.
      */
-    private static AbstractSts.Builder<?> findProviderBuilder(String providerId) {
-        for (AbstractSts<?> provider : all()) {
+    private static AbstractSts.Builder<?, ?> findProviderBuilder(String providerId) {
+        for (AbstractSts provider : all()) {
             if (provider.getProviderId().equals(providerId)) {
                 return createBuilderInstance(provider);
             }
@@ -70,9 +70,9 @@ public class StsClient {
      * @return The AbstractSts.Builder for the provider.
      * @throws RuntimeException if the builder creation fails.
      */
-    private static AbstractSts.Builder<?> createBuilderInstance(AbstractSts<?> provider) {
+    private static AbstractSts.Builder<?, ?> createBuilderInstance(AbstractSts provider) {
         try {
-            return (AbstractSts.Builder<?>) provider.getClass().getMethod("builder").invoke(provider);
+            return (AbstractSts.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create builder for provider: " + provider.getClass().getName(), e);
         }
@@ -128,8 +128,8 @@ public class StsClient {
     public static class StsBuilder {
         protected String region;
         protected URI endpoint;
-        protected AbstractSts<?> sts;
-        protected AbstractSts.Builder<?> stsBuilder;
+        protected AbstractSts sts;
+        protected AbstractSts.Builder<?, ?> stsBuilder;
 
         /**
          * Constructor for StsBuilder.

@@ -29,7 +29,7 @@ import java.util.Objects;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
-public class AwsSts extends AbstractSts<AwsSts> {
+public class AwsSts extends AbstractSts {
 
     private StsClient stsClient;
 
@@ -120,10 +120,15 @@ public class AwsSts extends AbstractSts<AwsSts> {
         // Add more mappings as needed
     }
 
-    public static class Builder extends AbstractSts.Builder<AwsSts> {
+    public static class Builder extends AbstractSts.Builder<AwsSts, Builder> {
         String param;
         protected Builder() {
             providerId("aws");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         public Builder setParam(Map<String, String> params) {

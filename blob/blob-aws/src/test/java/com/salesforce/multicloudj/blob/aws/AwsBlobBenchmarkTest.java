@@ -38,7 +38,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
         S3Client client;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore() {
+        public AbstractBlobStore createBlobStore() {
             logger.info("Creating AWS blob store with endpoint: {}, bucket: {}, region: {}", 
                     endpoint, bucketName, region);
             
@@ -63,7 +63,7 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
                         .withBucket(bucketName)
                         .withRegion(region);
 
-                AbstractBlobStore<?> blobStore = builder.build();
+                AbstractBlobStore blobStore = builder.build();
                 logger.info("Successfully created AWS blob store");
                 
                 return blobStore;

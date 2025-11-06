@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
 
 public class BucketClientTest {
 
-    private AbstractBlobStore<TestBlobStore> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
     private StsCredentials creds;
     private BucketClient client;
 

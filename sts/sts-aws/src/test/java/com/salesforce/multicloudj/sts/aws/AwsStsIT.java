@@ -27,7 +27,7 @@ public class AwsStsIT extends AbstractStsIT {
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
 
         @Override
-        public AbstractSts<?> createStsDriver(boolean longTermCredentials) {
+        public AbstractSts createStsDriver(boolean longTermCredentials) {
             httpClient = TestsUtilAws.getProxyClient("https", port);
             StsClientBuilder builder = StsClient.builder()
                     .httpClient(httpClient)
