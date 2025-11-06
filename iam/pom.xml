@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.2.21-SNAPSHOT</version>
+        <version>0.2.13-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>iam</artifactId>
@@ -13,18 +13,5 @@
     <description>MultiCloudJ Identity and Access Management</description>
     <modules>
         <module>iam-client</module>
-        <module>iam-gcp</module>
     </modules>
-    <dependencies>
-        <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
-            <version>1.0-rc7</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
 </project>

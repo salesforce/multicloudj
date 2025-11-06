@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>blob</artifactId>
-        <version>0.2.21-SNAPSHOT</version>
+        <version>0.2.13-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -343,7 +343,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>
-            <version>4.1.129.Final</version>
+            <version>4.1.125.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -731,25 +731,4 @@
         </dependency>
 
     </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>delombok</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <sourceDirectory>src/main/java</sourceDirectory>
-                    <outputDirectory>${project.build.directory}/generated-sources/delombok</outputDirectory>
-                    <addOutputDirectory>false</addOutputDirectory>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>
