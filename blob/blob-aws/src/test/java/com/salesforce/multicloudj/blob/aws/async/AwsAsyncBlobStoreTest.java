@@ -45,6 +45,7 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
@@ -160,8 +161,22 @@ public class AwsAsyncBlobStoreTest {
     void setup() {
         S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
         when(mockBuilder.region(any())).thenReturn(mockBuilder);
+
+        // Execute the consumer lambda to cover lines 540-549
+        doAnswer(invocation -> {
+            Consumer<ClientOverrideConfiguration.Builder> consumer = invocation.getArgument(0);
+            ClientOverrideConfiguration.Builder configBuilder = mock(ClientOverrideConfiguration.Builder.class);
+            when(configBuilder.retryStrategy(any(software.amazon.awssdk.retries.api.RetryStrategy.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallAttemptTimeout(any(Duration.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallTimeout(any(Duration.class))).thenReturn(configBuilder);
+            consumer.accept(configBuilder);
+            return mockBuilder;
+        }).when(mockBuilder).overrideConfiguration(any(Consumer.class));
+
         S3CrtAsyncClientBuilder mockCrtBuilder = mock(S3CrtAsyncClientBuilder.class);
         when(mockCrtBuilder.region(any())).thenReturn(mockCrtBuilder);
+
+        // CRT builder doesn't support overrideConfiguration - skip it
 
         s3Client = mockStatic(S3AsyncClient.class);
         s3Client.when(S3AsyncClient::builder).thenReturn(mockBuilder);
