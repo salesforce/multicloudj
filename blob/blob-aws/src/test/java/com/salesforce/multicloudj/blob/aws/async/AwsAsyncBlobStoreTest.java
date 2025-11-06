@@ -1220,15 +1220,27 @@ public class AwsAsyncBlobStoreTest {
                 .totalTimeout(30000L)
                 .build();
 
-        var store = new AwsAsyncBlobStore.Builder()
-                .withBucket(BUCKET)
-                .withRegion(REGION)
-                .withRetryConfig(exponentialConfig)
-                .build();
+        S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+        when(mockBuilder.overrideConfiguration(any(java.util.function.Consumer.class))).thenReturn(mockBuilder);
+        S3AsyncClient mockClient = mock(S3AsyncClient.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
 
-        assertNotNull(store);
-        assertInstanceOf(AwsAsyncBlobStore.class, store);
-        assertEquals(BUCKET, store.getBucket());
+        try (MockedStatic<S3AsyncClient> staticMock = mockStatic(S3AsyncClient.class)) {
+            staticMock.when(S3AsyncClient::builder).thenReturn(mockBuilder);
+
+            var store = new AwsAsyncBlobStore.Builder()
+                    .withBucket(BUCKET)
+                    .withRegion(REGION)
+                    .withRetryConfig(exponentialConfig)
+                    .build();
+
+            assertNotNull(store);
+            assertInstanceOf(AwsAsyncBlobStore.class, store);
+            assertEquals(BUCKET, store.getBucket());
+            verify(mockBuilder, times(1)).overrideConfiguration(any(java.util.function.Consumer.class));
+        }
     }
 
     @Test
@@ -1283,15 +1295,27 @@ public class AwsAsyncBlobStoreTest {
                 .attemptTimeout(5000L)
                 .build();
 
-        var store = new AwsAsyncBlobStore.Builder()
-                .withBucket(BUCKET)
-                .withRegion(REGION)
-                .withRetryConfig(config)
-                .build();
+        S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+        when(mockBuilder.overrideConfiguration(any(java.util.function.Consumer.class))).thenReturn(mockBuilder);
+        S3AsyncClient mockClient = mock(S3AsyncClient.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
 
-        assertNotNull(store);
-        assertInstanceOf(AwsAsyncBlobStore.class, store);
-        assertEquals(BUCKET, store.getBucket());
+        try (MockedStatic<S3AsyncClient> staticMock = mockStatic(S3AsyncClient.class)) {
+            staticMock.when(S3AsyncClient::builder).thenReturn(mockBuilder);
+
+            var store = new AwsAsyncBlobStore.Builder()
+                    .withBucket(BUCKET)
+                    .withRegion(REGION)
+                    .withRetryConfig(config)
+                    .build();
+
+            assertNotNull(store);
+            assertInstanceOf(AwsAsyncBlobStore.class, store);
+            assertEquals(BUCKET, store.getBucket());
+            verify(mockBuilder, times(1)).overrideConfiguration(any(java.util.function.Consumer.class));
+        }
     }
 
     @Test
@@ -1305,15 +1329,27 @@ public class AwsAsyncBlobStoreTest {
                 .totalTimeout(30000L)
                 .build();
 
-        var store = new AwsAsyncBlobStore.Builder()
-                .withBucket(BUCKET)
-                .withRegion(REGION)
-                .withRetryConfig(config)
-                .build();
+        S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+        when(mockBuilder.overrideConfiguration(any(java.util.function.Consumer.class))).thenReturn(mockBuilder);
+        S3AsyncClient mockClient = mock(S3AsyncClient.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
 
-        assertNotNull(store);
-        assertInstanceOf(AwsAsyncBlobStore.class, store);
-        assertEquals(BUCKET, store.getBucket());
+        try (MockedStatic<S3AsyncClient> staticMock = mockStatic(S3AsyncClient.class)) {
+            staticMock.when(S3AsyncClient::builder).thenReturn(mockBuilder);
+
+            var store = new AwsAsyncBlobStore.Builder()
+                    .withBucket(BUCKET)
+                    .withRegion(REGION)
+                    .withRetryConfig(config)
+                    .build();
+
+            assertNotNull(store);
+            assertInstanceOf(AwsAsyncBlobStore.class, store);
+            assertEquals(BUCKET, store.getBucket());
+            verify(mockBuilder, times(1)).overrideConfiguration(any(java.util.function.Consumer.class));
+        }
     }
 
     @Test

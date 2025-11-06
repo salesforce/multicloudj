@@ -97,6 +97,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -965,15 +966,33 @@ public class AwsBlobStoreTest {
                 .totalTimeout(30000L)
                 .build();
 
-        var store = new AwsBlobStore.Builder()
-                .withTransformerSupplier(transformerSupplier)
-                .withBucket("bucket-1")
-                .withRegion("us-east-2")
-                .withRetryConfig(exponentialConfig)
-                .build();
+        // Capture the override configuration to verify it's set
+        S3ClientBuilder mockBuilder = mock(S3ClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
 
-        assertNotNull(store);
-        assertEquals("bucket-1", store.getBucket());
+        // Mock overrideConfiguration
+        when(mockBuilder.overrideConfiguration(any(Consumer.class))).thenReturn(mockBuilder);
+
+        S3Client mockClient = mock(S3Client.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
+
+        try (MockedStatic<S3Client> staticMock = mockStatic(S3Client.class)) {
+            staticMock.when(S3Client::builder).thenReturn(mockBuilder);
+
+            var store = new AwsBlobStore.Builder()
+                    .withTransformerSupplier(transformerSupplier)
+                    .withBucket("bucket-1")
+                    .withRegion("us-east-2")
+                    .withRetryConfig(exponentialConfig)
+                    .build();
+
+            assertNotNull(store);
+            assertEquals("bucket-1", store.getBucket());
+
+            // Verify overrideConfiguration was called
+            verify(mockBuilder, times(1)).overrideConfiguration(any(Consumer.class));
+        }
     }
 
     @Test
@@ -1028,15 +1047,27 @@ public class AwsBlobStoreTest {
                 .attemptTimeout(5000L)
                 .build();
 
-        var store = new AwsBlobStore.Builder()
-                .withTransformerSupplier(transformerSupplier)
-                .withBucket("bucket-1")
-                .withRegion("us-east-2")
-                .withRetryConfig(config)
-                .build();
+        S3ClientBuilder mockBuilder = mock(S3ClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+        when(mockBuilder.overrideConfiguration(any(Consumer.class))).thenReturn(mockBuilder);
+        S3Client mockClient = mock(S3Client.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
 
-        assertNotNull(store);
-        assertEquals("bucket-1", store.getBucket());
+        try (MockedStatic<S3Client> staticMock = mockStatic(S3Client.class)) {
+            staticMock.when(S3Client::builder).thenReturn(mockBuilder);
+
+            var store = new AwsBlobStore.Builder()
+                    .withTransformerSupplier(transformerSupplier)
+                    .withBucket("bucket-1")
+                    .withRegion("us-east-2")
+                    .withRetryConfig(config)
+                    .build();
+
+            assertNotNull(store);
+            assertEquals("bucket-1", store.getBucket());
+            verify(mockBuilder, times(1)).overrideConfiguration(any(Consumer.class));
+        }
     }
 
     @Test
@@ -1050,15 +1081,27 @@ public class AwsBlobStoreTest {
                 .totalTimeout(30000L)
                 .build();
 
-        var store = new AwsBlobStore.Builder()
-                .withTransformerSupplier(transformerSupplier)
-                .withBucket("bucket-1")
-                .withRegion("us-east-2")
-                .withRetryConfig(config)
-                .build();
+        S3ClientBuilder mockBuilder = mock(S3ClientBuilder.class);
+        when(mockBuilder.region(any())).thenReturn(mockBuilder);
+        when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+        when(mockBuilder.overrideConfiguration(any(Consumer.class))).thenReturn(mockBuilder);
+        S3Client mockClient = mock(S3Client.class);
+        when(mockBuilder.build()).thenReturn(mockClient);
 
-        assertNotNull(store);
-        assertEquals("bucket-1", store.getBucket());
+        try (MockedStatic<S3Client> staticMock = mockStatic(S3Client.class)) {
+            staticMock.when(S3Client::builder).thenReturn(mockBuilder);
+
+            var store = new AwsBlobStore.Builder()
+                    .withTransformerSupplier(transformerSupplier)
+                    .withBucket("bucket-1")
+                    .withRegion("us-east-2")
+                    .withRetryConfig(config)
+                    .build();
+
+            assertNotNull(store);
+            assertEquals("bucket-1", store.getBucket());
+            verify(mockBuilder, times(1)).overrideConfiguration(any(Consumer.class));
+        }
     }
 
     @Test
