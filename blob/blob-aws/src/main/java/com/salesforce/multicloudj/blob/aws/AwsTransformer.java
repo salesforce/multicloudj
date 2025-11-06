@@ -502,6 +502,11 @@ public class AwsTransformer {
             strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
         }
 
+        // If mode is not set, use AWS SDK's default backoff strategy
+        if (retryConfig.getMode() == null) {
+            return strategyBuilder.build();
+        }
+
         // Configure backoff strategy based on mode
         if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
             if (retryConfig.getInitialDelayMillis() <= 0) {
@@ -516,18 +521,18 @@ public class AwsTransformer {
                             Duration.ofMillis(retryConfig.getMaxDelayMillis())
                     )
             );
-        } else {
-            // FIXED mode
-            if (retryConfig.getFixedDelayMillis() <= 0) {
-                throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
-            }
-            strategyBuilder.backoffStrategy(
-                    software.amazon.awssdk.retries.api.BackoffStrategy.fixedDelay(
-                            Duration.ofMillis(retryConfig.getFixedDelayMillis())
-                    )
-            );
+            return strategyBuilder.build();
         }
 
+        // FIXED mode
+        if (retryConfig.getFixedDelayMillis() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
+        }
+        strategyBuilder.backoffStrategy(
+                software.amazon.awssdk.retries.api.BackoffStrategy.fixedDelay(
+                        Duration.ofMillis(retryConfig.getFixedDelayMillis())
+                )
+        );
         return strategyBuilder.build();
     }
 }
