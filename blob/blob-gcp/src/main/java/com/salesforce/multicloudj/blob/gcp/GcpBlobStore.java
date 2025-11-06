@@ -19,22 +19,22 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
-import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
-import com.salesforce.multicloudj.blob.driver.DownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -48,10 +48,10 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.provider.Provider;
 import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -65,12 +65,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -78,7 +81,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.nio.file.Paths;
 
 /**
  * GCP implementation of BlobStore
@@ -89,6 +91,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     private final Storage storage;
     private final GcpTransformer transformer;
+    private static final String TAG_PREFIX = "gcp-tag-";
 
     public GcpBlobStore() {
         this(new Builder(), null);
@@ -236,7 +239,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         List<BlobId> blobIds = objects.stream()
                 .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
-
+        
         storage.delete(blobIds);
     }
 
@@ -300,9 +303,9 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         List<BlobInfo> blobs = new ArrayList<>();
         for (Blob blob : page.getValues()) {
             blobs.add(BlobInfo.builder()
-                            .withKey(blob.getName())
-                            .withObjectSize(blob.getSize())
-                            .build());
+                    .withKey(blob.getName())
+                    .withObjectSize(blob.getSize())
+                    .build());
         }
 
         return new ListBlobsPageResponse(
@@ -323,6 +326,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 .key(request.getKey())
                 .id(uploadId)
                 .metadata(request.getMetadata())
+                .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
 
@@ -387,12 +391,49 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
     @Override
     protected Map<String, String> doGetTags(String key) {
-        throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Blob blob = storage.get(transformer.toBlobId(key, null));
+        if(blob == null) {
+            throw new SubstrateSdkException("Blob not found");
+        }
+        if(blob.getMetadata() == null) {
+            return Collections.emptyMap();
+        }
+        return blob.getMetadata().entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(TAG_PREFIX))
+                .filter(entry -> entry.getValue()!=null)
+                .map(entry -> Map.entry(entry.getKey().substring(TAG_PREFIX.length()), entry.getValue()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
-
+    
     @Override
     protected void doSetTags(String key, Map<String, String> tags) {
-        throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Blob blob = storage.get(transformer.toBlobId(key, null));
+        if (blob == null) {
+            throw new SubstrateSdkException("Blob not found");
+        }
+
+        // Copy all existing metadata
+        Map<String, String> metadata = blob.getMetadata() != null
+                ? new HashMap<>(blob.getMetadata())
+                : new HashMap<>();
+
+        // Delete all existing tags by setting them to null
+        // In GCP Storage, setting a metadata key to null means "delete this key"
+        // The storage.update method only add new tags, it does not remove existing tags.
+        for (String k : new ArrayList<>(metadata.keySet())) {
+            if (k.startsWith(TAG_PREFIX)) {
+                metadata.put(k, null);
+            }
+        }
+
+        // Add new tags (these will overwrite the nulls for those keys)
+        if (tags != null) {
+            tags.forEach((tagName, tagValue) ->
+            metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+
+        Blob updatedBlob = blob.toBuilder().setMetadata(metadata).build();
+        storage.update(updatedBlob);
     }
 
     @Override
@@ -407,21 +448,11 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
                 httpMethod = HttpMethod.GET;
                 break;
         }
-        List<Storage.SignUrlOption> options = new ArrayList<>();
-        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
-        options.add(Storage.SignUrlOption.withV4Signature());
-
-        // Add KMS encryption header if specified
-        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
-            Map<String, String> extHeaders = new HashMap<>();
-            extHeaders.put("x-goog-encryption-kms-key-name", request.getKmsKeyId());
-            options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
-        }
-
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                options.toArray(new Storage.SignUrlOption[0]));
+                Storage.SignUrlOption.httpMethod(httpMethod),
+                Storage.SignUrlOption.withV4Signature());
     }
 
     @Override
@@ -429,18 +460,18 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         return storage.get(transformer.toBlobId(key, versionId)) != null;
     }
 
-        /**
+    /**
      * Maximum number of objects that can be deleted in a single batch operation.
      * GCP supports up to 1000 objects per batch delete.
      */
     private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
 
+    @Override
     protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
         try {
             Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
             List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
             List<FailedBlobUpload> failedUploads = new ArrayList<>();
-
             // Create directory marker object if prefix is specified
             if (directoryUploadRequest.getPrefix() != null && !directoryUploadRequest.getPrefix().isEmpty()) {
                 try {
@@ -480,6 +511,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
+    @Override
     protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest req) {
         try {
             Path targetDir = Paths.get(req.getLocalDestinationDirectory());
@@ -534,6 +566,7 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
         }
     }
 
+    @Override
     protected void doDeleteDirectory(String prefix) {
         try {
             // List all blobs with the given prefix and delete them in batches
@@ -606,6 +639,47 @@ public class GcpBlobStore extends AbstractBlobStore<GcpBlobStore> {
 
         public Builder withTransformerSupplier(GcpTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
+            return this;
+        }
+
+        /**
+         * Copies all configuration from another BlobStoreBuilder using reflection.
+         * This automatically handles all fields without needing manual updates when new configs are added.
+         * @param source The source builder to copy from
+         * @return An instance of self
+         */
+        public Builder copyFrom(BlobStoreBuilder<?> source) {
+            try {
+                // Find all "with*" methods in this builder
+                Method[] methods = BlobStoreBuilder.class.getDeclaredMethods();
+
+                for (Method method : methods) {
+                    String methodName = method.getName();
+
+                    // Look for "with*" setter methods
+                    if (methodName.startsWith("with") && method.getParameterCount() == 1) {
+                        // Extract property name (e.g., "withBucket" -> "Bucket")
+                        String propertyName = methodName.substring(4);
+
+                        // Try to find corresponding getter (e.g., "getBucket")
+                        String getterName = "get" + propertyName;
+
+                        try {
+                            Method getter = BlobStoreBuilder.class.getMethod(getterName);
+                            Object value = getter.invoke(source);
+
+                            // Only copy non-null values
+                            if (value != null) {
+                                method.invoke(this, value);
+                            }
+                        } catch (NoSuchMethodException e) {
+                            // Getter doesn't exist, skip this property
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to copy builder configuration", e);
+            }
             return this;
         }
 

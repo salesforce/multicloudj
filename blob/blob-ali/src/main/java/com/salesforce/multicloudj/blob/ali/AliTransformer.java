@@ -202,15 +202,22 @@ public class AliTransformer {
     public InitiateMultipartUploadRequest toInitiateMultipartUploadRequest(MultipartUploadRequest request) {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setUserMetadata(request.getMetadata());
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
+            metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+        }
+
         return new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);
     }
 
-    public MultipartUpload toMultipartUpload(InitiateMultipartUploadResult initiateMultipartUploadResult, Map<String, String> metadata) {
+    public MultipartUpload toMultipartUpload(InitiateMultipartUploadResult initiateMultipartUploadResult, Map<String, String> metadata, String kmsKeyId) {
         return MultipartUpload.builder()
                 .bucket(initiateMultipartUploadResult.getBucketName())
                 .key(initiateMultipartUploadResult.getKey())
                 .id(initiateMultipartUploadResult.getUploadId())
                 .metadata(metadata)
+                .kmsKeyId(kmsKeyId)
                 .build();
     }
 

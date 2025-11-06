@@ -2,12 +2,12 @@ package com.salesforce.multicloudj.pubsub.aws;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
@@ -56,8 +56,11 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    public Map<String, String> getAttributes() {
-        return null;
+    public GetAttributeResult getAttributes() {
+        return new GetAttributeResult.Builder()
+                .name("aws-subscription")
+                .topic("aws-topic")
+                .build();
     }
 
     @Override

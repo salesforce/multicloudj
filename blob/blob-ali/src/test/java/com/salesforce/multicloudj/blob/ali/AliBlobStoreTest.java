@@ -543,6 +543,36 @@ public class AliBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithKms() {
+        InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
+        doReturn("bucket-1").when(mockResponse).getBucketName();
+        doReturn("object-1").when(mockResponse).getKey();
+        doReturn("mpu-id").when(mockResponse).getUploadId();
+        when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "test-kms-key-id";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        MultipartUpload response = ali.initiateMultipartUpload(request);
+
+        ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+        verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
+        InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.getKey());
+        assertEquals("bucket-1", actualRequest.getBucketName());
+        assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actualRequest.getObjectMetadata().getServerSideEncryption());
+        assertEquals(kmsKeyId, actualRequest.getObjectMetadata().getRawMetadata().get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+
+        // Verify the response has KMS key
+        assertEquals(kmsKeyId, response.getKmsKeyId());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         UploadPartResult mockResponse = mock(UploadPartResult.class);
         doReturn(new PartETag(1, "etag")).when(mockResponse).getPartETag();

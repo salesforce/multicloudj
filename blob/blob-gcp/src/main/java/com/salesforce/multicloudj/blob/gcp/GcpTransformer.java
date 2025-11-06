@@ -5,12 +5,13 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -20,41 +21,48 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.google.cloud.storage.StorageClass;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-
-import java.io.InputStream;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Getter
 public class GcpTransformer {
 
     private final String bucket;
+    private static final String TAG_PREFIX = "gcp-tag-";
 
     public GcpTransformer(String bucket) {
         this.bucket = bucket;
     }
 
     public BlobInfo toBlobInfo(UploadRequest uploadRequest) {
-        if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
-            throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Map<String, String> metadata = new HashMap<>();
+        if(uploadRequest.getMetadata() != null) {
+            metadata.putAll(uploadRequest.getMetadata());
         }
-        return toBlobInfo(uploadRequest.getKey(), uploadRequest.getMetadata(), uploadRequest.getStorageClass());
+        
+        // Add tags to metadata with TAG_PREFIX
+        if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
+            uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+        
+        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -168,10 +176,17 @@ public class GcpTransformer {
     }
 
     public BlobInfo toBlobInfo(PresignedUrlRequest presignedUrlRequest) {
-        if(presignedUrlRequest.getTags() != null && !presignedUrlRequest.getTags().isEmpty()) {
-            throw new UnSupportedOperationException("Tags are not supported by GCP");
+        Map<String, String> metadata = new HashMap<>();
+        if(presignedUrlRequest.getMetadata() != null) {
+            metadata.putAll(presignedUrlRequest.getMetadata());
         }
-        return toBlobInfo(presignedUrlRequest.getKey(), presignedUrlRequest.getMetadata());
+        
+        // Add tags to metadata with TAG_PREFIX
+        if(presignedUrlRequest.getTags() != null && !presignedUrlRequest.getTags().isEmpty()) {
+            presignedUrlRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+        
+        return toBlobInfo(presignedUrlRequest.getKey(), metadata);
     }
 
     public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
@@ -241,10 +256,15 @@ public class GcpTransformer {
 
     public UploadRequest toUploadRequest(MultipartUpload mpu, MultipartPart mpp) {
         String partKey = toPartName(mpu, mpp.getPartNumber());
-        return UploadRequest.builder()
+        UploadRequest.Builder builder = UploadRequest.builder()
                 .withKey(partKey)
-                .withContentLength(mpp.getContentLength())
-                .build();
+                .withContentLength(mpp.getContentLength());
+
+        if (mpu.getKmsKeyId() != null && !mpu.getKmsKeyId().isEmpty()) {
+            builder.withKmsKeyId(mpu.getKmsKeyId());
+        }
+
+        return builder.build();
     }
 
     public BlobInfo toBlobInfo(MultipartUpload mpu) {

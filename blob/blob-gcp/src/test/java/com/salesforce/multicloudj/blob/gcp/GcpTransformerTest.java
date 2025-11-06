@@ -8,35 +8,7 @@ import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
-import com.salesforce.multicloudj.blob.driver.DownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DownloadResponse;
-import com.salesforce.multicloudj.blob.driver.MultipartPart;
-import com.salesforce.multicloudj.blob.driver.MultipartUpload;
-import com.salesforce.multicloudj.blob.driver.PresignedOperation;
-import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
-import com.salesforce.multicloudj.blob.driver.UploadRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import org.apache.commons.lang3.tuple.Pair;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -47,14 +19,12 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.stream.Stream;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,14 +36,19 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -147,10 +122,21 @@ class GcpTransformerTest {
                 .withTags(tags)
                 .build();
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            transformer.toBlobInfo(uploadRequest);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+        
+        // Verify original metadata is preserved
+        assertEquals("application/json", blobInfo.getMetadata().get("content-type"));
+        assertEquals("custom-value", blobInfo.getMetadata().get("custom-header"));
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
     }
 
     @Test
@@ -187,6 +173,32 @@ class GcpTransformerTest {
         assertEquals(TEST_KEY, blobInfo.getName());
         assertNotNull(blobInfo.getMetadata());
         assertTrue(blobInfo.getMetadata().isEmpty());
+    }
+
+    @Test
+    void testToBlobInfo_WithTagsOnly() {
+        // Given
+        Map<String, String> tags = new HashMap<>();
+        tags.put("environment", "production");
+        tags.put("owner", "team-a");
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withTags(tags)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
+        assertEquals(2, blobInfo.getMetadata().size());
     }
 
     @Test
@@ -679,10 +691,43 @@ class GcpTransformerTest {
                 .tags(tags)
                 .build();
 
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
-            transformer.toBlobInfo(presignedUrlRequest);
-        });
-        assertEquals("Tags are not supported by GCP", exception.getMessage());
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(presignedUrlRequest);
+
+        // Then
+        assertNotNull(blobInfo);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals("object-1", blobInfo.getName());
+        
+        // Verify original metadata is preserved
+        assertEquals("some-value", blobInfo.getMetadata().get("some-key"));
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("tag-value", blobInfo.getMetadata().get("gcp-tag-tag-key"));
+    }
+
+    @Test
+    void testPresignedToBlobInfo_WithTagsOnly() {
+        Map<String, String> tags = Map.of("tag-key", "tag-value", "environment", "production");
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .tags(tags)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(presignedUrlRequest);
+
+        // Then
+        assertNotNull(blobInfo);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals("object-1", blobInfo.getName());
+        
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("tag-value", blobInfo.getMetadata().get("gcp-tag-tag-key"));
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals(2, blobInfo.getMetadata().size());
     }
 
     @Test
@@ -931,10 +976,10 @@ class GcpTransformerTest {
     public void testPartitionList_SingleElement() {
         List<com.salesforce.multicloudj.blob.driver.BlobInfo> singleList = new ArrayList<>();
         singleList.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("test-key")
-                .withObjectSize(100L)
-                .build());
-
+            .withKey("test-key")
+            .withObjectSize(100L)
+            .build());
+        
         List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(singleList, 10);
         assertEquals(1, result.size());
         assertEquals(1, result.get(0).size());
@@ -946,11 +991,11 @@ class GcpTransformerTest {
         List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                    .withKey("key-" + i)
-                    .withObjectSize(100L)
-                    .build());
+                .withKey("key-" + i)
+                .withObjectSize(100L)
+                .build());
         }
-
+        
         List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(list, 10);
         assertEquals(2, result.size());
         assertEquals(10, result.get(0).size());
@@ -962,11 +1007,11 @@ class GcpTransformerTest {
         List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
         for (int i = 0; i < 25; i++) {
             list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                    .withKey("key-" + i)
-                    .withObjectSize(100L)
-                    .build());
+                .withKey("key-" + i)
+                .withObjectSize(100L)
+                .build());
         }
-
+        
         List<List<com.salesforce.multicloudj.blob.driver.BlobInfo>> result = transformer.partitionList(list, 10);
         assertEquals(3, result.size());
         assertEquals(10, result.get(0).size());
@@ -985,10 +1030,10 @@ class GcpTransformerTest {
     public void testToBlobIdentifiers_SingleElement() {
         List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
         list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                .withKey("test-key")
-                .withObjectSize(100L)
-                .build());
-
+            .withKey("test-key")
+            .withObjectSize(100L)
+            .build());
+        
         List<com.salesforce.multicloudj.blob.driver.BlobIdentifier> result = transformer.toBlobIdentifiers(list);
         assertEquals(1, result.size());
         assertEquals("test-key", result.get(0).getKey());
@@ -1000,11 +1045,11 @@ class GcpTransformerTest {
         List<com.salesforce.multicloudj.blob.driver.BlobInfo> list = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             list.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-                    .withKey("key-" + i)
-                    .withObjectSize(100L)
-                    .build());
+                .withKey("key-" + i)
+                .withObjectSize(100L)
+                .build());
         }
-
+        
         List<com.salesforce.multicloudj.blob.driver.BlobIdentifier> result = transformer.toBlobIdentifiers(list);
         assertEquals(5, result.size());
         for (int i = 0; i < 5; i++) {
@@ -1018,17 +1063,17 @@ class GcpTransformerTest {
         // Create a temporary directory that we'll delete to cause IOException
         Path tempDir = Files.createTempDirectory("test-dir");
         Files.delete(tempDir); // Delete the directory to cause IOException
-
+        
         DirectoryUploadRequest request = DirectoryUploadRequest.builder()
-                .localSourceDirectory(tempDir.toString())
-                .prefix("test/")
-                .includeSubFolders(true)
-                .build();
-
+            .localSourceDirectory(tempDir.toString())
+            .prefix("test/")
+            .includeSubFolders(true)
+            .build();
+        
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             transformer.toFilePaths(request);
         });
-
+        
         assertTrue(exception.getMessage().contains("Failed to traverse directory"));
         assertTrue(exception.getCause() instanceof IOException);
     }
@@ -1039,7 +1084,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("source", "dir");
         Path filePath = Paths.get("source", "dir", "subdir", "file.txt");
         String prefix = "uploads/";
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("uploads/subdir/file.txt", result);
     }
@@ -1049,7 +1094,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("/source/dir");
         Path filePath = Paths.get("/source/dir/subdir/file.txt");
         String prefix = "uploads/";
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("uploads/subdir/file.txt", result);
     }
@@ -1059,7 +1104,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("/source/dir");
         Path filePath = Paths.get("/source/dir/file.txt");
         String prefix = "";
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("file.txt", result);
     }
@@ -1069,7 +1114,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("/source/dir");
         Path filePath = Paths.get("/source/dir/file.txt");
         String prefix = null;
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("file.txt", result);
     }
@@ -1079,7 +1124,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("/source/dir");
         Path filePath = Paths.get("/source/dir/file.txt");
         String prefix = "uploads";
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("uploads/file.txt", result);
     }
@@ -1089,7 +1134,7 @@ class GcpTransformerTest {
         Path sourceDir = Paths.get("/source/dir");
         Path filePath = Paths.get("/source/dir/file.txt");
         String prefix = "uploads/";
-
+        
         String result = transformer.toBlobKey(sourceDir, filePath, prefix);
         assertEquals("uploads/file.txt", result);
     }
@@ -1247,11 +1292,5 @@ class GcpTransformerTest {
         assertEquals(key, result.getName());
         assertEquals(metadata, result.getMetadata());
         assertNull(result.getStorageClass());
-
-        // When start is greater than file size, should throw IllegalArgumentException
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            transformer.computeRange(150L, 200L, 100L);
-        });
-        assertEquals("Start of range cannot be greater than file size: 150", exception.getMessage());
     }
 } 

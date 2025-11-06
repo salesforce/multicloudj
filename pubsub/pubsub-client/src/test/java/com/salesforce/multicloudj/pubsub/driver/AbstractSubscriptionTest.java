@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.driver;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
+import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -133,7 +134,12 @@ public class AbstractSubscriptionTest {
         public boolean canNack() { return false; }
 
         @Override
-        public Map<String, String> getAttributes() { return Collections.emptyMap(); }
+        public GetAttributeResult getAttributes() { 
+            return new GetAttributeResult.Builder()
+                    .name("test-subscription")
+                    .topic("test-topic")
+                    .build();
+        }
 
         @Override
         public boolean isRetryable(Throwable error) {

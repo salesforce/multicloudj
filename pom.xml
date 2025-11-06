@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.10-SNAPSHOT</version>
+    <version>0.2.12</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -32,6 +32,7 @@
     </scm>
 
     <modules>
+        <module>iam</module>
         <module>blob</module>
         <module>docstore</module>
         <module>examples</module>
@@ -138,6 +139,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>sts-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

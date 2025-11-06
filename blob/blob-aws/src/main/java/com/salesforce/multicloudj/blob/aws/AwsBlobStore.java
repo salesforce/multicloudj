@@ -371,6 +371,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
                 .key(createMultipartUploadResponse.key())
                 .id(createMultipartUploadResponse.uploadId())
                 .metadata(request.getMetadata())
+                .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
 

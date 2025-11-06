@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp.async;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -8,7 +10,13 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -21,10 +29,10 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
+import com.salesforce.multicloudj.blob.gcp.GcpTransformer;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
-import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,43 +40,32 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-
-import com.google.api.gax.paging.Page;
-import com.google.cloud.storage.Blob;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
-import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
-import com.salesforce.multicloudj.blob.gcp.GcpTransformer;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -598,7 +595,7 @@ class GcpAsyncBlobStoreTest {
                 .build();
 
         // Mock the synchronous blob store to return the expected response
-        when(mockBlobStore.uploadDirectory(request)).thenReturn(expectedResponse);      
+        when(mockBlobStore.uploadDirectory(request)).thenReturn(expectedResponse);
 
         // When
         CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
@@ -607,7 +604,45 @@ class GcpAsyncBlobStoreTest {
         DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
         assertNotNull(response);
         assertTrue(response.getFailedTransfers().isEmpty());
+        
+        // Verify that the async method delegates to the synchronous method
+        verify(mockBlobStore).uploadDirectory(request);
+    }
 
+    @Test
+    void testUploadDirectory_WithFailures() throws Exception {
+        // Given
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/test/dir")
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .build();
+
+        Path file2 = Paths.get("/test/dir/file2.txt");
+        FailedBlobUpload failedUpload = FailedBlobUpload.builder()
+                .source(file2)
+                .exception(new RuntimeException("Upload failed"))
+                .build();
+
+        DirectoryUploadResponse expectedResponse = DirectoryUploadResponse.builder()
+                .failedTransfers(List.of(failedUpload))
+                .build();
+
+        // Mock the synchronous blob store to return a response with failures
+        when(mockBlobStore.uploadDirectory(request)).thenReturn(expectedResponse);
+
+        // When
+        CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
+
+        // Then
+        DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertEquals(1, response.getFailedTransfers().size());
+        assertEquals(file2, response.getFailedTransfers().get(0).getSource());
+        assertTrue(response.getFailedTransfers().get(0).getException() instanceof RuntimeException);
+        assertEquals("Upload failed", response.getFailedTransfers().get(0).getException().getMessage());
+        
+        // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).uploadDirectory(request);
     }
 
@@ -634,6 +669,8 @@ class GcpAsyncBlobStoreTest {
         DirectoryUploadResponse response = result.get(5, TimeUnit.SECONDS);
         assertNotNull(response);
         assertTrue(response.getFailedTransfers().isEmpty());
+        
+        // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).uploadDirectory(request);
     }
 
@@ -646,17 +683,18 @@ class GcpAsyncBlobStoreTest {
                 .includeSubFolders(true)
                 .build();
 
+        // Mock the synchronous blob store to throw an exception
         when(mockBlobStore.uploadDirectory(request)).thenThrow(new RuntimeException("Upload failed"));
 
         // When & Then
         CompletableFuture<DirectoryUploadResponse> result = gcpAsyncBlobStore.uploadDirectory(request);
-
+        
         ExecutionException exception = assertThrows(ExecutionException.class, () -> {
             result.get(5, TimeUnit.SECONDS);
         });
         assertTrue(exception.getCause() instanceof RuntimeException);
         assertEquals("Upload failed", exception.getCause().getMessage());
-
+        
         // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).uploadDirectory(request);
     }
@@ -676,11 +714,15 @@ class GcpAsyncBlobStoreTest {
         // Mock the synchronous blob store to return the expected response
         when(mockBlobStore.downloadDirectory(request)).thenReturn(expectedResponse);
 
+        // When
         CompletableFuture<DirectoryDownloadResponse> result = gcpAsyncBlobStore.downloadDirectory(request);
 
-        // Wait for the async operation to complete
-        result.get(5, TimeUnit.SECONDS);
-
+        // Then
+        DirectoryDownloadResponse response = result.get(5, TimeUnit.SECONDS);
+        assertNotNull(response);
+        assertTrue(response.getFailedTransfers().isEmpty());
+        
+        // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).downloadDirectory(request);
     }
 
@@ -688,16 +730,16 @@ class GcpAsyncBlobStoreTest {
     void testDeleteDirectory_Implementation() {
         // Given
         String prefix = "uploads/";
-
+        
         // Mock the synchronous blob store - deleteDirectory returns void
         doNothing().when(mockBlobStore).deleteDirectory(prefix);
-
+        
         // When
         CompletableFuture<Void> result = gcpAsyncBlobStore.deleteDirectory(prefix);
-
+        
         // Then
         assertDoesNotThrow(() -> result.get(5, TimeUnit.SECONDS));
-
+        
         // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).deleteDirectory(prefix);
     }
@@ -706,16 +748,16 @@ class GcpAsyncBlobStoreTest {
     void testDeleteDirectory_EmptyDirectory() {
         // Given
         String prefix = "empty-prefix/";
-
+        
         // Mock the synchronous blob store - deleteDirectory returns void
         doNothing().when(mockBlobStore).deleteDirectory(prefix);
-
+        
         // When & Then
         assertDoesNotThrow(() -> {
             CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory(prefix);
             future.get(5, TimeUnit.SECONDS);
         });
-
+        
         // Verify that the async method delegates to the synchronous method
         verify(mockBlobStore).deleteDirectory(prefix);
     }
@@ -726,11 +768,11 @@ class GcpAsyncBlobStoreTest {
         Page<Blob> mockPage = mock(Page.class);
         when(mockPage.getValues()).thenReturn(Collections.emptyList());
         when(mockStorage.list(any(), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
-
+        
         GcpTransformer mockTransformer = mock(GcpTransformer.class);
         when(mockTransformerSupplier.get(any())).thenReturn(mockTransformer);
         when(mockTransformer.partitionList(any(), anyInt())).thenReturn(Collections.emptyList());
-
+        
         assertDoesNotThrow(() -> {
             CompletableFuture<Void> future = gcpAsyncBlobStore.deleteDirectory(null);
             future.get(5, TimeUnit.SECONDS);
@@ -742,13 +784,13 @@ class GcpAsyncBlobStoreTest {
         GcpBlobStore mockGcpBlobStore = mock(GcpBlobStore.class);
         when(mockGcpBlobStore.getBucket()).thenReturn("test-bucket");
         when(mockGcpBlobStore.getRegion()).thenReturn("us-central1");
-
+        
         Storage mockStorage = mock(Storage.class);
         GcpTransformerSupplier mockSupplier = mock(GcpTransformerSupplier.class);
         ExecutorService mockExecutor = mock(ExecutorService.class);
-
+        
         GcpAsyncBlobStore store = new GcpAsyncBlobStore(mockGcpBlobStore, mockExecutor, mockStorage, mockSupplier);
-
+        
         assertNotNull(store);
         assertEquals("test-bucket", store.getBucket());
         assertEquals("us-central1", store.getRegion());
@@ -769,5 +811,61 @@ class GcpAsyncBlobStoreTest {
         assertNotNull(store);
         assertEquals("test-bucket", store.getBucket());
         assertEquals("us-central1", store.getRegion());
+    }
+
+    @Test
+    void testBuilder_CopyFromAsyncBuilder() {
+        // Given - Create an AsyncBlobStoreProvider.Builder with various configurations
+        GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+        builder.withBucket("source-bucket");
+        builder.withRegion("us-west-2");
+        builder.withMaxConnections(100);
+        builder.withSocketTimeout(Duration.ofSeconds(30));
+        builder.withIdleConnectionTimeout(Duration.ofMinutes(5));
+        builder.withExecutorService(executorService);
+        builder.withStorage(mockStorage);
+        builder.withTransformerSupplier(mockTransformerSupplier);
+
+        // When - Build the async blob store which internally calls copyFrom
+        GcpAsyncBlobStore asyncBlobStore = builder.build();
+
+        // Then - Verify the configurations were copied to the underlying GcpBlobStore
+        assertNotNull(asyncBlobStore);
+        assertEquals("source-bucket", asyncBlobStore.getBucket());
+        assertEquals("us-west-2", asyncBlobStore.getRegion());
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getProviderId());
+
+        // Verify the underlying GcpBlobStore was created with all copied configurations
+        GcpBlobStore gcpBlobStore = (GcpBlobStore) asyncBlobStore.getBlobStore();
+        assertNotNull(gcpBlobStore);
+        assertEquals("source-bucket", gcpBlobStore.getBucket());
+        assertEquals("us-west-2", gcpBlobStore.getRegion());
+        assertEquals(GcpConstants.PROVIDER_ID, gcpBlobStore.getProviderId());
+
+        // Verify all builder configurations were properly copied by checking the builder's state
+        GcpBlobStore.Builder gcpBuilder = (GcpBlobStore.Builder) gcpBlobStore.builder();
+        gcpBuilder.copyFrom(builder);
+        assertEquals("source-bucket", gcpBuilder.getBucket());
+        assertEquals("us-west-2", gcpBuilder.getRegion());
+        assertEquals(100, gcpBuilder.getMaxConnections());
+        assertEquals(Duration.ofSeconds(30), gcpBuilder.getSocketTimeout());
+        assertEquals(Duration.ofMinutes(5), gcpBuilder.getIdleConnectionTimeout());
+    }
+
+    @Test
+    void testBuilder_CopyFromDoesNotOverrideProviderId() {
+        // Given - Create an AsyncBlobStoreProvider.Builder
+        GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+        builder.withBucket("test-bucket");
+        builder.withRegion("us-central1");
+        builder.withStorage(mockStorage);
+        builder.withTransformerSupplier(mockTransformerSupplier);
+
+        // When - Build the async blob store
+        GcpAsyncBlobStore asyncBlobStore = builder.build();
+
+        // Then - Verify providerId is GCP (not overridden by copyFrom)
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getProviderId());
+        assertEquals(GcpConstants.PROVIDER_ID, asyncBlobStore.getBlobStore().getProviderId());
     }
 } 
