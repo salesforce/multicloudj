@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -68,6 +69,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -530,6 +532,20 @@ public class AwsBlobStore extends AbstractBlobStore {
             }
             if(shouldConfigureHttpClient(builder)) {
                 b.httpClient(generateHttpClient(builder));
+            }
+            if (builder.getRetryConfig() != null) {
+                // Create a temporary transformer instance for retry strategy conversion
+                AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
+                b.overrideConfiguration(config -> {
+                    config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                    // Set API call timeouts if provided
+                    if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                        config.apiCallAttemptTimeout(Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                    }
+                    if (builder.getRetryConfig().getTotalTimeout() != null) {
+                        config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                    }
+                });
             }
 
             return b.build();

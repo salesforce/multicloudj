@@ -21,12 +21,14 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -62,6 +64,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
 
 import java.io.InputStream;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -475,5 +478,61 @@ public class AwsTransformer {
         return blobList.stream()
                 .map(blob -> new BlobIdentifier(blob.getKey(), null))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
+     *
+     * @param retryConfig The retry configuration to convert
+     * @return AWS SDK RetryStrategy
+     * @throws InvalidArgumentException if retryConfig is null or has invalid values
+     */
+    public RetryStrategy toAwsRetryStrategy(RetryConfig retryConfig) {
+        if (retryConfig == null) {
+            throw new InvalidArgumentException("RetryConfig cannot be null");
+        }
+        if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
+        }
+
+        StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
+
+        // Only set maxAttempts if provided, otherwise use AWS SDK default
+        if (retryConfig.getMaxAttempts() != null) {
+            strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
+        }
+
+        // If mode is not set, use AWS SDK's default backoff strategy
+        if (retryConfig.getMode() == null) {
+            return strategyBuilder.build();
+        }
+
+        // Configure backoff strategy based on mode
+        if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+            if (retryConfig.getInitialDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getInitialDelayMillis());
+            }
+            if (retryConfig.getMaxDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getMaxDelayMillis());
+            }
+            strategyBuilder.backoffStrategy(
+                    software.amazon.awssdk.retries.api.BackoffStrategy.exponentialDelay(
+                            Duration.ofMillis(retryConfig.getInitialDelayMillis()),
+                            Duration.ofMillis(retryConfig.getMaxDelayMillis())
+                    )
+            );
+            return strategyBuilder.build();
+        }
+
+        // FIXED mode
+        if (retryConfig.getFixedDelayMillis() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
+        }
+        strategyBuilder.backoffStrategy(
+                software.amazon.awssdk.retries.api.BackoffStrategy.fixedDelay(
+                        Duration.ofMillis(retryConfig.getFixedDelayMillis())
+                )
+        );
+        return strategyBuilder.build();
     }
 }

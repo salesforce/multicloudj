@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -44,6 +45,7 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
@@ -159,8 +161,22 @@ public class AwsAsyncBlobStoreTest {
     void setup() {
         S3AsyncClientBuilder mockBuilder = mock(S3AsyncClientBuilder.class);
         when(mockBuilder.region(any())).thenReturn(mockBuilder);
+
+        // Execute the consumer lambda to cover lines 540-549
+        doAnswer(invocation -> {
+            Consumer<ClientOverrideConfiguration.Builder> consumer = invocation.getArgument(0);
+            ClientOverrideConfiguration.Builder configBuilder = mock(ClientOverrideConfiguration.Builder.class);
+            when(configBuilder.retryStrategy(any(software.amazon.awssdk.retries.api.RetryStrategy.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallAttemptTimeout(any(Duration.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallTimeout(any(Duration.class))).thenReturn(configBuilder);
+            consumer.accept(configBuilder);
+            return mockBuilder;
+        }).when(mockBuilder).overrideConfiguration(any(Consumer.class));
+
         S3CrtAsyncClientBuilder mockCrtBuilder = mock(S3CrtAsyncClientBuilder.class);
         when(mockCrtBuilder.region(any())).thenReturn(mockCrtBuilder);
+
+        // CRT builder doesn't support overrideConfiguration - skip it
 
         s3Client = mockStatic(S3AsyncClient.class);
         s3Client.when(S3AsyncClient::builder).thenReturn(mockBuilder);
@@ -1204,5 +1220,149 @@ public class AwsAsyncBlobStoreTest {
         List<ObjectIdentifier> secondObjectsDeleted = actualDeleteRequests.get(1).delete().objects();
         assertEquals(1, secondObjectsDeleted.size());
         assertEquals(object3.key(), secondObjectsDeleted.get(0).key());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithRetryConfig() {
+        // Test with exponential retry config
+        RetryConfig exponentialConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(5000L)
+                .attemptTimeout(5000L)
+                .totalTimeout(30000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(exponentialConfig)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithFixedRetryConfig() {
+        // Test with fixed retry config
+        RetryConfig fixedConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(5)
+                .fixedDelayMillis(1000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(fixedConfig)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithRetryConfigWithNullMaxAttempts() {
+        // Test with null maxAttempts (should use AWS default)
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(null)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithRetryConfigWithAttemptTimeout() {
+        // Test with attempt timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .attemptTimeout(5000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithRetryConfigWithTotalTimeout() {
+        // Test with total timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .totalTimeout(30000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithoutRetryConfig() {
+        // Test without retry config (default behavior)
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3CrtAsyncClientWithRetryConfig() {
+        // Test CRT client with retry config
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withParallelDownloadsEnabled(true)  // This triggers CRT client
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
     }
 }
