@@ -1,0 +1,31 @@
+{
+  "id" : "47c4f28c-7543-4ad3-864c-9747213231c8",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "urlPattern" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/upload-happy-path&uploadType=resumable&upload_id=[^&]+",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Test data with KMS encryption",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/upload-happy-path/1762385493701460\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fupload-happy-path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fupload-happy-path?generation=1762385493701460&alt=media\",\n  \"name\": \"conformance-tests/kms/upload-happy-path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1762385493701460\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"29\",\n  \"md5Hash\": \"H9lgtieDqK4r0a/+cewbhw==\",\n  \"crc32c\": \"hqf/PA==\",\n  \"etag\": \"CNTmvMqV3JADEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2025-11-05T23:31:33.727Z\",\n  \"updated\": \"2025-11-05T23:31:33.727Z\",\n  \"timeStorageClassUpdated\": \"2025-11-05T23:31:33.727Z\",\n  \"timeFinalized\": \"2025-11-05T23:31:33.727Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CNTmvMqV3JADEAE=",
+      "X-GUploader-UploadID" : "AOCedOHw0mbGVEwoO0C8STmGoNZJ-iHQPjxxth5G_HiXscFrnLGp1mttL_L23rvC94pzqHWiuHq3S5peAW4rC-rcf8pPuBGR9snvYlxQOQ4AWw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Wed, 05 Nov 2025 23:31:33 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "47c4f28c-7543-4ad3-864c-9747213231c8",
+  "persistent" : true,
+  "insertionIndex" : 108
+}

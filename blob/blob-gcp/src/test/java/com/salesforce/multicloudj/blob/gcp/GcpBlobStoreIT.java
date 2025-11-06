@@ -9,11 +9,15 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.gcp.util.GcpBlobStoreTestUtil;
 import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
+import org.junit.jupiter.api.AfterEach;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
@@ -26,6 +30,25 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     protected Harness createHarness() {
         return new HarnessImpl();
+    }
+
+    /**
+     * Override cleanupTestEnvironment to add GCP-specific post-recording transformation.
+     * This transforms multipart upload URLs with UUIDs to regex patterns after recording.
+     * 
+     * Post-recording transformation is necessary because WireMock's ScenarioProcessor runs
+     * after transformers during stopRecording() and tries to parse all URLs as URIs.
+     * If we transform URLs to regex patterns in a transformer, ScenarioProcessor will fail.
+     * Therefore, we transform the JSON files directly after recording has completed.
+     */
+    @Override
+    @AfterEach
+    public void cleanupTestEnvironment() {
+        super.cleanupTestEnvironment();
+        
+        // GCP-specific post-recording transformation for multipart URLs with UUIDs
+        // This runs after ScenarioProcessor has finished, so it can safely convert URLs to regex patterns
+        GcpBlobStoreTestUtil.transformMultipartStubFiles();
     }
 
     public static class HarnessImpl implements Harness {
@@ -103,7 +126,12 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
         @Override
         public String getKmsKeyId() {
-            return "projects/chameleon-jcloud/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+            return "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+        }
+
+        @Override
+        public List<String> getWiremockExtensions() {
+            return Collections.emptyList();
         }
 
         @Override
