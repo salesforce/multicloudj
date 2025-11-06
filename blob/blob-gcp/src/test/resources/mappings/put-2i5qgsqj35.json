@@ -1,0 +1,31 @@
+{
+  "id" : "cb94707f-64ea-4e64-ac1b-06bb77006404",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "urlPattern" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/download-happy-path&uploadType=resumable&upload_id=[^&]+",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Test data for KMS download",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/download-happy-path/1762388898853519\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fdownload-happy-path?generation=1762388898853519&alt=media\",\n  \"name\": \"conformance-tests/kms/download-happy-path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1762388898853519\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"26\",\n  \"md5Hash\": \"HYA/8YGA96w8epKOb+FkdQ==\",\n  \"crc32c\": \"gNlnTg==\",\n  \"etag\": \"CI/llqKi3JADEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2025-11-06T00:28:18.907Z\",\n  \"updated\": \"2025-11-06T00:28:18.907Z\",\n  \"timeStorageClassUpdated\": \"2025-11-06T00:28:18.907Z\",\n  \"timeFinalized\": \"2025-11-06T00:28:18.907Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CI/llqKi3JADEAE=",
+      "X-GUploader-UploadID" : "AOCedOF9u-OOpkLzaZ_QbSr44WSGH6-ICuRk1ngcwAto4ivHqdiRHkuz0NAK1zGQRsqS3Agf-I4qSiDJgiod0HuYf7soKBqwUpTDOL6jo6GeZPw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 06 Nov 2025 00:28:18 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "cb94707f-64ea-4e64-ac1b-06bb77006404",
+  "persistent" : true,
+  "insertionIndex" : 850
+}

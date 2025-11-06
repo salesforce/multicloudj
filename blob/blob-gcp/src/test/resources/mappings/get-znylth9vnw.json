@@ -1,0 +1,30 @@
+{
+  "id" : "11593daf-5f76-41c8-9846-0cf378882c0e",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_kms_ranged-read",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/ranged-read/1762389166563023\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read?generation=1762389166563023&alt=media\",\n  \"name\": \"conformance-tests/kms/ranged-read\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1762389166563023\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"51\",\n  \"md5Hash\": \"148SaEDsnL79UlK6jvfv1Q==\",\n  \"crc32c\": \"pKh0rA==\",\n  \"etag\": \"CM+96qGj3JADEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2025-11-06T00:32:46.617Z\",\n  \"updated\": \"2025-11-06T00:32:46.617Z\",\n  \"timeStorageClassUpdated\": \"2025-11-06T00:32:46.617Z\",\n  \"timeFinalized\": \"2025-11-06T00:32:46.617Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CM+96qGj3JADEAE=",
+      "X-GUploader-UploadID" : "AOCedOGz0kyGUxDpCWunXsIiDt4iTA2J0wDvfQx32Y57IkAYdMc3diPEYWa4kDYNFzj88C5Zv8l0Qwk",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Thu, 06 Nov 2025 00:32:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "11593daf-5f76-41c8-9846-0cf378882c0e",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-ranged-read",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-ranged-read-4",
+  "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-ranged-read-5",
+  "insertionIndex" : 857
+}
