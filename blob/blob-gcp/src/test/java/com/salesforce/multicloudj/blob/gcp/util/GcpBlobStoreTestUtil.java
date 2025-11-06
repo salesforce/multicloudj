@@ -51,14 +51,13 @@ public class GcpBlobStoreTestUtil {
                     // Only target multipart upload recordings:
                     // URL must contain "multipart-" in the path (e.g., "conformance-tests/multipart-...")
                     // This ensures we only transform multipart upload test recordings, not other resumable uploads
-                    boolean isMultipartUrl = (jsonContent.contains("\"url\"") || jsonContent.contains("\"urlPattern\"")) &&
+                    boolean isMultipartUrl = jsonContent.contains("\"url\"") &&
                                             jsonContent.contains("multipart-") &&
-                                            (uuidPattern.matcher(jsonContent).find() || jsonContent.contains("urlPattern"));
+                                            uuidPattern.matcher(jsonContent).find();
                     boolean isMultipartUpload = jsonContent.contains("uploadType=multipart") && jsonContent.contains("multipart-");
                     boolean hasUploadId = jsonContent.contains("upload_id=") && jsonContent.contains("multipart-");
 
                     // Only transform if it's a multipart upload (must have "multipart-" in URL)
-                    // Also process files that already have urlPattern to remove bodyPatterns
                     if (isMultipartUrl || isMultipartUpload) {
                         String transformedJson = transformStubFileContent(jsonContent, uuidPattern, isMultipartUpload, hasUploadId);
 
@@ -84,8 +83,6 @@ public class GcpBlobStoreTestUtil {
                                                      boolean isMultipartUpload, boolean hasUploadId) {
         try {
             String transformedJson = jsonContent;
-            boolean isMultipartUrl = jsonContent.contains("multipart-");
-            String originalUrl = null;
 
             // Step 1: Transform URL to urlPattern if it contains multipart with UUID or has upload_id
             Pattern urlFieldPattern = Pattern.compile(
@@ -95,7 +92,7 @@ public class GcpBlobStoreTestUtil {
             Matcher urlMatcher = urlFieldPattern.matcher(transformedJson);
 
             if (urlMatcher.find()) {
-                originalUrl = urlMatcher.group(1);
+                String originalUrl = urlMatcher.group(1);
                 boolean needsTransformation = false;
                 String urlPatternRegex = originalUrl;
 
@@ -139,9 +136,8 @@ public class GcpBlobStoreTestUtil {
                 }
             }
 
-            // Step 2: Remove body patterns for multipart uploads (UUIDs in body change)
-            // Check if this is a multipart upload by looking for "multipart-" in the content
-            if ((isMultipartUpload || isMultipartUrl) && transformedJson.contains("\"bodyPatterns\"")) {
+            // Step 2: Remove body patterns for multipart uploads (boundaries change)
+            if (isMultipartUpload && transformedJson.contains("\"bodyPatterns\"")) {
                 // Find the bodyPatterns field and remove it properly
                 // Pattern: "bodyPatterns" : [ ... ] with optional leading comma
                 // We need to match the entire array structure, which can be nested

@@ -16,6 +16,8 @@ import org.junit.jupiter.api.AfterEach;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
@@ -125,6 +127,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         @Override
         public String getKmsKeyId() {
             return "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+        }
+
+        @Override
+        public List<String> getWiremockExtensions() {
+            return Collections.emptyList();
         }
 
         @Override
