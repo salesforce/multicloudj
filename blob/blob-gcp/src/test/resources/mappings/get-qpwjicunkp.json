@@ -2,7 +2,7 @@
   "id" : "049067da-9f8e-4c16-8efa-a80d046e7e4f",
   "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?prefix=conformance-tests/multipart-multipleMPU/2dd7bb5c-4496-4d87-8dfd-ce8019ddaa54/part-&projection=full",
+    "urlPattern" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?prefix=conformance-tests/multipart-multipleMPU/[^/&%]+/part-&projection=full",
     "method" : "GET"
   },
   "response" : {
