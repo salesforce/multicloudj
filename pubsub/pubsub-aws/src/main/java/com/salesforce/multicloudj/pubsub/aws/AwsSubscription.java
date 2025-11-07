@@ -26,6 +26,14 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSubscription.class)
@@ -50,31 +58,112 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    public void sendAck(AckID ackID) {
-    }
-
-    @Override
     public CompletableFuture<Void> sendAcks(List<AckID> ackIDs) {
-        return null;
-    }
-
-    @Override
-    protected void doSendAcks(List<AckID> ackIDs) {
-        // TODO: Implement AWS SQS acknowledgment
-    }
-
-    @Override
-    protected void doSendNacks(List<AckID> ackIDs) {
-        // TODO: Implement AWS SQS negative acknowledgment
-    }
-
-    @Override
-    public void sendNack(AckID ackID) {
+        return super.sendAcks(ackIDs);
     }
 
     @Override
     public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
-        return null;
+        return super.sendNacks(ackIDs);
+    }
+
+    @Override
+    protected void doSendAcks(List<AckID> ackIDs) {
+        List<String> receiptHandles = new ArrayList<>();
+        for (AckID ackID : ackIDs) {
+            if (ackID instanceof AwsAckID) {
+                receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
+            } else {
+                throw new IllegalArgumentException("Invalid AckID type: " + ackID.getClass());
+            }
+        }
+        
+        if (receiptHandles.isEmpty()) {
+            return;
+        }
+        
+        // SQS supports max 10 messages per batch operation
+        for (int i = 0; i < receiptHandles.size(); i += 10) {
+            int endIndex = Math.min(i + 10, receiptHandles.size());
+            List<String> batch = receiptHandles.subList(i, endIndex);
+            
+            List<DeleteMessageBatchRequestEntry> entries = new ArrayList<>();
+            for (int j = 0; j < batch.size(); j++) {
+                entries.add(DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(j))
+                    .receiptHandle(batch.get(j))
+                    .build());
+            }
+            
+            DeleteMessageBatchRequest request = DeleteMessageBatchRequest.builder()
+                .queueUrl(subscriptionName)
+                .entries(entries)
+                .build();
+            
+            DeleteMessageBatchResponse response = sqsClient.deleteMessageBatch(request);
+            
+            if (!response.failed().isEmpty()) {
+                BatchResultErrorEntry firstFailure = response.failed().get(0);
+                throw new RuntimeException(
+                    "SQS DeleteMessageBatch failed for " + response.failed().size() + 
+                    " message(s): " + firstFailure.code() + ", " + firstFailure.message());
+            }
+        }
+    }
+
+    @Override
+    protected void doSendNacks(List<AckID> ackIDs) {
+        // NackLazy mode: bypass ChangeMessageVisibility call
+        // Messages will be redelivered after existing visibility timeout expires
+        if (nackLazy) {
+            return;
+        }
+        
+        List<String> receiptHandles = new ArrayList<>();
+        for (AckID ackID : ackIDs) {
+            if (ackID instanceof AwsAckID) {
+                receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
+            } else {
+                throw new IllegalArgumentException("Invalid AckID type: " + ackID.getClass());
+            }
+        }
+        
+        if (receiptHandles.isEmpty()) {
+            return;
+        }
+        
+        for (int i = 0; i < receiptHandles.size(); i += 10) {
+            int endIndex = Math.min(i + 10, receiptHandles.size());
+            List<String> batch = receiptHandles.subList(i, endIndex);
+            
+            List<ChangeMessageVisibilityBatchRequestEntry> entries = new ArrayList<>();
+            for (int j = 0; j < batch.size(); j++) {
+                entries.add(ChangeMessageVisibilityBatchRequestEntry.builder()
+                    .id(String.valueOf(j))
+                    .receiptHandle(batch.get(j))
+                    .visibilityTimeout(0) // 0 means immediate redelivery
+                    .build());
+            }
+            
+            ChangeMessageVisibilityBatchRequest request = ChangeMessageVisibilityBatchRequest.builder()
+                .queueUrl(subscriptionName)
+                .entries(entries)
+                .build();
+            
+            ChangeMessageVisibilityBatchResponse response = sqsClient.changeMessageVisibilityBatch(request);
+            
+            // Filter out ReceiptHandleIsInvalid errors (message already processed)
+            List<BatchResultErrorEntry> actualFailures = response.failed().stream()
+                .filter(failure -> !"ReceiptHandleIsInvalid".equals(failure.code()))
+                .collect(Collectors.toList());
+            
+            if (!actualFailures.isEmpty()) {
+                BatchResultErrorEntry firstFailure = actualFailures.get(0);
+                throw new RuntimeException(
+                    "SQS ChangeMessageVisibilityBatch failed for " + actualFailures.size() + 
+                    " message(s): " + firstFailure.code() + ", " + firstFailure.message());
+            }
+        }
     }
 
     @Override

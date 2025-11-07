@@ -16,7 +16,6 @@ import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Disabled;
 
 public class AwsPubsubIT extends AbstractPubsubIT {
 
@@ -26,43 +25,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     @Override
     protected Harness createHarness() {
         return new HarnessImpl();
-    }
-
-    // Disable some tests except send and receive
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testAckAfterReceive() throws Exception {
-        super.testAckAfterReceive();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testNackAfterReceive() throws Exception {
-        super.testNackAfterReceive();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testBatchAck() throws Exception {
-        super.testBatchAck();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testBatchNack() throws Exception {
-        super.testBatchNack();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testAckNullThrows() throws Exception {
-        super.testAckNullThrows();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testDoubleAck() throws Exception {
-        super.testDoubleAck();
     }
 
     public static class HarnessImpl implements Harness {

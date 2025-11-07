@@ -1,0 +1,28 @@
+{
+  "id" : "7e85b540-85c5-4282-9c4a-245e0304da55",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.DeleteMessageBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.Entries[*].ReceiptHandle"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "dbf3d9d0-ffef-50ca-9814-b8aa9da1d79b",
+      "Date" : "Tue, 28 Oct 2025 06:17:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "7e85b540-85c5-4282-9c4a-245e0304da55",
+  "persistent" : true,
+  "insertionIndex" : 46
+}

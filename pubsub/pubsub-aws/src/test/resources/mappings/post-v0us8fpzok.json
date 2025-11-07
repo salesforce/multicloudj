@@ -1,5 +1,5 @@
 {
-  "id" : "6640d1a7-00c5-4680-8861-d93623d9413c",
+  "id" : "74b37431-34d1-4814-ac5c-3732e131b0e7",
   "name" : "",
   "request" : {
     "url" : "/",
@@ -13,18 +13,20 @@
       "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue\",\"Entries\":[{\"Id\":\"0\",\"MessageBody\":\"Message 3\",\"MessageAttributes\":{\"batch-id\":{\"StringValue\":\"3\",\"DataType\":\"String\"}}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
+    }, {
+      "matchesJsonPath" : "$.Entries[*].MessageBody"
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"804069276d344d5118ff0a2cb4abfa7c\",\"MD5OfMessageBody\":\"335f063c95cf6bcca8694a36fcd51103\",\"MessageId\":\"9e918091-28c3-4182-806c-b0a2f210cfbc\"}]}",
+    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"804069276d344d5118ff0a2cb4abfa7c\",\"MD5OfMessageBody\":\"335f063c95cf6bcca8694a36fcd51103\",\"MessageId\":\"0ad49a46-a6fc-4080-bfda-68af34cfd763\"}]}",
     "headers" : {
-      "x-amzn-RequestId" : "62b871a8-f38e-5be9-9656-10dc72f4aef9",
-      "Date" : "Thu, 23 Oct 2025 19:17:14 GMT",
+      "x-amzn-RequestId" : "44410614-d448-509f-81f4-676eb603ddc6",
+      "Date" : "Tue, 28 Oct 2025 06:17:47 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "6640d1a7-00c5-4680-8861-d93623d9413c",
+  "uuid" : "74b37431-34d1-4814-ac5c-3732e131b0e7",
   "persistent" : true,
-  "insertionIndex" : 4
+  "insertionIndex" : 38
 }
