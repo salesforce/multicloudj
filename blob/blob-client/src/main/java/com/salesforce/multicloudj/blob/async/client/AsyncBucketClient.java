@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.io.File;
@@ -560,6 +561,17 @@ public class AsyncBucketClient {
         @Override
         public Builder withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
             super.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
+            return this;
+        }
+
+        /**
+         * Method to supply retry configuration
+         * @param retryConfig The retry configuration to use for retrying failed requests
+         * @return An instance of self
+         */
+        @Override
+        public Builder withRetryConfig(RetryConfig retryConfig) {
+            super.withRetryConfig(retryConfig);
             return this;
         }
 

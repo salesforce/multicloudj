@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
@@ -92,6 +93,16 @@ public class BlobClient {
          */
         public BlobClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
             this.blobClientBuilder.withCredentialsOverrider(credentialsOverrider);
+            return this;
+        }
+
+        /**
+         * Method to supply retry configuration
+         * @param retryConfig The retry configuration to use for retrying failed requests
+         * @return An instance of self
+         */
+        public BlobClientBuilder withRetryConfig(RetryConfig retryConfig) {
+            this.blobClientBuilder.withRetryConfig(retryConfig);
             return this;
         }
 

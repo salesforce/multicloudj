@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.blob.driver.TestBlobClient;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,5 +75,30 @@ public class BlobClientTest {
         doThrow(RuntimeException.class).when(mockBlobClient).listBuckets();
 
         assertThrows(UnAuthorizedException.class, () -> client.listBuckets());
+    }
+
+    @Test
+    void testBlobClientBuilderWithRetryConfig() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .maxAttempts(5)
+                .attemptTimeout(3000L)
+                .totalTimeout(10000L)
+                .build();
+
+        AbstractBlobClient.Builder mockBuilder2 = mock(AbstractBlobClient.Builder.class);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRetryConfig(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobClient);
+
+        providerSupplier.when(() -> ProviderSupplier.findBlobClientProviderBuilder("test2"))
+                .thenReturn(mockBuilder2);
+
+        BlobClient testClient = BlobClient.builder("test2")
+                .withRegion("us-east-1")
+                .withRetryConfig(retryConfig)
+                .build();
+
+        verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
+        Assertions.assertNotNull(testClient);
     }
 }
