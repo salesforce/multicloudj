@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -121,5 +122,87 @@ public class AwsBlobClientTest {
 
         cls = aws.getException(new IOException("Channel is closed"));
         assertEquals(cls, UnknownException.class);
+    }
+
+    @Test
+    void testBuildS3ClientWithExponentialRetryConfig() {
+        // Test with exponential retry config including timeouts
+        RetryConfig exponentialConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(5)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(5000L)
+                .attemptTimeout(30000L)
+                .totalTimeout(120000L)
+                .build();
+
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withRetryConfig(exponentialConfig)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithFixedRetryConfig() {
+        // Test with fixed retry config
+        RetryConfig fixedConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(3)
+                .fixedDelayMillis(500L)
+                .build();
+
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withRetryConfig(fixedConfig)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfigWithAttemptTimeout() {
+        // Test with attempt timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(2000L)
+                .attemptTimeout(10000L)
+                .build();
+
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfigWithTotalTimeout() {
+        // Test with total timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(2000L)
+                .totalTimeout(60000L)
+                .build();
+
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
     }
 }
