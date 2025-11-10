@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.13...multicloudj-v0.2.14) (2025-11-10)
+
+
+### Blob Store
+
+* fix the retry config for the bucketclient ([#135](https://github.com/salesforce/multicloudj/issues/135)) ([b3a72e4](https://github.com/salesforce/multicloudj/commit/b3a72e4178d092e257a5fa5d6580eb9beb72f715))
+
 ## [0.2.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.12...multicloudj-v0.2.13) (2025-11-06)
 
 
