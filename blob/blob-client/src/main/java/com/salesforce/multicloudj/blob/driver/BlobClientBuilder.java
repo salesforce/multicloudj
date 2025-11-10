@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
@@ -223,6 +224,16 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
      */
     public BlobClientBuilder<C, S> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
         this.storeBuilder.withTransferDirectoryMaxConcurrency(transferDirectoryMaxConcurrency);
+        return this;
+    }
+
+    /**
+     * Method to supply retry configuration
+     * @param retryConfig The retry configuration to use for retrying failed requests
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withRetryConfig(RetryConfig retryConfig) {
+        this.storeBuilder.withRetryConfig(retryConfig);
         return this;
     }
 

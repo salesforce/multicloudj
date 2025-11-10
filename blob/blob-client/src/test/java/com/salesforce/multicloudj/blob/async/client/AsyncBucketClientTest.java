@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -797,5 +798,32 @@ public class AsyncBucketClientTest {
         DirectoryDownloadResponse actualResponse = client.downloadDirectory(request).get();
         verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
         assertNull(actualResponse);
+    }
+
+    @Test
+    void testAsyncBucketClientBuilderWithRetryConfig() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .maxAttempts(5)
+                .attemptTimeout(3000L)
+                .totalTimeout(10000L)
+                .build();
+
+        AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRetryConfig(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder("test2"))
+                .thenReturn(mockBuilder2);
+
+        AsyncBucketClient testClient = AsyncBucketClient.builder("test2")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withRetryConfig(retryConfig)
+                .build();
+
+        verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
+        assertInstanceOf(AsyncBucketClient.class, testClient);
     }
 }

@@ -17,6 +17,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +88,20 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
             b.httpClient(ApacheHttpClient.builder()
                     .proxyConfiguration(proxyConfig)
                     .build());
+        }
+        if (builder.getRetryConfig() != null) {
+            // Create a temporary transformer instance for retry strategy conversion
+            AwsTransformer transformer = new AwsTransformer(null);
+            b.overrideConfiguration(config -> {
+                config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                // Set API call timeouts if provided
+                if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                    config.apiCallAttemptTimeout(Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                }
+                if (builder.getRetryConfig().getTotalTimeout() != null) {
+                    config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                }
+            });
         }
 
         return b.build();
