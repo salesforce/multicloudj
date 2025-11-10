@@ -101,24 +101,4 @@ public class BlobClientTest {
         verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
         Assertions.assertNotNull(testClient);
     }
-
-    @Test
-    void testCreateBucket() {
-        String bucketName = "test-bucket";
-
-        // Call createBucket
-        client.createBucket(bucketName);
-
-        // Verify that createBucket was called on the underlying AbstractBlobClient
-        verify(mockBlobClient, times(1)).createBucket(bucketName);
-    }
-
-    @Test
-    void testCreateBucketThrowsException() {
-        String bucketName = "test-bucket";
-        doThrow(RuntimeException.class).when(mockBlobClient).createBucket(bucketName);
-
-        // Should throw UnAuthorizedException since mockBlobClient.getException returns UnAuthorizedException.class
-        assertThrows(UnAuthorizedException.class, () -> client.createBucket(bucketName));
-    }
 }

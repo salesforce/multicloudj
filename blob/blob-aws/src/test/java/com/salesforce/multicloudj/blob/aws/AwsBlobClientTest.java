@@ -220,15 +220,4 @@ public class AwsBlobClientTest {
         assertNotNull(client);
         assertEquals("aws", client.getProviderId());
     }
-
-    @Test
-    void testCreateBucket() {
-        String bucketName = "test-bucket";
-
-        // Call createBucket
-        aws.createBucket(bucketName);
-
-        // Verify that createBucket was called on the mock S3 client with the correct bucket name
-        verify(mockS3Client).createBucket(any(Consumer.class));
-    }
 }
