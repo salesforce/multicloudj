@@ -153,13 +153,6 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    protected void validateAckIDType(AckID ackID) {
-        if (!(ackID instanceof AwsAckID)) {
-            throw new InvalidArgumentException("Expected AwsAckID, got: " + ackID.getClass().getSimpleName());
-        }
-    }
-
-    @Override
     protected List<Message> doReceiveBatch(int batchSize) {
         ReceiveMessageRequest.Builder requestBuilder = ReceiveMessageRequest.builder()
             .queueUrl(subscriptionName)
