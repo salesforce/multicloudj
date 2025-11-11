@@ -71,11 +71,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     protected void doSendAcks(List<AckID> ackIDs) {
         List<String> receiptHandles = new ArrayList<>();
         for (AckID ackID : ackIDs) {
-            if (ackID instanceof AwsAckID) {
-                receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
-            } else {
-                throw new IllegalArgumentException("Invalid AckID type: " + ackID.getClass());
-            }
+            receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
         }
         
         if (receiptHandles.isEmpty()) {
@@ -85,16 +81,13 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         // SQS supports max 10 messages per batch operation
         for (int i = 0; i < receiptHandles.size(); i += 10) {
             int endIndex = Math.min(i + 10, receiptHandles.size());
-            List<String> batch = receiptHandles.subList(i, endIndex);
-            
             List<DeleteMessageBatchRequestEntry> entries = new ArrayList<>();
-            for (int j = 0; j < batch.size(); j++) {
+            for (int j = i; j < endIndex; j++) {
                 entries.add(DeleteMessageBatchRequestEntry.builder()
-                    .id(String.valueOf(j))
-                    .receiptHandle(batch.get(j))
+                    .id(String.valueOf(j - i))
+                    .receiptHandle(receiptHandles.get(j))
                     .build());
             }
-            
             DeleteMessageBatchRequest request = DeleteMessageBatchRequest.builder()
                 .queueUrl(subscriptionName)
                 .entries(entries)
@@ -104,7 +97,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             
             if (!response.failed().isEmpty()) {
                 BatchResultErrorEntry firstFailure = response.failed().get(0);
-                throw new RuntimeException(
+                throw new SubstrateSdkException(
                     "SQS DeleteMessageBatch failed for " + response.failed().size() + 
                     " message(s): " + firstFailure.code() + ", " + firstFailure.message());
             }
@@ -121,11 +114,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         
         List<String> receiptHandles = new ArrayList<>();
         for (AckID ackID : ackIDs) {
-            if (ackID instanceof AwsAckID) {
-                receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
-            } else {
-                throw new IllegalArgumentException("Invalid AckID type: " + ackID.getClass());
-            }
+            receiptHandles.add(((AwsAckID) ackID).getReceiptHandle());
         }
         
         if (receiptHandles.isEmpty()) {
@@ -134,17 +123,14 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         
         for (int i = 0; i < receiptHandles.size(); i += 10) {
             int endIndex = Math.min(i + 10, receiptHandles.size());
-            List<String> batch = receiptHandles.subList(i, endIndex);
-            
             List<ChangeMessageVisibilityBatchRequestEntry> entries = new ArrayList<>();
-            for (int j = 0; j < batch.size(); j++) {
+            for (int j = i; j < endIndex; j++) {
                 entries.add(ChangeMessageVisibilityBatchRequestEntry.builder()
-                    .id(String.valueOf(j))
-                    .receiptHandle(batch.get(j))
+                    .id(String.valueOf(j - i))
+                    .receiptHandle(receiptHandles.get(j))
                     .visibilityTimeout(0) // 0 means immediate redelivery
                     .build());
             }
-            
             ChangeMessageVisibilityBatchRequest request = ChangeMessageVisibilityBatchRequest.builder()
                 .queueUrl(subscriptionName)
                 .entries(entries)
@@ -159,10 +145,17 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             
             if (!actualFailures.isEmpty()) {
                 BatchResultErrorEntry firstFailure = actualFailures.get(0);
-                throw new RuntimeException(
+                throw new SubstrateSdkException(
                     "SQS ChangeMessageVisibilityBatch failed for " + actualFailures.size() + 
                     " message(s): " + firstFailure.code() + ", " + firstFailure.message());
             }
+        }
+    }
+
+    @Override
+    protected void validateAckIDType(AckID ackID) {
+        if (!(ackID instanceof AwsAckID)) {
+            throw new InvalidArgumentException("Expected AwsAckID, got: " + ackID.getClass().getSimpleName());
         }
     }
 

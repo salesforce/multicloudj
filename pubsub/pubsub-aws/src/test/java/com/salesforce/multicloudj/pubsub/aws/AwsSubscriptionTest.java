@@ -628,24 +628,6 @@ public class AwsSubscriptionTest {
     }
 
     @Test
-    void testDoSendAcks_InvalidAckIDType() {
-        subscription = builder.build();
-        AckID invalidAckID = new AckID() {
-            @Override
-            public String toString() {
-                return "invalid";
-            }
-        };
-        List<AckID> ackIDs = Arrays.asList(invalidAckID);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            subscription.doSendAcks(ackIDs);
-        });
-
-        assertTrue(exception.getMessage().contains("Invalid AckID type"));
-    }
-
-    @Test
     void testDoSendAcks_BatchFailure() {
         subscription = builder.build();
         List<AckID> ackIDs = Arrays.asList(
@@ -740,24 +722,6 @@ public class AwsSubscriptionTest {
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
 
         verify(mockSqsClient, never()).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
-    }
-
-    @Test
-    void testDoSendNacks_InvalidAckIDType() {
-        subscription = builder.build();
-        AckID invalidAckID = new AckID() {
-            @Override
-            public String toString() {
-                return "invalid";
-            }
-        };
-        List<AckID> ackIDs = Arrays.asList(invalidAckID);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            subscription.doSendNacks(ackIDs);
-        });
-
-        assertTrue(exception.getMessage().contains("Invalid AckID type"));
     }
 
     @Test
