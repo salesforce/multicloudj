@@ -20,7 +20,7 @@ import java.util.Optional;
  * and policies across different cloud providers including AWS IAM, GCP IAM, and
  * AliCloud RAM.
  */
-public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider, Identity {
+public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider, Identity, AutoCloseable {
     private final String providerId;
     protected final String region;
     protected final CredentialsOverrider credentialsOverrider;

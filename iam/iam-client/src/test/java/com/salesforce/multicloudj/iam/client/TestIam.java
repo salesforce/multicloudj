@@ -91,5 +91,10 @@ public class TestIam extends AbstractIam<TestIam> {
             return new TestIam(this);
         }
     }
+
+    @Override
+    public void close() throws Exception {
+
+    }
 }
 
