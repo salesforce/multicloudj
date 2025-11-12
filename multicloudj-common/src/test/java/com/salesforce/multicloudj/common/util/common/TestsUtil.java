@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.recordSpec;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUST_BODY_OVER;
@@ -48,9 +49,12 @@ public class TestsUtil {
                 // See if any of the existing body patterns exceed our length limit
                 for(ContentPattern<?> pattern : bodyPatterns) {
                     if(pattern.getExpected().length() > truncateMatcherRequestBodyOver){
-                        // We've exceeded our desired matcher length, so truncate it
+                        // We've exceeded our desired matcher length, so truncate it.
+                        // The truncated substring may start with regex metacharacters like '{',
+                        // so we must escape it before constructing a RegexPattern.
                         String truncatedString = pattern.getExpected().substring(0, truncateMatcherRequestBodyOver);
-                        newPatterns.add(new RegexPattern("^" + truncatedString +"*"));
+                        String escaped = Pattern.quote(truncatedString);
+                        newPatterns.add(new RegexPattern("^" + escaped + ".*"));
                     }
                 }
 
