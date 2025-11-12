@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "etag": "BwZFBdwl98Y=",
+  "bindings": [{
+    "role": "roles/iam.serviceAccountTokenCreator",
+    "members": ["serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com"]
+  }]
+}
