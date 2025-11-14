@@ -20,7 +20,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AwsPubsubIT extends AbstractPubsubIT {
 
     private static final String SQS_ENDPOINT = "https://sqs.us-west-2.amazonaws.com";
-    private static final String TEST_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/654654370895/test-queue";
+    private static final String TEST_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/654654370895/testQueue";
 
     @Override
     protected Harness createHarness() {
