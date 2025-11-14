@@ -36,32 +36,6 @@ public class AbstractSubscriptionTest {
         }
     }
 
-    private static class TestAckID implements AckID {
-        private final String id;
-
-        TestAckID(String id) {
-            this.id = id;
-        }
-
-        @Override
-        public String toString() {
-            return id;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-            TestAckID testAckID = (TestAckID) obj;
-            return id != null ? id.equals(testAckID.id) : testAckID.id == null;
-        }
-
-        @Override
-        public int hashCode() {
-            return id != null ? id.hashCode() : 0;
-        }
-    }
-
     // Mock external message source that simulates a real pub/sub service
     private static class MockMessageSource {
         private final Queue<Message> availableMessages = new ArrayDeque<>();
@@ -116,10 +90,10 @@ public class AbstractSubscriptionTest {
         }
 
         @Override
-        protected void doSendAcks(List<AckID> ackIDs) { }
+        protected void doSendAcks(List<String> ackIDs) { }
 
         @Override
-        protected void doSendNacks(List<AckID> ackIDs) { }
+        protected void doSendNacks(List<String> ackIDs) { }
 
         @Override
         protected Batcher.Options createAckBatcherOptions() {
@@ -244,7 +218,7 @@ public class AbstractSubscriptionTest {
         TestSubscription sub = new TestSubscription(source);
 
         // sendAcks should throw exception for null AckID in list
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
         ackIDs.add(null);
         
         assertThrows(InvalidArgumentException.class, () -> sub.sendAcks(ackIDs));
@@ -267,7 +241,7 @@ public class AbstractSubscriptionTest {
         TestSubscription sub = new TestSubscription(source);
 
         // Create a mock AckID
-        AckID mockAckID = new TestAckID("test-ack-id");
+        String mockAckID = "test-ack-id";
 
         // sendAck should not throw exception for valid AckID
         assertDoesNotThrow(() -> sub.sendAck(mockAckID));
@@ -279,10 +253,7 @@ public class AbstractSubscriptionTest {
         TestSubscription sub = new TestSubscription(source);
 
         // Create mock AckIDs
-        List<AckID> ackIDs = List.of(
-            new TestAckID("test-ack-id-1"),
-            new TestAckID("test-ack-id-2")
-        );
+        List<String> ackIDs = List.of("test-ack-id-1", "test-ack-id-2");
 
         // sendAcks should return completed future for valid AckIDs
         CompletableFuture<Void> future = sub.sendAcks(ackIDs);
@@ -408,7 +379,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackWithValidAckID() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
+        String ackID = "test-ack-id";
         
         assertDoesNotThrow(() -> testSubscription.sendNack(ackID));
     }
@@ -425,10 +396,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithValidAckIDs() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(
-            new TestAckID("test-ack-id-1"),
-            new TestAckID("test-ack-id-2")
-        );
+        List<String> ackIDs = Arrays.asList("test-ack-id-1", "test-ack-id-2");
         
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
     }
@@ -445,7 +413,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithEmptyList() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> emptyList = Collections.emptyList();
+        List<String> emptyList = Collections.emptyList();
         
         CompletableFuture<Void> future = testSubscription.sendNacks(emptyList);
         assertTrue(future.isDone());
@@ -455,11 +423,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithNullAckIDInList() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(
-            new TestAckID("test-ack-id-1"),
-            null,
-            new TestAckID("test-ack-id-2")
-        );
+        List<String> ackIDs = Arrays.asList("test-ack-id-1", null, "test-ack-id-2");
         
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
             () -> testSubscription.sendNacks(ackIDs));
@@ -469,7 +433,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithSingleAckID() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id"));
+        List<String> ackIDs = Arrays.asList("test-ack-id");
         
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
     }
@@ -477,9 +441,9 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithLargeList() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
-            ackIDs.add(new TestAckID("test-ack-id-" + i));
+            ackIDs.add("test-ack-id-" + i);
         }
         
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
@@ -499,7 +463,7 @@ public class AbstractSubscriptionTest {
             new Thread(() -> {
                 try {
                     for (int j = 0; j < acksPerThread; j++) {
-                        List<AckID> ackIDs = Arrays.asList(new TestAckID("thread-" + threadId + "-ack-" + j));
+                        List<String> ackIDs = Arrays.asList("thread-" + threadId + "-ack-" + j);
                         testSubscription.sendNacks(ackIDs);
                     }
                 } catch (Exception e) {
@@ -517,7 +481,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackAndSendNacksConsistency() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
+        String ackID = "test-ack-id";
         
         // Both methods should work with the same AckID
         assertDoesNotThrow(() -> testSubscription.sendNack(ackID));
@@ -527,7 +491,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackAfterSubscriptionClose() throws Exception {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
+        String ackID = "test-ack-id";
         
         testSubscription.close();
         
@@ -537,7 +501,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksAfterSubscriptionClose() throws Exception {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id"));
+        List<String> ackIDs = Arrays.asList("test-ack-id");
         
         testSubscription.close();
         
@@ -548,8 +512,8 @@ public class AbstractSubscriptionTest {
     void testSendNackWithDifferentAckIDTypes() {
         TestSubscription testSubscription = new TestSubscription();
         
-        AckID ackID1 = new TestAckID("test-ack-id-1");
-        AckID ackID2 = new TestAckID("test-ack-id-2");
+        String ackID1 = "test-ack-id-1";
+        String ackID2 = "test-ack-id-2";
         
         assertDoesNotThrow(() -> testSubscription.sendNack(ackID1));
         assertDoesNotThrow(() -> testSubscription.sendNack(ackID2));
@@ -558,10 +522,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithMixedAckIDTypes() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(
-            new TestAckID("test-ack-id-1"),
-            new TestAckID("test-ack-id-2")
-        );
+        List<String> ackIDs = Arrays.asList("test-ack-id-1", "test-ack-id-2");
         
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
     }
@@ -570,7 +531,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksReturnValue() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id"));
+        List<String> ackIDs = Arrays.asList("test-ack-id");
         
         CompletableFuture<Void> future = testSubscription.sendNacks(ackIDs);
         
@@ -582,7 +543,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithEmptyListReturnValue() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> emptyList = Collections.emptyList();
+        List<String> emptyList = Collections.emptyList();
         
         CompletableFuture<Void> future = testSubscription.sendNacks(emptyList);
         
@@ -593,7 +554,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackAndSendAckConsistency() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
+        String ackID = "test-ack-id";
         
         // Both ack and nack should work with the same AckID
         assertDoesNotThrow(() -> testSubscription.sendAck(ackID));
@@ -603,7 +564,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksAndSendAcksConsistency() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id"));
+        List<String> ackIDs = Arrays.asList("test-ack-id");
         
         // Both acks and nacks should work with the same AckID list
         assertDoesNotThrow(() -> testSubscription.sendAcks(ackIDs));
@@ -615,7 +576,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackWithSameAckIDMultipleTimes() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
+        String ackID = "test-ack-id";
         
         // Send the same AckID multiple times - should not throw exception
         assertDoesNotThrow(() -> testSubscription.sendNack(ackID));
@@ -626,8 +587,8 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithSameAckIDMultipleTimes() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID ackID = new TestAckID("test-ack-id");
-        List<AckID> ackIDs = Arrays.asList(ackID);
+        String ackID = "test-ack-id";
+        List<String> ackIDs = Arrays.asList(ackID);
         
         // Send the same AckID multiple times - should not throw exception
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
@@ -638,7 +599,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackWithNullAckIDAfterValidAckID() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID validAckID = new TestAckID("valid-ack-id");
+        String validAckID = "valid-ack-id";
         
         // First send a valid nack
         assertDoesNotThrow(() -> testSubscription.sendNack(validAckID));
@@ -650,7 +611,7 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithNullAckIDAfterValidAckIDs() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> validAckIDs = Arrays.asList(new TestAckID("valid-ack-id"));
+        List<String> validAckIDs = Arrays.asList("valid-ack-id");
         
         // First send valid nacks
         assertDoesNotThrow(() -> testSubscription.sendNacks(validAckIDs));
@@ -662,11 +623,8 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNackAndSendNacksMixedUsage() {
         TestSubscription testSubscription = new TestSubscription();
-        AckID singleAckID = new TestAckID("single-ack-id");
-        List<AckID> multipleAckIDs = Arrays.asList(
-            new TestAckID("multiple-ack-id-1"),
-            new TestAckID("multiple-ack-id-2")
-        );
+        String singleAckID = "single-ack-id";
+        List<String> multipleAckIDs = Arrays.asList("multiple-ack-id-1", "multiple-ack-id-2");
         
         // Mix single and multiple nack calls
         assertDoesNotThrow(() -> testSubscription.sendNack(singleAckID));

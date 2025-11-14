@@ -22,7 +22,6 @@ import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.google.auto.service.AutoService;
 import com.google.api.gax.rpc.ApiException;
@@ -120,56 +119,34 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
 
     @Override
-    protected void doSendAcks(List<AckID> ackIDs) {
-            List<String> ackIds = new ArrayList<>();
-            for (AckID ackID : ackIDs) {
-                ackIds.add(ackID.toString());
-            }
-            
-            AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
-                .setSubscription(subscriptionName)
-                .addAllAckIds(ackIds)
-                .build();
-            
+    protected void doSendAcks(List<String> ackIDs) {
+        AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
+            .setSubscription(subscriptionName)
+            .addAllAckIds(ackIDs)
+            .build();
+        
         getOrCreateSubscriptionAdminClient().acknowledgeCallable().call(request);
     }
     
     @Override
-    protected void doSendNacks(List<AckID> ackIDs) {
-            // NackLazy mode: bypass ModifyAckDeadline call
-            // Messages will be redelivered after existing ack deadline expires
-            if (nackLazy) {
-                return;
-            }
-            // Normal mode: immediate redelivery by setting deadline to 0
-            List<String> ackIds = new ArrayList<>();
-            for (AckID ackID : ackIDs) {
-                ackIds.add(ackID.toString());
-            }
-            
-            if (ackIds.isEmpty()) {
-                return;
-            }
-            
-            ModifyAckDeadlineRequest request = ModifyAckDeadlineRequest.newBuilder()
-                .setSubscription(subscriptionName)
-                .addAllAckIds(ackIds)
-                .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
-                .build();
-            
-        getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
-    }
-    
-    @Override
-    protected void validateAckIDType(AckID ackID) {
-        // For GCP, we validate that the AckID is not null and is a GcpAckID
-        if (ackID == null) {
-            throw new InvalidArgumentException("AckID cannot be null");
+    protected void doSendNacks(List<String> ackIDs) {
+        // NackLazy mode: bypass ModifyAckDeadline call
+        // Messages will be redelivered after existing ack deadline expires
+        if (nackLazy) {
+            return;
+        }
+        // Normal mode: immediate redelivery by setting deadline to 0
+        if (ackIDs.isEmpty()) {
+            return;
         }
         
-        if (!(ackID instanceof GcpAckID)) {
-            throw new InvalidArgumentException("Expected GcpAckID, got: " + ackID.getClass().getSimpleName());
-        }
+        ModifyAckDeadlineRequest request = ModifyAckDeadlineRequest.newBuilder()
+            .setSubscription(subscriptionName)
+            .addAllAckIds(ackIDs)
+            .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
+            .build();
+        
+        getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
     }
     
     @Override
@@ -288,33 +265,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         PubsubMessage pubsubMessage = receivedMessage.getMessage();
         String ackId = receivedMessage.getAckId();
         
-        AckID ackID = new GcpAckID(ackId);
-        
         return Message.builder()
                 .withBody(pubsubMessage.getData().toByteArray())
                 .withMetadata(pubsubMessage.getAttributesMap())
-                .withAckID(ackID)
+                .withAckID(ackId)
                 .withLoggableID(pubsubMessage.getMessageId())
                 .build();
-    }
-    
-    /**
-     * GCP-specific implementation of AckID that wraps the acknowledgment ID string.
-     */
-    public static class GcpAckID implements AckID {
-        private final String ackId;
-        
-        public GcpAckID(String ackId) {
-            if (ackId == null || ackId.trim().isEmpty()) {
-                throw new IllegalArgumentException("AckID string cannot be null or empty");
-            }
-            this.ackId = ackId;
-        }
-        
-        @Override
-        public String toString() {
-            return ackId;
-        }
     }
 
     public static class Builder extends AbstractSubscription.Builder<GcpSubscription> {

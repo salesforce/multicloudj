@@ -297,7 +297,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * 
      * @param ackID the acknowledgment identifier
      */
-    public void sendAck(AckID ackID) {
+    public void sendAck(String ackID) {
         if (isShutdown.get()) {
             throw new FailedPreconditionException("Subscription has been shut down");
         }
@@ -307,8 +307,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             permanentError.set(error);
             throw error;
         }
-        
-        validateAckIDType(ackID);
         
         ackBatcher.addNoWait(new AckInfo(ackID, true));
     }
@@ -322,7 +320,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * @param ackIDs the list of acknowledgment identifiers
      * @return a CompletableFuture that completes when acknowledgments are enqueued
      */
-    public CompletableFuture<Void> sendAcks(List<AckID> ackIDs) {
+    public CompletableFuture<Void> sendAcks(List<String> ackIDs) {
         if (isShutdown.get()) {
             throw new FailedPreconditionException("Subscription has been shut down");
         }
@@ -331,16 +329,15 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             return CompletableFuture.completedFuture(null);
         }
         
-        for (AckID ackID : ackIDs) {
+        for (String ackID : ackIDs) {
             if (ackID == null) {
                 RuntimeException error = new InvalidArgumentException("AckID cannot be null in batch acknowledgment");
                 permanentError.set(error);
                 throw error;
             }
-            validateAckIDType(ackID);
         }
         
-        for (AckID ackID : ackIDs) {
+        for (String ackID : ackIDs) {
             ackBatcher.addNoWait(new AckInfo(ackID, true));
         }
         
@@ -354,7 +351,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * @throws InvalidArgumentException if ackID is null
      * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
      */
-    public void sendNack(AckID ackID) {
+    public void sendNack(String ackID) {
         if (isShutdown.get()) {
             throw new FailedPreconditionException("Subscription has been shut down");
         }
@@ -365,7 +362,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             throw error;
         }
         
-        validateAckIDType(ackID);
         ackBatcher.addNoWait(new AckInfo(ackID, false));
     }
     
@@ -377,7 +373,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
      * @throws InvalidArgumentException if ackIDs is null or contains null elements
      * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
      */
-    public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
+    public CompletableFuture<Void> sendNacks(List<String> ackIDs) {
         if (isShutdown.get()) {
             throw new FailedPreconditionException("Subscription has been shut down");
         }
@@ -392,16 +388,15 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             return CompletableFuture.completedFuture(null);
         }
         
-        for (AckID ackID : ackIDs) {
+        for (String ackID : ackIDs) {
             if (ackID == null) {
                 RuntimeException error = new InvalidArgumentException("AckID cannot be null in batch negative acknowledgment");
                 permanentError.set(error);
                 throw error;
             }
-            validateAckIDType(ackID);
         }
         
-        for (AckID ackID : ackIDs) {
+        for (String ackID : ackIDs) {
             ackBatcher.addNoWait(new AckInfo(ackID, false));
         }
         
@@ -412,9 +407,8 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     public abstract boolean isRetryable(Throwable error);
     public abstract GetAttributeResult getAttributes();
     
-    protected abstract void doSendAcks(List<AckID> ackIDs);
-    protected abstract void doSendNacks(List<AckID> ackIDs);
-    protected void validateAckIDType(AckID ackID) {}
+    protected abstract void doSendAcks(List<String> ackIDs);
+    protected abstract void doSendNacks(List<String> ackIDs);
     protected abstract Batcher.Options createAckBatcherOptions();
     
     /**
@@ -426,8 +420,8 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             return null;
         }
 
-        List<AckID> acks = new ArrayList<>();
-        List<AckID> nacks = new ArrayList<>();
+        List<String> acks = new ArrayList<>();
+        List<String> nacks = new ArrayList<>();
             
         for (AckInfo info : ackInfos) {
             if (info.isAck()) {

@@ -14,7 +14,7 @@ public class Message {
     private String loggableID;
     private byte[] body;
     private Map<String, String> metadata;
-    private AckID ackID;
+    private String ackID;
     private Function<Object, Boolean> asFunc;
     private Function<Function<Object, Boolean>, Exception> beforeSend;
     private Function<Function<Object, Boolean>, Exception> afterSend;
@@ -56,7 +56,7 @@ public class Message {
      * 
      * @return The ack ID, or null if not set
      */
-    public AckID getAckID() {
+    public String getAckID() {
         return ackID;
     }
 
@@ -141,7 +141,7 @@ public class Message {
          * @param ackID The acknowledgment ID
          * @return This builder instance
          */
-        public Builder withAckID(AckID ackID) {
+        public Builder withAckID(String ackID) {
             message.ackID = ackID;
             return this;
         }

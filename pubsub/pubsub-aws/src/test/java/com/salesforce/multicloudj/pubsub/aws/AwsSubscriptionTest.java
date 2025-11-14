@@ -6,7 +6,6 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -223,38 +222,6 @@ public class AwsSubscriptionTest {
     }
 
     @Test
-    void testAwsAckID_ValidReceiptHandle() {
-        String receiptHandle = "test-receipt-handle";
-
-        AwsSubscription.AwsAckID ackID = new AwsSubscription.AwsAckID(receiptHandle);
-
-        assertNotNull(ackID);
-        assertEquals(receiptHandle, ackID.getReceiptHandle());
-        assertEquals(receiptHandle, ackID.toString());
-    }
-
-    @Test
-    void testAwsAckID_NullReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID(null);
-        });
-    }
-
-    @Test
-    void testAwsAckID_EmptyReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID("");
-        });
-    }
-
-    @Test
-    void testAwsAckID_BlankReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID("   ");
-        });
-    }
-
-    @Test
     void testCanNack() {
         subscription = builder.build();
 
@@ -287,7 +254,7 @@ public class AwsSubscriptionTest {
     @Test
     void testSendAck() {
         subscription = builder.build();
-        AckID ackID = new AwsSubscription.AwsAckID("test-receipt-handle");
+        String ackID = "test-receipt-handle";
 
         assertDoesNotThrow(() -> subscription.sendAck(ackID));
     }
@@ -295,10 +262,7 @@ public class AwsSubscriptionTest {
     @Test
     void testSendAcks() {
         subscription = builder.build();
-        List<AckID> ackIDs = Arrays.asList(
-                new AwsSubscription.AwsAckID("receipt-1"),
-                new AwsSubscription.AwsAckID("receipt-2")
-        );
+        List<String> ackIDs = Arrays.asList("receipt-1", "receipt-2");
 
         CompletableFuture<Void> result = subscription.sendAcks(ackIDs);
 
@@ -308,7 +272,7 @@ public class AwsSubscriptionTest {
     @Test
     void testSendNack() {
         subscription = builder.build();
-        AckID ackID = new AwsSubscription.AwsAckID("test-receipt-handle");
+        String ackID = "test-receipt-handle";
 
         assertDoesNotThrow(() -> subscription.sendNack(ackID));
     }
@@ -316,10 +280,7 @@ public class AwsSubscriptionTest {
     @Test
     void testSendNacks() {
         subscription = builder.build();
-        List<AckID> ackIDs = Arrays.asList(
-                new AwsSubscription.AwsAckID("receipt-1"),
-                new AwsSubscription.AwsAckID("receipt-2")
-        );
+        List<String> ackIDs = Arrays.asList("receipt-1", "receipt-2");
 
         CompletableFuture<Void> result = subscription.sendNacks(ackIDs);
 
@@ -376,7 +337,7 @@ public class AwsSubscriptionTest {
         assertEquals("test message body", new String(result.getBody()));
         assertEquals("test-message-id", result.getLoggableID());
         assertNotNull(result.getAckID());
-        assertEquals("test-receipt-handle", result.getAckID().toString());
+        assertEquals("test-receipt-handle", result.getAckID());
         assertEquals("value1", result.getMetadata().get("key1"));
         assertEquals("value2", result.getMetadata().get("key2"));
     }
@@ -599,9 +560,9 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendAcks_Success() {
         subscription = builder.build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1"),
-            new AwsSubscription.AwsAckID("receipt-2")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1",
+            "receipt-2"
         );
 
         DeleteMessageBatchResponse mockResponse = DeleteMessageBatchResponse.builder()
@@ -620,7 +581,7 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendAcks_EmptyList() {
         subscription = builder.build();
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
 
         assertDoesNotThrow(() -> subscription.doSendAcks(ackIDs));
 
@@ -630,8 +591,8 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendAcks_BatchFailure() {
         subscription = builder.build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1"
         );
 
         BatchResultErrorEntry errorEntry = BatchResultErrorEntry.builder()
@@ -660,9 +621,9 @@ public class AwsSubscriptionTest {
     void testDoSendAcks_LargeBatch() {
         subscription = builder.build();
         // Create 15 ackIDs to test batching (should split into 2 batches of 10 and 5)
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
         for (int i = 0; i < 15; i++) {
-            ackIDs.add(new AwsSubscription.AwsAckID("receipt-" + i));
+            ackIDs.add("receipt-" + i);
         }
 
         DeleteMessageBatchResponse mockResponse = DeleteMessageBatchResponse.builder()
@@ -682,9 +643,9 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_Success() {
         subscription = builder.withNackLazy(false).build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1"),
-            new AwsSubscription.AwsAckID("receipt-2")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1",
+            "receipt-2"
         );
 
         ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
@@ -703,9 +664,9 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_NackLazyMode() {
         subscription = builder.withNackLazy(true).build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1"),
-            new AwsSubscription.AwsAckID("receipt-2")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1",
+            "receipt-2"
         );
 
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
@@ -717,7 +678,7 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_EmptyList() {
         subscription = builder.build();
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
 
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
 
@@ -727,8 +688,8 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_BatchFailure() {
         subscription = builder.withNackLazy(false).build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1"
         );
 
         BatchResultErrorEntry errorEntry = BatchResultErrorEntry.builder()
@@ -756,8 +717,8 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_ReceiptHandleIsInvalid_Ignored() {
         subscription = builder.withNackLazy(false).build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1"
         );
 
         // ReceiptHandleIsInvalid should be filtered out and not cause an exception
@@ -784,9 +745,9 @@ public class AwsSubscriptionTest {
     @Test
     void testDoSendNacks_MixedFailures_ReceiptHandleIsInvalidFiltered() {
         subscription = builder.withNackLazy(false).build();
-        List<AckID> ackIDs = Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1"),
-            new AwsSubscription.AwsAckID("receipt-2")
+        List<String> ackIDs = Arrays.asList(
+            "receipt-1",
+            "receipt-2"
         );
 
         BatchResultErrorEntry ignoredError = BatchResultErrorEntry.builder()
@@ -822,9 +783,9 @@ public class AwsSubscriptionTest {
     void testDoSendNacks_LargeBatch() {
         subscription = builder.withNackLazy(false).build();
         // Create 25 ackIDs to test batching (should split into 3 batches of 10, 10, and 5)
-        List<AckID> ackIDs = new ArrayList<>();
+        List<String> ackIDs = new ArrayList<>();
         for (int i = 0; i < 25; i++) {
-            ackIDs.add(new AwsSubscription.AwsAckID("receipt-" + i));
+            ackIDs.add("receipt-" + i);
         }
 
         ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
