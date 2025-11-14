@@ -2,8 +2,10 @@ package com.salesforce.multicloudj.common.gcp.util;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import io.grpc.ManagedChannelBuilder;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -113,6 +115,27 @@ public class TestsUtilGcp {
         // Create and return channel provider using configured transport
         return InstantiatingHttpJsonChannelProvider.newBuilder()
                 .setHttpTransport(getHttpTransport(port))
+                .build();
+    }
+
+    /**
+     * Gets a gRPC transport channel provider configured with a proxy to the WireMock server.
+     * This allows gRPC traffic to be intercepted for testing.
+     * 
+     * Note: WireMock does not natively support gRPC protocol. This method is provided for
+     * completeness but may require additional configuration or a gRPC-compatible proxy.
+     *
+     * @param port The base port for WireMock (proxy will use port+1)
+     * @param endpoint The gRPC endpoint to connect to
+     * @return A configured TransportChannelProvider for gRPC
+     */
+    public static TransportChannelProvider getGrpcTransportChannelProvider(int port, String endpoint) {
+        // For gRPC, we need to use a plain text channel through the proxy
+        // Note: This is a simplified implementation. Full gRPC proxying through WireMock
+        // requires additional setup or a gRPC-aware proxy.
+        return InstantiatingGrpcChannelProvider.newBuilder()
+                .setEndpoint(WIREMOCK_HOST + ":" + port)
+                .setChannelConfigurator(ManagedChannelBuilder::usePlaintext)
                 .build();
     }
 

@@ -22,10 +22,24 @@ import java.util.concurrent.ThreadLocalRandom;
  * Integration tests for GcpIam.
  * 
  * <p>This test class follows the conformance testing pattern used across the MultiCloudJ project.
- * It uses WireMock for recording and replaying HTTP interactions with GCP IAM API.
  * 
- * <p>To record new test interactions, run with -Drecord system property.
- * Otherwise, tests will replay from recorded mappings in src/test/resources.
+ * <p><b>Important Note:</b> GCP IAM Admin API uses gRPC protocol, which WireMock does not
+ * natively support. Therefore:
+ * <ul>
+ *   <li>Recording mode (-Drecord) works by connecting directly to real GCP APIs</li>
+ *   <li>Replay mode is not yet implemented and will fail</li>
+ *   <li>Integration tests are skipped by default in the pom.xml</li>
+ * </ul>
+ * 
+ * <p>To run these tests, you must:
+ * <ol>
+ *   <li>Have valid GCP credentials configured (Application Default Credentials)</li>
+ *   <li>Have access to the test project (substrate-sdk-gcp-poc1)</li>
+ *   <li>Run with: {@code mvn test -DskipITs=false -Drecord -Dtest=GcpIamIT -pl iam/iam-gcp}</li>
+ * </ol>
+ * 
+ * <p>Future work: Implement gRPC mocking using grpc-mock, in-process gRPC server,
+ * or a gRPC-aware proxy solution.
  */
 public class GcpIamIT extends AbstractIamIT {
     
@@ -51,21 +65,23 @@ public class GcpIamIT extends AbstractIamIT {
         public AbstractIam<?> createIamDriver() {
             boolean isRecordingEnabled = System.getProperty("record") != null;
             
-            // Transport channel provider to WireMock proxy
-            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
-            IAMSettings.Builder settingsBuilder = IAMSettings.newBuilder()
-                    .setTransportChannelProvider(channelProvider);
-            
             try {
                 if (isRecordingEnabled) {
                     // Live recording path – rely on real ADC
-                    client = IAMClient.create(settingsBuilder.build());
+                    // Note: GCP IAM Admin API uses gRPC, which WireMock doesn't support natively.
+                    // For recording, we connect directly to the real GCP API.
+                    client = IAMClient.create();
                     return new GcpIam(new GcpIam.Builder(), client);
                 } else {
                     // Replay path - inject mock credentials
+                    // Note: Since WireMock doesn't support gRPC, replay mode is not yet implemented.
+                    // This will fail with "Transport not supported: httpjson" error.
+                    // TODO: Implement gRPC mocking solution (e.g., using grpc-mock or in-process server)
                     GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
-                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
-                    client = IAMClient.create(settingsBuilder.build());
+                    IAMSettings settings = IAMSettings.newBuilder()
+                            .setCredentialsProvider(FixedCredentialsProvider.create(mockCreds))
+                            .build();
+                    client = IAMClient.create(settings);
                     return new GcpIam(new GcpIam.Builder(), client);
                 }
             } catch (IOException e) {
