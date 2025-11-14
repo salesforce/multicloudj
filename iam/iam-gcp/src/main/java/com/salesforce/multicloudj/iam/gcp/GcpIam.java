@@ -63,29 +63,29 @@ public class GcpIam extends AbstractIam<GcpIam> {
                                       Optional<CreateOptions> options) {
         try {
             // Build the project resource name in the format "projects/{project-id}"
-            String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
+            final String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
             
             // Create the service account
-            ServiceAccount serviceAccount = ServiceAccount.newBuilder()
+            final ServiceAccount serviceAccount = ServiceAccount.newBuilder()
                     .setDisplayName(identityName)
                     .setDescription(description != null ? description : "")
                     .build();
             
-            CreateServiceAccountRequest createRequest = CreateServiceAccountRequest.newBuilder()
+            final CreateServiceAccountRequest createRequest = CreateServiceAccountRequest.newBuilder()
                     .setName(projectName)
                     .setAccountId(identityName)
                     .setServiceAccount(serviceAccount)
                     .build();
             
-            ServiceAccount createdServiceAccount = iamClient.createServiceAccount(createRequest);
-            String serviceAccountEmail = createdServiceAccount.getEmail();
+            final ServiceAccount createdServiceAccount = iamClient.createServiceAccount(createRequest);
+            final String serviceAccountEmail = createdServiceAccount.getEmail();
             
             // If trust configuration is provided, add IAM bindings for roles/iam.serviceAccountTokenCreator
             if (trustConfig.isPresent() && !trustConfig.get().getTrustedPrincipals().isEmpty()) {
-                String serviceAccountResourceName = createdServiceAccount.getName();
+                final String serviceAccountResourceName = createdServiceAccount.getName();
                 
                 // Get current IAM policy for the service account
-                GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
+                final GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
                         .setResource(serviceAccountResourceName)
                         .build();
                 
