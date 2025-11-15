@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts;
 
 import com.salesforce.multicloudj.sts.client.StsClient;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -20,10 +21,10 @@ public class Main {
     static String provider = "aws";
 
     public static void main(String[] args) {
-        assumeRole();
+        assumeRoleWebIdentity();
         getCallerIdentity();
-        nativeAuthSignerUtilityWithStsCredentials();
-        nativeAuthSignerUtilityWithDefaultCredentials();
+        //nativeAuthSignerUtilityWithStsCredentials();
+        //nativeAuthSignerUtilityWithDefaultCredentials();
     }
 
     public static void assumeRole() {
@@ -33,6 +34,19 @@ public class Main {
                 .withSessionName("my-session")
                 .build();
         StsCredentials stsCredentials = client.getAssumeRoleCredentials(request);
+
+        System.out.println(stsCredentials.getAccessKeyId());
+    }
+    public static void assumeRoleWebIdentity() {
+        StsClient client = StsClient.builder(provider).withRegion("us-west-2").build();
+        StsClient clientGcp = StsClient.builder("gcp").withRegion("us-west-2").build();
+        CallerIdentity identity = clientGcp.getCallerIdentity();
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .webIdentityToken(identity.getCloudResourceName())
+                .sessionName("my-session")
+                .role("arn:aws:iam::654654370895:role/chameleon-web")
+                .build();
+        StsCredentials stsCredentials = client.getAssumeRoleWithWebIdentityCredentials(request);
 
         System.out.println(stsCredentials.getAccessKeyId());
     }

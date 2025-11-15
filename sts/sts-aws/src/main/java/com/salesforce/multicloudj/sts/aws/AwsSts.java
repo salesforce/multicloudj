@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
@@ -16,6 +17,8 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityResponse;
 import software.amazon.awssdk.services.sts.model.Credentials;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
@@ -86,6 +89,24 @@ public class AwsSts extends AbstractSts {
                 .durationSeconds(request.getDuration()).build();
         GetSessionTokenResponse response = stsClient.getSessionToken(tokenRequest);
         Credentials credentials = response.credentials();
+        return new StsCredentials(
+                credentials.accessKeyId(),
+                credentials.secretAccessKey(),
+                credentials.sessionToken());
+    }
+
+    @Override
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
+            AssumeRoleWebIdentityRequest request) {
+        AssumeRoleWithWebIdentityRequest webIdentityRequest = AssumeRoleWithWebIdentityRequest.builder()
+                .roleArn(request.getRole())
+                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-web-identity-session-" + System.currentTimeMillis())
+                .webIdentityToken(request.getWebIdentityToken())
+                .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null)
+                .build();
+        AssumeRoleWithWebIdentityResponse response = stsClient.assumeRoleWithWebIdentity(webIdentityRequest);
+        Credentials credentials = response.credentials();
+
         return new StsCredentials(
                 credentials.accessKeyId(),
                 credentials.secretAccessKey(),

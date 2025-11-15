@@ -1,10 +1,12 @@
 package com.salesforce.multicloudj.sts.driver;
 
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import lombok.Getter;
 
 import java.net.URI;
 
@@ -70,30 +72,25 @@ public abstract class AbstractSts implements Provider {
     }
 
     /**
+     * Assumes a role with web identity and returns the credentials.
+     * @param request The AssumeRoleWithWebIdentityRequest containing role and web identity token information.
+     * @return StsCredentials for the assumed role with web identity.
+     */
+    public StsCredentials assumeRoleWithWebIdentity(AssumeRoleWebIdentityRequest request) {
+        return getSTSCredentialsWithAssumeRoleWebIdentity(request);
+    }
+
+    /**
      * Abstract builder class for AbstractSts implementations.
      * @param <A> The concrete implementation type of AbstractSts.
      * @param <T> The concrete implementation type of Builder.
      */
     public abstract static class Builder<A extends AbstractSts, T extends Builder<A, T>> implements Provider.Builder {
+        @Getter
         protected String region;
+        @Getter
         protected URI endpoint;
         protected String providerId;
-
-        /**
-         * Gets the region.
-         * @return The region.
-         */
-        public String getRegion() {
-            return region;
-        }
-
-        /**
-         * Gets the endpoint override.
-         * @return The endpoint override.
-         */
-        public URI getEndpoint() {
-            return endpoint;
-        }
 
         /**
          * Sets the region.
@@ -152,4 +149,11 @@ public abstract class AbstractSts implements Provider {
      * @return StsCredentials containing the access token.
      */
     protected abstract StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request);
+
+    /**
+     * Retrieves STS credentials with AssumeRoleWithWebIdentity.
+     * @param request The AssumeRoleWithWebIdentityRequest.
+     * @return StsCredentials for the assumed role with web identity.
+     */
+    protected abstract StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request);
 }

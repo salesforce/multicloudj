@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
@@ -26,7 +27,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
 public class AliSts extends AbstractSts {
 
@@ -135,6 +135,11 @@ public class AliSts extends AbstractSts {
         } catch (ClientException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
+        return null;
     }
 
     @Override
