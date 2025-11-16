@@ -1,6 +1,6 @@
 package com.salesforce.multicloudj.common.aws;
 
-import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
 
 public class CredentialsProvider {
     public static AwsCredentialsProvider getCredentialsProvider(CredentialsOverrider overrider, Region region) {
@@ -51,11 +50,15 @@ public class CredentialsProvider {
                         ? overrider.getSessionName() : "multicloudj" + System.currentTimeMillis();
                 StsClient stsClient = StsClient.builder().region(region).build();
 
+                if (overrider.getWebIdentityTokenSupplier() == null) {
+                    throw new IllegalArgumentException("webIdentityTokenSupplier must be provided for ASSUME_ROLE_WEB_IDENTITY credentials type");
+                }
+
                 return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
                         .stsClient(stsClient)
                         .refreshRequest(r -> {
                             r.roleArn(assumeRole)
-                                    .webIdentityToken(getToken())  // <-- called on each refresh
+                                    .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())  // called on each refresh
                                     .roleSessionName(sessionName);
 
                             if (overrider.getDurationSeconds() != null) {

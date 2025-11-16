@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 public class TestConcreteAbstractSts extends AbstractSts {
@@ -23,7 +24,12 @@ public class TestConcreteAbstractSts extends AbstractSts {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request) {
+        return null;
+    }
+
+    @Override
+    protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
         return null;
     }
 

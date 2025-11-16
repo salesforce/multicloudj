@@ -106,10 +106,10 @@ public class AliSts extends AbstractSts {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
-        GetCallerIdentityRequest request = new GetCallerIdentityRequest();
+    protected CallerIdentity getCallerIdentityFromProvider(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
+        GetCallerIdentityRequest callerIdentityRequest = new GetCallerIdentityRequest();
         try {
-            GetCallerIdentityResponse response = stsClient.getAcsResponse(request);
+            GetCallerIdentityResponse response = stsClient.getAcsResponse(callerIdentityRequest);
             return new CallerIdentity(response.getPrincipalId(), response.getArn(), response.getAccountId());
         } catch (ClientException e) {
             throw new RuntimeException(e);

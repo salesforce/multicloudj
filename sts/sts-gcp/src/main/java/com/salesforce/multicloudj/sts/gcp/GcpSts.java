@@ -10,7 +10,6 @@ import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
 import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
 import com.google.protobuf.Duration;
-
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -19,19 +18,19 @@ import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,18 +82,15 @@ public class GcpSts extends AbstractSts {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
+    protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
         try {
             GoogleCredentials credentials = getCredentials();
             credentials.refreshIfExpired();
-
             IdTokenCredentials idTokenCredentials =
                     IdTokenCredentials.newBuilder()
                             .setIdTokenProvider((IdTokenProvider) credentials)
-                            .setTargetAudience("multicloudj")
-                            .setOptions(Arrays.asList(IdTokenProvider.Option.FORMAT_FULL, IdTokenProvider.Option.LICENSES_TRUE))
+                            .setTargetAudience(request.getAud() != null ? request.getAud().toLowerCase() : "multicloudj")
                             .build();
-
             String idToken = idTokenCredentials.refreshAccessToken().getTokenValue();
 
             return new CallerIdentity(StringUtils.EMPTY, idToken, StringUtils.EMPTY);

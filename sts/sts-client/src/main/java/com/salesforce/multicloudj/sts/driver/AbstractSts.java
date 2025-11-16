@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import lombok.Getter;
 
@@ -58,8 +59,8 @@ public abstract class AbstractSts implements Provider {
      * Retrieves the caller identity.
      * @return The CallerIdentity of the current caller.
      */
-    public CallerIdentity getCallerIdentity() {
-        return getCallerIdentityFromProvider();
+    public CallerIdentity getCallerIdentity(GetCallerIdentityRequest request) {
+        return getCallerIdentityFromProvider(request);
     }
 
     /**
@@ -141,7 +142,7 @@ public abstract class AbstractSts implements Provider {
      * Retrieves the caller identity from the provider.
      * @return The CallerIdentity.
      */
-    protected abstract CallerIdentity getCallerIdentityFromProvider();
+    protected abstract CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request);
 
     /**
      * Retrieves an access token from the provider.

@@ -77,9 +77,9 @@ public class AwsSts extends AbstractSts {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
-        GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
-        GetCallerIdentityResponse response = stsClient.getCallerIdentity(request);
+    protected CallerIdentity getCallerIdentityFromProvider(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
+        GetCallerIdentityRequest callerIdentityRequest = GetCallerIdentityRequest.builder().build();
+        GetCallerIdentityResponse response = stsClient.getCallerIdentity(callerIdentityRequest);
         return new CallerIdentity(response.userId(), response.arn(), response.account());
     }
 

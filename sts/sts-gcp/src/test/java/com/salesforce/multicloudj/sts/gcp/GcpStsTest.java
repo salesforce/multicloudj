@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.IdToken;
+import com.google.auth.oauth2.IdTokenProvider;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
 import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
@@ -20,6 +22,7 @@ import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationExceptio
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
@@ -35,19 +38,35 @@ public class GcpStsTest {
 
     private static IamCredentialsClient mockStsClient;
     private static GoogleCredentials mockGoogleCredentials;
+    private static GoogleCredentials mockGoogleCredentialsWithIdToken;
 
     @BeforeAll
     public static void setUp() throws IOException {
         mockStsClient = Mockito.mock(IamCredentialsClient.class);
         mockGoogleCredentials = Mockito.mock(GoogleCredentials.class);
+
+        // Create a mock that is both GoogleCredentials and IdTokenProvider
+        mockGoogleCredentialsWithIdToken = Mockito.mock(GoogleCredentials.class, Mockito.withSettings().extraInterfaces(IdTokenProvider.class));
+
         GenerateAccessTokenResponse mockAccessTokenResponse = Mockito.mock(GenerateAccessTokenResponse.class);
         AccessToken mockAccessToken = Mockito.mock(AccessToken.class);
+
+        // Create a real IdToken instead of mocking it
+        String mockJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiJtb2NrLXVzZXIiLCJhdWQiOiJtdWx0aWNsb3VkaiIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxMjM0NTY3ODkwfQ.mock-signature";
+        IdToken mockIdToken = IdToken.create(mockJwt);
+
         Mockito.when(mockStsClient.generateAccessToken(Mockito.any(GenerateAccessTokenRequest.class))).thenReturn(mockAccessTokenResponse);
         Mockito.when(mockAccessTokenResponse.getAccessToken()).thenReturn("testAccessToken");
         Mockito.when(mockGoogleCredentials.createScoped(Mockito.any(Collection.class))).thenReturn(mockGoogleCredentials);
         Mockito.doNothing().when(mockGoogleCredentials).refreshIfExpired();
         Mockito.when(mockGoogleCredentials.getAccessToken()).thenReturn(mockAccessToken);
         Mockito.when(mockAccessToken.getTokenValue()).thenReturn("testAccessTokenValue");
+
+        // Setup for GoogleCredentials with IdTokenProvider
+        Mockito.when(mockGoogleCredentialsWithIdToken.createScoped(Mockito.any(Collection.class))).thenReturn(mockGoogleCredentialsWithIdToken);
+        Mockito.doNothing().when(mockGoogleCredentialsWithIdToken).refreshIfExpired();
+        Mockito.when(mockGoogleCredentialsWithIdToken.getAccessToken()).thenReturn(mockAccessToken);
+        Mockito.when(((IdTokenProvider) mockGoogleCredentialsWithIdToken).idTokenWithAudience(Mockito.anyString(), Mockito.any())).thenReturn(mockIdToken);
     }
 
     @Test
@@ -63,12 +82,25 @@ public class GcpStsTest {
     @Test
     public void TestGetCallerIdentitySts() {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
-            mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentials);
-            
+            mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
+
             GcpSts sts = new GcpSts().builder().build(mockStsClient);
-            CallerIdentity identity = sts.getCallerIdentity();
+            CallerIdentity identity = sts.getCallerIdentity(GetCallerIdentityRequest.builder().build());
             Assertions.assertEquals(StringUtils.EMPTY, identity.getUserId());
-            Assertions.assertEquals("testAccessTokenValue", identity.getCloudResourceName());
+            Assertions.assertTrue(identity.getCloudResourceName().startsWith("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"));
+            Assertions.assertEquals(StringUtils.EMPTY, identity.getAccountId());
+        }
+    }
+
+    @Test
+    public void TestGetCallerIdentityWithCustomAud() {
+        try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
+            mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
+
+            GcpSts sts = new GcpSts().builder().build(mockStsClient);
+            CallerIdentity identity = sts.getCallerIdentity(GetCallerIdentityRequest.builder().aud("customAudience").build());
+            Assertions.assertEquals(StringUtils.EMPTY, identity.getUserId());
+            Assertions.assertTrue(identity.getCloudResourceName().startsWith("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"));
             Assertions.assertEquals(StringUtils.EMPTY, identity.getAccountId());
         }
     }
@@ -76,13 +108,13 @@ public class GcpStsTest {
     @Test
     public void TestGetCallerIdentityStsThrowsException() throws IOException {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
-            mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentials);
+            mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
 
             GcpSts sts = new GcpSts().builder().build(mockStsClient);
-            Mockito.doThrow(new IOException("Test error")).when(mockGoogleCredentials).refreshIfExpired();
+            Mockito.doThrow(new IOException("Test error")).when(mockGoogleCredentialsWithIdToken).refreshIfExpired();
 
             Assertions.assertThrows(RuntimeException.class, () -> {
-                sts.getCallerIdentity();
+                sts.getCallerIdentity(GetCallerIdentityRequest.builder().build());
             });
         }
     }
@@ -161,14 +193,26 @@ public class GcpStsTest {
         Assertions.assertEquals(UnknownException.class, exceptionClass);
     }
 
+    @Test
+    public void TestAssumeRoleWithWebIdentityReturnsNull() {
+        GcpSts sts = new GcpSts().builder().build(mockStsClient);
+        com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request =
+                com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest.builder()
+                        .role("testRole")
+                        .webIdentityToken("testToken")
+                        .build();
+        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+        Assertions.assertNull(credentials);
+    }
+
     private void assertExceptionMapping(GcpSts sts, StatusCode.Code statusCode, Class<? extends SubstrateSdkException> expectedExceptionClass) {
         ApiException apiException = Mockito.mock(ApiException.class);
         StatusCode mockStatusCode = Mockito.mock(StatusCode.class);
         Mockito.when(apiException.getStatusCode()).thenReturn(mockStatusCode);
         Mockito.when(mockStatusCode.getCode()).thenReturn(statusCode);
-        
+
         Class<? extends SubstrateSdkException> actualExceptionClass = sts.getException(apiException);
-        Assertions.assertEquals(expectedExceptionClass, actualExceptionClass, 
+        Assertions.assertEquals(expectedExceptionClass, actualExceptionClass,
             "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
     }
 }

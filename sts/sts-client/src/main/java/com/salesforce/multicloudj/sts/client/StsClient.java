@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 import java.net.URI;
@@ -100,7 +101,21 @@ public class StsClient {
      */
     public CallerIdentity getCallerIdentity() {
         try {
-            return this.sts.getCallerIdentity();
+            return getCallerIdentity(GetCallerIdentityRequest.builder().build());
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Gets the caller identity for the default credentialsOverrider.
+     * @return The CallerIdentity.
+     */
+    public CallerIdentity getCallerIdentity(GetCallerIdentityRequest request) {
+        try {
+            return this.sts.getCallerIdentity(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
