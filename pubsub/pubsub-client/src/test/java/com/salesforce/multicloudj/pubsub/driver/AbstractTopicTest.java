@@ -40,7 +40,8 @@ public class AbstractTopicTest {
 
     @Test
     void testBuilderPattern() {
-        TestableAbstractTopic builtTopic = TestableAbstractTopic.builder()
+        TestableAbstractTopic tempTopic = new TestableAbstractTopic(PROVIDER_ID, TOPIC_NAME, REGION);
+        TestableAbstractTopic builtTopic = tempTopic.builder()
             .withTopicName(TOPIC_NAME)
             .withRegion(REGION)
             .withEndpoint(java.net.URI.create("https://custom-endpoint.example.com"))
@@ -57,7 +58,8 @@ public class AbstractTopicTest {
 
     @Test
     void testBuilderWithoutCustomTimeout() {
-        TestableAbstractTopic builtTopic = TestableAbstractTopic.builder()
+        TestableAbstractTopic tempTopic = new TestableAbstractTopic(PROVIDER_ID, TOPIC_NAME, REGION);
+        TestableAbstractTopic builtTopic = tempTopic.builder()
             .withTopicName(TOPIC_NAME)
             .withRegion(REGION)
             .build();
@@ -205,7 +207,8 @@ public class AbstractTopicTest {
             return null;
         }
 
-        public static Builder builder() {
+        @Override
+        public Builder builder() {
             return new Builder();
         }
 

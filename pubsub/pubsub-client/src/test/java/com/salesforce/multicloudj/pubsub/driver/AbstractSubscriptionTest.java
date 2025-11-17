@@ -115,6 +115,11 @@ public class AbstractSubscriptionTest {
             this.messageSource = messageSource;
         }
 
+        TestSubscription(MockMessageSource messageSource, Builder builder) {
+            super(builder);
+            this.messageSource = messageSource;
+        }
+
         @Override
         protected void doSendAcks(List<AckID> ackIDs) { }
 
@@ -156,6 +161,20 @@ public class AbstractSubscriptionTest {
         @Override
         public Class<? extends SubstrateSdkException> getException(Throwable t) {
             return SubstrateSdkException.class;
+        }
+
+        @Override
+        public Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder extends AbstractSubscription.Builder<TestSubscription> {
+            @Override
+            public TestSubscription build() {
+                // Set provider ID for tests
+                this.providerId = "test";
+                return new TestSubscription(new MockMessageSource(), this);
+            }
         }
 
         @Override

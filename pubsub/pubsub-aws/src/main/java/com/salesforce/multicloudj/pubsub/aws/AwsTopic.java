@@ -44,7 +44,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     
     public AwsTopic(Builder builder) {
         super(builder);
-        validateTopicName(topicName);
         this.sqsClient = builder.sqsClient;
     }
 
@@ -171,7 +170,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     /**
      * Validates that the topic name is in the correct AWS SQS URL format.
      */
-    private static void validateTopicName(String topicName) {
+    static void validateTopicName(String topicName) {
         if (topicName == null) {
             throw new InvalidArgumentException("SQS topic name cannot be null");
         }
@@ -316,7 +315,8 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
     }
 
-    public static Builder builder() {
+    @Override
+    public Builder builder() {
         return new Builder();
     }
     
@@ -341,6 +341,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         
         @Override
         public AwsTopic build() {
+            validateTopicName(this.topicName);
             if (sqsClient == null) {
                 sqsClient = buildSqsClient(this);
             }
