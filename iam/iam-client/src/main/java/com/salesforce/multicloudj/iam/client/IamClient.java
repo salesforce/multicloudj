@@ -45,14 +45,14 @@ import java.util.Optional;
  * </pre>
  */
 public class IamClient implements AutoCloseable {
-    protected AbstractIam<?> iam;
+    protected AbstractIam iam;
 
     /**
      * Constructor for IamClient with IamClientBuilder.
      *
      * @param iam The abstract IAM driver used to back this client for implementation.
      */
-    protected IamClient(AbstractIam<?> iam) {
+    protected IamClient(AbstractIam iam) {
         this.iam = iam;
     }
 
@@ -205,7 +205,7 @@ public class IamClient implements AutoCloseable {
     public static class IamClientBuilder {
         protected String region;
         protected URI endpoint;
-        protected AbstractIam<?> iam;
+        protected AbstractIam iam;
         protected AbstractIam.Builder<?, ?> iamBuilder;
 
         /**

@@ -46,7 +46,7 @@ public class IamClientTest {
     private static final String POLICY_RESPONSE = "policy-details";
     private static final URI TEST_ENDPOINT = URI.create("https://test.endpoint.com");
 
-    private AbstractIam<?> mockIam;
+    private AbstractIam mockIam;
     private IamClient client;
     private MockedStatic<ServiceLoader> serviceLoaderStatic;
 
@@ -287,7 +287,7 @@ public class IamClientTest {
         }
 
         // Create fresh mocks with credentialsOverrider support
-        AbstractIam<?> testIam = mock(TestIam.class);
+        AbstractIam testIam = mock(TestIam.class);
         TestIam.Builder testBuilder = mock(TestIam.Builder.class);
 
         // Only stub methods that are actually called in this test

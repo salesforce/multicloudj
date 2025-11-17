@@ -14,7 +14,7 @@ public class TestIamClient {
      * @param iam the AbstractIam driver to use
      * @return a new IamClient instance
      */
-    public static IamClient create(AbstractIam<?> iam) {
+    public static IamClient create(AbstractIam iam) {
         return new IamClient(iam);
     }
     

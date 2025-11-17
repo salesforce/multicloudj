@@ -62,7 +62,7 @@ public class GcpIamIT extends AbstractIamIT {
         private static final String TRUSTED_PRINCIPAL = "chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com";
         
         @Override
-        public AbstractIam<?> createIamDriver() {
+        public AbstractIam createIamDriver() {
             boolean isRecordingEnabled = System.getProperty("record") != null;
             
             try {
@@ -92,7 +92,7 @@ public class GcpIamIT extends AbstractIamIT {
         
         @Override
         public IamClient createIamClient() {
-            AbstractIam<?> driver = createIamDriver();
+            AbstractIam driver = createIamDriver();
             return TestIamClient.create(driver);
         }
         

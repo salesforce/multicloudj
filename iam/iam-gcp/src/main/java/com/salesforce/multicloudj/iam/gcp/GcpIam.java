@@ -1,8 +1,10 @@
 package com.salesforce.multicloudj.iam.gcp;
 
 import com.google.api.gax.rpc.ApiException;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.iam.admin.v1.IAMClient;
+import com.google.cloud.iam.admin.v1.IAMSettings;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
 import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
@@ -26,27 +28,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractIam.class)
-public class GcpIam extends AbstractIam<GcpIam> {
+public class GcpIam extends AbstractIam {
     private IAMClient iamClient;
 
     public GcpIam(Builder builder) {
         super(builder);
-        try {
-            this.iamClient = IAMClient.create();
-        } catch (IOException e) {
-            throw new SubstrateSdkException("Could not create IAMClient", e);
-        }
+        this.iamClient = builder.iamClient;
     }
 
     public GcpIam() {
         super(new Builder());
-        try {
-            this.iamClient = IAMClient.create();
-        } catch (IOException e) {
-            throw new SubstrateSdkException("Could not create IAMClient", e);
-        }
     }
 
     public GcpIam(Builder builder, IAMClient iamClient) {
@@ -234,8 +226,57 @@ public class GcpIam extends AbstractIam<GcpIam> {
     }
 
     public static class Builder extends AbstractIam.Builder<GcpIam, Builder> {
+        /** The IAM Client to be used for operations */
+        private IAMClient iamClient;
+
+        /** The credentials to be used for authentication */
+        private GoogleCredentials credentials;
+
+        /** Default constructor that sets the provider id */
         protected Builder() {
             providerId(GcpConstants.PROVIDER_ID);
+        }
+
+        /**
+         * Sets the IAM Client to be used for operations.
+         *
+         * @param iamClient
+         * @return this builder for chaining
+         */
+        public Builder withIamClient(IAMClient iamClient) {
+            this.iamClient = iamClient;
+            return self();
+        }
+
+        /**
+         * Sets the credentials to be used for authentication.
+         *
+         * @param credentials
+         * @return
+         */
+        public Builder withCredentials(GoogleCredentials credentials) {
+            this.credentials = credentials;
+            return self();
+        }
+
+        /**
+         * Builds a IAMClient from the current configuration.
+         *
+         * @return A configured IAMClient
+         * @throws SubstrateSdkException If client creation fails
+         */
+        private IAMClient buildIamClient() {
+            try {
+                final IAMSettings.Builder settingsBuilder = IAMSettings.newBuilder();
+
+                if (credentials != null) {
+                    settingsBuilder.setCredentialsProvider(() -> credentials);
+                }
+
+                return IAMClient.create(settingsBuilder.build());
+            } catch (Exception e) {
+                throw new SubstrateSdkException("Failed to build IAMClient", e);
+            }
         }
 
         @Override
@@ -243,8 +284,17 @@ public class GcpIam extends AbstractIam<GcpIam> {
             return this;
         }
 
+        /**
+         * Builds an GcpIam instance with the current configuration.
+         *
+         * @return A new GcpIam instance
+         * @throws SubstrateSdkException If store creation fails
+         */
         @Override
         public GcpIam build() {
+            if (this.iamClient == null) {
+                this.iamClient = buildIamClient();
+            }
             return new GcpIam(this);
         }
     }

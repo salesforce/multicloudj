@@ -44,7 +44,7 @@ public abstract class AbstractIamIT {
          * 
          * @return configured AbstractIam driver
          */
-        AbstractIam<?> createIamDriver();
+        AbstractIam createIamDriver();
         
         /**
          * Creates an IamClient instance for testing.
@@ -469,7 +469,7 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testProviderId() {
-        AbstractIam<?> iam = harness.createIamDriver();
+        AbstractIam iam = harness.createIamDriver();
         
         Assertions.assertNotNull(iam.getProviderId(), "Provider ID should not be null");
         Assertions.assertEquals(harness.getProviderId(), iam.getProviderId(), 
@@ -481,7 +481,7 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testExceptionMapping() {
-        AbstractIam<?> iam = harness.createIamDriver();
+        AbstractIam iam = harness.createIamDriver();
         
         // Test with a generic exception
         Throwable genericException = new RuntimeException("Generic error");
