@@ -115,7 +115,8 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     /**
      * Creates a new builder for GcpTopic.
      */
-    public static Builder builder() {
+    @Override
+    public Builder builder() {
         return new Builder();
     }
 

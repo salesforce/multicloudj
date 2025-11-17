@@ -20,6 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -30,7 +31,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
  * Implementations should handle proper resource cleanup in the close method,
  * including flushing pending acknowledgments, closing connections, and stopping background threads.
  */
-public abstract class AbstractSubscription<T extends AbstractSubscription<T>> implements AutoCloseable {
+public abstract class AbstractSubscription<T extends AbstractSubscription<T>> implements AutoCloseable, Provider {
     
     protected final String providerId;
     protected final String subscriptionName;
@@ -661,7 +662,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
 
     public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
 
-    public abstract static class Builder<T extends AbstractSubscription<T>> {
+    public abstract static class Builder<T extends AbstractSubscription<T>> implements Provider.Builder {
         protected String providerId;
         protected String subscriptionName;
         protected String region;
@@ -669,6 +670,12 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
         protected long receiveTimeoutSeconds = DEFAULT_RECEIVE_TIMEOUT_SECONDS;
+
+        @Override
+        public Builder<T> providerId(String providerId) {
+            this.providerId = providerId;
+            return this;
+        }
 
         public Builder<T> withSubscriptionName(String subscriptionName) {
             this.subscriptionName = subscriptionName;

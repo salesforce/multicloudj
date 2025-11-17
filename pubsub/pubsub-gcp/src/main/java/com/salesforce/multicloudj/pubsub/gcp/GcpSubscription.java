@@ -315,7 +315,8 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         }
     }
 
-    public static Builder builder() {
+    @Override
+    public Builder builder() {
         return new Builder();
     }
 
