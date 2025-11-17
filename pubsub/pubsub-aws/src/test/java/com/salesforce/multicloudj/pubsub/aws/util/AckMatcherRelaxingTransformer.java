@@ -16,7 +16,7 @@ import java.util.Map;
  * Use JsonPath to only verify the existence of ReceiptHandle fields rather than exact values.
  * 
  * This is necessary because:
- * 1. ReceiptHandle values are dynamic and change with each ReceiveMessage call
+ * 1. ReceiptHandle values change on every ReceiveMessage call
  * 2. Batch size is dynamically adjusted based on throughput, causing different MaxNumberOfMessages
  *    values between record and replay, which may match different ReceiveMessage mappings
  * 3. Different ReceiveMessage mappings return different ReceiptHandle values (all from AWS during recording)
@@ -89,9 +89,9 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
     }
     
     /**
-     * Extracts the X-Amz-Target header value from the stub mapping.
-     * WireMock stores headers as Map<String, MultiValuePattern>.
-     * Extract from string representation of the pattern.
+     * extractXAmzTarget is responsible for identifying the SQS operation type
+     * (e.g., DeleteMessageBatch or ChangeMessageVisibilityBatch) by extracting
+     * the X-Amz-Target header from the WireMock stub.
      */
     private String extractXAmzTarget(StubMapping stub) {
         Map<String, MultiValuePattern> headers = stub.getRequest().getHeaders();
