@@ -1,0 +1,30 @@
+{
+  "id" : "2ef92ba3-6826-427f-8fd1-7c84f41fc9f7",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ReceiveMessage"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/testQueue\",\"AttributeNames\":[\"All\"],\"MessageAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":2,\"WaitTimeSeconds\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1763363036954\",\"ApproximateReceiveCount\":\"2\",\"SentTimestamp\":\"1763182994662\"},\"Body\":\"batch-nack-1\",\"MD5OfBody\":\"4368994397a230f28e6fc94d80cccbb5\",\"MD5OfMessageAttributes\":\"da9dcd84a1f376f38b79991b79a9d636\",\"MessageAttributes\":{\"batch\":{\"DataType\":\"String\",\"StringValue\":\"nack\"}},\"MessageId\":\"27e7cfff-4909-4d43-b128-a11e8ff7471c\",\"ReceiptHandle\":\"AQEBFuYfGduq5T14+hci3eFOjjxe3KF35ad/mDBdhFowWfP+nHAVMvaiS2xtLfx+bMj/vbXU7f6Ee6IOZyOU/NsuDm75OOyzTCJckMTzVH7CRE+6WDdtdU65AzpvaNu2H+RsraTKXIzBo2vDlbH7i5EmeloKlu9mR5tL6wkktKz8g9hiJLlaDZDTWEHCSkHn7NkZZly66bXrWRLryaxwLf4bl2cDc1m2WHQ0+Q5qPVhp2IkdCg/idrpF8wyxfuO2WA94KvozskdeyL6JnbkfVDsFgsVZIlkd2GdQw+tHCV7GvXhgDa5cLTNpiwNwx0/B7mlEc1dhyzX4bYfZtZO74tTjAoNlqy2SpdgXjj9dAEOCgg6UI73VMC7h2+hqCIK4JIRMmwvRj8tD0aKCHQ0VOX+PjQ==\"},{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1763363037368\",\"ApproximateReceiveCount\":\"2\",\"SentTimestamp\":\"1763183001068\"},\"Body\":\"Message 3\",\"MD5OfBody\":\"335f063c95cf6bcca8694a36fcd51103\",\"MD5OfMessageAttributes\":\"804069276d344d5118ff0a2cb4abfa7c\",\"MessageAttributes\":{\"batch-id\":{\"DataType\":\"String\",\"StringValue\":\"3\"}},\"MessageId\":\"5d85b2d2-468a-4cc1-80fd-bc7d5f2cecc6\",\"ReceiptHandle\":\"AQEBCNn4HU3JQ2++H0Q1qv9fxbu4g4rGacpCq0181ILS0Mv2nI1l8uxiLJdMImejc9zNj1kV+UBJ/D2ZSq0Rlg6ASWolih76ZZXdg09ZCiqRPWUy6pkNX93a3ow/ErGfJq+ZWmN3zAyDlLuSmz6jiWk36kbdjwoCmMRDPawjA+OJN+Xx++4/jIJv8VHQMh3M/7Edv7bxEZRfQ2u9hNbo4oH215FvBHZCdl9fXKjAbvJUqly0GlfUuE7Z8jl0TZI7NXHntXk9BljTrIDTXcvctCFg81nmVmSDmcP4bbyzIyayzwkhiE5c8EJ8HdUcDYx+ViwmkFh4lvqCzjbE5XkrW0YvlhipcojadN4zWrEa2VNVwYld+hXznkJCfVaUWTY3ojuBSpy3DeAptbmq/Yp7rd6Duw==\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "bc8f6dea-41d6-5017-abcb-0c7e9aa780e5",
+      "Date" : "Mon, 17 Nov 2025 08:13:37 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "2ef92ba3-6826-427f-8fd1-7c84f41fc9f7",
+  "persistent" : true,
+  "insertionIndex" : 15
+}

@@ -1,0 +1,30 @@
+{
+  "id" : "4c0b141a-7935-49c1-be77-4804a68b38c8",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ChangeMessageVisibilityBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/testQueue\",\"Entries\":[{\"Id\":\"0\",\"ReceiptHandle\":\"AQEBVbDZQoz9+yW5L+23dZtY6Ow2I7nTAfUwEtv1hfSdv05TCVgALQKq1P8UdjjHxmCvVD3c6EqKzPpo+ZutLrxmfnZNUtiNItVBldT7w62V3j1NB75K+pbCgIK/ovdZdXcnfexH0NDHi8D/cXzcWsXqFDQcA9AMyVyMpsICFqBkWgz7Ilz2b9QsJvNpDm3CqwVbZKoxihWV0da3cI+fkJKmW0BCZu9+SApzDao8J9fjbajP9cccLOMBmOzQEvmLOjOplDsKi8fXxV+7bTrTmn9nLKPuGes1DnZfPM9OQ/xwSxLpakhReqThu9o07PYdlTmK238DBqX+Ry9GWv6f6g/naVwoWChlEbtkcX7jL1dBlL5i7HYOAZ1feoVKrUd8tGpe4hBKPdVUgYo6rQ5kzTu6xA==\",\"VisibilityTimeout\":0}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "8a7aadce-e8aa-5c6a-8746-cc5a33de34a7",
+      "Date" : "Mon, 17 Nov 2025 08:13:40 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4c0b141a-7935-49c1-be77-4804a68b38c8",
+  "persistent" : true,
+  "insertionIndex" : 29
+}

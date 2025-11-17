@@ -98,7 +98,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of();
+            return List.of("com.salesforce.multicloudj.pubsub.aws.util.AckMatcherRelaxingTransformer");
         }
 
         @Override
