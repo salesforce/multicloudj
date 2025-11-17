@@ -28,14 +28,32 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
     @Override
     public StubMapping transform(StubMapping stub, FileSource files, Parameters params) {
         // Check if this is a DeleteMessageBatch or ChangeMessageVisibilityBatch request
-        // by examining the X-Amz-Target header
+        // by examining the X-Amz-Target header or the request body
         String targetValue = extractXAmzTarget(stub);
-        if (targetValue == null) {
-            return stub;
-        }
+        boolean isDeleteBatch = false;
+        boolean isChangeVisibilityBatch = false;
         
-        boolean isDeleteBatch = targetValue.contains("DeleteMessageBatch");
-        boolean isChangeVisibilityBatch = targetValue.contains("ChangeMessageVisibilityBatch");
+        if (targetValue != null) {
+            isDeleteBatch = targetValue.contains("DeleteMessageBatch");
+            isChangeVisibilityBatch = targetValue.contains("ChangeMessageVisibilityBatch");
+        } else {
+            // Fallback: check if body contains ReceiptHandle (indicates ack/nack operation)
+            List<ContentPattern<?>> bodyPatterns = stub.getRequest().getBodyPatterns();
+            if (bodyPatterns != null && !bodyPatterns.isEmpty()) {
+                for (ContentPattern<?> pattern : bodyPatterns) {
+                    String patternStr = pattern.toString();
+                    if (patternStr.contains("ReceiptHandle")) {
+                        // Check if it's ChangeMessageVisibilityBatch by looking for VisibilityTimeout
+                        if (patternStr.contains("VisibilityTimeout")) {
+                            isChangeVisibilityBatch = true;
+                        } else {
+                            isDeleteBatch = true;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
         
         if (!isDeleteBatch && !isChangeVisibilityBatch) {
             return stub;
@@ -73,6 +91,7 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
     /**
      * Extracts the X-Amz-Target header value from the stub mapping.
      * WireMock stores headers as Map<String, MultiValuePattern>.
+     * Extract from string representation of the pattern.
      */
     private String extractXAmzTarget(StubMapping stub) {
         Map<String, MultiValuePattern> headers = stub.getRequest().getHeaders();
@@ -85,17 +104,23 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
             return null;
         }
         
-        // Try to extract the value from the pattern's string representation
-        // WireMock patterns typically have format like "equalTo(AmazonSQS.DeleteMessageBatch)"
+        // Extract from string representation
         String headerStr = xAmzTargetHeader.toString();
-        
-        // Check for common pattern formats
         if (headerStr.contains("equalTo(") && headerStr.contains(")")) {
             int start = headerStr.indexOf("equalTo(") + 8;
             int end = headerStr.lastIndexOf(")");
             if (start < end) {
                 return headerStr.substring(start, end);
             }
+        }
+        
+        if (headerStr.contains("AmazonSQS.")) {
+            int start = headerStr.indexOf("AmazonSQS.");
+            int end = headerStr.indexOf(")", start);
+            if (end == -1) {
+                end = headerStr.length();
+            }
+            return headerStr.substring(start, end);
         }
         
         return null;
