@@ -42,12 +42,10 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
     }
     public GcpTopic(Builder builder) {
         super(builder);
-        validateTopicName(topicName);
     }
     
     public GcpTopic(Builder builder, TopicAdminClient topicAdminClient) {
         super(builder);
-        validateTopicName(topicName);
         this.topicAdminClient = topicAdminClient;
     }
     /**
@@ -152,7 +150,7 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
      * @param topicName The topic name to validate
      * @throws InvalidArgumentException if the topic name is invalid
      */
-    private static void validateTopicName(String topicName) {
+    static void validateTopicName(String topicName) {
         if (topicName == null || topicName.trim().isEmpty()) {
             throw new InvalidArgumentException("Topic name cannot be null or empty");
         }
@@ -222,6 +220,7 @@ public class GcpTopic extends AbstractTopic<GcpTopic> {
         
         @Override
         public GcpTopic build() {
+            validateTopicName(this.topicName);
             return new GcpTopic(this);
         }
     }
