@@ -252,11 +252,9 @@ public class GcpIam extends AbstractIam<GcpIam> {
     /**
      * Closes resources and connections associated with this GCP IAM client.
      * This method closes the IAM client if it was created.
-     *
-     * @throws Exception If an error occurs while closing resources
      */
     @Override
-    public void close() throws Exception {
+    public void close() {
         this.iamClient.close();
     }
 }

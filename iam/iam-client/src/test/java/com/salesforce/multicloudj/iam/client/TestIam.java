@@ -93,7 +93,7 @@ public class TestIam extends AbstractIam<TestIam> {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
 
     }
 }
