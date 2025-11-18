@@ -4,12 +4,12 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.iam.admin.v1.IAMClient;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
+import com.google.iam.admin.v1.GetServiceAccountRequest;
 import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
 import com.google.iam.v1.SetIamPolicyRequest;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.AfterEach;
@@ -42,7 +42,7 @@ public class GcpIamTest {
     void setUp() {
         mockIamClient = mock(IAMClient.class);
         
-        gcpIam = new GcpIam(new GcpIam.Builder(), mockIamClient);
+        gcpIam = new GcpIam(new GcpIam.Builder().withIamClient(mockIamClient));
     }
     
     @AfterEach
@@ -50,12 +50,6 @@ public class GcpIamTest {
         if (gcpIam != null) {
             gcpIam.close();
         }
-    }
-    
-    @Test
-    void testConstructorWithNullClient() {
-        assertThrows(InvalidArgumentException.class, () -> 
-            new GcpIam(new GcpIam.Builder(), null));
     }
     
     @Test
@@ -523,5 +517,148 @@ public class GcpIamTest {
     @Test
     void testGetProviderId() {
         assertEquals("gcp", gcpIam.getProviderId());
+    }
+    
+    // ==================== Tests for doGetIdentity ====================
+    
+    @Test
+    void testGetIdentityWithAccountId() {
+        // Arrange
+        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
+                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
+                .setName(TEST_SERVICE_ACCOUNT_NAME)
+                .setDisplayName(TEST_IDENTITY_NAME)
+                .setDescription(TEST_DESCRIPTION)
+                .build();
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenReturn(mockServiceAccount);
+        
+        // Act
+        String result = gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert
+        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
+        
+        // Verify the request
+        ArgumentCaptor<GetServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
+        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
+        
+        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testGetIdentityWithFullEmail() {
+        // Arrange
+        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
+                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
+                .setName(TEST_SERVICE_ACCOUNT_NAME)
+                .setDisplayName(TEST_IDENTITY_NAME)
+                .setDescription(TEST_DESCRIPTION)
+                .build();
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenReturn(mockServiceAccount);
+        
+        // Act - pass full email instead of just account ID
+        String result = gcpIam.getIdentity(TEST_SERVICE_ACCOUNT_EMAIL, TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert
+        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
+        
+        // Verify the request
+        ArgumentCaptor<GetServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
+        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
+        
+        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testGetIdentityWithProjectsPrefix() {
+        // Arrange
+        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
+                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
+                .setName(TEST_SERVICE_ACCOUNT_NAME)
+                .build();
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenReturn(mockServiceAccount);
+        
+        // Act - pass tenantId with "projects/" prefix
+        String result = gcpIam.getIdentity(TEST_IDENTITY_NAME, "projects/" + TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert
+        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
+        
+        // Verify the request still has correct format
+        ArgumentCaptor<GetServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
+        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
+        
+        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testGetIdentityNotFound() {
+        // Arrange
+        ApiException notFoundException = mock(ApiException.class);
+        StatusCode statusCode = mock(StatusCode.class);
+        when(statusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
+        when(notFoundException.getStatusCode()).thenReturn(statusCode);
+        when(notFoundException.getMessage()).thenReturn("Service account not found");
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenThrow(notFoundException);
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to get service account"));
+        assertEquals(notFoundException, exception.getCause());
+    }
+    
+    @Test
+    void testGetIdentityPermissionDenied() {
+        // Arrange
+        ApiException permissionDeniedException = mock(ApiException.class);
+        StatusCode statusCode = mock(StatusCode.class);
+        when(statusCode.getCode()).thenReturn(StatusCode.Code.PERMISSION_DENIED);
+        when(permissionDeniedException.getStatusCode()).thenReturn(statusCode);
+        when(permissionDeniedException.getMessage()).thenReturn("Permission denied");
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenThrow(permissionDeniedException);
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to get service account"));
+        assertEquals(permissionDeniedException, exception.getCause());
+    }
+    
+    @Test
+    void testGetIdentityGenericException() {
+        // Arrange
+        RuntimeException genericException = new RuntimeException("Unexpected error");
+        
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenThrow(genericException);
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to get service account"));
+        assertEquals(genericException, exception.getCause());
     }
 }

@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.google.cloud.iam.admin.v1.IAMClient;
 import com.google.cloud.iam.admin.v1.IAMSettings;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
+import com.google.iam.admin.v1.GetServiceAccountRequest;
 import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.GetIamPolicyRequest;
@@ -23,10 +24,11 @@ import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static com.google.api.gax.rpc.StatusCode.Code.NOT_FOUND;
 
 @AutoService(AbstractIam.class)
 public class GcpIam extends AbstractIam {
@@ -39,14 +41,6 @@ public class GcpIam extends AbstractIam {
 
     public GcpIam() {
         super(new Builder());
-    }
-
-    public GcpIam(Builder builder, IAMClient iamClient) {
-        super(builder);
-        if (iamClient == null) {
-            throw new InvalidArgumentException("IAMClient cannot be null");
-        }
-        this.iamClient = iamClient;
     }
 
     @Override
@@ -86,7 +80,11 @@ public class GcpIam extends AbstractIam {
                     policy = iamClient.getIamPolicy(getRequest);
                 } catch (ApiException e) {
                     // If policy doesn't exist, create a new one
-                    policy = Policy.newBuilder().build();
+                    if (e.getStatusCode().getCode() == NOT_FOUND) {
+                        policy = Policy.newBuilder().build();
+                    } else {
+                        throw e;
+                    }
                 }
                 
                 // Add binding for each trusted principal
@@ -205,10 +203,44 @@ public class GcpIam extends AbstractIam {
         throw new UnSupportedOperationException("doDeleteIdentity not yet implemented for GCP");
     }
 
+    /**
+     * Retrieves service account metadata from project specified by tenantId. Returns a string with a unique identityId 
+     * as service account email.
+     * 
+     * @param identityName the name of the identity (service account ID)
+     * @param tenantId the tenant ID (GCP project ID)
+     * @param region the region (not used in GCP IAM as service accounts are global)
+     * @return the service account email (unique identifier)
+     */
     @Override
     protected String doGetIdentity(String identityName, String tenantId, String region) {
-        // TODO: Implement GCP service account retrieval
-        throw new UnSupportedOperationException("doGetIdentity not yet implemented for GCP");
+        try {
+            // Build the project resource name in the format "projects/{project-id}"
+            final String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
+            
+            // Build the service account resource name
+            // Format: projects/{project-id}/serviceAccounts/{account-id}@{project-id}.iam.gserviceaccount.com
+            final String serviceAccountEmail = identityName.contains("@") 
+                ? identityName 
+                : identityName + "@" + projectName.substring(9) + ".iam.gserviceaccount.com";
+            
+            final String serviceAccountResourceName = projectName + "/serviceAccounts/" + serviceAccountEmail;
+            
+            // Get the service account
+            final GetServiceAccountRequest getRequest = GetServiceAccountRequest.newBuilder()
+                    .setName(serviceAccountResourceName)
+                    .build();
+            
+            final ServiceAccount serviceAccount = iamClient.getServiceAccount(getRequest);
+            
+            // Return the service account email as the unique identifier
+            return serviceAccount.getEmail();
+            
+        } catch (ApiException e) {
+            throw new SubstrateSdkException("Failed to get service account: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new UnknownException("Failed to get service account: " + e.getMessage(), e);
+        }
     }
 
     @Override

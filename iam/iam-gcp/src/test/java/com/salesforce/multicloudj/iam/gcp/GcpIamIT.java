@@ -71,7 +71,7 @@ public class GcpIamIT extends AbstractIamIT {
                     // Note: GCP IAM Admin API uses gRPC, which WireMock doesn't support natively.
                     // For recording, we connect directly to the real GCP API.
                     client = IAMClient.create();
-                    return new GcpIam(new GcpIam.Builder(), client);
+                    return new GcpIam(new GcpIam.Builder().withIamClient(client));
                 } else {
                     // Replay path - inject mock credentials
                     // Note: Since WireMock doesn't support gRPC, replay mode is not yet implemented.
@@ -82,7 +82,7 @@ public class GcpIamIT extends AbstractIamIT {
                             .setCredentialsProvider(FixedCredentialsProvider.create(mockCreds))
                             .build();
                     client = IAMClient.create(settings);
-                    return new GcpIam(new GcpIam.Builder(), client);
+                    return new GcpIam(new GcpIam.Builder().withIamClient(client));
                 }
             } catch (IOException e) {
                 Assertions.fail("Failed to create IAM client", e);
@@ -143,7 +143,7 @@ public class GcpIamIT extends AbstractIamIT {
         
         @Override
         public boolean supportsGetIdentity() {
-            return false; // Not yet implemented
+            return true;
         }
         
         @Override
