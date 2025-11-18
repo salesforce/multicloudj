@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -171,8 +173,9 @@ public class AbstractSubscriptionTest {
         public static class Builder extends AbstractSubscription.Builder<TestSubscription> {
             @Override
             public TestSubscription build() {
-                // Set provider ID for tests
-                this.providerId = "test";
+                if (this.providerId == null) {
+                    this.providerId = "test";
+                }
                 return new TestSubscription(new MockMessageSource(), this);
             }
         }
@@ -693,5 +696,21 @@ public class AbstractSubscriptionTest {
         assertDoesNotThrow(() -> testSubscription.sendNack(singleAckID));
         assertDoesNotThrow(() -> testSubscription.sendNacks(multipleAckIDs));
     }
-    
+        
+    @Test
+    void testBuilderProviderId() {
+        TestSubscription.Builder builder = new TestSubscription.Builder();
+
+        AbstractSubscription.Builder<TestSubscription> returnedBuilder = builder.providerId("my-provider");
+        assertSame(builder, returnedBuilder);
+        
+        assertEquals("my-provider", builder.providerId);
+        
+        TestSubscription sub = builder
+            .withSubscriptionName("sub")
+            .withRegion("us-west1")
+            .build();
+        
+        assertEquals("my-provider", sub.getProviderId());
+    }
 }

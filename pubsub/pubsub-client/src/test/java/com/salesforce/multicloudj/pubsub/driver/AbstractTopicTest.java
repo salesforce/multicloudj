@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,6 +66,26 @@ public class AbstractTopicTest {
             .build();
         
         assertEquals(TOPIC_NAME, builtTopic.topicName);
+    }
+
+    @Test
+    void testBuilderProviderId() {
+        TestableAbstractTopic tempTopic = new TestableAbstractTopic(PROVIDER_ID, TOPIC_NAME, REGION);
+        AbstractTopic.Builder<TestableAbstractTopic> builder = tempTopic.builder();
+        
+        AbstractTopic.Builder<TestableAbstractTopic> returnedBuilder = builder.providerId("my-provider");
+        assertSame(builder, returnedBuilder);
+        
+        // Verify providerId was set on the builder
+        TestableAbstractTopic.Builder testBuilder = (TestableAbstractTopic.Builder) builder;
+        assertEquals("my-provider", testBuilder.providerId);
+        
+        TestableAbstractTopic builtTopic = builder
+            .withTopicName(TOPIC_NAME)
+            .withRegion(REGION)
+            .build();
+        
+        assertEquals("my-provider", builtTopic.getProviderId());
     }
 
     @Test
@@ -215,8 +236,9 @@ public class AbstractTopicTest {
         public static class Builder extends AbstractTopic.Builder<TestableAbstractTopic> {
             @Override
             public TestableAbstractTopic build() {
-                // Set provider ID for tests
-                this.providerId = PROVIDER_ID;
+                if (this.providerId == null) {
+                    this.providerId = PROVIDER_ID;
+                }
                 return new TestableAbstractTopic(this);
             }
         }
