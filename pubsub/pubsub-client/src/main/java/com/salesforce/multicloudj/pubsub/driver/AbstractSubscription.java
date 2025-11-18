@@ -670,6 +670,12 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             return this;
         }
 
+        @Override
+        public Builder<T> providerId(String providerId) {
+            this.providerId = providerId;
+            return this;
+        }
+
         public Builder<T> withSubscriptionName(String subscriptionName) {
             this.subscriptionName = subscriptionName;
             return this;
