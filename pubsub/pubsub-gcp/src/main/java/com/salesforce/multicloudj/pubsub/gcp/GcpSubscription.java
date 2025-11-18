@@ -62,13 +62,11 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     public GcpSubscription(Builder builder) {
         super(builder);
         this.nackLazy = builder.nackLazy;
-        validateSubscriptionName(this.subscriptionName);
     }
     
     public GcpSubscription(Builder builder, SubscriptionAdminClient subscriptionAdminClient) {
         super(builder);
         this.nackLazy = builder.nackLazy;
-        validateSubscriptionName(this.subscriptionName);
         this.subscriptionAdminClient = subscriptionAdminClient;
     }
 
@@ -274,7 +272,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
      * @param subscriptionName the subscription name to validate
      * @throws InvalidArgumentException if the subscription name is invalid
      */
-    private void validateSubscriptionName(String subscriptionName) {
+    static void validateSubscriptionName(String subscriptionName) {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
             throw new InvalidArgumentException("Subscription name cannot be null or empty");
         }
@@ -315,6 +313,11 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         public String toString() {
             return ackId;
         }
+    }
+
+    @Override
+    public Builder builder() {
+        return new Builder();
     }
 
     public static class Builder extends AbstractSubscription.Builder<GcpSubscription> {
@@ -382,6 +385,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         
         @Override
         public GcpSubscription build() {
+            validateSubscriptionName(this.subscriptionName);
             return new GcpSubscription(this);
         }
     }

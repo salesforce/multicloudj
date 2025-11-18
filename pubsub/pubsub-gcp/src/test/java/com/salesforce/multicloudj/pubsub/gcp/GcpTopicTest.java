@@ -39,7 +39,8 @@ public class GcpTopicTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         mockCredentialsOverrider = mock(CredentialsOverrider.class);
-        topic = GcpTopic.builder()
+        GcpTopic tempTopic = new GcpTopic();
+        topic = tempTopic.builder()
             .withTopicName(VALID_TOPIC_NAME)
                 .withCredentialsOverrider(mockCredentialsOverrider)
             .build();
@@ -48,17 +49,20 @@ public class GcpTopicTest {
     @Test
     void testTopicNameValidation() {
         // Valid topic names should not throw
-        assertDoesNotThrow(() -> GcpTopic.builder().withTopicName("projects/my-project/topics/my-topic").build());        
+        GcpTopic tempTopic1 = new GcpTopic();
+        assertDoesNotThrow(() -> tempTopic1.builder().withTopicName("projects/my-project/topics/my-topic").build());        
         // Invalid topic names should throw
+        GcpTopic tempTopic2 = new GcpTopic();
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
-            () -> GcpTopic.builder().withTopicName("just-a-topic").build());
+            () -> tempTopic2.builder().withTopicName("just-a-topic").build());
         assertTrue(exception.getMessage().contains("projects/{projectId}/topics/{topicId}"));
     }
 
     @Test
     void testBuilder() {
         // Test basic builder functionality
-        GcpTopic builtTopic = GcpTopic.builder()
+        GcpTopic tempTopic1 = new GcpTopic();
+        GcpTopic builtTopic = tempTopic1.builder()
             .withTopicName(VALID_TOPIC_NAME)
             .withRegion(null)
             .withCredentialsOverrider(mockCredentialsOverrider)
@@ -68,21 +72,24 @@ public class GcpTopicTest {
         assertNotNull(builtTopic);
         
         // Test that region can be null for GCP
+        GcpTopic tempTopic2 = new GcpTopic();
         assertDoesNotThrow(() ->
-            GcpTopic.builder()
+            tempTopic2.builder()
                 .withTopicName(VALID_TOPIC_NAME)
                 .withRegion(null)
                 .build());
         
         // Test that missing topic name throws exception
+        GcpTopic tempTopic3 = new GcpTopic();
         assertThrows(InvalidArgumentException.class, () ->
-            GcpTopic.builder()
+            tempTopic3.builder()
                 .withRegion(null)
                 .build());
         
         // Test custom endpoint
         URI customEndpoint = URI.create("https://pubsub.googleapis.com:443");
-        GcpTopic topicWithEndpoint = GcpTopic.builder()
+        GcpTopic tempTopic4 = new GcpTopic();
+        GcpTopic topicWithEndpoint = tempTopic4.builder()
             .withTopicName(VALID_TOPIC_NAME)
             .withEndpoint(customEndpoint)
             .build();
@@ -92,7 +99,8 @@ public class GcpTopicTest {
         
         // Test proxy endpoint
         URI proxyEndpoint = URI.create("https://proxy.example.com:8080");
-        GcpTopic topicWithProxy = GcpTopic.builder()
+        GcpTopic tempTopic5 = new GcpTopic();
+        GcpTopic topicWithProxy = tempTopic5.builder()
             .withTopicName(VALID_TOPIC_NAME)
             .withProxyEndpoint(proxyEndpoint)
             .build();
@@ -125,7 +133,8 @@ public class GcpTopicTest {
     @Test
     void testProxyEndpointConfiguration() throws IOException {
         URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
-        GcpTopic topicWithProxy = GcpTopic.builder()
+        GcpTopic tempTopic = new GcpTopic();
+        GcpTopic topicWithProxy = tempTopic.builder()
             .withTopicName(VALID_TOPIC_NAME)
                 .withProxyEndpoint(proxyEndpoint)
             .build();
