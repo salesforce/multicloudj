@@ -20,26 +20,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Integration tests for GcpIam.
- * 
- * <p>This test class follows the conformance testing pattern used across the MultiCloudJ project.
- * 
- * <p><b>Important Note:</b> GCP IAM Admin API uses gRPC protocol, which WireMock does not
- * natively support. Therefore:
- * <ul>
- *   <li>Recording mode (-Drecord) works by connecting directly to real GCP APIs</li>
- *   <li>Replay mode is not yet implemented and will fail</li>
- *   <li>Integration tests are skipped by default in the pom.xml</li>
- * </ul>
- * 
- * <p>To run these tests, you must:
- * <ol>
- *   <li>Have valid GCP credentials configured (Application Default Credentials)</li>
- *   <li>Have access to the test project (substrate-sdk-gcp-poc1)</li>
- *   <li>Run with: {@code mvn test -DskipITs=false -Drecord -Dtest=GcpIamIT -pl iam/iam-gcp}</li>
- * </ol>
- * 
- * <p>Future work: Implement gRPC mocking using grpc-mock, in-process gRPC server,
- * or a gRPC-aware proxy solution.
+ *
+ * <p>To record new test interactions, run with -Drecord system property.
+ * Otherwise, tests will replay from recorded mappings in src/test/resources.
  */
 public class GcpIamIT extends AbstractIamIT {
     
@@ -65,23 +48,21 @@ public class GcpIamIT extends AbstractIamIT {
         public AbstractIam createIamDriver() {
             boolean isRecordingEnabled = System.getProperty("record") != null;
             
+            // Transport channel provider to WireMock proxy
+            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
+            IAMSettings.Builder settingsBuilder = IAMSettings.newBuilder()
+                    .setTransportChannelProvider(channelProvider);
+
             try {
                 if (isRecordingEnabled) {
                     // Live recording path – rely on real ADC
-                    // Note: GCP IAM Admin API uses gRPC, which WireMock doesn't support natively.
-                    // For recording, we connect directly to the real GCP API.
-                    client = IAMClient.create();
+                    client = IAMClient.create(settingsBuilder.build());
                     return new GcpIam(new GcpIam.Builder().withIamClient(client));
                 } else {
                     // Replay path - inject mock credentials
-                    // Note: Since WireMock doesn't support gRPC, replay mode is not yet implemented.
-                    // This will fail with "Transport not supported: httpjson" error.
-                    // TODO: Implement gRPC mocking solution (e.g., using grpc-mock or in-process server)
                     GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
-                    IAMSettings settings = IAMSettings.newBuilder()
-                            .setCredentialsProvider(FixedCredentialsProvider.create(mockCreds))
-                            .build();
-                    client = IAMClient.create(settings);
+                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
+                    client = IAMClient.create(settingsBuilder.build());
                     return new GcpIam(new GcpIam.Builder().withIamClient(client));
                 }
             } catch (IOException e) {
@@ -129,46 +110,6 @@ public class GcpIamIT extends AbstractIamIT {
         @Override
         public List<String> getWiremockExtensions() {
             return List.of();
-        }
-        
-        @Override
-        public boolean supportsCreateIdentity() {
-            return true;
-        }
-        
-        @Override
-        public boolean supportsCreateIdentityWithTrustConfig() {
-            return true;
-        }
-        
-        @Override
-        public boolean supportsGetIdentity() {
-            return true;
-        }
-        
-        @Override
-        public boolean supportsDeleteIdentity() {
-            return false; // Not yet implemented
-        }
-        
-        @Override
-        public boolean supportsAttachInlinePolicy() {
-            return false; // Not yet implemented
-        }
-        
-        @Override
-        public boolean supportsGetInlinePolicyDetails() {
-            return false; // Not yet implemented
-        }
-        
-        @Override
-        public boolean supportsGetAttachedPolicies() {
-            return false; // Not yet implemented
-        }
-        
-        @Override
-        public boolean supportsRemovePolicy() {
-            return false; // Not yet implemented
         }
         
         @Override

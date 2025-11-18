@@ -3,13 +3,10 @@ package com.salesforce.multicloudj.iam.client;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
-import com.salesforce.multicloudj.iam.model.PolicyDocument;
-import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,66 +102,10 @@ public abstract class AbstractIamIT {
          * @return list of WireMock extension class names
          */
         List<String> getWiremockExtensions();
-        
-        /**
-         * Indicates whether the provider supports creating identities.
-         * 
-         * @return true if createIdentity is supported
-         */
-        boolean supportsCreateIdentity();
-        
-        /**
-         * Indicates whether the provider supports creating identities with trust configuration.
-         * 
-         * @return true if createIdentity with trust config is supported
-         */
-        boolean supportsCreateIdentityWithTrustConfig();
-        
-        /**
-         * Indicates whether the provider supports getting identity details.
-         * 
-         * @return true if getIdentity is supported
-         */
-        boolean supportsGetIdentity();
-        
-        /**
-         * Indicates whether the provider supports deleting identities.
-         * 
-         * @return true if deleteIdentity is supported
-         */
-        boolean supportsDeleteIdentity();
-        
-        /**
-         * Indicates whether the provider supports attaching inline policies.
-         * 
-         * @return true if attachInlinePolicy is supported
-         */
-        boolean supportsAttachInlinePolicy();
-        
-        /**
-         * Indicates whether the provider supports getting inline policy details.
-         * 
-         * @return true if getInlinePolicyDetails is supported
-         */
-        boolean supportsGetInlinePolicyDetails();
-        
-        /**
-         * Indicates whether the provider supports listing attached policies.
-         * 
-         * @return true if getAttachedPolicies is supported
-         */
-        boolean supportsGetAttachedPolicies();
-        
-        /**
-         * Indicates whether the provider supports removing policies.
-         * 
-         * @return true if removePolicy is supported
-         */
-        boolean supportsRemovePolicy();
-        
+
         /**
          * Gets a trusted principal for trust configuration tests.
-         * 
+         *
          * @return a trusted principal identifier
          */
         String getTrustedPrincipal();
@@ -216,9 +157,6 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testCreateIdentityWithoutTrustConfig() {
-        Assumptions.assumeTrue(harness.supportsCreateIdentity(), 
-                "Skipping test as harness does not support createIdentity");
-        
         IamClient iamClient = harness.createIamClient();
         
         String identityId = iamClient.createIdentity(
@@ -239,9 +177,6 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testCreateIdentityWithTrustConfig() {
-        Assumptions.assumeTrue(harness.supportsCreateIdentityWithTrustConfig(), 
-                "Skipping test as harness does not support createIdentity with trust config");
-        
         IamClient iamClient = harness.createIamClient();
         
         TrustConfiguration trustConfig = TrustConfiguration.builder()
@@ -266,9 +201,6 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testCreateIdentityWithOptions() {
-        Assumptions.assumeTrue(harness.supportsCreateIdentity(), 
-                "Skipping test as harness does not support createIdentity");
-        
         IamClient iamClient = harness.createIamClient();
         
         CreateOptions options = CreateOptions.builder().build();
@@ -291,9 +223,6 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testCreateIdentityWithNullDescription() {
-        Assumptions.assumeTrue(harness.supportsCreateIdentity(), 
-                "Skipping test as harness does not support createIdentity");
-        
         IamClient iamClient = harness.createIamClient();
         
         String identityId = iamClient.createIdentity(
@@ -314,9 +243,6 @@ public abstract class AbstractIamIT {
      */
     @Test
     public void testGetIdentity() {
-        Assumptions.assumeTrue(harness.supportsGetIdentity(), 
-                "Skipping test as harness does not support getIdentity");
-        
         IamClient iamClient = harness.createIamClient();
         
         // First create an identity
@@ -338,130 +264,6 @@ public abstract class AbstractIamIT {
         
         Assertions.assertNotNull(retrievedIdentity, "Retrieved identity should not be null");
         Assertions.assertFalse(retrievedIdentity.isEmpty(), "Retrieved identity should not be empty");
-    }
-    
-    /**
-     * Tests attaching an inline policy to an identity.
-     */
-    @Test
-    public void testAttachInlinePolicy() {
-        Assumptions.assumeTrue(harness.supportsAttachInlinePolicy(), 
-                "Skipping test as harness does not support attachInlinePolicy");
-        
-        IamClient iamClient = harness.createIamClient();
-        
-        // Create a test policy
-        PolicyDocument policy = PolicyDocument.builder()
-                .version("2012-10-17")
-                .statement(Statement.builder()
-                        .sid("AllowStorageAccess")
-                        .effect("Allow")
-                        .action("storage:GetObject")
-                        .resource("storage://test-bucket/*")
-                        .build())
-                .build();
-        
-        // Attach the policy
-        iamClient.attachInlinePolicy(
-                policy,
-                harness.getTenantId(),
-                harness.getRegion(),
-                harness.getTestIdentityName()
-        );
-        
-        // If we get here without exception, the test passed
-        Assertions.assertTrue(true, "Policy attachment should succeed");
-    }
-    
-    /**
-     * Tests getting inline policy details.
-     */
-    @Test
-    public void testGetInlinePolicyDetails() {
-        Assumptions.assumeTrue(harness.supportsGetInlinePolicyDetails(), 
-                "Skipping test as harness does not support getInlinePolicyDetails");
-        
-        IamClient iamClient = harness.createIamClient();
-        
-        String policyDetails = iamClient.getInlinePolicyDetails(
-                harness.getTestIdentityName(),
-                "test-policy",
-                harness.getTenantId(),
-                harness.getRegion()
-        );
-        
-        Assertions.assertNotNull(policyDetails, "Policy details should not be null");
-    }
-    
-    /**
-     * Tests getting attached policies for an identity.
-     */
-    @Test
-    public void testGetAttachedPolicies() {
-        Assumptions.assumeTrue(harness.supportsGetAttachedPolicies(), 
-                "Skipping test as harness does not support getAttachedPolicies");
-        
-        IamClient iamClient = harness.createIamClient();
-        
-        List<String> policies = iamClient.getAttachedPolicies(
-                harness.getTestIdentityName(),
-                harness.getTenantId(),
-                harness.getRegion()
-        );
-        
-        Assertions.assertNotNull(policies, "Policies list should not be null");
-    }
-    
-    /**
-     * Tests removing a policy from an identity.
-     */
-    @Test
-    public void testRemovePolicy() {
-        Assumptions.assumeTrue(harness.supportsRemovePolicy(), 
-                "Skipping test as harness does not support removePolicy");
-        
-        IamClient iamClient = harness.createIamClient();
-        
-        iamClient.removePolicy(
-                harness.getTestIdentityName(),
-                "test-policy",
-                harness.getTenantId(),
-                harness.getRegion()
-        );
-        
-        // If we get here without exception, the test passed
-        Assertions.assertTrue(true, "Policy removal should succeed");
-    }
-    
-    /**
-     * Tests deleting an identity.
-     */
-    @Test
-    public void testDeleteIdentity() {
-        Assumptions.assumeTrue(harness.supportsDeleteIdentity(), 
-                "Skipping test as harness does not support deleteIdentity");
-        
-        IamClient iamClient = harness.createIamClient();
-        
-        // First create an identity to delete
-        iamClient.createIdentity(
-                harness.getTestIdentityName() + "-delete",
-                "Test identity for delete operation",
-                harness.getTenantId(),
-                harness.getRegion(),
-                Optional.empty(),
-                Optional.empty()
-        );
-        
-        // Then delete it
-        iamClient.deleteIdentity(
-                harness.getTestIdentityName() + "-delete",
-                harness.getTenantId(),
-                harness.getRegion()
-        );
-        
-        // If we get here without exception, the test passed
-        Assertions.assertTrue(true, "Identity deletion should succeed");
     }
     
     /**

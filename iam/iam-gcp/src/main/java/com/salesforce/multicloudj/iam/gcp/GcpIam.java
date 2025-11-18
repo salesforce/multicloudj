@@ -39,10 +39,6 @@ public class GcpIam extends AbstractIam {
         this.iamClient = builder.iamClient;
     }
 
-    public GcpIam() {
-        super(new Builder());
-    }
-
     @Override
     protected String doCreateIdentity(String identityName, String description, String tenantId,
                                       String region, Optional<TrustConfiguration> trustConfig,
@@ -261,9 +257,6 @@ public class GcpIam extends AbstractIam {
         /** The IAM Client to be used for operations */
         private IAMClient iamClient;
 
-        /** The credentials to be used for authentication */
-        private GoogleCredentials credentials;
-
         /** Default constructor that sets the provider id */
         protected Builder() {
             providerId(GcpConstants.PROVIDER_ID);
@@ -281,17 +274,6 @@ public class GcpIam extends AbstractIam {
         }
 
         /**
-         * Sets the credentials to be used for authentication.
-         *
-         * @param credentials
-         * @return
-         */
-        public Builder withCredentials(GoogleCredentials credentials) {
-            this.credentials = credentials;
-            return self();
-        }
-
-        /**
          * Builds a IAMClient from the current configuration.
          *
          * @return A configured IAMClient
@@ -300,11 +282,6 @@ public class GcpIam extends AbstractIam {
         private IAMClient buildIamClient() {
             try {
                 final IAMSettings.Builder settingsBuilder = IAMSettings.newBuilder();
-
-                if (credentials != null) {
-                    settingsBuilder.setCredentialsProvider(() -> credentials);
-                }
-
                 return IAMClient.create(settingsBuilder.build());
             } catch (Exception e) {
                 throw new SubstrateSdkException("Failed to build IAMClient", e);
