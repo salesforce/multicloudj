@@ -29,6 +29,7 @@ public class CredentialsProviderTest {
                 new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
                         .withRole("testRole")
                         .withSessionName("customSession")
+                        .withDurationSeconds(1)
                         .build();
         AwsCredentialsProvider awsCredsProvider =
                 CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);

@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.common.aws;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
