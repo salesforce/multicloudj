@@ -41,6 +41,21 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>sts-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>blob-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>sts-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-aws</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -1,16 +1,19 @@
 package com.salesforce.multicloudj.sts;
 
+import com.salesforce.multicloudj.blob.client.BucketClient;
 import com.salesforce.multicloudj.sts.client.StsClient;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.SignedAuthRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.util.function.Supplier;
 
 import static com.salesforce.multicloudj.sts.curl.requestToCurl;
 
@@ -21,6 +24,7 @@ public class Main {
 
     public static void main(String[] args) {
         assumeRole();
+        assumeRoleWebIdentityCredentialsOverrider();
         getCallerIdentity();
         nativeAuthSignerUtilityWithStsCredentials();
         nativeAuthSignerUtilityWithDefaultCredentials();
@@ -37,7 +41,25 @@ public class Main {
         System.out.println(stsCredentials.getAccessKeyId());
     }
 
-    public static void getCallerIdentity() {
+    public static void assumeRoleWebIdentityCredentialsOverrider() {
+        Supplier<String> tokenSupplier = () -> {
+            StsClient clientGcp = StsClient.builder("gcp").build();
+            CallerIdentity identity = clientGcp.getCallerIdentity(GetCallerIdentityRequest.builder().aud("some-aud").build());
+            return identity.getCloudResourceName();
+        };
+
+        CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
+                .withRole("arn:aws:iam::654654370895:role/chameleon-web")
+                .withWebIdentityTokenSupplier(tokenSupplier)
+                .build();
+        BucketClient bucketClient = BucketClient.builder(provider)
+                .withRegion("us-west-2")
+                .withCredentialsOverrider(overrider)
+                .build();
+        bucketClient.doesObjectExist("asa", "a");
+    }
+
+    private static void getCallerIdentity() {
         StsClient client = StsClient.builder(provider).withRegion("us-west-2").build();
         CallerIdentity identity = client.getCallerIdentity();
 

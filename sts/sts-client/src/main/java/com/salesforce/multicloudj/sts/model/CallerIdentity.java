@@ -1,6 +1,9 @@
 package com.salesforce.multicloudj.sts.model;
 
 
+import lombok.Getter;
+
+@Getter
 public class CallerIdentity {
     String userId;
     String cloudResourceName;
@@ -10,17 +13,5 @@ public class CallerIdentity {
         this.userId = userId;
         this.cloudResourceName = cloudResourceName;
         this.accountId = accountId;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getAccountId() {
-        return accountId;
-    }
-
-    public String getCloudResourceName() {
-        return cloudResourceName;
     }
 }

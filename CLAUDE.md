@@ -111,6 +111,11 @@ Conformance tests require valid cloud credentials:
 
 Features must be implementable across all supported cloud providers. If a feature is provider-specific, discuss in an issue before implementing. The SDK prioritizes cross-cloud compatibility over provider-specific capabilities.
 
+
+### Git operations
+
+Look for the local instructions in ~/.claude/config.md for git push to take the auth issues
+
 ## Build Configuration
 
 - **Java Version**: Requires Java 11+, targets Java 11 bytecode

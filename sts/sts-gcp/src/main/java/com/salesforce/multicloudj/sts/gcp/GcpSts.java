@@ -3,12 +3,13 @@ package com.salesforce.multicloudj.sts.gcp;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.IdTokenCredentials;
+import com.google.auth.oauth2.IdTokenProvider;
 import com.google.auto.service.AutoService;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
 import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
 import com.google.protobuf.Duration;
-
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -17,13 +18,15 @@ import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
 
@@ -32,7 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
     private final String scope = "https://www.googleapis.com/auth/cloud-platform";
@@ -80,11 +82,18 @@ public class GcpSts extends AbstractSts {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
+    protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
         try {
             GoogleCredentials credentials = getCredentials();
             credentials.refreshIfExpired();
-            return new CallerIdentity(StringUtils.EMPTY, credentials.getAccessToken().getTokenValue(), StringUtils.EMPTY);
+            IdTokenCredentials idTokenCredentials =
+                    IdTokenCredentials.newBuilder()
+                            .setIdTokenProvider((IdTokenProvider) credentials)
+                            .setTargetAudience(request.getAud() != null ? request.getAud().toLowerCase() : "multicloudj")
+                            .build();
+            String idToken = idTokenCredentials.refreshAccessToken().getTokenValue();
+
+            return new CallerIdentity(StringUtils.EMPTY, idToken, StringUtils.EMPTY);
         } catch (IOException e) {
             throw new SubstrateSdkException("Could not create credentials in given environment", e);
         }
@@ -99,6 +108,11 @@ public class GcpSts extends AbstractSts {
         } catch (IOException e) {
             throw new SubstrateSdkException("Could not create credentials in given environment", e);
         }
+    }
+
+    @Override
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
+        throw new UnSupportedOperationException("Not supported yet.");
     }
 
     @Override

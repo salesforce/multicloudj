@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,12 @@ public class AbstractStsTest {
         }
 
         @Override
-        protected CallerIdentity getCallerIdentityFromProvider() {
+        protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request) {
+            return new StsCredentials("accessKey", "secretKey", "sessionToken");
+        }
+
+        @Override
+        protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
             return new CallerIdentity("testUser", "testResource", "testAccount");
         }
 
@@ -104,7 +110,7 @@ public class AbstractStsTest {
         TestSts sts = builder.build();
         assertEquals("testProvider", sts.getProviderId());
 
-        CallerIdentity identity = sts.getCallerIdentity();
+        CallerIdentity identity = sts.getCallerIdentity(GetCallerIdentityRequest.builder().build());
 
         assertNotNull(identity);
         assertEquals("testAccount", identity.getAccountId());
