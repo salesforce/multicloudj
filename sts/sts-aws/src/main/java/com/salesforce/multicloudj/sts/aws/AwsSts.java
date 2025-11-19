@@ -64,7 +64,7 @@ public class AwsSts extends AbstractSts {
     protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
         AssumeRoleRequest roleRequest = AssumeRoleRequest.builder()
                 .roleArn(request.getRole())
-                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-session-" + System.currentTimeMillis())
+                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-" + System.currentTimeMillis())
                 .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null)
                 .build();
         AssumeRoleResponse response = stsClient.assumeRole(roleRequest);
@@ -100,7 +100,7 @@ public class AwsSts extends AbstractSts {
             AssumeRoleWebIdentityRequest request) {
         AssumeRoleWithWebIdentityRequest webIdentityRequest = AssumeRoleWithWebIdentityRequest.builder()
                 .roleArn(request.getRole())
-                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-web-identity-session-" + System.currentTimeMillis())
+                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis())
                 .webIdentityToken(request.getWebIdentityToken())
                 .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null)
                 .build();

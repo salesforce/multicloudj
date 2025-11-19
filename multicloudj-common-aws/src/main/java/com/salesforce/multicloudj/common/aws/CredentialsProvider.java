@@ -29,7 +29,7 @@ public class CredentialsProvider {
             case ASSUME_ROLE: {
                 String assumeRole = overrider.getRole();
                 String sessionName = overrider.getSessionName() != null
-                        ? overrider.getSessionName() : "multicloudj" + System.currentTimeMillis();
+                        ? overrider.getSessionName() : "multicloudj-" + System.currentTimeMillis();
                 StsClient stsClient = StsClient.builder().region(region).build();
                 AssumeRoleRequest.Builder assumeRoleRequestBuilder = AssumeRoleRequest.builder()
                         .roleArn(assumeRole)
@@ -46,7 +46,7 @@ public class CredentialsProvider {
             case ASSUME_ROLE_WEB_IDENTITY: {
                 String assumeRole = overrider.getRole();
                 String sessionName = overrider.getSessionName() != null
-                        ? overrider.getSessionName() : "multicloudj" + System.currentTimeMillis();
+                        ? overrider.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis();
                 StsClient stsClient = StsClient.builder().region(region).build();
 
                 if (overrider.getWebIdentityTokenSupplier() == null) {
