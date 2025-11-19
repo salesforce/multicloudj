@@ -14,6 +14,7 @@ import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
@@ -139,7 +140,7 @@ public class AliSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnSupportedOperationException("Not supported yet.");
     }
 
     @Override

@@ -112,7 +112,7 @@ public class GcpSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnSupportedOperationException("Not supported yet.");
     }
 
     @Override
