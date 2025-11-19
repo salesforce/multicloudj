@@ -201,8 +201,7 @@ public class GcpStsTest {
                         .role("testRole")
                         .webIdentityToken("testToken")
                         .build();
-        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
-        Assertions.assertNull(credentials);
+        Assertions.assertThrows(UnSupportedOperationException.class, () -> sts.assumeRoleWithWebIdentity(request));
     }
 
     private void assertExceptionMapping(GcpSts sts, StatusCode.Code statusCode, Class<? extends SubstrateSdkException> expectedExceptionClass) {
