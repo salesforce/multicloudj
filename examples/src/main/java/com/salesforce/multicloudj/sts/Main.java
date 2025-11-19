@@ -1,11 +1,8 @@
 package com.salesforce.multicloudj.sts;
 
 import com.salesforce.multicloudj.blob.client.BucketClient;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.sts.client.StsClient;
 import com.salesforce.multicloudj.sts.client.StsUtilities;
-import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -47,7 +44,7 @@ public class Main {
     public static void assumeRoleWebIdentityCredentialsOverrider() {
         Supplier<String> tokenSupplier = () -> {
             StsClient clientGcp = StsClient.builder("gcp").build();
-            CallerIdentity identity = clientGcp.getCallerIdentity(GetCallerIdentityRequest.builder().aud("multicloudj").build());
+            CallerIdentity identity = clientGcp.getCallerIdentity(GetCallerIdentityRequest.builder().aud("some-aud").build());
             return identity.getCloudResourceName();
         };
 
@@ -56,21 +53,18 @@ public class Main {
                 .withWebIdentityTokenSupplier(tokenSupplier)
                 .build();
         BucketClient bucketClient = BucketClient.builder(provider)
-                .withRegion("us-west-2").withBucket("chameleon-jclouds")
+                .withRegion("us-west-2")
                 .withCredentialsOverrider(overrider)
                 .build();
-        ListBlobsPageResponse r=bucketClient.listPage(ListBlobsPageRequest.builder().withMaxResults(1).build());
-        System.out.println("s");
+        bucketClient.doesObjectExist("asa", "a");
     }
 
     private static void getCallerIdentity() {
-        StsClient client = StsClient.builder("gcp").withRegion("us-west-2").build();
+        StsClient client = StsClient.builder(provider).withRegion("us-west-2").build();
         CallerIdentity identity = client.getCallerIdentity();
-        StsClient client2 = StsClient.builder("aws").withRegion("us-west-2").build();
-        StsCredentials credentials = client2.getAssumeRoleWithWebIdentityCredentials(AssumeRoleWebIdentityRequest.builder()
-                .webIdentityToken(identity.getCloudResourceName()).role("arn:aws:iam::654654370895:role/chameleon-web").build());
+
         System.out.printf("\nAccountId: %s,UserId: %s,ResourceName: %s\n",
-                identity.getAccountId(), identity.getUserId(), identity.getCloudResourceName(), credentials.getAccessKeyId());
+                identity.getAccountId(), identity.getUserId(), identity.getCloudResourceName());
     }
 
     public static void nativeAuthSignerUtilityWithStsCredentials() {
