@@ -22,13 +22,13 @@ public class ProviderSupplier {
      */
     static AbstractIam.Builder<?, ?> findProviderBuilder(String providerId) {
         ServiceLoader<AbstractIam> services = ServiceLoader.load(AbstractIam.class);
-        ImmutableSet.Builder<AbstractIam<?>> builder = ImmutableSet.builder();
-        for (AbstractIam<?> service : services) {
+        ImmutableSet.Builder<AbstractIam> builder = ImmutableSet.builder();
+        for (AbstractIam service : services) {
             builder.add(service);
         }
-        Iterable<AbstractIam<?>> all = builder.build();
+        Iterable<AbstractIam> all = builder.build();
 
-        for (AbstractIam<?> provider : all) {
+        for (AbstractIam provider : all) {
             if (provider.getProviderId().equals(providerId)) {
                 return createBuilderInstance(provider);
             }
@@ -43,7 +43,7 @@ public class ProviderSupplier {
      * @return The AbstractIam.Builder for the provider.
      * @throws RuntimeException if the builder creation fails.
      */
-    private static AbstractIam.Builder<?, ?> createBuilderInstance(AbstractIam<?> provider) {
+    private static AbstractIam.Builder<?, ?> createBuilderInstance(AbstractIam provider) {
         try {
             return (AbstractIam.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
         } catch (Exception e) {
