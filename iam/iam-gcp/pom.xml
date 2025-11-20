@@ -35,6 +35,12 @@
             <version>3.12.1</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.wiremock/wiremock-grpc-extension -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-grpc-extension</artifactId>
+            <version>0.11.0</version>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -131,15 +137,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.4.0</version>
-                <configuration>
-                    <!-- Skip integration tests by default until gRPC WireMock support is added -->
-                    <skipITs>true</skipITs>
-                </configuration>
             </plugin>
         </plugins>
     </build>
