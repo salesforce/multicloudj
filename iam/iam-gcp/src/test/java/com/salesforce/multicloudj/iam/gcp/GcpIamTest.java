@@ -4,6 +4,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.iam.admin.v1.IAMClient;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
+import com.google.iam.admin.v1.DeleteServiceAccountRequest;
 import com.google.iam.admin.v1.GetServiceAccountRequest;
 import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
@@ -660,5 +661,131 @@ public class GcpIamTest {
         
         assertTrue(exception.getMessage().contains("Failed to get service account"));
         assertEquals(genericException, exception.getCause());
+    }
+    
+    // ==================== Tests for doDeleteIdentity ====================
+    
+    @Test
+    void testDeleteIdentityWithAccountId() {
+        // Arrange
+        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act
+        gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert - Verify the request
+        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
+        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
+        
+        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testDeleteIdentityWithFullEmail() {
+        // Arrange
+        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act - pass full email instead of just account ID
+        gcpIam.deleteIdentity(TEST_SERVICE_ACCOUNT_EMAIL, TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert - Verify the request
+        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
+        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
+        
+        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testDeleteIdentityWithProjectsPrefix() {
+        // Arrange
+        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act - pass tenantId with "projects/" prefix
+        gcpIam.deleteIdentity(TEST_IDENTITY_NAME, "projects/" + TEST_PROJECT_ID, TEST_REGION);
+        
+        // Assert - Verify the request still has correct format
+        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor = 
+                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
+        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
+        
+        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
+    }
+    
+    @Test
+    void testDeleteIdentityNotFound() {
+        // Arrange
+        ApiException notFoundException = mock(ApiException.class);
+        StatusCode statusCode = mock(StatusCode.class);
+        when(statusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
+        when(notFoundException.getStatusCode()).thenReturn(statusCode);
+        when(notFoundException.getMessage()).thenReturn("Service account not found");
+        
+        doThrow(notFoundException).when(mockIamClient)
+                .deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to delete service account"));
+        assertEquals(notFoundException, exception.getCause());
+    }
+    
+    @Test
+    void testDeleteIdentityPermissionDenied() {
+        // Arrange
+        ApiException permissionDeniedException = mock(ApiException.class);
+        StatusCode statusCode = mock(StatusCode.class);
+        when(statusCode.getCode()).thenReturn(StatusCode.Code.PERMISSION_DENIED);
+        when(permissionDeniedException.getStatusCode()).thenReturn(statusCode);
+        when(permissionDeniedException.getMessage()).thenReturn("Permission denied");
+        
+        doThrow(permissionDeniedException).when(mockIamClient)
+                .deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to delete service account"));
+        assertEquals(permissionDeniedException, exception.getCause());
+    }
+    
+    @Test
+    void testDeleteIdentityGenericException() {
+        // Arrange
+        RuntimeException genericException = new RuntimeException("Unexpected error");
+        
+        doThrow(genericException).when(mockIamClient)
+                .deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act & Assert
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to delete service account"));
+        assertEquals(genericException, exception.getCause());
+    }
+    
+    @Test
+    void testDeleteIdentitySuccessfullyDeletesServiceAccount() {
+        // Arrange
+        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+        
+        // Act - should not throw any exception
+        assertDoesNotThrow(() -> 
+                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
+        );
+        
+        // Assert - Verify the method was called
+        verify(mockIamClient, times(1)).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
     }
 }

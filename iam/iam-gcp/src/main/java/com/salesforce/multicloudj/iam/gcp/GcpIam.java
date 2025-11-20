@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.google.cloud.iam.admin.v1.IAMClient;
 import com.google.cloud.iam.admin.v1.IAMSettings;
 import com.google.iam.admin.v1.CreateServiceAccountRequest;
+import com.google.iam.admin.v1.DeleteServiceAccountRequest;
 import com.google.iam.admin.v1.GetServiceAccountRequest;
 import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
@@ -193,10 +194,31 @@ public class GcpIam extends AbstractIam {
         throw new UnSupportedOperationException("doRemovePolicy not yet implemented for GCP");
     }
 
+    /**
+     * Deletes a service account from the specified GCP project.
+     * 
+     * @param identityName the name of the identity (service account ID or email)
+     * @param tenantId the tenant ID (GCP project ID)
+     * @param region the region (not used in GCP IAM as service accounts are global)
+     */
     @Override
     protected void doDeleteIdentity(String identityName, String tenantId, String region) {
-        // TODO: Implement GCP service account deletion
-        throw new UnSupportedOperationException("doDeleteIdentity not yet implemented for GCP");
+        try {
+            // Build the project resource name in the format "projects/{project-id}"
+            final String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
+
+            // Delete the service account
+            final DeleteServiceAccountRequest deleteRequest = DeleteServiceAccountRequest.newBuilder()
+                    .setName(serviceAccountResourceName)
+                    .build();
+            
+            iamClient.deleteServiceAccount(deleteRequest);
+            
+        } catch (ApiException e) {
+            throw new SubstrateSdkException("Failed to delete service account: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new UnknownException("Failed to delete service account: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -212,16 +234,8 @@ public class GcpIam extends AbstractIam {
     protected String doGetIdentity(String identityName, String tenantId, String region) {
         try {
             // Build the project resource name in the format "projects/{project-id}"
-            final String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
-            
-            // Build the service account resource name
-            // Format: projects/{project-id}/serviceAccounts/{account-id}@{project-id}.iam.gserviceaccount.com
-            final String serviceAccountEmail = identityName.contains("@") 
-                ? identityName 
-                : identityName + "@" + projectName.substring(9) + ".iam.gserviceaccount.com";
-            
-            final String serviceAccountResourceName = projectName + "/serviceAccounts/" + serviceAccountEmail;
-            
+            final String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
+
             // Get the service account
             final GetServiceAccountRequest getRequest = GetServiceAccountRequest.newBuilder()
                     .setName(serviceAccountResourceName)
@@ -237,6 +251,18 @@ public class GcpIam extends AbstractIam {
         } catch (Exception e) {
             throw new UnknownException("Failed to get service account: " + e.getMessage(), e);
         }
+    }
+
+    private static String getServiceAccountResourceName(String identityName, String tenantId) {
+        final String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
+
+        // Build the service account resource name
+        // Format: projects/{project-id}/serviceAccounts/{account-id}@{project-id}.iam.gserviceaccount.com
+        final String serviceAccountEmail = identityName.contains("@")
+            ? identityName
+            : identityName + "@" + projectName.substring(9) + ".iam.gserviceaccount.com";
+
+        return projectName + "/serviceAccounts/" + serviceAccountEmail;
     }
 
     @Override

@@ -297,4 +297,76 @@ public abstract class AbstractIamIT {
                 "Generic exceptions should map to UnknownException"
         );
     }
+    
+    /**
+     * Tests deleting an identity.
+     */
+    @Test
+    public void testDeleteIdentity() {
+        IamClient iamClient = harness.createIamClient();
+        
+        // First create an identity
+        String identityId = iamClient.createIdentity(
+                harness.getTestIdentityName() + "-delete",
+                "Test identity for delete operation",
+                harness.getTenantId(),
+                harness.getRegion(),
+                Optional.empty(),
+                Optional.empty()
+        );
+        
+        Assertions.assertNotNull(identityId, "Identity ID should not be null");
+        
+        // Then delete it - should not throw any exception
+        Assertions.assertDoesNotThrow(() ->
+                iamClient.deleteIdentity(
+                        harness.getTestIdentityName() + "-delete",
+                        harness.getTenantId(),
+                        harness.getRegion()
+                )
+        );
+    }
+    
+    /**
+     * Tests the complete lifecycle: create, get, and delete an identity.
+     */
+    @Test
+    public void testIdentityLifecycle() {
+        IamClient iamClient = harness.createIamClient();
+        
+        String testIdentityName = harness.getTestIdentityName() + "-lifecycle";
+        
+        // Step 1: Create an identity
+        String identityId = iamClient.createIdentity(
+                testIdentityName,
+                "Test identity for lifecycle test",
+                harness.getTenantId(),
+                harness.getRegion(),
+                Optional.empty(),
+                Optional.empty()
+        );
+        
+        Assertions.assertNotNull(identityId, "Identity ID should not be null after creation");
+        Assertions.assertFalse(identityId.isEmpty(), "Identity ID should not be empty after creation");
+        
+        // Step 2: Get the identity to verify it exists
+        String retrievedIdentity = iamClient.getIdentity(
+                testIdentityName,
+                harness.getTenantId(),
+                harness.getRegion()
+        );
+        
+        Assertions.assertNotNull(retrievedIdentity, "Retrieved identity should not be null");
+        Assertions.assertFalse(retrievedIdentity.isEmpty(), "Retrieved identity should not be empty");
+        
+        // Step 3: Delete the identity
+        Assertions.assertDoesNotThrow(() ->
+                iamClient.deleteIdentity(
+                        testIdentityName,
+                        harness.getTenantId(),
+                        harness.getRegion()
+                ),
+                "Deleting identity should not throw an exception"
+        );
+    }
 }
