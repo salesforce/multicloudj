@@ -1,0 +1,26 @@
+{
+  "id" : "4f14e685-08b1-4bff-b478-475eae8a93f4",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-tagging-fake",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-tagging-fake?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-tagging-fake\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-tagging-fake\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AOCedOE1TXWIP8YKHwFqRAOihvKPJfAwIrNHq2ibJXb5ODDhp2TA8pdvkHDgz6yXJKxsl1Q_",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 20 Nov 2025 21:12:53 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4f14e685-08b1-4bff-b478-475eae8a93f4",
+  "persistent" : true,
+  "insertionIndex" : 738
+}
