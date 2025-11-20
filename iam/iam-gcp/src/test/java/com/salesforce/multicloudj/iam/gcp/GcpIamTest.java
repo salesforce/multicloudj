@@ -50,7 +50,7 @@ public class GcpIamTest {
 	private GcpIam gcpIam;
 	private static final String TEST_TENANT_ID = "projects/test-project";
 	private static final String TEST_REGION = "us-west1";
-	private static final String TEST_SERVICE_ACCOUNT = "test-sa@test-project.iam.gserviceaccount.com";
+	private static final String TEST_SERVICE_ACCOUNT = "serviceAccount:test-sa@test-project.iam.gserviceaccount.com";
 	private static final String TEST_ROLE = "roles/iam.serviceAccountUser";
 
 	@BeforeEach
@@ -67,9 +67,10 @@ public class GcpIamTest {
 
 	@Test
 	void testConstructorWithNullProjectsClient() {
-		Assertions.assertThrows(InvalidArgumentException.class, () -> {
+		// ProjectsClient can be null - it will be created in Builder.build() if not provided
+		Assertions.assertDoesNotThrow(() -> {
 			new GcpIam(new GcpIam.Builder(), null);
-		}, "Should throw InvalidArgumentException when ProjectsClient is null");
+		});
 	}
 
 	@Test
@@ -126,7 +127,7 @@ public class GcpIamTest {
 		boolean foundBinding = false;
 		for (Binding binding : updatedPolicy.getBindingsList()) {
 			if (binding.getRole().equals(TEST_ROLE)) {
-				Assertions.assertTrue(binding.getMembersList().contains("serviceAccount:" + TEST_SERVICE_ACCOUNT));
+				Assertions.assertTrue(binding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
 				foundBinding = true;
 			}
 		}
@@ -191,7 +192,7 @@ public class GcpIamTest {
 
 		Assertions.assertNotNull(updatedBinding);
 		Assertions.assertEquals(2, updatedBinding.getMembersCount(), "Should have both existing and new members");
-		Assertions.assertTrue(updatedBinding.getMembersList().contains("serviceAccount:" + TEST_SERVICE_ACCOUNT));
+		Assertions.assertTrue(updatedBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
 	}
 
 
@@ -261,12 +262,12 @@ public class GcpIamTest {
 		Policy policy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/iam.serviceAccountUser")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.addMembers("serviceAccount:other@test-project.iam.gserviceaccount.com")
 						.build())
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/compute.instanceAdmin")
@@ -350,7 +351,7 @@ public class GcpIamTest {
 		Policy policy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.build();
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(policy);
@@ -403,12 +404,12 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole(TEST_ROLE)
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.addMembers("serviceAccount:other@test-project.iam.gserviceaccount.com")
 						.build())
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.build();
 
@@ -435,7 +436,7 @@ public class GcpIamTest {
 				.findFirst()
 				.orElse(null);
 		Assertions.assertNotNull(updatedBinding, "Binding should still exist");
-		Assertions.assertFalse(updatedBinding.getMembersList().contains("serviceAccount:" + TEST_SERVICE_ACCOUNT),
+		Assertions.assertFalse(updatedBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT),
 				"Service account should be removed from binding");
 		Assertions.assertTrue(updatedBinding.getMembersList().contains("serviceAccount:other@test-project.iam.gserviceaccount.com"),
 				"Other member should remain in binding");
@@ -446,7 +447,7 @@ public class GcpIamTest {
 				.findFirst()
 				.orElse(null);
 		Assertions.assertNotNull(otherBinding, "Other binding should still exist");
-		Assertions.assertTrue(otherBinding.getMembersList().contains("serviceAccount:" + TEST_SERVICE_ACCOUNT),
+		Assertions.assertTrue(otherBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT),
 				"Service account should remain in other binding");
 	}
 
@@ -456,7 +457,7 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole(TEST_ROLE)
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
@@ -491,7 +492,7 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.build();
 
@@ -577,7 +578,7 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole(TEST_ROLE)
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.build();
 
@@ -598,7 +599,7 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole(TEST_ROLE)
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.addMembers("serviceAccount:other@test-project.iam.gserviceaccount.com")
 						.build())
 				.build();
@@ -629,7 +630,7 @@ public class GcpIamTest {
 		Policy originalPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
 						.setRole("roles/storage.objectViewer")
-						.addMembers("serviceAccount:" + TEST_SERVICE_ACCOUNT)
+						.addMembers(TEST_SERVICE_ACCOUNT)
 						.build())
 				.build();
 

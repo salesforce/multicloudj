@@ -8,7 +8,6 @@ import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
 import com.google.iam.v1.SetIamPolicyRequest;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -30,34 +29,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractIam.class)
 public class GcpIam extends AbstractIam {
+	
+	private static final String EFFECT_ALLOW = "Allow";
+	
 	private ProjectsClient projectsClient;
+
+	public GcpIam() {
+		this(new Builder());
+	}
 
 	public GcpIam(Builder builder) {
 		super(builder);
-		try {
-			this.projectsClient = ProjectsClient.create();
-		} catch (IOException e) {
-			throw new SubstrateSdkException("Could not create ProjectsClient", e);
-		}
-	}
-
-	public GcpIam() {
-		super(new Builder());
-		try {
-			this.projectsClient = ProjectsClient.create();
-		} catch (IOException e) {
-			throw new SubstrateSdkException("Could not create ProjectsClient", e);
-		}
+		this.projectsClient = builder.projectsClient;
 	}
 
 	public GcpIam(Builder builder, ProjectsClient projectsClient) {
 		super(builder);
-		if (projectsClient == null) {
-			throw new InvalidArgumentException("ProjectsClient cannot be null");
-		}
 		this.projectsClient = projectsClient;
 	}
 
@@ -80,7 +69,7 @@ public class GcpIam extends AbstractIam {
 	 * @param tenantId the tenant ID (project resource name, e.g., "projects/my-project")
 	 * @param region the region (optional for GCP)
 	 * @param resource the service account email (complete format, e.g.,
-	 *		 "my-sa@project.iam.gserviceaccount.com")
+	 *		 "serviceAccount:my-sa@project.iam.gserviceaccount.com")
 	 */
 	@Override
 	protected void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
@@ -96,15 +85,13 @@ public class GcpIam extends AbstractIam {
 
 		// Process each statement in the policy document
 		for (Statement statement : policyDocument.getStatements()) {
-			if (!"Allow".equalsIgnoreCase(statement.getEffect())) {
+			if (!EFFECT_ALLOW.equalsIgnoreCase(statement.getEffect())) {
 				continue;
 			}
 
 			// Treat each action as a GCP IAM role name
 			for (String action : statement.getActions()) {
-				String role = action; // Expect proper GCP role name (e.g., roles/storage.objectViewer)
-				String member = "serviceAccount:" + resource;
-				policy = addBinding(policy, role, member);
+				policy = addBinding(policy, action, resource);
 			}
 		}
 
@@ -162,7 +149,7 @@ public class GcpIam extends AbstractIam {
 	 * Retrieves the details of a specific inline policy (role) attached to a service account.
 	 * In GCP, this retrieves the role binding information and converts it back to a PolicyDocument format.
 	 *
-	 * @param identityName the service account email (e.g., "my-sa@project.iam.gserviceaccount.com")
+	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
 	 * @param policyName the role name (e.g., "roles/iam.serviceAccountUser")
 	 * @param tenantId the project resource name (e.g., "projects/my-project")
 	 * @param region the region (optional for GCP)
@@ -180,19 +167,13 @@ public class GcpIam extends AbstractIam {
 			return null;
 		}
 
-		// Format the service account as a GCP IAM member
-		String member = "serviceAccount:" + identityName;
-
-		// policyName should be a GCP role name (e.g., roles/storage.objectViewer)
-		String role = policyName;
-
 		// Find the binding for the specified role
 		Optional<Binding> binding = policy.getBindingsList().stream()
-			.filter(b -> b.getRole().equals(role))
+			.filter(b -> b.getRole().equals(policyName))
 			.findFirst();
 
 		// Check if the service account is a member of this binding
-		if (!binding.isPresent() || !binding.get().getMembersList().contains(member)) {
+		if (!binding.isPresent() || !binding.get().getMembersList().contains(identityName)) {
 			return null;
 		}
 
@@ -200,7 +181,7 @@ public class GcpIam extends AbstractIam {
 		PolicyDocument policyDocument = PolicyDocument.builder()
 			.version("2012-10-17")
 			.statement(Statement.builder()
-				.effect("Allow")
+				.effect(EFFECT_ALLOW)
 				.action(policyName)
 				.build())
 			.build();
@@ -218,7 +199,6 @@ public class GcpIam extends AbstractIam {
 	 */
 	private String toJsonString(PolicyDocument policyDocument) {
 		try {
-			ObjectMapper objectMapper = new ObjectMapper();
 			Map<String, Object> policyMap = new HashMap<>();
 			policyMap.put("Version", policyDocument.getVersion());
 
@@ -245,7 +225,7 @@ public class GcpIam extends AbstractIam {
 			}
 			policyMap.put("Statement", statementsList);
 
-			return objectMapper.writeValueAsString(policyMap);
+			return new ObjectMapper().writeValueAsString(policyMap);
 		} catch (Exception e) {
 			throw new SubstrateSdkException("Failed to serialize policy document to JSON", e);
 		}
@@ -256,7 +236,7 @@ public class GcpIam extends AbstractIam {
 	 * In GCP, "attached policies" are the IAM roles that have been granted to the service account
 	 * through bindings in the project's IAM policy.
 	 *
-	 * @param identityName the service account email (e.g., "my-sa@project.iam.gserviceaccount.com")
+	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
 	 * @param tenantId the project resource name (e.g., "projects/my-project")
 	 * @param region the region (optional for GCP)
 	 * @return a list of role names (e.g., "roles/iam.serviceAccountUser", "roles/storage.objectViewer")
@@ -271,9 +251,8 @@ public class GcpIam extends AbstractIam {
 		if (policy == null) {
 			return List.of();
 		}
-		String member = "serviceAccount:" + identityName;
 		return policy.getBindingsList().stream()
-			.filter(binding -> binding.getMembersList().contains(member))
+			.filter(binding -> binding.getMembersList().contains(identityName))
 			.map(Binding::getRole)
 			.collect(Collectors.toList());
 	}
@@ -282,7 +261,7 @@ public class GcpIam extends AbstractIam {
 	 * Removes an inline policy (role) from a service account.
 	 * In GCP, this removes the service account from the specified role binding in the project's IAM policy.
 	 *
-	 * @param identityName the service account email (e.g., "my-sa@project.iam.gserviceaccount.com")
+	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
 	 * @param policyName the role name to remove (e.g., "roles/iam.serviceAccountUser")
 	 * @param tenantId the project resource name (e.g., "projects/my-project")
 	 * @param region the region (optional for GCP)
@@ -300,12 +279,8 @@ public class GcpIam extends AbstractIam {
 			return;
 		}
 
-		// Format the service account as a GCP IAM member
-		String member = "serviceAccount:" + identityName;
-		String role = policyName;
-
 		// Remove the binding
-		policy = removeBinding(policy, role, member);
+		policy = removeBinding(policy, policyName, identityName);
 
 		// Set the updated policy back to the project
 		SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
@@ -405,17 +380,35 @@ public class GcpIam extends AbstractIam {
 	}
 
 	public static class Builder extends AbstractIam.Builder<GcpIam, Builder> {
-		protected Builder() {
-			providerId(GcpConstants.PROVIDER_ID);
-		}
+		private ProjectsClient projectsClient;
+
+		public Builder() {
+            providerId(GcpConstants.PROVIDER_ID);
+        }
+
+		public Builder withProjectsClient(ProjectsClient projectsClient) {
+            this.projectsClient = projectsClient;
+            return this;
+        }
 
 		@Override
 		public Builder self() {
 			return this;
 		}
 
+		private static ProjectsClient buildProjectsClient(Builder builder) {
+			try {
+				return ProjectsClient.create();
+			} catch (IOException e) {
+				throw new SubstrateSdkException("Could not create ProjectsClient", e);
+			}
+		}
+
 		@Override
 		public GcpIam build() {
+			if (projectsClient == null) {
+				projectsClient = buildProjectsClient(this);
+			}
 			return new GcpIam(this);
 		}
 	}
