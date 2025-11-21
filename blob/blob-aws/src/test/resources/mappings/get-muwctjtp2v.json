@@ -1,0 +1,23 @@
+{
+  "id" : "e8e30cd4-dd11-4fbc-bdae-6988f2d32f9d",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-tagging",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging?tagging",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldD48VGFnPjxLZXk+dGFnNDwvS2V5PjxWYWx1ZT52YWx1ZTQ8L1ZhbHVlPjwvVGFnPjxUYWc+PEtleT50YWczPC9LZXk+PFZhbHVlPnZhbHVlMzwvVmFsdWU+PC9UYWc+PC9UYWdTZXQ+PC9UYWdnaW5nPg==",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "BYJR27TTYP3JH7R0",
+      "x-amz-id-2" : "fMryrgBM3acozlxhzJGlqSqefa0SZRWi1AMI11/m7GeOldWQMhy+Dcr+cvMT0QjUbCAEmLCO5dI=",
+      "Date" : "Thu, 20 Nov 2025 21:25:54 GMT"
+    }
+  },
+  "uuid" : "e8e30cd4-dd11-4fbc-bdae-6988f2d32f9d",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-tagging",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-tagging-2",
+  "insertionIndex" : 567
+}
