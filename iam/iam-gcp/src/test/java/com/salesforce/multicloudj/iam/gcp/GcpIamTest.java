@@ -1,14 +1,8 @@
 package com.salesforce.multicloudj.iam.gcp;
 
-import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
-import com.google.cloud.iam.admin.v1.IAMClient;
-import com.google.iam.admin.v1.CreateServiceAccountRequest;
-import com.google.iam.admin.v1.DeleteServiceAccountRequest;
-import com.google.iam.admin.v1.GetServiceAccountRequest;
-import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
@@ -21,13 +15,13 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,55 +32,45 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.io.IOException;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class GcpIamTest {
 
 	@Mock
 	private ProjectsClient mockProjectsClient;
-    @Mock
-    private IAMClient mockIamClient;
 	private GcpIam gcpIam;
 	private static final String TEST_TENANT_ID = "projects/test-project";
 	private static final String TEST_REGION = "us-west1";
 	private static final String TEST_SERVICE_ACCOUNT = "serviceAccount:test-sa@test-project.iam.gserviceaccount.com";
 	private static final String TEST_ROLE = "roles/iam.serviceAccountUser";
 
-    private static final String TEST_PROJECT_ID = "test-project-123";
-    private static final String TEST_IDENTITY_NAME = "test-service-account";
-    private static final String TEST_DESCRIPTION = "Test service account description";
-    private static final String TEST_SERVICE_ACCOUNT_EMAIL = "test-service-account@test-project-123.iam.gserviceaccount.com";
-    private static final String TEST_SERVICE_ACCOUNT_NAME = "projects/test-project-123/serviceAccounts/test-service-account@test-project-123.iam.gserviceaccount.com";
-
-
-    @BeforeEach
+	@BeforeEach
 	void setUp() {
-		gcpIam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).withIamClient(mockIamClient).build();
+		gcpIam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).build();
 	}
 
 	@Test
 	void testConstructorWithBuilderAndProjectsClient() {
-		GcpIam iam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).withIamClient(mockIamClient).build();
+		GcpIam iam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).build();
 		Assertions.assertNotNull(iam);
-		assertEquals("gcp", iam.getProviderId());
+		Assertions.assertEquals("gcp", iam.getProviderId());
 	}
 
 	@Test
-	void testConstructorWithNullClients() throws IOException {
+	void testConstructorWithNullProjectsClient() throws IOException {
 		// ProjectsClient can be null - it will be created in Builder.build() if not provided
-		try (MockedStatic<ProjectsClient> mockedProjectsClient = mockStatic(ProjectsClient.class);
-             MockedStatic<IAMClient> mockedIamClient = mockStatic(IAMClient.class)) {
+		try (MockedStatic<ProjectsClient> mockedClient = mockStatic(ProjectsClient.class)) {
 			ProjectsClient mockClient = mock(ProjectsClient.class);
-            IAMClient mockIamClient = mock(IAMClient.class);
-			mockedProjectsClient.when(ProjectsClient::create).thenReturn(mockClient);
-            mockedIamClient.when(IAMClient::create).thenReturn(mockIamClient);
+			mockedClient.when(ProjectsClient::create).thenReturn(mockClient);
 
 			Assertions.assertDoesNotThrow(() -> {
 				new GcpIam.Builder().build();
@@ -96,16 +80,13 @@ public class GcpIamTest {
 
 	@Test
 	void testConstructorWithBuilder() throws IOException {
-		try (MockedStatic<ProjectsClient> mockedProjectsClient = mockStatic(ProjectsClient.class);
-             MockedStatic<IAMClient> mockedIamClient = mockStatic(IAMClient.class)) {
-			ProjectsClient mockProjectsClient = mock(ProjectsClient.class);
-            IAMClient mockIamClient = mock(IAMClient.class);
-			mockedProjectsClient.when(ProjectsClient::create).thenReturn(mockProjectsClient);
-            mockedIamClient.when(IAMClient::create).thenReturn(mockIamClient);
+		try (MockedStatic<ProjectsClient> mockedClient = mockStatic(ProjectsClient.class)) {
+			ProjectsClient mockClient = mock(ProjectsClient.class);
+			mockedClient.when(ProjectsClient::create).thenReturn(mockClient);
 
 			GcpIam iam = new GcpIam(new GcpIam.Builder());
 			Assertions.assertNotNull(iam);
-			assertEquals("gcp", iam.getProviderId());
+			Assertions.assertEquals("gcp", iam.getProviderId());
 		}
 	}
 
@@ -143,7 +124,7 @@ public class GcpIamTest {
 		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
 
 		SetIamPolicyRequest setRequest = setRequestCaptor.getValue();
-		assertEquals(TEST_TENANT_ID, setRequest.getResource());
+		Assertions.assertEquals(TEST_TENANT_ID, setRequest.getResource());
 		Policy updatedPolicy = setRequest.getPolicy();
 		Assertions.assertNotNull(updatedPolicy);
 
@@ -151,11 +132,11 @@ public class GcpIamTest {
 		boolean foundBinding = false;
 		for (Binding binding : updatedPolicy.getBindingsList()) {
 			if (binding.getRole().equals(TEST_ROLE)) {
-				assertTrue(binding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
+				Assertions.assertTrue(binding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
 				foundBinding = true;
 			}
 		}
-		assertTrue(foundBinding, "New binding should be added");
+		Assertions.assertTrue(foundBinding, "New binding should be added");
 	}
 
 	@Test
@@ -215,8 +196,8 @@ public class GcpIamTest {
 				.orElse(null);
 
 		Assertions.assertNotNull(updatedBinding);
-		assertEquals(2, updatedBinding.getMembersCount(), "Should have both existing and new members");
-		assertTrue(updatedBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
+		Assertions.assertEquals(2, updatedBinding.getMembersCount(), "Should have both existing and new members");
+		Assertions.assertTrue(updatedBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
 	}
 
 
@@ -266,7 +247,7 @@ public class GcpIamTest {
 	@Test
 	void testGetExceptionWithNonApiException() {
 		Class<? extends SubstrateSdkException> exceptionClass = gcpIam.getException(new RuntimeException("Test error"));
-		assertEquals(UnknownException.class, exceptionClass);
+		Assertions.assertEquals(UnknownException.class, exceptionClass);
 	}
 
 	@Test
@@ -303,14 +284,14 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertEquals(2, result.size());
-		assertTrue(result.contains("roles/iam.serviceAccountUser"));
-		assertTrue(result.contains("roles/storage.objectViewer"));
+		Assertions.assertEquals(2, result.size());
+		Assertions.assertTrue(result.contains("roles/iam.serviceAccountUser"));
+		Assertions.assertTrue(result.contains("roles/storage.objectViewer"));
 		Assertions.assertFalse(result.contains("roles/compute.instanceAdmin"));
 
 		ArgumentCaptor<GetIamPolicyRequest> requestCaptor = ArgumentCaptor.forClass(GetIamPolicyRequest.class);
 		verify(mockProjectsClient, times(1)).getIamPolicy(requestCaptor.capture());
-		assertEquals(TEST_TENANT_ID, requestCaptor.getValue().getResource());
+		Assertions.assertEquals(TEST_TENANT_ID, requestCaptor.getValue().getResource());
 	}
 
 	@Test
@@ -331,7 +312,7 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertTrue(result.isEmpty());
+		Assertions.assertTrue(result.isEmpty());
 	}
 
 	@Test
@@ -345,7 +326,7 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertTrue(result.isEmpty());
+		Assertions.assertTrue(result.isEmpty());
 		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
 	}
 
@@ -362,7 +343,7 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertTrue(result.isEmpty());
+		Assertions.assertTrue(result.isEmpty());
 	}
 
 	@Test
@@ -382,8 +363,8 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertEquals(1, result.size());
-		assertEquals("roles/storage.objectViewer", result.get(0));
+		Assertions.assertEquals(1, result.size());
+		Assertions.assertEquals("roles/storage.objectViewer", result.get(0));
 	}
 
 	@Test
@@ -395,7 +376,7 @@ public class GcpIamTest {
 	@Test
 	void testCloseWithException() throws Exception {
 		Mockito.doThrow(new IOException("Close failed")).when(mockProjectsClient).close();
-		assertThrows(IOException.class, () -> gcpIam.close());
+		Assertions.assertThrows(IOException.class, () -> gcpIam.close());
 		verify(mockProjectsClient, times(1)).close();
 	}
 
@@ -409,13 +390,13 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenThrow(apiException);
 
 		// Execute and verify exception is thrown
-		assertThrows(ApiException.class, () -> {
+		Assertions.assertThrows(ApiException.class, () -> {
 			gcpIam.doGetAttachedPolicies(TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
 		});
-
+		
 		// Verify that the exception would be mapped correctly
 		Class<? extends SubstrateSdkException> mappedException = gcpIam.getException(apiException);
-		assertEquals(UnAuthorizedException.class, mappedException);
+		Assertions.assertEquals(UnAuthorizedException.class, mappedException);
 	}
 
 	@Test
@@ -441,13 +422,13 @@ public class GcpIamTest {
 		// Verify: getIamPolicy was called once
 		ArgumentCaptor<GetIamPolicyRequest> getRequestCaptor = ArgumentCaptor.forClass(GetIamPolicyRequest.class);
 		verify(mockProjectsClient, times(1)).getIamPolicy(getRequestCaptor.capture());
-		assertEquals(TEST_TENANT_ID, getRequestCaptor.getValue().getResource());
+		Assertions.assertEquals(TEST_TENANT_ID, getRequestCaptor.getValue().getResource());
 
 		// Verify: setIamPolicy was called with updated policy
 		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
 		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
 		SetIamPolicyRequest setRequest = setRequestCaptor.getValue();
-		assertEquals(TEST_TENANT_ID, setRequest.getResource());
+		Assertions.assertEquals(TEST_TENANT_ID, setRequest.getResource());
 
 		// Verify: The member was removed from the binding, but binding still exists
 		Policy updatedPolicy = setRequest.getPolicy();
@@ -458,7 +439,7 @@ public class GcpIamTest {
 		Assertions.assertNotNull(updatedBinding, "Binding should still exist");
 		Assertions.assertFalse(updatedBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT),
 				"Service account should be removed from binding");
-		assertTrue(updatedBinding.getMembersList().contains("serviceAccount:other@test-project.iam.gserviceaccount.com"),
+		Assertions.assertTrue(updatedBinding.getMembersList().contains("serviceAccount:other@test-project.iam.gserviceaccount.com"),
 				"Other member should remain in binding");
 
 		// Verify: Other binding with the same service account should remain unchanged
@@ -467,7 +448,7 @@ public class GcpIamTest {
 				.findFirst()
 				.orElse(null);
 		Assertions.assertNotNull(otherBinding, "Other binding should still exist");
-		assertTrue(otherBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT),
+		Assertions.assertTrue(otherBinding.getMembersList().contains(TEST_SERVICE_ACCOUNT),
 				"Service account should remain in other binding");
 	}
 
@@ -503,7 +484,7 @@ public class GcpIamTest {
 		// Verify: Other binding should remain
 		boolean otherBindingExists = updatedPolicy.getBindingsList().stream()
 				.anyMatch(b -> b.getRole().equals("roles/storage.objectViewer"));
-		assertTrue(otherBindingExists, "Other binding should remain");
+		Assertions.assertTrue(otherBindingExists, "Other binding should remain");
 	}
 
 	@Test
@@ -569,7 +550,7 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenThrow(apiException);
 
 		// Execute and verify exception is thrown
-		assertThrows(ApiException.class, () -> {
+		Assertions.assertThrows(ApiException.class, () -> {
 			gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 		});
 
@@ -593,7 +574,7 @@ public class GcpIamTest {
 		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenThrow(apiException);
 
 		// Execute and verify exception is thrown
-		assertThrows(ApiException.class, () -> {
+		Assertions.assertThrows(ApiException.class, () -> {
 			gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 		});
 	}
@@ -617,16 +598,16 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		assertTrue(result.contains("\"version\""));
-		assertTrue(result.contains("\"statements\""));
-		assertTrue(result.contains("\"effect\":\"Allow\""));
-		assertTrue(result.contains("\"actions\""));
-		assertTrue(result.contains(TEST_ROLE));
+		Assertions.assertTrue(result.contains("\"version\""));
+		Assertions.assertTrue(result.contains("\"statements\""));
+		Assertions.assertTrue(result.contains("\"effect\":\"Allow\""));
+		Assertions.assertTrue(result.contains("\"actions\""));
+		Assertions.assertTrue(result.contains(TEST_ROLE));
 
 		// Verify getIamPolicy was called
 		ArgumentCaptor<GetIamPolicyRequest> requestCaptor = ArgumentCaptor.forClass(GetIamPolicyRequest.class);
 		verify(mockProjectsClient, times(1)).getIamPolicy(requestCaptor.capture());
-		assertEquals(TEST_TENANT_ID, requestCaptor.getValue().getResource());
+		Assertions.assertEquals(TEST_TENANT_ID, requestCaptor.getValue().getResource());
 	}
 
 	@Test
@@ -689,12 +670,10 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenThrow(apiException);
 
 		// Execute and verify exception is thrown
-		assertThrows(ApiException.class, () -> {
+		Assertions.assertThrows(ApiException.class, () -> {
 			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 		});
 	}
-
-
 
 	private void assertExceptionMapping(StatusCode.Code statusCode,
 			Class<? extends SubstrateSdkException> expectedExceptionClass) {
@@ -705,712 +684,8 @@ public class GcpIamTest {
 
 		Class<? extends SubstrateSdkException> actualExceptionClass =
 				gcpIam.getException(apiException);
-		assertEquals(expectedExceptionClass, actualExceptionClass,
+		Assertions.assertEquals(expectedExceptionClass, actualExceptionClass,
 				"Expected " + expectedExceptionClass.getSimpleName() + " for status code "
 						+ statusCode);
 	}
-
-
-    @Test
-    void testCreateIdentityWithoutTrustConfig() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.empty(),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request
-        ArgumentCaptor<CreateServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(CreateServiceAccountRequest.class);
-        verify(mockIamClient).createServiceAccount(requestCaptor.capture());
-
-        CreateServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals("projects/" + TEST_PROJECT_ID, capturedRequest.getName());
-        assertEquals(TEST_IDENTITY_NAME, capturedRequest.getAccountId());
-        assertEquals(TEST_IDENTITY_NAME, capturedRequest.getServiceAccount().getDisplayName());
-        assertEquals(TEST_DESCRIPTION, capturedRequest.getServiceAccount().getDescription());
-
-        // Verify no IAM policy calls were made
-        verify(mockIamClient, never()).getIamPolicy(any(GetIamPolicyRequest.class));
-        verify(mockIamClient, never()).setIamPolicy(any(SetIamPolicyRequest.class));
-    }
-
-    @Test
-    void testCreateIdentityWithProjectsPrefix() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act - pass tenantId with "projects/" prefix
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                "projects/" + TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.empty(),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request still has correct format
-        ArgumentCaptor<CreateServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(CreateServiceAccountRequest.class);
-        verify(mockIamClient).createServiceAccount(requestCaptor.capture());
-
-        CreateServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals("projects/" + TEST_PROJECT_ID, capturedRequest.getName());
-    }
-
-    @Test
-    void testCreateIdentityWithNullDescription() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                null,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.empty(),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request has empty description
-        ArgumentCaptor<CreateServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(CreateServiceAccountRequest.class);
-        verify(mockIamClient).createServiceAccount(requestCaptor.capture());
-
-        CreateServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals("", capturedRequest.getServiceAccount().getDescription());
-    }
-
-    @Test
-    void testCreateIdentityWithTrustConfigSinglePrincipal() {
-        // Arrange
-        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(trustedPrincipal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.of(trustConfig),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify service account creation
-        verify(mockIamClient).createServiceAccount(any(CreateServiceAccountRequest.class));
-
-        // Verify IAM policy operations
-        ArgumentCaptor<GetIamPolicyRequest> getRequestCaptor =
-                ArgumentCaptor.forClass(GetIamPolicyRequest.class);
-        verify(mockIamClient).getIamPolicy(getRequestCaptor.capture());
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, getRequestCaptor.getValue().getResource());
-
-        ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor =
-                ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-        verify(mockIamClient).setIamPolicy(setRequestCaptor.capture());
-
-        SetIamPolicyRequest capturedSetRequest = setRequestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedSetRequest.getResource());
-
-        // Verify the policy has the correct binding
-        Policy capturedPolicy = capturedSetRequest.getPolicy();
-        assertEquals(1, capturedPolicy.getBindingsCount());
-
-        Binding binding = capturedPolicy.getBindings(0);
-        assertEquals("roles/iam.serviceAccountTokenCreator", binding.getRole());
-        assertEquals(1, binding.getMembersCount());
-        assertEquals("serviceAccount:" + trustedPrincipal, binding.getMembers(0));
-    }
-
-    @Test
-    void testCreateIdentityWithTrustConfigMultiplePrincipals() {
-        // Arrange
-        String principal1 = "sa1@test-project-123.iam.gserviceaccount.com";
-        String principal2 = "sa2@test-project-123.iam.gserviceaccount.com";
-        String principal3 = "user:user@example.com"; // Already formatted
-
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(principal1)
-                .addTrustedPrincipal(principal2)
-                .addTrustedPrincipal(principal3)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.of(trustConfig),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify IAM policy operations
-        ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor =
-                ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-        verify(mockIamClient).setIamPolicy(setRequestCaptor.capture());
-
-        SetIamPolicyRequest capturedSetRequest = setRequestCaptor.getValue();
-        Policy capturedPolicy = capturedSetRequest.getPolicy();
-
-        // Verify the policy has the correct binding with all members
-        assertEquals(1, capturedPolicy.getBindingsCount());
-
-        Binding binding = capturedPolicy.getBindings(0);
-        assertEquals("roles/iam.serviceAccountTokenCreator", binding.getRole());
-        assertEquals(3, binding.getMembersCount());
-
-        // Verify all principals are present
-        assertTrue(binding.getMembersList().contains("serviceAccount:" + principal1));
-        assertTrue(binding.getMembersList().contains("serviceAccount:" + principal2));
-        assertTrue(binding.getMembersList().contains(principal3)); // Already formatted, should remain as-is
-    }
-
-    @Test
-    void testCreateIdentityWithTrustConfigEmptyPrincipals() {
-        // Arrange
-        TrustConfiguration trustConfig = TrustConfiguration.builder().build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.of(trustConfig),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify service account creation
-        verify(mockIamClient).createServiceAccount(any(CreateServiceAccountRequest.class));
-
-        // Verify no IAM policy calls were made (empty principals list)
-        verify(mockIamClient, never()).getIamPolicy(any(GetIamPolicyRequest.class));
-        verify(mockIamClient, never()).setIamPolicy(any(SetIamPolicyRequest.class));
-    }
-
-    @Test
-    void testCreateIdentityWithTrustConfigNullPolicy() {
-        // Arrange
-        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(trustedPrincipal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy emptyPolicy = Policy.newBuilder().build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(null);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(emptyPolicy);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.of(trustConfig),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify that even with policy not found, we still set the policy
-        verify(mockIamClient).getIamPolicy(any(GetIamPolicyRequest.class));
-        verify(mockIamClient).setIamPolicy(any(SetIamPolicyRequest.class));
-    }
-
-    @Test
-    void testCreateIdentityWithAlreadyExistsException() {
-        // Arrange
-        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(trustedPrincipal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        AlreadyExistsException alreadyExistsException = mock(AlreadyExistsException.class);
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenThrow(alreadyExistsException);
-        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-
-        // Act
-        String result = gcpIam.createIdentity(
-                TEST_IDENTITY_NAME,
-                TEST_DESCRIPTION,
-                TEST_PROJECT_ID,
-                TEST_REGION,
-                Optional.of(trustConfig),
-                Optional.empty()
-        );
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify service account creation
-        verify(mockIamClient).createServiceAccount(any(CreateServiceAccountRequest.class));
-
-        // Verify IAM policy operations
-        ArgumentCaptor<GetIamPolicyRequest> getRequestCaptor =
-                ArgumentCaptor.forClass(GetIamPolicyRequest.class);
-        verify(mockIamClient).getIamPolicy(getRequestCaptor.capture());
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, getRequestCaptor.getValue().getResource());
-
-        ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor =
-                ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-        verify(mockIamClient).setIamPolicy(setRequestCaptor.capture());
-
-        SetIamPolicyRequest capturedSetRequest = setRequestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedSetRequest.getResource());
-
-        // Verify the policy has the correct binding
-        Policy capturedPolicy = capturedSetRequest.getPolicy();
-        assertEquals(1, capturedPolicy.getBindingsCount());
-
-        Binding binding = capturedPolicy.getBindings(0);
-        assertEquals("roles/iam.serviceAccountTokenCreator", binding.getRole());
-        assertEquals(1, binding.getMembersCount());
-        assertEquals("serviceAccount:" + trustedPrincipal, binding.getMembers(0));
-    }
-
-    @Test
-    void testCreateIdentityApiExceptionDuringCreation() {
-        // Arrange
-        ApiException apiException = mock(ApiException.class);
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenThrow(apiException);
-
-        // Act & Assert - Exception should propagate to IamClient for centralized handling
-        ApiException exception = assertThrows(ApiException.class, () ->
-                gcpIam.createIdentity(
-                        TEST_IDENTITY_NAME,
-                        TEST_DESCRIPTION,
-                        TEST_PROJECT_ID,
-                        TEST_REGION,
-                        Optional.empty(),
-                        Optional.empty()
-                )
-        );
-
-        assertEquals(apiException, exception);
-    }
-
-    @Test
-    void testCreateIdentityApiExceptionDuringPolicySet() {
-        // Arrange
-        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(trustedPrincipal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        ApiException apiException = mock(ApiException.class);
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenThrow(apiException);
-
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () ->
-                gcpIam.createIdentity(
-                        TEST_IDENTITY_NAME,
-                        TEST_DESCRIPTION,
-                        TEST_PROJECT_ID,
-                        TEST_REGION,
-                        Optional.of(trustConfig),
-                        Optional.empty()
-                )
-        );
-
-        // Verify exception is thrown without rollback
-        assertNotNull(exception);
-    }
-
-    @Test
-    void testFormatPrincipalAsMemberWithServiceAccountEmail() {
-        // This tests the private method indirectly through createIdentity
-        String principal = "test@project.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(principal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-
-        // Act
-        gcpIam.createIdentity(TEST_IDENTITY_NAME, TEST_DESCRIPTION, TEST_PROJECT_ID,
-                TEST_REGION, Optional.of(trustConfig), Optional.empty());
-
-        // Assert
-        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-        verify(mockIamClient).setIamPolicy(captor.capture());
-
-        Binding binding = captor.getValue().getPolicy().getBindings(0);
-        assertEquals("serviceAccount:" + principal, binding.getMembers(0));
-    }
-
-    @Test
-    void testFormatPrincipalAsMemberWithAlreadyFormattedPrincipal() {
-        // This tests the private method indirectly through createIdentity
-        String principal = "user:test@example.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(principal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-
-        // Act
-        gcpIam.createIdentity(TEST_IDENTITY_NAME, TEST_DESCRIPTION, TEST_PROJECT_ID,
-                TEST_REGION, Optional.of(trustConfig), Optional.empty());
-
-        // Assert
-        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-        verify(mockIamClient).setIamPolicy(captor.capture());
-
-        Binding binding = captor.getValue().getPolicy().getBindings(0);
-        assertEquals(principal, binding.getMembers(0)); // Should remain unchanged
-    }
-
-    @Test
-    void testGetProviderId() {
-        assertEquals("gcp", gcpIam.getProviderId());
-    }
-
-    // ==================== Tests for doGetIdentity ====================
-
-    @Test
-    void testGetIdentityWithAccountId() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act
-        String result = gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request
-        ArgumentCaptor<GetServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
-        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
-
-        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testGetIdentityWithFullEmail() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act - pass full email instead of just account ID
-        String result = gcpIam.getIdentity(TEST_SERVICE_ACCOUNT_EMAIL, TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request
-        ArgumentCaptor<GetServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
-        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
-
-        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testGetIdentityWithProjectsPrefix() {
-        // Arrange
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .build();
-
-        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-
-        // Act - pass tenantId with "projects/" prefix
-        String result = gcpIam.getIdentity(TEST_IDENTITY_NAME, "projects/" + TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert
-        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
-
-        // Verify the request still has correct format
-        ArgumentCaptor<GetServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(GetServiceAccountRequest.class);
-        verify(mockIamClient).getServiceAccount(requestCaptor.capture());
-
-        GetServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testGetIdentityThrowsException() {
-        // Arrange
-        RuntimeException genericException = new RuntimeException("Unexpected error");
-
-        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
-                .thenThrow(genericException);
-
-        // Act & Assert - Exception should propagate to IamClient for centralized handling
-        RuntimeException exception = assertThrows(RuntimeException.class, () ->
-                gcpIam.getIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
-        );
-
-        assertEquals(genericException, exception);
-    }
-
-    // ==================== Tests for doDeleteIdentity ====================
-
-    @Test
-    void testDeleteIdentityWithAccountId() {
-        // Arrange
-        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act
-        gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert - Verify the request
-        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
-        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
-
-        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testDeleteIdentityWithFullEmail() {
-        // Arrange
-        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act - pass full email instead of just account ID
-        gcpIam.deleteIdentity(TEST_SERVICE_ACCOUNT_EMAIL, TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert - Verify the request
-        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
-        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
-
-        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testDeleteIdentityWithProjectsPrefix() {
-        // Arrange
-        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act - pass tenantId with "projects/" prefix
-        gcpIam.deleteIdentity(TEST_IDENTITY_NAME, "projects/" + TEST_PROJECT_ID, TEST_REGION);
-
-        // Assert - Verify the request still has correct format
-        ArgumentCaptor<DeleteServiceAccountRequest> requestCaptor =
-                ArgumentCaptor.forClass(DeleteServiceAccountRequest.class);
-        verify(mockIamClient).deleteServiceAccount(requestCaptor.capture());
-
-        DeleteServiceAccountRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedRequest.getName());
-    }
-
-    @Test
-    void testDeleteIdentityThrowsException() {
-        // Arrange
-        RuntimeException genericException = new RuntimeException("Unexpected error");
-
-        doThrow(genericException).when(mockIamClient)
-                .deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act & Assert - Exception should propagate to IamClient for centralized handling
-        RuntimeException exception = assertThrows(RuntimeException.class, () ->
-                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
-        );
-
-        assertEquals(genericException, exception);
-    }
-
-    @Test
-    void testDeleteIdentitySuccessfullyDeletesServiceAccount() {
-        // Arrange
-        doNothing().when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act - should not throw any exception
-        assertDoesNotThrow(() ->
-                gcpIam.deleteIdentity(TEST_IDENTITY_NAME, TEST_PROJECT_ID, TEST_REGION)
-        );
-
-        // Assert - Verify the method was called
-        verify(mockIamClient, times(1)).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-    }
 }

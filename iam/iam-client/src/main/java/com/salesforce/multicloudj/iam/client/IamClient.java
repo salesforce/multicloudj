@@ -46,7 +46,7 @@ import java.util.Optional;
  * client.attachInlinePolicy(policy, "123456789012", "us-west-2", "my-bucket");
  * </pre>
  */
-public class IamClient implements AutoCloseable {
+public class IamClient {
     protected AbstractIam iam;
 
     /**
@@ -207,11 +207,6 @@ public class IamClient implements AutoCloseable {
             ExceptionHandler.handleAndPropagate(exception, t);
             return null;
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        this.iam.close();
     }
 
     /**

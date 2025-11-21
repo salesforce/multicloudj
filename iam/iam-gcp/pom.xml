@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>iam</artifactId>
-        <version>0.2.21-SNAPSHOT</version>
+        <version>0.2.16-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -28,11 +28,6 @@
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-resourcemanager</artifactId>
             <version>1.80.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-iam-admin</artifactId>
-            <version>3.73.0</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -133,26 +128,5 @@
             <version>2.17.2</version>
         </dependency>
     </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>delombok</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <sourceDirectory>src/main/java</sourceDirectory>
-                    <outputDirectory>${project.build.directory}/generated-sources/delombok</outputDirectory>
-                    <addOutputDirectory>false</addOutputDirectory>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>
