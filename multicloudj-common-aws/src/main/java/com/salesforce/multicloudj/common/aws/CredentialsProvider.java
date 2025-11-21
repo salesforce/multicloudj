@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.common.aws;
 
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -47,7 +48,7 @@ public class CredentialsProvider {
                 String assumeRole = overrider.getRole();
                 String sessionName = overrider.getSessionName() != null
                         ? overrider.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis();
-                StsClient stsClient = StsClient.builder().region(region).build();
+                StsClient stsClient = StsClient.builder().credentialsProvider(AnonymousCredentialsProvider.create()).region(region).build();
 
                 if (overrider.getWebIdentityTokenSupplier() == null) {
                     throw new IllegalArgumentException("webIdentityTokenSupplier must be provided for ASSUME_ROLE_WEB_IDENTITY credentials type");
