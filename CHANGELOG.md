@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.15...multicloudj-v0.2.16) (2025-11-21)
+
+
+### STS
+
+* Make STS client anynomous for web identity ([#157](https://github.com/salesforce/multicloudj/issues/157)) ([a705153](https://github.com/salesforce/multicloudj/commit/a7051537ca4b91eb76ac1c531385b68b1423a8a4))
+
 ## [0.2.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.14...multicloudj-v0.2.15) (2025-11-19)
 
 
