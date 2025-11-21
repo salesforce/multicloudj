@@ -1,12 +1,14 @@
 package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import org.apache.commons.lang3.StringUtils;
 
 import java.net.URI;
 import java.util.List;
@@ -45,14 +47,14 @@ import java.util.Optional;
  * </pre>
  */
 public class IamClient {
-    protected AbstractIam<?> iam;
+    protected AbstractIam iam;
 
     /**
      * Constructor for IamClient with IamClientBuilder.
      *
      * @param iam The abstract IAM driver used to back this client for implementation.
      */
-    protected IamClient(AbstractIam<?> iam) {
+    protected IamClient(AbstractIam iam) {
         this.iam = iam;
     }
 
@@ -98,6 +100,19 @@ public class IamClient {
      * @param resource the resource to attach the policy to
      */
     public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
+        if (policyDocument == null || policyDocument.getStatements() == null
+                || policyDocument.getStatements().isEmpty()) {
+            throw new InvalidArgumentException("Policy document must contain at least one statement");
+        }
+
+        if (StringUtils.isBlank(tenantId)) {
+            throw new InvalidArgumentException("Tenant ID is required");
+        }
+
+        if (StringUtils.isBlank(resource)) {
+            throw new InvalidArgumentException("Resource is required");
+        }
+
         try {
             this.iam.attachInlinePolicy(policyDocument, tenantId, region, resource);
         } catch (Throwable t) {
@@ -200,7 +215,7 @@ public class IamClient {
     public static class IamClientBuilder {
         protected String region;
         protected URI endpoint;
-        protected AbstractIam<?> iam;
+        protected AbstractIam iam;
         protected AbstractIam.Builder<?, ?> iamBuilder;
 
         /**
