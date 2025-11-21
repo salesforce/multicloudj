@@ -55,22 +55,27 @@ public class GcpIamTest {
 
 	@BeforeEach
 	void setUp() {
-		gcpIam = new GcpIam(new GcpIam.Builder(), mockProjectsClient);
+		gcpIam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).build();
 	}
 
 	@Test
 	void testConstructorWithBuilderAndProjectsClient() {
-		GcpIam iam = new GcpIam(new GcpIam.Builder(), mockProjectsClient);
+		GcpIam iam = new GcpIam.Builder().withProjectsClient(mockProjectsClient).build();
 		Assertions.assertNotNull(iam);
 		Assertions.assertEquals("gcp", iam.getProviderId());
 	}
 
 	@Test
-	void testConstructorWithNullProjectsClient() {
+	void testConstructorWithNullProjectsClient() throws IOException {
 		// ProjectsClient can be null - it will be created in Builder.build() if not provided
-		Assertions.assertDoesNotThrow(() -> {
-			new GcpIam(new GcpIam.Builder(), null);
-		});
+		try (MockedStatic<ProjectsClient> mockedClient = mockStatic(ProjectsClient.class)) {
+			ProjectsClient mockClient = mock(ProjectsClient.class);
+			mockedClient.when(ProjectsClient::create).thenReturn(mockClient);
+
+			Assertions.assertDoesNotThrow(() -> {
+				new GcpIam.Builder().build();
+			});
+		}
 	}
 
 	@Test
@@ -200,7 +205,6 @@ public class GcpIamTest {
 	void testDoAttachInlinePolicySkipsDenyStatements() {
 		Policy existingPolicy = Policy.newBuilder().build();
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
-		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
 				.version("2024-01-01")
@@ -215,11 +219,8 @@ public class GcpIamTest {
 			gcpIam.doAttachInlinePolicy(policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT);
 		});
 
-		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
-
-		Policy updatedPolicy = setRequestCaptor.getValue().getPolicy();
-		Assertions.assertEquals(0, updatedPolicy.getBindingsCount(), "Deny statements should be skipped");
+		// Verify: setIamPolicy should not be called since Deny statements are skipped and nothing changes
+		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
 	}
 
 	@Test
@@ -504,14 +505,8 @@ public class GcpIamTest {
 		// Verify: getIamPolicy was called
 		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
 
-		// Verify: setIamPolicy was still called (even though nothing changed)
-		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
-		Policy updatedPolicy = setRequestCaptor.getValue().getPolicy();
-
-		// Verify: Policy should be unchanged
-		Assertions.assertEquals(1, updatedPolicy.getBindingsList().size());
-		Assertions.assertEquals("roles/storage.objectViewer", updatedPolicy.getBindingsList().get(0).getRole());
+		// Verify: setIamPolicy should not be called since binding doesn't exist (nothing to remove)
+		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
 	}
 
 	@Test
@@ -529,17 +524,8 @@ public class GcpIamTest {
 		// Execute
 		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 
-		// Verify: setIamPolicy was still called (even though nothing changed)
-		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
-		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
-		Policy updatedPolicy = setRequestCaptor.getValue().getPolicy();
-
-		// Verify: Policy should be unchanged
-		Assertions.assertEquals(1, updatedPolicy.getBindingsList().size());
-		Binding binding = updatedPolicy.getBindingsList().get(0);
-		Assertions.assertEquals(TEST_ROLE, binding.getRole());
-		Assertions.assertEquals(1, binding.getMembersList().size());
-		Assertions.assertTrue(binding.getMembersList().contains("serviceAccount:other@test-project.iam.gserviceaccount.com"));
+		// Verify: setIamPolicy should not be called since member is not in binding (nothing to remove)
+		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
 	}
 
 	@Test
@@ -612,10 +598,10 @@ public class GcpIamTest {
 
 		// Verify
 		Assertions.assertNotNull(result);
-		Assertions.assertTrue(result.contains("\"Version\""));
-		Assertions.assertTrue(result.contains("\"Statement\""));
-		Assertions.assertTrue(result.contains("\"Effect\":\"Allow\""));
-		Assertions.assertTrue(result.contains("\"Action\""));
+		Assertions.assertTrue(result.contains("\"version\""));
+		Assertions.assertTrue(result.contains("\"statements\""));
+		Assertions.assertTrue(result.contains("\"effect\":\"Allow\""));
+		Assertions.assertTrue(result.contains("\"actions\""));
 		Assertions.assertTrue(result.contains(TEST_ROLE));
 
 		// Verify getIamPolicy was called

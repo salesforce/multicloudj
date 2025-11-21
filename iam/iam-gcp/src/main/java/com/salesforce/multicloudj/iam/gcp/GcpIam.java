@@ -22,10 +22,7 @@ import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -45,11 +42,6 @@ public class GcpIam extends AbstractIam {
 		this.projectsClient = builder.projectsClient;
 	}
 
-	public GcpIam(Builder builder, ProjectsClient projectsClient) {
-		super(builder);
-		this.projectsClient = projectsClient;
-	}
-
 	@Override
 	protected String doCreateIdentity(String identityName, String description, String tenantId,
 			String region, Optional<TrustConfiguration> trustConfig, Optional<CreateOptions> options) {
@@ -60,20 +52,28 @@ public class GcpIam extends AbstractIam {
 	/**
 	 * Attaches an inline policy to a resource.
 	 * This implementation treats each action in the PolicyDocument statement as a GCP IAM role name
-	 * and grants that role to the service account. The action values are used directly as role names
+	 * and grants that role to the IAM member. The action values are used directly as role names
 	 * (e.g., "roles/iam.serviceAccountUser", "roles/storage.objectViewer").
 	 *
 	 * <p>Note: GCP IAM is deny-by-default: access is denied unless explicitly allowed via bindings.
+	 * <p>Note: This implementation only processes "Allow" statements. "Deny" statements are skipped because
+	 * ProjectsClient only supports allow policies (bindings). Deny policies require the IAM v2 API
+	 * (PoliciesClient) and are managed separately from allow policies.
 	 *
 	 * @param policyDocument the policy document where actions are treated as GCP IAM role names
-	 * @param tenantId the tenant ID (project resource name, e.g., "projects/my-project")
+	 * @param tenantId the resource name that owns the IAM policy. Examples include:
+	 *		 "organizations/123456789012",
+	 *		 "folders/987654321098",
+	 *		 "projects/my-project",
+	 *		 "projects/my-project/topics/my-topic",,
+	 *		 Can be any GCP resource that supports IAM policies.
 	 * @param region the region (optional for GCP)
-	 * @param resource the service account email (complete format, e.g.,
-	 *		 "serviceAccount:my-sa@project.iam.gserviceaccount.com")
+	 * @param resource the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
+	 *		 "user:user@example.com", "group:group@example.com")
 	 */
 	@Override
 	protected void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
-		// Get the current IAM policy for the project
+		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
 			.build();
@@ -83,8 +83,13 @@ public class GcpIam extends AbstractIam {
 			policy = Policy.newBuilder().build();
 		}
 
+		// Store original policy to compare later
+		Policy originalPolicy = policy;
+
 		// Process each statement in the policy document
 		for (Statement statement : policyDocument.getStatements()) {
+			// Skip Deny statements: ProjectsClient only supports allow policies (bindings).
+			// Deny policies require the IAM v2 API (PoliciesClient) and are managed separately.
 			if (!EFFECT_ALLOW.equalsIgnoreCase(statement.getEffect())) {
 				continue;
 			}
@@ -95,7 +100,14 @@ public class GcpIam extends AbstractIam {
 			}
 		}
 
-		// Set the updated policy back to the project
+		// Only make the remote call if the policy actually changed
+		if (originalPolicy.getBindingsCount() == policy.getBindingsCount() 
+				&& originalPolicy.getBindingsList().equals(policy.getBindingsList())) {
+			// Policy didn't change (all members already existed), skip the remote call
+			return;
+		}
+
+		// Set the updated policy back to the resource
 		SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
 			.setPolicy(policy)
@@ -146,18 +158,24 @@ public class GcpIam extends AbstractIam {
 	}
 
 	/**
-	 * Retrieves the details of a specific inline policy (role) attached to a service account.
+	 * Retrieves the details of a specific inline policy (role) attached to an IAM member.
 	 * In GCP, this retrieves the role binding information and converts it back to a PolicyDocument format.
 	 *
-	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
+	 * @param identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
+	 *		 "user:user@example.com", "group:group@example.com")
 	 * @param policyName the role name (e.g., "roles/iam.serviceAccountUser")
-	 * @param tenantId the project resource name (e.g., "projects/my-project")
+	 * @param tenantId the resource name that owns the IAM policy. Examples include:
+	 *		 "organizations/123456789012",
+	 *		 "folders/987654321098",
+	 *		 "projects/my-project",
+	 *		 "projects/my-project/topics/my-topic",,
+	 *		 Can be any GCP resource that supports IAM policies.
 	 * @param region the region (optional for GCP)
 	 * @return the policy document as a JSON string, or null if the policy doesn't exist
 	 */
 	@Override
 	protected String doGetInlinePolicyDetails(String identityName, String policyName, String tenantId, String region) {
-		// Get the current IAM policy for the project
+		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
 			.build();
@@ -178,8 +196,9 @@ public class GcpIam extends AbstractIam {
 		}
 
 		// Build a PolicyDocument to represent this role binding
+		// The version field is immaterial for GCP IAM policy document.
 		PolicyDocument policyDocument = PolicyDocument.builder()
-			.version("2012-10-17")
+			.version("")
 			.statement(Statement.builder()
 				.effect(EFFECT_ALLOW)
 				.action(policyName)
@@ -192,58 +211,38 @@ public class GcpIam extends AbstractIam {
 
 	/**
 	 * Converts a PolicyDocument to its JSON string representation.
-	 * Uses Jackson to serialize the document with proper field name mapping
+	 * Uses Jackson to serialize the document directly.
 	 *
 	 * @param policyDocument the policy document to serialize
 	 * @return the JSON string representation
 	 */
 	private String toJsonString(PolicyDocument policyDocument) {
 		try {
-			Map<String, Object> policyMap = new HashMap<>();
-			policyMap.put("Version", policyDocument.getVersion());
-
-			List<Map<String, Object>> statementsList = new ArrayList<>();
-			for (Statement statement : policyDocument.getStatements()) {
-				Map<String, Object> statementMap = new HashMap<>();
-				statementMap.put("Effect", statement.getEffect());
-				statementMap.put("Action", statement.getActions());
-
-				if (statement.getSid() != null) {
-					statementMap.put("Sid", statement.getSid());
-				}
-				if (statement.getPrincipals() != null && !statement.getPrincipals().isEmpty()) {
-					statementMap.put("Principal", statement.getPrincipals());
-				}
-				if (statement.getResources() != null && !statement.getResources().isEmpty()) {
-					statementMap.put("Resource", statement.getResources());
-				}
-				if (statement.getConditions() != null && !statement.getConditions().isEmpty()) {
-					statementMap.put("Condition", statement.getConditions());
-				}
-
-				statementsList.add(statementMap);
-			}
-			policyMap.put("Statement", statementsList);
-
-			return new ObjectMapper().writeValueAsString(policyMap);
+			return new ObjectMapper().writeValueAsString(policyDocument);
 		} catch (Exception e) {
 			throw new SubstrateSdkException("Failed to serialize policy document to JSON", e);
 		}
 	}
 
 	/**
-	 * Retrieves all policies (roles) attached to a service account.
-	 * In GCP, "attached policies" are the IAM roles that have been granted to the service account
-	 * through bindings in the project's IAM policy.
+	 * Retrieves all policies (roles) attached to an IAM member.
+	 * In GCP, "attached policies" are the IAM roles that have been granted to the IAM member
+	 * through bindings in the resource's IAM policy.
 	 *
-	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
-	 * @param tenantId the project resource name (e.g., "projects/my-project")
+	 * @param identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
+	 *		 "user:user@example.com", "group:group@example.com")
+	 * @param tenantId the resource name that owns the IAM policy. Examples include:
+	 *		 "organizations/123456789012",
+	 *		 "folders/987654321098",
+	 *		 "projects/my-project",
+	 *		 "projects/my-project/topics/my-topic",,
+	 *		 Can be any GCP resource that supports IAM policies.
 	 * @param region the region (optional for GCP)
 	 * @return a list of role names (e.g., "roles/iam.serviceAccountUser", "roles/storage.objectViewer")
 	 */
 	@Override
 	protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
-		// Get the current IAM policy for the project
+		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
 			.build();
@@ -258,17 +257,23 @@ public class GcpIam extends AbstractIam {
 	}
 
 	/**
-	 * Removes an inline policy (role) from a service account.
-	 * In GCP, this removes the service account from the specified role binding in the project's IAM policy.
+	 * Removes an inline policy (role) from an IAM member.
+	 * In GCP, this removes the IAM member from the specified role binding in the resource's IAM policy.
 	 *
-	 * @param identityName the service account email (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com")
+	 * @param identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
+	 *		 "user:user@example.com", "group:group@example.com")
 	 * @param policyName the role name to remove (e.g., "roles/iam.serviceAccountUser")
-	 * @param tenantId the project resource name (e.g., "projects/my-project")
+	 * @param tenantId the resource name that owns the IAM policy. Examples include:
+	 *		 "organizations/123456789012",
+	 *		 "folders/987654321098",
+	 *		 "projects/my-project",
+	 *		 "projects/my-project/topics/my-topic",,
+	 *		 Can be any GCP resource that supports IAM policies.
 	 * @param region the region (optional for GCP)
 	 */
 	@Override
 	protected void doRemovePolicy(String identityName, String policyName, String tenantId, String region) {
-		// Get the current IAM policy for the project
+		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
 			.build();
@@ -279,13 +284,23 @@ public class GcpIam extends AbstractIam {
 			return;
 		}
 
-		// Remove the binding
-		policy = removeBinding(policy, policyName, identityName);
+		// Check if the member is actually in the binding before attempting removal
+		Optional<Binding> existingBinding = policy.getBindingsList().stream()
+			.filter(binding -> binding.getRole().equals(policyName))
+			.findFirst();
 
-		// Set the updated policy back to the project
+		if (!existingBinding.isPresent() || !existingBinding.get().getMembersList().contains(identityName)) {
+			// Binding doesn't exist or member is not in the binding, nothing to remove
+			return;
+		}
+
+		// Remove the binding - we know a change will occur because of the check above
+		Policy updatedPolicy = removeBinding(policy, policyName, identityName);
+
+		// Set the updated policy back to the resource
 		SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
-			.setPolicy(policy)
+			.setPolicy(updatedPolicy)
 			.build();
 		projectsClient.setIamPolicy(setRequest);
 	}
