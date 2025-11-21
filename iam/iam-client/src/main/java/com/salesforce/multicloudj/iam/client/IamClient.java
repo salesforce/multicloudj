@@ -44,15 +44,15 @@ import java.util.Optional;
  * client.attachInlinePolicy(policy, "123456789012", "us-west-2", "my-bucket");
  * </pre>
  */
-public class IamClient {
-    protected AbstractIam<?> iam;
+public class IamClient implements AutoCloseable {
+    protected AbstractIam iam;
 
     /**
      * Constructor for IamClient with IamClientBuilder.
      *
      * @param iam The abstract IAM driver used to back this client for implementation.
      */
-    protected IamClient(AbstractIam<?> iam) {
+    protected IamClient(AbstractIam iam) {
         this.iam = iam;
     }
 
@@ -194,13 +194,18 @@ public class IamClient {
         }
     }
 
+    @Override
+    public void close() throws Exception {
+        this.iam.close();
+    }
+
     /**
      * Builder class for IamClient.
      */
     public static class IamClientBuilder {
         protected String region;
         protected URI endpoint;
-        protected AbstractIam<?> iam;
+        protected AbstractIam iam;
         protected AbstractIam.Builder<?, ?> iamBuilder;
 
         /**

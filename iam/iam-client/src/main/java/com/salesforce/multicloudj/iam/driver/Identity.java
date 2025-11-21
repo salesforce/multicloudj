@@ -87,5 +87,11 @@ public interface Identity {
      * @return identity information as a JSON string
      */
     String getIdentity(String identityName, String tenantId, String region);
+
+    /**
+     * Closes resources and connections associated with this IAM driver.
+     * This method closes the IAM client if it was created.
+     */
+    void close();
 }
 

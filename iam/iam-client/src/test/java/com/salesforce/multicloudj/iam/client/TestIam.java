@@ -16,7 +16,7 @@ import java.util.Optional;
  * returning hardcoded values suitable for testing without requiring
  * actual cloud provider credentials or infrastructure.
  */
-public class TestIam extends AbstractIam<TestIam> {
+public class TestIam extends AbstractIam {
 
     public TestIam(TestIam.Builder builder) {
         super(builder);
@@ -90,6 +90,11 @@ public class TestIam extends AbstractIam<TestIam> {
         public TestIam build() {
             return new TestIam(this);
         }
+    }
+
+    @Override
+    public void close() {
+
     }
 }
 
