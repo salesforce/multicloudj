@@ -16,11 +16,10 @@ import java.util.Map;
  * Use JsonPath to only verify the existence of ReceiptHandle fields rather than exact values.
  * 
  * This is necessary because:
- * 1. ReceiptHandle values change on every ReceiveMessage call
- * 2. Batch size is dynamically adjusted based on throughput, causing different MaxNumberOfMessages
+ * 1. Batch size is dynamically adjusted based on throughput, causing different MaxNumberOfMessages
  *    values between record and replay, which may match different ReceiveMessage mappings
- * 3. Different ReceiveMessage mappings return different ReceiptHandle values (all from AWS during recording)
- * 4. Ack/Nack requests use the ReceiptHandle from the matched ReceiveMessage mapping, which may differ
+ * 2. Different ReceiveMessage mappings return different ReceiptHandle values (all from AWS during recording)
+ * 3. Ack/Nack requests use the ReceiptHandle from the matched ReceiveMessage mapping, which may differ
  *    from the one recorded in the DeleteMessageBatch/ChangeMessageVisibilityBatch mapping
  */
 public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
@@ -37,13 +36,13 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
             isDeleteBatch = targetValue.contains("DeleteMessageBatch");
             isChangeVisibilityBatch = targetValue.contains("ChangeMessageVisibilityBatch");
         } else {
-            // Fallback: check if body contains ReceiptHandle (indicates ack/nack operation)
+            // This block ensures that even when the X-Amz-Target header is missing
+            // the transformer can still detect ACK/NACK batch operations by inspecting the request body structure.
             List<ContentPattern<?>> bodyPatterns = stub.getRequest().getBodyPatterns();
             if (bodyPatterns != null && !bodyPatterns.isEmpty()) {
                 for (ContentPattern<?> pattern : bodyPatterns) {
                     String patternStr = pattern.toString();
                     if (patternStr.contains("ReceiptHandle")) {
-                        // Check if it's ChangeMessageVisibilityBatch by looking for VisibilityTimeout
                         if (patternStr.contains("VisibilityTimeout")) {
                             isChangeVisibilityBatch = true;
                         } else {
@@ -73,7 +72,7 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
             // Verify that the request has the required structure:
             // - QueueUrl exists
             // - Entries array exists
-            // - Each entry has ReceiptHandle (but don't check the exact value)
+            // - Each entry has ReceiptHandle
             bodyPatterns.add(new MatchesJsonPathPattern("$.QueueUrl"));
             bodyPatterns.add(new MatchesJsonPathPattern("$.Entries"));
             bodyPatterns.add(new MatchesJsonPathPattern("$.Entries[*]"));
@@ -89,8 +88,8 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
     }
     
     /**
-     * extractXAmzTarget is responsible for identifying the SQS operation type
-     * (e.g., DeleteMessageBatch or ChangeMessageVisibilityBatch) by extracting
+     * This is the helper method. It is responsible for identifying the 
+     * DeleteMessageBatch or ChangeMessageVisibilityBatch by extracting
      * the X-Amz-Target header from the WireMock stub.
      */
     private String extractXAmzTarget(StubMapping stub) {
