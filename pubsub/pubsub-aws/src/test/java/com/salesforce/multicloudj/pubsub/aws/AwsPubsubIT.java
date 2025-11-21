@@ -28,7 +28,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         return new HarnessImpl();
     }
 
-    // Disable all tests except getAttributes
+    // Disable some tests except getAttributes
     @Override
     @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testSendBatchMessages() throws Exception {

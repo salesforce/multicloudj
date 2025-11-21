@@ -287,8 +287,8 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             GetQueueAttributesResponse response = sqsClient.getQueueAttributes(request);
             Map<QueueAttributeName, String> attributes = response.attributes();
             
-            // SQS doesn't have a Topic concept. In SQS, messages are sent directly to queues.
-            // So we return the queue ARN as the topic to maintain consistency.
+            // SQS doesn't have a Topic concept.
+            // So we return the queue ARN as the topic.
             String queueArn = attributes.get(QueueAttributeName.QUEUE_ARN);
             
             // Return subscription name (queue URL) as name, and queue ARN as topic
