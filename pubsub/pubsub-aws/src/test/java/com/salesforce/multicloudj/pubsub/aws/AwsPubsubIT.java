@@ -28,39 +28,51 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         return new HarnessImpl();
     }
 
-    // Disable some tests except send and receive
+    // Disable all tests except getAttributes
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
+    public void testSendBatchMessages() throws Exception {
+        super.testSendBatchMessages();
+    }
+
+    @Override
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
+    public void testReceiveAfterSend() throws Exception {
+        super.testReceiveAfterSend();
+    }
+
+    @Override
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testAckAfterReceive() throws Exception {
         super.testAckAfterReceive();
     }
 
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testNackAfterReceive() throws Exception {
         super.testNackAfterReceive();
     }
 
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testBatchAck() throws Exception {
         super.testBatchAck();
     }
 
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testBatchNack() throws Exception {
         super.testBatchNack();
     }
 
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testAckNullThrows() throws Exception {
         super.testAckNullThrows();
     }
 
     @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
+    @Disabled("AWS IT tests disabled - only testing getAttributes")
     public void testDoubleAck() throws Exception {
         super.testDoubleAck();
     }
@@ -76,9 +88,9 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             if (sqsClient == null) {
                 httpClient = TestsUtilAws.getProxyClient("https", port);
                 
-                String accessKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-                String secretKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-                String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+                String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+                String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+                String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
                 
                 SqsClientBuilder sqsBuilder = SqsClient.builder()
                     .httpClient(httpClient)
