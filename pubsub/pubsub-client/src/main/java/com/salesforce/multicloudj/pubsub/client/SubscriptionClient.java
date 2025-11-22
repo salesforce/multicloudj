@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
@@ -62,7 +61,7 @@ public class SubscriptionClient implements AutoCloseable {
      * @param ackID The acknowledgment ID of the message to acknowledge
      * @throws SubstrateSdkException If the ack operation fails
      */
-    public void sendAck(AckID ackID) {
+    public void sendAck(String ackID) {
         try {
             subscription.sendAck(ackID);
         } catch (Throwable t) {
@@ -80,7 +79,7 @@ public class SubscriptionClient implements AutoCloseable {
      * @param ackIDs The list of acknowledgment IDs to acknowledge
      * @return A CompletableFuture that completes when all acks are sent
      */
-    public CompletableFuture<Void> sendAcks(List<AckID> ackIDs) {
+    public CompletableFuture<Void> sendAcks(List<String> ackIDs) {
         try {
             return subscription.sendAcks(ackIDs);
         } catch (Throwable t) {
@@ -100,7 +99,7 @@ public class SubscriptionClient implements AutoCloseable {
      * @throws SubstrateSdkException If the nack operation fails
      * @throws UnsupportedOperationException If the provider doesn't support nacking
      */
-    public void sendNack(AckID ackID) {
+    public void sendNack(String ackID) {
         try {
             subscription.sendNack(ackID);
         } catch (Throwable t) {
@@ -119,7 +118,7 @@ public class SubscriptionClient implements AutoCloseable {
      * @return A CompletableFuture that completes when all nacks are sent
      * @throws UnsupportedOperationException If the provider doesn't support nacking
      */
-    public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
+    public CompletableFuture<Void> sendNacks(List<String> ackIDs) {
         try {
             return subscription.sendNacks(ackIDs);
         } catch (Throwable t) {

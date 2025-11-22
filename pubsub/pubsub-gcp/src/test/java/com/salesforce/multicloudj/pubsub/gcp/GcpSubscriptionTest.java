@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.pubsub.gcp;
 
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.Message;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -110,8 +109,7 @@ public class GcpSubscriptionTest {
         assertEquals("test message body", new String(result.getBody()));
         assertEquals("test-message-id", result.getLoggableID());
         assertNotNull(result.getAckID()); 
-        assertInstanceOf(AckID.class, result.getAckID());
-        assertEquals("test-ack-id", result.getAckID().toString());
+        assertEquals("test-ack-id", result.getAckID());
         assertEquals("value1", result.getMetadata().get("key1"));
         assertEquals("value2", result.getMetadata().get("key2"));
     }
@@ -440,60 +438,6 @@ public class GcpSubscriptionTest {
     }
 
     @Test
-    void testValidateAckIDTypeWithValidGcpAckID() {
-        AckID validAckID = new GcpSubscription.GcpAckID("valid-ack-id");
-        
-        assertDoesNotThrow(() -> subscription.validateAckIDType(validAckID));
-    }
-    
-    @Test
-    void testValidateAckIDTypeWithNonGcpAckID() {
-        AckID nonGcpAckID = new AckID() {
-            @Override
-            public String toString() {
-                return "test-ack-id";
-            }
-        };
-        
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
-            () -> subscription.validateAckIDType(nonGcpAckID));
-        assertTrue(exception.getMessage().contains("Expected GcpAckID"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithNullString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(null));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithEmptyString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(""));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithWhitespaceString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID("   "));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithValidString() {
-        assertDoesNotThrow(() -> new GcpSubscription.GcpAckID("valid-ack-id"));
-    }
-
-    @Test
-    void testValidateAckIDTypeWithNullAckID() {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
-            () -> subscription.validateAckIDType(null));
-        assertTrue(exception.getMessage().contains("AckID cannot be null"));
-    }
-
-    @Test
     void testGetException() {
         assertSame(com.salesforce.multicloudj.common.exceptions.UnknownException.class, 
             subscription.getException(new RuntimeException("test")));
@@ -591,7 +535,7 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendAckWithValidAckID() {
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
+            String mockAckID = "test-ack-id";
         assertDoesNotThrow(() -> subscription.sendAck(mockAckID));
     }
 
@@ -604,9 +548,9 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendAcksWithValidAckIDs() {
-        AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-        AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
+        String mockAckID1 = "test-ack-id-1";
+        String mockAckID2 = "test-ack-id-2";
+            List<String> ackIDs = List.of(mockAckID1, mockAckID2);
             
         var future = subscription.sendAcks(ackIDs);
             assertNotNull(future);
@@ -629,8 +573,8 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendAcksWithNullAckID() {
-            List<AckID> ackIDs = new ArrayList<>();
-            ackIDs.add(new GcpSubscription.GcpAckID("test-ack-id"));
+            List<String> ackIDs = new ArrayList<>();
+            ackIDs.add("test-ack-id");
             ackIDs.add(null);
             
             InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
@@ -653,8 +597,8 @@ public class GcpSubscriptionTest {
     void testDoSendAcksWhenClosed() throws Exception {
         subscription.close();
             
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-            List<AckID> ackIDs = List.of(mockAckID);
+            String mockAckID = "test-ack-id";
+            List<String> ackIDs = List.of(mockAckID);
             
         SubstrateSdkException exception = assertThrows(SubstrateSdkException.class,
                 () -> subscription.sendAcks(ackIDs));
@@ -667,9 +611,9 @@ public class GcpSubscriptionTest {
                 mock(com.google.api.gax.rpc.UnaryCallable.class);
         when(mockSubscriptionAdminClient.acknowledgeCallable()).thenReturn(mockCallable);
             
-        AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-        AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
+        String mockAckID1 = "test-ack-id-1";
+        String mockAckID2 = "test-ack-id-2";
+            List<String> ackIDs = List.of(mockAckID1, mockAckID2);
             
         assertDoesNotThrow(() -> subscription.doSendAcks(ackIDs));
             verify(mockCallable).call(any(com.google.pubsub.v1.AcknowledgeRequest.class));
@@ -681,8 +625,8 @@ public class GcpSubscriptionTest {
         when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
         when(mockCallable.call(any(ModifyAckDeadlineRequest.class))).thenReturn(Empty.getDefaultInstance());
         
-        AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-        List<AckID> ackIDs = List.of(mockAckID);
+        String mockAckID = "test-ack-id";
+        List<String> ackIDs = List.of(mockAckID);
         
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
         verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
@@ -698,7 +642,7 @@ public class GcpSubscriptionTest {
     
     @Test
     void testSendNacksWithValidAckID() {
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
+            String mockAckID = "test-ack-id";
         assertDoesNotThrow(() -> subscription.sendNack(mockAckID));
     }
 
@@ -711,15 +655,15 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNackWithMockAckID() {
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
+            String mockAckID = "test-ack-id";
         assertDoesNotThrow(() -> subscription.sendNack(mockAckID));
     }
 
     @Test
     void testSendNacksWithValidAckIDs() {
-        AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-        AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
+        String mockAckID1 = "test-ack-id-1";
+        String mockAckID2 = "test-ack-id-2";
+            List<String> ackIDs = List.of(mockAckID1, mockAckID2);
             
         var future = subscription.sendNacks(ackIDs);
             assertNotNull(future);
@@ -742,8 +686,8 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNacksWithNullAckIDInList() {
-            List<AckID> ackIDs = new ArrayList<>();
-            ackIDs.add(new GcpSubscription.GcpAckID("test-ack-id"));
+            List<String> ackIDs = new ArrayList<>();
+            ackIDs.add("test-ack-id");
             ackIDs.add(null);
             
             InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
@@ -753,10 +697,10 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNacksWithMockAckIDsInList() {
-            AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-            AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
-            
+        String mockAckID1 = "test-ack-id-1";
+        String mockAckID2 = "test-ack-id-2";
+        List<String> ackIDs = List.of(mockAckID1, mockAckID2);
+        
         assertDoesNotThrow(() -> subscription.sendNacks(ackIDs));
     }
 
@@ -766,9 +710,9 @@ public class GcpSubscriptionTest {
                 mock(UnaryCallable.class);
         when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
             
-        AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-        AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
+        String mockAckID1 = "test-ack-id-1";
+        String mockAckID2 = "test-ack-id-2";
+            List<String> ackIDs = List.of(mockAckID1, mockAckID2);
             
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
             verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
@@ -778,8 +722,8 @@ public class GcpSubscriptionTest {
     void testDoSendNacksWhenClosed() throws Exception {
         subscription.close();
             
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-            List<AckID> ackIDs = List.of(mockAckID);
+            String mockAckID = "test-ack-id";
+            List<String> ackIDs = List.of(mockAckID);
             
         SubstrateSdkException exception = assertThrows(SubstrateSdkException.class,
                 () -> subscription.sendNacks(ackIDs));
@@ -788,7 +732,7 @@ public class GcpSubscriptionTest {
 
     @Test
     void testDoSendNacksWithEmptyAckIDs() {
-            List<AckID> emptyAckIDs = List.of();
+            List<String> emptyAckIDs = List.of();
         assertDoesNotThrow(() -> subscription.doSendNacks(emptyAckIDs));
     }
 
@@ -808,8 +752,8 @@ public class GcpSubscriptionTest {
                 .withNackLazy(true);
         GcpSubscription lazySubscription = new GcpSubscription(builder, mockSubscriptionAdminClient);
             
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-            List<AckID> ackIDs = List.of(mockAckID);
+            String mockAckID = "test-ack-id";
+            List<String> ackIDs = List.of(mockAckID);
             
             // In lazy mode, doSendNacks should return directly without calling ModifyAckDeadline
         assertDoesNotThrow(() -> lazySubscription.doSendNacks(ackIDs));
@@ -821,8 +765,8 @@ public class GcpSubscriptionTest {
                 mock(UnaryCallable.class);
         when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
             
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-            List<AckID> ackIDs = List.of(mockAckID);
+            String mockAckID = "test-ack-id";
+            List<String> ackIDs = List.of(mockAckID);
             
             // In non-lazy mode, doSendNacks should call ModifyAckDeadline
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
@@ -835,8 +779,8 @@ public class GcpSubscriptionTest {
                 mock(UnaryCallable.class);
         when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
             
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
-            List<AckID> ackIDs = List.of(mockAckID);
+            String mockAckID = "test-ack-id";
+            List<String> ackIDs = List.of(mockAckID);
             
             // In default mode, doSendNacks should call ModifyAckDeadline
         assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));

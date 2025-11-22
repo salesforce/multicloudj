@@ -16,7 +16,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -26,6 +25,14 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequestEntry;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSubscription.class)
@@ -50,31 +57,92 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    public void sendAck(AckID ackID) {
+    public CompletableFuture<Void> sendAcks(List<String> ackIDs) {
+        return super.sendAcks(ackIDs);
     }
 
     @Override
-    public CompletableFuture<Void> sendAcks(List<AckID> ackIDs) {
-        return null;
+    public CompletableFuture<Void> sendNacks(List<String> ackIDs) {
+        return super.sendNacks(ackIDs);
     }
 
     @Override
-    protected void doSendAcks(List<AckID> ackIDs) {
-        // TODO: Implement AWS SQS acknowledgment
+    protected void doSendAcks(List<String> ackIDs) {
+        List<String> receiptHandles = new ArrayList<>(ackIDs);
+        
+        if (receiptHandles.isEmpty()) {
+            return;
+        }
+        
+        // SQS supports max 10 messages per batch operation
+        for (int i = 0; i < receiptHandles.size(); i += 10) {
+            int endIndex = Math.min(i + 10, receiptHandles.size());
+            List<DeleteMessageBatchRequestEntry> entries = new ArrayList<>();
+            for (int j = i; j < endIndex; j++) {
+                entries.add(DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(j - i))
+                    .receiptHandle(receiptHandles.get(j))
+                    .build());
+            }
+            DeleteMessageBatchRequest request = DeleteMessageBatchRequest.builder()
+                .queueUrl(subscriptionName)
+                .entries(entries)
+                .build();
+            
+            DeleteMessageBatchResponse response = sqsClient.deleteMessageBatch(request);
+            
+            if (!response.failed().isEmpty()) {
+                BatchResultErrorEntry firstFailure = response.failed().get(0);
+                throw new SubstrateSdkException(
+                    "SQS DeleteMessageBatch failed for " + response.failed().size() + 
+                    " message(s): " + firstFailure.code() + ", " + firstFailure.message());
+            }
+        }
     }
 
     @Override
-    protected void doSendNacks(List<AckID> ackIDs) {
-        // TODO: Implement AWS SQS negative acknowledgment
-    }
-
-    @Override
-    public void sendNack(AckID ackID) {
-    }
-
-    @Override
-    public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
-        return null;
+    protected void doSendNacks(List<String> ackIDs) {
+        // NackLazy mode: bypass ChangeMessageVisibility call
+        // Messages will be redelivered after existing visibility timeout expires
+        if (nackLazy) {
+            return;
+        }
+        
+        List<String> receiptHandles = new ArrayList<>(ackIDs);
+        
+        if (receiptHandles.isEmpty()) {
+            return;
+        }
+        
+        for (int i = 0; i < receiptHandles.size(); i += 10) {
+            int endIndex = Math.min(i + 10, receiptHandles.size());
+            List<ChangeMessageVisibilityBatchRequestEntry> entries = new ArrayList<>();
+            for (int j = i; j < endIndex; j++) {
+                entries.add(ChangeMessageVisibilityBatchRequestEntry.builder()
+                    .id(String.valueOf(j - i))
+                    .receiptHandle(receiptHandles.get(j))
+                    .visibilityTimeout(0) // 0 means immediate redelivery
+                    .build());
+            }
+            ChangeMessageVisibilityBatchRequest request = ChangeMessageVisibilityBatchRequest.builder()
+                .queueUrl(subscriptionName)
+                .entries(entries)
+                .build();
+            
+            ChangeMessageVisibilityBatchResponse response = sqsClient.changeMessageVisibilityBatch(request);
+            
+            // Filter out ReceiptHandleIsInvalid errors (message already processed)
+            List<BatchResultErrorEntry> actualFailures = response.failed().stream()
+                .filter(failure -> !"ReceiptHandleIsInvalid".equals(failure.code()))
+                .collect(Collectors.toList());
+            
+            if (!actualFailures.isEmpty()) {
+                BatchResultErrorEntry firstFailure = actualFailures.get(0);
+                throw new SubstrateSdkException(
+                    "SQS ChangeMessageVisibilityBatch failed for " + actualFailures.size() + 
+                    " message(s): " + firstFailure.code() + ", " + firstFailure.message());
+            }
+        }
     }
 
     @Override
@@ -148,12 +216,10 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             bodyBytes = bodyStr.getBytes(StandardCharsets.UTF_8);
         }
         
-        AckID ackID = new AwsAckID(sqsMessage.receiptHandle());
-        
         return Message.builder()
             .withBody(bodyBytes)
             .withMetadata(attrs)
-            .withAckID(ackID)
+            .withAckID(sqsMessage.receiptHandle())
             .withLoggableID(sqsMessage.messageId())
             .build();
     }
@@ -311,29 +377,6 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     
     public Builder builder() {
         return new Builder();
-    }
-    
-    /**
-     * AWS-specific implementation of AckID. 
-     */
-    public static class AwsAckID implements AckID {
-        private final String receiptHandle;
-        
-        public AwsAckID(String receiptHandle) {
-            if (receiptHandle == null || receiptHandle.trim().isEmpty()) {
-                throw new IllegalArgumentException("Receipt handle cannot be null or empty");
-            }
-            this.receiptHandle = receiptHandle;
-        }
-        
-        public String getReceiptHandle() {
-            return receiptHandle;
-        }
-        
-        @Override
-        public String toString() {
-            return receiptHandle;
-        }
     }
 
     public static class Builder extends AbstractSubscription.Builder<AwsSubscription> {

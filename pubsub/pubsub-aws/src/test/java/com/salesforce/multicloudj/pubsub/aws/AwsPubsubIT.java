@@ -16,53 +16,15 @@ import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.jupiter.api.Disabled;
 
 public class AwsPubsubIT extends AbstractPubsubIT {
 
     private static final String SQS_ENDPOINT = "https://sqs.us-west-2.amazonaws.com";
-    private static final String TEST_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/654654370895/test-queue";
+    private static final String TEST_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/654654370895/testQueue";
 
     @Override
     protected Harness createHarness() {
         return new HarnessImpl();
-    }
-
-    // Disable some tests except send and receive
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testAckAfterReceive() throws Exception {
-        super.testAckAfterReceive();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testNackAfterReceive() throws Exception {
-        super.testNackAfterReceive();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testBatchAck() throws Exception {
-        super.testBatchAck();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testBatchNack() throws Exception {
-        super.testBatchNack();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testAckNullThrows() throws Exception {
-        super.testAckNullThrows();
-    }
-
-    @Override
-    @Disabled("AWS IT tests disabled - only testing send and receive")
-    public void testDoubleAck() throws Exception {
-        super.testDoubleAck();
     }
 
     public static class HarnessImpl implements Harness {
@@ -136,7 +98,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of();
+            return List.of("com.salesforce.multicloudj.pubsub.aws.util.AckMatcherRelaxingTransformer");
         }
 
         @Override

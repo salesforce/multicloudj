@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.pubsub.client;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -199,7 +198,7 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
+            List<String> ackIDs = new java.util.ArrayList<>();
             boolean isRecording = System.getProperty("record") != null;
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
@@ -244,7 +243,7 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
+            List<String> ackIDs = new java.util.ArrayList<>();
             boolean isRecording = System.getProperty("record") != null;
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
@@ -312,7 +311,7 @@ public abstract class AbstractPubsubIT {
             Assertions.assertEquals(3, receivedMessages.size(), "Should receive all 3 messages within timeout");
 
             // Ack the first two messages
-            List<AckID> firstTwoAcks = List.of(
+            List<String> firstTwoAcks = List.of(
                     receivedMessages.get(0).getAckID(),
                     receivedMessages.get(1).getAckID()
             );
