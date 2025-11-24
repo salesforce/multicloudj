@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.client;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
+import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +64,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendAck() {
         // Arrange
-        String ackID = "test-ack-id";
+        AckID ackID = new TestAckID("test-ack-id");
 
         // Act
         subscriptionClient.sendAck(ackID);
@@ -75,7 +76,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendAcks() {
         // Arrange
-        List<String> ackIDs = Arrays.asList("test-ack-id-1", "test-ack-id-2");
+        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"), new TestAckID("test-ack-id-2"));
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         when(mockSubscription.sendAcks(ackIDs)).thenReturn(future);
 
@@ -90,7 +91,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendNack() {
         // Arrange
-        String ackID = "test-ack-id";
+        AckID ackID = new TestAckID("test-ack-id");
 
         // Act
         subscriptionClient.sendNack(ackID);
@@ -102,7 +103,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendNacks() {
         // Arrange
-        List<String> ackIDs = Arrays.asList("test-ack-id-1", "test-ack-id-2");
+        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"), new TestAckID("test-ack-id-2"));
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         when(mockSubscription.sendNacks(ackIDs)).thenReturn(future);
 
@@ -221,7 +222,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendAckWithException() {
         // Arrange
-        String ackID = "test-ack-id";
+        AckID ackID = new TestAckID("test-ack-id");
         RuntimeException originalException = new RuntimeException("ack error");
         doThrow(originalException).when(mockSubscription).sendAck(ackID);
         when(mockSubscription.getException(originalException)).thenReturn((Class) UnknownException.class);
@@ -238,7 +239,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendAcksWithException() {
         // Arrange
-        List<String> ackIDs = Arrays.asList("test-ack-id-1");
+        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"));
         RuntimeException originalException = new RuntimeException("acks error");
         when(mockSubscription.sendAcks(ackIDs)).thenThrow(originalException);
         when(mockSubscription.getException(originalException)).thenReturn((Class) UnknownException.class);
@@ -255,7 +256,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendNackWithException() {
         // Arrange
-        String ackID = "test-ack-id";
+        AckID ackID = new TestAckID("test-ack-id");
         RuntimeException originalException = new RuntimeException("nack error");
         doThrow(originalException).when(mockSubscription).sendNack(ackID);
         when(mockSubscription.getException(originalException)).thenReturn((Class) UnknownException.class);
@@ -272,7 +273,7 @@ public class SubscriptionClientTest {
     @Test
     public void testSendNacksWithException() {
         // Arrange
-        List<String> ackIDs = Arrays.asList("test-ack-id-1");
+        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"));
         RuntimeException originalException = new RuntimeException("nacks error");
         when(mockSubscription.sendNacks(ackIDs)).thenThrow(originalException);
         when(mockSubscription.getException(originalException)).thenReturn((Class) UnknownException.class);

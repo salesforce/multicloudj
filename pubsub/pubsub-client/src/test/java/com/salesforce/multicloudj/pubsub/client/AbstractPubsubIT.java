@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.client;
 
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
+import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
@@ -198,7 +199,7 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<String> ackIDs = new java.util.ArrayList<>();
+            List<AckID> ackIDs = new java.util.ArrayList<>();
             boolean isRecording = System.getProperty("record") != null;
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
@@ -211,7 +212,7 @@ public abstract class AbstractPubsubIT {
                     if (r != null && r.getAckID() != null) {
                         ackIDs.add(r.getAckID());
                         System.out.println("Received message " + ackIDs.size() + "/" + toSend.size() +
-                                " with AckID: " + r.getAckID());
+                                " with AckID: " + r.getAckID().toString());
                     } else {
                         System.out.println("Received null message, waiting...");
                         TimeUnit.MILLISECONDS.sleep(100);
@@ -243,7 +244,7 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<String> ackIDs = new java.util.ArrayList<>();
+            List<AckID> ackIDs = new java.util.ArrayList<>();
             boolean isRecording = System.getProperty("record") != null;
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
@@ -256,7 +257,7 @@ public abstract class AbstractPubsubIT {
                     if (r != null && r.getAckID() != null) {
                         ackIDs.add(r.getAckID());
                         System.out.println("Received message " + ackIDs.size() + "/" + toSend.size() +
-                                " with AckID: " + r.getAckID());
+                                " with AckID: " + r.getAckID().toString());
                     } else {
                         System.out.println("Received null message, waiting...");
                         TimeUnit.MILLISECONDS.sleep(100);
@@ -311,7 +312,7 @@ public abstract class AbstractPubsubIT {
             Assertions.assertEquals(3, receivedMessages.size(), "Should receive all 3 messages within timeout");
 
             // Ack the first two messages
-            List<String> firstTwoAcks = List.of(
+            List<AckID> firstTwoAcks = List.of(
                     receivedMessages.get(0).getAckID(),
                     receivedMessages.get(1).getAckID()
             );

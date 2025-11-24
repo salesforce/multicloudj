@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
+import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -57,21 +58,14 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    public CompletableFuture<Void> sendAcks(List<String> ackIDs) {
-        return super.sendAcks(ackIDs);
-    }
-
-    @Override
-    public CompletableFuture<Void> sendNacks(List<String> ackIDs) {
-        return super.sendNacks(ackIDs);
-    }
-
-    @Override
-    protected void doSendAcks(List<String> ackIDs) {
-        List<String> receiptHandles = new ArrayList<>(ackIDs);
-        
-        if (receiptHandles.isEmpty()) {
+    protected void doSendAcks(List<AckID> ackIDs) {
+        if (ackIDs.isEmpty()) {
             return;
+        }
+        
+        List<String> receiptHandles = new ArrayList<>();
+        for (AckID ackID : ackIDs) {
+            receiptHandles.add(ackID.toString());
         }
         
         // SQS supports max 10 messages per batch operation
@@ -101,17 +95,20 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     }
 
     @Override
-    protected void doSendNacks(List<String> ackIDs) {
+    protected void doSendNacks(List<AckID> ackIDs) {
         // NackLazy mode: bypass ChangeMessageVisibility call
         // Messages will be redelivered after existing visibility timeout expires
         if (nackLazy) {
             return;
         }
         
-        List<String> receiptHandles = new ArrayList<>(ackIDs);
-        
-        if (receiptHandles.isEmpty()) {
+        if (ackIDs.isEmpty()) {
             return;
+        }
+        
+        List<String> receiptHandles = new ArrayList<>();
+        for (AckID ackID : ackIDs) {
+            receiptHandles.add(ackID.toString());
         }
         
         for (int i = 0; i < receiptHandles.size(); i += 10) {
@@ -176,6 +173,12 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         return messages;
     }
 
+    protected void validateAckIDType(AckID ackID) {
+        if (!(ackID instanceof AwsAckID)) {
+            throw new InvalidArgumentException("Expected AwsAckID, got: " + ackID.getClass().getSimpleName());
+        }
+    }
+
     /**
      * Converts SQS message to internal Message format.
      */
@@ -219,7 +222,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         return Message.builder()
             .withBody(bodyBytes)
             .withMetadata(attrs)
-            .withAckID(sqsMessage.receiptHandle())
+            .withAckID(new AwsAckID(sqsMessage.receiptHandle()))
             .withLoggableID(sqsMessage.messageId())
             .build();
     }
@@ -377,6 +380,25 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     
     public Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * AWS-specific implementation of AckID that wraps the receipt handle string.
+     */
+    public static class AwsAckID implements AckID {
+        private final String receiptHandle;
+        
+        public AwsAckID(String receiptHandle) {
+            if (receiptHandle == null || receiptHandle.trim().isEmpty()) {
+                throw new IllegalArgumentException("Receipt handle cannot be null or empty");
+            }
+            this.receiptHandle = receiptHandle;
+        }
+        
+        @Override
+        public String toString() {
+            return receiptHandle;
+        }
     }
 
     public static class Builder extends AbstractSubscription.Builder<AwsSubscription> {
