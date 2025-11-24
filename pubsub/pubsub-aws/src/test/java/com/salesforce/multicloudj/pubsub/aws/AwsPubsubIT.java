@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.aws;
 
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -38,9 +39,9 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             if (sqsClient == null) {
                 httpClient = TestsUtilAws.getProxyClient("https", port);
                 
-                String accessKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-                String secretKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-                String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+                String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+                String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+                String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
                 
                 SqsClientBuilder sqsBuilder = SqsClient.builder()
                     .httpClient(httpClient)
@@ -76,7 +77,18 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             subscriptionBuilder.withSubscriptionName(TEST_QUEUE_URL);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(client);
-            subscription = new AwsSubscription(subscriptionBuilder);
+            
+            // Disable dynamic batch size adjustment by setting MaxHandlers=1 and MaxBatchSize=1
+            subscription = new AwsSubscription(subscriptionBuilder) {
+                @Override
+                protected Batcher.Options createReceiveBatcherOptions() {
+                    return new Batcher.Options()
+                        .setMaxHandlers(1)
+                        .setMinBatchSize(1)
+                        .setMaxBatchSize(1)
+                        .setMaxBatchByteSize(0);
+                }
+            };
             
             return subscription;
         }
@@ -98,7 +110,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of("com.salesforce.multicloudj.pubsub.aws.util.AckMatcherRelaxingTransformer");
+            return List.of(); // Temporarily removed transformer
         }
 
         @Override
