@@ -36,7 +36,7 @@ public class AbstractIamTest {
     private static final String POLICY_RESPONSE = "policy-details";
     private static final URI TEST_ENDPOINT = URI.create("https://test.endpoint.com");
 
-    private AbstractIam<TestIam> mockIam;
+    private AbstractIam mockIam;
 
     @BeforeEach
     void setup() {
@@ -60,7 +60,7 @@ public class AbstractIamTest {
     @Test
     void testBuilder() {
         AbstractIam.Builder<TestIam, TestIam.Builder> builder = new TestIam.Builder();
-        AbstractIam<TestIam> iam = builder
+        AbstractIam iam = builder
                 .providerId(TEST_PROVIDER_ID)
                 .withRegion(TEST_REGION)
                 .withEndpoint(TEST_ENDPOINT)

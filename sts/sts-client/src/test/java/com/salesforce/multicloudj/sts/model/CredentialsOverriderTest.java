@@ -28,4 +28,40 @@ public class CredentialsOverriderTest {
         Assertions.assertNull(credentialsOverrider.getRole());
         Assertions.assertNull(credentialsOverrider.getDurationSeconds());
     }
+
+    @Test
+    public void TestCredentialsOverriderWithSessionName() {
+        CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
+                .withRole("test-role")
+                .withSessionName("testSession")
+                .build();
+        Assertions.assertEquals("test-role", credentialsOverrider.getRole());
+        Assertions.assertEquals("testSession", credentialsOverrider.getSessionName());
+    }
+
+    @Test
+    public void TestCredentialsOverriderWithWebIdentityTokenSupplier() {
+        CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
+                .withRole("test-role")
+                .withWebIdentityTokenSupplier(() -> "test-token")
+                .build();
+        Assertions.assertEquals("test-role", credentialsOverrider.getRole());
+        Assertions.assertNotNull(credentialsOverrider.getWebIdentityTokenSupplier());
+        Assertions.assertEquals("test-token", credentialsOverrider.getWebIdentityTokenSupplier().get());
+    }
+
+    @Test
+    public void TestCredentialsOverriderWithWebIdentityTokenSupplierAndSessionName() {
+        CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
+                .withRole("test-role")
+                .withWebIdentityTokenSupplier(() -> "test-token")
+                .withSessionName("webSession")
+                .withDurationSeconds(3600)
+                .build();
+        Assertions.assertEquals("test-role", credentialsOverrider.getRole());
+        Assertions.assertNotNull(credentialsOverrider.getWebIdentityTokenSupplier());
+        Assertions.assertEquals("test-token", credentialsOverrider.getWebIdentityTokenSupplier().get());
+        Assertions.assertEquals("webSession", credentialsOverrider.getSessionName());
+        Assertions.assertEquals(3600, credentialsOverrider.getDurationSeconds());
+    }
 }

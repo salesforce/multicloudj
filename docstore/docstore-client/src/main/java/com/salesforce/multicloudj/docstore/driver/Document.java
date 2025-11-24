@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/*
+The Document class is a wrapper around the Map or the POJO defined by end user.
+End users should not directly call the methods of the Document class, they should interact with the underlying POJO or Map that the Document wraps.
+ */
 public class Document {
 
     private Map<String, Object> m = null;

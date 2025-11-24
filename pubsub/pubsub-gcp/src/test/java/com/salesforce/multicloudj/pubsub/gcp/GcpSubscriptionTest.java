@@ -816,4 +816,74 @@ public class GcpSubscriptionTest {
         when(unavailableStatusCode.getCode()).thenReturn(StatusCode.Code.UNAVAILABLE);
         assertFalse(subscription.isRetryable(unavailableException));
     }
+
+    @Test
+    void testValidateSubscriptionNameWithNull() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
+            () -> GcpSubscription.validateSubscriptionName(null));
+        assertTrue(exception.getMessage().contains("Subscription name cannot be null or empty"));
+    }
+
+    @Test
+    void testValidateSubscriptionNameWithInvalidFormat() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
+            () -> GcpSubscription.validateSubscriptionName("just-a-subscription"));
+        assertTrue(exception.getMessage().contains("projects/{projectId}/subscriptions/{subscriptionId}"));
+    }
+
+    @Test
+    void testValidateSubscriptionNameWithInvalidFormatMissingProjects() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
+            () -> GcpSubscription.validateSubscriptionName("subscriptions/test-subscription"));
+        assertTrue(exception.getMessage().contains("projects/{projectId}/subscriptions/{subscriptionId}"));
+    }
+
+    @Test
+    void testValidateSubscriptionNameWithValidFormat() {
+        assertDoesNotThrow(() -> GcpSubscription.validateSubscriptionName(VALID_SUBSCRIPTION_NAME));
+    }
+
+    @Test
+    void testBuilderMethod() {
+        GcpSubscription.Builder builder = subscription.builder();
+        assertNotNull(builder);
+        assertInstanceOf(GcpSubscription.Builder.class, builder);
+    }
+
+    @Test
+    void testConstructorWithBuilderAndSubscriptionAdminClient() {
+        GcpSubscription.Builder builder = new GcpSubscription.Builder()
+            .withSubscriptionName(VALID_SUBSCRIPTION_NAME);
+        
+        SubscriptionAdminClient testClient = mock(SubscriptionAdminClient.class);
+        GcpSubscription testSubscription = new GcpSubscription(builder, testClient);
+        
+        assertNotNull(testSubscription);
+        // Verify that the subscriptionAdminClient was set correctly
+        UnaryCallable<PullRequest, PullResponse> mockCallable = mock(UnaryCallable.class);
+        when(testClient.pullCallable()).thenReturn(mockCallable);
+        when(mockCallable.call(any(PullRequest.class))).thenReturn(PullResponse.newBuilder().build());
+        
+        List<Message> messages = testSubscription.doReceiveBatch(5);
+        assertNotNull(messages);
+        verify(testClient).pullCallable();
+    }
+
+    @Test
+    void testNoArgConstructor() {
+        // This should create a subscription with default builder
+        GcpSubscription testSubscription = new GcpSubscription();
+        assertNotNull(testSubscription);
+    }
+
+    @Test
+    void testConstructorWithBuilderOnly() {
+        GcpSubscription.Builder builder = new GcpSubscription.Builder()
+            .withSubscriptionName(VALID_SUBSCRIPTION_NAME);
+        
+        GcpSubscription testSubscription = new GcpSubscription(builder);
+        assertNotNull(testSubscription);
+        // Verify the subscription was created successfully by checking it can be used
+        assertNotNull(testSubscription.getProviderId());
+    }
 }

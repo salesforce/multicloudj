@@ -1,8 +1,10 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import com.salesforce.multicloudj.common.provider.SdkProvider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import lombok.Getter;
 
 import java.net.URI;
 import java.util.Properties;
@@ -16,6 +18,7 @@ import java.util.Properties;
  *
  * @param <T>
  */
+@Getter
 public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.Builder<T> {
     private String providerId;
     private String region;
@@ -23,50 +26,7 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
     private URI proxyEndpoint;
     private CredentialsOverrider credentialsOverrider;
     private Properties properties = new Properties();
-
-    /**
-     * Gets the providerId that this builder was built with.
-     * @return the id of the provider
-     */
-    public String getProviderId() {
-        return this.providerId;
-    }
-
-    /**
-     * Gets the region.
-     * @return The region.
-     */
-    public String getRegion(){
-        return this.region;
-    }
-
-    /**
-     * Gets the endpoint.
-     * @return The endpoint.
-     */
-    public URI getEndpoint(){
-        return this.endpoint;
-    }
-
-    /**
-     * Gets the proxy endpoint.
-     * @return The proxy endpoint.
-     */
-    public URI getProxyEndpoint(){
-        return this.proxyEndpoint;
-    }
-
-    /**
-     * Gets the CredentialsOverrider.
-     * @return The CredentialsOverrider.
-     */
-    public CredentialsOverrider getCredentialsOverrider() {
-        return this.credentialsOverrider;
-    }
-
-    public Properties getProperties() {
-        return this.properties;
-    }
+    private RetryConfig retryConfig;
 
     public BlobBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -115,6 +75,16 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
 
     public BlobBuilder<T> withProperties(Properties properties) {
         this.properties = properties;
+        return this;
+    }
+
+    /**
+     * Method to supply retry configuration
+     * @param retryConfig The retry configuration to use for retrying failed requests
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withRetryConfig(RetryConfig retryConfig) {
+        this.retryConfig = retryConfig;
         return this;
     }
 

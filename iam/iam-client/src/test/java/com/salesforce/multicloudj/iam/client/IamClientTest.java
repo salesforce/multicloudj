@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.iam.client;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,7 @@ public class IamClientTest {
     private static final String POLICY_RESPONSE = "policy-details";
     private static final URI TEST_ENDPOINT = URI.create("https://test.endpoint.com");
 
-    private AbstractIam<?> mockIam;
+    private AbstractIam mockIam;
     private IamClient client;
     private MockedStatic<ServiceLoader> serviceLoaderStatic;
 
@@ -106,7 +107,14 @@ public class IamClientTest {
 
     @Test
     void testAttachInlinePolicy() {
-        PolicyDocument policy = mock(PolicyDocument.class);
+        PolicyDocument policy = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .sid("TestPolicy")
+                        .effect("Allow")
+                        .action("storage:GetObject")
+                        .build())
+                .build();
         
         client.attachInlinePolicy(policy, TEST_TENANT_ID, TEST_REGION, TEST_RESOURCE);
 
@@ -117,7 +125,14 @@ public class IamClientTest {
     @Test
     void testAttachInlinePolicyThrowsException() {
         doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
-        PolicyDocument policy = mock(PolicyDocument.class);
+        PolicyDocument policy = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .sid("TestPolicy")
+                        .effect("Allow")
+                        .action("storage:GetObject")
+                        .build())
+                .build();
         doThrow(RuntimeException.class).when(mockIam).attachInlinePolicy(
                 any(), anyString(), anyString(), anyString());
 
@@ -287,7 +302,7 @@ public class IamClientTest {
         }
 
         // Create fresh mocks with credentialsOverrider support
-        AbstractIam<?> testIam = mock(TestIam.class);
+        AbstractIam testIam = mock(TestIam.class);
         TestIam.Builder testBuilder = mock(TestIam.Builder.class);
 
         // Only stub methods that are actually called in this test

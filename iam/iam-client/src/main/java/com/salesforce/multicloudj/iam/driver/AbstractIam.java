@@ -20,7 +20,7 @@ import java.util.Optional;
  * and policies across different cloud providers including AWS IAM, GCP IAM, and
  * AliCloud RAM.
  */
-public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider, Identity {
+public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
     private final String providerId;
     protected final String region;
     protected final CredentialsOverrider credentialsOverrider;
@@ -62,7 +62,7 @@ public abstract class AbstractIam<T extends AbstractIam<T>> implements Provider,
      * @param <A> The concrete AbstractIam implementation type.
      * @param <T> The concrete Builder implementation type.
      */
-    public abstract static class Builder<A extends AbstractIam<?>, T extends Builder<A, T>> implements Provider.Builder {
+    public abstract static class Builder<A extends AbstractIam, T extends Builder<A, T>> implements Provider.Builder {
         @Getter
         protected String region;
         @Getter

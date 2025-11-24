@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.15...multicloudj-v0.2.16) (2025-11-21)
+
+
+### STS
+
+* Make STS client anynomous for web identity ([#157](https://github.com/salesforce/multicloudj/issues/157)) ([a705153](https://github.com/salesforce/multicloudj/commit/a7051537ca4b91eb76ac1c531385b68b1423a8a4))
+
+## [0.2.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.14...multicloudj-v0.2.15) (2025-11-19)
+
+
+### STS
+
+* enable web identity in aws sts and fix gcp get caller id ([#149](https://github.com/salesforce/multicloudj/issues/149)) ([fe1a50b](https://github.com/salesforce/multicloudj/commit/fe1a50bbb6d81cfcd629ceb2fface808dba6e752))
+
+
+### PubSub
+
+* fix client initialization in GCP ([#148](https://github.com/salesforce/multicloudj/issues/148)) ([6b08244](https://github.com/salesforce/multicloudj/commit/6b082442d20e49ebfc8f6714d95edec280ea0fb5))
+
+## [0.2.14](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.13...multicloudj-v0.2.14) (2025-11-10)
+
+
+### Blob Store
+
+* fix the retry config for the bucketclient ([#135](https://github.com/salesforce/multicloudj/issues/135)) ([b3a72e4](https://github.com/salesforce/multicloudj/commit/b3a72e4178d092e257a5fa5d6580eb9beb72f715))
+
 ## [0.2.13](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.12...multicloudj-v0.2.13) (2025-11-06)
 
 

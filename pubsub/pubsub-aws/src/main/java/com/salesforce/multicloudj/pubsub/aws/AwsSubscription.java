@@ -304,7 +304,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         }
     }
 
-    private static void validateSubscriptionName(String subscriptionName) {
+    static void validateSubscriptionName(String subscriptionName) {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
             throw new InvalidArgumentException("Subscription name cannot be null or empty");
         }

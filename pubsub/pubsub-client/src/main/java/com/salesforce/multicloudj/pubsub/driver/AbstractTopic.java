@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.driver.utils.MessageUtils;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -30,7 +31,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
  * - Override batching configuration methods for provider-specific settings
  * - Override hook methods for custom pre/post-send behavior
  */
-public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoCloseable {
+public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoCloseable, Provider {
 
     protected final String providerId;
     protected final String topicName;
@@ -188,13 +189,19 @@ public abstract class AbstractTopic<T extends AbstractTopic<T>> implements AutoC
         }
     }
     
-    public abstract static class Builder<T extends AbstractTopic<T>> {
+    public abstract static class Builder<T extends AbstractTopic<T>> implements Provider.Builder {
         protected String providerId;
         protected String topicName;
         protected String region;
         protected URI endpoint;
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
+        
+        @Override
+        public Builder<T> providerId(String providerId) {
+            this.providerId = providerId;
+            return this;
+        }
                 
         public Builder<T> withTopicName(String topicName) {
             this.topicName = topicName;

@@ -314,6 +314,11 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
         }
     }
 
+    @Override
+    public Builder builder() {
+        return new Builder();
+    }
+
     public static class Builder extends AbstractSubscription.Builder<GcpSubscription> {
         private boolean nackLazy = false;
         

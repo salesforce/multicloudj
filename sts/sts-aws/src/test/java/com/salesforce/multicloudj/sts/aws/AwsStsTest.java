@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
@@ -11,6 +12,8 @@ import org.mockito.Mockito;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest;
+import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityResponse;
 import software.amazon.awssdk.services.sts.model.Credentials;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
@@ -31,10 +34,12 @@ public class AwsStsTest {
                 .secretAccessKey("testSecret")
                 .sessionToken("testToken").build();
         AssumeRoleResponse mockResponse = AssumeRoleResponse.builder().credentials(credentials).build();
+        AssumeRoleWithWebIdentityResponse webIdentityResponse = AssumeRoleWithWebIdentityResponse.builder().credentials(credentials).build();
         GetSessionTokenResponse sessionTokenResponse = GetSessionTokenResponse.builder().credentials(credentials).build();
         GetCallerIdentityResponse callerIdentityResponse = GetCallerIdentityResponse.builder()
                 .userId("testUserId").arn("testResourceName").account("testAccountId").build();
         Mockito.when(mockStsClient.assumeRole(any(AssumeRoleRequest.class))).thenReturn(mockResponse);
+        Mockito.when(mockStsClient.assumeRoleWithWebIdentity(any(AssumeRoleWithWebIdentityRequest.class))).thenReturn(webIdentityResponse);
         Mockito.when(mockStsClient.getSessionToken(any(GetSessionTokenRequest.class))).thenReturn(sessionTokenResponse);
         Mockito.when(mockStsClient.getCallerIdentity(any(GetCallerIdentityRequest.class))).thenReturn(callerIdentityResponse);
     }
@@ -68,9 +73,51 @@ public class AwsStsTest {
     @Test
     public void TestGetSessionTokenSts() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
-        CallerIdentity identity = sts.getCallerIdentity();
+        CallerIdentity identity = sts.getCallerIdentity((com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build()));
         Assertions.assertEquals("testUserId", identity.getUserId());
         Assertions.assertEquals("testResourceName", identity.getCloudResourceName());
         Assertions.assertEquals("testAccountId", identity.getAccountId());
+    }
+
+    @Test
+    public void TestAssumeRoleWithWebIdentity() {
+        AwsSts sts = new AwsSts().builder().build(mockStsClient);
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .role("testRole")
+                .webIdentityToken("testWebIdentityToken")
+                .sessionName("testSession")
+                .build();
+        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+        Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
+        Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
+        Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    }
+
+    @Test
+    public void TestAssumeRoleWithWebIdentityWithExpiration() {
+        AwsSts sts = new AwsSts().builder().build(mockStsClient);
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .role("testRole")
+                .webIdentityToken("testWebIdentityToken")
+                .sessionName("testSession")
+                .expiration(3600)
+                .build();
+        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+        Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
+        Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
+        Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    }
+
+    @Test
+    public void TestAssumeRoleWithWebIdentityWithoutSessionName() {
+        AwsSts sts = new AwsSts().builder().build(mockStsClient);
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .role("testRole")
+                .webIdentityToken("testWebIdentityToken")
+                .build();
+        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+        Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
+        Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
+        Assertions.assertEquals("testToken", credentials.getSecurityToken());
     }
 }
