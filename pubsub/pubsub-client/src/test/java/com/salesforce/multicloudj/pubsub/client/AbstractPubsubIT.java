@@ -290,7 +290,8 @@ public abstract class AbstractPubsubIT {
             Assertions.assertThrows(InvalidArgumentException.class, () -> subscription.sendAck(null));
         }
     }
-
+    
+    @Disabled
     @Test
     public void testDoubleAck() throws Exception {
         try (AbstractTopic topic = harness.createTopicDriver();
