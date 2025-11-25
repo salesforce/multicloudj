@@ -78,16 +78,16 @@ public class Query {
      */
     private final List<Filter> filters = new ArrayList<>();
 
-    /** 
+    /**
      * Offset (also commonly referred to as `Skip`) sets the number of results to skip
-     * before returning results. When offset <= 0, the driver implementation returns
+     * before returning results. When offset is less than or equal to 0, the driver implementation returns
      * all possible results from the beginning.
      */
     private int offset = 0;
 
-    /** 
+    /**
      * Limit sets the maximum number of results returned by running the query. When
-     * limit <= 0, the driver implementation returns all possible results.
+     * limit is less than or equal to 0, the driver implementation returns all possible results.
      */
     private int limit = 0;
 
