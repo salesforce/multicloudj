@@ -1,0 +1,30 @@
+{
+  "id" : "e79f948f-c7b5-4ad1-b24e-81c9093a9b11",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.DeleteMessageBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/testQueue\",\"Entries\":[{\"Id\":\"0\",\"ReceiptHandle\":\"AQEB1QkEEp16lfPb+d/NZg9/+Y4pWPkXHLmjaZHOgrjUsu7CbKVe8bMg3tXTR90KZfTOU7HazOavHWrIn7OtQr5WLLYojr+hZnslxoktjeuASRwn7Sq/khLxWGQDy/+XUwohSsFInFjfr74NffSPmNWEW+GcxnApW5s2bAs0VSDoNxgO6w9+kwqcxmMSaU0XUFaNvjGnKXFvC5tp0KQ+Ay0cG5AI1YwtTEAm4kVB5S6Ehv9VVNzWEneMCnzP+J7Yh9l8PeoL3Xw2G+nUlji/Yl/bQMy41ZfbAX3wamPFYEJ6u5O6N5mKgaYMZn4jby8/UUlqRx9X4SEtmHczxfnpbIQHk1DF1d5cwP/xPePXihkWEc3oFLsvq08JVSPETQJUV+SRRNygeDXUSxN3Fd10Ljt3uQ==\"},{\"Id\":\"1\",\"ReceiptHandle\":\"AQEBYm1Dx9jflSjGzQFHEJ2QJ0lWx6EiqzBpHpG3dAXE4hM36MBMx5aSwxvwsCDFqzKYfG00T0wc/Z+ehreQWLfRFzSi4JCv3osOAizOOveuNMqPsI5ibaBXIb19IItLp55qcZdcY4ID940E7NVh1CYDxbIb9qILEo1RQf412LSFOdee0tfXLo/tfMjx1gF7nTRjpXgJ5ID+cavk82vJWyZ0mFTl+cbhf/pCQJ4q+ffsyguhu80nX5feXkGwwz+8W7tHltzTE/thT1pBfUr9dF6uAvnVkgs8kEaLZHmRRgK1PoJJ7E4h+xoRXEHjTzk858XqDk3xVgY1LhPTGvGM+qfHYJoE5ceQutpmOzsZQM/XO+xDCm6kGLWBRbcvm1U4SIaAyIem2jM3mQZyqR9gWSdKAg==\"},{\"Id\":\"2\",\"ReceiptHandle\":\"AQEBz/ehHNklFyqrJ6V1i//+5MFwa6/8vfk6xj8tSndZmZAKcCeyM4LtgWDHLRb9Og1fB34Io5ETT4t87D+hkPWzr+TMSb+2rhtFogpLtiSAsaDrFMYwawUFWHBANnpUrbaAJj20lV+SLuYKZTzvlfeyytuonWKqW0LphMdzWyiTn9rjNnYnKBNTn9HkCTwrV9V4aBvgkYikhB96XKCkZifbjYxWicHZUyPegad0F7R4VTpxiLOqc5GGoi/smiWruvM5p2S3nxNsEvSAPmhsLc1W/AlIZ6MKNmnCoz9zj8yKDytm6QS5CzQQm1x/Ekyspwl476x3rZr/iQqvXcS8aEO9/8GCjTmpCKz/8Qgce15FPeokBqlyi9EYjJRJNrT9lPmkR0KoOlQGm+HUSIltxrXGWg==\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\"},{\"Id\":\"1\"},{\"Id\":\"2\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "ab1a2a0b-b7c4-56c9-8b8a-4b9487824e1f",
+      "Date" : "Tue, 25 Nov 2025 04:18:14 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "e79f948f-c7b5-4ad1-b24e-81c9093a9b11",
+  "persistent" : true,
+  "insertionIndex" : 34
+}
