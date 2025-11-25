@@ -24,11 +24,11 @@ public class UploadRequest {
      */
     private final long contentLength;
     /**
-     * (Optional parameter) The map of metadataName->metadataValue to be associated with the blob
+     * (Optional parameter) The map of metadataName to metadataValue to be associated with the blob
      */
     private final Map<String, String> metadata;
     /**
-     * (Optional parameter) The map of tagName->tagValue to be associated with the blob
+     * (Optional parameter) The map of tagName to tagValue to be associated with the blob
      */
     private final Map<String, String> tags;
     /**
