@@ -1,0 +1,33 @@
+{
+  "id" : "6c932766-6330-4226-8ab7-31f494526aa5",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ReceiveMessage"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testBatchAck\",\"AttributeNames\":[\"All\"],\"MessageAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":1,\"WaitTimeSeconds\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1764066738327\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1764066737029\"},\"Body\":\"batch-ack-3\",\"MD5OfBody\":\"141b5429fdeb589b95e76bcce13029ad\",\"MD5OfMessageAttributes\":\"9eb1a7f67300ecc36b254e38823294ee\",\"MessageAttributes\":{\"batch\":{\"DataType\":\"String\",\"StringValue\":\"ack\"}},\"MessageId\":\"4389af3e-8c09-4920-8aa7-0cad135a5086\",\"ReceiptHandle\":\"AQEBgLeGS98ef622d6Ma59bVKVSCom+Bu4rPzEKUME79HNZqOG6ITlJ2ozUUGncc1+LzMWFV2fw2BwXGdMrZsaAgfkvr39rTI1h4Q9JntdJs3xIR/2STvr9JA1eG+WKGaebprdBhlVl5fQTbVy2dCvGCFlJ/tH4yAdaMczfPYzCH4Gazn+yrrMsWjGZNPebhXAiqUlwAVCToQm/asqWn4vfyZSEkQ03V3+QXtpHUcVr1Dvts6Yu+Jqkmb7VljB0NbfZMukndgmC8q94kJYcej8rK1AfW9EFIOI9h2yAeBzmGUidVO4FYyw/FZTnN/vnMx/u+zchW/Zzqb7uwWNOAadkmwkpmtRq5auNHqTdVDXvJwyGCoPmqROyhgL6pcKMGDi3woTvN/IALOKlfV9nCB+SYFW39B63oczHxzruGs3qVrdk=\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "61c965f0-4687-5d6d-b88b-046fc175e0a0",
+      "Date" : "Tue, 25 Nov 2025 10:32:18 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "6c932766-6330-4226-8ab7-31f494526aa5",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--2",
+  "newScenarioState" : "scenario-1--3",
+  "insertionIndex" : 5
+}

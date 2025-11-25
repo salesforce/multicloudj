@@ -1,0 +1,30 @@
+{
+  "id" : "c14aa8bf-feac-4abb-9137-b19a8e097848",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.SendMessageBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testDoubleAck\",\"Entries\":[{\"Id\":\"0\",\"MessageBody\":\"1\",\"MessageAttributes\":{}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageBody\":\"c4ca4238a0b923820dcc509a6f75849b\",\"MessageId\":\"30bcf6af-9095-4f94-8815-bb6002715a6a\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "82c800a5-75a2-5d9e-a0ea-613afc97ac75",
+      "Date" : "Tue, 25 Nov 2025 10:37:41 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "c14aa8bf-feac-4abb-9137-b19a8e097848",
+  "persistent" : true,
+  "insertionIndex" : 25
+}
