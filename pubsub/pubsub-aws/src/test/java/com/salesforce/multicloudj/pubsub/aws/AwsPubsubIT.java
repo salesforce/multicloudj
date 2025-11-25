@@ -40,75 +40,17 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     /**
-     * Generate a unique queue URL for each test and ensure it exists.
+     * Generate a unique queue URL for each test.
      * Uses test method name so the same test always uses the same queue.
+     * Topic creates queue, Subscription does not.
      */
     @BeforeEach
     public void setupTestQueue(TestInfo testInfo) {
-        if (System.getProperty("record") == null) {
-            // In replay mode, use the queue URL from the test method name
-            String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
-            String queueName = BASE_QUEUE_NAME + "-" + testMethodName;
-            currentQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, queueName);
-            if (harnessImpl != null) {
-                harnessImpl.setQueueUrl(currentQueueUrl);
-            }
-            return;
-        }
-
-        // In record mode, create queue if it doesn't exist
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
         String queueName = BASE_QUEUE_NAME + "-" + testMethodName;
-
-        // Create a temporary SqsClient for queue management
-        // Use the same port as harnessImpl to ensure requests go through WireMock
-        int port = harnessImpl != null ? harnessImpl.port : 8080;
-        try (SdkHttpClient httpClient = TestsUtilAws.getProxyClient("https", port)) {
-            String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-            String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-            String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-
-            SqsClient sqsClient = SqsClient.builder()
-                .httpClient(httpClient)
-                .region(Region.US_WEST_2)
-                .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                    accessKey, secretKey, sessionToken)))
-                .endpointOverride(URI.create(SQS_ENDPOINT))
-                .build();
-
-            try {
-                // Try to get queue URL (queue exists)
-                try {
-                    var response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                        .queueName(queueName)
-                        .build());
-                    currentQueueUrl = response.queueUrl();
-                } catch (QueueDoesNotExistException e) {
-                    // Queue doesn't exist, create it
-                    var createResponse = sqsClient.createQueue(CreateQueueRequest.builder()
-                        .queueName(queueName)
-                        .build());
-                    currentQueueUrl = createResponse.queueUrl();
-                }
-
-                // Store queue URL in harnessImpl so it can be used
-                System.out.println("Setting queue URL for test: " + currentQueueUrl);
-                if (harnessImpl != null) {
-                    harnessImpl.setQueueUrl(currentQueueUrl);
-                    System.out.println("Queue URL set in harnessImpl: " + harnessImpl.queueUrl);
-                } else {
-                    System.err.println("Warning: harnessImpl is null, cannot set queue URL");
-                }
-            } finally {
-                sqsClient.close();
-            }
-        } catch (Exception e) {
-            // If queue creation fails, fall back to default queue
-            System.err.println("Warning: Failed to setup test queue, using default: " + e.getMessage());
-            currentQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, BASE_QUEUE_NAME);
-            if (harnessImpl != null) {
-                harnessImpl.setQueueUrl(currentQueueUrl);
-            }
+        currentQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, queueName);
+        if (harnessImpl != null) {
+            harnessImpl.setQueueUrl(currentQueueUrl);
         }
     }
 
@@ -141,6 +83,26 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
             sqsClient = sqsBuilder.build();
 
+            // Topic creates queue if it doesn't exist (idempotent)
+            // Extract queue name from queue URL: https://sqs.region.amazonaws.com/account/queue-name
+            String queueName = queueUrl.substring(queueUrl.lastIndexOf('/') + 1);
+            if (System.getProperty("record") != null) {
+                // In record mode, create queue if it doesn't exist 
+                try {
+                    try {
+                        sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                            .queueName(queueName)
+                            .build());
+                    } catch (QueueDoesNotExistException e) {
+                        sqsClient.createQueue(CreateQueueRequest.builder()
+                            .queueName(queueName)
+                            .build());
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to create queue in createTopicDriver: " + e.getMessage());
+                }
+            }
+
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             System.out.println("createTopicDriver using queueUrl: " + queueUrl);
             topicBuilder.withTopicName(queueUrl);
@@ -152,6 +114,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public AbstractSubscription createSubscriptionDriver() {
+            // If queue doesn't exist, AWS will return error (e.g., AWS.SimpleQueueService.NonExistentQueue)
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
             System.out.println("createSubscriptionDriver using queueUrl: " + queueUrl);
             subscriptionBuilder.withSubscriptionName(queueUrl);
