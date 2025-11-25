@@ -210,12 +210,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     @Disabled
     @Override
-    public void testNackAfterReceive() throws Exception {
-        // Disabled Temporarily
-    }
-
-    @Disabled
-    @Override
     public void testBatchNack() throws Exception {
         // Disabled Temporarily
     }

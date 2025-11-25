@@ -166,7 +166,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
     public void testNackAfterReceive() throws Exception {
