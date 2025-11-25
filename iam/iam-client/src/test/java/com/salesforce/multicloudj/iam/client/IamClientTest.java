@@ -142,25 +142,26 @@ public class IamClientTest {
 
     @Test
     void testGetInlinePolicyDetails() {
-        when(mockIam.getInlinePolicyDetails(anyString(), anyString(), anyString(), anyString()))
+        when(mockIam.getInlinePolicyDetails(eq(TEST_ROLE), eq(TEST_POLICY_NAME), eq((String)null), 
+                eq(TEST_TENANT_ID), eq(TEST_REGION)))
                 .thenReturn(POLICY_RESPONSE);
 
-        String result = client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, 
+        String result = client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, null,
                 TEST_TENANT_ID, TEST_REGION);
 
         assertEquals(POLICY_RESPONSE, result);
         verify(mockIam, times(1)).getInlinePolicyDetails(
-                eq(TEST_ROLE), eq(TEST_POLICY_NAME), eq(TEST_TENANT_ID), eq(TEST_REGION));
+                eq(TEST_ROLE), eq(TEST_POLICY_NAME), eq((String)null), eq(TEST_TENANT_ID), eq(TEST_REGION));
     }
 
     @Test
     void testGetInlinePolicyDetailsThrowsException() {
         doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
         doThrow(RuntimeException.class).when(mockIam).getInlinePolicyDetails(
-                anyString(), anyString(), anyString(), anyString());
+                anyString(), anyString(), anyString(), anyString(), anyString());
 
         assertThrows(UnAuthorizedException.class, () -> 
-                client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION));
+                client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, null, TEST_TENANT_ID, TEST_REGION));
     }
 
     @Test
