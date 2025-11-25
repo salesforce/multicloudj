@@ -119,45 +119,46 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
     @Override
     protected void doSendAcks(List<AckID> ackIDs) {
-        List<String> ackIds = new ArrayList<>();
-        for (AckID ackID : ackIDs) {
-            ackIds.add(ackID.toString());
-        }
-        
-        AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
-            .setSubscription(subscriptionName)
-            .addAllAckIds(ackIds)
-            .build();
-        
+            List<String> ackIds = new ArrayList<>();
+            for (AckID ackID : ackIDs) {
+                ackIds.add(ackID.toString());
+            }
+            
+            AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
+                .setSubscription(subscriptionName)
+                .addAllAckIds(ackIds)
+                .build();
+            
         getOrCreateSubscriptionAdminClient().acknowledgeCallable().call(request);
     }
     
     @Override
     protected void doSendNacks(List<AckID> ackIDs) {
-        // NackLazy mode: bypass ModifyAckDeadline call
-        // Messages will be redelivered after existing ack deadline expires
-        if (nackLazy) {
-            return;
-        }
-        // Normal mode: immediate redelivery by setting deadline to 0
-        List<String> ackIds = new ArrayList<>();
-        for (AckID ackID : ackIDs) {
-            ackIds.add(ackID.toString());
-        }
-        
-        if (ackIds.isEmpty()) {
-            return;
-        }
-        
-        ModifyAckDeadlineRequest request = ModifyAckDeadlineRequest.newBuilder()
-            .setSubscription(subscriptionName)
-            .addAllAckIds(ackIds)
-            .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
-            .build();
-        
+            // NackLazy mode: bypass ModifyAckDeadline call
+            // Messages will be redelivered after existing ack deadline expires
+            if (nackLazy) {
+                return;
+            }
+            // Normal mode: immediate redelivery by setting deadline to 0
+            List<String> ackIds = new ArrayList<>();
+            for (AckID ackID : ackIDs) {
+                ackIds.add(ackID.toString());
+            }
+            
+            if (ackIds.isEmpty()) {
+                return;
+            }
+            
+            ModifyAckDeadlineRequest request = ModifyAckDeadlineRequest.newBuilder()
+                .setSubscription(subscriptionName)
+                .addAllAckIds(ackIds)
+                .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
+                .build();
+            
         getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
     }
     
+    @Override
     protected void validateAckIDType(AckID ackID) {
         // For GCP, we validate that the AckID is not null and is a GcpAckID
         if (ackID == null) {

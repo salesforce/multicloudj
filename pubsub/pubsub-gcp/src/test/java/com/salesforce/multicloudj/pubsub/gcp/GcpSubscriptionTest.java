@@ -1,8 +1,8 @@
 package com.salesforce.multicloudj.pubsub.gcp;
 
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
-import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -440,6 +440,60 @@ public class GcpSubscriptionTest {
     }
 
     @Test
+    void testValidateAckIDTypeWithValidGcpAckID() {
+        AckID validAckID = new GcpSubscription.GcpAckID("valid-ack-id");
+        
+        assertDoesNotThrow(() -> subscription.validateAckIDType(validAckID));
+    }
+    
+    @Test
+    void testValidateAckIDTypeWithNonGcpAckID() {
+        AckID nonGcpAckID = new AckID() {
+            @Override
+            public String toString() {
+                return "test-ack-id";
+            }
+        };
+        
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
+            () -> subscription.validateAckIDType(nonGcpAckID));
+        assertTrue(exception.getMessage().contains("Expected GcpAckID"));
+    }
+    
+    @Test
+    void testGcpAckIDConstructorWithNullString() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> new GcpSubscription.GcpAckID(null));
+        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
+    }
+    
+    @Test
+    void testGcpAckIDConstructorWithEmptyString() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> new GcpSubscription.GcpAckID(""));
+        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
+    }
+    
+    @Test
+    void testGcpAckIDConstructorWithWhitespaceString() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> new GcpSubscription.GcpAckID("   "));
+        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
+    }
+    
+    @Test
+    void testGcpAckIDConstructorWithValidString() {
+        assertDoesNotThrow(() -> new GcpSubscription.GcpAckID("valid-ack-id"));
+    }
+
+    @Test
+    void testValidateAckIDTypeWithNullAckID() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
+            () -> subscription.validateAckIDType(null));
+        assertTrue(exception.getMessage().contains("AckID cannot be null"));
+    }
+
+    @Test
     void testGetException() {
         assertSame(com.salesforce.multicloudj.common.exceptions.UnknownException.class, 
             subscription.getException(new RuntimeException("test")));
@@ -561,26 +615,25 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendAcksWithEmptyList() {
-        var future = subscription.sendAcks(List.<AckID>of());
+        var future = subscription.sendAcks(List.of());
             assertNotNull(future);
             assertTrue(future.isDone());
     }
 
     @Test
     void testSendAcksWithNullList() {
-        var future = subscription.sendAcks((List<AckID>) null);
+        var future = subscription.sendAcks(null);
             assertNotNull(future);
             assertTrue(future.isDone());
     }
 
     @Test
     void testSendAcksWithNullAckID() {
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
             List<AckID> ackIDs = new ArrayList<>();
-            ackIDs.add(mockAckID);
+            ackIDs.add(new GcpSubscription.GcpAckID("test-ack-id"));
             ackIDs.add(null);
             
-            InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
+            InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
                 () -> subscription.sendAcks(ackIDs));
             assertTrue(exception.getMessage().contains("AckID cannot be null in batch acknowledgment"));
         }
@@ -675,7 +728,7 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNacksWithEmptyList() {
-        var future = subscription.sendNacks(List.<AckID>of());
+        var future = subscription.sendNacks(List.of());
             assertNotNull(future);
             assertTrue(future.isDone());
     }
@@ -689,9 +742,8 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNacksWithNullAckIDInList() {
-            AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
             List<AckID> ackIDs = new ArrayList<>();
-            ackIDs.add(mockAckID);
+            ackIDs.add(new GcpSubscription.GcpAckID("test-ack-id"));
             ackIDs.add(null);
             
             InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
@@ -701,10 +753,10 @@ public class GcpSubscriptionTest {
 
     @Test
     void testSendNacksWithMockAckIDsInList() {
-        AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
-        AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
-        List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
-        
+            AckID mockAckID1 = new GcpSubscription.GcpAckID("test-ack-id-1");
+            AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
+            List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
+            
         assertDoesNotThrow(() -> subscription.sendNacks(ackIDs));
     }
 

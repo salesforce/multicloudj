@@ -301,7 +301,7 @@ public class AbstractSubscriptionTest {
         TestSubscription sub = new TestSubscription(source);
 
         // Create mock AckIDs
-        List<AckID> ackIDs = Arrays.asList(
+        List<AckID> ackIDs = List.of(
             new TestAckID("test-ack-id-1"),
             new TestAckID("test-ack-id-2")
         );
@@ -521,8 +521,7 @@ public class AbstractSubscriptionTest {
             new Thread(() -> {
                 try {
                     for (int j = 0; j < acksPerThread; j++) {
-                        final String ackIdValue = "thread-" + threadId + "-ack-" + j;
-                        List<AckID> ackIDs = Arrays.asList(new TestAckID(ackIdValue));
+                        List<AckID> ackIDs = Arrays.asList(new TestAckID("thread-" + threadId + "-ack-" + j));
                         testSubscription.sendNacks(ackIDs);
                     }
                 } catch (Exception e) {
@@ -581,7 +580,10 @@ public class AbstractSubscriptionTest {
     @Test
     void testSendNacksWithMixedAckIDTypes() {
         TestSubscription testSubscription = new TestSubscription();
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"), new TestAckID("test-ack-id-2"));
+        List<AckID> ackIDs = Arrays.asList(
+            new TestAckID("test-ack-id-1"),
+            new TestAckID("test-ack-id-2")
+        );
         
         assertDoesNotThrow(() -> testSubscription.sendNacks(ackIDs));
     }
@@ -683,7 +685,10 @@ public class AbstractSubscriptionTest {
     void testSendNackAndSendNacksMixedUsage() {
         TestSubscription testSubscription = new TestSubscription();
         AckID singleAckID = new TestAckID("single-ack-id");
-        List<AckID> multipleAckIDs = Arrays.asList(new TestAckID("multiple-ack-id-1"), new TestAckID("multiple-ack-id-2"));
+        List<AckID> multipleAckIDs = Arrays.asList(
+            new TestAckID("multiple-ack-id-1"),
+            new TestAckID("multiple-ack-id-2")
+        );
         
         // Mix single and multiple nack calls
         assertDoesNotThrow(() -> testSubscription.sendNack(singleAckID));

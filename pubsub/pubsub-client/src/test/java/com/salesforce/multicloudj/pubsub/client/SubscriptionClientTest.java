@@ -76,7 +76,10 @@ public class SubscriptionClientTest {
     @Test
     public void testSendAcks() {
         // Arrange
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"), new TestAckID("test-ack-id-2"));
+        List<AckID> ackIDs = Arrays.asList(
+            new TestAckID("test-ack-id-1"),
+            new TestAckID("test-ack-id-2")
+        );
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         when(mockSubscription.sendAcks(ackIDs)).thenReturn(future);
 
@@ -103,7 +106,10 @@ public class SubscriptionClientTest {
     @Test
     public void testSendNacks() {
         // Arrange
-        List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id-1"), new TestAckID("test-ack-id-2"));
+        List<AckID> ackIDs = Arrays.asList(
+            new TestAckID("test-ack-id-1"),
+            new TestAckID("test-ack-id-2")
+        );
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         when(mockSubscription.sendNacks(ackIDs)).thenReturn(future);
 
