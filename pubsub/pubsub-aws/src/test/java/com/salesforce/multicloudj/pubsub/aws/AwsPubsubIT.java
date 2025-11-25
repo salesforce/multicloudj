@@ -13,6 +13,7 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
+import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
@@ -21,6 +22,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 
@@ -41,46 +43,66 @@ public class AwsPubsubIT extends AbstractPubsubIT {
      * This prevents messages from previous tests affecting the current test.
      */
     @BeforeEach
-    public void clearQueueBeforeTest() {
+    public void clearQueueBeforeTest() throws Exception {
         // Skip in replay mode - WireMock handles all requests, queue state doesn't matter
         boolean isRecording = System.getProperty("record") != null;
         if (!isRecording) {
             return;
         }
+        if (harnessImpl == null) {
+            harnessImpl = new HarnessImpl();
+        }
         
-        if (harnessImpl != null && harnessImpl.sqsClient != null) {
-            // First, try to receive and delete any remaining messages
-            int maxAttempts = 10;
-            for (int i = 0; i < maxAttempts; i++) {
-                ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                    .queueUrl(TEST_QUEUE_URL)
-                    .maxNumberOfMessages(10)
-                    .waitTimeSeconds(0) 
-                    .build();
-                
-                var response = harnessImpl.sqsClient.receiveMessage(receiveRequest);
-                var messages = response.messages();
-                
-                if (messages.isEmpty()) {
-                    break; // Queue is empty
-                }
-                
-                // Delete all received messages
-                List<DeleteMessageBatchRequestEntry> entries = new ArrayList<>();
-                for (int j = 0; j < messages.size(); j++) {
-                    entries.add(DeleteMessageBatchRequestEntry.builder()
-                        .id(String.valueOf(j))
-                        .receiptHandle(messages.get(j).receiptHandle())
-                        .build());
-                }
-                
-                DeleteMessageBatchRequest deleteRequest = DeleteMessageBatchRequest.builder()
-                    .queueUrl(TEST_QUEUE_URL)
-                    .entries(entries)
-                    .build();
-                
-                harnessImpl.sqsClient.deleteMessageBatch(deleteRequest);
+        SqsClient client = harnessImpl.createSqsClient();
+        if (client == null) {
+            return;
+        }
+
+        // First, try to receive and delete any remaining messages
+        int maxAttempts = 20; // Increased attempts to ensure complete cleanup
+        for (int i = 0; i < maxAttempts; i++) {
+            ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
+                .queueUrl(TEST_QUEUE_URL)
+                .maxNumberOfMessages(10)
+                .waitTimeSeconds(0) 
+                .build();
+
+            var response = client.receiveMessage(receiveRequest);
+            var messages = response.messages();
+
+            if (messages.isEmpty()) {
+                break; // Queue is empty
             }
+
+            // Delete all received messages
+            List<DeleteMessageBatchRequestEntry> entries = new ArrayList<>();
+            for (int j = 0; j < messages.size(); j++) {
+                entries.add(DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(j))
+                    .receiptHandle(messages.get(j).receiptHandle())
+                    .build());
+            }
+
+            DeleteMessageBatchRequest deleteRequest = DeleteMessageBatchRequest.builder()
+                .queueUrl(TEST_QUEUE_URL)
+                .entries(entries)
+                .build();
+
+            client.deleteMessageBatch(deleteRequest);
+        }
+
+        // Also try to purge the queue to ensure complete cleanup
+        // This may fail if purge is in progress, which is fine
+        try {
+            PurgeQueueRequest purgeRequest = PurgeQueueRequest.builder()
+                .queueUrl(TEST_QUEUE_URL)
+                .build();
+            client.purgeQueue(purgeRequest);
+            // Wait a bit for purge to complete
+            TimeUnit.MILLISECONDS.sleep(200);
+        } catch (Exception e) {
+            // Purge may fail if already in progress, which is fine
+            // We've already cleared messages above
         }
     }
 
