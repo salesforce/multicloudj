@@ -12,7 +12,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/testQueue\",\"Entries\":[{\"Id\":\"0\",\"ReceiptHandle\":\"AQEBa+bcKezzugs60c8rKnEH+SCfwvDZkVALx+GWlEAbItNXJ5Nw6THncMYFa27C1tF+fHBDb2XcYNB9nM1HnIkaxocfnAmSGKYrnOXvWjbTw1Z61iMTAJIvLh5ZtDieL5SsJ4L0oSY0w4DaYb1ZO9oF635wbQGRo+8t5Vwu2tTSOqLRTkWLkq9zE6fbeqjfiXs9ZD98kBgV6RBCgvI4PlaU6o1Wjr+GrpFDTp4CYKKi5iVJ60qGe0kiF2JeIULHcM+Th+SCSFbGMULup6gFhYw9+LRAcN9Av4KOlEWbklHxMBOhZkyWM8NT7UCTMdkMyqw71yOm1qJvle9J6nPz5nS2MqWvcNAd3//uhDPIF2Ip3dOiEXf92vvQp9I3SVaj1Aiy+SqeyfR6+sZZ7/y8lB1VPQ==\",\"VisibilityTimeout\":0}]}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {
