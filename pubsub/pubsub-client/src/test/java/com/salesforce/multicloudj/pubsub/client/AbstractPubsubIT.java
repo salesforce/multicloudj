@@ -87,7 +87,6 @@ public abstract class AbstractPubsubIT {
         TestsUtil.stopWireMockRecording();
     }
 
-    @Disabled
     @Test
     public void testSendBatchMessages() throws Exception {
         try (AbstractTopic topic = harness.createTopicDriver()) {
@@ -111,7 +110,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
     public void testReceiveAfterSend() throws Exception {
@@ -141,7 +139,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
     public void testAckAfterReceive() throws Exception {
@@ -285,7 +282,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     public void testAckNullThrows() throws Exception {
         try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
@@ -293,7 +289,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     public void testDoubleAck() throws Exception {
         try (AbstractTopic topic = harness.createTopicDriver();
@@ -355,7 +350,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     public void testGetAttributes() throws Exception {
         try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
