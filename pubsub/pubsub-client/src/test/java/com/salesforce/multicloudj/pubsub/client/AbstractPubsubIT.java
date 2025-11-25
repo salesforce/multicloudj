@@ -130,6 +130,8 @@ public abstract class AbstractPubsubIT {
             Assertions.assertNotNull(received, "Should receive a message within timeout");
             Assertions.assertNotNull(received.getBody(), "Received message body should not be null");
             Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+            // Ack the message to prevent unacked messages when closing
+            subscription.sendAck(received.getAckID());
         }
     }
 
@@ -297,19 +299,32 @@ public abstract class AbstractPubsubIT {
                 topic.send(message);
             }
 
-            List<Message> receivedMessages = new ArrayList<>();
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            // Wait for messages to be available in the queue
+            TimeUnit.MILLISECONDS.sleep(500);
 
-            while (receivedMessages.size() < 3 && System.nanoTime() < deadline) {
+            List<Message> receivedMessages = new ArrayList<>();
+            long timeoutSeconds = 120; // Increased timeout for record mode
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+            
+            System.out.println("testDoubleAck: Starting to collect " + messages.size() + " messages with timeout: " + timeoutSeconds + "s");
+            
+            while (receivedMessages.size() < messages.size() && System.nanoTime() < deadline) {
                 Message received = subscription.receive();
                 if (received != null) {
                     receivedMessages.add(received);
+                    System.out.println("testDoubleAck: Received message " + receivedMessages.size() + "/" + messages.size() + 
+                        " with body: " + new String(received.getBody()));
                 } else {
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
-
-            Assertions.assertEquals(3, receivedMessages.size(), "Should receive all 3 messages within timeout");
+            
+            // Ensure all messages are received before proceeding
+            Assertions.assertEquals(messages.size(), receivedMessages.size(), 
+                "Should receive all " + messages.size() + " messages within timeout. Expected: " + messages.size() + ", Got: " + receivedMessages.size());
+            
+            // Additional wait to ensure all receive operations are recorded
+            TimeUnit.MILLISECONDS.sleep(500);
 
             // Ack the first two messages
             List<AckID> firstTwoAcks = List.of(
@@ -324,6 +339,9 @@ public abstract class AbstractPubsubIT {
             // Test double ack on individual messages 
             subscription.sendAck(receivedMessages.get(0).getAckID());
             subscription.sendAck(receivedMessages.get(0).getAckID());
+            
+            // Ensure the third message is also acked to avoid unacked messages during close()
+            subscription.sendAck(receivedMessages.get(2).getAckID());
         }
     }
 
