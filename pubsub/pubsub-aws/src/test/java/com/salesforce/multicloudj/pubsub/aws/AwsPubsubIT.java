@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
 
 import java.net.URI;
 import java.util.List;
@@ -31,7 +31,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     private static final String BASE_QUEUE_NAME = "test-queue";
 
     private HarnessImpl harnessImpl;
-    private String queueName;
+    private String currentQueueUrl;
 
     @Override
     protected Harness createHarness() {
@@ -40,16 +40,17 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     /**
-     * Generate a unique queue name for each test.
+     * Generate a unique queue URL for each test.
      * Uses test method name so the same test always uses the same queue.
      * Topic creates queue, Subscription does not.
      */
     @BeforeEach
     public void setupTestQueue(TestInfo testInfo) {
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
-        queueName = BASE_QUEUE_NAME + "-" + testMethodName;
+        String queueName = BASE_QUEUE_NAME + "-" + testMethodName;
+        currentQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, queueName);
         if (harnessImpl != null) {
-            harnessImpl.setQueueName(queueName);
+            harnessImpl.setQueueUrl(currentQueueUrl);
         }
     }
 
@@ -59,99 +60,68 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         private SqsClient sqsClient;
         private SdkHttpClient httpClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
-        private String queueName = BASE_QUEUE_NAME;
-        private String cachedQueueUrl; // Cache queue URL to avoid calling GetQueueUrl multiple times for the same queue
+        private String queueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, BASE_QUEUE_NAME);
 
-        public void setQueueName(String queueName) {
-            this.queueName = queueName;
-            this.cachedQueueUrl = null; // Reset cache when queue name changes
-        }
-
-        private SqsClient createSqsClient() {
-            if (sqsClient == null) {
-                httpClient = TestsUtilAws.getProxyClient("https", port);
-                String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-                String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-                String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-                SqsClientBuilder sqsBuilder = SqsClient.builder()
-                    .httpClient(httpClient)
-                    .region(Region.US_WEST_2)
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                        accessKey, secretKey, sessionToken)))
-                    .endpointOverride(URI.create(SQS_ENDPOINT));
-                sqsClient = sqsBuilder.build();
-            }
-            return sqsClient;
-        }
-
-        /**
-         * Ensures the queue exists before build() is called.
-         * In record mode, we create the queue if it doesn't exist (without calling GetQueueUrl).
-         * In replay mode, we don't do anything - only build() will call GetQueueUrl once.
-         * This ensures only one GetQueueUrl mapping is generated per test.
-         */
-        private void ensureQueueExists() {
-            if (System.getProperty("record") != null) {
-                // In record mode, try to create queue if it doesn't exist
-                // We don't call GetQueueUrl here to avoid generating multiple mappings
-                // build() will call GetQueueUrl once, which will handle both existing and new queues
-                try {
-                    // Try to create the queue - CreateQueue is idempotent if queue already exists
-                    sqsClient.createQueue(CreateQueueRequest.builder()
-                        .queueName(queueName)
-                        .build());
-                } catch (Exception e) {
-                    // If creation fails, build() will handle it when calling GetQueueUrl
-                    System.err.println("Warning: Failed to create queue: " + e.getMessage());
-                }
-            }
-            // In replay mode, do nothing - build() will call GetQueueUrl once
+        public void setQueueUrl(String queueUrl) {
+            this.queueUrl = queueUrl;
         }
 
         @Override
         public AbstractTopic createTopicDriver() {
-            sqsClient = createSqsClient();
-            ensureQueueExists();
+            httpClient = TestsUtilAws.getProxyClient("https", port);
 
-            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
-            if (cachedQueueUrl == null) {
-                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                    .queueName(queueName)
-                    .build());
-                cachedQueueUrl = response.queueUrl();
+            String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+            String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+            String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+
+            SqsClientBuilder sqsBuilder = SqsClient.builder()
+                .httpClient(httpClient)
+                .region(Region.US_WEST_2)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
+                    accessKey, secretKey, sessionToken)))
+                .endpointOverride(URI.create(SQS_ENDPOINT));
+
+            sqsClient = sqsBuilder.build();
+
+            // Topic creates queue if it doesn't exist (idempotent)
+            // Extract queue name from queue URL: https://sqs.region.amazonaws.com/account/queue-name
+            String queueName = queueUrl.substring(queueUrl.lastIndexOf('/') + 1);
+            if (System.getProperty("record") != null) {
+                // In record mode, create queue if it doesn't exist 
+                try {
+                    try {
+                        sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                            .queueName(queueName)
+                            .build());
+                    } catch (QueueDoesNotExistException e) {
+                        sqsClient.createQueue(CreateQueueRequest.builder()
+                            .queueName(queueName)
+                            .build());
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to create queue in createTopicDriver: " + e.getMessage());
+                }
             }
 
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
-            System.out.println("createTopicDriver using queueName: " + queueName);
-            topicBuilder.withTopicName(queueName);
+            System.out.println("createTopicDriver using queueUrl: " + queueUrl);
+            topicBuilder.withTopicName(queueUrl);
             topicBuilder.withSqsClient(sqsClient);
-            topicBuilder.withTopicUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
-            topic = topicBuilder.build();
+            topic = new AwsTopic(topicBuilder);
 
             return topic;
         }
 
         @Override
         public AbstractSubscription createSubscriptionDriver() {
-            sqsClient = createSqsClient();
-            ensureQueueExists();
-
-            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
-            if (cachedQueueUrl == null) {
-                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                    .queueName(queueName)
-                    .build());
-                cachedQueueUrl = response.queueUrl();
-            }
-
+            // If queue doesn't exist, AWS will return error (e.g., AWS.SimpleQueueService.NonExistentQueue)
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
-            System.out.println("createSubscriptionDriver using queueName: " + queueName);
-            subscriptionBuilder.withSubscriptionName(queueName);
+            System.out.println("createSubscriptionDriver using queueUrl: " + queueUrl);
+            subscriptionBuilder.withSubscriptionName(queueUrl);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(sqsClient);
-            subscriptionBuilder.subscriptionUrl = cachedQueueUrl;
 
-            subscriptionBuilder.build(); // This will use the cached URL, not call GetQueueUrl
+            // Disable dynamic batch size adjustment by setting MaxHandlers=1 and MaxBatchSize=1
             subscription = new AwsSubscription(subscriptionBuilder) {
                 @Override
                 protected Batcher.Options createReceiveBatcherOptions() {

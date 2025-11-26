@@ -1,5 +1,9 @@
 {
+<<<<<<<< HEAD:pubsub/pubsub-aws/src/test/resources/mappings/post-iui5bcjaq3.json
   "id" : "9fce9fdd-4524-4372-b0d1-d4380f8b210f",
+========
+  "id" : "773f26ad-0707-4c4f-9c48-1a75e2a8ba04",
+>>>>>>>> 87bdefd8 (pubsub: Enable sendAck and sendNack apis for AWS Pubsub (#134)):pubsub/pubsub-aws/src/test/resources/mappings/post-3zhxbmiudc.json
   "name" : "",
   "request" : {
     "url" : "/",
@@ -17,6 +21,7 @@
   },
   "response" : {
     "status" : 200,
+<<<<<<<< HEAD:pubsub/pubsub-aws/src/test/resources/mappings/post-iui5bcjaq3.json
     "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"804069276d344d5118ff0a2cb4abfa7c\",\"MD5OfMessageBody\":\"335f063c95cf6bcca8694a36fcd51103\",\"MessageId\":\"959de03b-0ca2-4663-afac-eeeb7ff097a3\"}]}",
     "headers" : {
       "x-amzn-RequestId" : "fe8e176e-ed7a-567a-87a0-76dd5fe058b4",
@@ -27,4 +32,16 @@
   "uuid" : "9fce9fdd-4524-4372-b0d1-d4380f8b210f",
   "persistent" : true,
   "insertionIndex" : 55
+========
+    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"804069276d344d5118ff0a2cb4abfa7c\",\"MD5OfMessageBody\":\"335f063c95cf6bcca8694a36fcd51103\",\"MessageId\":\"c169f68e-5be7-4bbd-9b7e-ffcf33bde883\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "921ce516-e830-56a8-a087-848986100987",
+      "Date" : "Tue, 25 Nov 2025 08:42:08 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "773f26ad-0707-4c4f-9c48-1a75e2a8ba04",
+  "persistent" : true,
+  "insertionIndex" : 1
+>>>>>>>> 87bdefd8 (pubsub: Enable sendAck and sendNack apis for AWS Pubsub (#134)):pubsub/pubsub-aws/src/test/resources/mappings/post-3zhxbmiudc.json
 }
