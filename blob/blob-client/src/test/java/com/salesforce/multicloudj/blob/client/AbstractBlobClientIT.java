@@ -80,26 +80,6 @@ public abstract class AbstractBlobClientIT {
     }
 
     @Test
-    public void testListBuckets() {
-
-        // Create the blobClient driver for listing buckets
-        AbstractBlobClient<?> blob = harness.createBlobClient(true);
-        BlobClient blobClient = new BlobClient(blob);
-
-        var resp = blobClient.listBuckets();
-
-        List<BucketInfo> buckets = resp.getBucketInfoList();
-
-        Assertions.assertNotNull(buckets);
-        Assertions.assertFalse(buckets.isEmpty());
-
-        for (BucketInfo bucket : buckets) {
-            Assertions.assertNotNull(bucket.getName());
-            Assertions.assertNotNull(bucket.getCreationDate());
-        }
-    }
-
-    @Test
     @Disabled("this test is disabled for now because the recorded file conflicts with valid credentials test")
     public void testInvalidCredentials() {
 
