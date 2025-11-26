@@ -26,6 +26,8 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
@@ -345,10 +347,26 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
     @Override
     public GetAttributeResult getAttributes() {
-        return new GetAttributeResult.Builder()
-                .name("aws-subscription")
-                .topic("aws-topic")
+        try {
+            GetQueueAttributesRequest request = GetQueueAttributesRequest.builder()
+                .queueUrl(subscriptionName)
+                .attributeNames(QueueAttributeName.QUEUE_ARN)
                 .build();
+            
+            GetQueueAttributesResponse response = sqsClient.getQueueAttributes(request);
+            Map<QueueAttributeName, String> attributes = response.attributes();
+            
+            // SQS doesn't have a Topic concept. So we return the queue ARN as the topic.
+            String queueArn = attributes.get(QueueAttributeName.QUEUE_ARN);
+            
+            // Return subscription name (queue URL) as name, and queue ARN as topic
+            return new GetAttributeResult.Builder()
+                .name(subscriptionName)
+                .topic(queueArn)
+                .build();
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to retrieve subscription attributes", e);
+        }
     }
 
     @Override
