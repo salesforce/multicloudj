@@ -20,7 +20,10 @@ import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
@@ -243,13 +246,64 @@ public class AwsSubscriptionTest {
 
     @Test
     void testGetAttributes() {
+        String queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        String queueArn = "arn:aws:sqs:us-east-1:123456789012:test-queue";
+        
+        builder.withSubscriptionName(queueUrl);
         subscription = builder.build();
-
+        
+        Map<QueueAttributeName, String> attributes = Map.of(
+            QueueAttributeName.QUEUE_ARN, queueArn
+        );
+        
+        GetQueueAttributesResponse mockResponse = GetQueueAttributesResponse.builder()
+            .attributes(attributes)
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenReturn(mockResponse);
+        
         GetAttributeResult result = subscription.getAttributes();
-
+        
         assertNotNull(result);
-        assertEquals("aws-subscription", result.getName());
-        assertEquals("aws-topic", result.getTopic());
+        assertEquals(queueUrl, result.getName());
+        assertEquals(queueArn, result.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithAwsServiceException() {
+        subscription = builder.build();
+        
+        AwsServiceException awsException = AwsServiceException.builder()
+            .message("Queue does not exist")
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenThrow(awsException);
+        
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+            subscription.getAttributes();
+        });
+        
+        assertTrue(exception.getMessage().contains("Failed to retrieve subscription attributes"));
+    }
+
+    @Test
+    void testGetAttributesWithSdkClientException() {
+        subscription = builder.build();
+        
+        SdkClientException sdkException = SdkClientException.builder()
+            .message("Unable to execute HTTP request")
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenThrow(sdkException);
+        
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+            subscription.getAttributes();
+        });
+        
+        assertTrue(exception.getMessage().contains("Failed to retrieve subscription attributes"));
     }
 
     @Test
