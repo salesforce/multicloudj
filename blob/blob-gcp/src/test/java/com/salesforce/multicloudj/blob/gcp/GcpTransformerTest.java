@@ -818,6 +818,23 @@ class GcpTransformerTest {
     }
 
     @Test
+    public void testToBlobInfo_multipartUploadWithTags() {
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("uuid1")
+                .tags(tags)
+                .build();
+        BlobInfo blobInfo = transformer.toBlobInfo(mpu);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertEquals(2, blobInfo.getMetadata().size());
+        assertEquals("value1", blobInfo.getMetadata().get("gcp-tag-tag1"));
+        assertEquals("value2", blobInfo.getMetadata().get("gcp-tag-tag2"));
+    }
+
+    @Test
     public void testToBlobIdList() {
         Page<Blob> page = mock(Page.class);
         Blob mockBlob1 = mock(Blob.class);

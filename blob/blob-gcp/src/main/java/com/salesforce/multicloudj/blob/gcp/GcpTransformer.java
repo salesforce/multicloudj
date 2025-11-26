@@ -268,7 +268,17 @@ public class GcpTransformer {
     }
 
     public BlobInfo toBlobInfo(MultipartUpload mpu) {
-        return toBlobInfo(mpu.getKey(), mpu.getMetadata());
+        Map<String, String> metadata = new HashMap<>();
+        if(mpu.getMetadata() != null) {
+            metadata.putAll(mpu.getMetadata());
+        }
+        
+        // Add tags to metadata with TAG_PREFIX
+        if(mpu.getTags() != null && !mpu.getTags().isEmpty()) {
+            mpu.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+        
+        return toBlobInfo(mpu.getKey(), metadata);
     }
 
     public List<BlobId> toBlobIdList(Page<Blob> blobs) {
