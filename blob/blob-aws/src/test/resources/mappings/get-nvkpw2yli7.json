@@ -1,0 +1,22 @@
+{
+  "id" : "0aebf9df-6c06-4ba1-b3b5-eb98952d9d4a",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-withtags",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-withTags?uploadId=HDOoXyIE1BO4feFEYcL3Lau7OMvXmhnu.OK5sLEOZyNnMGgBH1xE19f9gL22M2lG5KF2.Ouf6LVM6WS0oUqPwSwYj4EIz3FsP4ZE9O_k_LTQO4tbf8eV6fgoiXY4Z1IJglocI1LPy7BISMs.I8MX5KP5QsazuVTPxvCmbmvlTKT7riX3BYZQeu0H9bFN8xW9",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withTags</Key><UploadId>HDOoXyIE1BO4feFEYcL3Lau7OMvXmhnu.OK5sLEOZyNnMGgBH1xE19f9gL22M2lG5KF2.Ouf6LVM6WS0oUqPwSwYj4EIz3FsP4ZE9O_k_LTQO4tbf8eV6fgoiXY4Z1IJglocI1LPy7BISMs.I8MX5KP5QsazuVTPxvCmbmvlTKT7riX3BYZQeu0H9bFN8xW9</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-barry.liu@d991383f-2686-4df5-8465-9027dc410bfd</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-barry.liu@d991383f-2686-4df5-8465-9027dc410bfd</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2025-11-26T06:06:58.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2025-11-26T06:06:59.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0RC82VMFVZK08MFT",
+      "x-amz-id-2" : "WcbLM/bTdmysu94c6uvDi55TfKHuN8vdnGsKSUiddurOBh3SK5Gf7xG5kMFAOBAG2V6wWMZuCTY=",
+      "Date" : "Wed, 26 Nov 2025 06:07:03 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0aebf9df-6c06-4ba1-b3b5-eb98952d9d4a",
+  "persistent" : true,
+  "insertionIndex" : 576
+}
