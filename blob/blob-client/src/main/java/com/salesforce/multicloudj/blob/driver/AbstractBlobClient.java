@@ -48,7 +48,18 @@ public abstract class AbstractBlobClient<T extends AbstractBlobClient<T>> implem
         return doListBuckets();
     }
 
+    /**
+     * Creates a new bucket with the specified name
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    public void createBucket(String bucketName) {
+        doCreateBucket(bucketName);
+    }
+
     protected abstract ListBucketsResponse doListBuckets();
+
+    protected abstract void doCreateBucket(String bucketName);
 
     public abstract static class Builder<T extends AbstractBlobClient<T>>
             extends BlobBuilder<T>

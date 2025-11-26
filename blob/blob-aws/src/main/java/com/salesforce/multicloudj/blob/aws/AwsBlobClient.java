@@ -42,11 +42,22 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     protected ListBucketsResponse doListBuckets() {
         software.amazon.awssdk.services.s3.model.ListBucketsResponse response = s3Client.listBuckets();
 
+
         return ListBucketsResponse.builder().bucketInfoList(response.buckets().stream().map(bucket -> BucketInfo.builder()
                 .region(bucket.bucketRegion())
                 .name(bucket.name())
                 .creationDate(bucket.creationDate())
                 .build()).collect(Collectors.toList())).build();
+    }
+
+    /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    @Override
+    protected void doCreateBucket(String bucketName) {
+        s3Client.createBucket(builder -> builder.bucket(bucketName));
     }
 
     /**

@@ -85,4 +85,15 @@ public class AliBlobClientTest {
     void testProviderId() {
         assertEquals(AliConstants.PROVIDER_ID, ali.getProviderId());
     }
+
+    @Test
+    void testCreateBucket() {
+        String bucketName = "test-bucket";
+
+        // Call createBucket
+        ali.createBucket(bucketName);
+
+        // Verify that createBucket was called on the mock OSS client
+        verify(mockOssClient).createBucket(bucketName);
+    }
 }
