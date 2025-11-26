@@ -44,6 +44,20 @@ public class BlobClient {
         }
     }
 
+    /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    public void createBucket(String bucketName) {
+        try {
+            blobClient.createBucket(bucketName);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
+    }
+
     public static class BlobClientBuilder {
 
         private final AbstractBlobClient.Builder<?> blobClientBuilder;

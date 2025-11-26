@@ -70,6 +70,16 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     }
 
     /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    @Override
+    protected void doCreateBucket(String bucketName) {
+        ossClient.createBucket(bucketName);
+    }
+
+    /**
      * Returns a {@link Provider.Builder} for creating a Provider for this class.
      *
      * @return a {@link Provider.Builder} for creating a Provider for this class
