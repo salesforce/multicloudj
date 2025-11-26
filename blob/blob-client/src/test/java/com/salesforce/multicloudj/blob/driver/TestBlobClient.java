@@ -28,11 +28,6 @@ public class TestBlobClient extends AbstractBlobClient<TestBlobClient> {
         // Test implementation - no-op
     }
 
-    @Override
-    public void close() {
-        // Test implementation - no-op
-    }
-
     public static class Builder extends AbstractBlobClient.Builder<TestBlobClient> {
 
         protected Builder() {
