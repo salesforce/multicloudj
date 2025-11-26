@@ -5,7 +5,6 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
-import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -142,5 +141,75 @@ public class GcpBlobClientTest {
         RuntimeException unknownException = new RuntimeException("Unknown error");
         Class<?> cls = gcpBlobClient.getException(unknownException);
         assertEquals(UnknownException.class, cls);
+    }
+
+    @Test
+    void testBuildStorageWithDefaultConfiguration() {
+        // Build with minimal configuration
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
+    }
+
+    @Test
+    void testBuildStorageWithCredentialsOverrider() {
+        // Build with credentials overrider
+        StsCredentials sessionCreds = new StsCredentials("access-key", "secret-key", "session-token");
+        CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                .withSessionCredentials(sessionCreds).build();
+
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        builder.withCredentialsOverrider(credsOverrider);
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
+    }
+
+    @Test
+    void testBuildStorageWithCustomEndpoint() {
+        // Build with custom endpoint
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        builder.withEndpoint(URI.create("https://custom-endpoint.googleapis.com"));
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
+    }
+
+    @Test
+    void testBuildStorageWithProxyEndpoint() {
+        // Build with proxy endpoint
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        builder.withProxyEndpoint(URI.create("https://proxy.example.com:8080"));
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
+    }
+
+    @Test
+    void testBuildStorageWithAllConfigurations() {
+        // Build with all configurations
+        StsCredentials sessionCreds = new StsCredentials("access-key", "secret-key", "session-token");
+        CredentialsOverrider credsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
+                .withSessionCredentials(sessionCreds).build();
+
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        builder.withCredentialsOverrider(credsOverrider)
+                .withEndpoint(URI.create("https://custom-endpoint.googleapis.com"))
+                .withProxyEndpoint(URI.create("https://proxy.example.com:8080"))
+                .withRegion("us-central1");
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
     }
 }
