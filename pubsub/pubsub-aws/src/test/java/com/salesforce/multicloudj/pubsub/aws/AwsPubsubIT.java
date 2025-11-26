@@ -66,22 +66,26 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             this.queueUrl = queueUrl;
         }
 
+        private SqsClient createSqsClient() {
+            if (sqsClient == null) {
+                httpClient = TestsUtilAws.getProxyClient("https", port);
+                String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+                String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+                String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+                SqsClientBuilder sqsBuilder = SqsClient.builder()
+                    .httpClient(httpClient)
+                    .region(Region.US_WEST_2)
+                    .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
+                        accessKey, secretKey, sessionToken)))
+                    .endpointOverride(URI.create(SQS_ENDPOINT));
+                sqsClient = sqsBuilder.build();
+            }
+            return sqsClient;
+        }
+
         @Override
         public AbstractTopic createTopicDriver() {
-            httpClient = TestsUtilAws.getProxyClient("https", port);
-
-            String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-            String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-            String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-
-            SqsClientBuilder sqsBuilder = SqsClient.builder()
-                .httpClient(httpClient)
-                .region(Region.US_WEST_2)
-                .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                    accessKey, secretKey, sessionToken)))
-                .endpointOverride(URI.create(SQS_ENDPOINT));
-
-            sqsClient = sqsBuilder.build();
+            sqsClient = createSqsClient();
 
             // Topic creates queue if it doesn't exist (idempotent)
             // Extract queue name from queue URL: https://sqs.region.amazonaws.com/account/queue-name
@@ -114,7 +118,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public AbstractSubscription createSubscriptionDriver() {
-            // If queue doesn't exist, AWS will return error (e.g., AWS.SimpleQueueService.NonExistentQueue)
+            sqsClient = createSqsClient();
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
             System.out.println("createSubscriptionDriver using queueUrl: " + queueUrl);
             subscriptionBuilder.withSubscriptionName(queueUrl);
