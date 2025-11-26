@@ -275,6 +275,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                         .key(response.key())
                         .id(response.uploadId())
                         .metadata(request.getMetadata())
+                        .tags(request.getTags())
                         .build());
     }
 

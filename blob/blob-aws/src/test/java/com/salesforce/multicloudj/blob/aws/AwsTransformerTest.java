@@ -392,6 +392,24 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testToCreateMultipartUploadRequestWithTags() {
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        MultipartUploadRequest mpuRequest = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+        CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+        assertEquals("object-1", request.key());
+        assertEquals(BUCKET, request.bucket());
+        assertEquals(metadata, request.metadata());
+        // Verify tagging header is set (tagging() returns String in AWS SDK)
+        assertNotNull(request.tagging());
+        assertFalse(request.tagging().isEmpty());
+    }
+
+    @Test
     void testToUploadPartRequest() {
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
         MultipartUpload multipartUpload = MultipartUpload.builder()

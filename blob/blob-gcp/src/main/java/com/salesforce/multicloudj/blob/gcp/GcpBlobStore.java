@@ -326,6 +326,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .key(request.getKey())
                 .id(uploadId)
                 .metadata(request.getMetadata())
+                .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
