@@ -738,6 +738,41 @@ public class AwsBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithTags() {
+        CreateMultipartUploadResponse mockResponse = mock(CreateMultipartUploadResponse.class);
+        doReturn("bucket-1").when(mockResponse).bucket();
+        doReturn("object-1").when(mockResponse).key();
+        doReturn("mpu-id").when(mockResponse).uploadId();
+        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Map<String, String> tags = Map.of("tag-1", "tag-value-1", "tag-2", "tag-value-2");
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        MultipartUpload response = aws.initiateMultipartUpload(request);
+
+        // Verify the request is mapped to the SDK with tags
+        ArgumentCaptor<CreateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mockS3Client, times(1)).createMultipartUpload(requestCaptor.capture());
+        CreateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals(metadata, actualRequest.metadata());
+        // Verify tagging header is set (tagging() returns String in AWS SDK)
+        assertNotNull(actualRequest.tagging());
+        assertFalse(actualRequest.tagging().isEmpty());
+
+        // Verify the response is mapped back properly with tags
+        assertEquals("object-1", response.getKey());
+        assertEquals("bucket-1", response.getBucket());
+        assertEquals("mpu-id", response.getId());
+        assertEquals(tags, response.getTags());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         UploadPartResponse mockResponse = mock(UploadPartResponse.class);
         doReturn("etag").when(mockResponse).eTag();
