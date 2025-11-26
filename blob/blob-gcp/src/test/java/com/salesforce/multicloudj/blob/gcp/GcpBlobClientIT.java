@@ -65,6 +65,7 @@ public class GcpBlobClientIT extends AbstractBlobClientIT {
                     .setTransportOptions(transportOptions)
                     .setCredentials(credentials)
                     .setHost(endpoint)
+                    .setProjectId("substrate-sdk-gcp-poc1")
                     .build().getService();
 
 
