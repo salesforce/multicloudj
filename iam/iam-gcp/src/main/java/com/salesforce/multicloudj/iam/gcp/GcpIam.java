@@ -1,15 +1,20 @@
 package com.salesforce.multicloudj.iam.gcp;
 
+import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.service.AutoService;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
+import com.google.cloud.iam.admin.v1.IAMClient;
+import com.google.iam.admin.v1.CreateServiceAccountRequest;
+import com.google.iam.admin.v1.DeleteServiceAccountRequest;
+import com.google.iam.admin.v1.GetServiceAccountRequest;
+import com.google.iam.admin.v1.ServiceAccount;
 import com.google.iam.v1.Binding;
 import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
 import com.google.iam.v1.SetIamPolicyRequest;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
@@ -28,10 +33,11 @@ import java.util.stream.Collectors;
 
 @AutoService(AbstractIam.class)
 public class GcpIam extends AbstractIam {
-	
+
 	private static final String EFFECT_ALLOW = "Allow";
-	
+
 	private ProjectsClient projectsClient;
+    private IAMClient iamClient;
 
 	public GcpIam() {
 		this(new Builder());
@@ -40,14 +46,112 @@ public class GcpIam extends AbstractIam {
 	public GcpIam(Builder builder) {
 		super(builder);
 		this.projectsClient = builder.projectsClient;
+        this.iamClient = builder.iamClient;
 	}
 
-	@Override
-	protected String doCreateIdentity(String identityName, String description, String tenantId,
-			String region, Optional<TrustConfiguration> trustConfig, Optional<CreateOptions> options) {
-		// TODO: Implement GCP service account creation
-		throw new UnSupportedOperationException("doCreateIdentity not yet implemented for GCP");
-	}
+    /**
+     * Creates a new GCP service account with optional trust configuration.
+     * 
+     * <p>This method creates a service account in the specified GCP project. If trust configuration
+     * is provided, it also grants the roles/iam.serviceAccountTokenCreator role to the specified
+     * trusted principals, enabling them to impersonate this service account.
+     *
+     * @param identityName the service account ID (e.g., "my-service-account"). This will be used
+     *                     to construct the full email: {identityName}@{project-id}.iam.gserviceaccount.com
+     * @param description optional description for the service account (can be null, defaults to empty string)
+     * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
+     *                 (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
+     * @param region the region (not used in GCP IAM as service accounts are global resources)
+     * @param trustConfig optional trust configuration containing principals that should be granted
+     *                    the roles/iam.serviceAccountTokenCreator role. Principals can be specified as:
+     *                    - Service account email: "sa@project.iam.gserviceaccount.com"
+     *                    - Formatted member: "serviceAccount:sa@project.iam.gserviceaccount.com"
+     *                    - User: "user:user@example.com"
+     *                    - Group: "group:group@example.com"
+     * @param options optional creation options (currently unused for GCP)
+     * @return the service account email address (unique identifier) in the format:
+     *         {identityName}@{project-id}.iam.gserviceaccount.com
+     */
+    @Override
+    protected String doCreateIdentity(String identityName, String description, String tenantId,
+                                      String region, Optional<TrustConfiguration> trustConfig,
+                                      Optional<CreateOptions> options) {
+        // Build the project resource name in the format "projects/{project-id}"
+        String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
+
+        // Create the service account
+        ServiceAccount serviceAccount = ServiceAccount.newBuilder()
+                .setDisplayName(identityName)
+                .setDescription(description != null ? description : "")
+                .build();
+
+        CreateServiceAccountRequest createRequest = CreateServiceAccountRequest.newBuilder()
+                .setName(projectName)
+                .setAccountId(identityName)
+                .setServiceAccount(serviceAccount)
+                .build();
+
+        ServiceAccount createdServiceAccount;
+
+        try {
+            createdServiceAccount = iamClient.createServiceAccount(createRequest);
+        } catch (AlreadyExistsException e) {
+            // do not fail if service account already exists
+            createdServiceAccount = this.getServiceAccount(identityName, tenantId);
+        }
+
+        String serviceAccountEmail = createdServiceAccount.getEmail();
+
+        // If trust configuration is provided, add IAM bindings for roles/iam.serviceAccountTokenCreator
+        if (trustConfig.isPresent() && !trustConfig.get().getTrustedPrincipals().isEmpty()) {
+            String serviceAccountResourceName = createdServiceAccount.getName();
+
+            // Get current IAM policy for the service account
+            GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
+                    .setResource(serviceAccountResourceName)
+                    .build();
+
+            Policy policy = iamClient.getIamPolicy(getRequest);
+            if (policy == null) {
+                policy = Policy.newBuilder().build();
+            }
+
+            // Add binding for each trusted principal
+            for (String principal : trustConfig.get().getTrustedPrincipals()) {
+                // Format principal as a GCP member (e.g., "serviceAccount:email@project.iam.gserviceaccount.com")
+                String member = formatPrincipalAsMember(principal);
+                policy = addBinding(policy, "roles/iam.serviceAccountTokenCreator", member);
+            }
+
+            // Set the updated policy
+            SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
+                    .setResource(serviceAccountResourceName)
+                    .setPolicy(policy)
+                    .build();
+
+            iamClient.setIamPolicy(setRequest);
+        }
+
+        return serviceAccountEmail;
+    }
+
+
+    /**
+     * Formats a principal identifier as a GCP IAM member string.
+     * If the principal is already in the correct format (e.g., "serviceAccount:email@..."),
+     * returns it as-is. Otherwise, assumes it's a service account email and formats it.
+     *
+     * @param principal the principal identifier
+     * @return the formatted member string
+     */
+    private String formatPrincipalAsMember(String principal) {
+        if (principal.contains(":")) {
+            // Already formatted (e.g., "serviceAccount:email@...", "user:email@...", etc.)
+            return principal;
+        }
+        // Assume it's a service account email
+        return "serviceAccount:" + principal;
+    }
 
 	/**
 	 * Attaches an inline policy to a resource.
@@ -101,7 +205,7 @@ public class GcpIam extends AbstractIam {
 		}
 
 		// Only make the remote call if the policy actually changed
-		if (originalPolicy.getBindingsCount() == policy.getBindingsCount() 
+		if (originalPolicy.getBindingsCount() == policy.getBindingsCount()
 				&& originalPolicy.getBindingsList().equals(policy.getBindingsList())) {
 			// Policy didn't change (all members already existed), skip the remote call
 			return;
@@ -363,17 +467,84 @@ public class GcpIam extends AbstractIam {
 			.build();
 	}
 
-	@Override
-	protected void doDeleteIdentity(String identityName, String tenantId, String region) {
-		// TODO: Implement GCP service account deletion
-		throw new UnSupportedOperationException("doDeleteIdentity not yet implemented for GCP");
-	}
+    /**
+     * Deletes a service account from the specified GCP project.
+     * 
+     * <p>This method permanently removes a service account and all its associated IAM bindings.
+     * The operation cannot be undone. The method accepts either a service account ID or full
+     * email address as input and constructs the appropriate resource name for the API call.
+     *
+     * @param identityName the service account identifier to delete, which can be:
+     *                     - Service account ID: "my-service-account"
+     *                     - Full email: "my-service-account@project-id.iam.gserviceaccount.com"
+     *                     Both formats are accepted and will be normalized to the full resource name.
+     * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
+     *                 (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
+     * @param region the region (not used in GCP IAM as service accounts are global resources)
+     * @throws ApiException if the service account is not found, access is denied, or deletion fails
+     *                      (propagates to IamClient)
+     */
+    @Override
+    protected void doDeleteIdentity(String identityName, String tenantId, String region) {
+        // Build the project resource name in the format "projects/{project-id}"
+        String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
 
-	@Override
-	protected String doGetIdentity(String identityName, String tenantId, String region) {
-		// TODO: Implement GCP service account retrieval
-		throw new UnSupportedOperationException("doGetIdentity not yet implemented for GCP");
-	}
+        // Delete the service account
+        DeleteServiceAccountRequest deleteRequest = DeleteServiceAccountRequest.newBuilder()
+                .setName(serviceAccountResourceName)
+                .build();
+
+        iamClient.deleteServiceAccount(deleteRequest);
+    }
+
+    /**
+     * Retrieves service account metadata from the specified GCP project.
+     * 
+     * <p>This method fetches details of an existing service account and returns its email address
+     * as the unique identifier. The method accepts either a service account ID or full email address
+     * as input and constructs the appropriate resource name for the API call.
+     *
+     * @param identityName the service account identifier, which can be:
+     *                     - Service account ID: "my-service-account"
+     *                     - Full email: "my-service-account@project-id.iam.gserviceaccount.com"
+     *                     Both formats are accepted and will be normalized to the full resource name.
+     * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
+     *                 (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
+     * @param region the region (not used in GCP IAM as service accounts are global resources)
+     * @return the service account email address (unique identifier) in the format:
+     *         {account-id}@{project-id}.iam.gserviceaccount.com
+     * @throws ApiException if the service account is not found or access is denied (propagates to IamClient)
+     */
+    @Override
+    protected String doGetIdentity(String identityName, String tenantId, String region) {
+        ServiceAccount serviceAccount = this.getServiceAccount(identityName, tenantId);
+        // Return the service account email as the unique identifier
+        return serviceAccount.getEmail();
+    }
+
+    private ServiceAccount getServiceAccount(String identityName, String tenantId) {
+        // Build the project resource name in the format "projects/{project-id}"
+        String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
+
+        // Get the service account
+        GetServiceAccountRequest getRequest = GetServiceAccountRequest.newBuilder()
+                .setName(serviceAccountResourceName)
+                .build();
+
+        return iamClient.getServiceAccount(getRequest);
+    }
+
+    private static String getServiceAccountResourceName(String identityName, String tenantId) {
+        String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
+
+        // Build the service account resource name
+        // Format: projects/{project-id}/serviceAccounts/{account-id}@{project-id}.iam.gserviceaccount.com
+        String serviceAccountEmail = identityName.contains("@")
+            ? identityName
+            : identityName + "@" + projectName.substring(9) + ".iam.gserviceaccount.com";
+
+        return projectName + "/serviceAccounts/" + serviceAccountEmail;
+    }
 
 	@Override
 	public Class<? extends SubstrateSdkException> getException(Throwable t) {
@@ -392,10 +563,12 @@ public class GcpIam extends AbstractIam {
 	@Override
 	public void close() throws Exception {
 		projectsClient.close();
+        iamClient.close();
 	}
 
 	public static class Builder extends AbstractIam.Builder<GcpIam, Builder> {
 		private ProjectsClient projectsClient;
+        private IAMClient iamClient;
 
 		public Builder() {
             providerId(GcpConstants.PROVIDER_ID);
@@ -404,6 +577,30 @@ public class GcpIam extends AbstractIam {
 		public Builder withProjectsClient(ProjectsClient projectsClient) {
             this.projectsClient = projectsClient;
             return this;
+        }
+        /**
+         * Sets the IAM Client to be used for operations.
+         *
+         * @param iamClient
+         * @return this builder for chaining
+         */
+        public Builder withIamClient(IAMClient iamClient) {
+            this.iamClient = iamClient;
+            return self();
+        }
+
+        /**
+         * Builds a IAMClient from the current configuration.
+         *
+         * @return A configured IAMClient
+         * @throws SubstrateSdkException If client creation fails
+         */
+        private IAMClient buildIamClient() {
+            try {
+                return IAMClient.create();
+            } catch (Exception e) {
+                throw new SubstrateSdkException("Could not create IAMClient", e);
+            }
         }
 
 		@Override
@@ -424,6 +621,9 @@ public class GcpIam extends AbstractIam {
 			if (projectsClient == null) {
 				projectsClient = buildProjectsClient(this);
 			}
+                if (this.iamClient == null) {
+                    this.iamClient = buildIamClient();
+                }
 			return new GcpIam(this);
 		}
 	}
