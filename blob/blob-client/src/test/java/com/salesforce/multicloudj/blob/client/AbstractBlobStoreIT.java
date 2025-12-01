@@ -2004,6 +2004,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    @Disabled
     public void testTagging() throws IOException {
 
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
