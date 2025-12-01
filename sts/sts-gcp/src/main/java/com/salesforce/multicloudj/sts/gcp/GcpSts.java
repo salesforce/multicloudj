@@ -126,6 +126,9 @@ public class GcpSts extends AbstractSts {
             return googleCredentials;
         }
         try {
+            if (System.getenv("KUBERNETES_SERVICE_HOST") != null) {
+                return ComputeEngineCredentials.create();
+            }
             GoogleCredentials adc = GoogleCredentials.getApplicationDefault();
             if (adc.createScopedRequired()) {
                 adc = adc.createScoped(List.of(scope));
