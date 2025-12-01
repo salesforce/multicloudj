@@ -71,7 +71,6 @@ public class GcpIam extends AbstractIam {
      * @param options optional creation options (currently unused for GCP)
      * @return the service account email address (unique identifier) in the format:
      *         {identityName}@{project-id}.iam.gserviceaccount.com
-     * @throws SubstrateSdkException if service account creation or IAM policy configuration fails
      */
     @Override
     protected String doCreateIdentity(String identityName, String description, String tenantId,
