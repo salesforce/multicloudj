@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.gcp;
 
+import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
@@ -983,7 +984,7 @@ public class GcpIamTest {
         verify(mockIamClient, never()).setIamPolicy(any(SetIamPolicyRequest.class));
     }
 
-    //@Test
+    @Test
     void testCreateIdentityWithTrustConfigNullPolicy() {
         // Arrange
         String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
@@ -997,11 +998,6 @@ public class GcpIamTest {
                 .setDisplayName(TEST_IDENTITY_NAME)
                 .setDescription(TEST_DESCRIPTION)
                 .build();
-
-        ApiException notFoundException = mock(ApiException.class);
-        StatusCode statusCode = mock(StatusCode.class);
-        when(statusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
-        when(notFoundException.getStatusCode()).thenReturn(statusCode);
 
         Policy emptyPolicy = Policy.newBuilder().build();
 
@@ -1028,6 +1024,73 @@ public class GcpIamTest {
         // Verify that even with policy not found, we still set the policy
         verify(mockIamClient).getIamPolicy(any(GetIamPolicyRequest.class));
         verify(mockIamClient).setIamPolicy(any(SetIamPolicyRequest.class));
+    }
+
+    @Test
+    void testCreateIdentityWithAlreadyExistsException() {
+        // Arrange
+        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
+        TrustConfiguration trustConfig = TrustConfiguration.builder()
+                .addTrustedPrincipal(trustedPrincipal)
+                .build();
+
+        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
+                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
+                .setName(TEST_SERVICE_ACCOUNT_NAME)
+                .setDisplayName(TEST_IDENTITY_NAME)
+                .setDescription(TEST_DESCRIPTION)
+                .build();
+
+        Policy mockPolicy = Policy.newBuilder().build();
+
+        AlreadyExistsException alreadyExistsException = mock(AlreadyExistsException.class);
+
+        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
+                .thenThrow(alreadyExistsException);
+        when(mockIamClient.getServiceAccount(any(GetServiceAccountRequest.class)))
+                .thenReturn(mockServiceAccount);
+        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
+                .thenReturn(mockPolicy);
+        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
+                .thenReturn(mockPolicy);
+
+        // Act
+        String result = gcpIam.createIdentity(
+                TEST_IDENTITY_NAME,
+                TEST_DESCRIPTION,
+                TEST_PROJECT_ID,
+                TEST_REGION,
+                Optional.of(trustConfig),
+                Optional.empty()
+        );
+
+        // Assert
+        assertEquals(TEST_SERVICE_ACCOUNT_EMAIL, result);
+
+        // Verify service account creation
+        verify(mockIamClient).createServiceAccount(any(CreateServiceAccountRequest.class));
+
+        // Verify IAM policy operations
+        ArgumentCaptor<GetIamPolicyRequest> getRequestCaptor =
+                ArgumentCaptor.forClass(GetIamPolicyRequest.class);
+        verify(mockIamClient).getIamPolicy(getRequestCaptor.capture());
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, getRequestCaptor.getValue().getResource());
+
+        ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor =
+                ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+        verify(mockIamClient).setIamPolicy(setRequestCaptor.capture());
+
+        SetIamPolicyRequest capturedSetRequest = setRequestCaptor.getValue();
+        assertEquals(TEST_SERVICE_ACCOUNT_NAME, capturedSetRequest.getResource());
+
+        // Verify the policy has the correct binding
+        Policy capturedPolicy = capturedSetRequest.getPolicy();
+        assertEquals(1, capturedPolicy.getBindingsCount());
+
+        Binding binding = capturedPolicy.getBindings(0);
+        assertEquals("roles/iam.serviceAccountTokenCreator", binding.getRole());
+        assertEquals(1, binding.getMembersCount());
+        assertEquals("serviceAccount:" + trustedPrincipal, binding.getMembers(0));
     }
 
     @Test
@@ -1071,7 +1134,6 @@ public class GcpIamTest {
         Policy mockPolicy = Policy.newBuilder().build();
 
         ApiException apiException = mock(ApiException.class);
-        when(apiException.getMessage()).thenReturn("Permission denied");
 
         when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
                 .thenReturn(mockServiceAccount);
@@ -1081,7 +1143,7 @@ public class GcpIamTest {
                 .thenThrow(apiException);
 
         // Act & Assert
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
+        ApiException exception = assertThrows(ApiException.class, () ->
                 gcpIam.createIdentity(
                         TEST_IDENTITY_NAME,
                         TEST_DESCRIPTION,
@@ -1092,13 +1154,8 @@ public class GcpIamTest {
                 )
         );
 
-        // Verify rollback was attempted - service account should be deleted
-        verify(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-        
-        // Verify error message indicates rollback occurred
-        assertTrue(exception.getMessage().contains("Failed to configure IAM policy"));
-        assertTrue(exception.getMessage().contains("rolled back"));
-        assertEquals(apiException, exception.getCause());
+        // Verify exception is thrown without rollback
+        assertNotNull(exception);
     }
 
     @Test
@@ -1341,61 +1398,6 @@ public class GcpIamTest {
         );
 
         assertEquals(genericException, exception);
-    }
-
-    @Test
-    void testCreateIdentityRollbackFailure() {
-        // Arrange - Test when both policy set and rollback fail
-        String trustedPrincipal = "another-sa@test-project-123.iam.gserviceaccount.com";
-        TrustConfiguration trustConfig = TrustConfiguration.builder()
-                .addTrustedPrincipal(trustedPrincipal)
-                .build();
-
-        ServiceAccount mockServiceAccount = ServiceAccount.newBuilder()
-                .setEmail(TEST_SERVICE_ACCOUNT_EMAIL)
-                .setName(TEST_SERVICE_ACCOUNT_NAME)
-                .setDisplayName(TEST_IDENTITY_NAME)
-                .setDescription(TEST_DESCRIPTION)
-                .build();
-
-        Policy mockPolicy = Policy.newBuilder().build();
-
-        ApiException policyException = mock(ApiException.class);
-        when(policyException.getMessage()).thenReturn("Permission denied for policy");
-
-        ApiException rollbackException = mock(ApiException.class);
-        when(rollbackException.getMessage()).thenReturn("Permission denied for delete");
-
-        when(mockIamClient.createServiceAccount(any(CreateServiceAccountRequest.class)))
-                .thenReturn(mockServiceAccount);
-        when(mockIamClient.getIamPolicy(any(GetIamPolicyRequest.class)))
-                .thenReturn(mockPolicy);
-        when(mockIamClient.setIamPolicy(any(SetIamPolicyRequest.class)))
-                .thenThrow(policyException);
-        doThrow(rollbackException).when(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-
-        // Act & Assert
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () ->
-                gcpIam.createIdentity(
-                        TEST_IDENTITY_NAME,
-                        TEST_DESCRIPTION,
-                        TEST_PROJECT_ID,
-                        TEST_REGION,
-                        Optional.of(trustConfig),
-                        Optional.empty()
-                )
-        );
-
-        // Verify rollback was attempted
-        verify(mockIamClient).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
-        
-        // Verify error message indicates policy configuration failure
-        assertTrue(exception.getMessage().contains("Failed to configure IAM policy"));
-        assertEquals(policyException, exception.getCause());
-        
-        // Note: In real scenarios, suppressed exceptions would contain rollback failure info,
-        // but mocked exceptions don't support getSuppressed() properly. The rollback logic
-        // is verified by checking that deleteServiceAccount was called.
     }
 
     @Test

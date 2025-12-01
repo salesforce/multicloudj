@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.gcp;
 
+import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.service.AutoService;
 import com.google.cloud.resourcemanager.v3.ProjectsClient;
@@ -54,14 +55,6 @@ public class GcpIam extends AbstractIam {
      * <p>This method creates a service account in the specified GCP project. If trust configuration
      * is provided, it also grants the roles/iam.serviceAccountTokenCreator role to the specified
      * trusted principals, enabling them to impersonate this service account.
-     * 
-     * <p>The method implements transactional rollback: if IAM policy configuration fails after
-     * service account creation, the created service account is automatically deleted to maintain
-     * atomicity. This rollback is handled by the inner try-catch block and wrapped in a
-     * SubstrateSdkException with rollback context.
-     * 
-     * <p>Note: Service account creation failures propagate as ApiException to IamClient for
-     * centralized exception handling.
      *
      * @param identityName the service account ID (e.g., "my-service-account"). This will be used
      *                     to construct the full email: {identityName}@{project-id}.iam.gserviceaccount.com
@@ -78,8 +71,7 @@ public class GcpIam extends AbstractIam {
      * @param options optional creation options (currently unused for GCP)
      * @return the service account email address (unique identifier) in the format:
      *         {identityName}@{project-id}.iam.gserviceaccount.com
-     * @throws ApiException if service account creation fails (propagates to IamClient)
-     * @throws SubstrateSdkException if IAM policy configuration fails after creation (includes rollback context)
+     * @throws SubstrateSdkException if service account creation or IAM policy configuration fails
      */
     @Override
     protected String doCreateIdentity(String identityName, String description, String tenantId,
@@ -100,85 +92,50 @@ public class GcpIam extends AbstractIam {
                 .setServiceAccount(serviceAccount)
                 .build();
 
-        ServiceAccount createdServiceAccount = iamClient.createServiceAccount(createRequest);
+        ServiceAccount createdServiceAccount;
+
+        try {
+            createdServiceAccount = iamClient.createServiceAccount(createRequest);
+        } catch (AlreadyExistsException e) {
+            // do not fail if service account already exists
+            createdServiceAccount = this.getServiceAccount(identityName, tenantId);
+        }
+
         String serviceAccountEmail = createdServiceAccount.getEmail();
 
         // If trust configuration is provided, add IAM bindings for roles/iam.serviceAccountTokenCreator
         if (trustConfig.isPresent() && !trustConfig.get().getTrustedPrincipals().isEmpty()) {
             String serviceAccountResourceName = createdServiceAccount.getName();
 
-            try {
-                // Get current IAM policy for the service account
-                GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
-                        .setResource(serviceAccountResourceName)
-                        .build();
+            // Get current IAM policy for the service account
+            GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
+                    .setResource(serviceAccountResourceName)
+                    .build();
 
-                Policy policy = iamClient.getIamPolicy(getRequest);
-                if (policy == null) {
-                    policy = Policy.newBuilder().build();
-                }
-
-                // Add binding for each trusted principal
-                for (String principal : trustConfig.get().getTrustedPrincipals()) {
-                    // Format principal as a GCP member (e.g., "serviceAccount:email@project.iam.gserviceaccount.com")
-                    String member = formatPrincipalAsMember(principal);
-                    policy = addBinding(policy, "roles/iam.serviceAccountTokenCreator", member);
-                }
-
-                // Set the updated policy
-                SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
-                        .setResource(serviceAccountResourceName)
-                        .setPolicy(policy)
-                        .build();
-
-                iamClient.setIamPolicy(setRequest);
-
-            } catch (ApiException policyException) {
-                // Rollback: Delete the created service account since policy configuration failed
-                rollbackServiceAccountCreation(createdServiceAccount, policyException);
-                throw new SubstrateSdkException(
-                        "Failed to configure IAM policy for service account. Service account has been rolled back: "
-                        + policyException.getMessage(), policyException);
+            Policy policy = iamClient.getIamPolicy(getRequest);
+            if (policy == null) {
+                policy = Policy.newBuilder().build();
             }
+
+            // Add binding for each trusted principal
+            for (String principal : trustConfig.get().getTrustedPrincipals()) {
+                // Format principal as a GCP member (e.g., "serviceAccount:email@project.iam.gserviceaccount.com")
+                String member = formatPrincipalAsMember(principal);
+                policy = addBinding(policy, "roles/iam.serviceAccountTokenCreator", member);
+            }
+
+            // Set the updated policy
+            SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
+                    .setResource(serviceAccountResourceName)
+                    .setPolicy(policy)
+                    .build();
+
+            iamClient.setIamPolicy(setRequest);
         }
 
         return serviceAccountEmail;
     }
 
-    /**
-     * Attempts to rollback (delete) a created service account when subsequent operations fail.
-     * This provides best-effort atomicity for the identity creation operation.
-     * 
-     * @param serviceAccount the service account to delete
-     * @param originalException the exception that triggered the rollback
-     */
-    private void rollbackServiceAccountCreation(ServiceAccount serviceAccount, ApiException originalException) {
-        if (serviceAccount == null) {
-            return;
-        }
-        
-        try {
-            DeleteServiceAccountRequest deleteRequest = DeleteServiceAccountRequest.newBuilder()
-                    .setName(serviceAccount.getName())
-                    .build();
-            
-            iamClient.deleteServiceAccount(deleteRequest);
-            
-        } catch (ApiException rollbackException) {
-            // Rollback failed - log the failure but preserve the original exception
-            // In production, this should be logged with appropriate severity
-            SubstrateSdkException rollbackError = new SubstrateSdkException(
-                    "CRITICAL: Failed to rollback service account creation. " +
-                    "Orphaned service account may exist: " + serviceAccount.getEmail() + 
-                    ". Original error: " + originalException.getMessage() + 
-                    ". Rollback error: " + rollbackException.getMessage(),
-                    rollbackException);
-            
-            // Add the rollback exception as suppressed to the original exception
-            // This preserves both error contexts for debugging
-            originalException.addSuppressed(rollbackError);
-        }
-    }
 
     /**
      * Formats a principal identifier as a GCP IAM member string.
@@ -561,6 +518,12 @@ public class GcpIam extends AbstractIam {
      */
     @Override
     protected String doGetIdentity(String identityName, String tenantId, String region) {
+        ServiceAccount serviceAccount = this.getServiceAccount(identityName, tenantId);
+        // Return the service account email as the unique identifier
+        return serviceAccount.getEmail();
+    }
+
+    private ServiceAccount getServiceAccount(String identityName, String tenantId) {
         // Build the project resource name in the format "projects/{project-id}"
         String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
 
@@ -569,10 +532,7 @@ public class GcpIam extends AbstractIam {
                 .setName(serviceAccountResourceName)
                 .build();
 
-        ServiceAccount serviceAccount = iamClient.getServiceAccount(getRequest);
-
-        // Return the service account email as the unique identifier
-        return serviceAccount.getEmail();
+        return iamClient.getServiceAccount(getRequest);
     }
 
     private static String getServiceAccountResourceName(String identityName, String tenantId) {
