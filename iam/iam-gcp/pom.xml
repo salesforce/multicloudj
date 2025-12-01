@@ -30,6 +30,11 @@
             <version>1.80.0</version>
         </dependency>
         <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-iam-admin</artifactId>
+            <version>3.73.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <version>5.16.1</version>
