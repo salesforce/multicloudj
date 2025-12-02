@@ -28,6 +28,8 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
@@ -306,14 +308,30 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         }
     }
 
+    /**
+     * Validates the subscription name format. 
+     */
     static void validateSubscriptionName(String subscriptionName) {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
             throw new InvalidArgumentException("Subscription name cannot be null or empty");
         }
-        if (!subscriptionName.startsWith("https://sqs.") || !subscriptionName.contains(".amazonaws.com/")) {
+        if (subscriptionName.startsWith("https://")) {
             throw new InvalidArgumentException(
-                "Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name, got: " + subscriptionName);
+                    "Subscription name must be a queue name, not a URL. Got: " + subscriptionName);
         }
+    }
+    
+    /**
+     * Gets the full queue URL by calling AWS getQueueUrl API.
+     */
+    static String getQueueUrl(String queueName, SqsClient sqsClient) 
+            throws AwsServiceException, SdkClientException {
+        GetQueueUrlRequest request = GetQueueUrlRequest.builder()
+            .queueName(queueName)
+            .build();
+        
+        GetQueueUrlResponse response = sqsClient.getQueueUrl(request);
+        return response.queueUrl();
     }
 
     @Override
@@ -457,6 +475,10 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             if (sqsClient == null) {
                 sqsClient = buildSqsClient(this);
             }
+            
+            // get the full queue URL from the queue name
+            subscriptionName = getQueueUrl(subscriptionName, sqsClient);
+            
             return new AwsSubscription(this);
         }
     }

@@ -20,6 +20,8 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResultEntry;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -44,7 +46,8 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class AwsTopicTest {
     
-    private static final String VALID_SQS_TOPIC_NAME = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+    private static final String VALID_SQS_TOPIC_NAME = "test-queue";
+    private static final String VALID_SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
     
     @Mock
     private SqsClient mockSqsClient;
@@ -57,35 +60,20 @@ public class AwsTopicTest {
         mockCredentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(new StsCredentials("key-1", "secret-1", "token-1"))
             .build();
+        
+        // Mock getQueueUrl for all tests
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(VALID_SQS_QUEUE_URL)
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
             
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SQS_TOPIC_NAME);
         builder.withCredentialsOverrider(mockCredentialsOverrider);
         builder.withSqsClient(mockSqsClient);
+        builder.withRegion("us-east-1");
         sqsTopic = builder.build();
-    }
-
-    @Test
-    void testTopicNameValidation() {
-        // Valid SQS topic names should not throw
-        AwsTopic.Builder builder1 = new AwsTopic.Builder();
-        builder1.withTopicName("https://sqs.us-west-2.amazonaws.com/123456789012/my-queue");
-        builder1.withSqsClient(mockSqsClient);
-        assertDoesNotThrow(() -> builder1.build());
-        
-        // Invalid topic names should throw
-        AwsTopic.Builder builder2 = new AwsTopic.Builder();
-        builder2.withTopicName("just-a-topic");
-        builder2.withSqsClient(mockSqsClient);
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder2.build());
-        assertTrue(exception.getMessage().contains("SQS topic name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
-        
-        // Invalid SQS URL should throw
-        AwsTopic.Builder builder3 = new AwsTopic.Builder();
-        builder3.withTopicName("https://sqs.invalid.com/queue");
-        builder3.withSqsClient(mockSqsClient);
-        exception = assertThrows(InvalidArgumentException.class, () -> builder3.build());
-        assertTrue(exception.getMessage().contains("SQS topic name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
     }
 
     @Test
@@ -102,7 +90,23 @@ public class AwsTopicTest {
         builder.withTopicName("");
         builder.withSqsClient(mockSqsClient);
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
-        assertTrue(exception.getMessage().contains("SQS topic name cannot be empty"));
+        assertTrue(exception.getMessage().contains("cannot be null or empty"));
+    }
+
+    @Test
+    void testTopicNameValidation_AcceptsQueueName() {
+        // Valid queue name should be accepted
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/my-queue")
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName("my-queue");
+        builder.withSqsClient(mockSqsClient);
+        builder.withRegion("us-east-1");
+        assertDoesNotThrow(() -> builder.build());
     }
 
     @Test
@@ -124,11 +128,18 @@ public class AwsTopicTest {
         assertThrows(InvalidArgumentException.class, () -> builder2.build());
         
         // Test custom endpoint
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(VALID_SQS_QUEUE_URL)
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
         AwsTopic.Builder builder3 = new AwsTopic.Builder();
         builder3.withTopicName(VALID_SQS_TOPIC_NAME);
         builder3.withEndpoint(URI.create("https://custom-endpoint.com"));
         builder3.withCredentialsOverrider(mockCredentialsOverrider);
         builder3.withSqsClient(mockSqsClient);
+        builder3.withRegion("us-east-1");
         AwsTopic topicWithEndpoint = builder3.build();
         assertNotNull(topicWithEndpoint);
     }
@@ -370,14 +381,16 @@ public class AwsTopicTest {
 
         assertDoesNotThrow(() -> sqsTopic.doSendBatch(messages));
         
-        verifyNoInteractions(mockSqsClient);
+        // Only verify that sendMessageBatch was not called (getQueueUrl was called in setUp)
+        verify(mockSqsClient, never()).sendMessageBatch(any(SendMessageBatchRequest.class));
     }
 
     @Test
     void testDoSendBatchNullMessages() throws Exception {
         assertDoesNotThrow(() -> sqsTopic.doSendBatch(null));
         
-        verifyNoInteractions(mockSqsClient);
+        // Only verify that sendMessageBatch was not called (getQueueUrl was called in setUp)
+        verify(mockSqsClient, never()).sendMessageBatch(any(SendMessageBatchRequest.class));
     }
 
     @Test
@@ -390,6 +403,7 @@ public class AwsTopicTest {
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SQS_TOPIC_NAME);
         builder.withSqsClient(mockSqsClient);
+        builder.withRegion("us-east-1");
         AwsTopic topic = builder.build();
         assertNotNull(topic.builder());
     }
@@ -648,5 +662,72 @@ public class AwsTopicTest {
         
         // Empty body is valid UTF-8, so no BASE64_ENCODED flag
         assertFalse(messageAttributes.containsKey("base64encoded"));
+    }
+
+    @Test
+    void testBuildWithQueueName_CallsGetQueueUrl() {
+        String queueName = "test-queue";
+        String expectedQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(expectedQueueUrl)
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsTopic.Builder testBuilder = new AwsTopic.Builder();
+        testBuilder.withTopicName(queueName);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        testBuilder.build();
+        
+        // Verify that getQueueUrl was called and capture the request
+        ArgumentCaptor<GetQueueUrlRequest> requestCaptor = ArgumentCaptor.forClass(GetQueueUrlRequest.class);
+        verify(mockSqsClient, times(1)).getQueueUrl(requestCaptor.capture());
+        GetQueueUrlRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(queueName, capturedRequest.queueName());
+    }
+
+    @Test
+    void testBuildWithUrl_RejectsUrl() {
+        String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        AwsTopic.Builder testBuilder = new AwsTopic.Builder();
+        testBuilder.withTopicName(fullQueueUrl);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
+    }
+
+    @Test
+    void testBuildWithQueueName_GetQueueUrlFails() {
+        String queueName = "non-existent-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        AwsServiceException awsException = AwsServiceException.builder()
+            .message("The specified queue does not exist.")
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenThrow(awsException);
+        
+        AwsTopic.Builder testBuilder = new AwsTopic.Builder();
+        testBuilder.withTopicName(queueName);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        AwsServiceException exception = assertThrows(AwsServiceException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertEquals("The specified queue does not exist.", exception.getMessage());
+        verify(mockSqsClient, times(1)).getQueueUrl(any(GetQueueUrlRequest.class));
     }
 }

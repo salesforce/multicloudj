@@ -31,7 +31,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     private static final String BASE_QUEUE_NAME = "test-queue";
 
     private HarnessImpl harnessImpl;
-    private String currentQueueUrl;
+    private String queueName;
 
     @Override
     protected Harness createHarness() {
@@ -40,17 +40,16 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     /**
-     * Generate a unique queue URL for each test.
+     * Generate a unique queue name for each test.
      * Uses test method name so the same test always uses the same queue.
      * Topic creates queue, Subscription does not.
      */
     @BeforeEach
     public void setupTestQueue(TestInfo testInfo) {
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
-        String queueName = BASE_QUEUE_NAME + "-" + testMethodName;
-        currentQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, queueName);
+        queueName = BASE_QUEUE_NAME + "-" + testMethodName;
         if (harnessImpl != null) {
-            harnessImpl.setQueueUrl(currentQueueUrl);
+            harnessImpl.setQueueName(queueName);
         }
     }
 
@@ -60,10 +59,10 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         private SqsClient sqsClient;
         private SdkHttpClient httpClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
-        private String queueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, BASE_QUEUE_NAME);
+        private String queueName = BASE_QUEUE_NAME;
 
-        public void setQueueUrl(String queueUrl) {
-            this.queueUrl = queueUrl;
+        public void setQueueName(String queueName) {
+            this.queueName = queueName;
         }
 
         private SqsClient createSqsClient() {
@@ -88,8 +87,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             sqsClient = createSqsClient();
 
             // Topic creates queue if it doesn't exist (idempotent)
-            // Extract queue name from queue URL: https://sqs.region.amazonaws.com/account/queue-name
-            String queueName = queueUrl.substring(queueUrl.lastIndexOf('/') + 1);
             if (System.getProperty("record") != null) {
                 // In record mode, create queue if it doesn't exist 
                 try {
@@ -108,8 +105,8 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             }
 
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
-            System.out.println("createTopicDriver using queueUrl: " + queueUrl);
-            topicBuilder.withTopicName(queueUrl);
+            System.out.println("createTopicDriver using queueName: " + queueName);
+            topicBuilder.withTopicName(queueName);
             topicBuilder.withSqsClient(sqsClient);
             topic = new AwsTopic(topicBuilder);
 
@@ -120,8 +117,8 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         public AbstractSubscription createSubscriptionDriver() {
             sqsClient = createSqsClient();
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
-            System.out.println("createSubscriptionDriver using queueUrl: " + queueUrl);
-            subscriptionBuilder.withSubscriptionName(queueUrl);
+            System.out.println("createSubscriptionDriver using queueName: " + queueName);
+            subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(sqsClient);
 

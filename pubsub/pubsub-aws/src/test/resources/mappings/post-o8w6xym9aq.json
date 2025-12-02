@@ -1,0 +1,30 @@
+{
+  "id" : "60c04da0-8e49-4c9e-ab96-90b34d2daa37",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.SendMessageBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"test-queue-testBatchAck\",\"Entries\":[{\"Id\":\"0\",\"MessageBody\":\"batch-ack-2\",\"MessageAttributes\":{\"batch\":{\"StringValue\":\"ack\",\"DataType\":\"String\"}}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"9eb1a7f67300ecc36b254e38823294ee\",\"MD5OfMessageBody\":\"cd6fc3c7672e4f325985cc477da67288\",\"MessageId\":\"60990ab7-6c41-42cc-826c-f6a509bbc911\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "0caa29dd-f713-5043-b8bd-4875ae37a0fa",
+      "Date" : "Tue, 02 Dec 2025 03:03:00 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "60c04da0-8e49-4c9e-ab96-90b34d2daa37",
+  "persistent" : true,
+  "insertionIndex" : 8
+}

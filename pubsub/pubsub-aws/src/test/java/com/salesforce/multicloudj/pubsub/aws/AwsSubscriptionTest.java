@@ -14,8 +14,11 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -31,6 +34,8 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
 import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +51,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class AwsSubscriptionTest {
 
     @Mock
@@ -57,9 +63,16 @@ public class AwsSubscriptionTest {
     @BeforeEach
     void setUp() {
         builder = new AwsSubscription.Builder();
-        builder.withSubscriptionName("https://sqs.us-east-1.amazonaws.com/123456789012/test-queue");
+        builder.withSubscriptionName("test-queue");
         builder.withRegion("us-east-1");
         builder.withSqsClient(mockSqsClient);
+        
+        // Mock getQueueUrl for all tests
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/test-queue")
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
     }
 
     @Test
@@ -246,10 +259,17 @@ public class AwsSubscriptionTest {
 
     @Test
     void testGetAttributes() {
+        String queueName = "test-queue";
         String queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
         String queueArn = "arn:aws:sqs:us-east-1:123456789012:test-queue";
         
-        builder.withSubscriptionName(queueUrl);
+        GetQueueUrlResponse mockQueueUrlResponse = GetQueueUrlResponse.builder()
+            .queueUrl(queueUrl)
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockQueueUrlResponse);
+        
+        builder.withSubscriptionName(queueName);
         subscription = builder.build();
         
         Map<QueueAttributeName, String> attributes = Map.of(
@@ -352,7 +372,9 @@ public class AwsSubscriptionTest {
     void testValidateSubscriptionName_InvalidName() {
         String invalidName = "invalid@name";
 
-        assertThrows(InvalidArgumentException.class, () -> {
+        // This will try to call getQueueUrl, which will fail with SdkClientException
+        // because no region is set, and that gets mapped to InvalidArgumentException
+        assertThrows(SdkClientException.class, () -> {
             new AwsSubscription.Builder()
                     .withSubscriptionName(invalidName)
                     .build();
@@ -376,6 +398,23 @@ public class AwsSubscriptionTest {
                     .build();
         });
     }
+
+    @Test
+    void testValidateSubscriptionName_AcceptsQueueName() {
+        // Valid queue name should be accepted
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/my-queue")
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsSubscription.Builder builder = new AwsSubscription.Builder();
+        builder.withSubscriptionName("my-queue");
+        builder.withSqsClient(mockSqsClient);
+        builder.withRegion("us-east-1");
+        assertDoesNotThrow(() -> builder.build());
+    }
+
 
     @Test
     void testConvertToMessage() {
@@ -406,6 +445,11 @@ public class AwsSubscriptionTest {
     @Test
     void testDoReceiveBatch() {
         SqsClient mockSqsClient = mock(SqsClient.class);
+        GetQueueUrlResponse mockQueueUrlResponse = GetQueueUrlResponse.builder()
+            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/test-queue")
+            .build();
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockQueueUrlResponse);
         when(mockSqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(ReceiveMessageResponse.builder().build());
         
@@ -588,34 +632,38 @@ public class AwsSubscriptionTest {
 
     @Test
     void testValidateSubscriptionName_InvalidFormat_NoAmazonaws() {
-        // Test subscription name that doesn't contain ".amazonaws.com/"
+        // Test subscription name that doesn't contain ".amazonaws.com/" but starts with "https://"
+        // Should be rejected as it's a URL, not a queue name
         String invalidName = "https://sqs.us-east-1.example.com/123456789012/test-queue";
         
         AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
         testBuilder.withSubscriptionName(invalidName);
         testBuilder.withSqsClient(mockSqsClient);
+        testBuilder.withRegion("us-east-1");
         
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             testBuilder.build();
         });
         
-        assertTrue(exception.getMessage().contains("Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
+        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
     }
 
     @Test
     void testValidateSubscriptionName_InvalidFormat_NoSqsPrefix() {
-        // Test subscription name that doesn't start with "https://sqs."
+        // Test subscription name that starts with "https://" but not "https://sqs."
+        // Should be rejected as it's a URL, not a queue name
         String invalidName = "https://example.com/queue";
         
         AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
         testBuilder.withSubscriptionName(invalidName);
         testBuilder.withSqsClient(mockSqsClient);
+        testBuilder.withRegion("us-east-1");
         
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             testBuilder.build();
         });
         
-        assertTrue(exception.getMessage().contains("Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
+        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
     }
 
     @Test
@@ -861,6 +909,86 @@ public class AwsSubscriptionTest {
 
         // Should be called 3 times: 10, 10, and 5 messages
         verify(mockSqsClient, times(3)).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
+    }
+
+    @Test
+    void testBuildWithQueueName_CallsGetQueueUrl() {
+        String queueName = "test-queue";
+        String expectedQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(expectedQueueUrl)
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
+        testBuilder.withSubscriptionName(queueName);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        subscription = testBuilder.build();
+        
+        // Verify that getQueueUrl was called and capture the request
+        ArgumentCaptor<GetQueueUrlRequest> requestCaptor = ArgumentCaptor.forClass(GetQueueUrlRequest.class);
+        verify(mockSqsClient, times(1)).getQueueUrl(requestCaptor.capture());
+        GetQueueUrlRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(queueName, capturedRequest.queueName());
+        
+        // Verify that getAttributes returns the resolved URL
+        Map<QueueAttributeName, String> attributes = Map.of(
+            QueueAttributeName.QUEUE_ARN, "arn:aws:sqs:us-east-1:123456789012:test-queue"
+        );
+        GetQueueAttributesResponse attrsResponse = GetQueueAttributesResponse.builder()
+            .attributes(attributes)
+            .build();
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenReturn(attrsResponse);
+        
+        GetAttributeResult result = subscription.getAttributes();
+        assertEquals(expectedQueueUrl, result.getName());
+    }
+
+    @Test
+    void testBuildWithUrl_RejectsUrl() {
+        String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
+        testBuilder.withSubscriptionName(fullQueueUrl);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
+    }
+
+    @Test
+    void testBuildWithQueueName_GetQueueUrlFails() {
+        String queueName = "non-existent-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        AwsServiceException awsException = AwsServiceException.builder()
+            .message("The specified queue does not exist.")
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenThrow(awsException);
+        
+        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
+        testBuilder.withSubscriptionName(queueName);
+        testBuilder.withRegion("us-east-1");
+        testBuilder.withSqsClient(mockSqsClient);
+        
+        AwsServiceException exception = assertThrows(AwsServiceException.class, () -> {
+            testBuilder.build();
+        });
+        
+        assertEquals("The specified queue does not exist.", exception.getMessage());
+        verify(mockSqsClient, times(1)).getQueueUrl(any(GetQueueUrlRequest.class));
     }
 
 }

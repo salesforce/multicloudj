@@ -24,6 +24,8 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 
 class MetadataKeys {
     public static final String DEDUPLICATION_ID = "DeduplicationId";
@@ -168,22 +170,30 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     /**
-     * Validates that the topic name is in the correct AWS SQS URL format.
+     * Validates that the topic name is a queue name
      */
     static void validateTopicName(String topicName) {
-        if (topicName == null) {
-            throw new InvalidArgumentException("SQS topic name cannot be null");
-        }
-        if (topicName.trim().isEmpty()) {
-            throw new InvalidArgumentException("SQS topic name cannot be empty");
+        if (topicName == null || topicName.trim().isEmpty()) {
+            throw new InvalidArgumentException("SQS topic name cannot be null or empty");
         }
 
-        // Validate SQS URL format: https://sqs.region.amazonaws.com/account/queue-name
-        String sqsUrlPattern = "https://sqs\\.[^/]+\\.amazonaws\\.com/[^/]+/.+";
-        if (!topicName.matches(sqsUrlPattern)) {
+        if (topicName.startsWith("https://")) {
             throw new InvalidArgumentException(
-                    "SQS topic name must be in format: https://sqs.region.amazonaws.com/account/queue-name, got: " + topicName);
+                    "SQS topic name must be a queue name, not a URL. Got: " + topicName);
         }
+    }
+    
+    /**
+     * Gets the full queue URL by calling AWS getQueueUrl API.
+     */
+    static String getQueueUrl(String queueName, SqsClient sqsClient) 
+            throws AwsServiceException, SdkClientException {
+        GetQueueUrlRequest request = GetQueueUrlRequest.builder()
+            .queueName(queueName)
+            .build();
+        
+        GetQueueUrlResponse response = sqsClient.getQueueUrl(request);
+        return response.queueUrl();
     }
 
     /**
@@ -345,6 +355,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             if (sqsClient == null) {
                 sqsClient = buildSqsClient(this);
             }
+            
+            // get the full queue URL from the queue name
+            this.topicName = getQueueUrl(this.topicName, sqsClient);
+            
             return new AwsTopic(this);
         }
     }
