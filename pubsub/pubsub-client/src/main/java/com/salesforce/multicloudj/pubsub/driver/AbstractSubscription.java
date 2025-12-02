@@ -38,9 +38,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     protected final String region;
     protected final URI endpoint;
     protected final URI proxyEndpoint;
-    protected final long receiveTimeoutSeconds;
-
-    private static final long DEFAULT_RECEIVE_TIMEOUT_SECONDS = 30;
 
     /**
      * Constants class for queue batching and sizing parameters.
@@ -159,7 +156,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         this.region = region;
         this.endpoint = null;
         this.proxyEndpoint = null;
-        this.receiveTimeoutSeconds = DEFAULT_RECEIVE_TIMEOUT_SECONDS;
 
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = credentialsOverrider;
@@ -180,7 +176,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         this.region = builder.region;
         this.endpoint = builder.endpoint;
         this.proxyEndpoint = builder.proxyEndpoint;
-        this.receiveTimeoutSeconds = builder.receiveTimeoutSeconds;
 
         this.receiveBatcherOptions = createReceiveBatcherOptions();
         this.credentialsOverrider = builder.credentialsOverrider;
@@ -667,7 +662,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         protected URI endpoint;
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
-        protected long receiveTimeoutSeconds = DEFAULT_RECEIVE_TIMEOUT_SECONDS;
 
         @Override
         public Builder<T> providerId(String providerId) {
@@ -697,11 +691,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
 
         public Builder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
             this.credentialsOverrider = credentialsOverrider;
-            return this;
-        }
-
-        public Builder<T> withReceiveTimeoutSeconds(long receiveTimeoutSeconds) {
-            this.receiveTimeoutSeconds = receiveTimeoutSeconds;
             return this;
         }
 

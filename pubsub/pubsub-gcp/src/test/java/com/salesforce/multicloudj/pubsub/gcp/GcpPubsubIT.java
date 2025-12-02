@@ -84,8 +84,7 @@ public class GcpPubsubIT extends AbstractPubsubIT {
             }
 
             GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
-                    .withSubscriptionName("projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription")
-                    .withReceiveTimeoutSeconds(120); // Use 120 seconds timeout for conformance tests
+                    .withSubscriptionName("projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription");
             subscription = new GcpSubscription(subscriptionBuilder, subscriptionAdminClient);
 
             return subscription;
