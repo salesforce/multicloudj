@@ -175,6 +175,17 @@
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>pubsub-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>pubsub-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <build>
