@@ -247,10 +247,8 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 // No messages available, wait for prefetch to complete
                 if (prefetchInFlight.get()) {
                     try {
-                        // Wait with timeout to avoid indefinite blocking
-                        if (!batchArrived.await(receiveTimeoutSeconds, TimeUnit.SECONDS)) {
-                            throw new SubstrateSdkException("Timeout waiting for messages - prefetch operation took too long");
-                        }
+                        // Wait indefinitely for messages to arrive
+                        batchArrived.await();
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw new SubstrateSdkException("Interrupted while waiting for messages", ie);
