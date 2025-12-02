@@ -36,7 +36,21 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>pubsub-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-gcp-firestore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>pubsub-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>pubsub-aws</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
