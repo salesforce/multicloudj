@@ -1,9 +1,9 @@
 {
-  "id" : "12d08133-d897-4025-80e2-10f0b4ff836d",
+  "id" : "648e80e0-e53c-41b3-8390-b88e43d642eb",
   "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-tagging-fake",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-tagging-fake?projection=full",
-    "method" : "GET"
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-tagging-fake",
+    "method" : "DELETE"
   },
   "response" : {
     "status" : 404,
@@ -12,15 +12,15 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AOCedOH1MZhkqx8Y9GUGna5Xrp8oBrxU9Jn6br39FRhonRv2nyUGkeSgwnKfgM-q5bCjzl954hwVFZE",
+      "X-GUploader-UploadID" : "AOCedOE6QlkKoyMlN7PQUPhTuP1MpGqRLsblWj9etwIC1d6pwXxgvmU42Rs8TsUWRP_s8E_GDpHObCs",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 05 Nov 2025 00:31:11 GMT",
+      "Date" : "Tue, 02 Dec 2025 00:19:16 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "12d08133-d897-4025-80e2-10f0b4ff836d",
+  "uuid" : "648e80e0-e53c-41b3-8390-b88e43d642eb",
   "persistent" : true,
-  "insertionIndex" : 726
+  "insertionIndex" : 734
 }

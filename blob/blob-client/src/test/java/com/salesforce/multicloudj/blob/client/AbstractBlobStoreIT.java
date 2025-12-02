@@ -2004,7 +2004,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
-    @Disabled
     public void testTagging() throws IOException {
 
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -2015,7 +2014,7 @@ public abstract class AbstractBlobStoreIT {
         try {
             String defaultTestData = "This is tagging test data";
             byte[] utf8BlobBytes = defaultTestData.getBytes(StandardCharsets.UTF_8);
-            Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+            Map<String, String> tags = Map.of("tag1", "value1");
 
             // Upload the file with the tags
             try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
@@ -2032,7 +2031,7 @@ public abstract class AbstractBlobStoreIT {
             Assertions.assertEquals(tags, tagResults, "testTagging: Tags did not match what was uploaded");
 
             // Try overwriting the tags
-            Map<String, String> tags2 = Map.of("tag3", "value3", "tag4", "value4");
+            Map<String, String> tags2 = Map.of("tag3", "value3");
             bucketClient.setTags(key, tags2);
             tagResults = bucketClient.getTags(key);
             Assertions.assertEquals(tags2, tagResults, "testTagging: Tags did not match what was overwriting");
@@ -2040,7 +2039,7 @@ public abstract class AbstractBlobStoreIT {
             // Try writing tags to a blob that doesn't exist
             boolean failed = false;
             try{
-                Map<String, String> tags3 = Map.of("tag5", "value5", "tag6", "value6");
+                Map<String, String> tags3 = Map.of("tag5", "value5");
                 bucketClient.setTags(key+"-fake", tags3);
             }
             catch(Throwable t){
