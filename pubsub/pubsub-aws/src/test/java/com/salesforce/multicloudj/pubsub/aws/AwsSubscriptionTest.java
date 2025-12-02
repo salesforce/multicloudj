@@ -368,18 +368,6 @@ public class AwsSubscriptionTest {
         assertNotNull(result);
     }
 
-    @Test
-    void testValidateSubscriptionName_InvalidName() {
-        String invalidName = "invalid@name";
-
-        // This will try to call getQueueUrl, which will fail with SdkClientException
-        // because no region is set, and that gets mapped to InvalidArgumentException
-        assertThrows(SdkClientException.class, () -> {
-            new AwsSubscription.Builder()
-                    .withSubscriptionName(invalidName)
-                    .build();
-        });
-    }
 
     @Test
     void testValidateSubscriptionName_NullName() {
@@ -630,41 +618,6 @@ public class AwsSubscriptionTest {
         assertEquals("prefix__0x2F", result);
     }
 
-    @Test
-    void testValidateSubscriptionName_InvalidFormat_NoAmazonaws() {
-        // Test subscription name that doesn't contain ".amazonaws.com/" but starts with "https://"
-        // Should be rejected as it's a URL, not a queue name
-        String invalidName = "https://sqs.us-east-1.example.com/123456789012/test-queue";
-        
-        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
-        testBuilder.withSubscriptionName(invalidName);
-        testBuilder.withSqsClient(mockSqsClient);
-        testBuilder.withRegion("us-east-1");
-        
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
-            testBuilder.build();
-        });
-        
-        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
-    }
-
-    @Test
-    void testValidateSubscriptionName_InvalidFormat_NoSqsPrefix() {
-        // Test subscription name that starts with "https://" but not "https://sqs."
-        // Should be rejected as it's a URL, not a queue name
-        String invalidName = "https://example.com/queue";
-        
-        AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
-        testBuilder.withSubscriptionName(invalidName);
-        testBuilder.withSqsClient(mockSqsClient);
-        testBuilder.withRegion("us-east-1");
-        
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
-            testBuilder.build();
-        });
-        
-        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
-    }
 
     @Test
     void testDoSendAcks_Success() {

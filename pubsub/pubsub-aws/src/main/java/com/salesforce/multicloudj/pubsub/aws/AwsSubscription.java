@@ -308,9 +308,6 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         }
     }
 
-    /**
-     * Validates the subscription name format. 
-     */
     static void validateSubscriptionName(String subscriptionName) {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
             throw new InvalidArgumentException("Subscription name cannot be null or empty");
@@ -320,10 +317,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                     "Subscription name must be a queue name, not a URL. Got: " + subscriptionName);
         }
     }
-    
-    /**
-     * Gets the full queue URL by calling AWS getQueueUrl API.
-     */
+
     static String getQueueUrl(String queueName, SqsClient sqsClient) 
             throws AwsServiceException, SdkClientException {
         GetQueueUrlRequest request = GetQueueUrlRequest.builder()

@@ -183,9 +183,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
     }
     
-    /**
-     * Gets the full queue URL by calling AWS getQueueUrl API.
-     */
     static String getQueueUrl(String queueName, SqsClient sqsClient) 
             throws AwsServiceException, SdkClientException {
         GetQueueUrlRequest request = GetQueueUrlRequest.builder()
