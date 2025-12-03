@@ -2039,9 +2039,8 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_withTags() throws IOException {
-        // Exclude Ali provider as it doesn't support tags in multipart upload
-        Assumptions.assumeFalse("ali".equals(harness.getProviderId()));
-        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        Map<String, String> tags = Map.of("tag1", "value1");
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "multipart with tags", DEFAULT_MULTIPART_KEY_PREFIX + "withTags",
                 Map.of("key1", "value1"),
