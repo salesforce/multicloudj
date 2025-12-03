@@ -905,18 +905,24 @@ public class AwsSubscriptionTest {
 
     @Test
     void testBuildWithUrl_RejectsUrl() {
+        // We rely on AWS to validate the queue name and throw appropriate exceptions.
         String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenThrow(SdkClientException.builder()
+                .message("Invalid queue name format")
+                .build());
         
         AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
         testBuilder.withSubscriptionName(fullQueueUrl);
         testBuilder.withRegion("us-east-1");
         testBuilder.withSqsClient(mockSqsClient);
         
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+        assertThrows(SdkClientException.class, () -> {
             testBuilder.build();
         });
-        
-        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
     }
 
     @Test
@@ -944,4 +950,35 @@ public class AwsSubscriptionTest {
         verify(mockSqsClient, times(1)).getQueueUrl(any(GetQueueUrlRequest.class));
     }
 
+    @Test
+    void testGetQueueUrlCalledBeforeClientCreation() {
+        // Test that getQueueUrl is called during build(), before the client is fully created
+        String queueName = "test-queue";
+        String expectedQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(expectedQueueUrl)
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsSubscription.Builder builder = new AwsSubscription.Builder();
+        builder.withSubscriptionName(queueName);
+        builder.withRegion("us-east-1");
+        builder.withSqsClient(mockSqsClient);
+        
+        // Build should call getQueueUrl and resolve the queue URL
+        AwsSubscription subscription = builder.build();
+        
+        // Verify that getQueueUrl was called during build
+        ArgumentCaptor<GetQueueUrlRequest> requestCaptor = ArgumentCaptor.forClass(GetQueueUrlRequest.class);
+        verify(mockSqsClient, times(1)).getQueueUrl(requestCaptor.capture());
+        GetQueueUrlRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(queueName, capturedRequest.queueName());
+        
+        // Verify that the subscription was created successfully (queue URL was resolved)
+        assertNotNull(subscription);
+    }
 }

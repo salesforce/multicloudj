@@ -39,6 +39,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
 
     private static final int MAX_SQS_ATTRIBUTES = 10;
     private final SqsClient sqsClient;
+    private final String topicUrl;
 
     public AwsTopic() {
         this(new Builder());
@@ -47,6 +48,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     public AwsTopic(Builder builder) {
         super(builder);
         this.sqsClient = builder.sqsClient;
+        this.topicUrl = builder.topicUrl;
     }
 
     /**
@@ -107,7 +109,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
 
         SendMessageBatchRequest batchRequest = SendMessageBatchRequest.builder()
-            .queueUrl(topicName)
+            .queueUrl(topicUrl)
             .entries(entries)
             .build();
 
@@ -175,11 +177,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     static void validateTopicName(String topicName) {
         if (topicName == null || topicName.trim().isEmpty()) {
             throw new InvalidArgumentException("SQS topic name cannot be null or empty");
-        }
-
-        if (topicName.startsWith("https://")) {
-            throw new InvalidArgumentException(
-                    "SQS topic name must be a queue name, not a URL. Got: " + topicName);
         }
     }
     
@@ -329,6 +326,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     
     public static class Builder extends AbstractTopic.Builder<AwsTopic> {
         private SqsClient sqsClient;
+        private String topicUrl;
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
@@ -354,7 +352,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             }
             
             // get the full queue URL from the queue name
-            this.topicName = getQueueUrl(this.topicName, sqsClient);
+            this.topicUrl = getQueueUrl(this.topicName, sqsClient);
             
             return new AwsTopic(this);
         }

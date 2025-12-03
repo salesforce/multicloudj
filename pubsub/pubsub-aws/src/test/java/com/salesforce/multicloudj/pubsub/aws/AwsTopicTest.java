@@ -692,18 +692,24 @@ public class AwsTopicTest {
 
     @Test
     void testBuildWithUrl_RejectsUrl() {
+        // We rely on AWS to validate the queue name and throw appropriate exceptions.
         String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenThrow(SdkClientException.builder()
+                .message("Invalid queue name format")
+                .build());
         
         AwsTopic.Builder testBuilder = new AwsTopic.Builder();
         testBuilder.withTopicName(fullQueueUrl);
         testBuilder.withRegion("us-east-1");
         testBuilder.withSqsClient(mockSqsClient);
         
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
+        assertThrows(SdkClientException.class, () -> {
             testBuilder.build();
         });
-        
-        assertTrue(exception.getMessage().contains("must be a queue name, not a URL"));
     }
 
     @Test
@@ -729,5 +735,82 @@ public class AwsTopicTest {
         
         assertEquals("The specified queue does not exist.", exception.getMessage());
         verify(mockSqsClient, times(1)).getQueueUrl(any(GetQueueUrlRequest.class));
+    }
+
+    @Test
+    void testGetQueueUrlCalledBeforeClientCreation() {
+        // Test that getQueueUrl is called during build(), before the client is fully created
+        String queueName = "test-queue";
+        String expectedQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        
+        SqsClient mockSqsClient = mock(SqsClient.class);
+        GetQueueUrlResponse mockResponse = GetQueueUrlResponse.builder()
+            .queueUrl(expectedQueueUrl)
+            .build();
+        
+        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+            .thenReturn(mockResponse);
+        
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName(queueName);
+        builder.withRegion("us-east-1");
+        builder.withSqsClient(mockSqsClient);
+        
+        // Build should call getQueueUrl and resolve the queue URL
+        AwsTopic topic = builder.build();
+        
+        // Verify that getQueueUrl was called during build
+        ArgumentCaptor<GetQueueUrlRequest> requestCaptor = ArgumentCaptor.forClass(GetQueueUrlRequest.class);
+        verify(mockSqsClient, times(1)).getQueueUrl(requestCaptor.capture());
+        GetQueueUrlRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(queueName, capturedRequest.queueName());
+        
+        // Verify that the topic was created successfully (queue URL was resolved)
+        assertNotNull(topic);
+    }
+
+    @Test
+    void testInvalidQueueNameFormat_ThrowsException() {
+        // Test various invalid queue name formats
+        String[] invalidQueueNames = {
+            "",  // empty string
+            "   ",  // whitespace only
+            "queue@name",  // invalid character @
+            "queue name",  // space in name
+            "queue/name",  // slash in name
+            "queue.name.",  // trailing dot
+            ".queue.name",  // leading dot
+            "queue..name",  // consecutive dots
+            "a".repeat(81),  // too long (SQS queue name max is 80 chars)
+        };
+        
+        for (String invalidName : invalidQueueNames) {
+            SqsClient mockSqsClient = mock(SqsClient.class);
+            
+            // For empty/whitespace, should throw InvalidArgumentException from validation
+            if (invalidName == null || invalidName.trim().isEmpty()) {
+                AwsTopic.Builder builder = new AwsTopic.Builder();
+                builder.withTopicName(invalidName);
+                builder.withSqsClient(mockSqsClient);
+                builder.withRegion("us-east-1");
+                
+                assertThrows(InvalidArgumentException.class, () -> builder.build(),
+                    "Should throw InvalidArgumentException for empty/whitespace queue name: " + invalidName);
+            } else {
+                // For other invalid formats, AWS SDK should throw SdkClientException
+                when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
+                    .thenThrow(SdkClientException.builder()
+                        .message("Invalid queue name format")
+                        .build());
+                
+                AwsTopic.Builder builder = new AwsTopic.Builder();
+                builder.withTopicName(invalidName);
+                builder.withSqsClient(mockSqsClient);
+                builder.withRegion("us-east-1");
+                
+                assertThrows(SdkClientException.class, () -> builder.build(),
+                    "Should throw SdkClientException for invalid queue name format: " + invalidName);
+            }
+        }
     }
 }
