@@ -1,0 +1,22 @@
+{
+  "id" : "cc0abd23-fb73-42d6-a9fe-d4ab3771fa30",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-withtags",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-withTags?uploadId=PvgDZpAY7y6Q5OhTh.72JRsmiDJhFS8V6QwbeeOXSWYoTXs5m2hLwQpk_8lopV73MuRFkB.BJFC9lDGr6HmFnv9_jiinCDQ738.yz0J1XymKEehtwWN4gRXktRnh.hU95z24QgSsW85eojnJxHc5obaq0koW26gzb.s4fTbJmD7tBH4lPoFhvgB1VP4A5UEe",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withTags</Key><UploadId>PvgDZpAY7y6Q5OhTh.72JRsmiDJhFS8V6QwbeeOXSWYoTXs5m2hLwQpk_8lopV73MuRFkB.BJFC9lDGr6HmFnv9_jiinCDQ738.yz0J1XymKEehtwWN4gRXktRnh.hU95z24QgSsW85eojnJxHc5obaq0koW26gzb.s4fTbJmD7tBH4lPoFhvgB1VP4A5UEe</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-barry.liu@f6d59f89-1b24-460f-84af-b536ab2902b9</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-barry.liu@f6d59f89-1b24-460f-84af-b536ab2902b9</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2025-12-03T20:31:16.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2025-12-03T20:31:17.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "YNNXZANDGWZ8Y486",
+      "x-amz-id-2" : "WJb0kK0NLCURnvClTKJUHJbKTi9HAJX0ObZR2ovIrcjGA2D7WHLZyA7BsMvTAd8ELRo9OE9XhA9fPnVLQHHIUUx9sCMJrb9GZDttTFygEw4=",
+      "Date" : "Wed, 03 Dec 2025 20:31:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "cc0abd23-fb73-42d6-a9fe-d4ab3771fa30",
+  "persistent" : true,
+  "insertionIndex" : 560
+}
