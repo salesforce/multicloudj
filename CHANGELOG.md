@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.2.19](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.18...multicloudj-v0.2.19) (2025-12-03)
+
+
+### Bug Fixes
+
+* correct changelog to show commits between releases ([#97](https://github.com/salesforce/multicloudj/issues/97)) ([f41d143](https://github.com/salesforce/multicloudj/commit/f41d1434b9f407487c4bd500973b72b9f8cf8275))
+* delombok the javadocs generation before releasing docs ([#164](https://github.com/salesforce/multicloudj/issues/164)) ([d698004](https://github.com/salesforce/multicloudj/commit/d6980042fb54f1627523abf38bb975050af1ee80))
+* fix the build for iam ([#161](https://github.com/salesforce/multicloudj/issues/161)) ([3f4c04c](https://github.com/salesforce/multicloudj/commit/3f4c04c16153abb8df6e859f92baea9cc89f7a32))
+* fix the release javadocs ([#179](https://github.com/salesforce/multicloudj/issues/179)) ([7ad2ad4](https://github.com/salesforce/multicloudj/commit/7ad2ad4166da79dbd98887a597905683e434229f))
+* fix the release javadocs ([#182](https://github.com/salesforce/multicloudj/issues/182)) ([60d1d46](https://github.com/salesforce/multicloudj/commit/60d1d468d54143a0d46ddb13e7208875cfe3f30e))
+
+
+### Blob Store
+
+* add bucket creation in the blobclient ([#168](https://github.com/salesforce/multicloudj/issues/168)) ([bd7dc35](https://github.com/salesforce/multicloudj/commit/bd7dc351390245c67de146f263f54d0afcd6ce09))
+* add getTag and setTag apis ([#117](https://github.com/salesforce/multicloudj/issues/117)) ([942347e](https://github.com/salesforce/multicloudj/commit/942347ef2ef428f0a19742078349b22df21cf6a9))
+* Add SSE in multi-part upload ([#112](https://github.com/salesforce/multicloudj/issues/112)) ([32a920f](https://github.com/salesforce/multicloudj/commit/32a920fb6625cfdd30be6d4c9035429a0ebc2d0b))
+* Enable tags in the GcpTransformer ([#127](https://github.com/salesforce/multicloudj/issues/127)) ([728a632](https://github.com/salesforce/multicloudj/commit/728a6328721f9e0b146b29ac17b8c75ba8ccabd5))
+* fix GCP async client builder for configs ([#123](https://github.com/salesforce/multicloudj/issues/123)) ([088f0a2](https://github.com/salesforce/multicloudj/commit/088f0a2be5eb9b5165624167a653540dbcb8d80c))
+* fix the retry config for the bucketclient ([#135](https://github.com/salesforce/multicloudj/issues/135)) ([b3a72e4](https://github.com/salesforce/multicloudj/commit/b3a72e4178d092e257a5fa5d6580eb9beb72f715))
+* onboard retry config in the client and aws ([#113](https://github.com/salesforce/multicloudj/issues/113)) ([8df8d31](https://github.com/salesforce/multicloudj/commit/8df8d3169ea65fddb29e997b1b1d32a5c8c5c2d6))
+
+
+### Document Store
+
+* release please and fix the test ([#105](https://github.com/salesforce/multicloudj/issues/105)) ([d7458bd](https://github.com/salesforce/multicloudj/commit/d7458bd16fc9134a2faa6878d28716f66a3f2ea4))
+* test the release ([#101](https://github.com/salesforce/multicloudj/issues/101)) ([c94e18a](https://github.com/salesforce/multicloudj/commit/c94e18a270d80c44f4d53773ec9c6003d99ce2c5))
+
+
+### STS
+
+* enable web identity in aws sts and fix gcp get caller id ([#149](https://github.com/salesforce/multicloudj/issues/149)) ([fe1a50b](https://github.com/salesforce/multicloudj/commit/fe1a50bbb6d81cfcd629ceb2fface808dba6e752))
+* Make STS client anynomous for web identity ([#157](https://github.com/salesforce/multicloudj/issues/157)) ([a705153](https://github.com/salesforce/multicloudj/commit/a7051537ca4b91eb76ac1c531385b68b1423a8a4))
+* remove the scoped requirement for all credentials ([#177](https://github.com/salesforce/multicloudj/issues/177)) ([3dacf2f](https://github.com/salesforce/multicloudj/commit/3dacf2f287add77d97bf4e75f0a3764bcd17c7db))
+
+
+### PubSub
+
+* add getAttributes for gcp pubsub ([#120](https://github.com/salesforce/multicloudj/issues/120)) ([228ab6f](https://github.com/salesforce/multicloudj/commit/228ab6fda6f7ad7f963ef3c676cac513c4d62520))
+* add send and receive apis for AWS SQS ([#125](https://github.com/salesforce/multicloudj/issues/125)) ([37f1e07](https://github.com/salesforce/multicloudj/commit/37f1e072b9d557b6903738a331e4b52be5c79713))
+* Enable getAttributes in AWS  ([#171](https://github.com/salesforce/multicloudj/issues/171)) ([8226127](https://github.com/salesforce/multicloudj/commit/8226127814424524198ddf372af5508f3f78771c))
+* Enable sendAck and sendNack apis for AWS Pubsub ([#134](https://github.com/salesforce/multicloudj/issues/134)) ([957db97](https://github.com/salesforce/multicloudj/commit/957db97f87f2f9cc32701f202fef6b5f34a86703))
+* fix client initialization in GCP ([#148](https://github.com/salesforce/multicloudj/issues/148)) ([6b08244](https://github.com/salesforce/multicloudj/commit/6b082442d20e49ebfc8f6714d95edec280ea0fb5))
+* remove timeout while receiving from a subscription ([#180](https://github.com/salesforce/multicloudj/issues/180)) ([6c8b9dc](https://github.com/salesforce/multicloudj/commit/6c8b9dc609865fd71c5428eb1059201fc5981780))
+
+
+### IAM
+
+* driver layer contract for IAM ([#122](https://github.com/salesforce/multicloudj/issues/122)) ([c929930](https://github.com/salesforce/multicloudj/commit/c929930f041f7de4b2e8129d372be7beabeb5850))
+* implement IAM Identity Management APIs for GCP ([#142](https://github.com/salesforce/multicloudj/issues/142)) ([4bcd1d7](https://github.com/salesforce/multicloudj/commit/4bcd1d712cac1efdaa4fe22d267603b8b84c1cbe))
+* implement policy related APIs(GCP) ([#141](https://github.com/salesforce/multicloudj/issues/141)) ([9f0d5a1](https://github.com/salesforce/multicloudj/commit/9f0d5a18e8069f35d07778c872db252be8ac394d))
+* onboarding client layer for IAM ([#90](https://github.com/salesforce/multicloudj/issues/90)) ([a57e09d](https://github.com/salesforce/multicloudj/commit/a57e09deb11eae6e0c3abe28a33f912729131d2e))
+
+
+### Code Refactoring
+
+* converge to a single patter for type safety ([#130](https://github.com/salesforce/multicloudj/issues/130)) ([3511698](https://github.com/salesforce/multicloudj/commit/351169864f0268c568150ce1d56dd35734ea5ba8))
+
 ## [0.2.18](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.17...multicloudj-v0.2.18) (2025-12-02)
 
 
