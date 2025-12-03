@@ -1,0 +1,25 @@
+{
+  "id" : "b4a4616e-ce67-4e33-bd94-f5837a155e53",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-tagging-fake",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging-fake?tagging",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-tagging-fake</Key><RequestId>D1B2F2PWRV3CEAW8</RequestId><HostId>XXXyLv4EO+G+8H9Fv1BYGWjWgrusIH136im0+uG9I+n5WAdyAQ64Sk4AKJVXFewFFVVpcHgqyaQ=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "D1B2F2PWRV3CEAW8",
+      "x-amz-id-2" : "XXXyLv4EO+G+8H9Fv1BYGWjWgrusIH136im0+uG9I+n5WAdyAQ64Sk4AKJVXFewFFVVpcHgqyaQ=",
+      "Date" : "Mon, 01 Dec 2025 22:31:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b4a4616e-ce67-4e33-bd94-f5837a155e53",
+  "persistent" : true,
+  "insertionIndex" : 550
+}

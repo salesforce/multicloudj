@@ -15,8 +15,12 @@ LATEST_DIR="docs/api/java/latest"
 # 1. Checkout main branch
 git checkout "$MAIN_BRANCH"
 
-# 2. Generate JavaDoc in temp dir
-mvn clean javadoc:aggregate -DskipTests
+# 2. Generate delomboked sources and JavaDoc in temp dir
+echo "Generating delomboked sources..."
+mvn clean generate-sources -DskipTests
+
+echo "Generating JavaDoc from delomboked sources..."
+mvn javadoc:aggregate -DskipTests
 cp -r target/reports/apidocs/* "$TEMP_DIR/"
 
 # 3. Checkout site branch

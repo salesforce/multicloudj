@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.2.18](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.17...multicloudj-v0.2.18) (2025-12-02)
+
+
+### Bug Fixes
+
+* fix the release javadocs ([#179](https://github.com/salesforce/multicloudj/issues/179)) ([7ad2ad4](https://github.com/salesforce/multicloudj/commit/7ad2ad4166da79dbd98887a597905683e434229f))
+* fix the release javadocs ([#182](https://github.com/salesforce/multicloudj/issues/182)) ([60d1d46](https://github.com/salesforce/multicloudj/commit/60d1d468d54143a0d46ddb13e7208875cfe3f30e))
+
+
+### STS
+
+* remove the scoped requirement for all credentials ([#177](https://github.com/salesforce/multicloudj/issues/177)) ([3dacf2f](https://github.com/salesforce/multicloudj/commit/3dacf2f287add77d97bf4e75f0a3764bcd17c7db))
+
+
+### PubSub
+
+* remove timeout while receiving from a subscription ([#180](https://github.com/salesforce/multicloudj/issues/180)) ([6c8b9dc](https://github.com/salesforce/multicloudj/commit/6c8b9dc609865fd71c5428eb1059201fc5981780))
+
+## [0.2.17](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.16...multicloudj-v0.2.17) (2025-12-01)
+
+
+### Bug Fixes
+
+* delombok the javadocs generation before releasing docs ([#164](https://github.com/salesforce/multicloudj/issues/164)) ([d698004](https://github.com/salesforce/multicloudj/commit/d6980042fb54f1627523abf38bb975050af1ee80))
+* fix the build for iam ([#161](https://github.com/salesforce/multicloudj/issues/161)) ([3f4c04c](https://github.com/salesforce/multicloudj/commit/3f4c04c16153abb8df6e859f92baea9cc89f7a32))
+
+
+### Blob Store
+
+* add bucket creation in the blobclient ([#168](https://github.com/salesforce/multicloudj/issues/168)) ([bd7dc35](https://github.com/salesforce/multicloudj/commit/bd7dc351390245c67de146f263f54d0afcd6ce09))
+
+
+### PubSub
+
+* Enable getAttributes in AWS  ([#171](https://github.com/salesforce/multicloudj/issues/171)) ([8226127](https://github.com/salesforce/multicloudj/commit/8226127814424524198ddf372af5508f3f78771c))
+* Enable sendAck and sendNack apis for AWS Pubsub ([#134](https://github.com/salesforce/multicloudj/issues/134)) ([957db97](https://github.com/salesforce/multicloudj/commit/957db97f87f2f9cc32701f202fef6b5f34a86703))
+
+
+### IAM
+
+* implement IAM Identity Management APIs for GCP ([#142](https://github.com/salesforce/multicloudj/issues/142)) ([4bcd1d7](https://github.com/salesforce/multicloudj/commit/4bcd1d712cac1efdaa4fe22d267603b8b84c1cbe))
+* implement policy related APIs(GCP) ([#141](https://github.com/salesforce/multicloudj/issues/141)) ([9f0d5a1](https://github.com/salesforce/multicloudj/commit/9f0d5a18e8069f35d07778c872db252be8ac394d))
+
+## [0.2.16](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.15...multicloudj-v0.2.16) (2025-11-21)
+
+
+### STS
+
+* Make STS client anynomous for web identity ([#157](https://github.com/salesforce/multicloudj/issues/157)) ([a705153](https://github.com/salesforce/multicloudj/commit/a7051537ca4b91eb76ac1c531385b68b1423a8a4))
+
 ## [0.2.15](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.14...multicloudj-v0.2.15) (2025-11-19)
 
 

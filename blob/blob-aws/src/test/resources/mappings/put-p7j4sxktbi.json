@@ -1,0 +1,24 @@
+{
+  "id" : "fcca3abe-4cb1-425a-b9fe-6b2a40f1672b",
+  "name" : "test-bucket-create-multicloudj",
+  "request" : {
+    "url" : "/test-bucket-create-multicloudj",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CreateBucketConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LocationConstraint>us-west-2</LocationConstraint></CreateBucketConfiguration>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "YAAQTT4BKX0EFEJ1",
+      "x-amz-id-2" : "1tjylCqD3X2wV8XHw1lbTM3YVpDEckKgZT2Mp4iGqMf+56OkVj4UJUzhgwt52/r8LSZe0mRYhUU=",
+      "Date" : "Wed, 26 Nov 2025 04:16:20 GMT",
+      "Location" : "http://test-bucket-create-multicloudj.s3.amazonaws.com/"
+    }
+  },
+  "uuid" : "fcca3abe-4cb1-425a-b9fe-6b2a40f1672b",
+  "persistent" : true,
+  "insertionIndex" : 555
+}

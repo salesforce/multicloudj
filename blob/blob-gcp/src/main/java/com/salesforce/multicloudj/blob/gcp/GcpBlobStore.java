@@ -85,7 +85,6 @@ import java.util.stream.Collectors;
 /**
  * GCP implementation of BlobStore
  */
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 

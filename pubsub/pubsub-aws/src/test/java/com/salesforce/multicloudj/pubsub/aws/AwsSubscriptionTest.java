@@ -20,12 +20,21 @@ import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -217,38 +226,6 @@ public class AwsSubscriptionTest {
     }
 
     @Test
-    void testAwsAckID_ValidReceiptHandle() {
-        String receiptHandle = "test-receipt-handle";
-
-        AwsSubscription.AwsAckID ackID = new AwsSubscription.AwsAckID(receiptHandle);
-
-        assertNotNull(ackID);
-        assertEquals(receiptHandle, ackID.getReceiptHandle());
-        assertEquals(receiptHandle, ackID.toString());
-    }
-
-    @Test
-    void testAwsAckID_NullReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID(null);
-        });
-    }
-
-    @Test
-    void testAwsAckID_EmptyReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID("");
-        });
-    }
-
-    @Test
-    void testAwsAckID_BlankReceiptHandle() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new AwsSubscription.AwsAckID("   ");
-        });
-    }
-
-    @Test
     void testCanNack() {
         subscription = builder.build();
 
@@ -269,13 +246,64 @@ public class AwsSubscriptionTest {
 
     @Test
     void testGetAttributes() {
+        String queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
+        String queueArn = "arn:aws:sqs:us-east-1:123456789012:test-queue";
+        
+        builder.withSubscriptionName(queueUrl);
         subscription = builder.build();
-
+        
+        Map<QueueAttributeName, String> attributes = Map.of(
+            QueueAttributeName.QUEUE_ARN, queueArn
+        );
+        
+        GetQueueAttributesResponse mockResponse = GetQueueAttributesResponse.builder()
+            .attributes(attributes)
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenReturn(mockResponse);
+        
         GetAttributeResult result = subscription.getAttributes();
-
+        
         assertNotNull(result);
-        assertEquals("aws-subscription", result.getName());
-        assertEquals("aws-topic", result.getTopic());
+        assertEquals(queueUrl, result.getName());
+        assertEquals(queueArn, result.getTopic());
+    }
+
+    @Test
+    void testGetAttributesWithAwsServiceException() {
+        subscription = builder.build();
+        
+        AwsServiceException awsException = AwsServiceException.builder()
+            .message("Queue does not exist")
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenThrow(awsException);
+        
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+            subscription.getAttributes();
+        });
+        
+        assertTrue(exception.getMessage().contains("Failed to retrieve subscription attributes"));
+    }
+
+    @Test
+    void testGetAttributesWithSdkClientException() {
+        subscription = builder.build();
+        
+        SdkClientException sdkException = SdkClientException.builder()
+            .message("Unable to execute HTTP request")
+            .build();
+        
+        when(mockSqsClient.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+            .thenThrow(sdkException);
+        
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+            subscription.getAttributes();
+        });
+        
+        assertTrue(exception.getMessage().contains("Failed to retrieve subscription attributes"));
     }
 
     @Test
@@ -290,13 +318,13 @@ public class AwsSubscriptionTest {
     void testSendAcks() {
         subscription = builder.build();
         List<AckID> ackIDs = Arrays.asList(
-                new AwsSubscription.AwsAckID("receipt-1"),
-                new AwsSubscription.AwsAckID("receipt-2")
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
         );
 
         CompletableFuture<Void> result = subscription.sendAcks(ackIDs);
 
-        assertNull(result);
+        assertNotNull(result);
     }
 
     @Test
@@ -311,13 +339,13 @@ public class AwsSubscriptionTest {
     void testSendNacks() {
         subscription = builder.build();
         List<AckID> ackIDs = Arrays.asList(
-                new AwsSubscription.AwsAckID("receipt-1"),
-                new AwsSubscription.AwsAckID("receipt-2")
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
         );
 
         CompletableFuture<Void> result = subscription.sendNacks(ackIDs);
 
-        assertNull(result);
+        assertNotNull(result);
     }
 
     @Test
@@ -434,8 +462,8 @@ public class AwsSubscriptionTest {
         });
         interruptThread.start();
         
-        // This should throw SubstrateSdkException due to InterruptedException
-        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+        // This should throw RuntimeException due to InterruptedException
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             subscription.doReceiveBatch(5);
         });
         
@@ -588,6 +616,251 @@ public class AwsSubscriptionTest {
         });
         
         assertTrue(exception.getMessage().contains("Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name"));
+    }
+
+    @Test
+    void testDoSendAcks_Success() {
+        subscription = builder.build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
+        );
+
+        DeleteMessageBatchResponse mockResponse = DeleteMessageBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+        when(mockSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> subscription.doSendAcks(ackIDs));
+
+        verify(mockSqsClient).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendAcks_EmptyList() {
+        subscription = builder.build();
+        List<AckID> ackIDs = new ArrayList<>();
+
+        assertDoesNotThrow(() -> subscription.doSendAcks(ackIDs));
+
+        verify(mockSqsClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendAcks_BatchFailure() {
+        subscription = builder.build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1")
+        );
+
+        BatchResultErrorEntry errorEntry = BatchResultErrorEntry.builder()
+            .id("0")
+            .code("InvalidReceiptHandle")
+            .message("The receipt handle is invalid")
+            .build();
+
+        DeleteMessageBatchResponse mockResponse = DeleteMessageBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of(errorEntry))
+            .build();
+
+        when(mockSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            subscription.doSendAcks(ackIDs);
+        });
+
+        assertTrue(exception.getMessage().contains("SQS DeleteMessageBatch failed"));
+        assertTrue(exception.getMessage().contains("InvalidReceiptHandle"));
+    }
+
+    @Test
+    void testDoSendAcks_LargeBatch() {
+        subscription = builder.build();
+        // Create 15 ackIDs to test batching (should split into 2 batches of 10 and 5)
+        List<AckID> ackIDs = new ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            ackIDs.add(new AwsSubscription.AwsAckID("receipt-" + i));
+        }
+
+        DeleteMessageBatchResponse mockResponse = DeleteMessageBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+        when(mockSqsClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> subscription.doSendAcks(ackIDs));
+
+        // Should be called twice: once for 10 messages, once for 5 messages
+        verify(mockSqsClient, times(2)).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendNacks_Success() {
+        subscription = builder.withNackLazy(false).build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
+        );
+
+        ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+        when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+
+        verify(mockSqsClient).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendNacks_NackLazyMode() {
+        subscription = builder.withNackLazy(true).build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
+        );
+
+        assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+
+        // Should not call changeMessageVisibilityBatch in lazy mode
+        verify(mockSqsClient, never()).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendNacks_EmptyList() {
+        subscription = builder.build();
+        List<AckID> ackIDs = new ArrayList<>();
+
+        assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+
+        verify(mockSqsClient, never()).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendNacks_BatchFailure() {
+        subscription = builder.withNackLazy(false).build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1")
+        );
+
+        BatchResultErrorEntry errorEntry = BatchResultErrorEntry.builder()
+            .id("0")
+            .code("InvalidReceiptHandle")
+            .message("The receipt handle is invalid")
+            .build();
+
+        ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of(errorEntry))
+            .build();
+
+        when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            subscription.doSendNacks(ackIDs);
+        });
+
+        assertTrue(exception.getMessage().contains("SQS ChangeMessageVisibilityBatch failed"));
+        assertTrue(exception.getMessage().contains("InvalidReceiptHandle"));
+    }
+
+    @Test
+    void testDoSendNacks_ReceiptHandleIsInvalid_Ignored() {
+        subscription = builder.withNackLazy(false).build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1")
+        );
+
+        // ReceiptHandleIsInvalid should be filtered out and not cause an exception
+        BatchResultErrorEntry ignoredError = BatchResultErrorEntry.builder()
+            .id("0")
+            .code("ReceiptHandleIsInvalid")
+            .message("The receipt handle is invalid")
+            .build();
+
+        ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of(ignoredError))
+            .build();
+
+        when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        // Should not throw exception because ReceiptHandleIsInvalid is filtered out
+        assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+
+        verify(mockSqsClient).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendNacks_MixedFailures_ReceiptHandleIsInvalidFiltered() {
+        subscription = builder.withNackLazy(false).build();
+        List<AckID> ackIDs = Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1"),
+            new AwsSubscription.AwsAckID("receipt-2")
+        );
+
+        BatchResultErrorEntry ignoredError = BatchResultErrorEntry.builder()
+            .id("0")
+            .code("ReceiptHandleIsInvalid")
+            .message("The receipt handle is invalid")
+            .build();
+
+        BatchResultErrorEntry realError = BatchResultErrorEntry.builder()
+            .id("1")
+            .code("InvalidParameter")
+            .message("Invalid parameter")
+            .build();
+
+        ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(Arrays.asList(ignoredError, realError))
+            .build();
+
+        when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        // Should throw exception because there's a real error (InvalidParameter) after filtering
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            subscription.doSendNacks(ackIDs);
+        });
+
+        assertTrue(exception.getMessage().contains("SQS ChangeMessageVisibilityBatch failed"));
+        assertTrue(exception.getMessage().contains("InvalidParameter"));
+    }
+
+    @Test
+    void testDoSendNacks_LargeBatch() {
+        subscription = builder.withNackLazy(false).build();
+        // Create 25 ackIDs to test batching (should split into 3 batches of 10, 10, and 5)
+        List<AckID> ackIDs = new ArrayList<>();
+        for (int i = 0; i < 25; i++) {
+            ackIDs.add(new AwsSubscription.AwsAckID("receipt-" + i));
+        }
+
+        ChangeMessageVisibilityBatchResponse mockResponse = ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+        when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+
+        // Should be called 3 times: 10, 10, and 5 messages
+        verify(mockSqsClient, times(3)).changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
     }
 
 }

@@ -13,7 +13,10 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobClientIT {
@@ -77,26 +80,6 @@ public abstract class AbstractBlobClientIT {
     }
 
     @Test
-    public void testListBuckets() {
-
-        // Create the blobClient driver for listing buckets
-        AbstractBlobClient<?> blob = harness.createBlobClient(true);
-        BlobClient blobClient = new BlobClient(blob);
-
-        var resp = blobClient.listBuckets();
-
-        List<BucketInfo> buckets = resp.getBucketInfoList();
-
-        Assertions.assertNotNull(buckets);
-        Assertions.assertFalse(buckets.isEmpty());
-
-        for (BucketInfo bucket : buckets) {
-            Assertions.assertNotNull(bucket.getName());
-            Assertions.assertNotNull(bucket.getCreationDate());
-        }
-    }
-
-    @Test
     @Disabled("this test is disabled for now because the recorded file conflicts with valid credentials test")
     public void testInvalidCredentials() {
 
@@ -111,5 +94,57 @@ public abstract class AbstractBlobClientIT {
             Assertions.assertTrue(throwable instanceof InvalidArgumentException);
             Assertions.assertTrue(throwable.getMessage().contains("Access Key Id"));
         }
+    }
+
+    @Test
+    public void testCreateBucket() {
+        // Create the blobClient driver
+        AbstractBlobClient<?> blob = harness.createBlobClient(true);
+        BlobClient blobClient = new BlobClient(blob);
+
+        // Generate a unique bucket name for testing
+        String bucketName = "test-bucket-create-multicloudj";
+
+        // Create the bucket
+        blobClient.createBucket(bucketName);
+
+        // Verify the bucket was created by listing buckets
+        try {
+            waitForBucketVisible(blobClient, bucketName,
+                    Duration.ofSeconds(30),   // total timeout
+                    Duration.ofSeconds(2));   // poll interval
+            System.out.println("Bucket is now visible");
+        } catch (Exception e) {
+            Assertions.fail(e);
+        }
+    }
+
+    public void waitForBucketVisible(
+            BlobClient blobClient,
+            String bucketName,
+            Duration timeout,
+            Duration pollInterval
+    ) throws InterruptedException, TimeoutException {
+
+        Instant deadline = Instant.now().plus(timeout);
+
+        while (Instant.now().isBefore(deadline)) {
+            var resp = blobClient.listBuckets();
+            List<BucketInfo> buckets = resp.getBucketInfoList();
+
+            boolean bucketExists = buckets.stream()
+                    .anyMatch(bucket -> bucket.getName().equals(bucketName));
+
+            if (bucketExists) {
+                // Found it – return successfully
+                return;
+            }
+
+            // Not found yet – wait before next attempt
+            Thread.sleep(pollInterval.toMillis());
+        }
+
+        throw new TimeoutException(
+                "Bucket '" + bucketName + "' was not visible after " + timeout.toSeconds() + " seconds");
     }
 }

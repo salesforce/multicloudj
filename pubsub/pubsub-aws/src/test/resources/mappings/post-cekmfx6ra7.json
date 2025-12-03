@@ -1,0 +1,31 @@
+{
+  "id" : "6ac2baba-a4e4-4ab6-b378-4c82385bd30f",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.GetQueueUrl"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-queue-testAckAfterReceive\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"com.amazonaws.sqs#QueueDoesNotExist\",\"message\":\"The specified queue does not exist.\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "7e27a352-8de9-505e-a13e-c2cde3c83a2f",
+      "x-amzn-query-error" : "AWS.SimpleQueueService.NonExistentQueue;Sender",
+      "Date" : "Tue, 25 Nov 2025 08:42:09 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "6ac2baba-a4e4-4ab6-b378-4c82385bd30f",
+  "persistent" : true,
+  "insertionIndex" : 11
+}
