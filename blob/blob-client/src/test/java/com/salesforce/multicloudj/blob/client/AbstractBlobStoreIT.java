@@ -35,6 +35,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,6 +64,7 @@ import java.util.stream.Collectors;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobStoreIT {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBlobStoreIT.class);
 
     // Define the Harness interface
     public interface Harness extends AutoCloseable {
@@ -1683,6 +1686,13 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) throws IOException {
+        logger.info("=== runMultipartUploadTest: {} ===", testConfig.testName);
+        logger.info("Key: {}", testConfig.key);
+        logger.info("Metadata: {}", testConfig.metadata);
+        logger.info("Tags: {}", testConfig.tags);
+        logger.info("KMS Key ID: {}", testConfig.kmsKeyId);
+        logger.info("Parts to upload: {}", testConfig.partsToUpload.size());
+        
         // Create the BucketClient
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1702,12 +1712,19 @@ public abstract class AbstractBlobStoreIT {
                 requestBuilder.withTags(testConfig.tags);
             }
             MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
+            logger.info("Initiating multipart upload - Key: {}, Tags: {}", testConfig.key, testConfig.tags);
             mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+            logger.info("Multipart upload initiated - Upload ID: {}, Bucket: {}, Key: {}", 
+                    mpu.getId(), mpu.getBucket(), mpu.getKey());
 
             // Upload the individual parts
             Map<Integer, UploadPartResponse> uploadedParts = new HashMap<>();
             for(MultipartUploadTestPart testPart : testConfig.partsToUpload) {
+                logger.info("Uploading part {} - Size: {} bytes, Upload ID: {}", 
+                        testPart.partNumber, testPart.content.length, mpu.getId());
                 UploadPartResponse partResponse = bucketClient.uploadMultipartPart(mpu, new MultipartPart(testPart.partNumber, testPart.content));
+                logger.info("Part {} uploaded successfully - ETag: {}, Size: {} bytes", 
+                        partResponse.getPartNumber(), partResponse.getEtag(), partResponse.getSizeInBytes());
                 uploadedParts.put(partResponse.getPartNumber(), partResponse);
             }
 
@@ -1744,9 +1761,14 @@ public abstract class AbstractBlobStoreIT {
             // Complete the multipartUpload
             boolean completionFailed = false;
             try {
+                logger.info("Completing multipart upload - Upload ID: {}, Key: {}, Parts: {}", 
+                        mpu.getId(), mpu.getKey(), partResponsesToComplete.size());
                 bucketClient.completeMultipartUpload(mpu, partResponsesToComplete);
+                logger.info("Multipart upload completed successfully - Key: {}", mpu.getKey());
             }
             catch(Throwable t){
+                logger.error("Multipart upload completion failed - Upload ID: {}, Key: {}, Error: {}", 
+                        mpu.getId(), mpu.getKey(), t.getMessage(), t);
                 Assertions.assertTrue(testConfig.wantCompletionError, testConfig.testName + ": completeMultipartUpload() produced unexpected error " + t.getMessage());
                 completionFailed = true;
             }
@@ -2040,9 +2062,16 @@ public abstract class AbstractBlobStoreIT {
     @Test
     public void testMultipartUpload_withTags() throws IOException {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
         Map<String, String> tags = Map.of("tag1", "value1");
+        logger.info("=== Starting testMultipartUpload_withTags ===");
+        logger.info("Expected S3 key: {}", expectedKey);
+        logger.info("Tags to be applied: {}", tags);
+        logger.info("Metadata: key1=value1");
+        logger.info("Parts to upload: 2 parts (part 1: {} bytes, part 2: {} bytes)", 
+                multipartBytes1.length, multipartBytes2.length);
         runMultipartUploadTest(new MultipartUploadTestConfig(
-                "multipart with tags", DEFAULT_MULTIPART_KEY_PREFIX + "withTags",
+                "multipart with tags", expectedKey,
                 Map.of("key1", "value1"),
                 List.of(
                         new MultipartUploadTestPart(1, multipartBytes1),
@@ -2051,6 +2080,7 @@ public abstract class AbstractBlobStoreIT {
                         new MultipartUploadPartResult(1, true),
                         new MultipartUploadPartResult(2, true)),
                 false, false, null, tags));
+        logger.info("=== Completed testMultipartUpload_withTags ===");
     }
 
     @Test

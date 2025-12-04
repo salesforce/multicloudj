@@ -28,6 +28,8 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -83,6 +85,7 @@ import software.amazon.awssdk.core.ResponseInputStream;
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
+    private static final Logger logger = LoggerFactory.getLogger(AwsBlobStore.class);
 
     private final S3Client s3Client;
     private final AwsTransformer transformer;
@@ -363,8 +366,16 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
+        logger.info("doInitiateMultipartUpload - Key: {}, Tags: {}, Metadata: {}, KMS Key ID: {}", 
+                request.getKey(), request.getTags(), request.getMetadata(), request.getKmsKeyId());
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
+        logger.debug("AWS CreateMultipartUploadRequest - Bucket: {}, Key: {}, Tags: {}", 
+                createMultipartUploadRequest.bucket(), createMultipartUploadRequest.key(), 
+                createMultipartUploadRequest.tagging());
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
+        logger.info("Multipart upload initiated - Upload ID: {}, Bucket: {}, Key: {}", 
+                createMultipartUploadResponse.uploadId(), createMultipartUploadResponse.bucket(), 
+                createMultipartUploadResponse.key());
         return MultipartUpload.builder()
                 .bucket(createMultipartUploadResponse.bucket())
                 .key(createMultipartUploadResponse.key())
@@ -384,8 +395,15 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
+        logger.info("doUploadMultipartPart - Upload ID: {}, Key: {}, Part Number: {}, Part Size: {} bytes", 
+                mpu.getId(), mpu.getKey(), mpp.getPartNumber(), mpp.getContentLength());
         UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
+        logger.debug("AWS UploadPartRequest - Bucket: {}, Key: {}, Upload ID: {}, Part Number: {}", 
+                uploadPartRequest.bucket(), uploadPartRequest.key(), uploadPartRequest.uploadId(), 
+                uploadPartRequest.partNumber());
         var uploadPartResponse = s3Client.uploadPart(uploadPartRequest, RequestBody.fromInputStream(mpp.getInputStream(), mpp.getContentLength()));
+        logger.info("Part uploaded successfully - Upload ID: {}, Part Number: {}, ETag: {}, Size: {} bytes", 
+                mpu.getId(), mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
         return new UploadPartResponse(mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
     }
 
@@ -398,8 +416,18 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
+        logger.info("doCompleteMultipartUpload - Upload ID: {}, Key: {}, Parts count: {}", 
+                mpu.getId(), mpu.getKey(), parts.size());
+        logger.debug("Parts to complete: {}", parts.stream()
+                .map(p -> String.format("Part %d (ETag: %s, Size: %d)", p.getPartNumber(), p.getEtag(), p.getSizeInBytes()))
+                .collect(java.util.stream.Collectors.joining(", ")));
         CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
+        logger.debug("AWS CompleteMultipartUploadRequest - Bucket: {}, Key: {}, Upload ID: {}", 
+                completeMultipartUploadRequest.bucket(), completeMultipartUploadRequest.key(), 
+                completeMultipartUploadRequest.uploadId());
         CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
+        logger.info("Multipart upload completed - Upload ID: {}, Key: {}, Final ETag: {}", 
+                mpu.getId(), mpu.getKey(), completeMultipartUploadResponse.eTag());
         return new MultipartUploadResponse(completeMultipartUploadResponse.eTag());
     }
 
