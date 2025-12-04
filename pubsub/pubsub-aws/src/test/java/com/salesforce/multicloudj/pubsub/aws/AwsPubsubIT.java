@@ -84,56 +84,26 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         /**
          * Ensures the queue exists before build() is called.
-         * In record mode, we create the queue if it doesn't exist.
-         * In replay mode, we call GetQueueUrl to match WireMock scenario state.
+         * In record mode, we create the queue if it doesn't exist (without calling GetQueueUrl).
+         * In replay mode, we don't do anything - only build() will call GetQueueUrl once.
+         * This ensures only one GetQueueUrl mapping is generated per test.
          */
         private void ensureQueueExists() {
-            boolean isRecordMode = System.getProperty("record") != null;
-            try {
-                if (isRecordMode) {
-                    // In record mode, create queue if it doesn't exist 
-                    try {
-                        sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                            .queueName(queueName)
-                            .build());
-                    } catch (QueueDoesNotExistException queueNotExistException) {
-                        // Create the queue
-                        sqsClient.createQueue(CreateQueueRequest.builder()
-                            .queueName(queueName)
-                            .build());
-                        
-                        // Wait a bit for queue to be available 
-                        for (int i = 0; i < 5; i++) {
-                            try {
-                                Thread.sleep(200); // Wait 200ms
-                                sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                                    .queueName(queueName)
-                                    .build());
-                                break; // Success, exit retry loop
-                            } catch (QueueDoesNotExistException retryException) {
-                                if (i == 4) {
-                                    throw new RuntimeException("Queue created but not available after retries", retryException);
-                                }
-                            } catch (InterruptedException interruptedException) {
-                                Thread.currentThread().interrupt();
-                                throw new RuntimeException("Interrupted while waiting for queue to be available", interruptedException);
-                            }
-                        }
-                    }
-                } else {
-                    // In replay mode, call GetQueueUrl to match WireMock scenario state
-                    // This matches the first GetQueueUrl call that was recorded in ensureQueueExists()
-                    sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+            if (System.getProperty("record") != null) {
+                // In record mode, try to create queue if it doesn't exist
+                // We don't call GetQueueUrl here to avoid generating multiple mappings
+                // build() will call GetQueueUrl once, which will handle both existing and new queues
+                try {
+                    // Try to create the queue - CreateQueue is idempotent if queue already exists
+                    sqsClient.createQueue(CreateQueueRequest.builder()
                         .queueName(queueName)
                         .build());
-                }
-            } catch (Exception e) {
-                if (isRecordMode) {
-                    System.err.println("Warning: Failed to ensure queue exists: " + e.getMessage());
-                    e.printStackTrace();
-                } else {
+                } catch (Exception e) {
+                    // If creation fails, build() will handle it when calling GetQueueUrl
+                    System.err.println("Warning: Failed to create queue: " + e.getMessage());
                 }
             }
+            // In replay mode, do nothing - build() will call GetQueueUrl once
         }
 
         @Override

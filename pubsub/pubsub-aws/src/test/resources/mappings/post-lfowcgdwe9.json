@@ -1,0 +1,33 @@
+{
+  "id" : "8d256e40-1976-48b9-bc84-18b28e627a10",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-queue-testBatchNack\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testBatchNack\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "b1022169-a939-55c4-ad98-40c2bfa88b8b",
+      "Date" : "Thu, 04 Dec 2025 04:55:45 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "8d256e40-1976-48b9-bc84-18b28e627a10",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3--2",
+  "insertionIndex" : 27
+}

@@ -1,0 +1,33 @@
+{
+  "id" : "b5c3792f-5a2a-4d36-ad3d-f3dfe62010af",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ReceiveMessage"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testBatchNack\",\"AttributeNames\":[\"All\"],\"MessageAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":1,\"WaitTimeSeconds\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1764824149485\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1764822910512\"},\"Body\":\"batch-nack-1\",\"MD5OfBody\":\"4368994397a230f28e6fc94d80cccbb5\",\"MD5OfMessageAttributes\":\"da9dcd84a1f376f38b79991b79a9d636\",\"MessageAttributes\":{\"batch\":{\"DataType\":\"String\",\"StringValue\":\"nack\"}},\"MessageId\":\"98f12075-f0dd-4f98-bf2d-5ca23a8601f9\",\"ReceiptHandle\":\"AQEB08Fc7yPangbY2SOWCpLm/tX8zYlbZ2wFYD+dduACkBzMoZFgdao1rS3qjYNuldvYyVE4JHONXDI4ubNxmGIDmzcgQLIXN8PGVugl0AX/bgxdC5Ivc04b+FtDqVxNQAqJAhRU7VKt0OhPkRgUaH1FVfUFo3dLkROLXCELJwkh7ProF9znJZXuPaQplWkHbzvUKHiCKb7FXfXNqGdghrpKF6Q2ltnfxIIk+VX2yLFdH8uLPP7YhwnuHu9Lv1SkkoLrUfVPZ3QEIrbNTupfLdqWUXIRZKmAim5KSdIzSam+J1o+CMfJEFd+VgRSnP7o61FGSI1DvAtmPhU5tKfS4M0HZZ9VrwTR2bExNqUSimHxGdgakFVTaL024XO4ozQMAtmXe/fKilXJaXin8HdqXupmp11av9k0R1Fs5OF79SCQbIU=\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "d7691b28-a0c7-53d8-b5ca-7a83b652a294",
+      "Date" : "Thu, 04 Dec 2025 04:55:49 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "b5c3792f-5a2a-4d36-ad3d-f3dfe62010af",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--2",
+  "newScenarioState" : "scenario-1--3",
+  "insertionIndex" : 19
+}
