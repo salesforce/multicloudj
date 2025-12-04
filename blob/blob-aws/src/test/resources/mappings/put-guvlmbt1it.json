@@ -1,0 +1,25 @@
+{
+  "id" : "b9493af6-e73f-4da6-b5db-598378ec919b",
+  "name" : "chameleon-jcloud_conformance-tests_copied-from-blob",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/copied-from-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>bucketThatDoesntExist</BucketName><RequestId>5HS3G9TNXQGRJCDH</RequestId><HostId>ZSM/2FDWEDydenB8dWMcghxPuvTExSDVFS/toW46jnMn7N/gwoQwhCAQZagSguUehcsoldEmaj0=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "5HS3G9TNXQGRJCDH",
+      "x-amz-id-2" : "ZSM/2FDWEDydenB8dWMcghxPuvTExSDVFS/toW46jnMn7N/gwoQwhCAQZagSguUehcsoldEmaj0=",
+      "Date" : "Thu, 04 Dec 2025 20:11:29 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b9493af6-e73f-4da6-b5db-598378ec919b",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob-2",
+  "newScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob-3",
+  "insertionIndex" : 602
+}

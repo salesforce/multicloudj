@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -522,6 +523,44 @@ public class AwsBlobStoreTest {
         assertEquals("src-object-1", actualCopyObjectRequest.sourceKey());
         assertEquals("version-1", actualCopyObjectRequest.sourceVersionId());
         assertEquals("dest-bucket-1", actualCopyObjectRequest.destinationBucket());
+        assertEquals("dest-object-1", actualCopyObjectRequest.destinationKey());
+    }
+
+    @Test
+    void testDoCopyFrom() {
+
+        Instant now = Instant.now();
+        CopyObjectResult mockResult = mock(CopyObjectResult.class);
+        doReturn("eTag-1").when(mockResult).eTag();
+        doReturn(now).when(mockResult).lastModified();
+
+        CopyObjectResponse mockResponse = mock(CopyObjectResponse.class);
+        doReturn(mockResult).when(mockResponse).copyObjectResult();
+        doReturn("copyVersion-1").when(mockResponse).versionId();
+
+        when(mockS3Client.copyObject((CopyObjectRequest) any())).thenReturn(mockResponse);
+
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("src-bucket-1")
+                .srcKey("src-object-1")
+                .srcVersionId("version-1")
+                .destKey("dest-object-1")
+                .build();
+
+        CopyResponse copyResponse = aws.doCopyFrom(copyFromRequest);
+
+        assertEquals("dest-object-1", copyResponse.getKey());
+        assertEquals("copyVersion-1", copyResponse.getVersionId());
+        assertEquals("eTag-1", copyResponse.getETag());
+        assertEquals(now, copyResponse.getLastModified());
+
+        ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor = ArgumentCaptor.forClass(CopyObjectRequest.class);
+        verify(mockS3Client, times(1)).copyObject(copyObjectRequestCaptor.capture());
+        CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
+        assertEquals("src-bucket-1", actualCopyObjectRequest.sourceBucket());
+        assertEquals("src-object-1", actualCopyObjectRequest.sourceKey());
+        assertEquals("version-1", actualCopyObjectRequest.sourceVersionId());
+        assertEquals("bucket-1", actualCopyObjectRequest.destinationBucket());
         assertEquals("dest-object-1", actualCopyObjectRequest.destinationKey());
     }
 
