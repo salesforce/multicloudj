@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
-import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 
 import java.net.URI;
 import java.util.List;
@@ -60,9 +60,11 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         private SdkHttpClient httpClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         private String queueName = BASE_QUEUE_NAME;
+        private String cachedQueueUrl; // Cache queue URL to avoid calling GetQueueUrl multiple times for the same queue
 
         public void setQueueName(String queueName) {
             this.queueName = queueName;
+            this.cachedQueueUrl = null; // Reset cache when queue name changes
         }
 
         private SqsClient createSqsClient() {
@@ -111,10 +113,19 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             sqsClient = createSqsClient();
             ensureQueueExists();
 
+            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
+            if (cachedQueueUrl == null) {
+                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                    .queueName(queueName)
+                    .build());
+                cachedQueueUrl = response.queueUrl();
+            }
+
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             System.out.println("createTopicDriver using queueName: " + queueName);
             topicBuilder.withTopicName(queueName);
             topicBuilder.withSqsClient(sqsClient);
+            topicBuilder.withTopicUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
             topic = topicBuilder.build();
 
             return topic;
@@ -125,13 +136,22 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             sqsClient = createSqsClient();
             ensureQueueExists();
 
+            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
+            if (cachedQueueUrl == null) {
+                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                    .queueName(queueName)
+                    .build());
+                cachedQueueUrl = response.queueUrl();
+            }
+
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
             System.out.println("createSubscriptionDriver using queueName: " + queueName);
             subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(sqsClient);
+            subscriptionBuilder.withSubscriptionUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
 
-            subscriptionBuilder.build(); // This sets subscriptionUrl in the builder
+            subscriptionBuilder.build(); // This will use the cached URL, not call GetQueueUrl
             subscription = new AwsSubscription(subscriptionBuilder) {
                 @Override
                 protected Batcher.Options createReceiveBatcherOptions() {

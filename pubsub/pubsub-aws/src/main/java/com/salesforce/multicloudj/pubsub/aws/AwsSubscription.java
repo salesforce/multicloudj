@@ -454,6 +454,15 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             return this;
         }
         
+        /**
+         * Directly set the subscription URL to avoid calling GetQueueUrl again.
+         * Used when the queue URL has already been resolved 
+         */
+        Builder withSubscriptionUrl(String subscriptionUrl) {
+            this.subscriptionUrl = subscriptionUrl;
+            return this;
+        }
+        
         private static SqsClient buildSqsClient(Builder builder) {
             return SqsClientUtil.buildSqsClient(
                 builder.region,
@@ -470,7 +479,9 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             }
             
             // get the full queue URL from the queue name
-            this.subscriptionUrl = getQueueUrl(subscriptionName, sqsClient);
+            if (this.subscriptionUrl == null) {
+                this.subscriptionUrl = getQueueUrl(subscriptionName, sqsClient);
+            }
             
             return new AwsSubscription(this);
         }

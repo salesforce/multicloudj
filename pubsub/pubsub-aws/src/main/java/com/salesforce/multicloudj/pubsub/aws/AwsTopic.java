@@ -337,6 +337,15 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             return this;
         }
         
+        /**
+         * Directly set the topic URL to avoid calling GetQueueUrl again.
+         * Used when the queue URL has already been resolved
+         */
+        Builder withTopicUrl(String topicUrl) {
+            this.topicUrl = topicUrl;
+            return this;
+        }
+        
         private static SqsClient buildSqsClient(Builder builder) {
             return SqsClientUtil.buildSqsClient(
                 builder.region,
@@ -351,8 +360,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 sqsClient = buildSqsClient(this);
             }
             
-            // get the full queue URL from the queue name
-            this.topicUrl = getQueueUrl(this.topicName, sqsClient);
+            // get the full queue URL from the queue name 
+            if (this.topicUrl == null) {
+                this.topicUrl = getQueueUrl(this.topicName, sqsClient);
+            }
             
             return new AwsTopic(this);
         }
