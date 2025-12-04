@@ -85,11 +85,13 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         /**
          * Ensures the queue exists before build() is called.
          * In record mode, we create the queue if it doesn't exist.
+         * In replay mode, we call GetQueueUrl to match WireMock scenario state.
          */
         private void ensureQueueExists() {
-            if (System.getProperty("record") != null) {
-                // In record mode, create queue if it doesn't exist 
-                try {
+            boolean isRecordMode = System.getProperty("record") != null;
+            try {
+                if (isRecordMode) {
+                    // In record mode, create queue if it doesn't exist 
                     try {
                         sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
                             .queueName(queueName)
@@ -118,9 +120,18 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                             }
                         }
                     }
-                } catch (Exception e) {
+                } else {
+                    // In replay mode, call GetQueueUrl to match WireMock scenario state
+                    // This matches the first GetQueueUrl call that was recorded in ensureQueueExists()
+                    sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                        .queueName(queueName)
+                        .build());
+                }
+            } catch (Exception e) {
+                if (isRecordMode) {
                     System.err.println("Warning: Failed to ensure queue exists: " + e.getMessage());
                     e.printStackTrace();
+                } else {
                 }
             }
         }

@@ -1,0 +1,33 @@
+{
+  "id" : "469f355c-05d1-467d-bf1c-41566ddd2121",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ReceiveMessage"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testBatchAck\",\"AttributeNames\":[\"All\"],\"MessageAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":1,\"WaitTimeSeconds\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1764822906983\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1764822905601\"},\"Body\":\"batch-ack-2\",\"MD5OfBody\":\"cd6fc3c7672e4f325985cc477da67288\",\"MD5OfMessageAttributes\":\"9eb1a7f67300ecc36b254e38823294ee\",\"MessageAttributes\":{\"batch\":{\"DataType\":\"String\",\"StringValue\":\"ack\"}},\"MessageId\":\"33249616-8ab7-4188-9d59-1b48fb7652b3\",\"ReceiptHandle\":\"AQEBxMDcGN2oEZ+1DA60QdwPscSMjCsGqIr7wIOERRKvXpDd3OPJQ1yukiSoBlpRLLQRBtAELzdEgyk7SoqEwDXBYYdkGu3KLOtgJYlH3QImEmOTn4HJr1W2/KKPU1zJQp/gmlEpn40YKhs6eezcLPpunv2dwaiAvGE/JBHSv4zkdzRsL2MbkozLG9qXlOKyuQHs6H71W/0A7JYyjFpXOuqFTdLnlqsUb//7UlnGew6TZsFI0N5Y/rwHC/j26sgK6bhLIMh+BygLRp+bnFsNwtICIyznm4rOgYrGPfevWudqfjMlPn/oUvEhiK3dQTh+7mig2o4krPDWtVb9n/I/Kx5ls9nvQPPbqdqLkdfO3gagXnMpb39iY3AuTjeBSGp8qrqLh8D/eA3OEideWjdqysUvGGhqkpapFqwjsd1eTKdGbnA=\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "f7cd8213-cb9b-5385-864f-e3b8da215e6a",
+      "Date" : "Thu, 04 Dec 2025 04:35:06 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "469f355c-05d1-467d-bf1c-41566ddd2121",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1--2",
+  "insertionIndex" : 6
+}
