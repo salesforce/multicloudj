@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -288,6 +289,24 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     protected CopyResponse doCopy(CopyRequest request) {
+        CopyObjectRequest copyRequest = transformer.toRequest(request);
+        CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
+        return CopyResponse.builder()
+                .key(request.getDestKey())
+                .versionId(copyResponse.versionId())
+                .eTag(copyResponse.copyObjectResult().eTag())
+                .lastModified(copyResponse.copyObjectResult().lastModified())
+                .build();
+    }
+
+    /**
+     * Copies a Blob from a source bucket to the current bucket
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
         return CopyResponse.builder()

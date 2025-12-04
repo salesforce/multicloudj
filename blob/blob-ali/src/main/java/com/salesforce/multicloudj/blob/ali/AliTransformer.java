@@ -25,6 +25,7 @@ import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -166,6 +167,15 @@ public class AliTransformer {
                 request.getSrcKey(),
                 request.getSrcVersionId(),
                 request.getDestBucket(),
+                request.getDestKey());
+    }
+
+    public CopyObjectRequest toCopyObjectRequest(CopyFromRequest request) {
+        return new CopyObjectRequest(
+                request.getSrcBucket(),
+                request.getSrcKey(),
+                request.getSrcVersionId(),
+                bucket,
                 request.getDestKey());
     }
 

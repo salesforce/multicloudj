@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
@@ -252,6 +253,17 @@ public class AwsTransformer {
                 .sourceKey(request.getSrcKey())
                 .sourceVersionId(request.getSrcVersionId())
                 .destinationBucket(request.getDestBucket())
+                .destinationKey(request.getDestKey())
+                .build();
+    }
+
+    public CopyObjectRequest toRequest(CopyFromRequest request) {
+        return CopyObjectRequest
+                .builder()
+                .sourceBucket(request.getSrcBucket())
+                .sourceKey(request.getSrcKey())
+                .sourceVersionId(request.getSrcVersionId())
+                .destinationBucket(getBucket())
                 .destinationKey(request.getDestKey())
                 .build();
     }

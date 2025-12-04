@@ -9,6 +9,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
@@ -160,6 +161,15 @@ public class GcpTransformer {
     public Storage.CopyRequest toCopyRequest(CopyRequest request) {
         BlobId source = toBlobId(bucket, request.getSrcKey(), request.getSrcVersionId());
         BlobId target = toBlobId(request.getDestBucket(), request.getDestKey(), null);
+        return Storage.CopyRequest.newBuilder()
+                .setSource(source)
+                .setTarget(target)
+                .build();
+    }
+
+    public Storage.CopyRequest toCopyRequest(CopyFromRequest request) {
+        BlobId source = toBlobId(request.getSrcBucket(), request.getSrcKey(), request.getSrcVersionId());
+        BlobId target = toBlobId(bucket, request.getDestKey(), null);
         return Storage.CopyRequest.newBuilder()
                 .setSource(source)
                 .setTarget(target)
