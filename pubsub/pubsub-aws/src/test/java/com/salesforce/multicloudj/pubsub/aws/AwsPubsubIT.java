@@ -82,11 +82,11 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             return sqsClient;
         }
 
-        @Override
-        public AbstractTopic createTopicDriver() {
-            sqsClient = createSqsClient();
-
-            // Topic creates queue if it doesn't exist (idempotent)
+        /**
+         * Ensures the queue exists before build() is called.
+         * In record mode, we create the queue if it doesn't exist.
+         */
+        private void ensureQueueExists() {
             if (System.getProperty("record") != null) {
                 // In record mode, create queue if it doesn't exist 
                 try {
@@ -94,21 +94,47 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                         sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
                             .queueName(queueName)
                             .build());
-                    } catch (QueueDoesNotExistException e) {
+                    } catch (QueueDoesNotExistException queueNotExistException) {
+                        // Create the queue
                         sqsClient.createQueue(CreateQueueRequest.builder()
                             .queueName(queueName)
                             .build());
+                        
+                        // Wait a bit for queue to be available 
+                        for (int i = 0; i < 5; i++) {
+                            try {
+                                Thread.sleep(200); // Wait 200ms
+                                sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                                    .queueName(queueName)
+                                    .build());
+                                break; // Success, exit retry loop
+                            } catch (QueueDoesNotExistException retryException) {
+                                if (i == 4) {
+                                    throw new RuntimeException("Queue created but not available after retries", retryException);
+                                }
+                            } catch (InterruptedException interruptedException) {
+                                Thread.currentThread().interrupt();
+                                throw new RuntimeException("Interrupted while waiting for queue to be available", interruptedException);
+                            }
+                        }
                     }
                 } catch (Exception e) {
-                    System.err.println("Warning: Failed to create queue in createTopicDriver: " + e.getMessage());
+                    System.err.println("Warning: Failed to ensure queue exists: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
+        }
+
+        @Override
+        public AbstractTopic createTopicDriver() {
+            sqsClient = createSqsClient();
+            ensureQueueExists();
 
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             System.out.println("createTopicDriver using queueName: " + queueName);
             topicBuilder.withTopicName(queueName);
             topicBuilder.withSqsClient(sqsClient);
-            topic = new AwsTopic(topicBuilder);
+            topic = topicBuilder.build();
 
             return topic;
         }
@@ -116,13 +142,15 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         @Override
         public AbstractSubscription createSubscriptionDriver() {
             sqsClient = createSqsClient();
+            ensureQueueExists();
+
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
             System.out.println("createSubscriptionDriver using queueName: " + queueName);
             subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(sqsClient);
 
-            // Disable dynamic batch size adjustment by setting MaxHandlers=1 and MaxBatchSize=1
+            subscriptionBuilder.build(); // This sets subscriptionUrl in the builder
             subscription = new AwsSubscription(subscriptionBuilder) {
                 @Override
                 protected Batcher.Options createReceiveBatcherOptions() {
