@@ -182,11 +182,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadResponse doUpload(UploadRequest uploadRequest, RequestBody requestBody) {
         PutObjectRequest request = transformer.toRequest(uploadRequest);
         PutObjectResponse response = s3Client.putObject(request, requestBody);
-        return UploadResponse.builder()
-                .key(uploadRequest.getKey())
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .build();
+        return transformer.toUploadResponse(uploadRequest.getKey(), response);
     }
 
     /**
@@ -291,12 +287,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected CopyResponse doCopy(CopyRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return CopyResponse.builder()
-                .key(request.getDestKey())
-                .versionId(copyResponse.versionId())
-                .eTag(copyResponse.copyObjectResult().eTag())
-                .lastModified(copyResponse.copyObjectResult().lastModified())
-                .build();
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
     }
 
     /**
@@ -309,12 +300,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected CopyResponse doCopyFrom(CopyFromRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return CopyResponse.builder()
-                .key(request.getDestKey())
-                .versionId(copyResponse.versionId())
-                .eTag(copyResponse.copyObjectResult().eTag())
-                .lastModified(copyResponse.copyObjectResult().lastModified())
-                .build();
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
     }
 
     /**
@@ -330,16 +316,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         HeadObjectRequest request = transformer.toHeadRequest(key, versionId);
         HeadObjectResponse response = s3Client.headObject(request);
-        String eTag = response.eTag();
-        return BlobMetadata.builder()
-                .key(key)
-                .versionId(response.versionId())
-                .eTag(eTag)
-                .objectSize(response.contentLength())
-                .metadata(response.metadata())
-                .lastModified(response.lastModified())
-                .md5(transformer.eTagToMD5(eTag))
-                .build();
+        return transformer.toMetadata(response, key);
     }
 
     /**
@@ -384,13 +361,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
-        return MultipartUpload.builder()
-                .bucket(createMultipartUploadResponse.bucket())
-                .key(createMultipartUploadResponse.key())
-                .id(createMultipartUploadResponse.uploadId())
-                .metadata(request.getMetadata())
-                .kmsKeyId(request.getKmsKeyId())
-                .build();
+        return transformer.toMultipartUpload(request, createMultipartUploadResponse);
     }
 
     /**
@@ -404,7 +375,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
         var uploadPartResponse = s3Client.uploadPart(uploadPartRequest, RequestBody.fromInputStream(mpp.getInputStream(), mpp.getContentLength()));
-        return new UploadPartResponse(mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
+        return transformer.toUploadPartResponse(mpp, uploadPartResponse);
     }
 
     /**
@@ -418,7 +389,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
         CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
         CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-        return new MultipartUploadResponse(completeMultipartUploadResponse.eTag());
+        return transformer.toMultipartUploadResponse(completeMultipartUploadResponse);
     }
 
     /**
