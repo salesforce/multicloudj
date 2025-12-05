@@ -334,17 +334,6 @@ public class AwsTransformer {
         return builder.build();
     }
 
-    public MultipartUpload toMultipartUpload(MultipartUploadRequest request, CreateMultipartUploadResponse response) {
-        return MultipartUpload.builder()
-                .bucket(response.bucket())
-                .key(response.key())
-                .id(response.uploadId())
-                .metadata(request.getMetadata())
-                .tags(request.getTags())
-                .kmsKeyId(request.getKmsKeyId())
-                .build();
-    }
-
     public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
         return UploadPartRequest.builder()
                 .bucket(getBucket())
@@ -540,6 +529,7 @@ public class AwsTransformer {
                 .key(response.key())
                 .id(response.uploadId())
                 .metadata(request.getMetadata())
+                .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
