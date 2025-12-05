@@ -2225,8 +2225,7 @@ public abstract class AbstractBlobStoreIT {
                 false, false, kmsKeyId));
     }
 
-    @Test
-    @Disabled
+    //@Test
     public void testMultipartUpload_withTags() throws IOException {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";

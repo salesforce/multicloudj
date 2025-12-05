@@ -360,14 +360,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
-        return MultipartUpload.builder()
-                .bucket(createMultipartUploadResponse.bucket())
-                .key(createMultipartUploadResponse.key())
-                .id(createMultipartUploadResponse.uploadId())
-                .metadata(request.getMetadata())
-                .tags(request.getTags())
-                .kmsKeyId(request.getKmsKeyId())
-                .build();
+        return transformer.toMultipartUpload(request, createMultipartUploadResponse);
     }
 
     /**
