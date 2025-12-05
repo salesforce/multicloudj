@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
@@ -18,8 +19,11 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
@@ -32,9 +36,12 @@ import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
@@ -48,6 +55,7 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -252,6 +260,17 @@ public class AwsTransformer {
                 .sourceKey(request.getSrcKey())
                 .sourceVersionId(request.getSrcVersionId())
                 .destinationBucket(request.getDestBucket())
+                .destinationKey(request.getDestKey())
+                .build();
+    }
+
+    public CopyObjectRequest toRequest(CopyFromRequest request) {
+        return CopyObjectRequest
+                .builder()
+                .sourceBucket(request.getSrcBucket())
+                .sourceKey(request.getSrcKey())
+                .sourceVersionId(request.getSrcVersionId())
+                .destinationBucket(getBucket())
                 .destinationKey(request.getDestKey())
                 .build();
     }
@@ -485,6 +504,41 @@ public class AwsTransformer {
         return blobList.stream()
                 .map(blob -> new BlobIdentifier(blob.getKey(), null))
                 .collect(Collectors.toList());
+    }
+
+    public UploadResponse toUploadResponse(String key, PutObjectResponse response) {
+        return UploadResponse.builder()
+                .key(key)
+                .versionId(response.versionId())
+                .eTag(response.eTag())
+                .build();
+    }
+
+    public CopyResponse toCopyResponse(String destKey, CopyObjectResponse response) {
+        return CopyResponse.builder()
+                .key(destKey)
+                .versionId(response.versionId())
+                .eTag(response.copyObjectResult().eTag())
+                .lastModified(response.copyObjectResult().lastModified())
+                .build();
+    }
+
+    public MultipartUpload toMultipartUpload(MultipartUploadRequest request, CreateMultipartUploadResponse response) {
+        return MultipartUpload.builder()
+                .bucket(response.bucket())
+                .key(response.key())
+                .id(response.uploadId())
+                .metadata(request.getMetadata())
+                .kmsKeyId(request.getKmsKeyId())
+                .build();
+    }
+
+    public UploadPartResponse toUploadPartResponse(MultipartPart part, software.amazon.awssdk.services.s3.model.UploadPartResponse response) {
+        return new UploadPartResponse(part.getPartNumber(), response.eTag(), part.getContentLength());
+    }
+
+    public MultipartUploadResponse toMultipartUploadResponse(CompleteMultipartUploadResponse response) {
+        return new MultipartUploadResponse(response.eTag());
     }
 
     /**

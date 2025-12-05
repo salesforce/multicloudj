@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -244,6 +245,13 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     protected CopyResponse doCopy(CopyRequest request) {
+        Storage.CopyRequest copyReq = transformer.toCopyRequest(request);
+        Blob blob = storage.copy(copyReq).getResult();
+        return transformer.toCopyResponse(blob);
+    }
+
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
         Storage.CopyRequest copyReq = transformer.toCopyRequest(request);
         Blob blob = storage.copy(copyReq).getResult();
         return transformer.toCopyResponse(blob);
