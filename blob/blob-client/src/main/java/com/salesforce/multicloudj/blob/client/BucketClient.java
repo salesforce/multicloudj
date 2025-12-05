@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -261,6 +262,23 @@ public class BucketClient {
     public CopyResponse copy(CopyRequest request) {
         try {
             return blobStore.copy(request);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Copies the Blob from other bucket to the current bucket
+     *
+     * @param request copyFrom request wrapper. Contains the information necessary to perform a copy from a source bucket
+     * @return CopyResponse of the copied Blob
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CopyResponse copyFrom(CopyFromRequest request) {
+        try {
+            return blobStore.copyFrom(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);

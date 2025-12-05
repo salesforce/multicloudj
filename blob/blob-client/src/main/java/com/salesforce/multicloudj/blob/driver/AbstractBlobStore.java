@@ -165,6 +165,15 @@ public abstract class AbstractBlobStore implements BlobStore {
      * {@inheritDoc}
      */
     @Override
+    public CopyResponse copyFrom(CopyFromRequest request) {
+        validator.validate(request);
+        return doCopyFrom(request);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public BlobMetadata getMetadata(String key, String versionId) {
         validator.validateKey(key);
         return doGetMetadata(key, versionId);
@@ -317,6 +326,8 @@ public abstract class AbstractBlobStore implements BlobStore {
     protected abstract void doDelete(Collection<BlobIdentifier> objects);
 
     protected abstract CopyResponse doCopy(CopyRequest request);
+
+    protected abstract CopyResponse doCopyFrom(CopyFromRequest request);
 
     protected abstract BlobMetadata doGetMetadata(String key, String versionId);
 
