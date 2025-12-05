@@ -84,7 +84,6 @@ import software.amazon.awssdk.core.ResponseInputStream;
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
-
     private final S3Client s3Client;
     private final AwsTransformer transformer;
 
