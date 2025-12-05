@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -125,7 +126,14 @@ public class GcpSts extends AbstractSts {
             return googleCredentials;
         }
         try {
-            return GoogleCredentials.getApplicationDefault().createScoped(List.of(scope));
+            if (System.getenv("KUBERNETES_SERVICE_HOST") != null) {
+                return ComputeEngineCredentials.create();
+            }
+            GoogleCredentials adc = GoogleCredentials.getApplicationDefault();
+            if (adc.createScopedRequired()) {
+                adc = adc.createScoped(List.of(scope));
+            }
+            return adc;
         } catch (IOException e) {
             throw new SubstrateSdkException("Could not create credentials in given environment", e);
         }

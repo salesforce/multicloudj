@@ -16,6 +16,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -646,6 +647,35 @@ class GcpBlobStoreTest {
 
         // When
         CopyResponse response = gcpBlobStore.doCopy(copyRequest);
+
+        // Then
+        assertEquals(expectedResponse, response);
+        verify(mockStorage).copy(mockCopyRequest);
+        verify(mockTransformer).toCopyResponse(mockBlob);
+    }
+
+    @Test
+    void testDoCopyFrom() {
+        // Given
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("source-bucket")
+                .srcKey("source-key")
+                .destKey("dest-key")
+                .build();
+
+        CopyResponse expectedResponse = CopyResponse.builder()
+                .key(TEST_KEY)
+                .versionId(TEST_VERSION_ID)
+                .eTag(TEST_ETAG)
+                .build();
+
+        when(mockTransformer.toCopyRequest(copyFromRequest)).thenReturn(mockCopyRequest);
+        when(mockStorage.copy(mockCopyRequest)).thenReturn(mockCopyWriter);
+        when(mockCopyWriter.getResult()).thenReturn(mockBlob);
+        when(mockTransformer.toCopyResponse(mockBlob)).thenReturn(expectedResponse);
+
+        // When
+        CopyResponse response = gcpBlobStore.doCopyFrom(copyFromRequest);
 
         // Then
         assertEquals(expectedResponse, response);

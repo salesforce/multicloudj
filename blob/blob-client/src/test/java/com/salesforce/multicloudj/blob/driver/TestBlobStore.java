@@ -79,6 +79,11 @@ public class TestBlobStore extends AbstractBlobStore {
     }
 
     @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        return null;
+    }
+
+    @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         return null;
     }
