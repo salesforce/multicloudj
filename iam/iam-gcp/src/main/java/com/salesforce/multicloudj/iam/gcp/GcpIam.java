@@ -51,7 +51,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Creates a new GCP service account with optional trust configuration.
-     * 
+     *
      * <p>This method creates a service account in the specified GCP project. If trust configuration
      * is provided, it also grants the roles/iam.serviceAccountTokenCreator role to the specified
      * trusted principals, enabling them to impersonate this service account.
@@ -469,7 +469,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Deletes a service account from the specified GCP project.
-     * 
+     *
      * <p>This method permanently removes a service account and all its associated IAM bindings.
      * The operation cannot be undone. The method accepts either a service account ID or full
      * email address as input and constructs the appropriate resource name for the API call.
@@ -499,7 +499,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Retrieves service account metadata from the specified GCP project.
-     * 
+     *
      * <p>This method fetches details of an existing service account and returns its email address
      * as the unique identifier. The method accepts either a service account ID or full email address
      * as input and constructs the appropriate resource name for the API call.
