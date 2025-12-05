@@ -171,6 +171,22 @@ public class BlobStoreValidator {
         validateBucket(request.getDestBucket());
     }
 
+    /**
+     * Validates the input request to ensure it has valid {srcBucket, srcKey, destKey}.
+     * This is identical to calling
+     * <pre>{@code
+     *     validateBucket(request.getSrcBucket());
+     *     validateKey(request.getSrcKey());
+     *     validateKey(request.getDestKey());
+     * }</pre>
+     * @param request the request to inspect.
+     */
+    public void validate(CopyFromRequest request) {
+        validateBucket(request.getSrcBucket());
+        validateKey(request.getSrcKey());
+        validateKey(request.getDestKey());
+    }
+
         /**
      * Validates the input request. This validates that the request is not null
      * and that the local source directory is not null or empty.

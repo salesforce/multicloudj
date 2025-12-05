@@ -356,12 +356,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             super.withCredentialsOverrider(credentialsOverrider);
             return this;
         }
-        
-        @Override
-        public GcpSubscription.Builder withReceiveTimeoutSeconds(long receiveTimeoutSeconds) {
-            super.withReceiveTimeoutSeconds(receiveTimeoutSeconds);
-            return this;
-        }
 
         /**
          * Sets the nackLazy mode for negative acknowledgments.

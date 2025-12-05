@@ -137,6 +137,15 @@ public interface BlobStore extends SdkService, Provider {
     CopyResponse copy(CopyRequest request);
 
     /**
+     * Performs validation and invokes substrate-specific copyFrom method.
+     * Copies a blob from a source bucket to the current bucket.
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    CopyResponse copyFrom(CopyFromRequest request);
+
+    /**
      * Retrieves the metadata of the Blob
      *
      * @param key Name of the Blob, whose metadata is to be retrieved
