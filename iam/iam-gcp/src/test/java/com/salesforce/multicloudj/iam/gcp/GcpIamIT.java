@@ -97,6 +97,22 @@ public class GcpIamIT extends AbstractIamIT {
 			return "https://cloudresourcemanager.googleapis.com";
 		}
 
+
+		@Override
+		public String getTestPolicyEffect() {
+			return "Allow";
+		}
+
+		@Override
+		public List<String> getTestPolicyActions() {
+			return List.of("roles/storage.objectViewer", "roles/storage.objectCreator");
+		}
+
+		@Override
+		public String getTestPolicyName() {
+			return "roles/storage.objectViewer";
+		}
+
 		@Override
 		public void close() {
 			if (projectsClient != null) {

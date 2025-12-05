@@ -13,15 +13,12 @@ import com.github.tomakehurst.wiremock.matching.MatchesJsonPathPattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.regex.Pattern;
 
 public class IamJsonResponseTransformer extends StubMappingTransformer {
-	private static final Logger logger = LoggerFactory.getLogger(IamJsonResponseTransformer.class);
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static final Pattern EMAIL_PATTERN = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
@@ -79,7 +76,7 @@ public class IamJsonResponseTransformer extends StubMappingTransformer {
 						.withBodyFile(bodyFileName).build());
 			}
 		} catch (Exception e) {
-			logger.warn("Failed to mask PII in response body: {}", e.getMessage());
+			throw new RuntimeException("Failed to mask PII in response body", e);
 		}
 
 		return stub;

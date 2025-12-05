@@ -32,6 +32,16 @@ public abstract class AbstractIamIT {
 		List<String> getWiremockExtensions();
 
 		String getIamEndpoint();
+
+		default String getPolicyVersion() {
+			return "";
+		}
+
+		String getTestPolicyEffect();
+
+		List<String> getTestPolicyActions();
+
+		String getTestPolicyName();
 	}
 
 	protected abstract Harness createHarness();
@@ -78,16 +88,17 @@ public abstract class AbstractIamIT {
 		AbstractIam iam = harness.createIamDriver(true);
 		IamClient iamClient = new IamClient(iam);
 		
+		Statement.StatementBuilder statementBuilder = Statement.builder()
+				.effect(harness.getTestPolicyEffect());
+		for (String action : harness.getTestPolicyActions()) {
+			statementBuilder.action(action);
+		}
+		
 		PolicyDocument policyDocument = PolicyDocument.builder()
-				.version("2012-10-17")
-				.statement(Statement.builder()
-						.effect("Allow")
-						.action("roles/storage.objectViewer")
-						.action("roles/storage.objectCreator")
-						.build())
+				.version(harness.getPolicyVersion())
+				.statement(statementBuilder.build())
 				.build();
 
-		// This should not throw an exception
 		iamClient.attachInlinePolicy(
 				policyDocument,
 				harness.getTenantId(),
@@ -101,12 +112,11 @@ public abstract class AbstractIamIT {
 		AbstractIam iam = harness.createIamDriver(true);
 		IamClient iamClient = new IamClient(iam);
 		
-		// First attach a policy
 		PolicyDocument policyDocument = PolicyDocument.builder()
-				.version("2012-10-17")
+				.version(harness.getPolicyVersion())
 				.statement(Statement.builder()
-						.effect("Allow")
-						.action("roles/storage.objectViewer")
+						.effect(harness.getTestPolicyEffect())
+						.action(harness.getTestPolicyName())
 						.build())
 				.build();
 
@@ -117,10 +127,9 @@ public abstract class AbstractIamIT {
 				harness.getIdentityName()
 		);
 
-		// Then retrieve it
 		String policyDetails = iamClient.getInlinePolicyDetails(
 				harness.getIdentityName(),
-				"roles/storage.objectViewer", // policy name (role name in GCP)
+				harness.getTestPolicyName(),
 				harness.getTenantId(),
 				harness.getRegion()
 		);
@@ -133,14 +142,15 @@ public abstract class AbstractIamIT {
 		AbstractIam iam = harness.createIamDriver(true);
 		IamClient iamClient = new IamClient(iam);
 		
-		// First attach a policy
+		Statement.StatementBuilder statementBuilder = Statement.builder()
+				.effect(harness.getTestPolicyEffect());
+		for (String action : harness.getTestPolicyActions()) {
+			statementBuilder.action(action);
+		}
+		
 		PolicyDocument policyDocument = PolicyDocument.builder()
-				.version("2012-10-17")
-				.statement(Statement.builder()
-						.effect("Allow")
-						.action("roles/storage.objectViewer")
-						.action("roles/storage.objectCreator")
-						.build())
+				.version(harness.getPolicyVersion())
+				.statement(statementBuilder.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
@@ -150,7 +160,6 @@ public abstract class AbstractIamIT {
 				harness.getIdentityName()
 		);
 
-		// Then retrieve the list of attached policies
 		List<String> attachedPolicies = iamClient.getAttachedPolicies(
 				harness.getIdentityName(),
 				harness.getTenantId(),
@@ -165,12 +174,11 @@ public abstract class AbstractIamIT {
 		AbstractIam iam = harness.createIamDriver(true);
 		IamClient iamClient = new IamClient(iam);
 		
-		// First attach a policy
 		PolicyDocument policyDocument = PolicyDocument.builder()
-				.version("2012-10-17")
+				.version(harness.getPolicyVersion())
 				.statement(Statement.builder()
-						.effect("Allow")
-						.action("roles/storage.objectViewer")
+						.effect(harness.getTestPolicyEffect())
+						.action(harness.getTestPolicyName())
 						.build())
 				.build();
 
@@ -181,10 +189,9 @@ public abstract class AbstractIamIT {
 				harness.getIdentityName()
 		);
 
-		// Then remove it - should not throw an exception
 		iamClient.removePolicy(
 				harness.getIdentityName(),
-				"roles/storage.objectViewer", // policy name is the GCP role
+				harness.getTestPolicyName(),
 				harness.getTenantId(),
 				harness.getRegion()
 		);
