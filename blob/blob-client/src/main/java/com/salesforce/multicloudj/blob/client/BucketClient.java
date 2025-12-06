@@ -41,7 +41,7 @@ import java.util.Map;
 /**
  * Entry point for Client code to interact with the Blob storage.
  */
-public class BucketClient {
+public class BucketClient implements AutoCloseable {
 
     protected AbstractBlobStore blobStore;
 
@@ -481,6 +481,16 @@ public class BucketClient {
             Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
             return false;
+        }
+    }
+
+    /**
+     * Closes the underlying blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
         }
     }
 
