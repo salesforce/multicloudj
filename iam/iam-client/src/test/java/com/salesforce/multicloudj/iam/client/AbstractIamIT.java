@@ -129,6 +129,7 @@ public abstract class AbstractIamIT {
 
 		String policyDetails = iamClient.getInlinePolicyDetails(
 				harness.getIdentityName(),
+				null,
 				harness.getTestPolicyName(),
 				harness.getTenantId(),
 				harness.getRegion()
