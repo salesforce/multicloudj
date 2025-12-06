@@ -49,14 +49,6 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
         } catch (Exception e) {
             throw new SubstrateSdkException("Failed to close GCP Storage client", e);
         }
-        // Close the wrapped blob store as well
-        try {
-            if (getBlobStore() != null) {
-                getBlobStore().close();
-            }
-        } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to close wrapped blob store", e);
-        }
     }
 
     public static Builder builder() {
