@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.19](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.18...multicloudj-v0.2.19) (2025-12-06)
+
+
+### Blob Store
+
+* make blob store autocloseable throughout ([#194](https://github.com/salesforce/multicloudj/issues/194)) ([3610b57](https://github.com/salesforce/multicloudj/commit/3610b57bac3b9fe27fc1f92c97e19452c31d6a43))
+* support copy from different source bucket ([#190](https://github.com/salesforce/multicloudj/issues/190)) ([40e6f4c](https://github.com/salesforce/multicloudj/commit/40e6f4c270dea745e36ae7e35cc7e04adb7d1d94))
+* support tagging for multipart upload in AWS and GCP ([#172](https://github.com/salesforce/multicloudj/issues/172)) ([25b694b](https://github.com/salesforce/multicloudj/commit/25b694b041c4d845f6199daa541d637edae88e82))
+
 ## [0.2.18](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.17...multicloudj-v0.2.18) (2025-12-02)
 
 
