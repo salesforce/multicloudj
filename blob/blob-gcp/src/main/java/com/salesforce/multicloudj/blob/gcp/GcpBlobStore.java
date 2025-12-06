@@ -630,6 +630,20 @@ public class GcpBlobStore extends AbstractBlobStore {
         return UnknownException.class;
     }
 
+    /**
+     * Closes the underlying GCP Storage client and releases any resources.
+     */
+    @Override
+    public void close() {
+        try {
+            if (storage != null) {
+                storage.close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+        }
+    }
+
     @Getter
     public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 

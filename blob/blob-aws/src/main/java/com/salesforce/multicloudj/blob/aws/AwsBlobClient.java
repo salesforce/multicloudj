@@ -144,6 +144,16 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
         return UnknownException.class;
     }
 
+    /**
+     * Closes the underlying S3 client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
+        }
+    }
+
 
     public static class Builder extends AbstractBlobClient.Builder<AwsBlobClient> {
 

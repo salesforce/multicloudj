@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.async.driver.BlobStoreAsyncBridge;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import lombok.Getter;
 
@@ -34,6 +35,28 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
         super(blobStore, executorService);
         this.storage = storage;
         this.transformerSupplier = transformerSupplier;
+    }
+
+    /**
+     * Closes the underlying GCP Storage client and wrapped blob store
+     */
+    @Override
+    public void close() {
+        try {
+            if (storage != null) {
+                storage.close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+        }
+        // Close the wrapped blob store as well
+        try {
+            if (getBlobStore() != null) {
+                getBlobStore().close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close wrapped blob store", e);
+        }
     }
 
     public static Builder builder() {

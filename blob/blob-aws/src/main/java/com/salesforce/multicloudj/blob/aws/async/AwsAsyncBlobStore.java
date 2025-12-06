@@ -403,6 +403,19 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 });
     }
 
+    /**
+     * Closes the underlying S3 async client and transfer manager, releasing any resources.
+     */
+    @Override
+    public void close() {
+        if (transferManager != null) {
+            transferManager.close();
+        }
+        if (client != null) {
+            client.close();
+        }
+    }
+
     public static Builder builder() {
         return new Builder();
     }
