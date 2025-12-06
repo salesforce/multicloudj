@@ -205,6 +205,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public void close() {
+        // Test implementation - no-op
+    }
+
     public static Builder builder() {
         return new Builder();
     }

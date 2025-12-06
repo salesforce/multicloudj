@@ -239,4 +239,14 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     public CompletableFuture<Void> deleteDirectory(String prefix) {
         return CompletableFuture.runAsync(() -> blobStore.deleteDirectory(prefix), executorService);
     }
+
+    /**
+     * Closes the wrapped blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
+        }
+    }
 } 
