@@ -27,7 +27,6 @@ import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -52,7 +51,6 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -480,20 +478,6 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected boolean doDoesObjectExist(String key, String versionId) {
         try {
             s3Client.headObject(transformer.toHeadRequest(key, versionId));
-            return true;
-        }
-        catch(S3Exception e) {
-            if (e.statusCode() == 404) {
-                return false;
-            }
-            throw e;
-        }
-    }
-
-    @Override
-    protected boolean doDoesBucketExist() {
-        try {
-            s3Client.headBucket(builder -> builder.bucket(bucket));
             return true;
         }
         catch(S3Exception e) {
