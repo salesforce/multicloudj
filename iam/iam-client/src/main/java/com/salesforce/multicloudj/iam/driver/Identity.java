@@ -42,12 +42,15 @@ public interface Identity {
      * Retrieves the details of an inline policy attached to an identity.
      *
      * @param identityName the name of the identity
-     * @param policyName the name of the policy to retrieve
+     * @param policyName the name of the policy to retrieve. This parameter is optional and subject to cloud semantics.
+     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
+     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
+     *                 may require this parameter to identify the policy, while others may not use it.
      * @param tenantId the tenant/project/account ID
      * @param region the region where the identity exists
      * @return the policy document as a JSON string
      */
-    String getInlinePolicyDetails(String identityName, String policyName, String tenantId, String region);
+    String getInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region);
 
     /**
      * Lists all policies attached to an identity.
