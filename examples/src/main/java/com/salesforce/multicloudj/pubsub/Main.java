@@ -69,7 +69,7 @@ public class Main {
     }
 
     /**
-     * Publishes multiple messages for batch operations.
+     * Send and receive multiple messages individually
      */
     public static void publishBatchMessages() {
         // Get the TopicClient instance
