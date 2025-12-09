@@ -25,6 +25,7 @@ public class Main {
         acknowledgeMessagesBatch();
         negativeAcknowledgeMessage();
         getSubscriptionAttributes();
+        sendReceiveMultipleMessages();
     }
 
     /**
@@ -84,6 +85,30 @@ public class Main {
 
             topicClient.send(message);
             getLogger().info("Published batch message #{}", i);
+        }
+
+        getLogger().info("Published 5 messages for batch acknowledgment");
+    }
+
+    /**
+     * Publishes multiple messages for batch operations.
+     */
+    public static void sendReceiveMultipleMessages() {
+        // Get the TopicClient instance
+        TopicClient topicClient = getTopicClient(provider);
+        SubscriptionClient subscriptionClient = getSubscriptionClient(provider);
+
+        // Publish 5 messages for batch acknowledgment
+        for (int i = 1; i <= 5; i++) {
+            Message message = Message.builder()
+                    .withBody("Batch message #" + i)
+                    .withMetadata("batchId", "batch-1")
+                    .withMetadata("messageNumber", String.valueOf(i))
+                    .build();
+
+            topicClient.send(message);
+            Message m = subscriptionClient.receive();
+            getLogger().info("Received message #{}", m.getAckID());
         }
 
         getLogger().info("Published 5 messages for batch acknowledgment");
