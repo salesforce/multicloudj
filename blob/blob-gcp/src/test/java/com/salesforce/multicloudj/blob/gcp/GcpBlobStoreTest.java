@@ -980,6 +980,58 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoDoesBucketExist_BucketExists() {
+        // Given
+        Bucket mockBucket = mock(Bucket.class);
+        when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertTrue(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist_ReturnsNull() {
+        // Given
+        when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertFalse(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist_Throws404() {
+        // Given
+        StorageException storageException = new StorageException(404, "Not Found");
+        when(mockStorage.get(TEST_BUCKET)).thenThrow(storageException);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertFalse(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsOtherException() {
+        // Given
+        StorageException storageException = new StorageException(500, "Internal Server Error");
+        when(mockStorage.get(TEST_BUCKET)).thenThrow(storageException);
+
+        // When/Then
+        assertThrows(SubstrateSdkException.class, () -> gcpBlobStore.doDoesBucketExist());
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
     void testGetException_WithSubstrateSdkException() {
         // Given
         SubstrateSdkException testException = new SubstrateSdkException("Test");

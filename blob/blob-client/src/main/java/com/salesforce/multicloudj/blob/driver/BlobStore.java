@@ -243,6 +243,12 @@ public interface BlobStore extends SdkService, Provider {
     boolean doesObjectExist(String key, String versionId);
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    boolean doesBucketExist();
+
+    /**
      * Downloads a directory from the blob store
      *
      * @param directoryDownloadRequest the directory download request

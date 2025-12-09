@@ -144,6 +144,11 @@ public class TestBlobStore extends AbstractBlobStore {
     }
 
     @Override
+    protected boolean doDoesBucketExist() {
+        return false;
+    }
+
+    @Override
     public Provider.Builder builder() {
         return new Builder();
     }

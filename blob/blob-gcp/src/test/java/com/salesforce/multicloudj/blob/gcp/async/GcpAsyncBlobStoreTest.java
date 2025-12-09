@@ -401,6 +401,34 @@ class GcpAsyncBlobStoreTest {
     }
 
     @Test
+    void testDoesBucketExist() throws Exception {
+        // Given
+        when(mockBlobStore.doesBucketExist()).thenReturn(true);
+
+        // When
+        CompletableFuture<Boolean> result = gcpAsyncBlobStore.doesBucketExist();
+
+        // Then
+        Boolean exists = result.get(5, TimeUnit.SECONDS);
+        assertTrue(exists);
+        verify(mockBlobStore).doesBucketExist();
+    }
+
+    @Test
+    void testDoesBucketExist_BucketDoesNotExist() throws Exception {
+        // Given
+        when(mockBlobStore.doesBucketExist()).thenReturn(false);
+
+        // When
+        CompletableFuture<Boolean> result = gcpAsyncBlobStore.doesBucketExist();
+
+        // Then
+        Boolean exists = result.get(5, TimeUnit.SECONDS);
+        assertFalse(exists);
+        verify(mockBlobStore).doesBucketExist();
+    }
+
+    @Test
     void testGetTags() throws Exception {
         // Given
         Map<String, String> expectedTags = Map.of("key1", "value1", "key2", "value2");

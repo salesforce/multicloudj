@@ -5,6 +5,7 @@ import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
+import com.aliyun.oss.ServiceException;
 import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
@@ -84,12 +85,14 @@ import java.util.NoSuchElementException;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -781,6 +784,57 @@ public class AliBlobStoreTest {
         assertEquals("object-1", actualRequest.getKey());
         assertEquals("version-1", actualRequest.getVersionId());
         assertTrue(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist() {
+        doReturn(true).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist() {
+        doReturn(false).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsNoSuchBucketException() {
+        com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
+        doReturn("NoSuchBucket").when(serviceException).getErrorCode();
+        doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsOtherServiceException() {
+        com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
+        doReturn("AccessDenied").when(serviceException).getErrorCode();
+        doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> ali.doDoesBucketExist());
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsClientException() {
+        ClientException clientException = mock(ClientException.class);
+        doThrow(clientException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> ali.doDoesBucketExist());
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
     }
 
     private UploadRequest getTestUploadRequest() {

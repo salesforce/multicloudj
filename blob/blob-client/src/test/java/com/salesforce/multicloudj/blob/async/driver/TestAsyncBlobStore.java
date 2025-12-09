@@ -180,6 +180,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     }
 
     @Override
+    protected CompletableFuture<Boolean> doDoesBucketExist() {
+        return CompletableFuture.completedFuture(false);
+    }
+
+    @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return SubstrateSdkException.class;
     }

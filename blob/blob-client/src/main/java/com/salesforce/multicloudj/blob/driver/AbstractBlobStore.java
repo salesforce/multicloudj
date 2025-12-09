@@ -280,6 +280,14 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
      * {@inheritDoc}
      */
     @Override
+    public boolean doesBucketExist() {
+        return doDoesBucketExist();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public DirectoryDownloadResponse downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
         validator.validate(directoryDownloadRequest);
         return doDownloadDirectory(directoryDownloadRequest);
@@ -352,6 +360,8 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
     protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
 
     protected abstract boolean doDoesObjectExist(String key, String versionId);
+
+    protected abstract boolean doDoesBucketExist();
 
     protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
         throw new UnsupportedOperationException("Directory download is not supported by this substrate implementation");

@@ -469,6 +469,23 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesBucketExist() {
+        try {
+            Bucket bucketObj = storage.get(bucket);
+            return bucketObj != null;
+        } catch (StorageException e) {
+            if (e.getCode() == 404) {
+                return false;
+            }
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        }
+    }
+
+    /**
      * Maximum number of objects that can be deleted in a single batch operation.
      * GCP supports up to 1000 objects per batch delete.
      */
