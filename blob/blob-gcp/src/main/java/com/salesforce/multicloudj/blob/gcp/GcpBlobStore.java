@@ -333,6 +333,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .key(request.getKey())
                 .id(uploadId)
                 .metadata(request.getMetadata())
+                .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
@@ -627,6 +628,20 @@ public class GcpBlobStore extends AbstractBlobStore {
             return InvalidArgumentException.class;
         }
         return UnknownException.class;
+    }
+
+    /**
+     * Closes the underlying GCP Storage client and releases any resources.
+     */
+    @Override
+    public void close() {
+        try {
+            if (storage != null) {
+                storage.close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+        }
     }
 
     @Getter

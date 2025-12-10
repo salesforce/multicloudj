@@ -39,7 +39,7 @@ import java.util.function.Consumer;
 /**
  * API for async interaction with a backing blob storage engine.
  */
-public interface AsyncBlobStore extends SdkService {
+public interface AsyncBlobStore extends SdkService, AutoCloseable {
 
     /**
      * Returns the bucket this blob store operates against.

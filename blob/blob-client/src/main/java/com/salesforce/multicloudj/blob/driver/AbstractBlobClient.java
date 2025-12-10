@@ -9,7 +9,7 @@ import lombok.Getter;
  * Base class for substrate-specific implementations.
  * This class serves the purpose of providing common (i.e. substrate-agnostic) functionality.
  */
-public abstract class AbstractBlobClient<T extends AbstractBlobClient<T>> implements Provider, SdkService {
+public abstract class AbstractBlobClient<T extends AbstractBlobClient<T>> implements Provider, SdkService, AutoCloseable {
 
     private final String providerId;
     @Getter

@@ -27,11 +27,11 @@ import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -77,14 +77,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import software.amazon.awssdk.core.ResponseInputStream;
 
 /**
  * AWS implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
-
     private final S3Client s3Client;
     private final AwsTransformer transformer;
 
@@ -487,6 +485,16 @@ public class AwsBlobStore extends AbstractBlobStore {
                 return false;
             }
             throw e;
+        }
+    }
+
+    /**
+     * Closes the underlying S3 client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
         }
     }
 

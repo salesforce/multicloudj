@@ -475,6 +475,16 @@ public class AliBlobStore extends AbstractBlobStore {
         return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
     }
 
+    /**
+     * Closes the underlying OSS client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
+    }
+
     @Getter
     public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
 

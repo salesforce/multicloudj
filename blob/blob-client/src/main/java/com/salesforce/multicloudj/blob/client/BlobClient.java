@@ -17,7 +17,7 @@ import java.net.URI;
  * <p>This class serves the purpose of providing common (i.e. substrate-agnostic) service functionality.
  *
  */
-public class BlobClient {
+public class BlobClient implements AutoCloseable {
 
     protected AbstractBlobClient<?> blobClient;
 
@@ -55,6 +55,16 @@ public class BlobClient {
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
+        }
+    }
+
+    /**
+     * Closes the underlying blob client and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobClient != null) {
+            blobClient.close();
         }
     }
 
