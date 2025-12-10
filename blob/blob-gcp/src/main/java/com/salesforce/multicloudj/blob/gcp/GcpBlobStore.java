@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -250,6 +251,13 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        Storage.CopyRequest copyReq = transformer.toCopyRequest(request);
+        Blob blob = storage.copy(copyReq).getResult();
+        return transformer.toCopyResponse(blob);
+    }
+
+    @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         BlobId blobId = transformer.toBlobId(bucket, key, versionId);
         Blob blob = storage.get(blobId);
@@ -325,6 +333,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .key(request.getKey())
                 .id(uploadId)
                 .metadata(request.getMetadata())
+                .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
                 .build();
     }
@@ -619,6 +628,20 @@ public class GcpBlobStore extends AbstractBlobStore {
             return InvalidArgumentException.class;
         }
         return UnknownException.class;
+    }
+
+    /**
+     * Closes the underlying GCP Storage client and releases any resources.
+     */
+    @Override
+    public void close() {
+        try {
+            if (storage != null) {
+                storage.close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+        }
     }
 
     @Getter

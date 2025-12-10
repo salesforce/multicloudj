@@ -79,6 +79,11 @@ public class TestBlobStore extends AbstractBlobStore {
     }
 
     @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        return null;
+    }
+
+    @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         return null;
     }
@@ -146,6 +151,11 @@ public class TestBlobStore extends AbstractBlobStore {
     @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return null;
+    }
+
+    @Override
+    public void close() {
+        // Test implementation - no-op
     }
 
     public static class Builder extends AbstractBlobStore.Builder<TestBlobStore, Builder> {

@@ -9,6 +9,7 @@ import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
@@ -166,6 +167,15 @@ public class GcpTransformer {
                 .build();
     }
 
+    public Storage.CopyRequest toCopyRequest(CopyFromRequest request) {
+        BlobId source = toBlobId(request.getSrcBucket(), request.getSrcKey(), request.getSrcVersionId());
+        BlobId target = toBlobId(bucket, request.getDestKey(), null);
+        return Storage.CopyRequest.newBuilder()
+                .setSource(source)
+                .setTarget(target)
+                .build();
+    }
+
     public CopyResponse toCopyResponse(Blob blob) {
         return CopyResponse.builder()
                 .key(blob.getName())
@@ -268,7 +278,17 @@ public class GcpTransformer {
     }
 
     public BlobInfo toBlobInfo(MultipartUpload mpu) {
-        return toBlobInfo(mpu.getKey(), mpu.getMetadata());
+        Map<String, String> metadata = new HashMap<>();
+        if(mpu.getMetadata() != null) {
+            metadata.putAll(mpu.getMetadata());
+        }
+        
+        // Add tags to metadata with TAG_PREFIX
+        if(mpu.getTags() != null && !mpu.getTags().isEmpty()) {
+            mpu.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+        
+        return toBlobInfo(mpu.getKey(), metadata);
     }
 
     public List<BlobId> toBlobIdList(Page<Blob> blobs) {

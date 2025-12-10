@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -526,6 +527,44 @@ public class AwsBlobStoreTest {
     }
 
     @Test
+    void testDoCopyFrom() {
+
+        Instant now = Instant.now();
+        CopyObjectResult mockResult = mock(CopyObjectResult.class);
+        doReturn("eTag-1").when(mockResult).eTag();
+        doReturn(now).when(mockResult).lastModified();
+
+        CopyObjectResponse mockResponse = mock(CopyObjectResponse.class);
+        doReturn(mockResult).when(mockResponse).copyObjectResult();
+        doReturn("copyVersion-1").when(mockResponse).versionId();
+
+        when(mockS3Client.copyObject((CopyObjectRequest) any())).thenReturn(mockResponse);
+
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("src-bucket-1")
+                .srcKey("src-object-1")
+                .srcVersionId("version-1")
+                .destKey("dest-object-1")
+                .build();
+
+        CopyResponse copyResponse = aws.doCopyFrom(copyFromRequest);
+
+        assertEquals("dest-object-1", copyResponse.getKey());
+        assertEquals("copyVersion-1", copyResponse.getVersionId());
+        assertEquals("eTag-1", copyResponse.getETag());
+        assertEquals(now, copyResponse.getLastModified());
+
+        ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor = ArgumentCaptor.forClass(CopyObjectRequest.class);
+        verify(mockS3Client, times(1)).copyObject(copyObjectRequestCaptor.capture());
+        CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
+        assertEquals("src-bucket-1", actualCopyObjectRequest.sourceBucket());
+        assertEquals("src-object-1", actualCopyObjectRequest.sourceKey());
+        assertEquals("version-1", actualCopyObjectRequest.sourceVersionId());
+        assertEquals("bucket-1", actualCopyObjectRequest.destinationBucket());
+        assertEquals("dest-object-1", actualCopyObjectRequest.destinationKey());
+    }
+
+    @Test
     void testDoGetMetadata() {
         Instant now = Instant.now();
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
@@ -735,6 +774,41 @@ public class AwsBlobStoreTest {
         assertEquals("bucket-1", response.getBucket());
         assertEquals("mpu-id", response.getId());
         assertEquals(kmsKeyId, response.getKmsKeyId());
+    }
+
+    @Test
+    void testDoInitiateMultipartUploadWithTags() {
+        CreateMultipartUploadResponse mockResponse = mock(CreateMultipartUploadResponse.class);
+        doReturn("bucket-1").when(mockResponse).bucket();
+        doReturn("object-1").when(mockResponse).key();
+        doReturn("mpu-id").when(mockResponse).uploadId();
+        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Map<String, String> tags = Map.of("tag-1", "tag-value-1", "tag-2", "tag-value-2");
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        MultipartUpload response = aws.initiateMultipartUpload(request);
+
+        // Verify the request is mapped to the SDK with tags
+        ArgumentCaptor<CreateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mockS3Client, times(1)).createMultipartUpload(requestCaptor.capture());
+        CreateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals(metadata, actualRequest.metadata());
+        // Verify tagging header is set (tagging() returns String in AWS SDK)
+        assertNotNull(actualRequest.tagging());
+        assertFalse(actualRequest.tagging().isEmpty());
+
+        // Verify the response is mapped back properly with tags
+        assertEquals("object-1", response.getKey());
+        assertEquals("bucket-1", response.getBucket());
+        assertEquals("mpu-id", response.getId());
+        assertEquals(tags, response.getTags());
     }
 
     @Test

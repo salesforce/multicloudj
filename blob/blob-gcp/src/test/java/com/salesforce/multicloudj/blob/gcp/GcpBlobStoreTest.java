@@ -16,6 +16,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -654,6 +655,35 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoCopyFrom() {
+        // Given
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("source-bucket")
+                .srcKey("source-key")
+                .destKey("dest-key")
+                .build();
+
+        CopyResponse expectedResponse = CopyResponse.builder()
+                .key(TEST_KEY)
+                .versionId(TEST_VERSION_ID)
+                .eTag(TEST_ETAG)
+                .build();
+
+        when(mockTransformer.toCopyRequest(copyFromRequest)).thenReturn(mockCopyRequest);
+        when(mockStorage.copy(mockCopyRequest)).thenReturn(mockCopyWriter);
+        when(mockCopyWriter.getResult()).thenReturn(mockBlob);
+        when(mockTransformer.toCopyResponse(mockBlob)).thenReturn(expectedResponse);
+
+        // When
+        CopyResponse response = gcpBlobStore.doCopyFrom(copyFromRequest);
+
+        // Then
+        assertEquals(expectedResponse, response);
+        verify(mockStorage).copy(mockCopyRequest);
+        verify(mockTransformer).toCopyResponse(mockBlob);
+    }
+
+    @Test
     void testDoGetMetadata() {
         // Given
         BlobMetadata expectedMetadata = BlobMetadata.builder()
@@ -1034,6 +1064,23 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithTags() {
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withMetadata(Map.of("key1","value1","key2","value2"))
+                .withTags(tags)
+                .build();
+
+        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        assertEquals(TEST_BUCKET, mpu.getBucket());
+        assertEquals(TEST_KEY, mpu.getKey());
+        assertEquals(tags, mpu.getTags());
+        assertNotNull(mpu.getId());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
             UploadRequest uploadRequest = UploadRequest.builder()
@@ -1083,6 +1130,34 @@ class GcpBlobStoreTest {
 
         MultipartUploadResponse response = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
 
+        assertEquals(TEST_ETAG, response.getEtag());
+    }
+
+    @Test
+    void testDoCompleteMultipartUploadWithTags() {
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("id")
+                .tags(tags)
+                .build();
+        List<UploadPartResponse> parts = List.of(new UploadPartResponse(1,"etag", 100));
+        Blob mockBlob = mock(Blob.class);
+        doReturn(TEST_ETAG).when(mockBlob).getEtag();
+        doReturn(mockBlob).when(mockStorage).compose(any());
+        when(mockTransformer.toPartName(any(MultipartUpload.class), anyInt())).thenCallRealMethod();
+        BlobInfo blobInfoWithTags = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY)
+                .setMetadata(Map.of("gcp-tag-tag1", "value1", "gcp-tag-tag2", "value2"))
+                .build();
+        when(mockTransformer.toBlobInfo(mpu)).thenReturn(blobInfoWithTags);
+
+        ArgumentCaptor<Storage.ComposeRequest> composeRequestCaptor = ArgumentCaptor.forClass(Storage.ComposeRequest.class);
+        MultipartUploadResponse response = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        verify(mockStorage).compose(composeRequestCaptor.capture());
+        Storage.ComposeRequest composeRequest = composeRequestCaptor.getValue();
+        assertEquals(blobInfoWithTags, composeRequest.getTarget());
         assertEquals(TEST_ETAG, response.getEtag());
     }
 

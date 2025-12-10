@@ -105,6 +105,16 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
         return UnknownException.class;
     }
 
+    /**
+     * Closes the underlying OSS client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
+    }
+
     public static class Builder extends AbstractBlobClient.Builder<AliBlobClient> {
 
         public Builder() {

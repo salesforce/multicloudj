@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -302,6 +303,19 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * Copies a Blob from a source bucket to the current bucket
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
+        CopyObjectResult result = ossClient.copyObject(copyRequest);
+        return transformer.toCopyResponse(request.getDestKey(), result);
+    }
+
+    /**
      * Retrieves the Blob metadata
      *
      * @param key Key of the Blob whose metadata is to be retrieved
@@ -459,6 +473,16 @@ public class AliBlobStore extends AbstractBlobStore {
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {
         return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
+    }
+
+    /**
+     * Closes the underlying OSS client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
     }
 
     @Getter

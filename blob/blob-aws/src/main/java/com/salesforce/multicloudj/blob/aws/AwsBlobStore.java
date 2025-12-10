@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -26,11 +27,11 @@ import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -76,14 +77,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import software.amazon.awssdk.core.ResponseInputStream;
 
 /**
  * AWS implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
-
     private final S3Client s3Client;
     private final AwsTransformer transformer;
 
@@ -181,11 +180,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadResponse doUpload(UploadRequest uploadRequest, RequestBody requestBody) {
         PutObjectRequest request = transformer.toRequest(uploadRequest);
         PutObjectResponse response = s3Client.putObject(request, requestBody);
-        return UploadResponse.builder()
-                .key(uploadRequest.getKey())
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .build();
+        return transformer.toUploadResponse(uploadRequest.getKey(), response);
     }
 
     /**
@@ -290,12 +285,20 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected CopyResponse doCopy(CopyRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return CopyResponse.builder()
-                .key(request.getDestKey())
-                .versionId(copyResponse.versionId())
-                .eTag(copyResponse.copyObjectResult().eTag())
-                .lastModified(copyResponse.copyObjectResult().lastModified())
-                .build();
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
+    }
+
+    /**
+     * Copies a Blob from a source bucket to the current bucket
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        CopyObjectRequest copyRequest = transformer.toRequest(request);
+        CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
     }
 
     /**
@@ -311,16 +314,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         HeadObjectRequest request = transformer.toHeadRequest(key, versionId);
         HeadObjectResponse response = s3Client.headObject(request);
-        String eTag = response.eTag();
-        return BlobMetadata.builder()
-                .key(key)
-                .versionId(response.versionId())
-                .eTag(eTag)
-                .objectSize(response.contentLength())
-                .metadata(response.metadata())
-                .lastModified(response.lastModified())
-                .md5(transformer.eTagToMD5(eTag))
-                .build();
+        return transformer.toMetadata(response, key);
     }
 
     /**
@@ -365,13 +359,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
-        return MultipartUpload.builder()
-                .bucket(createMultipartUploadResponse.bucket())
-                .key(createMultipartUploadResponse.key())
-                .id(createMultipartUploadResponse.uploadId())
-                .metadata(request.getMetadata())
-                .kmsKeyId(request.getKmsKeyId())
-                .build();
+        return transformer.toMultipartUpload(request, createMultipartUploadResponse);
     }
 
     /**
@@ -385,7 +373,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
         var uploadPartResponse = s3Client.uploadPart(uploadPartRequest, RequestBody.fromInputStream(mpp.getInputStream(), mpp.getContentLength()));
-        return new UploadPartResponse(mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
+        return transformer.toUploadPartResponse(mpp, uploadPartResponse);
     }
 
     /**
@@ -399,7 +387,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
         CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
         CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-        return new MultipartUploadResponse(completeMultipartUploadResponse.eTag());
+        return transformer.toMultipartUploadResponse(completeMultipartUploadResponse);
     }
 
     /**
@@ -497,6 +485,16 @@ public class AwsBlobStore extends AbstractBlobStore {
                 return false;
             }
             throw e;
+        }
+    }
+
+    /**
+     * Closes the underlying S3 client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
         }
     }
 

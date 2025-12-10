@@ -18,7 +18,7 @@ import java.util.Map;
  * Base class for substrate-specific implementations.AbstractBlobStore
  * This class serves the purpose of providing common (i.e. substrate-agnostic) functionality
  */
-public abstract class AbstractBlobStore implements BlobStore {
+public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
     @Getter
     private final String providerId;
@@ -159,6 +159,15 @@ public abstract class AbstractBlobStore implements BlobStore {
     public CopyResponse copy(CopyRequest request) {
         validator.validate(request);
         return doCopy(request);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CopyResponse copyFrom(CopyFromRequest request) {
+        validator.validate(request);
+        return doCopyFrom(request);
     }
 
     /**
@@ -317,6 +326,8 @@ public abstract class AbstractBlobStore implements BlobStore {
     protected abstract void doDelete(Collection<BlobIdentifier> objects);
 
     protected abstract CopyResponse doCopy(CopyRequest request);
+
+    protected abstract CopyResponse doCopyFrom(CopyFromRequest request);
 
     protected abstract BlobMetadata doGetMetadata(String key, String versionId);
 

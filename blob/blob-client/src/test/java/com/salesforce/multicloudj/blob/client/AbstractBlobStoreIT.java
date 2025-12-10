@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -32,9 +33,10 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,6 +64,7 @@ import java.util.stream.Collectors;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobStoreIT {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBlobStoreIT.class);
 
     // Define the Harness interface
     public interface Harness extends AutoCloseable {
@@ -1249,6 +1252,189 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    public void testCopyFrom() throws IOException {
+
+        String key = "conformance-tests/blob-for-copyFrom";
+        String destKey = "conformance-tests/copied-from-blob";
+        String blobToClobber = "conformance-tests/clobbered-from-blob";
+
+        // Create a single BucketClient - we'll copy within the same bucket
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+
+            // Try copying from a non-existent source
+            boolean copyFailed = false;
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey("blob-that-doesnt-exist")
+                        .destKey(destKey)
+                        .build();
+                bucketClient.copyFrom(copyRequest);
+            } catch (Throwable t) {
+                copyFailed = true;
+            }
+            Assertions.assertTrue(copyFailed, "testCopyFrom: Should have failed when copying a non-existent blob");
+
+            // Upload a blob so we can have something to copy
+            byte[] blobBytes = "Please copy this data!".getBytes(StandardCharsets.UTF_8);
+            try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(blobBytes.length)
+                        .withMetadata(Map.of("key1", "value1", "key2", "value2"))
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // Try copying from a non-existent source bucket
+            copyFailed = false;
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket("bucketThatDoesntExist")
+                        .srcKey(key)
+                        .destKey(destKey)
+                        .build();
+                bucketClient.copyFrom(copyRequest);
+            } catch (Throwable t) {
+                copyFailed = true;
+            }
+            Assertions.assertTrue(copyFailed, "testCopyFrom: Should have failed when copying from a non-existent bucket");
+
+            // Do a happy-path copyFrom within the same bucket
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey(key)
+                        .destKey(destKey)
+                        .build();
+                CopyResponse copyResponse = bucketClient.copyFrom(copyRequest);
+                Assertions.assertEquals(destKey, copyResponse.getKey());
+                Assertions.assertNotNull(copyResponse.getLastModified());
+                Assertions.assertNotNull(copyResponse.getETag());
+            } catch (Throwable t) {
+                Assertions.fail("testCopyFrom: Failed to copy blob " + t.getMessage());
+            }
+            verifyBlobCopy(bucketClient, key, null, destKey);
+
+            // Now test using the copyFrom operation to overwrite an existing blob
+            // Create a blob that we'll overwrite
+            byte[] clobberBlobBytes = "Clobber this blob!".getBytes(StandardCharsets.UTF_8);
+            try (InputStream inputStream = new ByteArrayInputStream(clobberBlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(blobToClobber)
+                        .withContentLength(clobberBlobBytes.length)
+                        .withMetadata(Map.of("key3", "value3", "key4", "value4"))
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // CopyFrom to overwrite that blob
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey(key)
+                        .destKey(blobToClobber)
+                        .build();
+                CopyResponse copyResponse = bucketClient.copyFrom(copyRequest);
+                Assertions.assertEquals(blobToClobber, copyResponse.getKey());
+                Assertions.assertNotNull(copyResponse.getLastModified());
+                Assertions.assertNotNull(copyResponse.getETag());
+            } catch (Throwable t) {
+                Assertions.fail("testCopyFrom: Failed to copy blob " + t.getMessage());
+            }
+            verifyBlobCopy(bucketClient, key, null, blobToClobber);
+        } finally {
+            // Delete our blobs to clean up the test
+            safeDeleteBlobs(bucketClient, key, destKey, blobToClobber);
+        }
+    }
+
+    @Test
+    public void testVersionedCopyFrom() throws IOException {
+
+        String key = "conformance-tests/versionedCopyFrom/blob";
+        String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
+        String destKeyV2 = "conformance-tests/versionedCopyFrom/copied-from-blob-v2";
+        String destKeyLatest = "conformance-tests/versionedCopyFrom/copied-from-blob-latest";
+
+        // Create a single BucketClient - we'll copy within the same bucket
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload a blob so we can have something to copy
+            byte[] v1BlobBytes = "Version 1 of blob for copyFrom".getBytes(StandardCharsets.UTF_8);
+            UploadResponse uploadResponseV1;
+            try (InputStream inputStream = new ByteArrayInputStream(v1BlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(v1BlobBytes.length)
+                        .build();
+                uploadResponseV1 = bucketClient.upload(request, inputStream);
+            }
+
+            // Upload another version of the same blob
+            byte[] v2BlobBytes = "Version 2 of blob for copyFrom".getBytes(StandardCharsets.UTF_8);
+            UploadResponse uploadResponseV2;
+            try (InputStream inputStream = new ByteArrayInputStream(v2BlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(v2BlobBytes.length)
+                        .build();
+                uploadResponseV2 = bucketClient.upload(request, inputStream);
+            }
+
+            // Copy the first version of the blob
+            CopyFromRequest copyRequestV1 = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .srcVersionId(uploadResponseV1.getVersionId())
+                    .destKey(destKeyV1)
+                    .build();
+            CopyResponse copyResponse1 = bucketClient.copyFrom(copyRequestV1);
+            Assertions.assertEquals(destKeyV1, copyResponse1.getKey());
+            Assertions.assertNotNull(copyResponse1.getLastModified());
+            Assertions.assertNotNull(copyResponse1.getETag());
+
+            // Verify that the copied blob matches V1
+            verifyBlobCopy(bucketClient, key, uploadResponseV1.getVersionId(), destKeyV1);
+
+            // Copy the second version of the blob
+            CopyFromRequest copyRequestV2 = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .srcVersionId(uploadResponseV2.getVersionId())
+                    .destKey(destKeyV2)
+                    .build();
+            CopyResponse copyResponse2 = bucketClient.copyFrom(copyRequestV2);
+            Assertions.assertEquals(destKeyV2, copyResponse2.getKey());
+            Assertions.assertNotNull(copyResponse2.getLastModified());
+            Assertions.assertNotNull(copyResponse2.getETag());
+
+            // Verify that the copied blob matches V2
+            verifyBlobCopy(bucketClient, key, uploadResponseV2.getVersionId(), destKeyV2);
+
+            // Try copying without specifying the version (this should use the latest)
+            CopyFromRequest copyRequestLatest = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .destKey(destKeyLatest)
+                    .build();
+            CopyResponse copyResponse3 = bucketClient.copyFrom(copyRequestLatest);
+            Assertions.assertEquals(destKeyLatest, copyResponse3.getKey());
+            Assertions.assertNotNull(copyResponse3.getLastModified());
+            Assertions.assertNotNull(copyResponse3.getETag());
+            verifyBlobCopy(bucketClient, key, uploadResponseV2.getVersionId(), destKeyLatest);
+        } finally {
+            // Delete our blobs to clean up the test
+            safeDeleteBlobs(bucketClient, key, destKeyV1, destKeyV2, destKeyLatest);
+        }
+    }
+
+    @Test
     public void testList() throws IOException {
         Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
@@ -1638,6 +1824,7 @@ public abstract class AbstractBlobStoreIT {
         final boolean abortUpload;
         final boolean wantCompletionError;
         final String kmsKeyId;
+        final Map<String, String> tags;
 
         public MultipartUploadTestConfig(String testName,
                           String key,
@@ -1646,7 +1833,7 @@ public abstract class AbstractBlobStoreIT {
                           List<MultipartUploadPartResult> partsToComplete,
                           boolean abortUpload,
                           boolean wantCompletionError) {
-            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null);
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null, null);
         }
 
         public MultipartUploadTestConfig(String testName,
@@ -1657,6 +1844,18 @@ public abstract class AbstractBlobStoreIT {
                           boolean abortUpload,
                           boolean wantCompletionError,
                           String kmsKeyId) {
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, kmsKeyId, null);
+        }
+
+        public MultipartUploadTestConfig(String testName,
+                          String key,
+                          Map<String,String> metadata,
+                          List<MultipartUploadTestPart> partsToUpload,
+                          List<MultipartUploadPartResult> partsToComplete,
+                          boolean abortUpload,
+                          boolean wantCompletionError,
+                          String kmsKeyId,
+                          Map<String, String> tags) {
             this.testName = testName;
             this.key = key;
             this.metadata = metadata;
@@ -1665,6 +1864,7 @@ public abstract class AbstractBlobStoreIT {
             this.abortUpload = abortUpload;
             this.wantCompletionError = wantCompletionError;
             this.kmsKeyId = kmsKeyId;
+            this.tags = tags;
         }
     }
 
@@ -1683,6 +1883,9 @@ public abstract class AbstractBlobStoreIT {
                     .withMetadata(testConfig.metadata);
             if (testConfig.kmsKeyId != null) {
                 requestBuilder.withKmsKeyId(testConfig.kmsKeyId);
+            }
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                requestBuilder.withTags(testConfig.tags);
             }
             MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
             mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
@@ -1730,6 +1933,8 @@ public abstract class AbstractBlobStoreIT {
                 bucketClient.completeMultipartUpload(mpu, partResponsesToComplete);
             }
             catch(Throwable t){
+                logger.error("Multipart upload completion failed - Upload ID: {}, Key: {}, Error: {}", 
+                        mpu.getId(), mpu.getKey(), t.getMessage(), t);
                 Assertions.assertTrue(testConfig.wantCompletionError, testConfig.testName + ": completeMultipartUpload() produced unexpected error " + t.getMessage());
                 completionFailed = true;
             }
@@ -1739,7 +1944,24 @@ public abstract class AbstractBlobStoreIT {
             }
 
             BlobMetadata blobMetadata = bucketClient.getMetadata(testConfig.key, null);
-            Assertions.assertEquals(testConfig.metadata, blobMetadata.getMetadata(), testConfig.testName + ": Downloaded metadata did not match");
+            Map<String, String> actualMetadata = blobMetadata.getMetadata();
+            
+            // For GCP, tags are stored as metadata with "gcp-tag-" prefix, so we need to filter them out
+            // when comparing metadata
+            if (GCP_PROVIDER_ID.equals(harness.getProviderId()) && testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                String tagPrefix = "gcp-tag-";
+                actualMetadata = actualMetadata.entrySet().stream()
+                        .filter(entry -> !entry.getKey().startsWith(tagPrefix))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+            
+            Assertions.assertEquals(testConfig.metadata, actualMetadata, testConfig.testName + ": Downloaded metadata did not match");
+
+            // Verify tags if they were provided
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                Map<String, String> tagResults = bucketClient.getTags(testConfig.key);
+                Assertions.assertEquals(testConfig.tags, tagResults, testConfig.testName + ": Tags did not match what was uploaded");
+            }
         }
         finally {
             // Now delete all blobs that were created
@@ -2001,6 +2223,23 @@ public abstract class AbstractBlobStoreIT {
                         new MultipartUploadPartResult(1, true),
                         new MultipartUploadPartResult(2, true)),
                 false, false, kmsKeyId));
+    }
+
+    //@Test
+    public void testMultipartUpload_withTags() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
+        Map<String, String> tags = Map.of("tag1", "value1");
+        runMultipartUploadTest(new MultipartUploadTestConfig(
+                "multipart with tags", expectedKey,
+                Map.of("key1", "value1"),
+                List.of(
+                        new MultipartUploadTestPart(1, multipartBytes1),
+                        new MultipartUploadTestPart(2, multipartBytes2)),
+                List.of(
+                        new MultipartUploadPartResult(1, true),
+                        new MultipartUploadPartResult(2, true)),
+                false, false, null, tags));
     }
 
     @Test
