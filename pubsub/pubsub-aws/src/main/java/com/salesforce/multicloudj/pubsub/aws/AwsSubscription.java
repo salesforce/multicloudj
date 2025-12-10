@@ -433,7 +433,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         private boolean nackLazy = false;
         private long waitTimeSeconds = 0;
         private SqsClient sqsClient;
-        private String subscriptionUrl;
+        protected String subscriptionUrl; 
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
@@ -451,15 +451,6 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         
         public Builder withSqsClient(SqsClient sqsClient) {
             this.sqsClient = sqsClient;
-            return this;
-        }
-        
-        /**
-         * Directly set the subscription URL to avoid calling GetQueueUrl again.
-         * Used when the queue URL has already been resolved 
-         */
-        Builder withSubscriptionUrl(String subscriptionUrl) {
-            this.subscriptionUrl = subscriptionUrl;
             return this;
         }
         

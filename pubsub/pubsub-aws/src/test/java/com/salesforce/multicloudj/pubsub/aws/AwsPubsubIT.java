@@ -149,7 +149,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
             subscriptionBuilder.withSqsClient(sqsClient);
-            subscriptionBuilder.withSubscriptionUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
+            subscriptionBuilder.subscriptionUrl = cachedQueueUrl;
 
             subscriptionBuilder.build(); // This will use the cached URL, not call GetQueueUrl
             subscription = new AwsSubscription(subscriptionBuilder) {
