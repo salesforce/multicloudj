@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
 
+    protected static final String AWS_PROVIDER_ID = "aws";
 
     public interface Harness extends AutoCloseable {
 
@@ -345,6 +347,62 @@ public abstract class AbstractPubsubIT {
             // Verify that we have the essential attributes
             Assertions.assertNotNull(attributes.getName(), "Should have name attribute");
             Assertions.assertNotNull(attributes.getTopic(), "Should have topic attribute");
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    public void testMultipleSendReceiveWithoutBatch() throws Exception {
+        Assumptions.assumeFalse(AWS_PROVIDER_ID.equals(harness.getProviderId()));
+        try (AbstractTopic topic = harness.createTopicDriver();
+             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+
+            int numMessages = 5;
+            List<Message> sentMessages = new ArrayList<>();
+            
+            // Send messages one by one (not in batch)
+            for (int i = 0; i < numMessages; i++) {
+                Message message = Message.builder()
+                        .withBody(("non-batch-msg-" + i).getBytes())
+                        .withMetadata(Map.of("index", String.valueOf(i)))
+                        .build();
+                topic.send(message);
+                sentMessages.add(message);
+                TimeUnit.MILLISECONDS.sleep(100); // Small delay between sends
+            }
+
+            TimeUnit.MILLISECONDS.sleep(500); // Allow time for messages to be available
+
+            // Receive and ack messages one by one (not in batch)
+            List<Message> receivedMessages = new ArrayList<>();
+            
+            while (receivedMessages.size() < numMessages) {
+                try {
+                    Message received = subscription.receive();
+                    if (received != null && received.getAckID() != null) {
+                        receivedMessages.add(received);
+                        // Ack immediately after receiving (not in batch)
+                        subscription.sendAck(received.getAckID());
+                        System.out.println("Received and acked message " + receivedMessages.size() + "/" + numMessages);
+                    } else {
+                        TimeUnit.MILLISECONDS.sleep(100);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error receiving message: " + e.getMessage());
+                    TimeUnit.MILLISECONDS.sleep(100);
+                }
+            }
+
+            Assertions.assertEquals(numMessages, receivedMessages.size(),
+                    "Should receive all messages. Expected: " + numMessages + ", Got: " + receivedMessages.size());
+
+            // Verify all messages were received
+            for (int i = 0; i < receivedMessages.size(); i++) {
+                Message received = receivedMessages.get(i);
+                Assertions.assertNotNull(received, "Received message " + i + " should not be null");
+                Assertions.assertNotNull(received.getBody(), "Received message " + i + " body should not be null");
+                Assertions.assertNotNull(received.getAckID(), "Received message " + i + " should have AckID");
+            }
         }
     }
 }

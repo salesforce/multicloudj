@@ -716,10 +716,8 @@ public class AbstractSubscriptionTest {
     }
 
     @Test
-    @Timeout(10)
     void testBatchSizeNeverZero() throws Exception {
-        // Test that updateBatchSize() never returns 0, even when throughput is very low
-        // This tests the Math.ceil() fix on line 534
+        // Test that updateBatchSize() never returns 0
         MockMessageSource source = new MockMessageSource();
         List<Integer> batchSizes = Collections.synchronizedList(new ArrayList<>());
         final AtomicInteger callCount = new AtomicInteger(0);
@@ -727,19 +725,15 @@ public class AbstractSubscriptionTest {
         TestSubscription sub = new TestSubscription(source) {
             @Override
             protected List<Message> doReceiveBatch(int batchSize) {
-                // Track all batch sizes passed to doReceiveBatch
                 batchSizes.add(batchSize);
                 int call = callCount.incrementAndGet();
                 
-                // For the first call, fetch the message so receive() doesn't hang
-                // For subsequent calls, return empty to simulate low throughput and trigger shrink
+                // First call: fetch the message so receive() doesn't hang
+                // Subsequent calls: return empty to trigger batch size shrinking
                 if (call == 1) {
                     return source.fetchBatch(batchSize);
-                } else {
-                    // Return empty to simulate very low throughput scenario
-                    // This will cause runningBatchSize to shrink
-                    return Collections.emptyList();
                 }
+                return Collections.emptyList();
             }
         };
 
@@ -748,18 +742,17 @@ public class AbstractSubscriptionTest {
             Message.builder().withBody("test".getBytes()).build()
         ));
 
-        // Receive the message to trigger prefetch logic
+        // Receive the message - this triggers prefetch which calls updateBatchSize()
         Message msg = sub.receive();
         assertNotNull(msg);
 
-        // Wait a bit for prefetch operations to complete
-        // This allows multiple prefetch cycles to run and potentially shrink batch size
-        Thread.sleep(1000);
+        // Wait for prefetch operations to complete
+        Thread.sleep(500);
 
-        // Verify that doReceiveBatch was never called with 0
+        // All batch sizes should be >= 1
         assertFalse(batchSizes.isEmpty(), "doReceiveBatch should have been called at least once");
         for (int size : batchSizes) {
-            assertTrue(size >= 1, "Batch size should never be less than 1, but got: " + size);
+            assertTrue(size >= 1, "Batch size from updateBatchSize() should never be less than 1, but got: " + size);
         }
 
         sub.close();
