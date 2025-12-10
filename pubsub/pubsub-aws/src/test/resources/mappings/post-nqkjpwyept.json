@@ -1,0 +1,33 @@
+{
+  "id" : "cee9e0dc-c09c-4bd3-b377-cc82f19c3b1f",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.ReceiveMessage"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testBatchNack\",\"AttributeNames\":[\"All\"],\"MessageAttributeNames\":[\"All\"],\"MaxNumberOfMessages\":1,\"WaitTimeSeconds\":1}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROAZQ3DQ6RH5VS566GQT:PCSK-rose.yang@dc6e6680-3d87-4422-89c2-616f44011daf\",\"ApproximateFirstReceiveTimestamp\":\"1765388373154\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1765388371910\"},\"Body\":\"batch-nack-2\",\"MD5OfBody\":\"1fbb80cca63f2742067885e5b9d94d1f\",\"MD5OfMessageAttributes\":\"da9dcd84a1f376f38b79991b79a9d636\",\"MessageAttributes\":{\"batch\":{\"DataType\":\"String\",\"StringValue\":\"nack\"}},\"MessageId\":\"1a27a253-f2b6-4c80-bd12-53b939f24c73\",\"ReceiptHandle\":\"AQEBwlkghOkIFvr5hhIieZGYkn0Oxm4j6sdHu2GxHyDzgXh6L1yJVH4vmHZYu4vz2yzb6heyNucKogEEEprmqGA24YjvpMrMq0MjLLssiSsYXyfk9b7yTs6q2sSUmNbWuePb0oQOcpvXuONrNgZ62NSLgKEKrxAcTwTUP9jJxE+LKEUiKcbSBJMRziq7yBwmcYF56GpRqREzcZ8kzF9JIZSN6x+uMOAbwjHiUUPlyjWXTC+WmmamKFt/SilBEOnAcikr60SRjEYNsIPkGmCS/LYozPxKF3UfWVq20iGd2zQ4Q9T2jsOXrGl9jVdzupiwSUv7byqjIGgjSPGr4VTBpX5YgIHo/IA3dsNYr44eWlE+NYoBHwkwtz5JoGh7JQplUPpXd5vmO2YzY6eg+CX9YKx+fsgUnJxSay2en9udamrTOtg=\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "d2076894-fc08-50aa-ac8f-09274e9dee3a",
+      "Date" : "Wed, 10 Dec 2025 17:39:33 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "cee9e0dc-c09c-4bd3-b377-cc82f19c3b1f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1--2",
+  "insertionIndex" : 38
+}
