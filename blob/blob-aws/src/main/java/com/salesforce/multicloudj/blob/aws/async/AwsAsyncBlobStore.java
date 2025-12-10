@@ -270,12 +270,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     @Override
     protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(MultipartUploadRequest request) {
         return client.createMultipartUpload(transformer.toCreateMultipartUploadRequest(request))
-                .thenApply(response -> MultipartUpload.builder()
-                        .bucket(response.bucket())
-                        .key(response.key())
-                        .id(response.uploadId())
-                        .metadata(request.getMetadata())
-                        .build());
+                .thenApply(response -> transformer.toMultipartUpload(request, response));
     }
 
     @Override
@@ -406,6 +401,19 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                         throw new SubstrateSdkException("Request failed. Reason=" + e.getMessage(), e);
                     }
                 });
+    }
+
+    /**
+     * Closes the underlying S3 async client and transfer manager, releasing any resources.
+     */
+    @Override
+    public void close() {
+        if (transferManager != null) {
+            transferManager.close();
+        }
+        if (client != null) {
+            client.close();
+        }
     }
 
     public static Builder builder() {

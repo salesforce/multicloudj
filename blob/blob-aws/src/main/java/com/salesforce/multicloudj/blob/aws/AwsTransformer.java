@@ -319,6 +319,13 @@ public class AwsTransformer {
                 .key(request.getKey())
                 .metadata(request.getMetadata());
 
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            List<Tag> tags = request.getTags().entrySet().stream()
+                    .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+                    .collect(Collectors.toList());
+            builder.tagging(Tagging.builder().tagSet(tags).build());
+        }
+
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
@@ -522,6 +529,7 @@ public class AwsTransformer {
                 .key(response.key())
                 .id(response.uploadId())
                 .metadata(request.getMetadata())
+                .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
                 .build();
     }

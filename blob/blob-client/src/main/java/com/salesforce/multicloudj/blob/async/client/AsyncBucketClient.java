@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 /**
  * Entry point for async Client code to interact with the Blob storage.
  */
-public class AsyncBucketClient {
+public class AsyncBucketClient implements AutoCloseable {
 
     protected AsyncBlobStore blobStore;
 
@@ -426,6 +426,16 @@ public class AsyncBucketClient {
         return blobStore
                 .deleteDirectory(prefix)
                 .exceptionally(this::handleException);
+    }
+
+    /**
+     * Closes the underlying async blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
+        }
     }
 
     public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {

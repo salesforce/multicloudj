@@ -153,6 +153,11 @@ public class TestBlobStore extends AbstractBlobStore {
         return null;
     }
 
+    @Override
+    public void close() {
+        // Test implementation - no-op
+    }
+
     public static class Builder extends AbstractBlobStore.Builder<TestBlobStore, Builder> {
 
         protected Builder() {
