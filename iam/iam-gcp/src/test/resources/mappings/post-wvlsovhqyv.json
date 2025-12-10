@@ -1,0 +1,30 @@
+{
+  "id" : "2bd9315b-7a98-4be0-888b-0b624db826a9",
+  "name" : "v3_projects_substrate-sdk-gcp-poc1setiampolicy",
+  "request" : {
+    "url" : "/v3/projects/substrate-sdk-gcp-poc1:setIamPolicy?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.policy"
+    }, {
+      "matchesJsonPath" : "$.policy.bindings"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "v3_projects_substrate-sdk-gcp-poc1setiampolicy.json",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 04 Dec 2025 18:04:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "2bd9315b-7a98-4be0-888b-0b624db826a9",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

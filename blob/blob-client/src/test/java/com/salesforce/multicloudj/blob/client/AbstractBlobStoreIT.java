@@ -35,6 +35,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,6 +64,7 @@ import java.util.stream.Collectors;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobStoreIT {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBlobStoreIT.class);
 
     // Define the Harness interface
     public interface Harness extends AutoCloseable {
@@ -1821,6 +1824,7 @@ public abstract class AbstractBlobStoreIT {
         final boolean abortUpload;
         final boolean wantCompletionError;
         final String kmsKeyId;
+        final Map<String, String> tags;
 
         public MultipartUploadTestConfig(String testName,
                           String key,
@@ -1829,7 +1833,7 @@ public abstract class AbstractBlobStoreIT {
                           List<MultipartUploadPartResult> partsToComplete,
                           boolean abortUpload,
                           boolean wantCompletionError) {
-            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null);
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null, null);
         }
 
         public MultipartUploadTestConfig(String testName,
@@ -1840,6 +1844,18 @@ public abstract class AbstractBlobStoreIT {
                           boolean abortUpload,
                           boolean wantCompletionError,
                           String kmsKeyId) {
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, kmsKeyId, null);
+        }
+
+        public MultipartUploadTestConfig(String testName,
+                          String key,
+                          Map<String,String> metadata,
+                          List<MultipartUploadTestPart> partsToUpload,
+                          List<MultipartUploadPartResult> partsToComplete,
+                          boolean abortUpload,
+                          boolean wantCompletionError,
+                          String kmsKeyId,
+                          Map<String, String> tags) {
             this.testName = testName;
             this.key = key;
             this.metadata = metadata;
@@ -1848,6 +1864,7 @@ public abstract class AbstractBlobStoreIT {
             this.abortUpload = abortUpload;
             this.wantCompletionError = wantCompletionError;
             this.kmsKeyId = kmsKeyId;
+            this.tags = tags;
         }
     }
 
@@ -1866,6 +1883,9 @@ public abstract class AbstractBlobStoreIT {
                     .withMetadata(testConfig.metadata);
             if (testConfig.kmsKeyId != null) {
                 requestBuilder.withKmsKeyId(testConfig.kmsKeyId);
+            }
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                requestBuilder.withTags(testConfig.tags);
             }
             MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
             mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
@@ -1913,6 +1933,8 @@ public abstract class AbstractBlobStoreIT {
                 bucketClient.completeMultipartUpload(mpu, partResponsesToComplete);
             }
             catch(Throwable t){
+                logger.error("Multipart upload completion failed - Upload ID: {}, Key: {}, Error: {}", 
+                        mpu.getId(), mpu.getKey(), t.getMessage(), t);
                 Assertions.assertTrue(testConfig.wantCompletionError, testConfig.testName + ": completeMultipartUpload() produced unexpected error " + t.getMessage());
                 completionFailed = true;
             }
@@ -1922,7 +1944,24 @@ public abstract class AbstractBlobStoreIT {
             }
 
             BlobMetadata blobMetadata = bucketClient.getMetadata(testConfig.key, null);
-            Assertions.assertEquals(testConfig.metadata, blobMetadata.getMetadata(), testConfig.testName + ": Downloaded metadata did not match");
+            Map<String, String> actualMetadata = blobMetadata.getMetadata();
+            
+            // For GCP, tags are stored as metadata with "gcp-tag-" prefix, so we need to filter them out
+            // when comparing metadata
+            if (GCP_PROVIDER_ID.equals(harness.getProviderId()) && testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                String tagPrefix = "gcp-tag-";
+                actualMetadata = actualMetadata.entrySet().stream()
+                        .filter(entry -> !entry.getKey().startsWith(tagPrefix))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+            
+            Assertions.assertEquals(testConfig.metadata, actualMetadata, testConfig.testName + ": Downloaded metadata did not match");
+
+            // Verify tags if they were provided
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                Map<String, String> tagResults = bucketClient.getTags(testConfig.key);
+                Assertions.assertEquals(testConfig.tags, tagResults, testConfig.testName + ": Tags did not match what was uploaded");
+            }
         }
         finally {
             // Now delete all blobs that were created
@@ -2184,6 +2223,23 @@ public abstract class AbstractBlobStoreIT {
                         new MultipartUploadPartResult(1, true),
                         new MultipartUploadPartResult(2, true)),
                 false, false, kmsKeyId));
+    }
+
+    //@Test
+    public void testMultipartUpload_withTags() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
+        Map<String, String> tags = Map.of("tag1", "value1");
+        runMultipartUploadTest(new MultipartUploadTestConfig(
+                "multipart with tags", expectedKey,
+                Map.of("key1", "value1"),
+                List.of(
+                        new MultipartUploadTestPart(1, multipartBytes1),
+                        new MultipartUploadTestPart(2, multipartBytes2)),
+                List.of(
+                        new MultipartUploadPartResult(1, true),
+                        new MultipartUploadPartResult(2, true)),
+                false, false, null, tags));
     }
 
     @Test

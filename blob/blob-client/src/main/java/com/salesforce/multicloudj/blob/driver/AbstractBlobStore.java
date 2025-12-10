@@ -18,7 +18,7 @@ import java.util.Map;
  * Base class for substrate-specific implementations.AbstractBlobStore
  * This class serves the purpose of providing common (i.e. substrate-agnostic) functionality
  */
-public abstract class AbstractBlobStore implements BlobStore {
+public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
     @Getter
     private final String providerId;
