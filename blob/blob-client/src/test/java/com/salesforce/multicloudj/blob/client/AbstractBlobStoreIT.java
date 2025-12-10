@@ -2590,6 +2590,22 @@ public abstract class AbstractBlobStoreIT {
         }
     }
 
+    @Test
+    void testDoesBucketExist() {
+        // Test with a valid bucket - should return true
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+        Assertions.assertTrue(bucketClient.doesBucketExist());
+    }
+
+    @Test
+    void testDoesBucketExist_NonExistentBucket() {
+        // Test with a non-existent bucket - should return false
+        AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+        Assertions.assertFalse(bucketClient.doesBucketExist());
+    }
+
     /**
      * Helper function for uploading to a presignedUrl
      */
