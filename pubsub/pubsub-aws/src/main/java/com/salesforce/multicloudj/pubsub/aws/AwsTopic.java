@@ -24,6 +24,8 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 
 class MetadataKeys {
     public static final String DEDUPLICATION_ID = "DeduplicationId";
@@ -37,6 +39,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
 
     private static final int MAX_SQS_ATTRIBUTES = 10;
     private final SqsClient sqsClient;
+    private final String topicUrl;
 
     public AwsTopic() {
         this(new Builder());
@@ -45,6 +48,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     public AwsTopic(Builder builder) {
         super(builder);
         this.sqsClient = builder.sqsClient;
+        this.topicUrl = builder.topicUrl;
     }
 
     /**
@@ -105,7 +109,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
 
         SendMessageBatchRequest batchRequest = SendMessageBatchRequest.builder()
-            .queueUrl(topicName)
+            .queueUrl(topicUrl)
             .entries(entries)
             .build();
 
@@ -168,22 +172,22 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     /**
-     * Validates that the topic name is in the correct AWS SQS URL format.
+     * Validates that the topic name is a queue name
      */
     static void validateTopicName(String topicName) {
-        if (topicName == null) {
-            throw new InvalidArgumentException("SQS topic name cannot be null");
+        if (topicName == null || topicName.trim().isEmpty()) {
+            throw new InvalidArgumentException("SQS topic name cannot be null or empty");
         }
-        if (topicName.trim().isEmpty()) {
-            throw new InvalidArgumentException("SQS topic name cannot be empty");
-        }
-
-        // Validate SQS URL format: https://sqs.region.amazonaws.com/account/queue-name
-        String sqsUrlPattern = "https://sqs\\.[^/]+\\.amazonaws\\.com/[^/]+/.+";
-        if (!topicName.matches(sqsUrlPattern)) {
-            throw new InvalidArgumentException(
-                    "SQS topic name must be in format: https://sqs.region.amazonaws.com/account/queue-name, got: " + topicName);
-        }
+    }
+    
+    static String getQueueUrl(String queueName, SqsClient sqsClient) 
+            throws AwsServiceException, SdkClientException {
+        GetQueueUrlRequest request = GetQueueUrlRequest.builder()
+            .queueName(queueName)
+            .build();
+        
+        GetQueueUrlResponse response = sqsClient.getQueueUrl(request);
+        return response.queueUrl();
     }
 
     /**
@@ -322,6 +326,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     
     public static class Builder extends AbstractTopic.Builder<AwsTopic> {
         private SqsClient sqsClient;
+        private String topicUrl;
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
@@ -329,6 +334,15 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         
         public Builder withSqsClient(SqsClient sqsClient) {
             this.sqsClient = sqsClient;
+            return this;
+        }
+        
+        /**
+         * Directly set the topic URL to avoid calling GetQueueUrl again.
+         * Used when the queue URL has already been resolved
+         */
+        Builder withTopicUrl(String topicUrl) {
+            this.topicUrl = topicUrl;
             return this;
         }
         
@@ -345,6 +359,12 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             if (sqsClient == null) {
                 sqsClient = buildSqsClient(this);
             }
+            
+            // get the full queue URL from the queue name 
+            if (this.topicUrl == null) {
+                this.topicUrl = getQueueUrl(this.topicName, sqsClient);
+            }
+            
             return new AwsTopic(this);
         }
     }

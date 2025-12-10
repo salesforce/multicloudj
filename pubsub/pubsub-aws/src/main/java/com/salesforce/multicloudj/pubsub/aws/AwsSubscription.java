@@ -28,6 +28,8 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
@@ -47,6 +49,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     private final SqsClient sqsClient;
     private final boolean nackLazy;
     private final long waitTimeSeconds;
+    private final String subscriptionUrl;
     
     public AwsSubscription() {
         this(new Builder());
@@ -57,6 +60,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         this.nackLazy = builder.nackLazy;
         this.waitTimeSeconds = builder.waitTimeSeconds;
         this.sqsClient = builder.sqsClient;
+        this.subscriptionUrl = builder.subscriptionUrl;
     }
 
     @Override
@@ -81,7 +85,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                     .build());
             }
             DeleteMessageBatchRequest request = DeleteMessageBatchRequest.builder()
-                .queueUrl(subscriptionName)
+                .queueUrl(subscriptionUrl)
                 .entries(entries)
                 .build();
             
@@ -124,7 +128,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                     .build());
             }
             ChangeMessageVisibilityBatchRequest request = ChangeMessageVisibilityBatchRequest.builder()
-                .queueUrl(subscriptionName)
+                .queueUrl(subscriptionUrl)
                 .entries(entries)
                 .build();
             
@@ -147,7 +151,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     @Override
     protected List<Message> doReceiveBatch(int batchSize) {
         ReceiveMessageRequest.Builder requestBuilder = ReceiveMessageRequest.builder()
-            .queueUrl(subscriptionName)
+            .queueUrl(subscriptionUrl)
             .maxNumberOfMessages(Math.min(batchSize, 10)) // SQS supports max 10 messages
             .messageAttributeNames("All")
             .attributeNames(QueueAttributeName.ALL);
@@ -310,10 +314,16 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         if (subscriptionName == null || subscriptionName.trim().isEmpty()) {
             throw new InvalidArgumentException("Subscription name cannot be null or empty");
         }
-        if (!subscriptionName.startsWith("https://sqs.") || !subscriptionName.contains(".amazonaws.com/")) {
-            throw new InvalidArgumentException(
-                "Subscription name must be in format: https://sqs.region.amazonaws.com/account/queue-name, got: " + subscriptionName);
-        }
+    }
+
+    static String getQueueUrl(String queueName, SqsClient sqsClient) 
+            throws AwsServiceException, SdkClientException {
+        GetQueueUrlRequest request = GetQueueUrlRequest.builder()
+            .queueName(queueName)
+            .build();
+        
+        GetQueueUrlResponse response = sqsClient.getQueueUrl(request);
+        return response.queueUrl();
     }
 
     @Override
@@ -349,7 +359,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     public GetAttributeResult getAttributes() {
         try {
             GetQueueAttributesRequest request = GetQueueAttributesRequest.builder()
-                .queueUrl(subscriptionName)
+                .queueUrl(subscriptionUrl)
                 .attributeNames(QueueAttributeName.QUEUE_ARN)
                 .build();
             
@@ -361,7 +371,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             
             // Return subscription name (queue URL) as name, and queue ARN as topic
             return new GetAttributeResult.Builder()
-                .name(subscriptionName)
+                .name(subscriptionUrl)
                 .topic(queueArn)
                 .build();
         } catch (AwsServiceException | SdkClientException e) {
@@ -423,6 +433,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         private boolean nackLazy = false;
         private long waitTimeSeconds = 0;
         private SqsClient sqsClient;
+        protected String subscriptionUrl; 
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
@@ -457,6 +468,12 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             if (sqsClient == null) {
                 sqsClient = buildSqsClient(this);
             }
+            
+            // get the full queue URL from the queue name
+            if (this.subscriptionUrl == null) {
+                this.subscriptionUrl = getQueueUrl(subscriptionName, sqsClient);
+            }
+            
             return new AwsSubscription(this);
         }
     }
