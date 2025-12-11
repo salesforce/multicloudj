@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.19](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.18...multicloudj-v0.2.19) (2025-12-11)
+
+
+### Blob Store
+
+* Implement the DoesBucketExist for Blob ([#195](https://github.com/salesforce/multicloudj/issues/195)) ([a6ad1d7](https://github.com/salesforce/multicloudj/commit/a6ad1d79787e75ec35e6e95f9b72afa3c56b96bf))
+* make blob store autocloseable throughout ([#194](https://github.com/salesforce/multicloudj/issues/194)) ([3610b57](https://github.com/salesforce/multicloudj/commit/3610b57bac3b9fe27fc1f92c97e19452c31d6a43))
+* support copy from different source bucket ([#190](https://github.com/salesforce/multicloudj/issues/190)) ([40e6f4c](https://github.com/salesforce/multicloudj/commit/40e6f4c270dea745e36ae7e35cc7e04adb7d1d94))
+* support tagging for multipart upload in AWS and GCP ([#172](https://github.com/salesforce/multicloudj/issues/172)) ([25b694b](https://github.com/salesforce/multicloudj/commit/25b694b041c4d845f6199daa541d637edae88e82))
+
+
+### PubSub
+
+* Enable implicit GetQueueUrl on initialization ([#183](https://github.com/salesforce/multicloudj/issues/183)) ([30af604](https://github.com/salesforce/multicloudj/commit/30af6040ee9dc2549f80b0627ee1097fe4017088))
+* ensure atleast 1 message is pulled ([#197](https://github.com/salesforce/multicloudj/issues/197)) ([599a538](https://github.com/salesforce/multicloudj/commit/599a538eb9702be0872ea61cdf4240963bd6638b))
+
 ## [0.2.18](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.17...multicloudj-v0.2.18) (2025-12-02)
 
 
