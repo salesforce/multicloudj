@@ -40,8 +40,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -529,6 +531,31 @@ public class BucketClientTest {
         assertThrows(UnAuthorizedException.class, () -> {
             client.doesObjectExist("object-1", "version-1");
         });
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsTrue() {
+        when(mockBlobStore.doesBucketExist()).thenReturn(true);
+        boolean result = client.doesBucketExist();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsFalse() {
+        when(mockBlobStore.doesBucketExist()).thenReturn(false);
+        boolean result = client.doesBucketExist();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ThrowsException() {
+        doThrow(RuntimeException.class).when(mockBlobStore).doesBucketExist();
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.doesBucketExist();
+        });
+        verify(mockBlobStore, times(1)).doesBucketExist();
     }
 
     @Test

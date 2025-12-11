@@ -59,6 +59,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -1030,6 +1032,25 @@ public class AwsBlobStoreTest {
         doThrow(mockException).when(mockS3Client).headObject(any(HeadObjectRequest.class));
 
         result = aws.doDoesObjectExist("object-1", "version-1");
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist() {
+        HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
+        when(mockS3Client.headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any())).thenReturn(mockResponse);
+
+        boolean result = aws.doDoesBucketExist();
+
+        verify(mockS3Client, times(1)).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        assertTrue(result);
+
+        // Verify the error state - bucket doesn't exist (404)
+        S3Exception mockException = mock(S3Exception.class);
+        doReturn(404).when(mockException).statusCode();
+        doThrow(mockException).when(mockS3Client).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+
+        result = aws.doDoesBucketExist();
         assertFalse(result);
     }
 

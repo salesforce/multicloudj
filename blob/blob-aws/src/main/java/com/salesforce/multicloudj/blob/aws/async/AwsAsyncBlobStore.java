@@ -403,6 +403,20 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 });
     }
 
+    @Override
+    protected CompletableFuture<Boolean> doDoesBucketExist() {
+        return client
+                .headBucket(builder -> builder.bucket(bucket))
+                .thenApply(response -> true)
+                .exceptionally(e -> {
+                    if (e.getCause() instanceof S3Exception && ((S3Exception) e.getCause()).statusCode() == 404) {
+                        return false;
+                    } else {
+                        throw new SubstrateSdkException("Request failed. Reason=" + e.getMessage(), e);
+                    }
+                });
+    }
+
     /**
      * Closes the underlying S3 async client and transfer manager, releasing any resources.
      */

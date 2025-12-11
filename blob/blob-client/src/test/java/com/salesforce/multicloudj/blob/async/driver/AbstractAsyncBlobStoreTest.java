@@ -438,6 +438,40 @@ public class AbstractAsyncBlobStoreTest {
     }
 
     @Test
+    void testDoDoesBucketExist() {
+        mockBlobStore.doesBucketExist();
+        verify(mockBlobStore, times(1)).doDoesBucketExist();
+    }
+
+    @Test
+    void testDoDoesBucketExist_ReturnsTrue() throws ExecutionException, InterruptedException {
+        when(mockBlobStore.doDoesBucketExist()).thenReturn(CompletableFuture.completedFuture(true));
+        CompletableFuture<Boolean> result = mockBlobStore.doesBucketExist();
+        assertTrue(result.get());
+        verify(mockBlobStore, times(1)).doDoesBucketExist();
+    }
+
+    @Test
+    void testDoDoesBucketExist_ReturnsFalse() throws ExecutionException, InterruptedException {
+        when(mockBlobStore.doDoesBucketExist()).thenReturn(CompletableFuture.completedFuture(false));
+        CompletableFuture<Boolean> result = mockBlobStore.doesBucketExist();
+        assertFalse(result.get());
+        verify(mockBlobStore, times(1)).doDoesBucketExist();
+    }
+
+    @Test
+    void testDoDoesBucketExist_WithException() {
+        RuntimeException expectedException = new RuntimeException("Bucket check failed");
+        when(mockBlobStore.doDoesBucketExist()).thenReturn(CompletableFuture.failedFuture(expectedException));
+        CompletableFuture<Boolean> result = mockBlobStore.doesBucketExist();
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get();
+        });
+        assertEquals(expectedException, exception.getCause());
+        verify(mockBlobStore, times(1)).doDoesBucketExist();
+    }
+
+    @Test
     void testDoUploadDirectory() {
         DirectoryUploadRequest request = DirectoryUploadRequest.builder()
                 .localSourceDirectory("/home/files")

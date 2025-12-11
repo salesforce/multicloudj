@@ -122,6 +122,7 @@ import java.util.function.Consumer;
 
 import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PROVIDER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -642,6 +643,30 @@ public class AsyncBucketClientTest {
         CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).doesObjectExist(any(), any());
         assertFailed(client.doesObjectExist("object-1", "version-1"), UnAuthorizedException.class);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsTrue() throws ExecutionException, InterruptedException {
+        doReturn(CompletableFuture.completedFuture(true)).when(mockBlobStore).doesBucketExist();
+        boolean result = client.doesBucketExist().get();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsFalse() throws ExecutionException, InterruptedException {
+        doReturn(CompletableFuture.completedFuture(false)).when(mockBlobStore).doesBucketExist();
+        boolean result = client.doesBucketExist().get();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ThrowsException() {
+        CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
+        doReturn(failure).when(mockBlobStore).doesBucketExist();
+        assertFailed(client.doesBucketExist(), UnAuthorizedException.class);
+        verify(mockBlobStore, times(1)).doesBucketExist();
     }
 
     @Test

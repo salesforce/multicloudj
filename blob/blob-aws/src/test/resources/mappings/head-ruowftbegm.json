@@ -1,0 +1,24 @@
+{
+  "id" : "5abebd0a-9030-4e7b-91aa-1409334a4b6b",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-access-point-alias" : "false",
+      "x-amz-bucket-arn" : "arn:aws:s3:::chameleon-jcloud",
+      "x-amz-request-id" : "JTCB60A5F2ERKBDM",
+      "x-amz-id-2" : "VBMYlZ3W9WACjGa0VL6cjK5tNsgDdM6at9KorprY5u9IPJg1A+z4PCWxSDjzdkWQME2f9Sh/NK4=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 10 Dec 2025 17:43:54 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5abebd0a-9030-4e7b-91aa-1409334a4b6b",
+  "persistent" : true,
+  "insertionIndex" : 594
+}
