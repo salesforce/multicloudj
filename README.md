@@ -46,7 +46,6 @@ For more examples: please refer to [examples](https://github.com/salesforce/mult
 Building and Contributing
 ------------------------
 
-
 To build MultiCloudJ from source:
 
 ```bash
