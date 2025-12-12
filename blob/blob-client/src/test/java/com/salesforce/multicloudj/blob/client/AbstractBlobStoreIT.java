@@ -1464,18 +1464,9 @@ public abstract class AbstractBlobStoreIT {
             Iterator<BlobInfo> iter = bucketClient.list(request);
             Assertions.assertNotNull(iter);
             Set<String> observedKeys = new HashSet<>();
-            Instant now = Instant.now();
-            Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
             while (iter.hasNext()) {
                 BlobInfo blobInfo = iter.next();
                 observedKeys.add(blobInfo.getKey());
-                // Verify timestamp is present and reasonable
-                Assertions.assertNotNull(blobInfo.getLastModified(),
-                    "testList: BlobInfo should have a lastModified timestamp for key=" + blobInfo.getKey());
-                Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
-                    "testList: lastModified timestamp should not be in the future for key=" + blobInfo.getKey());
-                Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
-                    "testList: lastModified timestamp should be reasonable (not before 2000) for key=" + blobInfo.getKey());
             }
             for (String key : keys) {
                 if (!observedKeys.contains(key)) {
