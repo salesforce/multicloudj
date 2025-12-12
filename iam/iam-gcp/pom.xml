@@ -59,6 +59,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-grpc-extension</artifactId>
+            <version>0.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>iam-client</artifactId>
             <version>${project.version}</version>
