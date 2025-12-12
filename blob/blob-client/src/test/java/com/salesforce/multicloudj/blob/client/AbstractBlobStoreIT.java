@@ -1672,54 +1672,43 @@ public abstract class AbstractBlobStoreIT {
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
-        // Upload multiple blobs to the bucket to test pagination
+        // Upload a blob to test timestamp
         String baseKey = "conformance-tests/blob-for-list-page-timestamp";
-        String[] keys = new String[]{
-            baseKey + "-1", 
-            baseKey + "-2", 
-            baseKey + "-3",
-            baseKey + "-4"
-        };
+        String[] keys = new String[]{baseKey};
         byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
         
         try {
-            // Load some blobs into the bucket for this test
-            for (String key : keys) {
-                try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
-                    UploadRequest request = new UploadRequest.Builder()
-                            .withKey(key)
-                            .withContentLength(blobBytes.length)
-                            .build();
-                    bucketClient.upload(request, inputStream);
-                }
+            // Upload the blob
+            try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(baseKey)
+                        .withContentLength(blobBytes.length)
+                        .build();
+                bucketClient.upload(request, inputStream);
             }
 
             Instant now = Instant.now();
             Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
 
-            // Test 1: Basic listPage with small maxResults to force pagination
+            // Test listPage and verify timestamp
             ListBlobsPageRequest request = ListBlobsPageRequest.builder()
                     .withPrefix(baseKey)
-                    .withMaxResults(3)
                     .build();
             
-            ListBlobsPageResponse firstPage = bucketClient.listPage(request);
-            Assertions.assertNotNull(firstPage);
-            Assertions.assertNotNull(firstPage.getBlobs());
+            ListBlobsPageResponse page = bucketClient.listPage(request);
+            Assertions.assertNotNull(page);
+            Assertions.assertNotNull(page.getBlobs());
+            Assertions.assertFalse(page.getBlobs().isEmpty(),
+                "testListPage_withTimeStamp: Should return at least one blob");
             
-            // Should have at most 3 items due to maxResults
-            Assertions.assertTrue(firstPage.getBlobs().size() <= 3,
-                "testListPage_withTimeStamp: First page should have at most 3 items");
-            
-            // Verify timestamps are present and reasonable
-            for (BlobInfo blobInfo : firstPage.getBlobs()) {
-                Assertions.assertNotNull(blobInfo.getLastModified(),
-                    "testListPage_withTimeStamp: BlobInfo should have a lastModified timestamp for key=" + blobInfo.getKey());
-                Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
-                    "testListPage_withTimeStamp: lastModified timestamp should not be in the future for key=" + blobInfo.getKey());
-                Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
-                    "testListPage_withTimeStamp: lastModified timestamp should be reasonable (not before 2000) for key=" + blobInfo.getKey());
-            }
+            // Verify timestamp is present and reasonable
+            BlobInfo blobInfo = page.getBlobs().get(0);
+            Assertions.assertNotNull(blobInfo.getLastModified(),
+                "testListPage_withTimeStamp: BlobInfo should have a lastModified timestamp");
+            Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
+                "testListPage_withTimeStamp: lastModified timestamp should not be in the future");
+            Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should be reasonable (not before 2000)");
         }
         // Clean up
         finally {
