@@ -49,7 +49,7 @@ public class AbstractIamTest {
         mockIam = spy(iam);
         doCallRealMethod().when(mockIam).createIdentity(anyString(), anyString(), anyString(), anyString(), any(), any());
         doCallRealMethod().when(mockIam).attachInlinePolicy(any(), anyString(), anyString(), anyString());
-        doCallRealMethod().when(mockIam).getInlinePolicyDetails(anyString(), anyString(), anyString(), anyString());
+        doCallRealMethod().when(mockIam).getInlinePolicyDetails(anyString(), anyString(), anyString(), anyString(), anyString());
         doCallRealMethod().when(mockIam).getAttachedPolicies(anyString(), anyString(), anyString());
         doCallRealMethod().when(mockIam).removePolicy(anyString(), anyString(), anyString(), anyString());
         doCallRealMethod().when(mockIam).deleteIdentity(anyString(), anyString(), anyString());
@@ -110,12 +110,12 @@ public class AbstractIamTest {
 
     @Test
     void testGetInlinePolicyDetails() {
-        doReturn(POLICY_RESPONSE).when(mockIam).getInlinePolicyDetails(
-                anyString(), anyString(), anyString(), anyString());
-
+        // Since we're using doCallRealMethod, it will call the actual TestIam implementation
+        // which returns "mock-policy-details", so we expect that value
         String policyDetails = mockIam.getInlinePolicyDetails(
                 TEST_ROLE,
                 TEST_POLICY_NAME,
+                null,
                 TEST_TENANT_ID,
                 TEST_REGION
         );
@@ -123,10 +123,11 @@ public class AbstractIamTest {
         verify(mockIam, times(1)).getInlinePolicyDetails(
                 eq(TEST_ROLE),
                 eq(TEST_POLICY_NAME),
+                eq((String)null),
                 eq(TEST_TENANT_ID),
                 eq(TEST_REGION)
         );
-        assertEquals(POLICY_RESPONSE, policyDetails);
+        assertEquals("mock-policy-details", policyDetails);
     }
 
     @Test
@@ -229,7 +230,7 @@ public class AbstractIamTest {
         assertEquals("mock-identity-id", identity);
 
         // Test getInlinePolicyDetails delegation
-        String policyDetails = testIam.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME,
+        String policyDetails = testIam.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, null,
                 TEST_TENANT_ID, TEST_REGION);
         assertEquals("mock-policy-details", policyDetails);
 

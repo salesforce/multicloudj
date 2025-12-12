@@ -613,7 +613,7 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -643,7 +643,7 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 
 		// Verify: Should return null when binding doesn't exist
 		Assertions.assertNull(result);
@@ -663,7 +663,7 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 
 		// Verify: Should return null when service account is not in binding
 		Assertions.assertNull(result);
@@ -676,7 +676,7 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
 
 		// Verify: Should return null when policy is null
 		Assertions.assertNull(result);
@@ -689,8 +689,24 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenThrow(apiException);
 
 		// Execute and verify exception is thrown
-		assertThrows(ApiException.class, () -> {
-			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		Assertions.assertThrows(ApiException.class, () -> {
+			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		});
+	}
+
+	@Test
+	void testDoGetInlinePolicyDetailsWithNullRoleName() {
+		// Execute and verify InvalidArgumentException is thrown when roleName is null
+		Assertions.assertThrows(InvalidArgumentException.class, () -> {
+			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, null, TEST_TENANT_ID, TEST_REGION);
+		});
+	}
+
+	@Test
+	void testDoGetInlinePolicyDetailsWithEmptyRoleName() {
+		// Execute and verify InvalidArgumentException is thrown when roleName is empty
+		Assertions.assertThrows(InvalidArgumentException.class, () -> {
+			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, "", TEST_TENANT_ID, TEST_REGION);
 		});
 	}
 

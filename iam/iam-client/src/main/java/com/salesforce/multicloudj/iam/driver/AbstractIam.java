@@ -153,9 +153,9 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * {@inheritDoc}
      */
     @Override
-    public String getInlinePolicyDetails(String identityName, String policyName,
+    public String getInlinePolicyDetails(String identityName, String policyName, String roleName,
                                         String tenantId, String region) {
-        return doGetInlinePolicyDetails(identityName, policyName, tenantId, region);
+        return doGetInlinePolicyDetails(identityName, policyName, roleName, tenantId, region);
     }
 
     /**
@@ -225,12 +225,15 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * Provider-specific implementations should override this method.
      *
      * @param identityName the name of the identity
-     * @param policyName the name of the policy
+     * @param policyName the name of the policy. This parameter is optional and subject to cloud semantics.
+     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
+     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
+     *                 may require this parameter to identify the policy, while others may not use it.
      * @param tenantId the tenant ID
      * @param region the region
      * @return the policy document details as a string
      */
-    protected abstract String doGetInlinePolicyDetails(String identityName, String policyName,
+    protected abstract String doGetInlinePolicyDetails(String identityName, String policyName, String roleName,
                                                       String tenantId, String region);
 
     /**
