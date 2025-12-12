@@ -50,6 +50,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1463,9 +1464,18 @@ public abstract class AbstractBlobStoreIT {
             Iterator<BlobInfo> iter = bucketClient.list(request);
             Assertions.assertNotNull(iter);
             Set<String> observedKeys = new HashSet<>();
+            Instant now = Instant.now();
+            Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
             while (iter.hasNext()) {
                 BlobInfo blobInfo = iter.next();
                 observedKeys.add(blobInfo.getKey());
+                // Verify timestamp is present and reasonable
+                Assertions.assertNotNull(blobInfo.getLastModified(),
+                    "testList: BlobInfo should have a lastModified timestamp for key=" + blobInfo.getKey());
+                Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
+                    "testList: lastModified timestamp should not be in the future for key=" + blobInfo.getKey());
+                Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
+                    "testList: lastModified timestamp should be reasonable (not before 2000) for key=" + blobInfo.getKey());
             }
             for (String key : keys) {
                 if (!observedKeys.contains(key)) {
@@ -1561,6 +1571,18 @@ public abstract class AbstractBlobStoreIT {
              Assertions.assertTrue(firstPage.getBlobs().size() <= 3,
                  "testListPage: First page should have at most 3 items");
             
+            // Verify timestamps are present and reasonable
+            Instant now = Instant.now();
+            Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
+            for (BlobInfo blobInfo : firstPage.getBlobs()) {
+                Assertions.assertNotNull(blobInfo.getLastModified(),
+                    "testListPage: BlobInfo should have a lastModified timestamp for key=" + blobInfo.getKey());
+                Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
+                    "testListPage: lastModified timestamp should not be in the future for key=" + blobInfo.getKey());
+                Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
+                    "testListPage: lastModified timestamp should be reasonable (not before 2000) for key=" + blobInfo.getKey());
+            }
+            
             // If we have more than 3 items total, it should be truncated
             Assertions.assertTrue(firstPage.isTruncated(),
                     "testListPage: Should be truncated when more items exist");
@@ -1606,6 +1628,11 @@ public abstract class AbstractBlobStoreIT {
             for (BlobInfo blobInfo : prefixPage.getBlobs()) {
                 Assertions.assertTrue(blobInfo.getKey().startsWith(prefixKey),
                         "testListPage: All keys should start with prefix: " + blobInfo.getKey());
+                // Verify timestamp is present and reasonable
+                Assertions.assertNotNull(blobInfo.getLastModified(),
+                    "testListPage: BlobInfo should have a lastModified timestamp for key=" + blobInfo.getKey());
+                Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
+                    "testListPage: lastModified timestamp should not be in the future for key=" + blobInfo.getKey());
             }
 
             // Test 4: Test delimiter functionality with pagination
@@ -1633,7 +1660,14 @@ public abstract class AbstractBlobStoreIT {
                 ListBlobsPageResponse page = bucketClient.listPage(pageRequest);
                 Assertions.assertNotNull(page);
                 
-                page.getBlobs().forEach(blob -> allKeys.add(blob.getKey()));
+                // Verify timestamps for all blobs in the page
+                for (BlobInfo blob : page.getBlobs()) {
+                    allKeys.add(blob.getKey());
+                    Assertions.assertNotNull(blob.getLastModified(),
+                        "testListPage: BlobInfo should have a lastModified timestamp for key=" + blob.getKey());
+                    Assertions.assertFalse(blob.getLastModified().isAfter(now),
+                        "testListPage: lastModified timestamp should not be in the future for key=" + blob.getKey());
+                }
                 nextToken = page.getNextPageToken();
                 pageCount++;
                 
