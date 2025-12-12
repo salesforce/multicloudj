@@ -1689,6 +1689,7 @@ public abstract class AbstractBlobStoreIT {
 
             Instant now = Instant.now();
             Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
+            Instant maxTimestamp = now.plusSeconds(300); 
 
             // Test listPage and verify timestamp
             ListBlobsPageRequest request = ListBlobsPageRequest.builder()
@@ -1705,8 +1706,8 @@ public abstract class AbstractBlobStoreIT {
             BlobInfo blobInfo = page.getBlobs().get(0);
             Assertions.assertNotNull(blobInfo.getLastModified(),
                 "testListPage_withTimeStamp: BlobInfo should have a lastModified timestamp");
-            Assertions.assertFalse(blobInfo.getLastModified().isAfter(now),
-                "testListPage_withTimeStamp: lastModified timestamp should not be in the future");
+            Assertions.assertFalse(blobInfo.getLastModified().isAfter(maxTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should not be too far in the future (allowing for clock skew)");
             Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
                 "testListPage_withTimeStamp: lastModified timestamp should be reasonable (not before 2000)");
         }
