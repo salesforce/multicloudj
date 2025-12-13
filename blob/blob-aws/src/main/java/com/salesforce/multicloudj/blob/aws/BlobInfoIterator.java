@@ -60,6 +60,7 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
                 .map(s3Obj -> new BlobInfo.Builder()
                         .withKey(s3Obj.key())
                         .withObjectSize(s3Obj.size())
+                        .withLastModified(s3Obj.lastModified())
                         .build())
                 .collect(toList());
     }

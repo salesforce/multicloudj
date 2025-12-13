@@ -112,6 +112,7 @@ public class AwsTransformer {
         return new BlobInfo.Builder()
                 .withKey(s3.key())
                 .withObjectSize(s3.size())
+                .withLastModified(s3.lastModified())
                 .build();
     }
 
