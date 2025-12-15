@@ -33,8 +33,5 @@
   },
   "uuid": "6ceb1462-67ed-4ea3-afa5-02a9cc3d1c02",
   "persistent": true,
-  "scenarioName": "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:pull",
-  "requiredScenarioState": "Started",
-  "newScenarioState": "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:pull-2",
   "insertionIndex": 16
 }

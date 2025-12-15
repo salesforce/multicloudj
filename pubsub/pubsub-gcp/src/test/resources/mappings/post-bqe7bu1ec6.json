@@ -1,32 +1,37 @@
 {
-  "id" : "0d7eb016-b7f0-4dbe-9a3a-12565c4962e6",
-  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionacknowledge",
-  "request" : {
-    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:acknowledge?$alt=json;enum-encoding%3Dint",
-    "method" : "POST",
-    "bodyPatterns" : [ {
-      "matchesJsonPath" : "$.ackIds"
-    }, {
-      "matchesJsonPath" : "$.ackIds[*]"
-    } ]
+  "id": "0d7eb016-b7f0-4dbe-9a3a-12565c4962e6",
+  "name": "v1_projects_substrate-sdk-gcp-poc1_subscriptions_test-subscriptionacknowledge",
+  "request": {
+    "url": "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription:acknowledge?$alt=json;enum-encoding%3Dint",
+    "method": "POST",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$.ackIds"
+      },
+      {
+        "matchesJsonPath": "$.ackIds[*]"
+      }
+    ]
   },
-  "response" : {
-    "status" : 200,
-    "body" : "{}\n",
-    "headers" : {
-      "X-Frame-Options" : "SAMEORIGIN",
-      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
-      "Server" : "ESF",
-      "X-Content-Type-Options" : "nosniff",
-      "Vary" : [ "Origin", "X-Origin", "Referer" ],
-      "X-XSS-Protection" : "0",
-      "Date" : "Thu, 11 Dec 2025 20:46:01 GMT",
-      "Content-Type" : "application/json; charset=UTF-8"
+  "response": {
+    "status": 200,
+    "body": "{}\n",
+    "headers": {
+      "X-Frame-Options": "SAMEORIGIN",
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "ESF",
+      "X-Content-Type-Options": "nosniff",
+      "Vary": [
+        "Origin",
+        "X-Origin",
+        "Referer"
+      ],
+      "X-XSS-Protection": "0",
+      "Date": "Thu, 11 Dec 2025 20:46:01 GMT",
+      "Content-Type": "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "0d7eb016-b7f0-4dbe-9a3a-12565c4962e6",
-  "persistent" : true,
-  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:acknowledge",
-  "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-test-subscription:acknowledge-5",
-  "insertionIndex" : 40
+  "uuid": "0d7eb016-b7f0-4dbe-9a3a-12565c4962e6",
+  "persistent": true,
+  "insertionIndex": 40
 }
