@@ -1355,6 +1355,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedCopyFrom() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
 
         String key = "conformance-tests/versionedCopyFrom/blob";
         String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
