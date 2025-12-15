@@ -52,6 +52,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1647,6 +1648,58 @@ public abstract class AbstractBlobStoreIT {
                 Assertions.assertTrue(allKeys.contains(key), 
                     "testListPage: Missing expected key: " + key);
             }
+        }
+        // Clean up
+        finally {
+            safeDeleteBlobs(bucketClient, keys);
+        }
+    }
+
+    //@Test
+    public void testListPage_withTimeStamp() throws IOException {
+
+        // Create the BucketClient
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        // Upload a blob to test timestamp
+        String baseKey = "conformance-tests/blob-for-list-page-timestamp";
+        String[] keys = new String[]{baseKey};
+        byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
+        
+        try {
+            // Upload the blob
+            try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(baseKey)
+                        .withContentLength(blobBytes.length)
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            Instant now = Instant.now();
+            Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
+            Instant maxTimestamp = now.plusSeconds(300); 
+
+            // Test listPage and verify timestamp
+            ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+                    .withPrefix(baseKey)
+                    .build();
+            
+            ListBlobsPageResponse page = bucketClient.listPage(request);
+            Assertions.assertNotNull(page);
+            Assertions.assertNotNull(page.getBlobs());
+            Assertions.assertFalse(page.getBlobs().isEmpty(),
+                "testListPage_withTimeStamp: Should return at least one blob");
+            
+            // Verify timestamp is present and reasonable
+            BlobInfo blobInfo = page.getBlobs().get(0);
+            Assertions.assertNotNull(blobInfo.getLastModified(),
+                "testListPage_withTimeStamp: BlobInfo should have a lastModified timestamp");
+            Assertions.assertFalse(blobInfo.getLastModified().isAfter(maxTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should not be too far in the future (allowing for clock skew)");
+            Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should be reasonable (not before 2000)");
         }
         // Clean up
         finally {
