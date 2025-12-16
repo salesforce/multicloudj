@@ -248,6 +248,12 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
     CompletableFuture<Boolean> doesObjectExist(String key, String versionId);
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    CompletableFuture<Boolean> doesBucketExist();
+
+    /**
      * Downloads the directory content from substrate-specific Blob storage.
      *
      * @param directoryDownloadRequest directoryDownloadRequest Wrapper, containing directory download data

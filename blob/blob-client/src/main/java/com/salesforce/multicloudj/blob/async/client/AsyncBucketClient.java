@@ -388,6 +388,17 @@ public class AsyncBucketClient implements AutoCloseable {
     }
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return blobStore
+                .doesBucketExist()
+                .exceptionally(this::handleException);
+    }
+
+    /**
      * Uploads the directory content to substrate-specific Blob storage
      * Note: Specifying the contentLength in the UploadRequest can dramatically improve upload efficiency
      * because the substrate SDKs do not need to buffer the contents and calculate it themselves.

@@ -476,6 +476,24 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesBucketExist() {
+        try {
+            return ossClient.doesBucketExist(bucket);
+        } catch (ServiceException e) {
+            if ("NoSuchBucket".equals(e.getErrorCode())) {
+                return false;
+            }
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        } catch (ClientException e) {
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        }
+    }
+
+    /**
      * Closes the underlying OSS client and releases any resources.
      */
     @Override

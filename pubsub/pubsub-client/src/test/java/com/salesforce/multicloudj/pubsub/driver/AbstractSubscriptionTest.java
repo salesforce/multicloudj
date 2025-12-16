@@ -18,6 +18,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -712,5 +713,48 @@ public class AbstractSubscriptionTest {
             .build();
         
         assertEquals("my-provider", sub.getProviderId());
+    }
+
+    @Test
+    void testBatchSizeNeverZero() throws Exception {
+        // Test that updateBatchSize() never returns 0
+        MockMessageSource source = new MockMessageSource();
+        List<Integer> batchSizes = Collections.synchronizedList(new ArrayList<>());
+        final AtomicInteger callCount = new AtomicInteger(0);
+        
+        TestSubscription sub = new TestSubscription(source) {
+            @Override
+            protected List<Message> doReceiveBatch(int batchSize) {
+                batchSizes.add(batchSize);
+                int call = callCount.incrementAndGet();
+                
+                // First call: fetch the message so receive() doesn't hang
+                // Subsequent calls: return empty to trigger batch size shrinking
+                if (call == 1) {
+                    return source.fetchBatch(batchSize);
+                }
+                return Collections.emptyList();
+            }
+        };
+
+        // Add one message to trigger prefetch
+        source.addMessages(List.of(
+            Message.builder().withBody("test".getBytes()).build()
+        ));
+
+        // Receive the message - this triggers prefetch which calls updateBatchSize()
+        Message msg = sub.receive();
+        assertNotNull(msg);
+
+        // Wait for prefetch operations to complete
+        Thread.sleep(500);
+
+        // All batch sizes should be >= 1
+        assertFalse(batchSizes.isEmpty(), "doReceiveBatch should have been called at least once");
+        for (int size : batchSizes) {
+            assertTrue(size >= 1, "Batch size from updateBatchSize() should never be less than 1, but got: " + size);
+        }
+
+        sub.close();
     }
 }

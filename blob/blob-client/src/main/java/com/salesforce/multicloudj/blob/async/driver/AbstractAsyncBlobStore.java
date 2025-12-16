@@ -284,6 +284,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
      * {@inheritDoc}
      */
     @Override
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return doDoesBucketExist();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
         return doDownloadDirectory(directoryDownloadRequest);
     }
@@ -351,6 +359,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
 
     protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
+
+    protected abstract CompletableFuture<Boolean> doDoesBucketExist();
 
     protected abstract CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
 

@@ -221,6 +221,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     }
 
     @Override
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return CompletableFuture.supplyAsync(() -> blobStore.doesBucketExist(), executorService);
+    }
+
+    @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return blobStore.getException(t);
     }

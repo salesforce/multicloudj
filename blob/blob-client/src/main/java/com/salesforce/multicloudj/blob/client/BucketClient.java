@@ -485,6 +485,21 @@ public class BucketClient implements AutoCloseable {
     }
 
     /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public boolean doesBucketExist() {
+        try {
+            return blobStore.doesBucketExist();
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return false;
+        }
+    }
+
+    /**
      * Closes the underlying blob store and releases any resources.
      */
     @Override

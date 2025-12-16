@@ -70,6 +70,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -136,6 +138,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentMatchers;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -1129,6 +1132,30 @@ public class AwsAsyncBlobStoreTest {
         // Verify the unexpected error state
         doReturn(CompletableFuture.failedFuture(mock(RuntimeException.class))).when(mockS3Client).headObject(any(HeadObjectRequest.class));
         var exceptionalResult = aws.doDoesObjectExist("object-1", "version-1");
+        assertTrue(exceptionalResult.isCompletedExceptionally());
+        assertInstanceOf(SubstrateSdkException.class, assertThrows(ExecutionException.class, exceptionalResult::get).getCause());
+    }
+
+    @Test
+    void testDoDoesBucketExist() throws ExecutionException, InterruptedException {
+        HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
+        doReturn(future(mockResponse)).when(mockS3Client).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+
+        boolean result = aws.doDoesBucketExist().get();
+
+        verify(mockS3Client, times(1)).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        assertTrue(result);
+
+        // Verify the error state - bucket doesn't exist (404)
+        S3Exception mockException = mock(S3Exception.class);
+        doReturn(404).when(mockException).statusCode();
+        doReturn(CompletableFuture.failedFuture(mockException)).when(mockS3Client).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        result = aws.doDoesBucketExist().get();
+        assertFalse(result);
+
+        // Verify the unexpected error state
+        doReturn(CompletableFuture.failedFuture(mock(RuntimeException.class))).when(mockS3Client).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        var exceptionalResult = aws.doDoesBucketExist();
         assertTrue(exceptionalResult.isCompletedExceptionally());
         assertInstanceOf(SubstrateSdkException.class, assertThrows(ExecutionException.class, exceptionalResult::get).getCause());
     }

@@ -185,10 +185,16 @@ public class AwsTransformerTest {
 
     @Test
     void testToInfo() {
-        var s3 = S3Object.builder().key("some/key/path.file").size(1024L).build();
+        Instant lastModified = Instant.now();
+        var s3 = S3Object.builder()
+                .key("some/key/path.file")
+                .size(1024L)
+                .lastModified(lastModified)
+                .build();
         var info = transformer.toInfo(s3);
         assertEquals(s3.key(), info.getKey());
         assertEquals(s3.size(), info.getObjectSize());
+        assertEquals(lastModified, info.getLastModified());
     }
 
     @Test
