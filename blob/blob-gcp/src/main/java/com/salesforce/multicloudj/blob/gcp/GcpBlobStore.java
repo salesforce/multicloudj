@@ -518,8 +518,17 @@ public class GcpBlobStore extends AbstractBlobStore {
                     // Generate blob key
                     String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
 
-                    // Upload file to GCS - use same approach as single file upload
-                    com.google.cloud.storage.BlobInfo blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey).build();
+                    // Build metadata map with tags if provided
+                    Map<String, String> metadata = new HashMap<>();
+                    if (directoryUploadRequest.getTags() != null && !directoryUploadRequest.getTags().isEmpty()) {
+                        directoryUploadRequest.getTags().forEach((tagName, tagValue) -> 
+                                metadata.put(TAG_PREFIX + tagName, tagValue));
+                    }
+
+                    // Upload file to GCS with tags applied
+                    com.google.cloud.storage.BlobInfo blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey)
+                            .setMetadata(metadata.isEmpty() ? null : metadata)
+                            .build();
                     storage.createFrom(blobInfo, filePath);
                 } catch (Exception e) {
                     failedUploads.add(FailedBlobUpload.builder()

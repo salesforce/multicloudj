@@ -470,12 +470,25 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        return UploadDirectoryRequest.builder()
+        UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
-                .s3Prefix(request.getPrefix())
-                .build();
+                .s3Prefix(request.getPrefix());
+
+        // Apply tags to all objects in the directory upload
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            List<Tag> tags = request.getTags().entrySet().stream()
+                    .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+                    .collect(Collectors.toList());
+            Tagging tagging = Tagging.builder().tagSet(tags).build();
+            
+            // Use putObjectRequestTransformer to apply tags to each uploaded object
+            builder.putObjectRequestTransformer(putObjectRequestBuilder -> 
+                    putObjectRequestBuilder.tagging(tagging));
+        }
+
+        return builder.build();
     }
 
     public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
