@@ -766,6 +766,9 @@ class GcpBlobStoreTest {
                 .withMaxResults(50)
                 .build();
 
+        java.time.OffsetDateTime updateTime1 = java.time.OffsetDateTime.now();
+        java.time.OffsetDateTime updateTime2 = updateTime1.plusSeconds(100);
+
         // Create separate mock blobs for each result
         Blob mockBlob1 = mock(Blob.class);
         Blob mockBlob2 = mock(Blob.class);
@@ -781,8 +784,10 @@ class GcpBlobStoreTest {
         // Names should start with prefix but not contain delimiter after prefix
         when(mockBlob1.getName()).thenReturn("test-prefixkey-1");
         when(mockBlob1.getSize()).thenReturn(1024L);
+        when(mockBlob1.getUpdateTimeOffsetDateTime()).thenReturn(updateTime1);
         when(mockBlob2.getName()).thenReturn("test-prefixkey-2");
         when(mockBlob2.getSize()).thenReturn(2048L);
+        when(mockBlob2.getUpdateTimeOffsetDateTime()).thenReturn(updateTime2);
 
         // When
         ListBlobsPageResponse response = gcpBlobStore.listPage(request);
@@ -796,8 +801,10 @@ class GcpBlobStoreTest {
         // Verify first and second blob
         assertEquals("test-prefixkey-1", response.getBlobs().get(0).getKey());
         assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
+        assertEquals(updateTime1.toInstant(), response.getBlobs().get(0).getLastModified());
         assertEquals("test-prefixkey-2", response.getBlobs().get(1).getKey());
         assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
+        assertEquals(updateTime2.toInstant(), response.getBlobs().get(1).getLastModified());
     }
 
     @Test
@@ -977,6 +984,58 @@ class GcpBlobStoreTest {
         // Then
         assertFalse(exists);
         verify(mockStorage).get(mockBlobId);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketExists() {
+        // Given
+        Bucket mockBucket = mock(Bucket.class);
+        when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertTrue(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist_ReturnsNull() {
+        // Given
+        when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertFalse(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist_Throws404() {
+        // Given
+        StorageException storageException = new StorageException(404, "Not Found");
+        when(mockStorage.get(TEST_BUCKET)).thenThrow(storageException);
+
+        // When
+        boolean exists = gcpBlobStore.doDoesBucketExist();
+
+        // Then
+        assertFalse(exists);
+        verify(mockStorage).get(TEST_BUCKET);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsOtherException() {
+        // Given
+        StorageException storageException = new StorageException(500, "Internal Server Error");
+        when(mockStorage.get(TEST_BUCKET)).thenThrow(storageException);
+
+        // When/Then
+        assertThrows(SubstrateSdkException.class, () -> gcpBlobStore.doDoesBucketExist());
+        verify(mockStorage).get(TEST_BUCKET);
     }
 
     @Test
@@ -1774,6 +1833,59 @@ class GcpBlobStoreTest {
         assertNotNull(iterator);
         assertTrue(iterator.hasNext());
         assertNotNull(iterator.next()); // The actual BlobInfo will be created by the transformer
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    void testDoList_Iterator_IncludesTimestamp() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix("test/")
+                .build();
+
+        java.time.OffsetDateTime updateTime = java.time.OffsetDateTime.now();
+        Blob mockBlobForList = mock(Blob.class);
+        when(mockBlobForList.getName()).thenReturn("test/blob-key");
+        when(mockBlobForList.getSize()).thenReturn(1024L);
+        when(mockBlobForList.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertTrue(iterator.hasNext());
+        com.salesforce.multicloudj.blob.driver.BlobInfo blobInfo = iterator.next();
+        assertNotNull(blobInfo);
+        assertEquals("test/blob-key", blobInfo.getKey());
+        assertEquals(1024L, blobInfo.getObjectSize());
+        assertEquals(updateTime.toInstant(), blobInfo.getLastModified());
+        assertFalse(iterator.hasNext());
+    }
+
+    @Test
+    void testDoList_Iterator_WithNullTimestamp() {
+        ListBlobsRequest request = ListBlobsRequest.builder()
+                .withPrefix("test/")
+                .build();
+
+        Blob mockBlobForList = mock(Blob.class);
+        when(mockBlobForList.getName()).thenReturn("test/blob-key");
+        when(mockBlobForList.getSize()).thenReturn(1024L);
+        when(mockBlobForList.getUpdateTimeOffsetDateTime()).thenReturn(null);
+
+        when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(mockPage);
+        when(mockPage.iterateAll()).thenReturn(Collections.singletonList(mockBlobForList));
+
+        Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> iterator = gcpBlobStore.doList(request);
+
+        assertNotNull(iterator);
+        assertTrue(iterator.hasNext());
+        com.salesforce.multicloudj.blob.driver.BlobInfo blobInfo = iterator.next();
+        assertNotNull(blobInfo);
+        assertEquals("test/blob-key", blobInfo.getKey());
+        assertEquals(1024L, blobInfo.getObjectSize());
+        assertNull(blobInfo.getLastModified());
         assertFalse(iterator.hasNext());
     }
 

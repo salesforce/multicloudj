@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>blob</artifactId>
-        <version>0.2.19-SNAPSHOT</version>
+        <version>0.2.21-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -147,7 +147,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.17.0</version>
+            <version>3.18.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -270,7 +270,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
-            <version>4.1.108.Final</version>
+            <version>4.1.118.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -281,7 +281,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.108.Final</version>
+            <version>4.1.118.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>

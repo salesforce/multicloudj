@@ -291,6 +291,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 return BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
+                        .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                         .build();
             }
         };
@@ -312,6 +313,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             blobs.add(BlobInfo.builder()
                     .withKey(blob.getName())
                     .withObjectSize(blob.getSize())
+                    .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                     .build());
         }
 
@@ -466,6 +468,23 @@ public class GcpBlobStore extends AbstractBlobStore {
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {
         return storage.get(transformer.toBlobId(key, versionId)) != null;
+    }
+
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesBucketExist() {
+        try {
+            Bucket bucketObj = storage.get(bucket);
+            return bucketObj != null;
+        } catch (StorageException e) {
+            if (e.getCode() == 404) {
+                return false;
+            }
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        }
     }
 
     /**

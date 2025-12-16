@@ -133,7 +133,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     protected final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     /** Current best estimate for how many messages to fetch in order to maintain the desired queue duration. */
-    private int runningBatchSize = 1;
+    private double runningBatchSize = 1;
 
     /** Timestamp (in nanoseconds) when the current throughput measurement window started. */
     private long throughputStart = 0L;
@@ -520,18 +520,19 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             double minSize = runningBatchSize * QueueConfig.MAX_SHRINK_FACTOR;
 
             if (newBatchSize > maxSize) {
-                runningBatchSize = (int) maxSize;
+                runningBatchSize = maxSize;
             } else if (newBatchSize < minSize) {
-                runningBatchSize = (int) minSize;
+                runningBatchSize = minSize;
             } else {
-                runningBatchSize = (int) newBatchSize;
+                runningBatchSize = newBatchSize;
             }
         }
 
         throughputStart = now;
         throughputCount = 0;
 
-        return Math.min(runningBatchSize, QueueConfig.MAX_BATCH_SIZE);
+        // Rounding up to the nearest integer to avoid pulling 0 messages
+        return (int) Math.ceil(Math.min(runningBatchSize, QueueConfig.MAX_BATCH_SIZE));
     }
 
     /**
