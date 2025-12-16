@@ -139,4 +139,15 @@ public class TestsUtil {
             wireMockServer.stopRecording();
         }
     }
+
+    /**
+     * Resets all WireMock scenarios to their initial state.
+     * This ensures each test starts with a clean scenario state, preventing
+     * flaky tests caused by scenario state persisting across test runs.
+     */
+    public static void resetWireMockScenarios() {
+        if (wireMockServer != null) {
+            wireMockServer.resetScenarios();
+        }
+    }
 }
