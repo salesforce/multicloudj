@@ -70,9 +70,6 @@ public abstract class AbstractPubsubIT {
      */
     @BeforeEach
     public void setupTestEnvironment() {
-        // Reset scenarios to ensure each test starts with a clean state
-        // This prevents flaky tests caused by scenario state persisting across tests
-        TestsUtil.resetWireMockScenarios();
         TestsUtil.startWireMockRecording(harness.getPubsubEndpoint());
     }
 
