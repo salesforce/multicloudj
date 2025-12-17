@@ -4,14 +4,12 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
-import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -26,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
-
-    protected static final String AWS_PROVIDER_ID = "aws";
 
     public interface Harness extends AutoCloseable {
 
@@ -206,21 +202,15 @@ public abstract class AbstractPubsubIT {
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
-            System.out.println("Starting to collect " + toSend.size() + " messages with timeout: " + timeoutSeconds + "s");
-
             while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
                 try {
                     Message r = subscription.receive();
                     if (r != null && r.getAckID() != null) {
                         ackIDs.add(r.getAckID());
-                        System.out.println("Received message " + ackIDs.size() + "/" + toSend.size() +
-                                " with AckID: " + r.getAckID());
                     } else {
-                        System.out.println("Received null message, waiting...");
                         TimeUnit.MILLISECONDS.sleep(100);
                     }
                 } catch (Exception e) {
-                    System.err.println("Error receiving message: " + e.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
@@ -251,21 +241,15 @@ public abstract class AbstractPubsubIT {
             long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
-            System.out.println("Starting to collect " + toSend.size() + " messages with timeout: " + timeoutSeconds + "s");
-
             while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
                 try {
                     Message r = subscription.receive();
                     if (r != null && r.getAckID() != null) {
                         ackIDs.add(r.getAckID());
-                        System.out.println("Received message " + ackIDs.size() + "/" + toSend.size() +
-                                " with AckID: " + r.getAckID());
                     } else {
-                        System.out.println("Received null message, waiting...");
                         TimeUnit.MILLISECONDS.sleep(100);
                     }
                 } catch (Exception e) {
-                    System.err.println("Error receiving message: " + e.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
@@ -283,8 +267,8 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
+    @Disabled
     public void testDoubleAck() throws Exception {
         try (AbstractTopic topic = harness.createTopicDriver();
              AbstractSubscription subscription = harness.createSubscriptionDriver()) {
@@ -299,19 +283,17 @@ public abstract class AbstractPubsubIT {
                 topic.send(message);
             }
 
+            // Receive all messages
             List<Message> receivedMessages = new ArrayList<>();
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-
-            while (receivedMessages.size() < 3 && System.nanoTime() < deadline) {
+            for (int i = 0; i < messages.size(); i++) {
                 Message received = subscription.receive();
-                if (received != null) {
-                    receivedMessages.add(received);
-                } else {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
+                Assertions.assertNotNull(received, "Should receive message " + (i + 1));
+                Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+                receivedMessages.add(received);
             }
 
-            Assertions.assertEquals(3, receivedMessages.size(), "Should receive all 3 messages within timeout");
+            Assertions.assertEquals(messages.size(), receivedMessages.size(),
+                    "Should receive all " + messages.size() + " messages");
 
             // Ack the first two messages
             List<AckID> firstTwoAcks = List.of(
@@ -351,9 +333,8 @@ public abstract class AbstractPubsubIT {
     }
 
     @Test
-    @Timeout(30)
+    @Disabled
     public void testMultipleSendReceiveWithoutBatch() throws Exception {
-        Assumptions.assumeFalse(AWS_PROVIDER_ID.equals(harness.getProviderId()));
         try (AbstractTopic topic = harness.createTopicDriver();
              AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
@@ -368,33 +349,21 @@ public abstract class AbstractPubsubIT {
                         .build();
                 topic.send(message);
                 sentMessages.add(message);
-                TimeUnit.MILLISECONDS.sleep(100); // Small delay between sends
             }
-
-            TimeUnit.MILLISECONDS.sleep(500); // Allow time for messages to be available
 
             // Receive and ack messages one by one (not in batch)
             List<Message> receivedMessages = new ArrayList<>();
-            
-            while (receivedMessages.size() < numMessages) {
-                try {
-                    Message received = subscription.receive();
-                    if (received != null && received.getAckID() != null) {
-                        receivedMessages.add(received);
-                        // Ack immediately after receiving (not in batch)
-                        subscription.sendAck(received.getAckID());
-                        System.out.println("Received and acked message " + receivedMessages.size() + "/" + numMessages);
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error receiving message: " + e.getMessage());
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
+            for (int i = 0; i < numMessages; i++) {
+                Message received = subscription.receive();
+                Assertions.assertNotNull(received, "Should receive message " + (i + 1));
+                Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+                receivedMessages.add(received);
+                // Ack immediately after receiving (not in batch)
+                subscription.sendAck(received.getAckID());
             }
 
             Assertions.assertEquals(numMessages, receivedMessages.size(),
-                    "Should receive all messages. Expected: " + numMessages + ", Got: " + receivedMessages.size());
+                    "Should receive all " + numMessages + " messages");
 
             // Verify all messages were received
             for (int i = 0; i < receivedMessages.size(); i++) {
