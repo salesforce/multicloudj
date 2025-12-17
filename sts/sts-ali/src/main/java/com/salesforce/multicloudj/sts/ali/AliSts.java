@@ -14,8 +14,10 @@ import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
@@ -26,9 +28,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractSts.class)
-public class AliSts extends AbstractSts<AliSts> {
+public class AliSts extends AbstractSts {
 
     private IAcsClient stsClient;
 
@@ -106,10 +107,10 @@ public class AliSts extends AbstractSts<AliSts> {
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
-        GetCallerIdentityRequest request = new GetCallerIdentityRequest();
+    protected CallerIdentity getCallerIdentityFromProvider(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
+        GetCallerIdentityRequest callerIdentityRequest = new GetCallerIdentityRequest();
         try {
-            GetCallerIdentityResponse response = stsClient.getAcsResponse(request);
+            GetCallerIdentityResponse response = stsClient.getAcsResponse(callerIdentityRequest);
             return new CallerIdentity(response.getPrincipalId(), response.getArn(), response.getAccountId());
         } catch (ClientException e) {
             throw new RuntimeException(e);
@@ -138,6 +139,11 @@ public class AliSts extends AbstractSts<AliSts> {
     }
 
     @Override
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
+        throw new UnSupportedOperationException("Not supported yet.");
+    }
+
+    @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         // ali-yun has a wierd chain where ServerException extends the ClientException
         if (t instanceof ClientException) {
@@ -162,9 +168,14 @@ public class AliSts extends AbstractSts<AliSts> {
             // Add more mappings as needed
     );
 
-    public static class Builder extends AbstractSts.Builder<AliSts> {
+    public static class Builder extends AbstractSts.Builder<AliSts, Builder> {
         protected Builder() {
             providerId("ali");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override

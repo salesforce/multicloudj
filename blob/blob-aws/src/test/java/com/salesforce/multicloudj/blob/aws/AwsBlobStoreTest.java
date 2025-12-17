@@ -4,13 +4,14 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
-import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -21,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -29,10 +31,13 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -54,6 +59,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -68,6 +75,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
@@ -93,9 +101,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -103,7 +113,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -124,6 +134,17 @@ public class AwsBlobStoreTest {
     void setup() {
         S3ClientBuilder mockBuilder = mock(S3ClientBuilder.class);
         when(mockBuilder.region(any())).thenReturn(mockBuilder);
+
+        // Execute the consumer lambda to cover lines 540-549
+        doAnswer(invocation -> {
+            Consumer<ClientOverrideConfiguration.Builder> consumer = invocation.getArgument(0);
+            ClientOverrideConfiguration.Builder configBuilder = mock(ClientOverrideConfiguration.Builder.class);
+            when(configBuilder.retryStrategy(any(software.amazon.awssdk.retries.api.RetryStrategy.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallAttemptTimeout(any(Duration.class))).thenReturn(configBuilder);
+            when(configBuilder.apiCallTimeout(any(Duration.class))).thenReturn(configBuilder);
+            consumer.accept(configBuilder);
+            return mockBuilder;
+        }).when(mockBuilder).overrideConfiguration(any(Consumer.class));
 
         s3Client = mockStatic(S3Client.class);
         s3Client.when(S3Client::builder).thenReturn(mockBuilder);
@@ -314,7 +335,7 @@ public class AwsBlobStoreTest {
         return new DownloadRequest.Builder().withKey("object-1").withVersionId("version-1").withRange(10L, 110L).build();
     }
 
-    private void setupMockGetObjectResponse(Instant now) {
+    private void setupMockGetObjectResponse(Instant now, Boolean getBytes) {
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
         GetObjectResponse getObjectResponse = mock(GetObjectResponse.class);
         doReturn("version-1").when(getObjectResponse).versionId();
@@ -322,40 +343,55 @@ public class AwsBlobStoreTest {
         doReturn(now).when(getObjectResponse).lastModified();
         doReturn(metadataMap).when(getObjectResponse).metadata();
         doReturn(100L).when(getObjectResponse).contentLength();
-        doReturn(getObjectResponse).when(mockS3Client).getObject(any(GetObjectRequest.class), (ResponseTransformer<GetObjectResponse, Object>) any());
 
         ResponseBytes<GetObjectResponse> responseBytes = mock(ResponseBytes.class);
         doReturn("downloadedData".getBytes()).when(responseBytes).asByteArray();
-        doReturn(responseBytes).when(mockS3Client).getObject(any(GetObjectRequest.class), eq(ResponseTransformer.toBytes()));
         doReturn(getObjectResponse).when(responseBytes).response();
+
+        if (getBytes) {
+            // For toBytes transformer, return ResponseBytes
+            doReturn(responseBytes).when(mockS3Client).getObject(any(GetObjectRequest.class), ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any());
+        } else {
+            // For other transformers (toOutputStream, toFile, etc.), return GetObjectResponse
+            doReturn(getObjectResponse).when(mockS3Client).getObject(any(GetObjectRequest.class), ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any());
+        }
+
+        ResponseInputStream<GetObjectResponse> responseInputStream = mock(ResponseInputStream.class);
+        try {
+            doReturn("downloadedDataFromStream".getBytes()).when(responseInputStream).readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        doReturn(responseInputStream).when(mockS3Client).getObject(any(GetObjectRequest.class));
+        doReturn(getObjectResponse).when(responseInputStream).response();
     }
 
     @Test
     void testDoDownloadOutputStream() {
         OutputStream mockContent = mock(OutputStream.class);
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         DownloadResponse response = aws.doDownload(buildTestDownloadRequest(), mockContent);
-        verifyDownloadTestResults(response, now);
+        verifyDownloadTestResults(response, now, true);
     }
 
     @Test
     void testDoDownloadByteArrayWrapper() {
         ByteArray byteArray = new ByteArray();
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
-        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), byteArray), now);
+        setupMockGetObjectResponse(now, true);
+        verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), byteArray), now, true);
         assertEquals("downloadedData", new String(byteArray.getBytes()));
     }
 
     @Test
     void testDoDownloadFile() {
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         Path path = Path.of("tempFile.txt");
         try {
             Files.deleteIfExists(path);
-            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path.toFile()), now, true);
         } catch (IOException e) {
             Assertions.fail();
         } finally {
@@ -370,11 +406,11 @@ public class AwsBlobStoreTest {
     @Test
     void testDoDownloadPath() {
         Instant now = Instant.now();
-        setupMockGetObjectResponse(now);
+        setupMockGetObjectResponse(now, false);
         Path path = Path.of("tempPath.txt");
         try {
             Files.deleteIfExists(path);
-            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now);
+            verifyDownloadTestResults(aws.doDownload(buildTestDownloadRequest(), path), now, true);
         } catch (IOException e) {
             Assertions.fail();
         } finally {
@@ -386,10 +422,27 @@ public class AwsBlobStoreTest {
         }
     }
 
-    void verifyDownloadTestResults(DownloadResponse response, Instant now) {
+    @Test
+    void testDoDownloadInputStream() {
+        Instant now = Instant.now();
+        setupMockGetObjectResponse(now, false);
+        DownloadResponse response = aws.download(buildTestDownloadRequest());
+        verifyDownloadTestResults(response, now, false);
+        try {
+            assertArrayEquals("downloadedDataFromStream".getBytes(), response.getInputStream().readAllBytes());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    void verifyDownloadTestResults(DownloadResponse response, Instant now, Boolean responseTransfer) {
 
         ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
-        verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), (ResponseTransformer<GetObjectResponse, Object>) any());
+        if (responseTransfer) {
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), (ResponseTransformer<GetObjectResponse, Object>) any());
+        } else {
+            verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture());
+        }
         GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
         assertEquals("bucket-1", actualGetObjectRequest.bucket());
         assertEquals("object-1", actualGetObjectRequest.key());
@@ -476,12 +529,50 @@ public class AwsBlobStoreTest {
     }
 
     @Test
+    void testDoCopyFrom() {
+
+        Instant now = Instant.now();
+        CopyObjectResult mockResult = mock(CopyObjectResult.class);
+        doReturn("eTag-1").when(mockResult).eTag();
+        doReturn(now).when(mockResult).lastModified();
+
+        CopyObjectResponse mockResponse = mock(CopyObjectResponse.class);
+        doReturn(mockResult).when(mockResponse).copyObjectResult();
+        doReturn("copyVersion-1").when(mockResponse).versionId();
+
+        when(mockS3Client.copyObject((CopyObjectRequest) any())).thenReturn(mockResponse);
+
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("src-bucket-1")
+                .srcKey("src-object-1")
+                .srcVersionId("version-1")
+                .destKey("dest-object-1")
+                .build();
+
+        CopyResponse copyResponse = aws.doCopyFrom(copyFromRequest);
+
+        assertEquals("dest-object-1", copyResponse.getKey());
+        assertEquals("copyVersion-1", copyResponse.getVersionId());
+        assertEquals("eTag-1", copyResponse.getETag());
+        assertEquals(now, copyResponse.getLastModified());
+
+        ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor = ArgumentCaptor.forClass(CopyObjectRequest.class);
+        verify(mockS3Client, times(1)).copyObject(copyObjectRequestCaptor.capture());
+        CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
+        assertEquals("src-bucket-1", actualCopyObjectRequest.sourceBucket());
+        assertEquals("src-object-1", actualCopyObjectRequest.sourceKey());
+        assertEquals("version-1", actualCopyObjectRequest.sourceVersionId());
+        assertEquals("bucket-1", actualCopyObjectRequest.destinationBucket());
+        assertEquals("dest-object-1", actualCopyObjectRequest.destinationKey());
+    }
+
+    @Test
     void testDoGetMetadata() {
         Instant now = Instant.now();
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
         HeadObjectResponse mockResponse = mock(HeadObjectResponse.class);
         when(mockResponse.versionId()).thenReturn("v1");
-        when(mockResponse.eTag()).thenReturn("etag");
+        when(mockResponse.eTag()).thenReturn("\"5d41402abc4b2a76b9719d911017c592\"");
         when(mockResponse.contentLength()).thenReturn(1024L);
         when(mockResponse.metadata()).thenReturn(metadataMap);
         when(mockResponse.lastModified()).thenReturn(now);
@@ -496,10 +587,38 @@ public class AwsBlobStoreTest {
         assertEquals("bucket-1", actualHeadObjectRequest.bucket());
         assertEquals("object-1", metadata.getKey());
         assertEquals("v1", metadata.getVersionId());
-        assertEquals("etag", metadata.getETag());
+        assertEquals("\"5d41402abc4b2a76b9719d911017c592\"", metadata.getETag());
         assertEquals(1024L, metadata.getObjectSize());
         assertEquals(metadataMap, metadata.getMetadata());
         assertEquals(now, metadata.getLastModified());
+        byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
+        assertArrayEquals(expectedMd5, metadata.getMd5());
+    }
+
+    @Test
+    void testBadETag() {
+        HeadObjectResponse mockResponse = mock(HeadObjectResponse.class);
+        when(mockS3Client.headObject((HeadObjectRequest) any())).thenReturn(mockResponse);
+
+        // eTag is null
+        when(mockResponse.eTag()).thenReturn(null);
+        BlobMetadata metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag's length < 2
+        when(mockResponse.eTag()).thenReturn("b");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag does not begin with double-quote
+        when(mockResponse.eTag()).thenReturn("5d41402abc4b2a76b9719d911017c592\"");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
+
+        // eTag does not end with double-quote
+        when(mockResponse.eTag()).thenReturn("\"5d41402abc4b2a76b9719d911017c592");
+        metadata = aws.doGetMetadata("object-1", "v1");
+        assertArrayEquals(new byte[0], metadata.getMd5());
     }
 
     @Test
@@ -626,11 +745,84 @@ public class AwsBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithKms() {
+        CreateMultipartUploadResponse mockResponse = mock(CreateMultipartUploadResponse.class);
+        doReturn("bucket-1").when(mockResponse).bucket();
+        doReturn("object-1").when(mockResponse).key();
+        doReturn("mpu-id").when(mockResponse).uploadId();
+        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        MultipartUpload response = aws.initiateMultipartUpload(request);
+
+        // Verify the request is mapped to the SDK with KMS encryption
+        ArgumentCaptor<CreateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mockS3Client, times(1)).createMultipartUpload(requestCaptor.capture());
+        CreateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals(metadata, actualRequest.metadata());
+        assertEquals(ServerSideEncryption.AWS_KMS, actualRequest.serverSideEncryption());
+        assertEquals(kmsKeyId, actualRequest.ssekmsKeyId());
+
+        // Verify the response is mapped back properly with KMS key
+        assertEquals("object-1", response.getKey());
+        assertEquals("bucket-1", response.getBucket());
+        assertEquals("mpu-id", response.getId());
+        assertEquals(kmsKeyId, response.getKmsKeyId());
+    }
+
+    @Test
+    void testDoInitiateMultipartUploadWithTags() {
+        CreateMultipartUploadResponse mockResponse = mock(CreateMultipartUploadResponse.class);
+        doReturn("bucket-1").when(mockResponse).bucket();
+        doReturn("object-1").when(mockResponse).key();
+        doReturn("mpu-id").when(mockResponse).uploadId();
+        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Map<String, String> tags = Map.of("tag-1", "tag-value-1", "tag-2", "tag-value-2");
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        MultipartUpload response = aws.initiateMultipartUpload(request);
+
+        // Verify the request is mapped to the SDK with tags
+        ArgumentCaptor<CreateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mockS3Client, times(1)).createMultipartUpload(requestCaptor.capture());
+        CreateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.key());
+        assertEquals("bucket-1", actualRequest.bucket());
+        assertEquals(metadata, actualRequest.metadata());
+        // Verify tagging header is set (tagging() returns String in AWS SDK)
+        assertNotNull(actualRequest.tagging());
+        assertFalse(actualRequest.tagging().isEmpty());
+
+        // Verify the response is mapped back properly with tags
+        assertEquals("object-1", response.getKey());
+        assertEquals("bucket-1", response.getBucket());
+        assertEquals("mpu-id", response.getId());
+        assertEquals(tags, response.getTags());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         UploadPartResponse mockResponse = mock(UploadPartResponse.class);
         doReturn("etag").when(mockResponse).eTag();
         doReturn(mockResponse).when(mockS3Client).uploadPart(any(UploadPartRequest.class), any(RequestBody.class));
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
         MultipartPart multipartPart = new MultipartPart(1, content);
 
@@ -659,7 +851,11 @@ public class AwsBlobStoreTest {
         doReturn("object-1").when(mockResponse).key();
         doReturn("complete-etag").when(mockResponse).eTag();
         doReturn(mockResponse).when(mockS3Client).completeMultipartUpload((CompleteMultipartUploadRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts = List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
 
         MultipartUploadResponse response = aws.completeMultipartUpload(multipartUpload, listOfParts);
@@ -692,7 +888,11 @@ public class AwsBlobStoreTest {
                 Part.builder().partNumber(3).eTag("etag3").size(1000L).build());
         doReturn(parts).when(mockResponse).parts();
         doReturn(mockResponse).when(mockS3Client).listParts((ListPartsRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         var response = aws.listMultipartUpload(multipartUpload);
 
@@ -720,7 +920,11 @@ public class AwsBlobStoreTest {
     void testDoAbortMultipartUpload() {
         AbortMultipartUploadResponse mockResponse = mock(AbortMultipartUploadResponse.class);
         doReturn(mockResponse).when(mockS3Client).abortMultipartUpload((AbortMultipartUploadRequest) any());
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         aws.abortMultipartUpload(multipartUpload);
 
@@ -831,10 +1035,151 @@ public class AwsBlobStoreTest {
         assertFalse(result);
     }
 
+    @Test
+    void testDoDoesBucketExist() {
+        HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
+        when(mockS3Client.headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any())).thenReturn(mockResponse);
+
+        boolean result = aws.doDoesBucketExist();
+
+        verify(mockS3Client, times(1)).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        assertTrue(result);
+
+        // Verify the error state - bucket doesn't exist (404)
+        S3Exception mockException = mock(S3Exception.class);
+        doReturn(404).when(mockException).statusCode();
+        doThrow(mockException).when(mockS3Client).headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+
+        result = aws.doDoesBucketExist();
+        assertFalse(result);
+    }
+
     private S3Object mockObject(int index) {
         S3Object mockS3 = mock(S3Object.class);
         when(mockS3.key()).thenReturn("key-" + index);
         when(mockS3.size()).thenReturn((long) index);
         return mockS3;
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfig() {
+        // Test with exponential retry config
+        RetryConfig exponentialConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(5000L)
+                .attemptTimeout(5000L)
+                .totalTimeout(30000L)
+                .build();
+
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(exponentialConfig)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithFixedRetryConfig() {
+        // Test with fixed retry config
+        RetryConfig fixedConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(5)
+                .fixedDelayMillis(1000L)
+                .build();
+
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(fixedConfig)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfigWithNullMaxAttempts() {
+        // Test with null maxAttempts (should use AWS default)
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(null)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfigWithAttemptTimeout() {
+        // Test with attempt timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .attemptTimeout(5000L)
+                .build();
+
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithRetryConfigWithTotalTimeout() {
+        // Test with total timeout only
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .totalTimeout(30000L)
+                .build();
+
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withRetryConfig(config)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithoutRetryConfig() {
+        // Test without retry config (default behavior)
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
     }
 }

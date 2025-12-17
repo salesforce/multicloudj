@@ -1,5 +1,9 @@
 package com.salesforce.multicloudj.sts.model;
 
+import lombok.Getter;
+
+import java.util.function.Supplier;
+
 /**
  * The CredentialsOverrider is used when the service wants to override the
  * default credentialsOverrider in the given environment. The default credentialsOverrider
@@ -11,35 +15,22 @@ package com.salesforce.multicloudj.sts.model;
  *  If the service supplies both, the session credentialsOverrider and the details for assume role,
  *  the session credentialsOverrider takes precedence over the assume role.
  */
+@Getter
 public class CredentialsOverrider {
-
-
     protected CredentialsType type;
     protected StsCredentials sessionCredentials;
     protected String role;
     protected Integer durationSeconds;
+    protected String sessionName;
+    protected Supplier<String> webIdentityTokenSupplier;
 
     public CredentialsOverrider(Builder builder) {
         this.type = builder.type;
         this.sessionCredentials = builder.sessionCredentials;
         this.role = builder.role;
         this.durationSeconds = builder.durationSeconds;
-    }
-
-    public CredentialsType getType() {
-        return type;
-    }
-
-    public StsCredentials getSessionCredentials() {
-        return sessionCredentials;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public Integer getDurationSeconds() {
-        return durationSeconds;
+        this.webIdentityTokenSupplier = builder.webIdentityTokenSupplier;
+        this.sessionName = builder.sessionName;
     }
 
     public static class Builder {
@@ -47,6 +38,8 @@ public class CredentialsOverrider {
         private StsCredentials sessionCredentials;
         private String role;
         private Integer durationSeconds;
+        protected String sessionName;
+        protected Supplier<String> webIdentityTokenSupplier;
 
         public Builder(CredentialsType type) {
             this.type = type;
@@ -64,6 +57,16 @@ public class CredentialsOverrider {
 
         public Builder withDurationSeconds(Integer durationSeconds) {
             this.durationSeconds = durationSeconds;
+            return this;
+        }
+
+        public Builder withWebIdentityTokenSupplier(Supplier<String> tokenSupplier) {
+            this.webIdentityTokenSupplier = tokenSupplier;
+            return this;
+        }
+
+        public Builder withSessionName(String sessionName) {
+            this.sessionName = sessionName;
             return this;
         }
 

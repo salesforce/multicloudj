@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.async.driver.BlobStoreAsyncBridge;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpBlobStore;
 import com.salesforce.multicloudj.blob.gcp.GcpTransformerSupplier;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import lombok.Getter;
 
@@ -17,15 +18,41 @@ import java.util.concurrent.ExecutorService;
  */
 public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlobStore {
 
+    private final Storage storage;
+    private final GcpTransformerSupplier transformerSupplier;
+
     /**
      * Creates a new async wrapper around the provided BlobStore.
      *
      * @param blobStore       the synchronous blob store to wrap
      * @param executorService the executor service to use for async operations. If this value is
      *                        null then this will use the ForkJoinPool.commonPool()
+     * @param storage         the GCP Storage client for directory operations
+     * @param transformerSupplier the transformer supplier for GCP operations
      */
-    public GcpAsyncBlobStore(AbstractBlobStore<?> blobStore, ExecutorService executorService) {
+    public GcpAsyncBlobStore(AbstractBlobStore blobStore, ExecutorService executorService,
+                             Storage storage, GcpTransformerSupplier transformerSupplier) {
         super(blobStore, executorService);
+        this.storage = storage;
+        this.transformerSupplier = transformerSupplier;
+    }
+
+    /**
+     * Closes the underlying GCP Storage client and wrapped blob store
+     */
+    @Override
+    public void close() {
+        try {
+            if (storage != null) {
+                storage.close();
+            }
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+        }
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     @Getter
@@ -56,24 +83,15 @@ public class GcpAsyncBlobStore extends BlobStoreAsyncBridge implements AsyncBlob
 
         @Override
         public GcpAsyncBlobStore build() {
-            GcpBlobStore blobStore = getGcpBlobStore();
+            GcpBlobStore blobStore = gcpBlobStore;
             if(blobStore == null) {
                 blobStore = new GcpBlobStore.Builder()
-                        .withStorage(getStorage())
-                        .withTransformerSupplier(getTransformerSupplier())
-                        .withBucket(getBucket())
-                        .withCredentialsOverrider(getCredentialsOverrider())
-                        .withEndpoint(getEndpoint())
-                        .withIdleConnectionTimeout(getIdleConnectionTimeout())
-                        .withMaxConnections(getMaxConnections())
-                        .withProperties(getProperties())
-                        .withProxyEndpoint(getProxyEndpoint())
-                        .withRegion(getRegion())
-                        .withSocketTimeout(getSocketTimeout())
-                        .withValidator(getValidator())
+                        .copyFrom(this)
+                        .withStorage(storage)
+                        .withTransformerSupplier(transformerSupplier)
                         .build();
             }
-            return new GcpAsyncBlobStore(blobStore, getExecutorService());
+            return new GcpAsyncBlobStore(blobStore, getExecutorService(), storage, transformerSupplier);
         }
     }
 }

@@ -17,6 +17,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 /**
@@ -41,11 +42,22 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     protected ListBucketsResponse doListBuckets() {
         software.amazon.awssdk.services.s3.model.ListBucketsResponse response = s3Client.listBuckets();
 
+
         return ListBucketsResponse.builder().bucketInfoList(response.buckets().stream().map(bucket -> BucketInfo.builder()
                 .region(bucket.bucketRegion())
                 .name(bucket.name())
                 .creationDate(bucket.creationDate())
                 .build()).collect(Collectors.toList())).build();
+    }
+
+    /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    @Override
+    protected void doCreateBucket(String bucketName) {
+        s3Client.createBucket(builder -> builder.bucket(bucketName));
     }
 
     /**
@@ -68,7 +80,7 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
         this.s3Client = s3Client;
     }
 
-    private static S3Client buildS3Client(AwsBlobClient.Builder builder) {
+    private static S3Client buildS3Client(Builder builder) {
         Region regionObj = Region.of(builder.getRegion());
         S3ClientBuilder b = S3Client.builder();
         b.region(regionObj);
@@ -88,6 +100,20 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
                     .proxyConfiguration(proxyConfig)
                     .build());
         }
+        if (builder.getRetryConfig() != null) {
+            // Create a temporary transformer instance for retry strategy conversion
+            AwsTransformer transformer = new AwsTransformer(null);
+            b.overrideConfiguration(config -> {
+                config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                // Set API call timeouts if provided
+                if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                    config.apiCallAttemptTimeout(Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                }
+                if (builder.getRetryConfig().getTotalTimeout() != null) {
+                    config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                }
+            });
+        }
 
         return b.build();
     }
@@ -98,8 +124,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
      * @return a new instance of {@link Builder}.
      */
     @Override
-    public AwsBlobClient.Builder builder() {
-        return new AwsBlobClient.Builder();
+    public Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -116,6 +142,16 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
             return InvalidArgumentException.class;
         }
         return UnknownException.class;
+    }
+
+    /**
+     * Closes the underlying S3 client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
+        }
     }
 
 

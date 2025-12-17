@@ -13,7 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
+public class TestBlobStore extends AbstractBlobStore {
     public TestBlobStore(Builder builder) {
         super(builder);
     }
@@ -54,6 +54,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
+    protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        return null;
+    }
+
+    @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
         return null;
     }
@@ -70,6 +75,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
 
     @Override
     protected CopyResponse doCopy(CopyRequest request) {
+        return null;
+    }
+
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
         return null;
     }
 
@@ -94,7 +104,7 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
+    protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         return null;
     }
 
@@ -104,7 +114,7 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
-    protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
+    protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
         return null;
     }
 
@@ -134,6 +144,11 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
     }
 
     @Override
+    protected boolean doDoesBucketExist() {
+        return false;
+    }
+
+    @Override
     public Provider.Builder builder() {
         return new Builder();
     }
@@ -143,10 +158,20 @@ public class TestBlobStore extends AbstractBlobStore<TestBlobStore> {
         return null;
     }
 
-    public static class Builder extends AbstractBlobStore.Builder<TestBlobStore> {
+    @Override
+    public void close() {
+        // Test implementation - no-op
+    }
+
+    public static class Builder extends AbstractBlobStore.Builder<TestBlobStore, Builder> {
 
         protected Builder() {
             providerId("test");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override

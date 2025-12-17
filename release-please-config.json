@@ -1,0 +1,25 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "maven",
+      "package-name": "multicloudj",
+      "changelog-sections": [
+        {"type": "feat", "section": "Features", "hidden": false},
+        {"type": "fix", "section": "Bug Fixes", "hidden": false},
+        {"type": "perf", "section": "Performance Improvements", "hidden": false},
+        {"type": "blobstore", "section": "Blob Store", "hidden": false},
+        {"type": "docstore", "section": "Document Store", "hidden": false},
+        {"type": "sts", "section": "STS", "hidden": false},
+        {"type": "pubsub", "section": "PubSub", "hidden": false},
+        {"type": "iam", "section": "IAM", "hidden": false},
+        {"type": "refactor", "section": "Code Refactoring", "hidden": false},
+        {"type": "revert", "section": "Reverts", "hidden": false},
+        {"type": "docs", "section": "Documentation", "hidden": true},
+        {"type": "test", "section": "Tests", "hidden": true},
+        {"type": "chore", "section": "Chores", "hidden": true},
+        {"type": "build", "section": "Build System", "hidden": true},
+        {"type": "ci", "section": "CI", "hidden": true}
+      ]
+    }
+  }
+}

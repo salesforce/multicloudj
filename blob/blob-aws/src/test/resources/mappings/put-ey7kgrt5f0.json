@@ -1,0 +1,28 @@
+{
+  "id" : "e77b5a03-68d4-4ac9-adc3-31d3879533eb",
+  "name" : "chameleon-jcloud_conformance-tests_kms_download-happy-path",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/download-happy-path",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBkYXRhIGZvciBLTVMgZG93bmxvYWQ="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"6e836cd92a64399f507beb550120d8d2\"",
+      "x-amz-checksum-crc64nvme" : "XU8hlj9lJbQ=",
+      "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "XVMJG3CWBZM0PZ1D",
+      "x-amz-server-side-encryption" : "aws:kms",
+      "x-amz-id-2" : "Hz9MzVzO40sqJMuSXweSs5FaLJrVOsClVLLBFNSmGZVnFNXJKiMtnRq1RU6w4VshYmHlRObSOIo=",
+      "Date" : "Fri, 17 Oct 2025 22:26:01 GMT"
+    }
+  },
+  "uuid" : "e77b5a03-68d4-4ac9-adc3-31d3879533eb",
+  "persistent" : true,
+  "insertionIndex" : 523
+}

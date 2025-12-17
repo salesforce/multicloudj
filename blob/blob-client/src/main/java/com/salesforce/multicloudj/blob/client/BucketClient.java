@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -22,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.io.File;
@@ -39,11 +41,11 @@ import java.util.Map;
 /**
  * Entry point for Client code to interact with the Blob storage.
  */
-public class BucketClient {
+public class BucketClient implements AutoCloseable {
 
-    protected AbstractBlobStore<?> blobStore;
+    protected AbstractBlobStore blobStore;
 
-    protected BucketClient(AbstractBlobStore<?> blobStore) {
+    protected BucketClient(AbstractBlobStore blobStore) {
         this.blobStore = blobStore;
     }
 
@@ -202,6 +204,23 @@ public class BucketClient {
     }
 
     /**
+     * Downloads the Blob content and returns an InputStream for reading the content
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public DownloadResponse download(DownloadRequest downloadRequest) {
+        try {
+            return blobStore.download(downloadRequest);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
      * Deletes a single blob from substrate-specific Blob storage.
      *
      * @param key Object name of the Blob
@@ -243,6 +262,23 @@ public class BucketClient {
     public CopyResponse copy(CopyRequest request) {
         try {
             return blobStore.copy(request);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Copies the Blob from other bucket to the current bucket
+     *
+     * @param request copyFrom request wrapper. Contains the information necessary to perform a copy from a source bucket
+     * @return CopyResponse of the copied Blob
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CopyResponse copyFrom(CopyFromRequest request) {
+        try {
+            return blobStore.copyFrom(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
@@ -448,9 +484,34 @@ public class BucketClient {
         }
     }
 
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public boolean doesBucketExist() {
+        try {
+            return blobStore.doesBucketExist();
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return false;
+        }
+    }
+
+    /**
+     * Closes the underlying blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
+        }
+    }
+
     public static class BlobBuilder {
 
-        private final AbstractBlobStore.Builder<?> blobStoreBuilder;
+        private final AbstractBlobStore.Builder<?, ?> blobStoreBuilder;
 
         public BlobBuilder(String providerId) {
             this.blobStoreBuilder = ProviderSupplier.findProviderBuilder(providerId);
@@ -535,6 +596,16 @@ public class BucketClient {
          */
         public BlobBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
             this.blobStoreBuilder.withCredentialsOverrider(credentialsOverrider);
+            return this;
+        }
+
+        /**
+         * Method to supply retry configuration
+         * @param retryConfig The retry configuration to use for retrying failed requests
+         * @return An instance of self
+         */
+        public BlobBuilder withRetryConfig(RetryConfig retryConfig) {
+            this.blobStoreBuilder.withRetryConfig(retryConfig);
             return this;
         }
 

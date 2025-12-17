@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -30,6 +31,7 @@ import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -49,6 +51,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -68,6 +71,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -78,10 +82,8 @@ import java.util.stream.Collectors;
 /**
  * AWS implementation of BlobStore
  */
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractBlobStore.class)
-public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
-
+public class AwsBlobStore extends AbstractBlobStore {
     private final S3Client s3Client;
     private final AwsTransformer transformer;
 
@@ -179,11 +181,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected UploadResponse doUpload(UploadRequest uploadRequest, RequestBody requestBody) {
         PutObjectRequest request = transformer.toRequest(uploadRequest);
         PutObjectResponse response = s3Client.putObject(request, requestBody);
-        return UploadResponse.builder()
-                .key(uploadRequest.getKey())
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .build();
+        return transformer.toUploadResponse(uploadRequest.getKey(), response);
     }
 
     /**
@@ -245,6 +243,19 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     }
 
     /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        GetObjectRequest request = transformer.toRequest(downloadRequest);
+        ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
+        return transformer.toDownloadResponse(downloadRequest, responseInputStream.response(), responseInputStream);
+    }
+
+    /**
      * Deletes a single Blob
      *
      * @param key The key of the Blob to be deleted
@@ -275,12 +286,20 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected CopyResponse doCopy(CopyRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return CopyResponse.builder()
-                .key(request.getDestKey())
-                .versionId(copyResponse.versionId())
-                .eTag(copyResponse.copyObjectResult().eTag())
-                .lastModified(copyResponse.copyObjectResult().lastModified())
-                .build();
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
+    }
+
+    /**
+     * Copies a Blob from a source bucket to the current bucket
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
+        CopyObjectRequest copyRequest = transformer.toRequest(request);
+        CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
+        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
     }
 
     /**
@@ -296,14 +315,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         HeadObjectRequest request = transformer.toHeadRequest(key, versionId);
         HeadObjectResponse response = s3Client.headObject(request);
-        return BlobMetadata.builder()
-                .key(key)
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .objectSize(response.contentLength())
-                .metadata(response.metadata())
-                .lastModified(response.lastModified())
-                .build();
+        return transformer.toMetadata(response, key);
     }
 
     /**
@@ -348,7 +360,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
-        return new MultipartUpload(createMultipartUploadResponse.bucket(), createMultipartUploadResponse.key(), createMultipartUploadResponse.uploadId());
+        return transformer.toMultipartUpload(request, createMultipartUploadResponse);
     }
 
     /**
@@ -362,7 +374,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
         var uploadPartResponse = s3Client.uploadPart(uploadPartRequest, RequestBody.fromInputStream(mpp.getInputStream(), mpp.getContentLength()));
-        return new UploadPartResponse(mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
+        return transformer.toUploadPartResponse(mpp, uploadPartResponse);
     }
 
     /**
@@ -376,7 +388,7 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
         CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
         CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-        return new MultipartUploadResponse(completeMultipartUploadResponse.eTag());
+        return transformer.toMultipartUploadResponse(completeMultipartUploadResponse);
     }
 
     /**
@@ -477,14 +489,43 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
         }
     }
 
+    @Override
+    protected boolean doDoesBucketExist() {
+        try {
+            s3Client.headBucket(builder -> builder.bucket(bucket));
+            return true;
+        }
+        catch(S3Exception e) {
+            if (e.statusCode() == 404) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Closes the underlying S3 client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (s3Client != null) {
+            s3Client.close();
+        }
+    }
+
     @Getter
-    public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore, Builder> {
 
         private S3Client s3Client;
         private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
         public Builder() {
             providerId(AwsConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         /**
@@ -504,6 +545,20 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
             }
             if(shouldConfigureHttpClient(builder)) {
                 b.httpClient(generateHttpClient(builder));
+            }
+            if (builder.getRetryConfig() != null) {
+                // Create a temporary transformer instance for retry strategy conversion
+                AwsTransformer transformer = builder.getTransformerSupplier().get(builder.getBucket());
+                b.overrideConfiguration(config -> {
+                    config.retryStrategy(transformer.toAwsRetryStrategy(builder.getRetryConfig()));
+                    // Set API call timeouts if provided
+                    if (builder.getRetryConfig().getAttemptTimeout() != null) {
+                        config.apiCallAttemptTimeout(Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+                    }
+                    if (builder.getRetryConfig().getTotalTimeout() != null) {
+                        config.apiCallTimeout(Duration.ofMillis(builder.getRetryConfig().getTotalTimeout()));
+                    }
+                });
             }
 
             return b.build();
@@ -531,12 +586,12 @@ public class AwsBlobStore extends AbstractBlobStore<AwsBlobStore> {
             return httpClientBuilder.build();
         }
 
-        public AwsBlobStore.Builder withS3Client(S3Client s3Client) {
+        public Builder withS3Client(S3Client s3Client) {
             this.s3Client = s3Client;
             return this;
         }
 
-        public AwsBlobStore.Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
+        public Builder withTransformerSupplier(AwsTransformerSupplier transformerSupplier) {
             this.transformerSupplier = transformerSupplier;
             return this;
         }

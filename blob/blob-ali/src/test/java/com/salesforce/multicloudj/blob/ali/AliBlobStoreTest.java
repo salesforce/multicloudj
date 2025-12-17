@@ -5,6 +5,7 @@ import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
+import com.aliyun.oss.ServiceException;
 import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
@@ -35,6 +36,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -90,6 +92,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -225,6 +228,13 @@ public class AliBlobStoreTest {
         Instant now = Instant.now();
         doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
         verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), mock(OutputStream.class)), now);
+    }
+
+    @Test
+    void testDoDownloadInputStream() {
+        Instant now = Instant.now();
+        doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+        verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest()), now);
     }
 
     @Test
@@ -384,6 +394,39 @@ public class AliBlobStoreTest {
     }
 
     @Test
+    void testDoCopyFrom() {
+        Instant now = Instant.now();
+        CopyObjectResult mockResult = mock(CopyObjectResult.class);
+        doReturn("copyVersion-1").when(mockResult).getVersionId();
+        doReturn("eTag-1").when(mockResult).getETag();
+        doReturn(Date.from(now)).when(mockResult).getLastModified();
+        when(mockOssClient.copyObject(any())).thenReturn(mockResult);
+
+        CopyFromRequest copyFromRequest = CopyFromRequest.builder()
+                .srcBucket("src-bucket-1")
+                .srcKey("src-object-1")
+                .srcVersionId("version-1")
+                .destKey("dest-object-1")
+                .build();
+
+        CopyResponse copyResponse = ali.doCopyFrom(copyFromRequest);
+
+        assertEquals("dest-object-1", copyResponse.getKey());
+        assertEquals("copyVersion-1", copyResponse.getVersionId());
+        assertEquals("eTag-1", copyResponse.getETag());
+        assertEquals(Date.from(now).toInstant(), copyResponse.getLastModified());
+
+        ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor = ArgumentCaptor.forClass(CopyObjectRequest.class);
+        verify(mockOssClient, times(1)).copyObject(copyObjectRequestCaptor.capture());
+        CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
+        assertEquals("src-bucket-1", actualCopyObjectRequest.getSourceBucketName());
+        assertEquals("src-object-1", actualCopyObjectRequest.getSourceKey());
+        assertEquals("version-1", actualCopyObjectRequest.getSourceVersionId());
+        assertEquals("bucket-1", actualCopyObjectRequest.getDestinationBucketName());
+        assertEquals("dest-object-1", actualCopyObjectRequest.getDestinationKey());
+    }
+
+    @Test
     void testDoGetMetadata() {
         Instant now = Instant.now();
         Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
@@ -537,11 +580,45 @@ public class AliBlobStoreTest {
     }
 
     @Test
+    void testDoInitiateMultipartUploadWithKms() {
+        InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
+        doReturn("bucket-1").when(mockResponse).getBucketName();
+        doReturn("object-1").when(mockResponse).getKey();
+        doReturn("mpu-id").when(mockResponse).getUploadId();
+        when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any())).thenReturn(mockResponse);
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "test-kms-key-id";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        MultipartUpload response = ali.initiateMultipartUpload(request);
+
+        ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor = ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
+        verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
+        InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
+        assertEquals("object-1", actualRequest.getKey());
+        assertEquals("bucket-1", actualRequest.getBucketName());
+        assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actualRequest.getObjectMetadata().getServerSideEncryption());
+        assertEquals(kmsKeyId, actualRequest.getObjectMetadata().getRawMetadata().get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+
+        // Verify the response has KMS key
+        assertEquals(kmsKeyId, response.getKmsKeyId());
+    }
+
+    @Test
     void testDoUploadMultipartPart() {
         UploadPartResult mockResponse = mock(UploadPartResult.class);
         doReturn(new PartETag(1, "etag")).when(mockResponse).getPartETag();
         when(mockOssClient.uploadPart(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
         MultipartPart multipartPart = new MultipartPart(1, content);
 
@@ -560,7 +637,11 @@ public class AliBlobStoreTest {
     void testDoCompleteMultipartUpload() {
         CompleteMultipartUploadResult mockResponse = mock(CompleteMultipartUploadResult.class);
         when(mockOssClient.completeMultipartUpload(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts = List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
 
         ali.completeMultipartUpload(multipartUpload, listOfParts);
@@ -581,7 +662,11 @@ public class AliBlobStoreTest {
     void testDoListMultipartUpload() {
         PartListing mockResponse = mock(PartListing.class);
         when(mockOssClient.listParts(any())).thenReturn(mockResponse);
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         ali.listMultipartUpload(multipartUpload);
 
@@ -595,7 +680,11 @@ public class AliBlobStoreTest {
 
     @Test
     void testDoAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
 
         ali.abortMultipartUpload(multipartUpload);
 
@@ -695,6 +784,57 @@ public class AliBlobStoreTest {
         assertEquals("object-1", actualRequest.getKey());
         assertEquals("version-1", actualRequest.getVersionId());
         assertTrue(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist() {
+        doReturn(true).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_BucketDoesNotExist() {
+        doReturn(false).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsNoSuchBucketException() {
+        com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
+        doReturn("NoSuchBucket").when(serviceException).getErrorCode();
+        doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        boolean result = ali.doDoesBucketExist();
+
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsOtherServiceException() {
+        com.aliyun.oss.ServiceException serviceException = mock(com.aliyun.oss.ServiceException.class);
+        doReturn("AccessDenied").when(serviceException).getErrorCode();
+        doThrow(serviceException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> ali.doDoesBucketExist());
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
+    }
+
+    @Test
+    void testDoDoesBucketExist_ThrowsClientException() {
+        ClientException clientException = mock(ClientException.class);
+        doThrow(clientException).when(mockOssClient).doesBucketExist("bucket-1");
+
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> ali.doDoesBucketExist());
+        verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
     }
 
     private UploadRequest getTestUploadRequest() {

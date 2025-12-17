@@ -3,25 +3,45 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
+import software.amazon.awssdk.services.s3.model.StorageClass;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.common.util.HexUtil;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
@@ -35,6 +55,7 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -42,8 +63,17 @@ import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.core.ResponseInputStream;
 
 import java.io.InputStream;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -82,6 +112,7 @@ public class AwsTransformer {
         return new BlobInfo.Builder()
                 .withKey(s3.key())
                 .withObjectSize(s3.size())
+                .withLastModified(s3.lastModified())
                 .build();
     }
 
@@ -123,14 +154,31 @@ public class AwsTransformer {
         List<Tag> tags = request.getTags().entrySet().stream()
                 .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
                 .collect(Collectors.toList());
-        return PutObjectRequest
+        PutObjectRequest.Builder builder = PutObjectRequest
                 .builder()
                 .bucket(getBucket())
                 .key(request.getKey())
                 .metadata(request.getMetadata())
-                .tagging(Tagging.builder().tagSet(tags).build())
-                .build();
+                .tagging(Tagging.builder().tagSet(tags).build());
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
+                   .ssekmsKeyId(request.getKmsKeyId());
+        }
+        
+        // Set storage class if provided
+        if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
+            try {
+                StorageClass awsStorageClass = StorageClass.fromValue(request.getStorageClass());
+                builder.storageClass(awsStorageClass);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidArgumentException("Invalid storage class: " + request.getStorageClass(), e);
+            }
+        }
+        
+        return builder.build();
     }
+
 
     public GetObjectRequest toRequest(DownloadRequest request) {
         var builder = GetObjectRequest
@@ -169,6 +217,21 @@ public class AwsTransformer {
                 .build();
     }
 
+    public DownloadResponse toDownloadResponse(DownloadRequest downloadRequest, GetObjectResponse response, ResponseInputStream<GetObjectResponse> responseInputStream) {
+        return DownloadResponse.builder()
+                .key(downloadRequest.getKey())
+                .metadata(BlobMetadata.builder()
+                        .key(downloadRequest.getKey())
+                        .versionId(response.versionId())
+                        .eTag(response.eTag())
+                        .lastModified(response.lastModified())
+                        .metadata(response.metadata())
+                        .objectSize(response.contentLength())
+                        .build())
+                .inputStream(responseInputStream)
+                .build();
+    }
+
     public DeleteObjectRequest toDeleteRequest(String key, String versionId) {
         return DeleteObjectRequest
                 .builder()
@@ -202,6 +265,17 @@ public class AwsTransformer {
                 .build();
     }
 
+    public CopyObjectRequest toRequest(CopyFromRequest request) {
+        return CopyObjectRequest
+                .builder()
+                .sourceBucket(request.getSrcBucket())
+                .sourceKey(request.getSrcKey())
+                .sourceVersionId(request.getSrcVersionId())
+                .destinationBucket(getBucket())
+                .destinationKey(request.getDestKey())
+                .build();
+    }
+
     public HeadObjectRequest toHeadRequest(String key, String versionId) {
         return HeadObjectRequest
                 .builder()
@@ -214,24 +288,51 @@ public class AwsTransformer {
     public BlobMetadata toMetadata(HeadObjectResponse response, String key) {
         Long objectSize = response.contentLength();
         Map<String, String> metadata = response.metadata();
-
+        String eTag = response.eTag();
         return BlobMetadata
                 .builder()
                 .key(key)
                 .versionId(response.versionId())
-                .eTag(response.eTag())
+                .eTag(eTag)
                 .objectSize(objectSize)
                 .metadata(metadata)
                 .lastModified(response.lastModified())
+                .md5(eTagToMD5(eTag))
                 .build();
     }
 
+    byte[] eTagToMD5(String eTag) {
+        if (eTag == null) {
+            return new byte[0];
+        }
+
+        if (eTag.length() < 2 || eTag.charAt(0) != '"' || eTag.charAt(eTag.length() - 1) != '"') {
+            return new byte[0];
+        }
+
+        String unquoted = eTag.substring(1, eTag.length() - 1);
+        return HexUtil.convertToBytes(unquoted);
+    }
+
     public CreateMultipartUploadRequest toCreateMultipartUploadRequest(MultipartUploadRequest request) {
-        return CreateMultipartUploadRequest.builder()
+        CreateMultipartUploadRequest.Builder builder = CreateMultipartUploadRequest.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
-                .metadata(request.getMetadata())
-                .build();
+                .metadata(request.getMetadata());
+
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            List<Tag> tags = request.getTags().entrySet().stream()
+                    .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+                    .collect(Collectors.toList());
+            builder.tagging(Tagging.builder().tagSet(tags).build());
+        }
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
+                   .ssekmsKeyId(request.getKmsKeyId());
+        }
+
+        return builder.build();
     }
 
     public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
@@ -305,6 +406,9 @@ public class AwsTransformer {
         if(request.getTags() != null) {
             builder.withTags(request.getTags());
         }
+        if(request.getKmsKeyId() != null) {
+            builder.withKmsKeyId(request.getKmsKeyId());
+        }
         UploadRequest uploadRequest = builder.build();
 
         return PutObjectPresignRequest.builder()
@@ -322,5 +426,176 @@ public class AwsTransformer {
                 .signatureDuration(request.getDuration())
                 .getObjectRequest(getObjectRequest)
                 .build();
+    }
+
+    public DownloadDirectoryRequest toDownloadDirectoryRequest(DirectoryDownloadRequest request) {
+        var downloadDirectoryRequestBuilder = DownloadDirectoryRequest.builder()
+                .bucket(getBucket())
+                .destination(Paths.get(request.getLocalDestinationDirectory()));
+
+        // Download every blob that starts with this prefix
+        if(request.getPrefixToDownload() != null && !request.getPrefixToDownload().isEmpty()) {
+            downloadDirectoryRequestBuilder.listObjectsV2RequestTransformer(builder -> builder.prefix(request.getPrefixToDownload()));
+        }
+
+        // If we have prefixes to exclude from the download, then add in a filter here
+        if(request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty()) {
+            downloadDirectoryRequestBuilder.filter(getPrefixExclusionsFilter(request.getPrefixesToExclude()));
+        }
+        return downloadDirectoryRequestBuilder.build();
+    }
+
+    // Return false if we want to exclude this blob from the download
+    protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
+        return s3Object -> {
+            for(String prefixToExclude : prefixesToExclude) {
+                if(s3Object.key().startsWith(prefixToExclude)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    }
+
+    public DirectoryDownloadResponse toDirectoryDownloadResponse(CompletedDirectoryDownload completedDirectoryDownload) {
+        return DirectoryDownloadResponse.builder()
+                .failedTransfers(completedDirectoryDownload.failedTransfers()
+                        .stream()
+                        .map(item -> FailedBlobDownload.builder()
+                                .destination(item.request().destination())
+                                .exception(item.exception())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
+        return UploadDirectoryRequest.builder()
+                .bucket(getBucket())
+                .source(Paths.get(request.getLocalSourceDirectory()))
+                .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+                .s3Prefix(request.getPrefix())
+                .build();
+    }
+
+    public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
+        return DirectoryUploadResponse.builder()
+                .failedTransfers(completedDirectoryUpload.failedTransfers()
+                        .stream()
+                        .map(item -> FailedBlobUpload.builder()
+                                .source(item.request().source())
+                                .exception(item.exception())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    public List<List<BlobInfo>> partitionList(List<BlobInfo> blobInfos, int partitionSize) {
+        List<List<BlobInfo>> partitionedList = new ArrayList<>();
+        int listSize = blobInfos.size();
+
+        for (int i=0; i<listSize; i+=partitionSize) {
+            int endIndex = Math.min(i + partitionSize, listSize);
+            partitionedList.add(new ArrayList<>(blobInfos.subList(i, endIndex)));
+        }
+        return partitionedList;
+    }
+
+    public List<BlobIdentifier> toBlobIdentifiers(List<BlobInfo> blobList) {
+        return blobList.stream()
+                .map(blob -> new BlobIdentifier(blob.getKey(), null))
+                .collect(Collectors.toList());
+    }
+
+    public UploadResponse toUploadResponse(String key, PutObjectResponse response) {
+        return UploadResponse.builder()
+                .key(key)
+                .versionId(response.versionId())
+                .eTag(response.eTag())
+                .build();
+    }
+
+    public CopyResponse toCopyResponse(String destKey, CopyObjectResponse response) {
+        return CopyResponse.builder()
+                .key(destKey)
+                .versionId(response.versionId())
+                .eTag(response.copyObjectResult().eTag())
+                .lastModified(response.copyObjectResult().lastModified())
+                .build();
+    }
+
+    public MultipartUpload toMultipartUpload(MultipartUploadRequest request, CreateMultipartUploadResponse response) {
+        return MultipartUpload.builder()
+                .bucket(response.bucket())
+                .key(response.key())
+                .id(response.uploadId())
+                .metadata(request.getMetadata())
+                .tags(request.getTags())
+                .kmsKeyId(request.getKmsKeyId())
+                .build();
+    }
+
+    public UploadPartResponse toUploadPartResponse(MultipartPart part, software.amazon.awssdk.services.s3.model.UploadPartResponse response) {
+        return new UploadPartResponse(part.getPartNumber(), response.eTag(), part.getContentLength());
+    }
+
+    public MultipartUploadResponse toMultipartUploadResponse(CompleteMultipartUploadResponse response) {
+        return new MultipartUploadResponse(response.eTag());
+    }
+
+    /**
+     * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
+     *
+     * @param retryConfig The retry configuration to convert
+     * @return AWS SDK RetryStrategy
+     * @throws InvalidArgumentException if retryConfig is null or has invalid values
+     */
+    public RetryStrategy toAwsRetryStrategy(RetryConfig retryConfig) {
+        if (retryConfig == null) {
+            throw new InvalidArgumentException("RetryConfig cannot be null");
+        }
+        if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
+        }
+
+        StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
+
+        // Only set maxAttempts if provided, otherwise use AWS SDK default
+        if (retryConfig.getMaxAttempts() != null) {
+            strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
+        }
+
+        // If mode is not set, use AWS SDK's default backoff strategy
+        if (retryConfig.getMode() == null) {
+            return strategyBuilder.build();
+        }
+
+        // Configure backoff strategy based on mode
+        if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+            if (retryConfig.getInitialDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getInitialDelayMillis());
+            }
+            if (retryConfig.getMaxDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getMaxDelayMillis());
+            }
+            strategyBuilder.backoffStrategy(
+                    software.amazon.awssdk.retries.api.BackoffStrategy.exponentialDelay(
+                            Duration.ofMillis(retryConfig.getInitialDelayMillis()),
+                            Duration.ofMillis(retryConfig.getMaxDelayMillis())
+                    )
+            );
+            return strategyBuilder.build();
+        }
+
+        // FIXED mode
+        if (retryConfig.getFixedDelayMillis() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
+        }
+        strategyBuilder.backoffStrategy(
+                software.amazon.awssdk.retries.api.BackoffStrategy.fixedDelay(
+                        Duration.ofMillis(retryConfig.getFixedDelayMillis())
+                )
+        );
+        return strategyBuilder.build();
     }
 }

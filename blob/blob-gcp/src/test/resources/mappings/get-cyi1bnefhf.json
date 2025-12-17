@@ -1,0 +1,26 @@
+{
+  "id" : "fa42b124-3ee5-4dd7-b45d-a574a9303cd2",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-list-page_prefix_3",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page%2Fprefix_3?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-list-page/prefix_3/1761180767585728\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page%2Fprefix_3\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page%2Fprefix_3?generation=1761180767585728&alt=media\",\n  \"name\": \"conformance-tests/blob-for-list-page/prefix_3\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1761180767585728\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"29\",\n  \"md5Hash\": \"16GqxDYUIo8tWi7aRir4ig==\",\n  \"crc32c\": \"TteLWg==\",\n  \"etag\": \"CMCLptCNuZADEAE=\",\n  \"timeCreated\": \"2025-10-23T00:52:47.608Z\",\n  \"updated\": \"2025-10-23T00:52:47.608Z\",\n  \"timeStorageClassUpdated\": \"2025-10-23T00:52:47.608Z\",\n  \"timeFinalized\": \"2025-10-23T00:52:47.608Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CMCLptCNuZADEAE=",
+      "X-GUploader-UploadID" : "AAwnv3IEXKW3RqqdWpCdJH4Eei6ee9PACzYWTg3aHnWF9QGlsiUTij2JPprMZiqXj8T1xOrs",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 23 Oct 2025 00:52:47 GMT",
+      "Date" : "Thu, 23 Oct 2025 00:52:47 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fa42b124-3ee5-4dd7-b45d-a574a9303cd2",
+  "persistent" : true,
+  "insertionIndex" : 765
+}

@@ -1,21 +1,20 @@
 package com.salesforce.multicloudj.sts.gcp;
 
-import com.google.api.gax.core.NoCredentialsProvider;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
 import com.google.cloud.iam.credentials.v1.IamCredentialsSettings;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.sts.client.AbstractStsIT;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-
-@Disabled
 public class GcpStsIT extends AbstractStsIT {
     @Override
     protected Harness createHarness() {
@@ -23,26 +22,31 @@ public class GcpStsIT extends AbstractStsIT {
     }
 
     public static class HarnessImpl implements AbstractStsIT.Harness {
-        int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         IamCredentialsClient client;
+        int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         @Override
-        public AbstractSts<?> createStsDriver(boolean longTermCredentials) {
+        public AbstractSts createStsDriver(boolean longTermCredentials) {
             boolean isRecordingEnabled = System.getProperty("record") != null;
-            // Create channel provider using transport
+            // Transport channel provider to WireMock proxy
             TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
-            // Create IamCredentialsSettings with credentials
-            IamCredentialsSettings.Builder settingsBuilder = IamCredentialsSettings.newBuilder();
-            settingsBuilder.setTransportChannelProvider(channelProvider);
-            if (!isRecordingEnabled) {
-                settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create());
-            }
-            // Build the client
+            IamCredentialsSettings.Builder settingsBuilder = IamCredentialsSettings.newBuilder()
+                    .setTransportChannelProvider(channelProvider);
             try {
-                this.client = IamCredentialsClient.create(settingsBuilder.build());
+                if (isRecordingEnabled) {
+                    // Live recording path – rely on real ADC
+                    client = IamCredentialsClient.create(settingsBuilder.build());
+                    return new GcpSts().builder().build(client);
+                } else {
+                    // Replay path - inject mock credentials
+                    GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
+                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
+                    client = IamCredentialsClient.create(settingsBuilder.build());
+                    return new GcpSts().builder().build(client, mockCreds);
+                }
             } catch (IOException e) {
-                Assertions.fail("Failed to create the IAM client", e);
+                Assertions.fail("Failed to create IAM client", e);
+                return null;
             }
-            return new GcpSts().builder().build(client);
         }
 
         @Override
@@ -67,7 +71,7 @@ public class GcpStsIT extends AbstractStsIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of("");
+            return List.of();
         }
 
         @Override

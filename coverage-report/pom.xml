@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>${revision}</version>
+        <version>0.2.21-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -15,6 +14,7 @@
 
     <!-- Add dependencies to all modules that should be included in the coverage report -->
     <dependencies>
+        <!-- Common modules -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>multicloudj-common</artifactId>
@@ -35,7 +35,94 @@
             <artifactId>multicloudj-common-gcp</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- Add other modules here -->
+
+        <!-- Blob modules -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>blob-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>blob-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>blob-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>blob-ali</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Docstore modules -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>docstore-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>docstore-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>docstore-gcp-firestore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>docstore-gcp-spanner</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>docstore-ali</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- STS modules -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>sts-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>sts-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>sts-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>sts-ali</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- PubSub modules -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pubsub-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pubsub-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pubsub-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -56,4 +143,4 @@
             </plugin>
         </plugins>
     </build>
-</project> 
+</project>

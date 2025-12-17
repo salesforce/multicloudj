@@ -70,6 +70,16 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     }
 
     /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    @Override
+    protected void doCreateBucket(String bucketName) {
+        ossClient.createBucket(bucketName);
+    }
+
+    /**
      * Returns a {@link Provider.Builder} for creating a Provider for this class.
      *
      * @return a {@link Provider.Builder} for creating a Provider for this class
@@ -93,6 +103,16 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
             return InvalidArgumentException.class;
         }
         return UnknownException.class;
+    }
+
+    /**
+     * Closes the underlying OSS client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
     }
 
     public static class Builder extends AbstractBlobClient.Builder<AliBlobClient> {

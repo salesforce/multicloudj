@@ -1,11 +1,13 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Helper class for combining the configuration inputs for BlobClient or AsyncBlobClient instances.
@@ -112,6 +114,126 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
      */
     public BlobClientBuilder<C, S> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
         this.storeBuilder.withCredentialsOverrider(credentialsOverrider);
+        return this;
+    }
+
+    /**
+     * Method to supply a custom ExecutorService for async operations.
+     * @param executorService The ExecutorService to use
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withExecutorService(ExecutorService executorService) {
+        this.storeBuilder.withExecutorService(executorService);
+        return this;
+    }
+
+    /**
+     * Method to supply multipart threshold in bytes
+     * @param thresholdBytes The threshold in bytes above which multipart upload will be used
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withThresholdBytes(Long thresholdBytes) {
+        this.storeBuilder.withThresholdBytes(thresholdBytes);
+        return this;
+    }
+
+    /**
+     * Method to supply multipart part buffer size in bytes
+     * @param partBufferSize The buffer size in bytes for each part in a multipart upload
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withPartBufferSize(Long partBufferSize) {
+        this.storeBuilder.withPartBufferSize(partBufferSize);
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel uploads
+     * @param parallelUploadsEnabled Whether to enable parallel uploads
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
+        this.storeBuilder.withParallelUploadsEnabled(parallelUploadsEnabled);
+        return this;
+    }
+
+    /**
+     * Method to enable/disable parallel downloads
+     * @param parallelDownloadsEnabled Whether to enable parallel downloads
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
+        this.storeBuilder.withParallelDownloadsEnabled(parallelDownloadsEnabled);
+        return this;
+    }
+
+    /**
+     * Method to set target throughput in Gbps
+     * @param targetThroughputInGbps The target throughput in Gbps
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withTargetThroughputInGbps(Double targetThroughputInGbps) {
+        this.storeBuilder.withTargetThroughputInGbps(targetThroughputInGbps);
+        return this;
+    }
+
+    /**
+     * Method to set maximum native memory limit in bytes
+     * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
+        this.storeBuilder.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
+        return this;
+    }
+
+    /**
+     * Method to set initial read buffer size in bytes
+     * @param initialReadBufferSizeInBytes The initial read buffer size in bytes
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withInitialReadBufferSizeInBytes(Long initialReadBufferSizeInBytes) {
+        this.storeBuilder.withInitialReadBufferSizeInBytes(initialReadBufferSizeInBytes);
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency
+     * @param maxConcurrency The maximum number of concurrent operations
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withMaxConcurrency(Integer maxConcurrency) {
+        this.storeBuilder.withMaxConcurrency(maxConcurrency);
+        return this;
+    }
+
+    /**
+     * Method to set transfer manager thread pool size
+     * @param transferManagerThreadPoolSize The number of threads in the transfer manager thread pool
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withTransferManagerThreadPoolSize(Integer transferManagerThreadPoolSize) {
+        this.storeBuilder.withTransferManagerThreadPoolSize(transferManagerThreadPoolSize);
+        return this;
+    }
+
+    /**
+     * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+     * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during directory operations
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withTransferDirectoryMaxConcurrency(Integer transferDirectoryMaxConcurrency) {
+        this.storeBuilder.withTransferDirectoryMaxConcurrency(transferDirectoryMaxConcurrency);
+        return this;
+    }
+
+    /**
+     * Method to supply retry configuration
+     * @param retryConfig The retry configuration to use for retrying failed requests
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withRetryConfig(RetryConfig retryConfig) {
+        this.storeBuilder.withRetryConfig(retryConfig);
         return this;
     }
 

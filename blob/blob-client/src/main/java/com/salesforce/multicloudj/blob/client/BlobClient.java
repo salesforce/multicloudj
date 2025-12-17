@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
@@ -16,7 +17,7 @@ import java.net.URI;
  * <p>This class serves the purpose of providing common (i.e. substrate-agnostic) service functionality.
  *
  */
-public class BlobClient {
+public class BlobClient implements AutoCloseable {
 
     protected AbstractBlobClient<?> blobClient;
 
@@ -40,6 +41,30 @@ public class BlobClient {
             Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
             return null;
+        }
+    }
+
+    /**
+     * Creates a new bucket with the specified name.
+     *
+     * @param bucketName The name of the bucket to create
+     */
+    public void createBucket(String bucketName) {
+        try {
+            blobClient.createBucket(bucketName);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
+    }
+
+    /**
+     * Closes the underlying blob client and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobClient != null) {
+            blobClient.close();
         }
     }
 
@@ -92,6 +117,16 @@ public class BlobClient {
          */
         public BlobClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
             this.blobClientBuilder.withCredentialsOverrider(credentialsOverrider);
+            return this;
+        }
+
+        /**
+         * Method to supply retry configuration
+         * @param retryConfig The retry configuration to use for retrying failed requests
+         * @return An instance of self
+         */
+        public BlobClientBuilder withRetryConfig(RetryConfig retryConfig) {
+            this.blobClientBuilder.withRetryConfig(retryConfig);
             return this;
         }
 

@@ -13,11 +13,11 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.TestBlobStore;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -40,7 +40,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,7 +57,7 @@ import static org.mockito.Mockito.when;
 
 public class BucketClientTest {
 
-    private AbstractBlobStore<TestBlobStore> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
     private StsCredentials creds;
     private BucketClient client;
 
@@ -202,11 +205,19 @@ public class BucketClientTest {
     }
 
     @Test
+    void testDownloadInputStream() {
+        DownloadRequest request = new DownloadRequest.Builder().withKey("object-1").build();
+        client.download(request);
+        verify(mockBlobStore, times(1)).download(eq(request));
+    }
+
+    @Test
     void testDownloadThrowsException() throws IOException {
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(OutputStream.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(ByteArray.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(File.class));
         doThrow(RuntimeException.class).when(mockBlobStore).download(any(), any(Path.class));
+        doThrow(RuntimeException.class).when(mockBlobStore).download(any());
 
         DownloadRequest request = mock(DownloadRequest.class);
         try(OutputStream outputStream = mock(OutputStream.class)) {
@@ -222,6 +233,9 @@ public class BucketClientTest {
         });
         assertThrows(UnAuthorizedException.class, () -> {
             client.download(request, Paths.get("testfile.txt"));
+        });
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.download(request);
         });
     }
 
@@ -359,7 +373,11 @@ public class BucketClientTest {
 
     @Test
     void testUploadMultipartPart() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         client.uploadMultipartPart(multipartUpload, multipartPart);
         verify(mockBlobStore, times(1)).uploadMultipartPart(multipartUpload, multipartPart);
@@ -367,7 +385,11 @@ public class BucketClientTest {
 
     @Test
     void testUploadMultipartPartException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         when(mockBlobStore.uploadMultipartPart(multipartUpload, multipartPart)).thenThrow(RuntimeException.class);
 
@@ -378,7 +400,11 @@ public class BucketClientTest {
 
     @Test
     void testCompleteMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         client.completeMultipartUpload(multipartUpload, listOfParts);
         verify(mockBlobStore, times(1)).completeMultipartUpload(multipartUpload, listOfParts);
@@ -386,7 +412,11 @@ public class BucketClientTest {
 
     @Test
     void testCompleteMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         when(mockBlobStore.completeMultipartUpload(multipartUpload, listOfParts)).thenThrow(RuntimeException.class);
 
@@ -397,14 +427,22 @@ public class BucketClientTest {
 
     @Test
     void testListMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         client.listMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
     }
 
     @Test
     void testListMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         when(mockBlobStore.listMultipartUpload(multipartUpload)).thenThrow(RuntimeException.class);
 
         assertThrows(UnAuthorizedException.class, () -> {
@@ -414,14 +452,22 @@ public class BucketClientTest {
 
     @Test
     void testAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         client.abortMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
     }
 
     @Test
     void testAbortMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doThrow(RuntimeException.class).when(mockBlobStore).abortMultipartUpload(eq(multipartUpload));
 
         assertThrows(UnAuthorizedException.class, () -> {
@@ -485,5 +531,57 @@ public class BucketClientTest {
         assertThrows(UnAuthorizedException.class, () -> {
             client.doesObjectExist("object-1", "version-1");
         });
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsTrue() {
+        when(mockBlobStore.doesBucketExist()).thenReturn(true);
+        boolean result = client.doesBucketExist();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsFalse() {
+        when(mockBlobStore.doesBucketExist()).thenReturn(false);
+        boolean result = client.doesBucketExist();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ThrowsException() {
+        doThrow(RuntimeException.class).when(mockBlobStore).doesBucketExist();
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.doesBucketExist();
+        });
+        verify(mockBlobStore, times(1)).doesBucketExist();
+    }
+
+    @Test
+    void testBucketClientBuilderWithRetryConfig() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .maxAttempts(5)
+                .attemptTimeout(3000L)
+                .totalTimeout(10000L)
+                .build();
+
+        AbstractBlobStore.Builder mockBuilder2 = mock(AbstractBlobStore.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRetryConfig(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findProviderBuilder("test2"))
+                .thenReturn(mockBuilder2);
+
+        BucketClient testClient = BucketClient.builder("test2")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withRetryConfig(retryConfig)
+                .build();
+
+        verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
+        assertNotNull(testClient);
     }
 }

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.common.gcp.util;
 
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
@@ -74,14 +75,14 @@ public class TestsUtilGcp {
     }
 
     /**
-     * Gets a transport channel provider configured with a proxy to the WireMock server.
+     * Gets an HttpTransport configured with a proxy to the WireMock server.
      * This allows HTTP/HTTPS traffic to be intercepted for testing.
      *
      * @param port The base port for WireMock (proxy will use port+1)
-     * @return A configured TransportChannelProvider
+     * @return A configured HttpTransport
      * @throws SecurityConfigurationException if transport configuration fails
      */
-    public static TransportChannelProvider getTransportChannelProvider(int port) {
+    public static HttpTransport getHttpTransport(int port) {
         try {
             // Get SSL socket factory that trusts all certificates
             SSLSocketFactory sslSocketFactory = createTrustAllSSLContext().getSocketFactory();
@@ -90,20 +91,29 @@ public class TestsUtilGcp {
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(WIREMOCK_HOST, port + 1));
 
             // Set up HTTP transport with proxy and SSL settings
-            NetHttpTransport transportWithProxy = new NetHttpTransport.Builder()
+            return new NetHttpTransport.Builder()
                     .setProxy(proxy)
                     .doNotValidateCertificate()
                     .setSslSocketFactory(sslSocketFactory)
                     .build();
-
-            // Create and return channel provider using configured transport
-            return InstantiatingHttpJsonChannelProvider.newBuilder()
-                    .setHttpTransport(transportWithProxy)
-                    .build();
-
         } catch (GeneralSecurityException e) {
             throw new SecurityConfigurationException("Failed to configure transport", e);
         }
+    }
+
+    /**
+     * Gets a transport channel provider configured with a proxy to the WireMock server.
+     * This allows HTTP/HTTPS traffic to be intercepted for testing.
+     *
+     * @param port The base port for WireMock (proxy will use port+1)
+     * @return A configured TransportChannelProvider
+     * @throws SecurityConfigurationException if transport configuration fails
+     */
+    public static TransportChannelProvider getTransportChannelProvider(int port) {
+        // Create and return channel provider using configured transport
+        return InstantiatingHttpJsonChannelProvider.newBuilder()
+                .setHttpTransport(getHttpTransport(port))
+                .build();
     }
 
     /**

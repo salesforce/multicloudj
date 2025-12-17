@@ -2,11 +2,16 @@ package com.salesforce.multicloudj.docstore.gcp;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.firestore.v1.RunQueryResponse;
-import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
+import com.google.firestore.v1.Value;
+import com.salesforce.multicloudj.docstore.client.Query;
+import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
+import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -36,16 +41,6 @@ public class FSDocumentIterator implements DocumentIterator {
     private int limit = 0;
 
     /**
-     * Number of documents processed so far
-     */
-    private int documentsProcessed = 0;
-
-    /**
-     * Number of documents returned so far
-     */
-    private int documentsReturned = 0;
-
-    /**
      * Flag indicating if we've reached the end
      */
     private boolean done = false;
@@ -61,15 +56,38 @@ public class FSDocumentIterator implements DocumentIterator {
     private boolean hasLookedAhead = false;
 
     /**
+     * Pagination token for tracking the last document
+     */
+    private FSPaginationToken paginationToken = null;
+
+    /**
+     * Reference to the FSDocStore for accessing getKey method
+     */
+    private FSDocStore docStore;
+
+    /**
+     * The query containing ORDER BY information
+     */
+    private Query query;
+
+    /**
+     * The last document that was processed (for pagination token)
+     */
+    private Document lastDocument = null;
+
+    /**
      * Creates a new iterator for Firestore documents.
      *
      * @param queryRunner The query runner to use
-     * @param offset Number of documents to skip
-     * @param limit Maximum number of documents to return
+     * @param query The query containing offset, limit, and ORDER BY information
+     * @param docStore Reference to the FSDocStore for accessing getKey method
      */
-    public FSDocumentIterator(QueryRunner queryRunner, int offset, int limit) {
-        this.offset = offset;
-        this.limit = limit;
+    public FSDocumentIterator(QueryRunner queryRunner, Query query, FSDocStore docStore) {
+        this.query = query;
+        this.offset = query.getOffset();
+        this.limit = query.getLimit();
+        this.docStore = docStore;
+        this.paginationToken = (FSPaginationToken) query.getPaginationToken();
         
         // Get the server stream and iterator
         this.serverStream = queryRunner.createServerStream();
@@ -90,20 +108,6 @@ public class FSDocumentIterator implements DocumentIterator {
             throw new NoSuchElementException("No more documents in the iterator");
         }
 
-        // Skip documents until we reach the offset
-        while (documentsProcessed < offset) {
-            RunQueryResponse response = getNextResponseInternal();
-            if (response != null && response.hasDocument()) {
-                documentsProcessed++;
-            }
-        }
-
-        // Check limit
-        if (limit > 0 && documentsReturned >= limit) {
-            markDoneAndClose();
-            throw new NoSuchElementException("Limit reached");
-        }
-
         // Use the looked-ahead response or get a new one
         RunQueryResponse response;
         if (hasLookedAhead && nextResponse != null) {
@@ -121,15 +125,64 @@ public class FSDocumentIterator implements DocumentIterator {
 
         // Decode the document
         FSCodec.decodeDoc(response.getDocument(), document, null);
-        documentsProcessed++;
-        documentsReturned++;
-        
-        // If we've reached the limit, close the stream
-        if (limit > 0 && documentsReturned >= limit) {
-            markDoneAndClose();
+
+        // Store this document as the last document for potential pagination token update
+        // We'll only update the pagination token when we're actually done
+        lastDocument = document;
+
+        // Initialize pagination token if needed
+        if (paginationToken == null) {
+            paginationToken = new FSPaginationToken();
         }
     }
 
+    /**
+     * Updates the pagination token with cursor values from the last document.
+     * This should only be called when we're done iterating or at the limit.
+     * The pagination cursor should always include the field of order by clause
+     * in order for it work correctly.
+     * 
+     * @param document The last document to extract cursor values from
+     */
+    private void updatePaginationToken(Document document) {
+        if (document == null) {
+            return;
+        }
+
+        List<Value> cursorValues = new ArrayList<>();
+        
+        // Check if we have an explicit ORDER BY field from the query
+        String orderByField = query.getOrderByField();
+        
+        if (orderByField != null && !orderByField.isEmpty()) {
+            // If there's an explicit ORDER BY field, include both the field value and document key
+            Object fieldValue = document.getField(orderByField);
+            if (fieldValue != null) {
+                cursorValues.add(FSCodec.encodeValue(fieldValue));
+            }
+        }
+        
+        // Always include the document key for unique pagination
+        // Extract the document ID using the getKey() method
+        Object key = docStore.getKey(document);
+        // The key.toString() method returns "documentId:actualId" format
+        String keyString = key.toString();
+        // Extract just the document ID part after "documentId:"
+        String docId = keyString.substring(keyString.indexOf(":") + 1);
+        
+        // Build the full document path for the reference
+        String fullDocumentPath = String.format("%s/documents/%s/%s",
+                docStore.getDatabasePath(), docStore.getCollectionName(), docId);
+        
+        // Create a ReferenceValue for the document key
+        Value referenceValue = Value.newBuilder()
+            .setReferenceValue(fullDocumentPath)
+            .build();
+        cursorValues.add(referenceValue);
+        
+        paginationToken.setCursorValues(cursorValues);
+    }
+    
     /**
      * {@inheritDoc}
      * <p>
@@ -143,31 +196,17 @@ public class FSDocumentIterator implements DocumentIterator {
             return false;
         }
 
-        // Check limit first
-        if (limit > 0 && documentsReturned >= limit) {
-            markDoneAndClose();
-            return false;
-        }
-
         // If we haven't looked ahead yet, do it now
         if (!hasLookedAhead) {
-            // Skip documents until we reach the offset
-            while (documentsProcessed < offset) {
-                RunQueryResponse response = getNextResponseInternal();
-                if (response == null) {
-                    markDoneAndClose();
-                    return false;
-                }
-                if (response.hasDocument()) {
-                    documentsProcessed++;
-                }
-            }
-
             // Look ahead to see if there's a next document
             nextResponse = getNextResponseInternal();
             hasLookedAhead = true;
 
             if (nextResponse == null || !nextResponse.hasDocument()) {
+                // Update pagination token with the last document before marking as done
+                if (lastDocument != null) {
+                    updatePaginationToken(lastDocument);
+                }
                 markDoneAndClose();
                 return false;
             }
@@ -241,6 +280,6 @@ public class FSDocumentIterator implements DocumentIterator {
 
     @Override
     public PaginationToken getPaginationToken() {
-        return null;
+        return paginationToken;
     }
 } 

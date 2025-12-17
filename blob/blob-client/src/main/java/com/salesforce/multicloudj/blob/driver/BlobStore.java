@@ -105,6 +105,14 @@ public interface BlobStore extends SdkService, Provider {
     DownloadResponse download(DownloadRequest downloadRequest, Path path);
 
     /**
+     * Performs args validation and passes the call to substrate-specific download method
+     *
+     * @param downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    DownloadResponse download(DownloadRequest downloadRequest);
+
+    /**
      * Performs args validation and passes the call to substrate-specific delete method
      *
      * @param key Object name of the Blob
@@ -127,6 +135,15 @@ public interface BlobStore extends SdkService, Provider {
      * @return CopyResponse of the copied Blob
      */
     CopyResponse copy(CopyRequest request);
+
+    /**
+     * Performs validation and invokes substrate-specific copyFrom method.
+     * Copies a blob from a source bucket to the current bucket.
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    CopyResponse copyFrom(CopyFromRequest request);
 
     /**
      * Retrieves the metadata of the Blob
@@ -224,4 +241,33 @@ public interface BlobStore extends SdkService, Provider {
      * @return Returns true if the object exists. Returns false if it doesn't exist.
      */
     boolean doesObjectExist(String key, String versionId);
+
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    boolean doesBucketExist();
+
+    /**
+     * Downloads a directory from the blob store
+     *
+     * @param directoryDownloadRequest the directory download request
+     * @return DirectoryDownloadResponse containing any failed downloads
+     */
+    DirectoryDownloadResponse downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    /**
+     * Uploads a directory to the blob store
+     *
+     * @param directoryUploadRequest the directory upload request
+     * @return DirectoryUploadResponse containing any failed uploads
+     */
+    DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    /**
+     * Deletes a directory (all objects with a given prefix) from the blob store
+     *
+     * @param prefix the prefix to delete
+     */
+    void deleteDirectory(String prefix);
 }

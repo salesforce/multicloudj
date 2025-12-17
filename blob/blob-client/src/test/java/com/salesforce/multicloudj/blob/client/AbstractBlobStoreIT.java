@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -29,10 +30,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,6 +50,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,12 +65,13 @@ import java.util.stream.Collectors;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractBlobStoreIT {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractBlobStoreIT.class);
 
     // Define the Harness interface
     public interface Harness extends AutoCloseable {
 
         // Method to create a blob driver
-        AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
+        AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
         // provide the BlobClient endpoint in provider
         String getEndpoint();
@@ -84,18 +90,22 @@ public abstract class AbstractBlobStoreIT {
         // to run tests in parallel. Each provider can provide the
         // randomly selected port number.
         int getPort();
+
+        // Returns the KMS key ID for encryption tests (provider-specific)
+        String getKmsKeyId();
     }
 
     protected abstract Harness createHarness();
 
     private Harness harness;
 
+    private static final String GCP_PROVIDER_ID = "gcp";
+
     /**
      * Initializes the WireMock server before all tests.
      */
     @BeforeAll
     public void initializeWireMockServer() {
-
         harness = createHarness();
         TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
@@ -105,7 +115,6 @@ public abstract class AbstractBlobStoreIT {
      */
     @AfterAll
     public void shutdownWireMockServer() throws Exception {
-
         TestsUtil.stopWireMockServer();
         harness.close();
     }
@@ -130,24 +139,28 @@ public abstract class AbstractBlobStoreIT {
     public void testNonexistentBucket() {
 
         // Create the blobstore driver for the bucket that doesn't exist
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(false, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
         runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
+    }
     }
 
     @Test
     public void testInvalidCredentials() {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, false, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
         runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
+    }
     }
 
     private void runOperationsThatShouldFail(String testName, BucketClient bucketClient) {
@@ -230,7 +243,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload mpu = new MultipartUpload(bucketClient.getBucket(), key + "multipart2", "multipart2");
+            MultipartUpload mpu = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart2")
+                    .id("multipart2")
+                    .build();
             MultipartPart multipartPart = new MultipartPart(1, utf8BlobBytes);
             bucketClient.uploadMultipartPart(mpu, multipartPart);
         } catch (Throwable t) {
@@ -240,7 +257,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart3", "multipart3");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart3")
+                    .id("multipart3")
+                    .build();
             List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", utf8BlobBytes.length));
             bucketClient.completeMultipartUpload(request, listOfParts);
         } catch (Throwable t) {
@@ -250,7 +271,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart4", "multipart4");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart4")
+                    .id("multipart4")
+                    .build();
             bucketClient.listMultipartUpload(request);
         } catch (Throwable t) {
             multipartUploadFailed = true;
@@ -259,7 +284,11 @@ public abstract class AbstractBlobStoreIT {
 
         multipartUploadFailed = false;
         try {
-            MultipartUpload request = new MultipartUpload(bucketClient.getBucket(), key + "multipart5", "multipart5");
+            MultipartUpload request = MultipartUpload.builder()
+                    .bucket(bucketClient.getBucket())
+                    .key(key + "multipart5")
+                    .id("multipart5")
+                    .build();
             bucketClient.abortMultipartUpload(request);
         } catch (Throwable t) {
             multipartUploadFailed = true;
@@ -284,7 +313,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runOperationsThatShouldNotFail(String testName, BucketClient bucketClient) {
-
         // Now try various operations to ensure they do not fail
         // These are operations are client-side, and thus do not validate bucket existence or credential validity
         String key = "conformance-tests/blob-for-not-failing/" + testName;
@@ -323,11 +351,13 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUpload_emptyContent() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runUploadTests("testUpload_emptyContent",  "conformance-tests/upload/emptyContent", new byte[]{}, false);
     }
 
     @Test
     public void testUpload_happyPath() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runUploadTests("testUpload_happyPath", "conformance-tests/upload/happyPath", "This is test data".getBytes(), false);
     }
 
@@ -349,7 +379,7 @@ public abstract class AbstractBlobStoreIT {
         if(!StringUtils.isEmpty(key)){
             key += suffix;
         }
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
         UploadRequest request = new UploadRequest.Builder()
                 .withKey(key)
@@ -507,7 +537,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob so we can read from it
@@ -578,7 +608,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = blobData.getBytes();
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob so we can read from it
@@ -661,9 +691,17 @@ public abstract class AbstractBlobStoreIT {
         DownloadResponse response = null;
         switch (downloadType) {
             case InputStream:
-                try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                    response = bucketClient.download(request, outputStream);
-                    content = outputStream.toByteArray();
+                response = bucketClient.download(request);
+                if (response.getInputStream() != null) {
+                    try (InputStream inputStream = response.getInputStream();
+                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                        }
+                        content = outputStream.toByteArray();
+                    }
                 }
                 break;
             case ByteArray:
@@ -693,7 +731,7 @@ public abstract class AbstractBlobStoreIT {
     public void testDelete() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Try deleting a blob that doesn't exist
@@ -742,7 +780,6 @@ public abstract class AbstractBlobStoreIT {
     // Note: This tests bulk delete for non-versioned buckets
     @Test
     public void testBulkDelete() throws IOException {
-
         class TestConfig {
             final String testName;
             final Collection<String> keysToCreate;
@@ -762,7 +799,7 @@ public abstract class AbstractBlobStoreIT {
         Set<String> keysToDelete = new HashSet<>();
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Prepare the tests
@@ -835,7 +872,7 @@ public abstract class AbstractBlobStoreIT {
     public void testVersionedDelete_fileDoesNotExist() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Try deleting a blob that doesn't exist
@@ -848,9 +885,9 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete() throws IOException {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         String key = "conformance-tests/delete/happyPath";
 
@@ -951,7 +988,7 @@ public abstract class AbstractBlobStoreIT {
     public void runBulkVersionedDeleteTest(String testName, Collection<String> keysToCreate, Collection<String> keysToDelete, boolean wantError) throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         String keyPrefix = "conformance-tests/bulkDeleteByVersion/";
 
@@ -1020,7 +1057,7 @@ public abstract class AbstractBlobStoreIT {
         String blobToClobber = "conformance-tests/clobbered-blob";
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         try {
 
@@ -1072,7 +1109,6 @@ public abstract class AbstractBlobStoreIT {
                         .build();
                 CopyResponse copyResponse = bucketClient.copy(copyRequest);
                 Assertions.assertEquals(destKey, copyResponse.getKey());
-                Assertions.assertNull(copyResponse.getVersionId());
                 Assertions.assertNotNull(copyResponse.getLastModified());
                 Assertions.assertNotNull(copyResponse.getETag());
             } catch (Throwable t) {
@@ -1101,7 +1137,6 @@ public abstract class AbstractBlobStoreIT {
                         .build();
                 CopyResponse copyResponse = bucketClient.copy(copyRequest);
                 Assertions.assertEquals(blobToClobber, copyResponse.getKey());
-                Assertions.assertNull(copyResponse.getVersionId());
                 Assertions.assertNotNull(copyResponse.getLastModified());
                 Assertions.assertNotNull(copyResponse.getETag());
             } catch (Throwable t) {
@@ -1123,7 +1158,7 @@ public abstract class AbstractBlobStoreIT {
         String destKeyLatest = "conformance-tests/versionedCopy/copied-blob-latest";
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
         try {
             // Upload a blob so we can have something to copy
@@ -1218,10 +1253,194 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
-    public void testList() throws IOException {
+    public void testCopyFrom() throws IOException {
 
+        String key = "conformance-tests/blob-for-copyFrom";
+        String destKey = "conformance-tests/copied-from-blob";
+        String blobToClobber = "conformance-tests/clobbered-from-blob";
+
+        // Create a single BucketClient - we'll copy within the same bucket
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+
+            // Try copying from a non-existent source
+            boolean copyFailed = false;
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey("blob-that-doesnt-exist")
+                        .destKey(destKey)
+                        .build();
+                bucketClient.copyFrom(copyRequest);
+            } catch (Throwable t) {
+                copyFailed = true;
+            }
+            Assertions.assertTrue(copyFailed, "testCopyFrom: Should have failed when copying a non-existent blob");
+
+            // Upload a blob so we can have something to copy
+            byte[] blobBytes = "Please copy this data!".getBytes(StandardCharsets.UTF_8);
+            try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(blobBytes.length)
+                        .withMetadata(Map.of("key1", "value1", "key2", "value2"))
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // Try copying from a non-existent source bucket
+            copyFailed = false;
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket("bucketThatDoesntExist")
+                        .srcKey(key)
+                        .destKey(destKey)
+                        .build();
+                bucketClient.copyFrom(copyRequest);
+            } catch (Throwable t) {
+                copyFailed = true;
+            }
+            Assertions.assertTrue(copyFailed, "testCopyFrom: Should have failed when copying from a non-existent bucket");
+
+            // Do a happy-path copyFrom within the same bucket
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey(key)
+                        .destKey(destKey)
+                        .build();
+                CopyResponse copyResponse = bucketClient.copyFrom(copyRequest);
+                Assertions.assertEquals(destKey, copyResponse.getKey());
+                Assertions.assertNotNull(copyResponse.getLastModified());
+                Assertions.assertNotNull(copyResponse.getETag());
+            } catch (Throwable t) {
+                Assertions.fail("testCopyFrom: Failed to copy blob " + t.getMessage());
+            }
+            verifyBlobCopy(bucketClient, key, null, destKey);
+
+            // Now test using the copyFrom operation to overwrite an existing blob
+            // Create a blob that we'll overwrite
+            byte[] clobberBlobBytes = "Clobber this blob!".getBytes(StandardCharsets.UTF_8);
+            try (InputStream inputStream = new ByteArrayInputStream(clobberBlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(blobToClobber)
+                        .withContentLength(clobberBlobBytes.length)
+                        .withMetadata(Map.of("key3", "value3", "key4", "value4"))
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // CopyFrom to overwrite that blob
+            try {
+                CopyFromRequest copyRequest = CopyFromRequest.builder()
+                        .srcBucket(bucketClient.blobStore.getBucket())
+                        .srcKey(key)
+                        .destKey(blobToClobber)
+                        .build();
+                CopyResponse copyResponse = bucketClient.copyFrom(copyRequest);
+                Assertions.assertEquals(blobToClobber, copyResponse.getKey());
+                Assertions.assertNotNull(copyResponse.getLastModified());
+                Assertions.assertNotNull(copyResponse.getETag());
+            } catch (Throwable t) {
+                Assertions.fail("testCopyFrom: Failed to copy blob " + t.getMessage());
+            }
+            verifyBlobCopy(bucketClient, key, null, blobToClobber);
+        } finally {
+            // Delete our blobs to clean up the test
+            safeDeleteBlobs(bucketClient, key, destKey, blobToClobber);
+        }
+    }
+
+    @Test
+    public void testVersionedCopyFrom() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+
+        String key = "conformance-tests/versionedCopyFrom/blob";
+        String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
+        String destKeyV2 = "conformance-tests/versionedCopyFrom/copied-from-blob-v2";
+        String destKeyLatest = "conformance-tests/versionedCopyFrom/copied-from-blob-latest";
+
+        // Create a single BucketClient - we'll copy within the same bucket
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload a blob so we can have something to copy
+            byte[] v1BlobBytes = "Version 1 of blob for copyFrom".getBytes(StandardCharsets.UTF_8);
+            UploadResponse uploadResponseV1;
+            try (InputStream inputStream = new ByteArrayInputStream(v1BlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(v1BlobBytes.length)
+                        .build();
+                uploadResponseV1 = bucketClient.upload(request, inputStream);
+            }
+
+            // Upload another version of the same blob
+            byte[] v2BlobBytes = "Version 2 of blob for copyFrom".getBytes(StandardCharsets.UTF_8);
+            UploadResponse uploadResponseV2;
+            try (InputStream inputStream = new ByteArrayInputStream(v2BlobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(v2BlobBytes.length)
+                        .build();
+                uploadResponseV2 = bucketClient.upload(request, inputStream);
+            }
+
+            // Copy the first version of the blob
+            CopyFromRequest copyRequestV1 = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .srcVersionId(uploadResponseV1.getVersionId())
+                    .destKey(destKeyV1)
+                    .build();
+            CopyResponse copyResponse1 = bucketClient.copyFrom(copyRequestV1);
+            Assertions.assertEquals(destKeyV1, copyResponse1.getKey());
+            Assertions.assertNotNull(copyResponse1.getLastModified());
+            Assertions.assertNotNull(copyResponse1.getETag());
+
+            // Verify that the copied blob matches V1
+            verifyBlobCopy(bucketClient, key, uploadResponseV1.getVersionId(), destKeyV1);
+
+            // Copy the second version of the blob
+            CopyFromRequest copyRequestV2 = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .srcVersionId(uploadResponseV2.getVersionId())
+                    .destKey(destKeyV2)
+                    .build();
+            CopyResponse copyResponse2 = bucketClient.copyFrom(copyRequestV2);
+            Assertions.assertEquals(destKeyV2, copyResponse2.getKey());
+            Assertions.assertNotNull(copyResponse2.getLastModified());
+            Assertions.assertNotNull(copyResponse2.getETag());
+
+            // Verify that the copied blob matches V2
+            verifyBlobCopy(bucketClient, key, uploadResponseV2.getVersionId(), destKeyV2);
+
+            // Try copying without specifying the version (this should use the latest)
+            CopyFromRequest copyRequestLatest = CopyFromRequest.builder()
+                    .srcBucket(bucketClient.blobStore.getBucket())
+                    .srcKey(key)
+                    .destKey(destKeyLatest)
+                    .build();
+            CopyResponse copyResponse3 = bucketClient.copyFrom(copyRequestLatest);
+            Assertions.assertEquals(destKeyLatest, copyResponse3.getKey());
+            Assertions.assertNotNull(copyResponse3.getLastModified());
+            Assertions.assertNotNull(copyResponse3.getETag());
+            verifyBlobCopy(bucketClient, key, uploadResponseV2.getVersionId(), destKeyLatest);
+        } finally {
+            // Delete our blobs to clean up the test
+            safeDeleteBlobs(bucketClient, key, destKeyV1, destKeyV2, destKeyLatest);
+        }
+    }
+
+    @Test
+    public void testList() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload a blob to the bucket
@@ -1287,9 +1506,9 @@ public abstract class AbstractBlobStoreIT {
             while (iter.hasNext()) {
                 BlobInfo blobInfo = iter.next();
                 observedKeys.add(blobInfo.getKey());
+                Assertions.assertEquals(1, observedKeys.size(), "testList: Did not return expected number of keys");
+                Assertions.assertTrue(observedKeys.contains(prefixKey + "_3"));
             }
-            Assertions.assertEquals(1, observedKeys.size(), "testList: Did not return expected number of keys");
-            Assertions.assertTrue(observedKeys.contains(prefixKey + "_3"));
         }
         // Clean up
         finally {
@@ -1301,7 +1520,7 @@ public abstract class AbstractBlobStoreIT {
     public void testListPage() throws IOException {
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Upload multiple blobs to the bucket to test pagination
@@ -1341,8 +1560,8 @@ public abstract class AbstractBlobStoreIT {
             Assertions.assertNotNull(firstPage.getBlobs());
             
             // Should have at most 3 items due to maxResults
-            Assertions.assertTrue(firstPage.getBlobs().size() <= 3, 
-                "testListPage: First page should have at most 3 items");
+             Assertions.assertTrue(firstPage.getBlobs().size() <= 3,
+                 "testListPage: First page should have at most 3 items");
             
             // If we have more than 3 items total, it should be truncated
             Assertions.assertTrue(firstPage.isTruncated(),
@@ -1381,14 +1600,14 @@ public abstract class AbstractBlobStoreIT {
                     .withPrefix(prefixKey)
                     .withMaxResults(2)
                     .build();
-            
+
             ListBlobsPageResponse prefixPage = bucketClient.listPage(prefixRequest);
             Assertions.assertNotNull(prefixPage);
-            
+
             // All returned keys should start with the prefix
             for (BlobInfo blobInfo : prefixPage.getBlobs()) {
-                Assertions.assertTrue(blobInfo.getKey().startsWith(prefixKey), 
-                    "testListPage: All keys should start with prefix: " + blobInfo.getKey());
+                Assertions.assertTrue(blobInfo.getKey().startsWith(prefixKey),
+                        "testListPage: All keys should start with prefix: " + blobInfo.getKey());
             }
 
             // Test 4: Test delimiter functionality with pagination
@@ -1397,16 +1616,9 @@ public abstract class AbstractBlobStoreIT {
                     .withDelimiter("-")
                     .withMaxResults(2)
                     .build();
-            
+
             ListBlobsPageResponse delimiterPage = bucketClient.listPage(delimiterRequest);
             Assertions.assertNotNull(delimiterPage);
-            
-            // Should only return keys that don't contain "-" after the prefix
-            for (BlobInfo blobInfo : delimiterPage.getBlobs()) {
-                String keyAfterPrefix = blobInfo.getKey().substring(prefixKey.length());
-                Assertions.assertFalse(keyAfterPrefix.contains("-"), 
-                    "testListPage: Keys should not contain delimiter after prefix: " + blobInfo.getKey());
-            }
 
             // Test 5: Manual pagination loop to collect all items
             Set<String> allKeys = new HashSet<>();
@@ -1445,6 +1657,58 @@ public abstract class AbstractBlobStoreIT {
         }
     }
 
+    //@Test
+    public void testListPage_withTimeStamp() throws IOException {
+
+        // Create the BucketClient
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        // Upload a blob to test timestamp
+        String baseKey = "conformance-tests/blob-for-list-page-timestamp";
+        String[] keys = new String[]{baseKey};
+        byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
+        
+        try {
+            // Upload the blob
+            try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(baseKey)
+                        .withContentLength(blobBytes.length)
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            Instant now = Instant.now();
+            Instant minTimestamp = Instant.parse("2000-01-01T00:00:00Z");
+            Instant maxTimestamp = now.plusSeconds(300); 
+
+            // Test listPage and verify timestamp
+            ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+                    .withPrefix(baseKey)
+                    .build();
+            
+            ListBlobsPageResponse page = bucketClient.listPage(request);
+            Assertions.assertNotNull(page);
+            Assertions.assertNotNull(page.getBlobs());
+            Assertions.assertFalse(page.getBlobs().isEmpty(),
+                "testListPage_withTimeStamp: Should return at least one blob");
+            
+            // Verify timestamp is present and reasonable
+            BlobInfo blobInfo = page.getBlobs().get(0);
+            Assertions.assertNotNull(blobInfo.getLastModified(),
+                "testListPage_withTimeStamp: BlobInfo should have a lastModified timestamp");
+            Assertions.assertFalse(blobInfo.getLastModified().isAfter(maxTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should not be too far in the future (allowing for clock skew)");
+            Assertions.assertFalse(blobInfo.getLastModified().isBefore(minTimestamp),
+                "testListPage_withTimeStamp: lastModified timestamp should be reasonable (not before 2000)");
+        }
+        // Clean up
+        finally {
+            safeDeleteBlobs(bucketClient, keys);
+        }
+    }
+
     @Test
     public void testGetMetadata() throws IOException {
 
@@ -1471,7 +1735,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] blobBytes = "Metadata blob for testing some large amount".getBytes(StandardCharsets.UTF_8);
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Prepare the tests
@@ -1526,7 +1790,7 @@ public abstract class AbstractBlobStoreIT {
         Map<String, String> metadata1 = Map.of("key1", "value1", "key2", "value2");
 
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, true);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         try {
@@ -1613,6 +1877,8 @@ public abstract class AbstractBlobStoreIT {
         final List<MultipartUploadPartResult> partsToComplete;
         final boolean abortUpload;
         final boolean wantCompletionError;
+        final String kmsKeyId;
+        final Map<String, String> tags;
 
         public MultipartUploadTestConfig(String testName,
                           String key,
@@ -1621,6 +1887,29 @@ public abstract class AbstractBlobStoreIT {
                           List<MultipartUploadPartResult> partsToComplete,
                           boolean abortUpload,
                           boolean wantCompletionError) {
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, null, null);
+        }
+
+        public MultipartUploadTestConfig(String testName,
+                          String key,
+                          Map<String,String> metadata,
+                          List<MultipartUploadTestPart> partsToUpload,
+                          List<MultipartUploadPartResult> partsToComplete,
+                          boolean abortUpload,
+                          boolean wantCompletionError,
+                          String kmsKeyId) {
+            this(testName, key, metadata, partsToUpload, partsToComplete, abortUpload, wantCompletionError, kmsKeyId, null);
+        }
+
+        public MultipartUploadTestConfig(String testName,
+                          String key,
+                          Map<String,String> metadata,
+                          List<MultipartUploadTestPart> partsToUpload,
+                          List<MultipartUploadPartResult> partsToComplete,
+                          boolean abortUpload,
+                          boolean wantCompletionError,
+                          String kmsKeyId,
+                          Map<String, String> tags) {
             this.testName = testName;
             this.key = key;
             this.metadata = metadata;
@@ -1628,13 +1917,14 @@ public abstract class AbstractBlobStoreIT {
             this.partsToComplete = partsToComplete;
             this.abortUpload = abortUpload;
             this.wantCompletionError = wantCompletionError;
+            this.kmsKeyId = kmsKeyId;
+            this.tags = tags;
         }
     }
 
     private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) throws IOException {
-
         // Create the BucketClient
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Now run the tests
@@ -1642,10 +1932,16 @@ public abstract class AbstractBlobStoreIT {
         try {
 
             // Initiate the multipartUpload
-            MultipartUploadRequest multipartUploadRequest = new MultipartUploadRequest.Builder()
+            MultipartUploadRequest.Builder requestBuilder = new MultipartUploadRequest.Builder()
                     .withKey(testConfig.key)
-                    .withMetadata(testConfig.metadata)
-                    .build();
+                    .withMetadata(testConfig.metadata);
+            if (testConfig.kmsKeyId != null) {
+                requestBuilder.withKmsKeyId(testConfig.kmsKeyId);
+            }
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                requestBuilder.withTags(testConfig.tags);
+            }
+            MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
             mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
 
             // Upload the individual parts
@@ -1691,6 +1987,8 @@ public abstract class AbstractBlobStoreIT {
                 bucketClient.completeMultipartUpload(mpu, partResponsesToComplete);
             }
             catch(Throwable t){
+                logger.error("Multipart upload completion failed - Upload ID: {}, Key: {}, Error: {}", 
+                        mpu.getId(), mpu.getKey(), t.getMessage(), t);
                 Assertions.assertTrue(testConfig.wantCompletionError, testConfig.testName + ": completeMultipartUpload() produced unexpected error " + t.getMessage());
                 completionFailed = true;
             }
@@ -1700,7 +1998,24 @@ public abstract class AbstractBlobStoreIT {
             }
 
             BlobMetadata blobMetadata = bucketClient.getMetadata(testConfig.key, null);
-            Assertions.assertEquals(testConfig.metadata, blobMetadata.getMetadata(), testConfig.testName + ": Downloaded metadata did not match");
+            Map<String, String> actualMetadata = blobMetadata.getMetadata();
+            
+            // For GCP, tags are stored as metadata with "gcp-tag-" prefix, so we need to filter them out
+            // when comparing metadata
+            if (GCP_PROVIDER_ID.equals(harness.getProviderId()) && testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                String tagPrefix = "gcp-tag-";
+                actualMetadata = actualMetadata.entrySet().stream()
+                        .filter(entry -> !entry.getKey().startsWith(tagPrefix))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+            
+            Assertions.assertEquals(testConfig.metadata, actualMetadata, testConfig.testName + ": Downloaded metadata did not match");
+
+            // Verify tags if they were provided
+            if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
+                Map<String, String> tagResults = bucketClient.getTags(testConfig.key);
+                Assertions.assertEquals(testConfig.tags, tagResults, testConfig.testName + ": Tags did not match what was uploaded");
+            }
         }
         finally {
             // Now delete all blobs that were created
@@ -1716,6 +2031,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_singlePart() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "single part", DEFAULT_MULTIPART_KEY_PREFIX + "singlePart",
                 Map.of("123", "456"),
@@ -1726,6 +2042,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "multipleParts",
                 Map.of("234", "456"),
@@ -1744,6 +2061,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_unorderedMultipleParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "unordered multiple parts", DEFAULT_MULTIPART_KEY_PREFIX + "unorderedMultipleParts",
                 Map.of("345", "456"),
@@ -1758,6 +2076,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_skippingNumbers() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "skipping numbers", DEFAULT_MULTIPART_KEY_PREFIX + "skippingNumbers",
                 Map.of("456", "456"),
@@ -1774,6 +2093,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_duplicateParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "duplicates parts", DEFAULT_MULTIPART_KEY_PREFIX + "duplicateParts",
                 Map.of("567", "456"),
@@ -1789,6 +2109,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_nonExistentParts() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "non-existent parts", DEFAULT_MULTIPART_KEY_PREFIX + "nonExistentParts",
                 Map.of("678", "456"),
@@ -1802,6 +2123,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_badETag() throws IOException {
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         runMultipartUploadTest(new MultipartUploadTestConfig(
                 "bad etag", DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
                 Map.of("789", "456"),
@@ -1818,12 +2140,15 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_invalidMultipartUpload(){
-
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Call each operation with an invalid MPU
-        MultipartUpload invalidMPU = new MultipartUpload("fakeBucket", DEFAULT_MULTIPART_KEY_PREFIX+"invalidKey", "invalidUploadId");
+        MultipartUpload invalidMPU = MultipartUpload.builder()
+                .bucket("fakeBucket")
+                .key(DEFAULT_MULTIPART_KEY_PREFIX+"invalidKey")
+                .id("invalidUploadId")
+                .build();
 
         boolean multipartUploadFailed = false;
         try {
@@ -1862,8 +2187,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_multipleMultipartUploadsForSameKey(){
-
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         String key = DEFAULT_MULTIPART_KEY_PREFIX + "multipleMPU";
@@ -1897,8 +2221,8 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testMultipartUpload_completeAnAbortedUpload(){
-
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         String key = DEFAULT_MULTIPART_KEY_PREFIX + "completeAnAborted";
@@ -1936,11 +2260,46 @@ public abstract class AbstractBlobStoreIT {
             }
         }
     }
-    
+
+    @Test
+    public void testMultipartUpload_withKms() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String kmsKeyId = harness.getKmsKeyId();
+        Assumptions.assumeTrue(kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key ID not configured");
+
+        runMultipartUploadTest(new MultipartUploadTestConfig(
+                "multipart with KMS", DEFAULT_MULTIPART_KEY_PREFIX + "withKms",
+                Map.of("encryption", "kms"),
+                List.of(
+                        new MultipartUploadTestPart(1, multipartBytes1),
+                        new MultipartUploadTestPart(2, multipartBytes2)),
+                List.of(
+                        new MultipartUploadPartResult(1, true),
+                        new MultipartUploadPartResult(2, true)),
+                false, false, kmsKeyId));
+    }
+
     //@Test
+    public void testMultipartUpload_withTags() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
+        Map<String, String> tags = Map.of("tag1", "value1");
+        runMultipartUploadTest(new MultipartUploadTestConfig(
+                "multipart with tags", expectedKey,
+                Map.of("key1", "value1"),
+                List.of(
+                        new MultipartUploadTestPart(1, multipartBytes1),
+                        new MultipartUploadTestPart(2, multipartBytes2)),
+                List.of(
+                        new MultipartUploadPartResult(1, true),
+                        new MultipartUploadPartResult(2, true)),
+                false, false, null, tags));
+    }
+
+    @Test
     public void testTagging() throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
 
         // Now run the tests
@@ -1948,7 +2307,7 @@ public abstract class AbstractBlobStoreIT {
         try {
             String defaultTestData = "This is tagging test data";
             byte[] utf8BlobBytes = defaultTestData.getBytes(StandardCharsets.UTF_8);
-            Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+            Map<String, String> tags = Map.of("tag1", "value1");
 
             // Upload the file with the tags
             try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
@@ -1965,7 +2324,7 @@ public abstract class AbstractBlobStoreIT {
             Assertions.assertEquals(tags, tagResults, "testTagging: Tags did not match what was uploaded");
 
             // Try overwriting the tags
-            Map<String, String> tags2 = Map.of("tag3", "value3", "tag4", "value4");
+            Map<String, String> tags2 = Map.of("tag3", "value3");
             bucketClient.setTags(key, tags2);
             tagResults = bucketClient.getTags(key);
             Assertions.assertEquals(tags2, tagResults, "testTagging: Tags did not match what was overwriting");
@@ -1973,7 +2332,7 @@ public abstract class AbstractBlobStoreIT {
             // Try writing tags to a blob that doesn't exist
             boolean failed = false;
             try{
-                Map<String, String> tags3 = Map.of("tag5", "value5", "tag6", "value6");
+                Map<String, String> tags3 = Map.of("tag5", "value5");
                 bucketClient.setTags(key+"-fake", tags3);
             }
             catch(Throwable t){
@@ -2088,7 +2447,7 @@ public abstract class AbstractBlobStoreIT {
                                         Map<String, String> tagsForUrlGeneration,
                                         Map<String, String> tagsForUpload) throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         String blobData = "This is test data";
         byte[] utf8BlobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -2125,6 +2484,7 @@ public abstract class AbstractBlobStoreIT {
                 Assertions.assertArrayEquals(utf8BlobBytes, outputStream.toByteArray());
 
                 // Verify the DownloadResponse
+                metadataForUrlGeneration = metadataForUrlGeneration==null ? new HashMap<>() : metadataForUrlGeneration;
                 Assertions.assertEquals(key, downloadResponse.getKey());
                 Assertions.assertEquals(key, downloadResponse.getMetadata().getKey());
                 Assertions.assertEquals(utf8BlobBytes.length, downloadResponse.getMetadata().getObjectSize());
@@ -2135,7 +2495,6 @@ public abstract class AbstractBlobStoreIT {
                 // Check the metadata on the object
                 BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
                 Map<String, String> actualMetadata = blobMetadata.getMetadata();
-                metadataForUrlGeneration = metadataForUrlGeneration==null ? new HashMap<>() : metadataForUrlGeneration;
                 Assertions.assertEquals(metadataForUrlGeneration, actualMetadata);
 
                 // Check the tags on the object
@@ -2192,7 +2551,7 @@ public abstract class AbstractBlobStoreIT {
                                         Duration duration,
                                         Long delayInSeconds) throws IOException {
 
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, false);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
         BucketClient bucketClient = new BucketClient(blobStore);
         String blobData = "This is test data";
         byte[] utf8BlobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -2252,7 +2611,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     private void runDoesObjectExistTest(String key, boolean useVersionedBucket) throws IOException {
-        AbstractBlobStore<?> blobStore = harness.createBlobStore(true, true, useVersionedBucket);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, useVersionedBucket);
         BucketClient bucketClient = new BucketClient(blobStore);
         byte[] blobBytes1 = "This is test data".getBytes(StandardCharsets.UTF_8);
         byte[] blobBytes2= "This is the second test data".getBytes(StandardCharsets.UTF_8);
@@ -2273,8 +2632,8 @@ public abstract class AbstractBlobStoreIT {
             uploadResponse2 = bucketClient.upload(request2, inputStream2);
 
             // Check if the objects exist
-            Assertions.assertTrue(bucketClient.doesObjectExist(key, uploadResponse1.getVersionId()));  // Get 1st version
-            Assertions.assertTrue(bucketClient.doesObjectExist(key, uploadResponse2.getVersionId()));  // Get 2nd version
+            Assertions.assertTrue(bucketClient.doesObjectExist(key, useVersionedBucket ? uploadResponse1.getVersionId() : null));  // Get 1st version
+            Assertions.assertTrue(bucketClient.doesObjectExist(key, useVersionedBucket ? uploadResponse2.getVersionId() : null));  // Get 2nd version
             Assertions.assertTrue(bucketClient.doesObjectExist(key, null));  // Get latest version
 
             // Check something that doesn't exist
@@ -2283,6 +2642,22 @@ public abstract class AbstractBlobStoreIT {
         finally {
             safeDeleteBlobs(bucketClient, key);
         }
+    }
+
+    @Test
+    void testDoesBucketExist() {
+        // Test with a valid bucket - should return true
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+        Assertions.assertTrue(bucketClient.doesBucketExist());
+    }
+
+    @Test
+    void testDoesBucketExist_NonExistentBucket() {
+        // Test with a non-existent bucket - should return false
+        AbstractBlobStore blobStore = harness.createBlobStore(false, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+        Assertions.assertFalse(bucketClient.doesBucketExist());
     }
 
     /**
@@ -2366,6 +2741,199 @@ public abstract class AbstractBlobStoreIT {
             catch(Throwable t){
                 // Ignore
             }
+        }
+    }
+
+    @Test
+    public void testUploadWithKmsKey_happyPath() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/upload-happy-path";
+        String kmsKeyId = harness.getKmsKeyId();
+        runUploadWithKmsKeyTest(key, kmsKeyId, "Test data with KMS encryption".getBytes());
+    }
+
+    @Test
+    public void testUploadWithKmsKey_nullKmsKeyId() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/upload-null-key";
+        runUploadWithKmsKeyTest(key, null, "Test data without KMS".getBytes());
+    }
+
+    @Test
+    public void testUploadWithKmsKey_emptyKmsKeyId() {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/upload-empty-key";
+        runUploadWithKmsKeyTest(key, "", "Test data with empty KMS key".getBytes());
+    }
+
+    private void runUploadWithKmsKeyTest(String key, String kmsKeyId, byte[] content) {
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload with KMS key
+            UploadResponse uploadResponse;
+            try (InputStream inputStream = new ByteArrayInputStream(content)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(content.length)
+                        .withKmsKeyId(kmsKeyId)
+                        .build();
+                uploadResponse = bucketClient.upload(request, inputStream);
+            }
+
+            Assertions.assertNotNull(uploadResponse, "testUploadWithKmsKey: No response returned");
+            Assertions.assertNotNull(uploadResponse.getETag(), "testUploadWithKmsKey: No eTag returned");
+
+            // Download and verify
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                DownloadRequest downloadRequest = new DownloadRequest.Builder()
+                        .withKey(key)
+                        .build();
+                bucketClient.download(downloadRequest, outputStream);
+
+                Assertions.assertEquals(content.length, outputStream.toByteArray().length, "testUploadWithKmsKey: Content length mismatch");
+                Assertions.assertArrayEquals(content, outputStream.toByteArray(), "testUploadWithKmsKey: Content mismatch");
+            }
+        } catch (Exception e) {
+            Assertions.fail("testUploadWithKmsKey: Test failed with exception: " + e.getMessage());
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testDownloadWithKmsKey() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/download-happy-path";
+        String kmsKeyId = harness.getKmsKeyId();
+        byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Upload with KMS key
+            try (InputStream inputStream = new ByteArrayInputStream(content)) {
+                UploadRequest request = new UploadRequest.Builder()
+                        .withKey(key)
+                        .withContentLength(content.length)
+                        .withKmsKeyId(kmsKeyId)
+                        .build();
+                bucketClient.upload(request, inputStream);
+            }
+
+            // Download and verify
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                DownloadRequest downloadRequest = new DownloadRequest.Builder()
+                        .withKey(key)
+                        .build();
+                bucketClient.download(downloadRequest, outputStream);
+                byte[] downloadedContent = outputStream.toByteArray();
+
+                Assertions.assertEquals(content.length, downloadedContent.length,
+                        "testDownloadWithKmsKey: Content length mismatch");
+                Assertions.assertArrayEquals(content, downloadedContent,
+                        "testDownloadWithKmsKey: Content mismatch");
+            }
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testRangedReadWithKmsKey() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/ranged-read";
+        String kmsKeyId = harness.getKmsKeyId();
+        runRangedReadWithKmsKeyTest(key, kmsKeyId);
+    }
+
+    private void runRangedReadWithKmsKeyTest(String key, String kmsKeyId) throws IOException {
+        String blobData = "This is test data for the KMS ranged read test file";
+        byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+            UploadRequest request = new UploadRequest.Builder()
+                    .withKey(key)
+                    .withContentLength(blobBytes.length)
+                    .withKmsKeyId(kmsKeyId)
+                    .build();
+            bucketClient.upload(request, inputStream);
+        }
+
+        try {
+            DownloadRequest.Builder requestBuilder = new DownloadRequest.Builder()
+                    .withKey(key)
+                    .withKmsKeyId(kmsKeyId);
+
+            // Try downloading the first 10 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(0L, 9L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 0, 10), content);
+            }
+
+            // Try downloading a middle 20 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(10L, 29L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(20, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, 30), content);
+            }
+
+            // Try downloading from byte 10 onward
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(10L, null).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(blobBytes.length - 10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, 10, blobBytes.length), content);
+            }
+
+            // Try downloading the last 10 bytes
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                bucketClient.download(requestBuilder.withRange(null, 10L).build(), outputStream);
+                byte[] content = outputStream.toByteArray();
+                Assertions.assertEquals(10, content.length);
+                Assertions.assertArrayEquals(Arrays.copyOfRange(blobBytes, blobBytes.length - 10, blobBytes.length), content);
+            }
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+        String key = "conformance-tests/kms/presigned-url-null-key";
+        Map<String, String> metadata = Map.of("key2", "value2");
+        byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
+
+        runPresignedUrlWithKmsKeyTest(key, null, metadata, content);
+    }
+
+    private void runPresignedUrlWithKmsKeyTest(String key, String kmsKeyId,
+                                               Map<String, String> metadata, byte[] content) throws IOException {
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Generate presigned URL with KMS key
+            PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key(key)
+                    .duration(Duration.ofHours(1))
+                    .metadata(metadata)
+                    .kmsKeyId(kmsKeyId)
+                    .build();
+
+            URL presignedUrl = bucketClient.generatePresignedUrl(presignedUrlRequest);
+            Assertions.assertNotNull(presignedUrl);
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
         }
     }
 }

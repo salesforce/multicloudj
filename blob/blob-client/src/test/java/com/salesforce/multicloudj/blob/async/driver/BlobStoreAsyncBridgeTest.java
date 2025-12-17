@@ -7,6 +7,9 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -22,6 +25,8 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import org.junit.jupiter.api.AfterEach;
+
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,7 +59,7 @@ import static org.mockito.Mockito.*;
 class BlobStoreAsyncBridgeTest {
 
     @Mock
-    private AbstractBlobStore<?> mockBlobStore;
+    private AbstractBlobStore mockBlobStore;
 
     private ExecutorService executorService;
     private BlobStoreAsyncBridge asyncWrapper;
@@ -401,7 +406,11 @@ class BlobStoreAsyncBridgeTest {
         MultipartUploadRequest mpuRequest = new MultipartUploadRequest.Builder()
                 .withKey(TEST_KEY)
                 .build();
-        MultipartUpload expectedMpu = new MultipartUpload(TEST_BUCKET, TEST_KEY, "upload-id");
+        MultipartUpload expectedMpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("upload-id")
+                .build();
         when(mockBlobStore.initiateMultipartUpload(mpuRequest)).thenReturn(expectedMpu);
 
         CompletableFuture<MultipartUpload> initiateResult = asyncWrapper.initiateMultipartUpload(mpuRequest);
@@ -493,4 +502,71 @@ class BlobStoreAsyncBridgeTest {
         assertEquals(1, callCount.get());
         verify(mockBlobStore).upload(uploadRequest, content);
     }
+
+    @Test
+    void doDownloadDirectory() throws Exception {
+        // Given
+        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+        DirectoryDownloadResponse expectedResponse = mock(DirectoryDownloadResponse.class);
+        when(mockBlobStore.downloadDirectory(request)).thenReturn(expectedResponse);
+
+        // When
+        CompletableFuture<DirectoryDownloadResponse> result = asyncWrapper.downloadDirectory(request);
+
+        // Then
+        DirectoryDownloadResponse actualResponse = result.get();
+        assertEquals(expectedResponse, actualResponse);
+        verify(mockBlobStore).downloadDirectory(request);
+    }
+
+    @Test
+    void doDeleteDirectory() throws Exception {
+        // Given
+        String prefix = "files";
+        doNothing().when(mockBlobStore).deleteDirectory(prefix);
+
+        // When
+        CompletableFuture<Void> result = asyncWrapper.deleteDirectory(prefix);
+
+        // Then
+        result.get(); // Should complete without exception
+        verify(mockBlobStore).deleteDirectory(prefix);
+    }
+
+    @Test
+    void testDownloadDirectory_UnsupportedOperation() throws Exception {
+        // Given
+        DirectoryDownloadRequest request = mock(DirectoryDownloadRequest.class);
+        when(mockBlobStore.downloadDirectory(request))
+                .thenThrow(new UnsupportedOperationException("Directory download not supported"));
+
+        // When
+        CompletableFuture<DirectoryDownloadResponse> result = asyncWrapper.downloadDirectory(request);
+
+        // Then
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get();
+        });
+        assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        verify(mockBlobStore).downloadDirectory(request);
+    }
+
+    @Test
+    void testDeleteDirectory_UnsupportedOperation() throws Exception {
+        // Given
+        String prefix = "test-prefix";
+        doThrow(new UnsupportedOperationException("Directory delete not supported"))
+                .when(mockBlobStore).deleteDirectory(prefix);
+
+        // When
+        CompletableFuture<Void> result = asyncWrapper.deleteDirectory(prefix);
+
+        // Then
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            result.get();
+        });
+        assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        verify(mockBlobStore).deleteDirectory(prefix);
+    }
+
 } 

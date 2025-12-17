@@ -1,0 +1,37 @@
+{
+  "id": "b0d79e7d-f3ab-4360-bb54-d41439346686",
+  "name": "v1_projects_substrate-sdk-gcp-poc1_topics_test-topicpublish",
+  "request": {
+    "method": "POST",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": "$.messages"
+      },
+      {
+        "matchesJsonPath": "$.messages[*]"
+      }
+    ],
+    "urlPath": "/v1/projects/substrate-sdk-gcp-poc1/topics/test-topic:publish"
+  },
+  "response": {
+    "status": 200,
+    "body": "{\n  \"messageIds\": [\n    \"16450693263633083\"\n  ]\n}\n",
+    "headers": {
+      "X-Frame-Options": "SAMEORIGIN",
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "ESF",
+      "X-Content-Type-Options": "nosniff",
+      "Vary": [
+        "Origin",
+        "X-Origin",
+        "Referer"
+      ],
+      "X-XSS-Protection": "0",
+      "Date": "Mon, 13 Oct 2025 20:08:30 GMT",
+      "Content-Type": "application/json; charset=UTF-8"
+    }
+  },
+  "uuid": "b0d79e7d-f3ab-4360-bb54-d41439346686",
+  "persistent": true,
+  "insertionIndex": 8
+}

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.AbortedException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
@@ -32,7 +33,6 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import com.salesforce.multicloudj.docstore.driver.Util;
-import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -194,7 +195,33 @@ public class FSDocStore extends AbstractDocStore {
         if (collectionOptions.getSortKey() != null && document.getField(collectionOptions.getSortKey()) != null) {
             docId += ":" + document.getField(collectionOptions.getSortKey());
         }
-        return new Key(docId);
+        
+        // Encode the document ID to handle special characters gracefully
+        String encodedDocId = encodeDocumentId(docId);
+        return new Key(encodedDocId);
+    }
+
+    /**
+     * Encodes a document ID to ensure compatibility with Firestore.
+     * <p>
+     * Firestore document IDs cannot contain forward slashes (/) as they are used as path separators.
+     * This method encodes problematic characters to ensure the document ID is valid.
+     * <p>
+     * Encoding rules:
+     * - Forward slash (/) becomes %2F
+     * - Other potentially problematic characters are also encoded
+     *
+     * @param documentId The original document ID
+     * @return The encoded document ID safe for Firestore
+     */
+    private String encodeDocumentId(String documentId) {
+        if (documentId == null) {
+            return null;
+        }
+        
+        // Encode problematic characters that could cause issues in Firestore paths
+        return documentId
+                .replace("/", "%2F");
     }
 
     /**
@@ -279,11 +306,11 @@ public class FSDocStore extends AbstractDocStore {
         // Process each action and create write operations
         for (Action action : writes) {
             // Handle all write action types: PUT, REPLACE, CREATE, DELETE, UPDATE
-            if (action.getKind() != ActionKind.ACTION_KIND_PUT && 
-                action.getKind() != ActionKind.ACTION_KIND_REPLACE &&
-                action.getKind() != ActionKind.ACTION_KIND_CREATE &&
-                action.getKind() != ActionKind.ACTION_KIND_DELETE &&
-                action.getKind() != ActionKind.ACTION_KIND_UPDATE) {
+            if (action.getKind() != ActionKind.ACTION_KIND_PUT
+                    && action.getKind() != ActionKind.ACTION_KIND_REPLACE
+                    && action.getKind() != ActionKind.ACTION_KIND_CREATE
+                    && action.getKind() != ActionKind.ACTION_KIND_DELETE
+                    && action.getKind() != ActionKind.ACTION_KIND_UPDATE) {
                 continue;
             }
 
@@ -402,7 +429,7 @@ public class FSDocStore extends AbstractDocStore {
      *
      * @return The Firestore database path
      */
-    private String getDatabasePath() {
+    public String getDatabasePath() {
         String tableName = collectionOptions.getTableName();
         Pattern pattern = Pattern.compile("^(projects/[^/]+/databases/[^/]+)/documents/.+");
         Matcher matcher = pattern.matcher(tableName);
@@ -413,6 +440,15 @@ public class FSDocStore extends AbstractDocStore {
         } else {
             throw new IllegalArgumentException("Collection name does not match the expected Firestore path pattern");
         }
+    }
+
+    /**
+     * Gets the collection name (last segment of the table name).
+     *
+     * @return The collection name
+     */
+    public String getCollectionName() {
+        return extractCollectionId(collectionOptions.getTableName());
     }
 
     /**
@@ -466,9 +502,9 @@ public class FSDocStore extends AbstractDocStore {
         for (Map.Entry<String, Object> entry : mods.entrySet()) {
             String fieldPath = entry.getKey();
             Object value = entry.getValue();
-            
+
             fieldPaths.add(fieldPath);
-            
+
             if (value != null) {
                 Value firestoreValue = FSCodec.encodeValue(value);
                 if (firestoreValue != null) {
@@ -528,7 +564,7 @@ public class FSDocStore extends AbstractDocStore {
                 throw new IllegalArgumentException("Invalid action kind: " + actionKind);
         }
     }
-    
+
     /**
      * Builds a revision-based precondition using the timestamp in the revision field.
      *
@@ -566,7 +602,7 @@ public class FSDocStore extends AbstractDocStore {
 
         // Build atomic write commit call following the Go pattern
         AtomicWriteCommitCall atomicWriteCall = buildAtomicWritesCommitCall(writes, beforeDo);
-        
+
         // Execute the atomic write commit call - MUST be a single commit
         if (!atomicWriteCall.getWrites().isEmpty()) {
             doAtomicCommitCall(atomicWriteCall);
@@ -618,20 +654,20 @@ public class FSDocStore extends AbstractDocStore {
         switch (action.getKind()) {
             case ACTION_KIND_CREATE:
                 return createPutWrite(action.getDocument(), documentPath, action.getKind());
-                
+
             case ACTION_KIND_REPLACE:
                 return createPutWrite(action.getDocument(), documentPath, action.getKind());
-                
+
             case ACTION_KIND_PUT:
                 return createPutWrite(action.getDocument(), documentPath, action.getKind());
-                
+
             case ACTION_KIND_UPDATE:
                 // For updates, we need to handle field modifications
                 return createUpdateWrite(action.getDocument(), documentPath, action.getMods());
-                
+
             case ACTION_KIND_DELETE:
                 return createDeleteWrite(action.getDocument(), documentPath, action.getKind());
-                
+
             default:
                 throw new IllegalArgumentException("Unknown action kind: " + action.getKind());
         }
@@ -715,18 +751,18 @@ public class FSDocStore extends AbstractDocStore {
     protected QueryRunner planQuery(Query query) {
         // Create a structured query builder
         StructuredQuery.Builder structuredQueryBuilder = StructuredQuery.newBuilder();
-        
+
         // Set the collection to query
         structuredQueryBuilder.addFrom(
             StructuredQuery.CollectionSelector.newBuilder()
                 .setCollectionId(extractCollectionId(collectionOptions.getTableName()))
                 .build()
         );
-        
+
         // Handle field projections (select specific fields)
         if (query.getFieldPaths() != null && !query.getFieldPaths().isEmpty()) {
             StructuredQuery.Projection.Builder projectionBuilder = StructuredQuery.Projection.newBuilder();
-            
+
             // Add each field to the projection
             for (String fieldPath : query.getFieldPaths()) {
                 projectionBuilder.addFields(
@@ -736,7 +772,7 @@ public class FSDocStore extends AbstractDocStore {
                 );
             }
         }
-        
+
         // Handle query filters
         if (query.getFilters() != null && !query.getFilters().isEmpty()) {
             StructuredQuery.Filter filter = filtersToStructuredFilter(query.getFilters());
@@ -744,12 +780,12 @@ public class FSDocStore extends AbstractDocStore {
                 structuredQueryBuilder.setWhere(filter);
             }
         }
-        
+
         // Handle ordering
         if (query.getOrderByField() != null && !query.getOrderByField().isEmpty()) {
-            StructuredQuery.Direction direction = query.isOrderAscending() ? 
+            StructuredQuery.Direction direction = query.isOrderAscending() ?
                 StructuredQuery.Direction.ASCENDING : StructuredQuery.Direction.DESCENDING;
-            
+
             structuredQueryBuilder.addOrderBy(
                 StructuredQuery.Order.newBuilder()
                     .setField(
@@ -761,12 +797,39 @@ public class FSDocStore extends AbstractDocStore {
                     .build()
             );
         }
-        
+
+        // Handle pagination token (cursor)
+        if (query.getPaginationToken() != null && query.getPaginationToken() instanceof FSPaginationToken) {
+            // If no explicit ordering is specified, order by document ID to support pagination
+            // This ensures the cursor works correctly with document ID-based pagination
+            structuredQueryBuilder.addOrderBy(
+                    StructuredQuery.Order.newBuilder()
+                            .setField(
+                                    StructuredQuery.FieldReference.newBuilder()
+                                            .setFieldPath("__name__")
+                                            .build()
+                            )
+                            .setDirection(StructuredQuery.Direction.ASCENDING)
+                            .build()
+            );
+
+            FSPaginationToken fsToken = (FSPaginationToken) query.getPaginationToken();
+            if (!fsToken.isEmpty() && fsToken.getCursorValues() != null) {
+                // Create a Firestore cursor using startAt for pagination
+                // The cursor contains the values from the last document in the previous page
+                com.google.firestore.v1.Cursor.Builder cursorBuilder = com.google.firestore.v1.Cursor.newBuilder();
+                cursorBuilder.addAllValues(fsToken.getCursorValues());
+                // Set before=false to start after the cursor position (exclusive)
+                cursorBuilder.setBefore(false);
+                structuredQueryBuilder.setStartAt(cursorBuilder.build());
+            }
+        }
+
         // Handle offset
         if (query.getOffset() > 0) {
             structuredQueryBuilder.setOffset(query.getOffset());
         }
-        
+
         // Handle limit
         if (query.getLimit() > 0) {
             structuredQueryBuilder.setLimit(
@@ -775,20 +838,20 @@ public class FSDocStore extends AbstractDocStore {
                     .build()
             );
         }
-        
+
         // Build the run query request
         RunQueryRequest request = RunQueryRequest.newBuilder()
             .setParent(getDatabasePath() + "/documents")
             .setStructuredQuery(structuredQueryBuilder.build())
             .build();
-        
+
         return new QueryRunner(
             firestoreClient,
             request,
             query.getBeforeQuery()
         );
     }
-    
+
     /**
      * Converts a list of filters to a Firestore structured filter.
      *
@@ -804,23 +867,23 @@ public class FSDocStore extends AbstractDocStore {
         if (filters.size() == 1) {
             return filterToStructuredFilter(filters.get(0));
         }
-        
+
         // Combine multiple filters with AND
         StructuredQuery.CompositeFilter.Builder compositeFilter = StructuredQuery.CompositeFilter.newBuilder()
             .setOp(StructuredQuery.CompositeFilter.Operator.AND);
-        
+
         for (Filter filter : filters) {
             StructuredQuery.Filter structuredFilter = filterToStructuredFilter(filter);
             if (structuredFilter != null) {
                 compositeFilter.addFilters(structuredFilter);
             }
         }
-        
+
         return StructuredQuery.Filter.newBuilder()
             .setCompositeFilter(compositeFilter.build())
             .build();
     }
-    
+
     /**
      * Converts a single filter to a Firestore structured filter.
      *
@@ -831,22 +894,22 @@ public class FSDocStore extends AbstractDocStore {
         if (filter == null) {
             return null;
         }
-        
+
         String fieldPath = filter.getFieldPath();
         FilterOperation op = filter.getOp();
         Object value = filter.getValue();
-        
+
         // Create field reference
         StructuredQuery.FieldReference fieldRef = StructuredQuery.FieldReference.newBuilder()
             .setFieldPath(fieldPath)
             .build();
-        
+
         // Convert value to Firestore Value
         Value firestoreValue = FSCodec.encodeValue(value);
         if (firestoreValue == null) {
             return null;
         }
-        
+
         // Map operation to Firestore operator
         StructuredQuery.FieldFilter.Operator operator;
         switch (op) {
@@ -874,7 +937,7 @@ public class FSDocStore extends AbstractDocStore {
             default:
                 return null;
         }
-        
+
         return StructuredQuery.Filter.newBuilder()
             .setFieldFilter(
                 StructuredQuery.FieldFilter.newBuilder()
@@ -900,9 +963,9 @@ public class FSDocStore extends AbstractDocStore {
         if (queryRunner == null) {
             throw new SubstrateSdkException("Failed to plan query for execution");
         }
-        
+
         // Create the document iterator - offset/limit are handled in the query now
-        return new FSDocumentIterator(queryRunner, 0, 0);
+        return new FSDocumentIterator(queryRunner, query, this);
     }
 
     /**
@@ -986,7 +1049,12 @@ public class FSDocStore extends AbstractDocStore {
                 if (credentials != null) {
                     settingsBuilder.setCredentialsProvider(() -> credentials);
                 }
-
+                if (getEndpoint() != null) {
+                    settingsBuilder.setEndpoint(getEndpoint().toString());
+                }
+                Optional.ofNullable(System.getenv("FIRESTORE_EMULATOR_HOST"))
+                        .filter(h -> !h.isEmpty())
+                        .ifPresent(host -> settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create()));
                 // Build the client
                 return FirestoreClient.create(settingsBuilder.build());
             } catch (Exception e) {
@@ -1063,7 +1131,7 @@ public class FSDocStore extends AbstractDocStore {
                 if (collectionOptions.getSortKey() != null) {
                     fieldPaths.add(collectionOptions.getSortKey());
                 }
-                
+
                 maskBuilder.addAllFieldPaths(fieldPaths);
                 requestBuilder.setMask(maskBuilder.build());
             }
@@ -1077,7 +1145,7 @@ public class FSDocStore extends AbstractDocStore {
                     com.google.firestore.v1.Document foundDoc = response.getFound();
                     String documentPath = foundDoc.getName();
                     Action action = docPathToAction.get(documentPath);
-                    
+
                     if (action != null) {
                         // Decode document fields into the action's document
                         FSCodec.decodeDoc(foundDoc, action.getDocument(), getRevisionField());
@@ -1096,7 +1164,7 @@ public class FSDocStore extends AbstractDocStore {
      * @param tableName The full collection path or name
      * @return The collection ID (last segment of the path)
      */
-    private String extractCollectionId(String tableName) {
+    public String extractCollectionId(String tableName) {
         // Handle paths that contain slash characters
         int lastSlashIndex = tableName.lastIndexOf('/');
         if (lastSlashIndex >= 0 && lastSlashIndex < tableName.length() - 1) {

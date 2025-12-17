@@ -1,0 +1,30 @@
+{
+  "id" : "2529d209-f28e-4951-b9ed-ff99d8b95f9f",
+  "name" : "v1_projects_-_serviceaccounts_chameleonsubstrate-sdk-gcp-poc1.iam.gserviceaccount.comgenerateaccesstoken",
+  "request" : {
+    "urlPath" : "/v1/projects/-/serviceAccounts/chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com:generateAccessToken",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"scope\":[\"https://www.googleapis.com/auth/cloud-platform\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : true
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"accessToken\": \"testAccessToken\",\n  \"expireTime\": \"2025-07-17T19:22:51Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "scaffolding on HTTPServer2",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 21 Jul 2025 22:54:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "2529d209-f28e-4951-b9ed-ff99d8b95f9f",
+  "persistent" : true,
+  "insertionIndex" : 3
+}

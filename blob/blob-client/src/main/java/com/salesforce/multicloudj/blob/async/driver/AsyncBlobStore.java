@@ -5,6 +5,10 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -35,7 +39,7 @@ import java.util.function.Consumer;
 /**
  * API for async interaction with a backing blob storage engine.
  */
-public interface AsyncBlobStore extends SdkService {
+public interface AsyncBlobStore extends SdkService, AutoCloseable {
 
     /**
      * Returns the bucket this blob store operates against.
@@ -119,6 +123,15 @@ public interface AsyncBlobStore extends SdkService {
      * @return Returns a DownloadResponse object that contains metadata about the blob
      */
     CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path);
+
+    /**
+     * Downloads the Blob content from substrate-specific Blob storage.
+     * Throws an exception if a file already exists at the path location.
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob
+     */
+    CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest);
 
     /**
      * Performs args validation and passes the call to substrate-specific delete method
@@ -233,4 +246,31 @@ public interface AsyncBlobStore extends SdkService {
      * @return Returns true if the object exists. Returns false if it doesn't exist.
      */
     CompletableFuture<Boolean> doesObjectExist(String key, String versionId);
+
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    CompletableFuture<Boolean> doesBucketExist();
+
+    /**
+     * Downloads the directory content from substrate-specific Blob storage.
+     *
+     * @param directoryDownloadRequest directoryDownloadRequest Wrapper, containing directory download data
+     * @return Returns a DirectoryDownloadResponse object that contains metadata about the blob
+     */
+    CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    /**
+     * Passes the call to substrate-specific directory upload method
+     *
+     * @param directoryUploadRequest Wrapper, containing directory upload data
+     */
+    CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    /**
+     * Deletes the content from the substrate-specific Blob storage that contains the prefix
+     * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
+     */
+    CompletableFuture<Void> deleteDirectory(String prefix);
 }

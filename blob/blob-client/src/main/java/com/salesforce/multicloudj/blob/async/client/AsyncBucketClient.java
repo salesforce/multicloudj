@@ -8,6 +8,10 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -24,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.io.File;
@@ -38,12 +43,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
  * Entry point for async Client code to interact with the Blob storage.
  */
-public class AsyncBucketClient {
+public class AsyncBucketClient implements AutoCloseable {
 
     protected AsyncBlobStore blobStore;
 
@@ -177,6 +183,18 @@ public class AsyncBucketClient {
                 .exceptionally(this::handleException);
     }
 
+    /**
+     * Downloads the Blob content and returns an InputStream for reading the content
+     *
+     * @param downloadRequest downloadRequest Wrapper, containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        return blobStore
+                .download(downloadRequest)
+                .exceptionally(this::handleException);
+    }
     /**
      * Deletes a single Blob from substrate-specific Blob storage
      *
@@ -369,6 +387,68 @@ public class AsyncBucketClient {
                 .exceptionally(this::handleException);
     }
 
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return blobStore
+                .doesBucketExist()
+                .exceptionally(this::handleException);
+    }
+
+    /**
+     * Uploads the directory content to substrate-specific Blob storage
+     * Note: Specifying the contentLength in the UploadRequest can dramatically improve upload efficiency
+     * because the substrate SDKs do not need to buffer the contents and calculate it themselves.
+     *
+     * @param directoryUploadRequest Wrapper, containing directory upload data
+     * @return Returns an DirectoryUploadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return blobStore
+                .uploadDirectory(directoryUploadRequest)
+                .exceptionally(this::handleException);
+    }
+
+    /**
+     * Downloads the directory content from substrate-specific Blob storage.
+     * Throws an exception if the file already exists in the destination directory.
+     *
+     * @param directoryDownloadRequest downloadRequest Wrapper, containing directory download data
+     * @return Returns a DirectoryDownloadResponse object that contains metadata about the blob
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file already exists.
+     */
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        return blobStore
+                .downloadDirectory(directoryDownloadRequest)
+                .exceptionally(this::handleException);
+    }
+
+    /**
+     * Deletes all blobs in the bucket which have keys that start with the given prefix.
+     *
+     * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
+     * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file already exists.
+     */
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        return blobStore
+                .deleteDirectory(prefix)
+                .exceptionally(this::handleException);
+    }
+
+    /**
+     * Closes the underlying async blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
+        }
+    }
+
     public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
 
         public Builder(String providerId) {
@@ -430,6 +510,89 @@ public class AsyncBucketClient {
         @Override
         public Builder withIdleConnectionTimeout(Duration idleConnectionTimeout) {
             super.withIdleConnectionTimeout(idleConnectionTimeout);
+            return this;
+        }
+
+        @Override
+        public Builder withExecutorService(ExecutorService executorService) {
+            super.withExecutorService(executorService);
+            return this;
+        }
+
+        /**
+         * Method to supply multipart threshold in bytes
+         * @param thresholdBytes The threshold in bytes above which multipart upload will be used
+         * @return An instance of self
+         */
+        @Override
+        public Builder withThresholdBytes(Long thresholdBytes) {
+            super.withThresholdBytes(thresholdBytes);
+            return this;
+        }
+
+        /**
+         * Method to supply multipart part buffer size in bytes
+         * @param partBufferSize The buffer size in bytes for each part in a multipart upload
+         * @return An instance of self
+         */
+        @Override
+        public Builder withPartBufferSize(Long partBufferSize) {
+            super.withPartBufferSize(partBufferSize);
+            return this;
+        }
+
+        /**
+         * Method to enable/disable parallel uploads
+         * @param parallelUploadsEnabled Whether to enable parallel uploads
+         * @return An instance of self
+         */
+        @Override
+        public Builder withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
+            super.withParallelUploadsEnabled(parallelUploadsEnabled);
+            return this;
+        }
+
+        /**
+         * Method to enable/disable parallel downloads
+         * @param parallelDownloadsEnabled Whether to enable parallel downloads
+         * @return An instance of self
+         */
+        @Override
+        public Builder withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
+            super.withParallelDownloadsEnabled(parallelDownloadsEnabled);
+            return this;
+        }
+
+        /**
+         * Method to set target throughput in Gbps
+         * @param targetThroughputInGbps The target throughput in Gbps
+         * @return An instance of self
+         */
+        @Override
+        public Builder withTargetThroughputInGbps(Double targetThroughputInGbps) {
+            super.withTargetThroughputInGbps(targetThroughputInGbps);
+            return this;
+        }
+
+        /**
+         * Method to set maximum native memory limit in bytes
+         * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
+         * @return An instance of self
+         */
+        @Override
+        public Builder withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
+            super.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
+            return this;
+        }
+
+        /**
+         * Method to supply retry configuration
+         * @param retryConfig The retry configuration to use for retrying failed requests
+         * @return An instance of self
+         */
+        @Override
+        public Builder withRetryConfig(RetryConfig retryConfig) {
+            super.withRetryConfig(retryConfig);
             return this;
         }
 

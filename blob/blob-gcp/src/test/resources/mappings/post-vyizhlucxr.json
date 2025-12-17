@@ -1,0 +1,32 @@
+{
+  "id" : "d408c769-fd7f-42d4-ab17-08f8ba489045",
+  "name" : "batch_storage_v1",
+  "request" : {
+    "url" : "/batch/storage/v1",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "LS1fX0VORF9PRl9QQVJUX19iY2E4MDc3Yy0wODY4LTRkNzUtOGUyZS1jYzA5ODlkMGM0ZmZfXw0KQ29udGVudC1MZW5ndGg6IDYxOA0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpjb250ZW50LWlkOiAxDQpjb250ZW50LXRyYW5zZmVyLWVuY29kaW5nOiBiaW5hcnkNCg0KREVMRVRFIGh0dHBzOi8vc3RvcmFnZS5nb29nbGVhcGlzLmNvbS9zdG9yYWdlL3YxL2Ivc3Vic3RyYXRlLXNkay1nY3AtcG9jMS10ZXN0LWJ1Y2tldC12ZXJzaW9uZWQvby9jb25mb3JtYW5jZS10ZXN0cyUyRmJ1bGtEZWxldGVCeVZlcnNpb24lMkZub25leGlzdGluZyBIVFRQLzEuMQ0KQXV0aG9yaXphdGlvbjogQmVhcmVyIHlhMjkuYTBBUVFfQkRUNGR3S2pxT25HSU45M3oyS3NJWkw1R25mVW1QTUVRZjMzMkpudFk5Z0xMelJqSEszMWlxWV9rWEJwQVNtQzIxa0doNWYxcUpCNVBWbTJQUGV4SE9JcHY2ZXZXMnR1N3pkenFfdFNwMGN6VGh0UXpVZTdpNTVyNmkwSmJuZlJMeFMybGh5WDAwVlhIcHVKSkVaMFZ1SFBzOXdidXVJWjdPNDI5MkVNVFRWSFNZWFUyM2g4UTBJdjBubjM2cnV5V1pzVmFDZ1lLQVJjU0FSRVNGUUhHWDJNaU5lTmtudmZhVklERUNLZlpzVTJ4UmcwMjA3DQp4LWdvb2ctdXNlci1wcm9qZWN0OiBzdWJzdHJhdGUtc2RrLWdjcC1wb2MxDQp4LWdvb2ctYXBpLWNsaWVudDogZ2wtamF2YS8xMS4wLjI4IGdkY2wvMi43LjIgbWFjLW9zLXgvMTUuNy4xDQp4LWdvb2ctZ2NzLWlkZW1wb3RlbmN5LXRva2VuOiBiYjNiZTA2OC0yOTVhLTQ3ZTgtYmJjZC05M2U3ZjcwNGMxOWMNCg0KDQotLV9fRU5EX09GX1BBUlRfX2JjYTgwNzdjLTA4NjgtNGQ3NS04ZTJlLWNjMDk4OWQwYzRmZl9fLS0NCg=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "LS1iYXRjaF83b3Fqem1nTzlkUFVpaGZaUVJUQ00wTnZQRE1leFA3dw0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpDb250ZW50LUlEOiByZXNwb25zZS0xDQoNCkhUVFAvMS4xIDQwNCBOb3QgRm91bmQNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vanNvbjsgY2hhcnNldD1VVEYtOA0KRGF0ZTogVGh1LCAyMyBPY3QgMjAyNSAwMDo1MTo0NCBHTVQNCkNhY2hlLUNvbnRyb2w6IG5vLWNhY2hlLCBuby1zdG9yZSwgbWF4LWFnZT0wLCBtdXN0LXJldmFsaWRhdGUNCkV4cGlyZXM6IE1vbiwgMDEgSmFuIDE5OTAgMDA6MDA6MDAgR01UDQpDb250ZW50LUxlbmd0aDogMzk1DQoNCnsKICAiZXJyb3IiOiB7CiAgICAiY29kZSI6IDQwNCwKICAgICJtZXNzYWdlIjogIk5vIHN1Y2ggb2JqZWN0OiBzdWJzdHJhdGUtc2RrLWdjcC1wb2MxLXRlc3QtYnVja2V0LXZlcnNpb25lZC9jb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL25vbmV4aXN0aW5nIiwKICAgICJlcnJvcnMiOiBbCiAgICAgIHsKICAgICAgICAibWVzc2FnZSI6ICJObyBzdWNoIG9iamVjdDogc3Vic3RyYXRlLXNkay1nY3AtcG9jMS10ZXN0LWJ1Y2tldC12ZXJzaW9uZWQvY29uZm9ybWFuY2UtdGVzdHMvYnVsa0RlbGV0ZUJ5VmVyc2lvbi9ub25leGlzdGluZyIsCiAgICAgICAgImRvbWFpbiI6ICJnbG9iYWwiLAogICAgICAgICJyZWFzb24iOiAibm90Rm91bmQiCiAgICAgIH0KICAgIF0KICB9Cn0KDQotLWJhdGNoXzdvcWp6bWdPOWRQVWloZlpRUlRDTTBOdlBETWV4UDd3LS0NCg==",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "Upload Server",
+      "X-Content-Type-Options" : "nosniff",
+      "Pragma" : "no-cache",
+      "Date" : "Thu, 23 Oct 2025 00:51:44 GMT",
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAwnv3LOkmSgfpYV3109HSCyAL5KFVgjWtlk6Kkr5j8yzSeFUIBMggLJHOSySmsNF15LXW486FTdExkcV0ZXNA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-XSS-Protection" : "1; mode=block",
+      "Content-Type" : "multipart/mixed; boundary=batch_7oqjzmgO9dPUihfZQRTCM0NvPDMexP7w"
+    }
+  },
+  "uuid" : "d408c769-fd7f-42d4-ab17-08f8ba489045",
+  "persistent" : true,
+  "insertionIndex" : 474
+}

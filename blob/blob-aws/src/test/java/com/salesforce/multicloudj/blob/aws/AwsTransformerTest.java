@@ -3,19 +3,26 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
-import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -32,20 +39,37 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
+import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
+import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.FailedFileDownload;
+import software.amazon.awssdk.transfer.s3.model.FailedFileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -78,10 +102,54 @@ public class AwsTransformerTest {
                 .bucket(BUCKET)
                 .key(key)
                 .metadata(metadata)
-                .tagging("tag-key=tag-value")
+                .tagging(Tagging.builder().tagSet(List.of(Tag.builder().key("tag-key").value("tag-value").build())).build())
                 .build();
 
         assertEquals(expected, transformer.toRequest(request));
+    }
+
+    @Test
+    void testUploadWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+        var kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertEquals("aws:kms", actual.serverSideEncryptionAsString());
+        assertEquals(kmsKeyId, actual.ssekmsKeyId());
+    }
+
+    @Test
+    void testUploadWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(metadata, actual.metadata());
+        assertNull(actual.serverSideEncryptionAsString());
+        assertNull(actual.ssekmsKeyId());
     }
 
     @Test
@@ -117,10 +185,16 @@ public class AwsTransformerTest {
 
     @Test
     void testToInfo() {
-        var s3 = S3Object.builder().key("some/key/path.file").size(1024L).build();
+        Instant lastModified = Instant.now();
+        var s3 = S3Object.builder()
+                .key("some/key/path.file")
+                .size(1024L)
+                .lastModified(lastModified)
+                .build();
         var info = transformer.toInfo(s3);
         assertEquals(s3.key(), info.getKey());
         assertEquals(s3.size(), info.getObjectSize());
+        assertEquals(lastModified, info.getLastModified());
     }
 
     @Test
@@ -324,8 +398,32 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testToCreateMultipartUploadRequestWithTags() {
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        MultipartUploadRequest mpuRequest = new MultipartUploadRequest.Builder()
+                .withKey("object-1")
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+        CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+        assertEquals("object-1", request.key());
+        assertEquals(BUCKET, request.bucket());
+        assertEquals(metadata, request.metadata());
+        // Verify tagging header is set (tagging() returns String in AWS SDK)
+        assertNotNull(request.tagging());
+        assertFalse(request.tagging().isEmpty());
+    }
+
+    @Test
     void testToUploadPartRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .metadata(metadata)
+                .build();
         byte[] content = "This is test data".getBytes();
         MultipartPart multipartPart = new MultipartPart(1, content);
         UploadPartRequest request = transformer.toUploadPartRequest(multipartUpload, multipartPart);
@@ -337,7 +435,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToCompleteMultipartUploadRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         var listOfParts = List.of(
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag1", 3000),
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag2", 2000),
@@ -359,7 +461,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToListPartsRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         ListPartsRequest request = transformer.toListPartsRequest(multipartUpload);
         assertEquals("object-1", request.key());
         assertEquals(BUCKET, request.bucket());
@@ -368,7 +474,11 @@ public class AwsTransformerTest {
 
     @Test
     void testToAbortMultipartUploadRequest() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         AbortMultipartUploadRequest request = transformer.toAbortMultipartUploadRequest(multipartUpload);
         assertEquals("object-1", request.key());
         assertEquals(BUCKET, request.bucket());
@@ -414,6 +524,47 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testToPutObjectPresignRequestWithKmsKey() {
+        Map<String, String> metadata = Map.of("some-key", "some-value");
+        Map<String, String> tags = Map.of("tag-key", "tag-value");
+        String kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012";
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .metadata(metadata)
+                .tags(tags)
+                .kmsKeyId(kmsKeyId)
+                .build();
+        PutObjectPresignRequest actualRequest = transformer.toPutObjectPresignRequest(presignedUrlRequest);
+        assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
+        assertEquals("object-1", actualRequest.putObjectRequest().key());
+        assertEquals(metadata, actualRequest.putObjectRequest().metadata());
+        assertEquals("tag-key=tag-value", actualRequest.putObjectRequest().tagging());
+        assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+        assertEquals("aws:kms", actualRequest.putObjectRequest().serverSideEncryptionAsString());
+        assertEquals(kmsKeyId, actualRequest.putObjectRequest().ssekmsKeyId());
+    }
+
+
+    @Test
+    void testToPutObjectPresignRequestWithoutKmsKey() {
+        Map<String, String> metadata = Map.of("some-key", "some-value");
+        PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .duration(Duration.ofHours(4))
+                .metadata(metadata)
+                .build();
+        PutObjectPresignRequest actualRequest = transformer.toPutObjectPresignRequest(presignedUrlRequest);
+        assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
+        assertEquals("object-1", actualRequest.putObjectRequest().key());
+        assertEquals(metadata, actualRequest.putObjectRequest().metadata());
+        assertNull(actualRequest.putObjectRequest().serverSideEncryptionAsString());
+        assertNull(actualRequest.putObjectRequest().ssekmsKeyId());
+    }
+
+    @Test
     void testToGetObjectPresignRequest() {
         PresignedUrlRequest presignedUrlRequest = PresignedUrlRequest.builder()
                 .type(PresignedOperation.DOWNLOAD)
@@ -424,5 +575,476 @@ public class AwsTransformerTest {
         assertEquals(BUCKET, actualRequest.getObjectRequest().bucket());
         assertEquals("object-1", actualRequest.getObjectRequest().key());
         assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    }
+
+    @Test
+    void testGetPrefixExclusionsFilter() {
+        List<String> prefixesToExclude = List.of("files/images", "files/personal");
+        DownloadFilter downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
+        assertFalse(downloadFilter.test(S3Object.builder().key("files/personal/taxes.csv").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/documents/business.doc").build()));
+
+        prefixesToExclude = List.of();
+        downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/images/image1.jpg").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/imagesFromVacation/image1.jpg").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/personal/taxes.csv").build()));
+        assertTrue(downloadFilter.test(S3Object.builder().key("files/documents/business.doc").build()));
+    }
+
+    @Test
+    void testToDownloadDirectoryRequest() {
+        String destination = "/home/documents";
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .localDestinationDirectory(destination)
+                .prefixToDownload("/files")
+                .prefixesToExclude(List.of("files/images", "files/personal"))
+                .build();
+
+        DownloadDirectoryRequest downloadDirectoryRequest = transformer.toDownloadDirectoryRequest(request);
+
+        assertEquals(BUCKET, downloadDirectoryRequest.bucket());
+        assertEquals(destination, downloadDirectoryRequest.destination().toString());
+        assertNotNull(downloadDirectoryRequest.filter());
+        assertNotNull(downloadDirectoryRequest.listObjectsRequestTransformer());
+    }
+
+    @Test
+    void testToDirectoryDownloadResponse() {
+        Exception exception1 = new RuntimeException("Exception1!");
+        Path path1 = Paths.get("/files/document1.txt");
+        DownloadFileRequest request1 = mock(DownloadFileRequest.class);
+        doReturn(path1).when(request1).destination();
+        FailedFileDownload failedDownload1 = FailedFileDownload.builder()
+                .request(request1)
+                .exception(exception1)
+                .build();
+
+        Exception exception2 = new RuntimeException("Exception2!");
+        Path path2 = Paths.get("/files/document2.txt");
+        DownloadFileRequest request2 = mock(DownloadFileRequest.class);
+        doReturn(path2).when(request2).destination();
+        FailedFileDownload failedDownload2 = FailedFileDownload.builder()
+                .request(request2)
+                .exception(exception2)
+                .build();
+        List<FailedFileDownload> failedTransfers = List.of(failedDownload1, failedDownload2);
+        CompletedDirectoryDownload completedDirectoryDownload = mock(CompletedDirectoryDownload.class);
+        doReturn(failedTransfers).when(completedDirectoryDownload).failedTransfers();
+
+        DirectoryDownloadResponse response = transformer.toDirectoryDownloadResponse(completedDirectoryDownload);
+
+        assertEquals(2, response.getFailedTransfers().size());
+        assertEquals(path1, response.getFailedTransfers().get(0).getDestination());
+        assertEquals(exception1, response.getFailedTransfers().get(0).getException());
+        assertEquals(path2, response.getFailedTransfers().get(1).getDestination());
+        assertEquals(exception2, response.getFailedTransfers().get(1).getException());
+    }
+
+    @Test
+    void testToUploadDirectoryRequest() {
+        DirectoryUploadRequest directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(true)
+                .build();
+        UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        assertEquals(BUCKET, request.bucket());
+        assertTrue(request.maxDepth().isPresent());
+        assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
+        assertTrue(request.s3Prefix().isPresent());
+        assertEquals("/files", request.s3Prefix().get());
+        assertEquals("/home/documents", request.source().toString());
+
+
+        directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(false)
+                .build();
+        request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        assertTrue(request.maxDepth().isPresent());
+    }
+
+    @Test
+    void testToDirectoryUploadResponse() {
+        Exception exception1 = new RuntimeException("Exception1!");
+        Path path1 = Paths.get("/home/documents/files/document1.txt");
+        UploadFileRequest request1 = mock(UploadFileRequest.class);
+        doReturn(path1).when(request1).source();
+        FailedFileUpload failedUpload1 = FailedFileUpload.builder()
+                .request(request1)
+                .exception(exception1)
+                .build();
+
+        Exception exception2 = new RuntimeException("Exception2!");
+        Path path2 = Paths.get("/home/documents/files/document2.txt");
+        UploadFileRequest request2 = mock(UploadFileRequest.class);
+        doReturn(path2).when(request2).source();
+        FailedFileUpload failedUpload2 = FailedFileUpload.builder()
+                .request(request2)
+                .exception(exception2)
+                .build();
+        List<FailedFileUpload> failedTransfers = List.of(failedUpload1, failedUpload2);
+        CompletedDirectoryUpload completedDirectoryUpload = mock(CompletedDirectoryUpload.class);
+        doReturn(failedTransfers).when(completedDirectoryUpload).failedTransfers();
+
+        DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completedDirectoryUpload);
+
+        assertEquals(2, response.getFailedTransfers().size());
+        assertEquals(path1, response.getFailedTransfers().get(0).getSource());
+        assertEquals(exception1, response.getFailedTransfers().get(0).getException());
+        assertEquals(path2, response.getFailedTransfers().get(1).getSource());
+        assertEquals(exception2, response.getFailedTransfers().get(1).getException());
+    }
+
+    @Test
+    public void testPartitionList() {
+        List<BlobInfo> blobInfos = new ArrayList<>();
+        for(int i=0; i<50; i++) {
+            blobInfos.add(BlobInfo.builder().withKey("blob"+i).build());
+        }
+        List<List<BlobInfo>> partitionedLists = transformer.partitionList(blobInfos, 10);
+        assertEquals(5, partitionedLists.size());
+        partitionedLists = transformer.partitionList(blobInfos, 25);
+        assertEquals(2, partitionedLists.size());
+        partitionedLists = transformer.partitionList(blobInfos, 40);
+        assertEquals(2, partitionedLists.size());
+        assertEquals(40, partitionedLists.get(0).size());
+        assertEquals(10, partitionedLists.get(1).size());
+        partitionedLists = transformer.partitionList(List.of(BlobInfo.builder().withKey("blob1").build()), 10);
+        assertEquals(1, partitionedLists.size());
+        assertEquals(1, partitionedLists.get(0).size());
+    }
+
+    @Test
+    public void testToBlobIdentifiers() {
+        List<BlobInfo> blobList = new ArrayList<>();
+        for(int i=0; i<50; i++) {
+            blobList.add(BlobInfo.builder().withKey("blob"+i).build());
+        }
+        List<BlobIdentifier> blobIdentifiers = transformer.toBlobIdentifiers(blobList);
+        assertEquals(50, blobIdentifiers.size());
+        for(int i=0; i<50; i++) {
+            assertEquals("blob"+i, blobIdentifiers.get(i).getKey());
+            assertNull(blobIdentifiers.get(i).getVersionId());
+        }
+    }
+
+    @Test
+    void testUploadRequestWithStorageClass() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+        var storageClass = "STANDARD_IA";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+        
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(metadata, result.metadata());
+        assertEquals("tag-key=tag-value", result.tagging());
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD_IA, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithStandardStorageClass() {
+        var key = "some-key";
+        var storageClass = "STANDARD";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+        
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithGlacierStorageClass() {
+        var key = "some-key";
+        var storageClass = "GLACIER";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithIntelligentTieringStorageClass() {
+        var key = "some-key";
+        var storageClass = "INTELLIGENT_TIERING";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.INTELLIGENT_TIERING, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithDeepArchiveStorageClass() {
+        var key = "some-key";
+        var storageClass = "DEEP_ARCHIVE";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.DEEP_ARCHIVE, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithGlacierIrStorageClass() {
+        var key = "some-key";
+        var storageClass = "GLACIER_IR";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(storageClass)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER_IR, result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithNullStorageClass() {
+        var key = "some-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass(null)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertNull(result.storageClass());
+    }
+
+    @Test
+    void testUploadRequestWithEmptyStorageClass() {
+        var key = "some-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withStorageClass("")
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertNull(result.storageClass());
+    }
+
+
+    @Test
+    void testUploadRequestWithoutStorageClass() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var tags = Map.of("tag-key", "tag-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        var result = transformer.toRequest(request);
+
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(metadata, result.metadata());
+        assertEquals("tag-key=tag-value", result.tagging());
+        assertNull(result.storageClass());
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithExponentialMode() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(5000L)
+                .build();
+
+        RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+        assertNotNull(strategy);
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithFixedMode() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(5)
+                .fixedDelayMillis(1000L)
+                .build();
+
+        RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+        assertNotNull(strategy);
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithNullConfig() {
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(null)
+        );
+        assertEquals("RetryConfig cannot be null", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithInvalidMaxAttempts() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(0)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(config)
+        );
+        assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithNegativeMaxAttempts() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(-1)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(config)
+        );
+        assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyExponentialWithInvalidInitialDelay() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(0L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(config)
+        );
+        assertEquals("RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyExponentialWithInvalidMaxDelay() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(0L)
+                .build();
+
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(config)
+        );
+        assertEquals("RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyFixedWithInvalidFixedDelay() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(3)
+                .fixedDelayMillis(0L)
+                .build();
+
+        InvalidArgumentException exception = assertThrows(
+                InvalidArgumentException.class,
+                () -> transformer.toAwsRetryStrategy(config)
+        );
+        assertEquals("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0", exception.getMessage());
+    }
+
+    @Test
+    void testToAwsRetryStrategyWithNullMaxAttempts() {
+        // Test that null maxAttempts uses AWS SDK default
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(null)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(5000L)
+                .build();
+
+        RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+        assertNotNull(strategy);
+    }
+
+    @Test
+    void testToAwsRetryStrategyExponentialWithMinimalValues() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(1)
+                .initialDelayMillis(1L)
+                .maxDelayMillis(1L)
+                .build();
+
+        RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+        assertNotNull(strategy);
+    }
+
+    @Test
+    void testToAwsRetryStrategyFixedWithMinimalValues() {
+        RetryConfig config = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(1)
+                .fixedDelayMillis(1L)
+                .build();
+
+        RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
+
+        assertNotNull(strategy);
     }
 }

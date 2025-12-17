@@ -6,7 +6,10 @@ import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
+import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
+import com.github.tomakehurst.wiremock.matching.EqualToPattern;
+import com.github.tomakehurst.wiremock.matching.MatchesJsonPathPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
@@ -14,7 +17,9 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +30,7 @@ public class TestsUtil {
     private static Logger logger = LoggerFactory.getLogger(TestsUtil.class);
     static WireMockServer wireMockServer;
     public static final String WIREMOCK_HOST = "localhost";
+    private static List<StubMappingTransformer> loadedTransformers = new ArrayList<>();
 
     public static class TruncateRequestBodyTransformer extends StubMappingTransformer {
 
@@ -36,14 +42,12 @@ public class TestsUtil {
             RequestPattern requestPattern = stubMapping.getRequest();
             List<ContentPattern<?>> bodyPatterns = requestPattern.getBodyPatterns();
             if(bodyPatterns != null && !bodyPatterns.isEmpty()) {
-
                 List<ContentPattern<?>> newPatterns = new ArrayList<>();
                 int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUST_BODY_OVER);
 
                 // See if any of the existing body patterns exceed our length limit
                 for(ContentPattern<?> pattern : bodyPatterns) {
                     if(pattern.getExpected().length() > truncateMatcherRequestBodyOver){
-
                         // We've exceeded our desired matcher length, so truncate it
                         String truncatedString = pattern.getExpected().substring(0, truncateMatcherRequestBodyOver);
                         newPatterns.add(new RegexPattern("^" + truncatedString +"*"));
@@ -69,15 +73,34 @@ public class TestsUtil {
     public static void startWireMockServer(String rootDir, int port, String... extensionInstances) {
         boolean isRecordingEnabled = System.getProperty("record") != null;
         logger.info("Recording enabled: {}", isRecordingEnabled);
+
+        // Create extensions list with default transformer
+        List<StubMappingTransformer> extensions = new ArrayList<>();
+        extensions.add(new TruncateRequestBodyTransformer());
+
+        // Load additional extensions if provided
+        for (String extensionClass : extensionInstances) {
+            try {
+                Class<?> clazz = Class.forName(extensionClass);
+                StubMappingTransformer transformer = (StubMappingTransformer) clazz.getDeclaredConstructor().newInstance();
+                extensions.add(transformer);
+                logger.info("Loaded WireMock extension: {}", extensionClass);
+            } catch (Exception e) {
+                logger.warn("Failed to load WireMock extension: {}", extensionClass, e);
+            }
+        }
+
         wireMockServer = new WireMockServer(WireMockConfiguration.options()
                 .httpsPort(port)
                 .port(port+1) // http port
                 .keystorePath("wiremock-keystore.jks")
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)
+                .gzipDisabled(true)
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{request.method}}-{{randomValue length=10}}.json")
-                .extensions(new TruncateRequestBodyTransformer())
+                //.extensions(new TruncateRequestBodyTransformer()) // TODO: enable it after converting to plain text body in multipart uploads for tests
+                .extensions(extensions.toArray(new StubMappingTransformer[0]))
                 .enableBrowserProxying(true));
         wireMockServer.start();
     }
@@ -96,6 +119,15 @@ public class TestsUtil {
                 .transformerParameters(Parameters.from(Map.of(TRUNCATE_MATCHER_REQUST_BODY_OVER,4096*2)))
                 .chooseBodyMatchTypeAutomatically(true, false, false)
                 .makeStubsPersistent(true);
+
+        // Apply transformers during recording
+        if (!loadedTransformers.isEmpty()) {
+            String[] transformerNames = loadedTransformers.stream()
+                    .map(StubMappingTransformer::getName)
+                    .toArray(String[]::new);
+            recordSpec = recordSpec.transformers(transformerNames);
+        }
+
         if (isRecordingEnabled) {
             wireMockServer.startRecording(recordSpec);
         }

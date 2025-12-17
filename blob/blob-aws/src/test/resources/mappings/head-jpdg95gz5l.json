@@ -1,0 +1,27 @@
+{
+  "id" : "c62ab267-1cd9-4093-9923-cf84969f4bf8",
+  "name" : "chameleon-jcloud_conformance-tests_clobbered-blob",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/clobbered-blob",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "x-amz-meta-key1" : "value1",
+      "x-amz-meta-key2" : "value2",
+      "Server" : "AmazonS3",
+      "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
+      "Last-Modified" : "Thu, 16 Oct 2025 04:09:39 GMT",
+      "x-amz-request-id" : "EG2NVWYYPDP5JSVN",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "j1/jxWCWIQPlUlKN1BdN9L+jxp9Zr60nuyCgeeZw60Xg/+QTaySlQ+2otQZhn/V7gjfVWx0lSZ8=",
+      "Date" : "Thu, 16 Oct 2025 04:09:41 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "c62ab267-1cd9-4093-9923-cf84969f4bf8",
+  "persistent" : true,
+  "insertionIndex" : 141
+}

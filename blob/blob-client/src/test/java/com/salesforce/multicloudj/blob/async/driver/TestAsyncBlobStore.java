@@ -6,6 +6,10 @@ import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -39,6 +43,7 @@ import java.util.function.Consumer;
 public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
 
     public static final String PROVIDER_ID = "async-test";
+    private boolean throwUnsupportedOperation = false;
 
     public TestAsyncBlobStore(
             String providerId,
@@ -48,6 +53,10 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
             BlobStoreValidator validator
     ) {
         super(providerId, bucket, region, credentialsOverrider, validator);
+    }
+
+    public void setThrowUnsupportedOperation(boolean throwUnsupportedOperation) {
+        this.throwUnsupportedOperation = throwUnsupportedOperation;
     }
 
     @Override
@@ -88,6 +97,11 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     @Override
     protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
+        return null;
     }
 
     @Override
@@ -166,8 +180,39 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
     }
 
     @Override
+    protected CompletableFuture<Boolean> doDoesBucketExist() {
+        return CompletableFuture.completedFuture(false);
+    }
+
+    @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return SubstrateSdkException.class;
+    }
+
+    @Override
+    protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        if (throwUnsupportedOperation) {
+            throw new UnsupportedOperationException("Directory download not supported in test implementation");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
+        if (throwUnsupportedOperation) {
+            throw new UnsupportedOperationException("Directory delete not supported in test implementation");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public void close() {
+        // Test implementation - no-op
     }
 
     public static Builder builder() {

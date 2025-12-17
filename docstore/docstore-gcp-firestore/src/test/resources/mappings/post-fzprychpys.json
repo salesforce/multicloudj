@@ -1,0 +1,31 @@
+{
+  "id" : "4d3c46d4-ecf9-4b18-b051-4978c1c8326a",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"compositeFilter\":{\"op\":1,\"filters\":[{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Game\"},\"op\":5,\"value\":{\"stringValue\":\"Praise All Monsters\"}}},{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Player\"},\"op\":5,\"value\":{\"stringValue\":\"andy\"}}}]}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:andy\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"andy\"\n      },\n      \"Score\": {\n        \"integerValue\": \"81\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-02-01\"\n      }\n    },\n    \"createTime\": \"2025-07-10T22:07:43.697003Z\",\n    \"updateTime\": \"2025-07-10T22:07:43.697003Z\"\n  },\n  \"readTime\": \"2025-07-10T23:53:27.371016Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "12035206840602624180;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:53:27 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4d3c46d4-ecf9-4b18-b051-4978c1c8326a",
+  "persistent" : true,
+  "insertionIndex" : 20
+}

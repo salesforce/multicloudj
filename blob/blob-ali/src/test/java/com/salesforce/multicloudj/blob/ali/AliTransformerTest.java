@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -21,9 +22,9 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -35,8 +36,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -79,6 +82,46 @@ public class AliTransformerTest {
         assertEquals(metadata, actual.getMetadata().getUserMetadata());
         assertEquals("tag-key=tag-value", actual.getMetadata().getRawMetadata().get("x-oss-tagging"));
         assertEquals(file, actual.getFile());
+    }
+
+    @Test
+    void testToPutObjectRequestWithKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+        var kmsKeyId = "alias/my-kms-key";
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actual.getMetadata().getServerSideEncryption());
+    }
+
+    @Test
+    void testToPutObjectRequestWithoutKmsKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .build();
+        InputStream inputStream = mock(InputStream.class);
+
+        var actual = transformer.toPutObjectRequest(request, inputStream);
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals(key, actual.getKey());
+        assertEquals(metadata, actual.getMetadata().getUserMetadata());
+        assertNull(actual.getMetadata().getServerSideEncryption());
     }
 
     @Test
@@ -153,6 +196,35 @@ public class AliTransformerTest {
         var actual = transformer.toDownloadResponse(ossObject);
 
         assertEquals("key", actual.getKey());
+        BlobMetadata blobMetadata = actual.getMetadata();
+        assertEquals("key", blobMetadata.getKey());
+        assertEquals("version-1", blobMetadata.getVersionId());
+        assertEquals("etag", blobMetadata.getETag());
+        assertEquals(metadata, blobMetadata.getMetadata());
+        assertEquals(date.toInstant(), blobMetadata.getLastModified());
+        assertEquals(100L, blobMetadata.getObjectSize());
+    }
+
+    @Test
+    void testToDownloadResponseWithInputStream() {
+        OSSObject ossObject = mock(OSSObject.class);
+        doReturn("key").when(ossObject).getKey();
+        ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
+        doReturn(objectMetadata).when(ossObject).getObjectMetadata();
+        doReturn("version-1").when(objectMetadata).getVersionId();
+        doReturn("etag").when(objectMetadata).getETag();
+        Date date = Date.from(Instant.now());
+        doReturn(date).when(objectMetadata).getLastModified();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        doReturn(metadata).when(objectMetadata).getUserMetadata();
+        doReturn(100L).when(objectMetadata).getContentLength();
+
+        InputStream inputStream = new ByteArrayInputStream("test content".getBytes());
+
+        var actual = transformer.toDownloadResponse(ossObject, inputStream);
+
+        assertEquals("key", actual.getKey());
+        assertEquals(inputStream, actual.getInputStream());
         BlobMetadata blobMetadata = actual.getMetadata();
         assertEquals("key", blobMetadata.getKey());
         assertEquals("version-1", blobMetadata.getVersionId());
@@ -240,6 +312,7 @@ public class AliTransformerTest {
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
         doReturn(metadata).when(objectMetadata).getUserMetadata();
         doReturn(100L).when(objectMetadata).getContentLength();
+        doReturn("5d41402abc4b2a76b9719d911017c592").when(objectMetadata).getContentMD5();
 
         var actual = transformer.toBlobMetadata("key", objectMetadata);
 
@@ -249,6 +322,9 @@ public class AliTransformerTest {
         assertEquals(metadata, actual.getMetadata());
         assertEquals(date.toInstant(), actual.getLastModified());
         assertEquals(100L, actual.getObjectSize());
+
+        byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
+        assertArrayEquals(expectedMd5, actual.getMd5());
     }
 
     @Test
@@ -272,17 +348,43 @@ public class AliTransformerTest {
         doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
         doReturn("key").when(initiateMultipartUploadResult).getKey();
         doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
 
-        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult);
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, null);
 
         assertEquals(BUCKET, actual.getBucket());
         assertEquals("key", actual.getKey());
         assertEquals("uploadId", actual.getId());
+        assertEquals(metadata, actual.getMetadata());
+    }
+
+    @Test
+    void testToMultipartUploadWithKms() {
+        InitiateMultipartUploadResult initiateMultipartUploadResult = mock(InitiateMultipartUploadResult.class);
+        doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
+        doReturn("key").when(initiateMultipartUploadResult).getKey();
+        doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        String kmsKeyId = "test-kms-key-id";
+
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, kmsKeyId);
+
+        assertEquals(BUCKET, actual.getBucket());
+        assertEquals("key", actual.getKey());
+        assertEquals("uploadId", actual.getId());
+        assertEquals(metadata, actual.getMetadata());
+        assertEquals(kmsKeyId, actual.getKmsKeyId());
     }
 
     @Test
     void testToUploadPartRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .metadata(metadata)
+                .build();
         byte[] content = "Test data".getBytes();
         InputStream inputStream = new ByteArrayInputStream(content);
         MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
@@ -316,7 +418,11 @@ public class AliTransformerTest {
 
     @Test
     void testToCompleteMultipartUploadRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
         List<UploadPartResponse> parts = List.of(
                 new UploadPartResponse(1, "etag1", 50),
                 new UploadPartResponse(2, "etag2", 50));
@@ -335,7 +441,11 @@ public class AliTransformerTest {
 
     @Test
     void testToListPartsRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
 
         var actual = transformer.toListPartsRequest(mpu);
 
@@ -370,7 +480,11 @@ public class AliTransformerTest {
 
     @Test
     void testToAbortMultipartUploadRequest() {
-        MultipartUpload mpu = new MultipartUpload(BUCKET, "key", "uploadId");
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(BUCKET)
+                .key("key")
+                .id("uploadId")
+                .build();
 
         var actual = transformer.toAbortMultipartUploadRequest(mpu);
 
@@ -410,6 +524,54 @@ public class AliTransformerTest {
     }
 
     @Test
+    void testToPresignedUrlUploadRequestWithKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        String kmsKeyId = "alias/my-kms-key";
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .kmsKeyId(kmsKeyId)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertEquals(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertEquals(kmsKeyId, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
+    void testToPresignedUrlUploadRequestWithoutKmsKey() {
+        Map<String, String> metadata = Map.of("key-1", "value-1");
+        Duration duration = Duration.ofHours(12);
+        PresignedUrlRequest presignedUploadRequest = PresignedUrlRequest.builder()
+                .type(PresignedOperation.UPLOAD)
+                .key("object-1")
+                .metadata(metadata)
+                .duration(duration)
+                .build();
+
+        var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+
+        assertEquals(HttpMethod.PUT, actual.getMethod());
+        assertEquals(BUCKET, actual.getBucketName());
+        assertEquals("object-1", actual.getKey());
+        Map<String,String> headers = actual.getHeaders();
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
+        assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+        assertEquals("value-1", actual.getUserMetadata().get("key-1"));
+        assertNotNull(actual.getExpiration());
+    }
+
+    @Test
     void testToPresignedUrlDownloadRequest() {
         Duration duration = Duration.ofHours(12);
         PresignedUrlRequest presignedDownloadRequest = PresignedUrlRequest.builder()
@@ -443,5 +605,117 @@ public class AliTransformerTest {
         assertEquals(request.getPrefix(), actual.getPrefix());
         assertEquals(request.getPaginationToken(), actual.getMarker());
         assertEquals(request.getMaxResults(), actual.getMaxKeys());
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .withStorageClass("IA")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithStandardStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Standard")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithArchiveStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Archive")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithNullStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass(null)
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithEmptyStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("")
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        // Verify the metadata object was created successfully
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGenerateObjectMetadataWithoutStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .build();
+
+        ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+        assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
+        assertNotNull(result);
+    }
+
+    @Test
+    void testToPutObjectRequestWithStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("IA")
+                .build();
+
+        InputStream inputStream = new ByteArrayInputStream("test data".getBytes());
+        com.aliyun.oss.model.PutObjectRequest result = transformer.toPutObjectRequest(uploadRequest, inputStream);
+
+        assertEquals(BUCKET, result.getBucketName());
+        assertEquals("test-key", result.getKey());
+        assertNotNull(result.getMetadata());
+    }
+
+    @Test
+    void testToPutObjectRequestWithFileAndStorageClass() {
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("test-key")
+                .withStorageClass("Archive")
+                .build();
+
+        File file = new File("test-file.txt");
+        com.aliyun.oss.model.PutObjectRequest result = transformer.toPutObjectRequest(uploadRequest, file);
+
+        assertEquals(BUCKET, result.getBucketName());
+        assertEquals("test-key", result.getKey());
+        // Verify the request was created successfully with metadata
+        assertNotNull(result.getMetadata());
     }
 }

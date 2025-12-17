@@ -6,6 +6,10 @@ import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -132,6 +136,15 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path) {
         validator.validate(downloadRequest);
         return doDownload(downloadRequest, path);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        validator.validate(downloadRequest);
+        return doDownload(downloadRequest);
     }
 
     /**
@@ -267,6 +280,38 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         return doDoesObjectExist(key, versionId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return doDoesBucketExist();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
+        return doDownloadDirectory(directoryDownloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return doUploadDirectory(directoryUploadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        return doDeleteDirectory(prefix);
+    }
+
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract CompletableFuture<UploadResponse> doUpload(UploadRequest uploadRequest, byte[] content);
@@ -282,6 +327,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, File file);
 
     protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path);
+
+    protected abstract CompletableFuture<DownloadResponse> doDownload(DownloadRequest request);
 
     protected abstract CompletableFuture<Void> doDelete(String key, String versionId);
 
@@ -312,4 +359,12 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
 
     protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
+
+    protected abstract CompletableFuture<Boolean> doDoesBucketExist();
+
+    protected abstract CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest);
+
+    protected abstract CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest);
+
+    protected abstract CompletableFuture<Void> doDeleteDirectory(String prefix);
 }

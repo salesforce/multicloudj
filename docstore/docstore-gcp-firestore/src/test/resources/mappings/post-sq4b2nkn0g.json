@@ -1,0 +1,31 @@
+{
+  "id" : "9eb884dc-08d2-4c4d-909d-52c3dc77bfde",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databases_default_documentsrunquery",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"compositeFilter\":{\"op\":1,\"filters\":[{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Game\"},\"op\":5,\"value\":{\"stringValue\":\"Zombie DMV\"}}},{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Score\"},\"op\":3,\"value\":{\"integerValue\":\"100\"}}}]}},\"orderBy\":[{\"field\":{\"fieldPath\":\"Score\"},\"direction\":1},{\"field\":{\"fieldPath\":\"__name__\"},\"direction\":1}],\"limit\":2,\"startAt\":{\"values\":[{\"integerValue\":\"120\"},{\"referenceValue\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:pat\"}]}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"190\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-18\"\n      }\n    },\n    \"createTime\": \"2025-07-10T22:07:44.976959Z\",\n    \"updateTime\": \"2025-07-10T22:07:44.976959Z\"\n  },\n  \"readTime\": \"2025-07-10T23:53:32.223682Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "7765611276949142935;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 10 Jul 2025 23:53:32 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "9eb884dc-08d2-4c4d-909d-52c3dc77bfde",
+  "persistent" : true,
+  "insertionIndex" : 3
+}

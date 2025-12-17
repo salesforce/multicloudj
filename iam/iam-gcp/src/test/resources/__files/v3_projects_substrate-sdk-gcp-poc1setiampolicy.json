@@ -1,0 +1,200 @@
+{
+  "version" : 1,
+  "etag" : "BwZFJCktcro=",
+  "bindings" : [ {
+    "role" : "organizations/000000000000/roles/CustomRole499",
+    "members" : [ "group:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "projects/substrate-sdk-gcp-poc1/roles/bucket_reader_id",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/artifactregistry.admin",
+    "members" : [ "serviceAccount:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/artifactregistry.createOnPushWriter",
+    "members" : [ "serviceAccount:user@domain.com" ]
+  }, {
+    "role" : "roles/artifactregistry.reader",
+    "members" : [ "serviceAccount:user@domain.com" ]
+  }, {
+    "role" : "roles/artifactregistry.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-artifactregistry.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/browser",
+    "members" : [ "group:user@domain.com", "serviceAccount:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/cloudaicompanion.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-cloudaicompanion.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/cloudkms.admin",
+    "members" : [ "serviceAccount:user@domain.com", "serviceAccount:bootstrap-terraform@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/cloudkms.cryptoKeyEncrypter",
+    "members" : [ "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/cloudkms.cryptoKeyEncrypterDecrypter",
+    "members" : [ "serviceAccount:bootstrap-terraform@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/cloudkms.cryptoOperator",
+    "members" : [ "serviceAccount:user@domain.com" ]
+  }, {
+    "role" : "roles/cloudkms.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-cloudkms.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/cloudkms.viewer",
+    "members" : [ "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/compute.instanceAdmin.v1",
+    "members" : [ "serviceAccount:wisglobalrole@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/compute.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@compute-system.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/container.defaultNodeServiceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-gkenode.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/container.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@container-engine-robot.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/containerregistry.ServiceAgent",
+    "members" : [ "serviceAccount:service-599653580068@containerregistry.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/datastore.bulkAdmin",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/datastore.owner",
+    "members" : [ "user:user@domain.com" ]
+  }, {
+    "role" : "roles/datastore.user",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/dns.admin",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/editor",
+    "members" : [ "group:user@domain.com", "group:user@domain.com", "serviceAccount:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/firebase.managementServiceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-firebase.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/firebase.sdkAdminServiceAgent",
+    "members" : [ "serviceAccount:firebase-adminsdk-fbsvc@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/firebaserules.system",
+    "members" : [ "serviceAccount:service-599653580068@firebase-rules.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/firestore.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-firestore.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/iam.securityAdmin",
+    "members" : [ "group:user@domain.com", "serviceAccount:bootstrap-terraform@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/iam.serviceAccountAdmin",
+    "members" : [ "serviceAccount:pcs-wis-access@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:wisglobalrole@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/iam.serviceAccountOpenIdTokenCreator",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/iam.serviceAccountTokenCreator",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:firebase-adminsdk-fbsvc@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:pcs-wis-access@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:pcs-wis-service@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/iam.serviceAccountUser",
+    "members" : [ "serviceAccount:pcs-wis-service@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:test-chameleon-multisubstrate@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:wisglobalrole@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/iam.workloadIdentityPoolAdmin",
+    "members" : [ "serviceAccount:pcs-wis-access@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/iam.workloadIdentityUser",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:pcs-wis-service@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:test-tags-iam@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/logging.viewer",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/networkconnectivity.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-networkconnectivity.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/osconfig.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-osconfig.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/owner",
+    "members" : [ "serviceAccount:test-chameleon-multisubstrate@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:zxie-test@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/pubsub.admin",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/pubsub.publisher",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/pubsub.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-pubsub.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/pubsub.subscriber",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/pubsub.viewer",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/resourcemanager.projectIamAdmin",
+    "members" : [ "group:user@domain.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/resourcemanager.tagAdmin",
+    "members" : [ "serviceAccount:pcs-wis-access@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:wisglobalrole@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/resourcemanager.tagUser",
+    "members" : [ "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/resourcemanager.tagViewer",
+    "members" : [ "user:user@domain.com" ]
+  }, {
+    "role" : "roles/run.admin",
+    "members" : [ "serviceAccount:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/run.builder",
+    "members" : [ "serviceAccount:user@domain.com" ]
+  }, {
+    "role" : "roles/run.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@serverless-robot-prod.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/secretmanager.admin",
+    "members" : [ "group:user@domain.com" ]
+  }, {
+    "role" : "roles/storage.admin",
+    "members" : [ "serviceAccount:bootstrap-terraform@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:my-gcp-sa-s3@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storage.bucketViewer",
+    "members" : [ "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storage.objectAdmin",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storage.objectCreator",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storage.objectCreator_withcond_959e4e2cb764fe9c3a0a",
+    "members" : [ "serviceAccount:raphty-aws@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storage.objectViewer",
+    "members" : [ "principalSet://iam.googleapis.com/projects/599653580068/locations/global/workloadIdentityPools/raphty-aws/attribute.aws_role/arn:aws:iam::000000000000:role/raphty-yz6qfcuppuxhyomcqhw1lgu", "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:my-gcp-sa-s3@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/storageinsights.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-storageinsights.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/viewer",
+    "members" : [ "serviceAccount:user@domain.com", "serviceAccount:test-sa-1@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "serviceAccount:test-sa-2@substrate-sdk-gcp-poc1.iam.gserviceaccount.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com", "user:user@domain.com" ]
+  }, {
+    "role" : "roles/workflows.admin",
+    "members" : [ "user:user@domain.com" ]
+  }, {
+    "role" : "roles/workflows.editor",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/workflows.invoker",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/workflows.serviceAgent",
+    "members" : [ "serviceAccount:service-599653580068@gcp-sa-workflows.iam.gserviceaccount.com" ]
+  }, {
+    "role" : "roles/workflows.viewer",
+    "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+  } ]
+}

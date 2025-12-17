@@ -25,6 +25,7 @@ import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -37,6 +38,7 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -73,6 +75,17 @@ public class AliTransformer {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setUserMetadata(uploadRequest.getMetadata());
         metadata.setObjectTagging(uploadRequest.getTags());
+
+        // Set storage class if provided
+        if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
+            metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
+        }
+        
+        if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+            metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
+            metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());
+        }
+
         return metadata;
     }
 
@@ -117,6 +130,21 @@ public class AliTransformer {
                 .build();
     }
 
+    public DownloadResponse toDownloadResponse(OSSObject ossObject, InputStream inputStream) {
+        return DownloadResponse.builder()
+                .key(ossObject.getKey())
+                .metadata(BlobMetadata.builder()
+                        .key(ossObject.getKey())
+                        .versionId(ossObject.getObjectMetadata().getVersionId())
+                        .eTag(ossObject.getObjectMetadata().getETag())
+                        .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                        .metadata(ossObject.getObjectMetadata().getUserMetadata())
+                        .objectSize(ossObject.getObjectMetadata().getContentLength())
+                        .build())
+                .inputStream(inputStream)
+                .build();
+    }
+
     public DeleteObjectsRequest toDeleteObjectsRequest(Collection<BlobIdentifier> objects) {
         return new DeleteObjectsRequest(bucket)
                 .withKeys(
@@ -139,6 +167,15 @@ public class AliTransformer {
                 request.getSrcKey(),
                 request.getSrcVersionId(),
                 request.getDestBucket(),
+                request.getDestKey());
+    }
+
+    public CopyObjectRequest toCopyObjectRequest(CopyFromRequest request) {
+        return new CopyObjectRequest(
+                request.getSrcBucket(),
+                request.getSrcKey(),
+                request.getSrcVersionId(),
+                bucket,
                 request.getDestKey());
     }
 
@@ -168,20 +205,30 @@ public class AliTransformer {
                 .objectSize(objectSize)
                 .metadata(rawMetadata)
                 .lastModified(metadata.getLastModified().toInstant())
+                .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
                 .build();
     }
 
     public InitiateMultipartUploadRequest toInitiateMultipartUploadRequest(MultipartUploadRequest request) {
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setUserMetadata(request.getMetadata());
+
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
+            metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+        }
+
         return new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);
     }
 
-    public MultipartUpload toMultipartUpload(InitiateMultipartUploadResult initiateMultipartUploadResult) {
-        return new MultipartUpload(
-                initiateMultipartUploadResult.getBucketName(),
-                initiateMultipartUploadResult.getKey(),
-                initiateMultipartUploadResult.getUploadId());
+    public MultipartUpload toMultipartUpload(InitiateMultipartUploadResult initiateMultipartUploadResult, Map<String, String> metadata, String kmsKeyId) {
+        return MultipartUpload.builder()
+                .bucket(initiateMultipartUploadResult.getBucketName())
+                .key(initiateMultipartUploadResult.getKey())
+                .id(initiateMultipartUploadResult.getUploadId())
+                .metadata(metadata)
+                .kmsKeyId(kmsKeyId)
+                .build();
     }
 
     public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp){
@@ -213,7 +260,7 @@ public class AliTransformer {
     public List<UploadPartResponse> toListUploadPartResponse(PartListing partListing) {
         return partListing.getParts().stream()
                 .sorted(Comparator.comparingInt(PartSummary::getPartNumber))
-                .map((part) -> new com.salesforce.multicloudj.blob.driver.UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
+                .map((part) -> new UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
                 .collect(Collectors.toList());
     }
 
@@ -235,6 +282,13 @@ public class AliTransformer {
         if(encodedTagging instanceof String) {
             presignedUrlRequest.addHeader(OSSHeaders.OSS_TAGGING, (String)encodedTagging);
         }
+
+        // Add KMS encryption headers if KMS key is specified
+        if(request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            presignedUrlRequest.addHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION, ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
+            presignedUrlRequest.addHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+        }
+
         return presignedUrlRequest;
     }
 

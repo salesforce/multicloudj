@@ -7,8 +7,81 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
+
+import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PROVIDER_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
@@ -44,11 +117,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 import static com.salesforce.multicloudj.blob.async.driver.TestAsyncBlobStore.PROVIDER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,7 +143,7 @@ public class AsyncBucketClientTest {
     private StsCredentials creds;
     private AsyncBucketClient client;
 
-    private MockedStatic<com.salesforce.multicloudj.blob.async.client.ProviderSupplier> providerSupplier;
+    private MockedStatic<ProviderSupplier> providerSupplier;
     private MockedStatic<ExceptionHandler> mockedExceptionHandler;
 
     @BeforeEach
@@ -78,7 +154,7 @@ public class AsyncBucketClientTest {
                 .thenThrow(UnAuthorizedException.class);
 
         mockBlobStore = mock(AsyncBlobStore.class);
-        providerSupplier = mockStatic(com.salesforce.multicloudj.blob.async.client.ProviderSupplier.class);
+        providerSupplier = mockStatic(ProviderSupplier.class);
         AsyncBlobStoreProvider.Builder mockBuilder = mock(AsyncBlobStoreProvider.Builder.class);
         when(mockBuilder.build()).thenReturn(mockBlobStore);
         providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder(PROVIDER_ID)).thenReturn(mockBuilder);
@@ -102,6 +178,7 @@ public class AsyncBucketClientTest {
                 .withSocketTimeout(Duration.ofSeconds(60))
                 .withIdleConnectionTimeout(Duration.ofMinutes(10))
                 .withProperties(properties)
+                .withExecutorService(ForkJoinPool.commonPool())
                 .build();
     }
 
@@ -415,7 +492,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testUploadMultipartPart() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         doReturn(future(mock(UploadPartResponse.class))).when(mockBlobStore).uploadMultipartPart(multipartUpload, multipartPart);
         client.uploadMultipartPart(multipartUpload, multipartPart);
@@ -424,7 +505,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testUploadMultipartPartException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         MultipartPart multipartPart = new MultipartPart(1, null, 0);
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).uploadMultipartPart(multipartUpload, multipartPart);
@@ -433,7 +518,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testCompleteMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         doReturn(future(mock(MultipartUploadResponse.class))).when(mockBlobStore).completeMultipartUpload(multipartUpload, listOfParts);
         client.completeMultipartUpload(multipartUpload, listOfParts);
@@ -442,7 +531,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testCompleteMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", 0));
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).completeMultipartUpload(multipartUpload, listOfParts);
@@ -451,7 +544,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testListMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doReturn(future(mock(List.class))).when(mockBlobStore).listMultipartUpload(multipartUpload);
         client.listMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).listMultipartUpload(multipartUpload);
@@ -459,7 +556,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testListMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         when(mockBlobStore.listMultipartUpload(multipartUpload)).thenThrow(RuntimeException.class);
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).listMultipartUpload(multipartUpload);
@@ -468,7 +569,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testAbortMultipartUpload() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         doReturn(futureVoid()).when(mockBlobStore).abortMultipartUpload(multipartUpload);
         client.abortMultipartUpload(multipartUpload);
         verify(mockBlobStore, times(1)).abortMultipartUpload(multipartUpload);
@@ -476,7 +581,11 @@ public class AsyncBucketClientTest {
 
     @Test
     void testAbortMultipartUploadException() {
-        MultipartUpload multipartUpload = new MultipartUpload("bucket-1", "object-1", "mpu-id");
+        MultipartUpload multipartUpload = MultipartUpload.builder()
+                .bucket("bucket-1")
+                .key("object-1")
+                .id("mpu-id")
+                .build();
         CompletableFuture<Void> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).abortMultipartUpload(multipartUpload);
         assertFailed(client.abortMultipartUpload(multipartUpload), UnAuthorizedException.class);
@@ -534,5 +643,212 @@ public class AsyncBucketClientTest {
         CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(failure).when(mockBlobStore).doesObjectExist(any(), any());
         assertFailed(client.doesObjectExist("object-1", "version-1"), UnAuthorizedException.class);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsTrue() throws ExecutionException, InterruptedException {
+        doReturn(CompletableFuture.completedFuture(true)).when(mockBlobStore).doesBucketExist();
+        boolean result = client.doesBucketExist().get();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertTrue(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ReturnsFalse() throws ExecutionException, InterruptedException {
+        doReturn(CompletableFuture.completedFuture(false)).when(mockBlobStore).doesBucketExist();
+        boolean result = client.doesBucketExist().get();
+        verify(mockBlobStore, times(1)).doesBucketExist();
+        assertFalse(result);
+    }
+
+    @Test
+    void testDoesBucketExist_ThrowsException() {
+        CompletableFuture<Boolean> failure = CompletableFuture.failedFuture(new RuntimeException());
+        doReturn(failure).when(mockBlobStore).doesBucketExist();
+        assertFailed(client.doesBucketExist(), UnAuthorizedException.class);
+        verify(mockBlobStore, times(1)).doesBucketExist();
+    }
+
+    @Test
+    void testDownloadDirectory() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        DirectoryDownloadResponse expectedResponse = mock(DirectoryDownloadResponse.class);
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(future(expectedResponse));
+        DirectoryDownloadResponse actualResponse = client.downloadDirectory(request).get();
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+        assertEquals(expectedResponse, actualResponse);
+    }
+
+    @Test
+    void testUploadDirectory() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        FailedBlobUpload response1 = mock(FailedBlobUpload.class);
+        FailedBlobUpload response2 = mock(FailedBlobUpload.class);
+        DirectoryUploadResponse expectedResponse = DirectoryUploadResponse.builder()
+                .failedTransfers(List.of(response1, response2))
+                .build();
+
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(future(expectedResponse));
+        DirectoryUploadResponse actualResponse = client.uploadDirectory(request).get();
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+        assertEquals(expectedResponse, actualResponse);
+    }
+
+    @Test
+    void testDeleteDirectory() throws ExecutionException, InterruptedException {
+        String prefix = "files";
+        when(mockBlobStore.deleteDirectory(any())).thenReturn(futureVoid());
+        client.deleteDirectory(prefix).get();
+        verify(mockBlobStore, times(1)).deleteDirectory(eq(prefix));
+    }
+
+    @Test
+    void testBuilderWithParallelUDownloadsEnabledConfiguration() {
+        AsyncBucketClient.Builder builder = AsyncBucketClient.builder(PROVIDER_ID);
+        
+        AsyncBucketClient asyncBucketClient = builder
+                .withBucket("test-bucket")
+                .withRegion("us-west-1")
+                .withParallelDownloadsEnabled(true)
+                .withTargetThroughputInGbps(12.12)
+                .withMaxNativeMemoryLimitInBytes(21L)
+                .build();
+
+        assertInstanceOf(AsyncBucketClient.class, asyncBucketClient);
+    }
+
+    @Test
+    void testBuilderWithParallelUploadsEnabledConfiguration() {
+        AsyncBucketClient.Builder builder = AsyncBucketClient.builder(PROVIDER_ID);
+        
+        AsyncBucketClient client = builder
+                .withBucket("test-bucket")
+                .withRegion("us-west-1")
+                .withThresholdBytes(5 * 1024 * 1024L)
+                .withPartBufferSize(1024 * 1024L)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+        assertInstanceOf(AsyncBucketClient.class, client);
+    }
+
+    @Test
+    void testUploadDirectory_WithException() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        RuntimeException expectedException = new RuntimeException("Upload failed");
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<DirectoryUploadResponse> future = client.uploadDirectory(request);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+    }
+
+    @Test
+    void testDownloadDirectory_WithException() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        RuntimeException expectedException = new RuntimeException("Download failed");
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<DirectoryDownloadResponse> future = client.downloadDirectory(request);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+    }
+
+    @Test
+    void testDeleteDirectory_WithException() throws ExecutionException, InterruptedException {
+        String prefix = "files";
+        RuntimeException expectedException = new RuntimeException("Delete failed");
+        when(mockBlobStore.deleteDirectory(prefix)).thenReturn(CompletableFuture.failedFuture(expectedException));
+
+        CompletableFuture<Void> future = client.deleteDirectory(prefix);
+
+        ExecutionException exception = assertThrows(ExecutionException.class, () -> {
+            future.get();
+        });
+        assertTrue(exception.getCause() instanceof UnAuthorizedException);
+        verify(mockBlobStore, times(1)).deleteDirectory(eq(prefix));
+    }
+
+    @Test
+    void testUploadDirectory_WithNullResponse() throws ExecutionException, InterruptedException {
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/files")
+                .prefix("abc")
+                .includeSubFolders(true)
+                .build();
+
+        when(mockBlobStore.uploadDirectory(any())).thenReturn(future(null));
+        DirectoryUploadResponse actualResponse = client.uploadDirectory(request).get();
+        verify(mockBlobStore, times(1)).uploadDirectory(eq(request));
+        assertNull(actualResponse);
+    }
+
+    @Test
+    void testDownloadDirectory_WithNullResponse() throws ExecutionException, InterruptedException {
+        DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+                .prefixToDownload("prefix-1")
+                .localDestinationDirectory("/home/files")
+                .prefixesToExclude(List.of("abc", "xyz"))
+                .build();
+
+        when(mockBlobStore.downloadDirectory(any())).thenReturn(future(null));
+        DirectoryDownloadResponse actualResponse = client.downloadDirectory(request).get();
+        verify(mockBlobStore, times(1)).downloadDirectory(eq(request));
+        assertNull(actualResponse);
+    }
+
+    @Test
+    void testAsyncBucketClientBuilderWithRetryConfig() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .maxAttempts(5)
+                .attemptTimeout(3000L)
+                .totalTimeout(10000L)
+                .build();
+
+        AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRetryConfig(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder("test2"))
+                .thenReturn(mockBuilder2);
+
+        AsyncBucketClient testClient = AsyncBucketClient.builder("test2")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withRetryConfig(retryConfig)
+                .build();
+
+        verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
+        assertInstanceOf(AsyncBucketClient.class, testClient);
     }
 }

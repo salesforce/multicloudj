@@ -23,7 +23,7 @@ public class AliStsIT extends AbstractStsIT {
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         DefaultAcsClient client;
         @Override
-        public AbstractSts<?> createStsDriver(boolean longTermCredentials) {
+        public AbstractSts createStsDriver(boolean longTermCredentials) {
             HttpClientConfig config = HttpClientConfig.getDefault();
             config.setHttpsProxy(String.format("https://%s:%d", TestsUtil.WIREMOCK_HOST, port));
             config.setX509TrustManagers(TestsUtilAli.createTrustManager());

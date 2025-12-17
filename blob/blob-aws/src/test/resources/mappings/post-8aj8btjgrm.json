@@ -1,0 +1,25 @@
+{
+  "id" : "2b6a33d7-faf0-4bed-83b0-838684cd65eb",
+  "name" : "chameleon-jcloud-versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned?delete",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/nonexisting</Key><DeleteMarker>true</DeleteMarker><DeleteMarkerVersionId>KvXfAyV5ZAR.ukXlo3lohqRoF4MeG1ku</DeleteMarkerVersionId></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "BDY0W772CVRVBH71",
+      "x-amz-id-2" : "VxdJfC0CDfHU3j38G+lR4+JD+HCfpWpL7reFRSZNq1zWx7JFnZ/odzu8Kc7WfKr0uSbtp4gXtDQ=",
+      "Date" : "Thu, 16 Oct 2025 04:11:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2b6a33d7-faf0-4bed-83b0-838684cd65eb",
+  "persistent" : true,
+  "insertionIndex" : 357
+}

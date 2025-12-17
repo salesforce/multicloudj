@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import lombok.Getter;
 
+import java.util.Collections;
 import java.util.Map;
 
 import static java.util.Collections.unmodifiableMap;
@@ -14,23 +15,47 @@ public class MultipartUploadRequest {
 
     private final String key;
     private Map<String, String> metadata;
+    private final Map<String, String> tags;
+    private final String kmsKeyId;
 
     private MultipartUploadRequest(final Builder builder){
         this.key = builder.key;
         this.metadata = builder.metadata;
+        this.tags = builder.tags;
+        this.kmsKeyId = builder.kmsKeyId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata == null ? Map.of() : unmodifiableMap(metadata);
+    }
+
+    public Map<String, String> getTags() {
+        return tags == null ? Map.of() : unmodifiableMap(tags);
     }
 
     public static class Builder {
         private String key;
-        private Map<String, String> metadata;
+        private Map<String, String> metadata = Collections.emptyMap();
+        private Map<String, String> tags = Collections.emptyMap();
+        private String kmsKeyId;
 
-        public MultipartUploadRequest.Builder withKey(String key) {
+        public Builder withKey(String key) {
             this.key = key;
             return this;
         }
 
-        public MultipartUploadRequest.Builder withMetadata(final Map<String, String> metadata) {
+        public Builder withMetadata(final Map<String, String> metadata) {
             this.metadata = unmodifiableMap(metadata);
+            return this;
+        }
+
+        public Builder withTags(final Map<String, String> tags) {
+            this.tags = unmodifiableMap(tags);
+            return this;
+        }
+
+        public Builder withKmsKeyId(String kmsKeyId) {
+            this.kmsKeyId = kmsKeyId;
             return this;
         }
 

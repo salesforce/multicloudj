@@ -7,6 +7,10 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -47,8 +51,8 @@ import java.util.function.Consumer;
 public class BlobStoreAsyncBridge implements AsyncBlobStore {
 
     @Getter
-    private final AbstractBlobStore<?> blobStore;
-    
+    private final AbstractBlobStore blobStore;
+
     @Getter
     private final ExecutorService executorService;
 
@@ -61,7 +65,7 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
      * @param executorService the executor service to use for async operations. If this value is
      *                        null then this will use the ForkJoinPool.commonPool()
      */
-    public BlobStoreAsyncBridge(AbstractBlobStore<?> blobStore, ExecutorService executorService) {
+    public BlobStoreAsyncBridge(AbstractBlobStore blobStore, ExecutorService executorService) {
         this.blobStore = blobStore;
         this.executorService = executorService==null ? ForkJoinPool.commonPool() : executorService;
     }
@@ -119,6 +123,11 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     @Override
     public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path) {
         return CompletableFuture.supplyAsync(() -> blobStore.download(downloadRequest, path), executorService);
+    }
+
+    @Override
+    public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
+        return CompletableFuture.supplyAsync(() -> blobStore.download(downloadRequest), executorService);
     }
 
     @Override
@@ -212,7 +221,37 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
     }
 
     @Override
+    public CompletableFuture<Boolean> doesBucketExist() {
+        return CompletableFuture.supplyAsync(() -> blobStore.doesBucketExist(), executorService);
+    }
+
+    @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         return blobStore.getException(t);
+    }
+
+    @Override
+    public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest){
+        return CompletableFuture.supplyAsync(() -> blobStore.downloadDirectory(directoryDownloadRequest), executorService);
+    }
+
+    @Override
+    public CompletableFuture<DirectoryUploadResponse> uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        return CompletableFuture.supplyAsync(() -> blobStore.uploadDirectory(directoryUploadRequest), executorService);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteDirectory(String prefix) {
+        return CompletableFuture.runAsync(() -> blobStore.deleteDirectory(prefix), executorService);
+    }
+
+    /**
+     * Closes the wrapped blob store and releases any resources.
+     */
+    @Override
+    public void close() throws Exception {
+        if (blobStore != null) {
+            blobStore.close();
+        }
     }
 } 

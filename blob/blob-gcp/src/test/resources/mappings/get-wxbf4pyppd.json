@@ -1,0 +1,29 @@
+{
+  "id" : "d52bed37-ee7d-486b-b227-5d4039bf0bd9",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_bulkdeletebyversion_happy2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy2?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy2/1761180617377750\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy2\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy2?generation=1761180617377750&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/happy2\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1761180617377750\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"75\",\n  \"md5Hash\": \"h5vFtbDSpzKh29By1adEBw==\",\n  \"crc32c\": \"1siJSQ==\",\n  \"etag\": \"CNaP1oiNuZADEAE=\",\n  \"timeCreated\": \"2025-10-23T00:50:17.407Z\",\n  \"updated\": \"2025-10-23T00:50:17.407Z\",\n  \"timeStorageClassUpdated\": \"2025-10-23T00:50:17.407Z\",\n  \"timeFinalized\": \"2025-10-23T00:50:17.407Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CNaP1oiNuZADEAE=",
+      "X-GUploader-UploadID" : "AOCedOEdmYH2eqZxj2pDOSgUKbd_TobE8JEyuAlw9ZSIldau1xu91yKFmeqyi6NwhHaHMPJs",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 23 Oct 2025 00:50:17 GMT",
+      "Date" : "Thu, 23 Oct 2025 00:50:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "d52bed37-ee7d-486b-b227-5d4039bf0bd9",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-happy2",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-bulkDeleteByVersion-happy2-2",
+  "insertionIndex" : 114
+}

@@ -1,13 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <groupId>com.salesforce.multicloudj</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>${revision}</version>
+    <version>0.2.21-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -34,9 +32,11 @@
     </scm>
 
     <modules>
+        <module>iam</module>
         <module>blob</module>
         <module>docstore</module>
         <module>examples</module>
+        <module>pubsub</module>
         <module>sts</module>
         <module>multicloudj-common</module>
         <module>multicloudj-common-ali</module>
@@ -55,7 +55,7 @@
         <guava.version>33.2.1-jre</guava.version>
         <guice.version>4.2.3</guice.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <revision>0.2.1</revision>
+        <revision>0.2.5-SNAPSHOT</revision>
     </properties>
     <!-- All module dependencies and versions -->
     <dependencyManagement>
@@ -144,6 +144,17 @@
             </dependency>
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>iam-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>blob-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -161,6 +172,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>pubsub-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>pubsub-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
@@ -192,16 +214,26 @@
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.11.2</version>
                     <configuration>
-                        <links>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                            <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                        </links>
+                        <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
+                        <doclint>none</doclint>
+                        <quiet>true</quiet>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok-maven-plugin</artifactId>
+                    <version>1.18.20.0</version>
+                    <configuration>
+                        <addOutputDirectory>false</addOutputDirectory>
+                        <sourceDirectory>src/main/java</sourceDirectory>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.34</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -330,17 +362,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <links>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                    </links>
-                </configuration>
             </plugin>
             
             <!-- Maven Flatten Plugin to resolve ${revision} property -->
@@ -448,17 +469,18 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.11.2</version>
-                <configuration>
-                    <links>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-aws/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-ali/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/multicloudj-common-gcp/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/sts-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/blob-client/${revision}</link>
-                        <link>https://javadoc.io/doc/com.salesforce.multicloudj/docstore-client/${revision}</link>
-                    </links>
-                </configuration>
+                <reportSets>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <inherited>false</inherited>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                        <configuration>
+                            <sourcepath>blob/blob-client/target/generated-sources/delombok:blob/blob-aws/target/generated-sources/delombok:blob/blob-gcp/target/generated-sources/delombok:blob/blob-ali/target/generated-sources/delombok:sts/sts-client/target/generated-sources/delombok:iam/iam-client/target/generated-sources/delombok:docstore/docstore-client/target/generated-sources/delombok:docstore/docstore-aws/target/generated-sources/delombok:docstore/docstore-gcp-firestore/target/generated-sources/delombok:docstore/docstore-gcp-spanner/target/generated-sources/delombok:docstore/docstore-ali/target/generated-sources/delombok:pubsub/pubsub-client/target/generated-sources/delombok:multicloudj-common/target/generated-sources/delombok:examples/target/generated-sources/delombok</sourcepath>
+                        </configuration>
+                    </reportSet>
+                </reportSets>
             </plugin>
         </plugins>
     </reporting>

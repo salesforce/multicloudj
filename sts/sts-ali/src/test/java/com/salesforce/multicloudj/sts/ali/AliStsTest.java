@@ -100,7 +100,7 @@ public class AliStsTest {
     @Test
     public void TestGetCallerIdentitySts() {
         AliSts sts = new AliSts().builder().build(mockStsClient);
-        CallerIdentity identity = sts.getCallerIdentity();
+        CallerIdentity identity = sts.getCallerIdentity(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build());
         Assertions.assertEquals("testAccountId", identity.getAccountId());
         Assertions.assertEquals("testUserId", identity.getUserId());
         Assertions.assertEquals("testResourceName", identity.getCloudResourceName());

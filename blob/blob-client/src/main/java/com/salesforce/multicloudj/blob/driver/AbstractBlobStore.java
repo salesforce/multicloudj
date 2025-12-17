@@ -18,7 +18,7 @@ import java.util.Map;
  * Base class for substrate-specific implementations.AbstractBlobStore
  * This class serves the purpose of providing common (i.e. substrate-agnostic) functionality
  */
-public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implements BlobStore {
+public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
     @Getter
     private final String providerId;
@@ -29,7 +29,7 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     protected final CredentialsOverrider credentialsOverrider;
     protected final BlobStoreValidator validator;
 
-    protected AbstractBlobStore(Builder<T> builder) {
+    protected AbstractBlobStore(Builder<?, ?> builder) {
         this(
                 builder.getProviderId(),
                 builder.getBucket(),
@@ -129,6 +129,15 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
      * {@inheritDoc}
      */
     @Override
+    public DownloadResponse download(DownloadRequest downloadRequest) {
+        validator.validate(downloadRequest);
+        return doDownload(downloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void delete(String key, String versionId) {
         validator.validateDelete(key);
         doDelete(key, versionId);
@@ -150,6 +159,15 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
     public CopyResponse copy(CopyRequest request) {
         validator.validate(request);
         return doCopy(request);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CopyResponse copyFrom(CopyFromRequest request) {
+        validator.validate(request);
+        return doCopyFrom(request);
     }
 
     /**
@@ -258,6 +276,41 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
         return doDoesObjectExist(key, versionId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean doesBucketExist() {
+        return doDoesBucketExist();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DirectoryDownloadResponse downloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        validator.validate(directoryDownloadRequest);
+        return doDownloadDirectory(directoryDownloadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        validator.validate(directoryUploadRequest);
+        return doUploadDirectory(directoryUploadRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Allow null/empty prefix for deleting all objects in bucket
+     */
+    @Override
+    public void deleteDirectory(String prefix) {
+        doDeleteDirectory(prefix);
+    }
+
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
     protected abstract UploadResponse doUpload(UploadRequest uploadRequest, byte[] content);
@@ -274,11 +327,15 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
 
     protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest, Path path);
 
+    protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest);
+
     protected abstract void doDelete(String key, String versionId);
 
     protected abstract void doDelete(Collection<BlobIdentifier> objects);
 
     protected abstract CopyResponse doCopy(CopyRequest request);
+
+    protected abstract CopyResponse doCopyFrom(CopyFromRequest request);
 
     protected abstract BlobMetadata doGetMetadata(String key, String versionId);
 
@@ -304,14 +361,37 @@ public abstract class AbstractBlobStore<T extends AbstractBlobStore<T>> implemen
 
     protected abstract boolean doDoesObjectExist(String key, String versionId);
 
-    public abstract static class Builder<T extends AbstractBlobStore<T>>
-            extends BlobStoreBuilder<T>
+    protected abstract boolean doDoesBucketExist();
+
+    protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest directoryDownloadRequest) {
+        throw new UnsupportedOperationException("Directory download is not supported by this substrate implementation");
+    }
+
+    protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        throw new UnsupportedOperationException("Directory upload is not supported by this substrate implementation");
+    }
+
+    protected void doDeleteDirectory(String prefix) {
+        throw new UnsupportedOperationException("Directory delete is not supported by this substrate implementation");
+    }
+
+    public abstract static class Builder<A extends AbstractBlobStore, T extends Builder<A, T>>
+            extends BlobStoreBuilder<A>
             implements Provider.Builder {
 
         @Override
-        public Builder<T> providerId(String providerId) {
+        public T providerId(String providerId) {
             super.providerId(providerId);
-            return this;
+            return self();
         }
+
+        public abstract T self();
+
+        /**
+         * Builds and returns an instance of AbstractBlobStore.
+         *
+         * @return An instance of AbstractBlobStore.
+         */
+        public abstract A build();
     }
 }

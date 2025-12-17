@@ -1,15 +1,20 @@
-# MultiCloudJ
+#
 
-Write once, deploy to any cloud provider...
+[![Java 11 Build](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java11-build.yml)
+[![Java 17 Build](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java17-build.yml)
+[![Java 21 Build](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml/badge.svg)](https://github.com/salesforce/multicloudj/actions/workflows/java21-build.yml)
+[![codecov](https://codecov.io/gh/salesforce/multicloudj/branch/main/graph/badge.svg)](https://codecov.io/gh/salesforce/multicloudj)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Maven Central](https://img.shields.io/maven-central/v/com.salesforce.multicloudj/multicloudj-parent.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/com.salesforce.multicloudj/multicloudj-parent)
 
-**Multi-substrate Java SDK providing unified and substrate-neutral interfaces for cloud services such as Security Token Service (STS), Blob Storage, Key-Value Store, and more.**
 
 ---
 
-### Introduction
+ MultiCloudJ
+----------------------
+Write once, deploy to any cloud provider...
 
-MultiCloudJ is a versatile and powerful Java SDK designed to abstract away complexities related to interacting with multiple cloud substrates. By providing substrate-neutral interfaces, developers can seamlessly integrate their Java applications with various cloud services including:
-
+MultiCloudJ is a cloud-agnostic Java SDK providing unified and substrate-neutral interfaces for cloud services. It enables developers to write once and deploy to any cloud provider with high-level APIs for Security Token Service (STS), Blob Storage, Document Store, and more, supporting major cloud providers like AWS, GCP, and Alibaba.
 - **Security Token Service (STS)**
 - **Blob Store**
 - **Document Store**
@@ -17,87 +22,30 @@ MultiCloudJ is a versatile and powerful Java SDK designed to abstract away compl
 
 MultiCloudJ simplifies multi-cloud compatibility, enabling consistent codebases and accelerating development for applications that needs to be deployed across different cloud platforms.
 
----
-
-### Key Features
-
-- **Unified Interfaces**: Write once, interact across multiple cloud providers without changing your application code.
-- **Multi-Cloud Support**: Compatible with major cloud providers like AWS, GCP, Alibaba.
-- **Uniform Semantics**: SDK provides the uniform semantics to the end user irrespective of the cloud provider.
-- **Extensible Architecture**: Easily extend and integrate additional cloud services into the SDK.
-- **Flexibility**: Easily override the default implementations and inject your own custom implementation in the env.
+For more information, see [the MulticloudJ official web site](https://opensource.salesforce.com/multicloudj).
 
 ---
 
-### Getting Started
-
-#### Requirements
+Requirements
+--------------------
 
 - Java 11 or higher
 - Maven 3.8 or higher build automation
 
-#### Installation
+Getting Started
+---------------------
 
-Include MultiCloudJ in your project by adding the dependency to your project's `pom.xml`:
+This short [Getting Started Guide](https://opensource.salesforce.com/multicloudj/getting-started) will walk you through basic operations on blob store, 
+and demonstrate some simple reads and writes.
 
-```xml
-<dependency>
-    <groupId>com.salesforce.multicloudj</groupId>
-    <artifactId>docstore</artifactId>
-    <version>0.0.1</version>
-</dependency>
-```
-
-#### Quick Example
-
-Here's how you might use MultiCloudJ to interact with Docstore interface to create a document in AWS dynamo:
-
-```java
-import com.salesforce.multicloudj.docstore.client.DocStoreClient;
-import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import com.salesforce.multicloudj.docstore.driver.Document;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-public class DocstoreExample {
-    @AllArgsConstructor
-    @Data
-    @NoArgsConstructor
-    static class Book {
-        private String title;
-        private String author;
-        private String publisher;
-        private float price;
-        private Map<String, Integer> tableOfContents;
-        private String docRevision;
-    }
-    
-    public static void main(String[] args) {
-        CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBuilder()
-                .withTableName("chameleon-test")
-                .withPartitionKey("title")
-                .withSortKey("publisher")
-                .withRevisionField("docRevision")
-                .build();
-
-        DocStoreClient client  = DocStoreClient.builder("aws")
-                .withRegion("us-west-2")
-                .withCollectionOptions(collectionOptions)
-                .build();
-        
-        Book book = new Book("YellowBook", "Zoe", "WA", 3.99f, new HashMap<>(Map.of("Chapter 1", 5, "Chapter 2", 10)), null);
-
-        client.create(new Document(book));
-    }
-}
-```
-
-For more examples: please refer to [multicloudj-examples](https://github.com/salesforce/multicloudj-examples/src/main/java/com/salesforce/multicloudj) where we have detailed examples on blob store, docstore and sts.
+For more examples: please refer to [examples](https://github.com/salesforce/multicloudj/tree/main/examples) where we have detailed examples on blob store, docstore and sts.
 
 ---
 
-### Building and Contributing
+
+Building and Contributing
+------------------------
+
 
 To build MultiCloudJ from source:
 
@@ -107,23 +55,23 @@ cd multicloudj
 mvn clean install
 ```
 
-We welcome contributions! Please review our [Contribution Guidelines](CONTRIBUTING.md).
+Visit our [Contribution Guidelines](CONTRIBUTING.md) for more information on how to contribute.
 
 ---
 
-### Documentation
-
+Documentation
+------------------------
 Detailed documentation can be found on our [official documentation site](https://opensource.salesforce.com/multicloudj).
 
 ---
 
-### Community
-
+Community
+------------------------
 - **Issues and Bug Reports**: [Github Issues](https://www.github.com/salesforce/multicloudj/issues)
 - **Discussion and Q&A**: [Discussions](https://www.github.com/salesforce/multicloudj/issues)
 
 ---
 
-### License
-
+License
+------------------------
 MultiCloudJ is released under the [Apache License 2.0](LICENSE.txt).

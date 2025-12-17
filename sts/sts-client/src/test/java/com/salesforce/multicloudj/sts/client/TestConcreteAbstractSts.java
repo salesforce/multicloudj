@@ -5,9 +5,10 @@ import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
+import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
-public class TestConcreteAbstractSts extends AbstractSts<TestConcreteAbstractSts> {
+public class TestConcreteAbstractSts extends AbstractSts {
 
     public TestConcreteAbstractSts(TestConcreteAbstractSts.Builder builder) {
         super(builder);
@@ -23,7 +24,12 @@ public class TestConcreteAbstractSts extends AbstractSts<TestConcreteAbstractSts
     }
 
     @Override
-    protected CallerIdentity getCallerIdentityFromProvider() {
+    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request) {
+        return null;
+    }
+
+    @Override
+    protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
         return null;
     }
 
@@ -42,9 +48,14 @@ public class TestConcreteAbstractSts extends AbstractSts<TestConcreteAbstractSts
         return new Builder();
     }
 
-    public static class Builder extends AbstractSts.Builder<TestConcreteAbstractSts> {
+    public static class Builder extends AbstractSts.Builder<TestConcreteAbstractSts, Builder> {
         protected Builder() {
             providerId("mockProviderId");
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         @Override

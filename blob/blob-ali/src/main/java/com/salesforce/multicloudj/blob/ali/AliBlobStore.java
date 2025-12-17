@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -69,7 +70,7 @@ import java.util.stream.Collectors;
  * Alibaba implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
-public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
+public class AliBlobStore extends AbstractBlobStore {
 
     private final OSS ossClient;
     private final AliTransformer transformer;
@@ -86,7 +87,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
 
     @Override
     public Provider.Builder builder() {
-        return new AliBlobStore.Builder();
+        return new Builder();
     }
 
     @Override
@@ -224,6 +225,20 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         }
     }
 
+    /**
+     * Performs Blob download and returns an InputStream
+     *
+     * @param downloadRequest Wrapper object containing download data
+     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
+     */
+    @Override
+    public DownloadResponse doDownload(DownloadRequest downloadRequest) {
+        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
+        OSSObject ossObject = ossClient.getObject(request);
+        InputStream downloadedInputstream = ossObject.getObjectContent();
+        return transformer.toDownloadResponse(ossObject, downloadedInputstream);
+    }
+
     private void copyStream(InputStream in, OutputStream out) {
         try {
             byte[] buffer = new byte[1024];
@@ -282,6 +297,19 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
      */
     @Override
     protected CopyResponse doCopy(CopyRequest request) {
+        CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
+        CopyObjectResult result = ossClient.copyObject(copyRequest);
+        return transformer.toCopyResponse(request.getDestKey(), result);
+    }
+
+    /**
+     * Copies a Blob from a source bucket to the current bucket
+     *
+     * @param request the copyFrom request
+     * @return CopyResponse of the copied Blob
+     */
+    @Override
+    protected CopyResponse doCopyFrom(CopyFromRequest request) {
         CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
         CopyObjectResult result = ossClient.copyObject(copyRequest);
         return transformer.toCopyResponse(request.getDestKey(), result);
@@ -347,7 +375,7 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         InitiateMultipartUploadRequest initiateMultipartUploadRequest = transformer.toInitiateMultipartUploadRequest(request);
         InitiateMultipartUploadResult initiateMultipartUploadResult = ossClient.initiateMultipartUpload(initiateMultipartUploadRequest);
-        return transformer.toMultipartUpload(initiateMultipartUploadResult);
+        return transformer.toMultipartUpload(initiateMultipartUploadResult, request.getMetadata(), request.getKmsKeyId());
     }
 
     /**
@@ -447,14 +475,47 @@ public class AliBlobStore extends AbstractBlobStore<AliBlobStore> {
         return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
     }
 
+    /**
+     * Determines if the bucket exists
+     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+     */
+    @Override
+    protected boolean doDoesBucketExist() {
+        try {
+            return ossClient.doesBucketExist(bucket);
+        } catch (ServiceException e) {
+            if ("NoSuchBucket".equals(e.getErrorCode())) {
+                return false;
+            }
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        } catch (ClientException e) {
+            throw new SubstrateSdkException("Failed to check bucket existence", e);
+        }
+    }
+
+    /**
+     * Closes the underlying OSS client and releases any resources.
+     */
+    @Override
+    public void close() {
+        if (ossClient != null) {
+            ossClient.shutdown();
+        }
+    }
+
     @Getter
-    public static class Builder extends AbstractBlobStore.Builder<AliBlobStore> {
+    public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
 
         private OSS client;
         private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
 
         public Builder() {
             providerId(AliConstants.PROVIDER_ID);
+        }
+
+        @Override
+        public Builder self() {
+            return this;
         }
 
         public Builder withClient(OSS client) {

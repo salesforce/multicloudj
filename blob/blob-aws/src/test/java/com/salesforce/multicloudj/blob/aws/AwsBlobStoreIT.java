@@ -8,10 +8,12 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -24,18 +26,18 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     private static final String region = "us-west-2";
 
     @Override
-    protected AbstractBlobStoreIT.Harness createHarness() {
-        return new AwsBlobStoreIT.HarnessImpl();
+    protected Harness createHarness() {
+        return new HarnessImpl();
     }
 
-    public static class HarnessImpl implements AbstractBlobStoreIT.Harness {
+    public static class HarnessImpl implements Harness {
         int port = ThreadLocalRandom.current().nextInt(1000, 10000);
 
         SdkHttpClient httpClient;
         S3Client client;
 
         @Override
-        public AbstractBlobStore<?> createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
+        public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
 
             String accessKeyId = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
             String secretAccessKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
@@ -55,7 +57,7 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             return createBlobStore(bucketNameToUse, credentialsOverrider);
         }
 
-        private AbstractBlobStore<?> createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider){
+        private AbstractBlobStore createBlobStore(final String bucketName, final CredentialsOverrider credentialsOverrider) {
 
             AwsSessionCredentials awsCredentials = AwsSessionCredentials.create(
                     credentialsOverrider.getSessionCredentials().getAccessKeyId(),
@@ -66,10 +68,12 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
             client = S3Client.builder()
                     .region(Region.US_WEST_2)
                     .httpClient(httpClient)
+                    .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                     .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
                     .endpointOverride(URI.create(endpoint))
                     .serviceConfiguration(S3Configuration.builder()
                             .pathStyleAccessEnabled(true)
+                            .chunkedEncodingEnabled(false)
                             .build())
                     .build();
 
@@ -106,6 +110,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
         @Override
         public int getPort() {
             return port;
+        }
+
+        @Override
+        public String getKmsKeyId() {
+            return "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89";
         }
 
         @Override
