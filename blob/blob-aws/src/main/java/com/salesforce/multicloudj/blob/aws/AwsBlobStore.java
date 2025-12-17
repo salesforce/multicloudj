@@ -19,6 +19,9 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -70,8 +73,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -500,6 +506,55 @@ public class AwsBlobStore extends AbstractBlobStore {
                 return false;
             }
             throw e;
+        }
+    }
+
+    /**
+     * Uploads a directory to S3, applying the same tags to all blobs in the directory.
+     * This implementation manually uploads each file to support tagging, which is not
+     * available in AWS SDK 2.35.0's TransferManager directory upload.
+     *
+     * @param directoryUploadRequest the directory upload request
+     * @return DirectoryUploadResponse containing any failed uploads
+     */
+    @Override
+    protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
+        try {
+            Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
+            List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
+            List<FailedBlobUpload> failedUploads = new ArrayList<>();
+
+            for (Path filePath : filePaths) {
+                try {
+                    // Generate blob key
+                    String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
+
+                    // Create UploadRequest with tags if provided
+                    UploadRequest.Builder uploadRequestBuilder = UploadRequest.builder()
+                            .withKey(blobKey)
+                            .withContentLength(Files.size(filePath));
+
+                    if (directoryUploadRequest.getTags() != null && !directoryUploadRequest.getTags().isEmpty()) {
+                        uploadRequestBuilder.withTags(directoryUploadRequest.getTags());
+                    }
+
+                    UploadRequest uploadRequest = uploadRequestBuilder.build();
+
+                    // Upload file with tags
+                    doUpload(uploadRequest, filePath);
+                } catch (Exception e) {
+                    failedUploads.add(FailedBlobUpload.builder()
+                            .source(filePath)
+                            .exception(e)
+                            .build());
+                }
+            }
+
+            return DirectoryUploadResponse.builder()
+                    .failedTransfers(failedUploads)
+                    .build();
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to upload directory", e);
         }
     }
 

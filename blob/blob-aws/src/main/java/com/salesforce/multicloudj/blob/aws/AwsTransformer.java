@@ -70,7 +70,10 @@ import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -80,6 +83,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class AwsTransformer {
 
@@ -470,25 +474,63 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
+        return UploadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
-                .s3Prefix(request.getPrefix());
+                .s3Prefix(request.getPrefix())
+                .build();
+    }
 
-        // Apply tags to all objects in the directory upload
-        if (request.getTags() != null && !request.getTags().isEmpty()) {
-            List<Tag> tags = request.getTags().entrySet().stream()
-                    .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+    /**
+     * Converts a DirectoryUploadRequest to a list of file paths to upload.
+     * This method handles directory traversal and filtering based on the request parameters.
+     *
+     * @param request the directory upload request
+     * @return list of file paths to upload
+     */
+    public List<Path> toFilePaths(DirectoryUploadRequest request) {
+        Path sourceDir = Paths.get(request.getLocalSourceDirectory());
+        List<Path> filePaths = new ArrayList<>();
+
+        try (Stream<Path> paths = Files.walk(sourceDir)) {
+            filePaths = paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        // If includeSubFolders is false, only include files in the root directory
+                        if (!request.isIncludeSubFolders()) {
+                            Path relativePath = sourceDir.relativize(path);
+                            return relativePath.getParent() == null;
+                        }
+                        return true;
+                    })
                     .collect(Collectors.toList());
-            Tagging tagging = Tagging.builder().tagSet(tags).build();
-            
-            // Use putObjectRequestTransformer to apply tags to each uploaded object
-            builder.putObjectRequestTransformer(putObjectRequestBuilder -> 
-                    putObjectRequestBuilder.tagging(tagging));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to traverse directory: " + sourceDir, e);
         }
 
-        return builder.build();
+        return filePaths;
+    }
+
+    /**
+     * Converts a file path to a blob key by applying the prefix and maintaining directory structure.
+     *
+     * @param sourceDir the source directory path
+     * @param filePath the file path to convert
+     * @param prefix the S3 prefix to apply
+     * @return the blob key
+     */
+    public String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+        Path relativePath = sourceDir.relativize(filePath);
+        String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
+
+        if (prefix != null && !prefix.isEmpty()) {
+            // Ensure prefix ends with "/" if it doesn't already
+            String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
+            key = normalizedPrefix + key;
+        }
+
+        return key;
     }
 
     public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
