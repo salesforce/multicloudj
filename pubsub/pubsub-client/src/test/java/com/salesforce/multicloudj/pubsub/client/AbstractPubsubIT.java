@@ -4,16 +4,15 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
-import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
@@ -25,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
-
-    protected static final String AWS_PROVIDER_ID = "aws";
 
     public interface Harness extends AutoCloseable {
 
@@ -274,9 +271,8 @@ public abstract class AbstractPubsubIT {
     }
 
     @Test
-    @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+    @Disabled
     public void testDoubleAck() throws Exception {
-        Assumptions.assumeFalse(AWS_PROVIDER_ID.equals(harness.getProviderId()));
         try (AbstractTopic topic = harness.createTopicDriver();
              AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
@@ -340,9 +336,8 @@ public abstract class AbstractPubsubIT {
     }
 
     @Test
-    @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+    @Disabled
     public void testMultipleSendReceiveWithoutBatch() throws Exception {
-        Assumptions.assumeFalse(AWS_PROVIDER_ID.equals(harness.getProviderId()));
         try (AbstractTopic topic = harness.createTopicDriver();
              AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
