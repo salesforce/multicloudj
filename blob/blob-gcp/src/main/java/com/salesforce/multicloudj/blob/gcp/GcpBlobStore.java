@@ -291,6 +291,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 return BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
+                        .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                         .build();
             }
         };
@@ -312,6 +313,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             blobs.add(BlobInfo.builder()
                     .withKey(blob.getName())
                     .withObjectSize(blob.getSize())
+                    .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                     .build());
         }
 

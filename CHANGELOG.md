@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.20](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.19...multicloudj-v0.2.20) (2025-12-15)
+
+
+### Blob Store
+
+* Enable timestamp data in BlobInfo in List api ([#201](https://github.com/salesforce/multicloudj/issues/201)) ([ca4c96a](https://github.com/salesforce/multicloudj/commit/ca4c96a6daa1eee8ff7be476cc5cac8a68ec261a))
+
 ## [0.2.19](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.18...multicloudj-v0.2.19) (2025-12-11)
 
 

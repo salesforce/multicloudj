@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>blob</artifactId>
-        <version>0.2.20-SNAPSHOT</version>
+        <version>0.2.21-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -343,7 +343,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>
-            <version>4.1.125.Final</version>
+            <version>4.1.129.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
