@@ -83,7 +83,7 @@ public class AwsTopicTest {
         builder.withServiceType(AwsTopic.ServiceType.SQS);
         builder.withSqsClient(mockSqsClient);
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
-        assertTrue(exception.getMessage().contains("SQS topic name cannot be null"));
+        assertTrue(exception.getMessage().contains("Topic name/ARN cannot be null or empty"));
     }
 
     @Test
