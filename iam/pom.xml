@@ -14,6 +14,7 @@
     <modules>
         <module>iam-client</module>
         <module>iam-gcp</module>
+        <module>iam-aws</module>
     </modules>
     <dependencies>
         <dependency>
