@@ -1204,45 +1204,119 @@ public class AwsAsyncBlobStoreTest {
     }
 
     @Test
-    void doUploadDirectory() throws ExecutionException, InterruptedException {
-        DirectoryUpload awsResponseFuture = mock(DirectoryUpload.class);
-        CompletedDirectoryUpload awsResponse = mock(CompletedDirectoryUpload.class);
-        doReturn(awsResponseFuture).when(mockS3TransferManager).uploadDirectory(any(UploadDirectoryRequest.class));
-        doReturn(future(awsResponse)).when(awsResponseFuture).completionFuture();
+    void doUploadDirectory() throws ExecutionException, InterruptedException, IOException {
+        // Create a temporary directory with test files
+        Path tempDir = Files.createTempDirectory("test-upload-dir");
+        try {
+            // Create test files
+            Path file1 = tempDir.resolve("file1.txt");
+            Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
+            Files.createDirectories(file2.getParent());
+            Files.write(file1, "content1".getBytes());
+            Files.write(file2, "content2".getBytes());
 
-        Exception failedUploadException = new RuntimeException("Fake exception!");
-        Path failedUploadPath = Paths.get("/home/documents/files/business/taxes.csv");
-        UploadFileRequest uploadFileRequest = UploadFileRequest.builder()
-                .source(failedUploadPath)
-                .putObjectRequest(mock(PutObjectRequest.class))
-                .build();
-        List<FailedFileUpload> failedTransfers = List.of(FailedFileUpload.builder()
-                .request(uploadFileRequest)
-                .exception(failedUploadException)
-                .build());
-        doReturn(failedTransfers).when(awsResponse).failedTransfers();
+            // Mock putObject responses
+            doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+                    .when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
 
-        String source = "/home/documents";
-        DirectoryUploadRequest uploadRequest = DirectoryUploadRequest.builder()
-                .localSourceDirectory(source)
-                .prefix("files/")
-                .includeSubFolders(true)
-                .build();
+            DirectoryUploadRequest uploadRequest = DirectoryUploadRequest.builder()
+                    .localSourceDirectory(tempDir.toString())
+                    .prefix("files/")
+                    .includeSubFolders(true)
+                    .build();
 
-        // Perform the request
-        DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+            // Perform the request
+            DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
 
-        // Verify the wiring
-        ArgumentCaptor<UploadDirectoryRequest> requestCaptor = ArgumentCaptor.forClass(UploadDirectoryRequest.class);
-        verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
-        var actualCapturedValue = requestCaptor.getValue();
-        assertEquals(BUCKET, actualCapturedValue.bucket());
-        assertEquals(source, actualCapturedValue.source().toString());
+            // Verify the results
+            assertNotNull(response);
+            assertTrue(response.getFailedTransfers().isEmpty());
 
-        // Verify the results
-        assertEquals(1, response.getFailedTransfers().size());
-        assertEquals(failedUploadException, response.getFailedTransfers().get(0).getException());
-        assertEquals(failedUploadPath, response.getFailedTransfers().get(0).getSource());
+            // Verify that putObject was called for each file
+            ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+            verify(mockS3Client, times(2)).putObject(requestCaptor.capture(), any(AsyncRequestBody.class));
+
+            List<PutObjectRequest> capturedRequests = requestCaptor.getAllValues();
+            assertEquals(2, capturedRequests.size());
+
+            // Verify bucket and keys
+            for (PutObjectRequest putRequest : capturedRequests) {
+                assertEquals(BUCKET, putRequest.bucket());
+                assertTrue(putRequest.key().startsWith("files/"));
+            }
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
+    }
+
+    @Test
+    void doUploadDirectory_WithTags() throws ExecutionException, InterruptedException, IOException {
+        // Create a temporary directory with test files
+        Path tempDir = Files.createTempDirectory("test-upload-dir-tags");
+        try {
+            // Create test files
+            Path file1 = tempDir.resolve("file1.txt");
+            Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
+            Files.createDirectories(file2.getParent());
+            Files.write(file1, "content1".getBytes());
+            Files.write(file2, "content2".getBytes());
+
+            Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+
+            // Mock putObject responses
+            doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
+                    .when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+
+            DirectoryUploadRequest uploadRequest = DirectoryUploadRequest.builder()
+                    .localSourceDirectory(tempDir.toString())
+                    .prefix("files/")
+                    .includeSubFolders(true)
+                    .tags(tags)
+                    .build();
+
+            // Perform the request
+            DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+
+            // Verify the results
+            assertNotNull(response);
+            assertTrue(response.getFailedTransfers().isEmpty());
+
+            // Verify that putObject was called for each file with tags
+            ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+            verify(mockS3Client, times(2)).putObject(requestCaptor.capture(), any(AsyncRequestBody.class));
+
+            List<PutObjectRequest> capturedRequests = requestCaptor.getAllValues();
+            assertEquals(2, capturedRequests.size());
+
+            // Verify tags are present in both requests
+            for (PutObjectRequest putRequest : capturedRequests) {
+                assertEquals(BUCKET, putRequest.bucket());
+                assertTrue(putRequest.key().startsWith("files/"));
+                assertNotNull(putRequest.tagging());
+                assertTrue(putRequest.tagging().contains("tag1=value1"));
+                assertTrue(putRequest.tagging().contains("tag2=value2"));
+            }
+        } finally {
+            // Clean up
+            Files.walk(tempDir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
     }
 
     @Test

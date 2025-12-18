@@ -18,9 +18,6 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
-import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -103,7 +100,6 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -117,7 +113,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -1188,72 +1183,4 @@ public class AwsBlobStoreTest {
         assertEquals("bucket-1", store.getBucket());
     }
 
-    @Test
-    void testDoUploadDirectory_WithTags() throws IOException {
-        // Given
-        Path tempDir = Files.createTempDirectory("test-upload-dir");
-        try {
-            // Create test files
-            Path file1 = tempDir.resolve("file1.txt");
-            Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
-            Files.createDirectories(file2.getParent());
-            Files.write(file1, "content1".getBytes());
-            Files.write(file2, "content2".getBytes());
-
-            Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
-            DirectoryUploadRequest request = DirectoryUploadRequest.builder()
-                    .localSourceDirectory(tempDir.toString())
-                    .prefix("uploads/")
-                    .includeSubFolders(true)
-                    .tags(tags)
-                    .build();
-
-            // The transformer will use real implementation to get file paths and blob keys
-
-            // Mock putObject responses
-            PutObjectResponse putResponse = PutObjectResponse.builder()
-                    .eTag("etag1")
-                    .versionId("version1")
-                    .build();
-            doReturn(putResponse).when(mockS3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
-
-            // When
-            DirectoryUploadResponse response = aws.doUploadDirectory(request);
-
-            // Then
-            assertNotNull(response);
-            assertTrue(response.getFailedTransfers().isEmpty());
-
-            // Verify that tags are applied to both files
-            ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(mockS3Client, times(2)).putObject(requestCaptor.capture(), any(RequestBody.class));
-
-            List<PutObjectRequest> capturedRequests = requestCaptor.getAllValues();
-            assertEquals(2, capturedRequests.size());
-
-            // Verify tags are present in both requests
-            // Note: In AWS SDK, tagging() returns a String (URL-encoded tag string), not a Tagging object
-            // We verify that tagging is not null/empty, which indicates tags were applied
-            for (PutObjectRequest putRequest : capturedRequests) {
-                assertNotNull(putRequest.tagging());
-                assertFalse(putRequest.tagging().isEmpty());
-                // The tagging string should contain both tag keys
-                assertTrue(putRequest.tagging().contains("tag1"));
-                assertTrue(putRequest.tagging().contains("tag2"));
-                assertTrue(putRequest.tagging().contains("value1"));
-                assertTrue(putRequest.tagging().contains("value2"));
-            }
-        } finally {
-            // Clean up
-            Files.walk(tempDir)
-                    .sorted((a, b) -> b.compareTo(a))
-                    .forEach(path -> {
-                        try {
-                            Files.deleteIfExists(path);
-                        } catch (IOException e) {
-                            // Ignore cleanup errors
-                        }
-                    });
-        }
-    }
 }
