@@ -59,7 +59,6 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
 
     /**
      * Generate unique topic and queue names for each test.
-     * Uses test method name so the same test always uses the same resources.
      */
     @BeforeEach
     public void setupTestResources(TestInfo testInfo) {
@@ -133,76 +132,44 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
         }
 
         /**
-         * Ensures the SNS topic exists before build() is called.
-         * In record mode, we create the topic if it doesn't exist.
-         * In replay mode, we don't do anything - createTopicDriver() will call createTopic once.
-         */
-        private void ensureTopicExists(SnsClient client) {
-            if (System.getProperty("record") != null) {
-                // In record mode, try to create topic if it doesn't exist
-                try {
-                    // Try to create the topic - CreateTopic is idempotent if topic already exists
-                    CreateTopicResponse response = client.createTopic(CreateTopicRequest.builder()
-                        .name(topicName)
-                        .build());
-                    cachedTopicArn = response.topicArn();
-                } catch (Exception e) {
-                    // If creation fails, build() will handle it
-                    System.err.println("Warning: Failed to create SNS topic: " + e.getMessage());
-                }
-            }
-            // In replay mode, do nothing - createTopicDriver() will call createTopic once
-        }
-
-        /**
          * Ensures the SQS queue exists and is subscribed to the SNS topic.
          * In record mode, we create the queue and subscription if they don't exist.
-         * In replay mode, we don't do anything - build() will use the queue URL.
          */
         private void ensureQueueExistsAndSubscribed(SqsClient sqsClient, SnsClient snsClient) {
             if (System.getProperty("record") != null) {
-                try {
-                    // Create the queue if it doesn't exist
-                    sqsClient.createQueue(CreateQueueRequest.builder()
-                        .queueName(queueName)
+                // Create the queue if it doesn't exist
+                sqsClient.createQueue(CreateQueueRequest.builder()
+                    .queueName(queueName)
+                    .build());
+
+                // Get queue URL
+                GetQueueUrlResponse urlResponse = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                    .queueName(queueName)
+                    .build());
+                cachedQueueUrl = urlResponse.queueUrl();
+
+                // Get queue ARN (needed for subscription)
+                String queueArn = formatArn("sqs", queueName);
+
+                // Subscribe queue to SNS topic
+                if (cachedTopicArn != null) {
+                    snsClient.subscribe(SubscribeRequest.builder()
+                        .topicArn(cachedTopicArn)
+                        .protocol("sqs")
+                        .endpoint(queueArn)
                         .build());
 
-                    // Get queue URL
-                    GetQueueUrlResponse urlResponse = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                        .queueName(queueName)
+                    // Set queue policy to allow SNS to send messages
+                    String policy = String.format(
+                        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"%s\"}]}",
+                        queueArn);
+                    Map<QueueAttributeName, String> attributes = new HashMap<>();
+                    attributes.put(QueueAttributeName.POLICY, policy);
+                    sqsClient.setQueueAttributes(SetQueueAttributesRequest.builder()
+                        .queueUrl(cachedQueueUrl)
+                        .attributes(attributes)
                         .build());
-                    cachedQueueUrl = urlResponse.queueUrl();
-
-                    // Get queue ARN (needed for subscription)
-                    String queueArn = formatArn("sqs", queueName);
-
-                    // Subscribe queue to SNS topic
-                    if (cachedTopicArn != null) {
-                        snsClient.subscribe(SubscribeRequest.builder()
-                            .topicArn(cachedTopicArn)
-                            .protocol("sqs")
-                            .endpoint(queueArn)
-                            .build());
-
-                        // Set queue policy to allow SNS to send messages
-                        String policy = String.format(
-                            "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"%s\"}]}",
-                            queueArn);
-                        Map<QueueAttributeName, String> attributes = new HashMap<>();
-                        attributes.put(QueueAttributeName.POLICY, policy);
-                        sqsClient.setQueueAttributes(SetQueueAttributesRequest.builder()
-                            .queueUrl(cachedQueueUrl)
-                            .attributes(attributes)
-                            .build());
-                    }
-                } catch (Exception e) {
-                    // If creation fails, build() will handle it
-                    System.err.println("Warning: Failed to create SQS queue or subscription: " + e.getMessage());
                 }
-            }
-            // In replay mode, construct queue URL from queue name
-            if (cachedQueueUrl == null) {
-                cachedQueueUrl = String.format("https://sqs.us-west-2.amazonaws.com/%s/%s", ACCOUNT_ID, queueName);
             }
         }
 
@@ -213,9 +180,7 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
         @Override
         public AbstractTopic createTopicDriver() {
             snsClient = createSnsClient();
-            ensureTopicExists(snsClient);
-
-            // If topic ARN is not cached, get it now (this will be the only createTopic call for this topic)
+            
             if (cachedTopicArn == null) {
                 CreateTopicResponse response = snsClient.createTopic(CreateTopicRequest.builder()
                     .name(topicName)
@@ -239,10 +204,8 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
             // For SNS, we use SQS queue as subscription
             sqsClient = createSqsClient();
             snsClient = createSnsClient(); // Need SNS client for subscription
-            ensureTopicExists(snsClient); // Ensure topic exists first
             ensureQueueExistsAndSubscribed(sqsClient, snsClient);
 
-            // If queue URL is not cached, get it now
             if (cachedQueueUrl == null) {
                 GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
                     .queueName(queueName)
@@ -257,7 +220,7 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
             subscriptionBuilder.withSqsClient(sqsClient);
             subscriptionBuilder.subscriptionUrl = cachedQueueUrl;
 
-            subscriptionBuilder.build(); // This will use the cached URL, not call GetQueueUrl
+            subscriptionBuilder.build(); 
             subscription = new AwsSubscription(subscriptionBuilder) {
                 @Override
                 protected Batcher.Options createReceiveBatcherOptions() {
@@ -313,7 +276,7 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
         }
     }
 
-    // Disable all tests except testSendBatchMessages
+    // Disable some tests except testSendBatchMessages
     @Override
     @Disabled
     public void testReceiveAfterSend() throws Exception {
