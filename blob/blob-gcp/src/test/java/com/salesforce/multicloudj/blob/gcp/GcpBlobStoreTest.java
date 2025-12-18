@@ -100,6 +100,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1939,6 +1940,53 @@ class GcpBlobStoreTest {
         assertTrue(response.getFailedTransfers().isEmpty());
         verify(mockStorage).createFrom(any(BlobInfo.class), eq(file1));
         verify(mockStorage).createFrom(any(BlobInfo.class), eq(file2));
+    }
+
+    @Test
+    void testUploadDirectory_WithTags() throws Exception {
+        // Given
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+                .localSourceDirectory(tempDir.toString())
+                .prefix("uploads/")
+                .includeSubFolders(true)
+                .tags(tags)
+                .build();
+
+        // Create test files in temp directory
+        Path file1 = tempDir.resolve("file1.txt");
+        Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
+        Files.createDirectories(file2.getParent());
+        Files.write(file1, "content1".getBytes());
+        Files.write(file2, "content2".getBytes());
+
+        List<Path> filePaths = List.of(file1, file2);
+        when(mockTransformer.toFilePaths(request)).thenReturn(filePaths);
+        when(mockTransformer.toBlobKey(eq(tempDir), eq(file1), eq("uploads/")))
+                .thenReturn("uploads/file1.txt");
+        when(mockTransformer.toBlobKey(eq(tempDir), eq(file2), eq("uploads/")))
+                .thenReturn("uploads/subdir/file2.txt");
+
+        // When
+        DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
+
+        // Then
+        assertNotNull(response);
+        assertTrue(response.getFailedTransfers().isEmpty());
+        
+        // Verify that tags are applied to both files
+        ArgumentCaptor<BlobInfo> blobInfoCaptor = ArgumentCaptor.forClass(BlobInfo.class);
+        verify(mockStorage, times(2)).createFrom(blobInfoCaptor.capture(), any(Path.class));
+        
+        List<BlobInfo> capturedBlobInfos = blobInfoCaptor.getAllValues();
+        assertEquals(2, capturedBlobInfos.size());
+        
+        // Verify tags are present in metadata with TAG_PREFIX
+        for (BlobInfo blobInfo : capturedBlobInfos) {
+            assertNotNull(blobInfo.getMetadata());
+            assertEquals("value1", blobInfo.getMetadata().get("gcp-tag-tag1"));
+            assertEquals("value2", blobInfo.getMetadata().get("gcp-tag-tag2"));
+        }
     }
 
     @Test
