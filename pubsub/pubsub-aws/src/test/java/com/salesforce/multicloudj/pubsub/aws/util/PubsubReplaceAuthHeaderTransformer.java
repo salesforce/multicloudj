@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.pubsub.aws;
+package com.salesforce.multicloudj.pubsub.aws.util;
 
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction;
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * WireMock transformer that replaces the Authorization header with a newly computed one.
+ * WireMock transformer that replaces the Authorization header with a newly computed one for PubSub (SNS/SQS).
  * 
  * This is needed because when WireMock proxies requests to AWS services, the original
  * signature becomes invalid. This transformer re-signs the request using the actual
@@ -27,11 +27,11 @@ import java.util.regex.Pattern;
  * 
  * Supports both SNS and SQS services by detecting the service from the hostname.
  */
-public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
+public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
     @Override
     public String getName() {
-        return "replace-auth-header-transformer";
+        return "pubsub-replace-auth-header-transformer";
     }
 
     @Override

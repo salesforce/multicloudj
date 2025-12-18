@@ -290,7 +290,7 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of("com.salesforce.multicloudj.pubsub.aws.ReplaceAuthHeaderTransformer");
+            return List.of("com.salesforce.multicloudj.pubsub.aws.util.PubsubReplaceAuthHeaderTransformer");
         }
 
         @Override
