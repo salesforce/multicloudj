@@ -26,10 +26,37 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.PublishBatchRequest;
+import software.amazon.awssdk.services.sns.model.PublishBatchRequestEntry;
+import software.amazon.awssdk.services.sns.model.PublishBatchResponse;
 
+/**
+ * Metadata keys used for setting message attributes on SNS and SQS messages.
+ */
 class MetadataKeys {
+    /** 
+     * DeduplicationId is used for FIFO queues/topics to ensure message deduplication.
+     * Supported by both SQS (FIFO queues) and SNS (FIFO topics).
+     */
     public static final String DEDUPLICATION_ID = "DeduplicationId";
+    
+    /** 
+     * MessageGroupId is used for FIFO queues/topics to ensure message ordering.
+     * Supported by both SQS (FIFO queues) and SNS (FIFO topics).
+     */
     public static final String MESSAGE_GROUP_ID = "MessageGroupId";
+    
+    /** 
+     * Subject is used for SNS topics to set the message subject.
+     * Only supported by SNS
+     */
+    public static final String SUBJECT = "Subject";
+    
+    /** 
+     * Base64Encoded is a flag indicating that the message body is base64 encoded.
+     * Used when message body contains non-UTF8 content.
+     */
     public static final String BASE64_ENCODED = "base64encoded";
 }
 
@@ -38,8 +65,64 @@ class MetadataKeys {
 public class AwsTopic extends AbstractTopic<AwsTopic> {
 
     private static final int MAX_SQS_ATTRIBUTES = 10;
+    private static final int MAX_SNS_ATTRIBUTES = 10;
+    
+    /**
+     * Used to specify whether to use SQS or SNS for message publishing.
+     */
+    public enum ServiceType {
+        SQS,
+        SNS
+    }
+    
+    /**
+     * BodyBase64Encoding is an enum of strategies for when to base64 message bodies.
+     */
+    public enum BodyBase64Encoding {
+        /**
+         * NonUTF8Only means that message bodies that are valid UTF-8 encodings are
+         * sent as-is. Invalid UTF-8 message bodies are base64 encoded, and a
+         * MessageAttribute with key "base64encoded" is added to the message.
+         */
+        NON_UTF8_ONLY,
+        /**
+         * Always means that all message bodies are base64 encoded.
+         * A MessageAttribute with key "base64encoded" is added to the message.
+         */
+        ALWAYS,
+        /**
+         * Never means that message bodies are never base64 encoded. Non-UTF-8
+         * bytes in message bodies may be modified by SNS/SQS.
+         */
+        NEVER
+    }
+    
+    /**
+     * TopicOptions contains configuration options for topics.
+     */
+    public static class TopicOptions {
+        /**
+         * BodyBase64Encoding determines when message bodies are base64 encoded.
+         * The default is NON_UTF8_ONLY.
+         */
+        private BodyBase64Encoding bodyBase64Encoding = BodyBase64Encoding.NON_UTF8_ONLY;
+        
+        public BodyBase64Encoding getBodyBase64Encoding() {
+            return bodyBase64Encoding;
+        }
+        
+        public TopicOptions withBodyBase64Encoding(BodyBase64Encoding encoding) {
+            this.bodyBase64Encoding = encoding;
+            return this;
+        }
+    }
+    
+    private final ServiceType serviceType;
     private final SqsClient sqsClient;
-    private final String topicUrl;
+    private final SnsClient snsClient;
+    private final String topicUrl;  // For SQS
+    private final String topicArn;   // For SNS
+    private final TopicOptions topicOptions;
 
     public AwsTopic() {
         this(new Builder());
@@ -47,20 +130,23 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     
     public AwsTopic(Builder builder) {
         super(builder);
+        this.serviceType = builder.serviceType;
         this.sqsClient = builder.sqsClient;
+        this.snsClient = builder.snsClient;
         this.topicUrl = builder.topicUrl;
+        this.topicArn = builder.topicArn;
+        this.topicOptions = builder.topicOptions != null ? builder.topicOptions : new TopicOptions();
     }
 
     /**
-     * Override batcher options to align with AWS SQS limits.
-     * AWS SQS supports up to 10 messages per batch.
+     * Override batcher options to align with AWS SQS/SNS limits.
      */
     @Override
     protected Batcher.Options createBatcherOptions() {
         return new Batcher.Options()
-            .setMaxHandlers(2)
+            .setMaxHandlers(100)  // max concurrency for sends 
             .setMinBatchSize(1)
-            .setMaxBatchSize(10)
+            .setMaxBatchSize(10)  // SQS/SNS SendBatch supports 10 messages at a time
             .setMaxBatchByteSize(256 * 1024); // 256KB per message limit
     }
 
@@ -70,7 +156,11 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             return;
         }
 
-        sendToSqs(messages);
+        if (serviceType == ServiceType.SNS) {
+            sendToSns(messages);
+        } else {
+            sendToSqs(messages);
+        }
     }
 
     /**
@@ -82,19 +172,23 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             Message message = messages.get(i);
             
             // Encode metadata as message attributes
-            Map<String, MessageAttributeValue> attributes = 
+            Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> attributes = 
                 convertMetadataToSqsAttributes(message.getMetadata());
             
-            // Handle base64 encoding for non-UTF8 content
+            // Handle base64 encoding based on topic options
             String rawBody = new String(message.getBody(), StandardCharsets.UTF_8);
-            String messageBody = maybeEncodeBody(message.getBody());
-            if (!messageBody.equals(rawBody)) {
+            String messageBody;
+            boolean didEncode = maybeEncodeBody(message.getBody(), topicOptions.getBodyBase64Encoding());
+            if (didEncode) {
+                messageBody = java.util.Base64.getEncoder().encodeToString(message.getBody());
                 // Add base64 encoding flag
                 attributes.put(MetadataKeys.BASE64_ENCODED, 
-                    MessageAttributeValue.builder()
+                    software.amazon.awssdk.services.sqs.model.MessageAttributeValue.builder()
                         .dataType("String")
                         .stringValue("true")
                         .build());
+            } else {
+                messageBody = rawBody;
             }
             
             SendMessageBatchRequestEntry.Builder entryBuilder = SendMessageBatchRequestEntry.builder()
@@ -103,7 +197,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 .messageAttributes(attributes);
             
             // Set SQS-specific attributes directly from metadata
-            setSqsEntryAttributes(message, entryBuilder);
+            reviseSqsEntryAttributes(message, entryBuilder);
             
             entries.add(entryBuilder.build());
         }
@@ -120,6 +214,63 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             var firstFailure = batchResponse.failed().get(0);
             throw new SubstrateSdkException(
                 String.format("SQS SendMessageBatch failed for %d message(s): %s, %s", 
+                    batchResponse.failed().size(),
+                    firstFailure.code(),
+                    firstFailure.message()));
+        }
+    }
+
+    /**
+     * Send messages to SNS topic.
+     */
+    private void sendToSns(List<Message> messages) {
+        List<PublishBatchRequestEntry> entries = new ArrayList<>();
+        for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            
+            // Encode metadata as message attributes
+            Map<String, software.amazon.awssdk.services.sns.model.MessageAttributeValue> attributes = 
+                convertMetadataToSnsAttributes(message.getMetadata());
+            
+            // Handle base64 encoding based on topic options
+            String rawBody = new String(message.getBody(), StandardCharsets.UTF_8);
+            String messageBody;
+            boolean didEncode = maybeEncodeBody(message.getBody(), topicOptions.getBodyBase64Encoding());
+            if (didEncode) {
+                messageBody = java.util.Base64.getEncoder().encodeToString(message.getBody());
+                // Add base64 encoding flag
+                attributes.put(MetadataKeys.BASE64_ENCODED, 
+                    software.amazon.awssdk.services.sns.model.MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue("true")
+                        .build());
+            } else {
+                messageBody = rawBody;
+            }
+            
+            PublishBatchRequestEntry.Builder entryBuilder = PublishBatchRequestEntry.builder()
+                .id(String.valueOf(i))
+                .message(messageBody)
+                .messageAttributes(attributes);
+            
+            // Set SNS-specific attributes directly from metadata
+            reviseSnsEntryAttributes(message, entryBuilder);
+            
+            entries.add(entryBuilder.build());
+        }
+
+        PublishBatchRequest batchRequest = PublishBatchRequest.builder()
+            .topicArn(topicArn)
+            .publishBatchRequestEntries(entries)
+            .build();
+
+        PublishBatchResponse batchResponse = snsClient.publishBatch(batchRequest);
+        
+        // Check for failed messages
+        if (!batchResponse.failed().isEmpty()) {
+            var firstFailure = batchResponse.failed().get(0);
+            throw new SubstrateSdkException(
+                String.format("SNS PublishBatch failed for %d message(s): %s, %s", 
                     batchResponse.failed().size(),
                     firstFailure.code(),
                     firstFailure.message()));
@@ -151,10 +302,13 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         if (sqsClient != null) {
             sqsClient.close();
         }
+        if (snsClient != null) {
+            snsClient.close();
+        }
     }
 
     /**
-     * Executes hooks before sending messages to SQS queue.
+     * Executes hooks before sending messages to SQS queue or SNS topic.
      * Override this method to add custom pre-send logic.
      */
     @Override
@@ -163,7 +317,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     /**
-     * Executes hooks after successfully sending messages to SQS queue.
+     * Executes hooks after successfully sending messages to SQS queue or SNS topic.
      * Override this method to add custom post-send logic.
      */
     @Override
@@ -172,11 +326,11 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     /**
-     * Validates that the topic name is a queue name
+     * Validates that the topic name/ARN is valid
      */
     static void validateTopicName(String topicName) {
         if (topicName == null || topicName.trim().isEmpty()) {
-            throw new InvalidArgumentException("SQS topic name cannot be null or empty");
+            throw new InvalidArgumentException("Topic name/ARN cannot be null or empty");
         }
     }
     
@@ -193,7 +347,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     /**
      * Sets SQS-specific attributes on a SendMessageBatchRequestEntry based on message metadata.
      */
-    private void setSqsEntryAttributes(Message message, SendMessageBatchRequestEntry.Builder entryBuilder) {
+    /**
+     * Sets SQS-specific attributes on a SendMessageBatchRequestEntry based on message metadata.
+     */
+    private void reviseSqsEntryAttributes(Message message, SendMessageBatchRequestEntry.Builder entryBuilder) {
         Map<String, String> metadata = message.getMetadata();
         if (metadata != null) {
             String dedupId = metadata.get(MetadataKeys.DEDUPLICATION_ID);
@@ -208,10 +365,36 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     /**
+     * Sets attributes on a PublishBatchRequestEntry based on message metadata.
+     */
+    private void reviseSnsEntryAttributes(Message message, PublishBatchRequestEntry.Builder entryBuilder) {
+        Map<String, String> metadata = message.getMetadata();
+        if (metadata != null) {
+            // Set subject if provided (SNS-specific)
+            String subject = metadata.get(MetadataKeys.SUBJECT);
+            if (subject != null) {
+                entryBuilder.subject(subject);
+            }
+            
+            // Set MessageDeduplicationId for FIFO topics
+            String dedupId = metadata.get(MetadataKeys.DEDUPLICATION_ID);
+            if (dedupId != null) {
+                entryBuilder.messageDeduplicationId(dedupId);
+            }
+            
+            // Set MessageGroupId for FIFO topics
+            String groupId = metadata.get(MetadataKeys.MESSAGE_GROUP_ID);
+            if (groupId != null) {
+                entryBuilder.messageGroupId(groupId);
+            }
+        }
+    }
+
+    /**
      * Converts message metadata to SQS message attributes.
      */
-    private Map<String, MessageAttributeValue> convertMetadataToSqsAttributes(Map<String, String> metadata) {
-        Map<String, MessageAttributeValue> attributes = new java.util.HashMap<>();
+    private Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> convertMetadataToSqsAttributes(Map<String, String> metadata) {
+        Map<String, software.amazon.awssdk.services.sqs.model.MessageAttributeValue> attributes = new java.util.HashMap<>();
         
         if (metadata != null && !metadata.isEmpty()) {
             for (Map.Entry<String, String> entry : metadata.entrySet()) {
@@ -230,7 +413,40 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 String encodedValue = encodeMetadataValue(entry.getValue());
                 
                 attributes.put(encodedKey, 
-                    MessageAttributeValue.builder()
+                    software.amazon.awssdk.services.sqs.model.MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue(encodedValue)
+                        .build());
+            }
+        }
+        return attributes;
+    }
+
+    /**
+     * Converts message metadata to SNS message attributes.
+     */
+    private Map<String, software.amazon.awssdk.services.sns.model.MessageAttributeValue> convertMetadataToSnsAttributes(Map<String, String> metadata) {
+        Map<String, software.amazon.awssdk.services.sns.model.MessageAttributeValue> attributes = new java.util.HashMap<>();
+        
+        if (metadata != null && !metadata.isEmpty()) {
+            for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                String key = entry.getKey();
+                // Skip keys that are handled as direct SNS message properties
+                if (MetadataKeys.SUBJECT.equals(key) || 
+                    MetadataKeys.DEDUPLICATION_ID.equals(key) || 
+                    MetadataKeys.MESSAGE_GROUP_ID.equals(key)) {
+                    continue;
+                }
+                
+                if (attributes.size() >= MAX_SNS_ATTRIBUTES) {
+                    break;
+                }
+                
+                String encodedKey = encodeMetadataKey(key);
+                String encodedValue = encodeMetadataValue(entry.getValue());
+                
+                attributes.put(encodedKey, 
+                    software.amazon.awssdk.services.sns.model.MessageAttributeValue.builder()
                         .dataType("String")
                         .stringValue(encodedValue)
                         .build());
@@ -242,9 +458,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     /**
      * Encodes metadata keys that contain special characters.
      * 
-     * AWS SQS message attribute names can only contain alphanumeric characters,
+     * AWS SQS/SNS message attribute names can only contain alphanumeric characters,
      * underscores (_), hyphens (-), and periods (.). Special characters like
-     * spaces, slashes, etc. are not allowed.
+     * spaces, slashes, etc. are not allowed. Additionally, periods cannot be at
+     * the start of the key or follow another period.
      * 
      * To work around this limitation, we use a custom encoding scheme:
      * special characters are encoded as "__0xHH__" where HH is the hex value
@@ -254,21 +471,36 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
      * - "file/path" → "file__0x2F__path" (0x2F = '/')
      * - "user name" → "user__0x20__name" (0x20 = ' ')
      * - "type:message" → "type__0x3A__message" (0x3A = ':')
+     * - ".key" → "__0x2E__key" (period at start)
+     * - "key..name" → "key__0x2E____0x2E__name" (consecutive periods)
      */
     private String encodeMetadataKey(String key) {
         if (key == null) return "";
         
         // AWS MessageAttributeName only allows [a-zA-Z0-9_.-]
         // reference: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html
+        // reference: https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
         // Encode special characters using hex pattern "__0xHH__"
+        // Periods at start or consecutive periods must be encoded
         StringBuilder encoded = new StringBuilder();
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
+            boolean isValid = false;
+            
             if ((c >= 'a' && c <= 'z') || 
                 (c >= 'A' && c <= 'Z') || 
                 (c >= '0' && c <= '9') || 
-                c == '_' || c == '-' || c == '.') {
+                c == '_' || c == '-') {
                 // Valid character, append directly
+                isValid = true;
+            } else if (c == '.') {
+                // Period is valid only if not at start and previous char is not a period
+                if (i != 0 && key.charAt(i - 1) != '.') {
+                    isValid = true;
+                }
+            }
+            
+            if (isValid) {
                 encoded.append(c);
             } else {
                 // Invalid character, encode as "__0xHH__"
@@ -290,14 +522,22 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     /**
      * Handles base64 encoding for non-UTF8 content.
      */
-    private String maybeEncodeBody(byte[] body) {
-        if (body == null) return "";
+    /**
+     * Decides whether body should be base64-encoded based on encoding option.
+     * Returns true if encoding occurred, false otherwise.
+     */
+    private boolean maybeEncodeBody(byte[] body, BodyBase64Encoding encoding) {
+        if (body == null) return false;
         
-        if (isValidUtf8(body)) {
-            return new String(body, StandardCharsets.UTF_8);
+        switch (encoding) {
+            case ALWAYS:
+                return true;
+            case NEVER:
+                return false;
+            case NON_UTF8_ONLY:
+            default:
+                return !isValidUtf8(body);
         }
-        
-        return java.util.Base64.getEncoder().encodeToString(body);
     }
 
     /**
@@ -325,11 +565,20 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
     
     public static class Builder extends AbstractTopic.Builder<AwsTopic> {
+        private ServiceType serviceType; 
         private SqsClient sqsClient;
-        private String topicUrl;
+        private SnsClient snsClient;
+        private String topicUrl;  // For SQS
+        private String topicArn;   // For SNS
+        private TopicOptions topicOptions;
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
+        }
+        
+        public Builder withServiceType(ServiceType serviceType) {
+            this.serviceType = serviceType;
+            return this;
         }
         
         public Builder withSqsClient(SqsClient sqsClient) {
@@ -337,12 +586,27 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             return this;
         }
         
+        public Builder withSnsClient(SnsClient snsClient) {
+            this.snsClient = snsClient;
+            return this;
+        }
+        
         /**
          * Directly set the topic URL to avoid calling GetQueueUrl again.
-         * Used when the queue URL has already been resolved
+         * Used when the queue URL has already been resolved (for SQS).
          */
         Builder withTopicUrl(String topicUrl) {
             this.topicUrl = topicUrl;
+            return this;
+        }
+        
+        Builder withTopicArn(String topicArn) {
+            this.topicArn = topicArn;
+            return this;
+        }
+        
+        public Builder withTopicOptions(TopicOptions topicOptions) {
+            this.topicOptions = topicOptions;
             return this;
         }
         
@@ -353,16 +617,44 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 builder.credentialsOverrider);
         }
         
+        private static SnsClient buildSnsClient(Builder builder) {
+            return SnsClientUtil.buildSnsClient(
+                builder.region,
+                builder.endpoint,
+                builder.credentialsOverrider);
+        }
+        
         @Override
         public AwsTopic build() {
             validateTopicName(this.topicName);
-            if (sqsClient == null) {
-                sqsClient = buildSqsClient(this);
+            
+            // Require explicit service type specification
+            if (serviceType == null) {
+                throw new InvalidArgumentException(
+                    "Service type must be explicitly specified.");
             }
             
-            // get the full queue URL from the queue name 
-            if (this.topicUrl == null) {
-                this.topicUrl = getQueueUrl(this.topicName, sqsClient);
+            if (serviceType == ServiceType.SNS) {
+                // SNS mode
+                if (snsClient == null) {
+                    snsClient = buildSnsClient(this);
+                }
+                
+                // SNS requires topicArn to be set
+                if (this.topicArn == null) {
+                    throw new InvalidArgumentException(
+                        "SNS requires topicArn to be set. Use withTopicArn() to set the topic ARN.");
+                }
+            } else {
+                // SQS mode 
+                if (sqsClient == null) {
+                    sqsClient = buildSqsClient(this);
+                }
+                
+                // get the full queue URL from the queue name 
+                if (this.topicUrl == null) {
+                    this.topicUrl = getQueueUrl(this.topicName, sqsClient);
+                }
             }
             
             return new AwsTopic(this);
