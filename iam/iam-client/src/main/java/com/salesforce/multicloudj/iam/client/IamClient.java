@@ -125,14 +125,17 @@ public class IamClient implements AutoCloseable {
      * Retrieves the details of a specific inline policy attached to an identity.
      *
      * @param identityName the name of the identity
-     * @param policyName the name of the policy
+     * @param policyName the name of the policy. This parameter is optional and subject to cloud semantics.
+     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
+     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
+     *                 may require this parameter to identify the policy, while others may not use it.
      * @param tenantId the tenant ID
      * @param region the region
      * @return the policy document details as a string
      */
-    public String getInlinePolicyDetails(String identityName, String policyName, String tenantId, String region) {
+    public String getInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
         try {
-            return this.iam.getInlinePolicyDetails(identityName, policyName, tenantId, region);
+            return this.iam.getInlinePolicyDetails(identityName, policyName, roleName, tenantId, region);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);

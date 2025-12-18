@@ -1,0 +1,21 @@
+{
+  "methodName" : "SetIamPolicy",
+  "request" : {
+    "resource" : "projects/substrate-sdk-gcp-poc1/serviceAccounts/testSaTrusted@substrate-sdk-gcp-poc1.iam.gserviceaccount.com",
+    "policy" : {
+      "etag" : "ACAB",
+      "bindings" : [ {
+        "role" : "roles/iam.serviceAccountTokenCreator",
+        "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+      } ]
+    }
+  },
+  "response" : {
+    "version" : 1,
+    "etag" : "BwZGM212JDM=",
+    "bindings" : [ {
+      "role" : "roles/iam.serviceAccountTokenCreator",
+      "members" : [ "serviceAccount:chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com" ]
+    } ]
+  }
+}

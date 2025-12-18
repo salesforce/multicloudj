@@ -1,0 +1,9 @@
+{
+  "methodName" : "GetIamPolicy",
+  "request" : {
+    "resource" : "projects/substrate-sdk-gcp-poc1/serviceAccounts/testSaTrusted@substrate-sdk-gcp-poc1.iam.gserviceaccount.com"
+  },
+  "response" : {
+    "etag" : "ACAB"
+  }
+}
