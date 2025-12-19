@@ -11,8 +11,20 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.CompletedPart;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
+import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.Part;
+import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
+import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -31,7 +43,10 @@ import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -2288,5 +2303,403 @@ class GcpBlobStoreTest {
         // Verify the nested directory structure was created
         Path expectedPath = tempDir.resolve("subdir/nested/file.txt");
         assertTrue(Files.exists(expectedPath.getParent()));
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_Success() {
+        // Given
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(TEST_KEY, result.getKey());
+        assertEquals("test-upload-id", result.getId());
+        assertEquals(Map.of("key1", "value1"), result.getMetadata());
+        assertEquals(Map.of("tag1", "value1"), result.getTags());
+        verify(mpuClient).createMultipartUpload(any(CreateMultipartUploadRequest.class));
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_WithKmsKey() {
+        // Given
+        String kmsKeyId = "projects/my-project/locations/us/keyRings/my-ring/cryptoKeys/my-key";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id-kms")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("test-upload-id-kms", result.getId());
+        assertEquals(kmsKeyId, result.getKmsKeyId());
+
+        ArgumentCaptor<CreateMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mpuClient).createMultipartUpload(captor.capture());
+
+        CreateMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        // Don't verify kmsKeyName as it's an optional field
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_NoMetadata() {
+        // Given
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id-no-metadata")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("test-upload-id-no-metadata", result.getId());
+        assertTrue(result.getMetadata().isEmpty());
+        verify(mpuClient).createMultipartUpload(any(CreateMultipartUploadRequest.class));
+    }
+
+    @Test
+    void testDoUploadMultipartPart_Success() throws IOException {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        byte[] partData = "part data content".getBytes();
+        InputStream inputStream = new ByteArrayInputStream(partData);
+        MultipartPart mpp = new MultipartPart(1, inputStream, partData.length);
+
+        UploadPartResponse mockGcpResponse = UploadPartResponse.builder()
+                .eTag("part-etag-1")
+                .build();
+
+        when(mpuClient.uploadPart(any(UploadPartRequest.class), any(RequestBody.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        com.salesforce.multicloudj.blob.driver.UploadPartResponse result =
+                gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.getPartNumber());
+        assertEquals("part-etag-1", result.getEtag());
+        assertEquals(-1, result.getSizeInBytes());
+
+        ArgumentCaptor<UploadPartRequest> requestCaptor =
+                ArgumentCaptor.forClass(UploadPartRequest.class);
+        verify(mpuClient).uploadPart(requestCaptor.capture(), any(RequestBody.class));
+
+        UploadPartRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+        assertEquals(1, capturedRequest.partNumber());
+    }
+
+    @Test
+    void testDoUploadMultipartPart_MultiplePartNumbers() throws IOException {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        for (int partNum = 1; partNum <= 3; partNum++) {
+            byte[] partData = ("part " + partNum).getBytes();
+            InputStream inputStream = new ByteArrayInputStream(partData);
+            MultipartPart mpp = new MultipartPart(partNum, inputStream, partData.length);
+
+            UploadPartResponse mockGcpResponse = UploadPartResponse.builder()
+                    .eTag("etag-" + partNum)
+                    .build();
+
+            when(mpuClient.uploadPart(any(UploadPartRequest.class), any(RequestBody.class)))
+                    .thenReturn(mockGcpResponse);
+
+            // When
+            com.salesforce.multicloudj.blob.driver.UploadPartResponse result =
+                    gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(partNum, result.getPartNumber());
+            assertEquals("etag-" + partNum, result.getEtag());
+        }
+    }
+
+    @Test
+    void testDoUploadMultipartPart_IOError() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        InputStream errorStream = mock(InputStream.class);
+        MultipartPart mpp = new MultipartPart(1, errorStream, 100);
+
+        try {
+            when(errorStream.read(any(byte[].class))).thenThrow(new IOException("Read error"));
+        } catch (IOException e) {
+            // This shouldn't happen in the setup
+        }
+
+        // When & Then
+        assertThrows(SubstrateSdkException.class, () -> {
+            gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+        });
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(3, "etag-3", 512L)
+        );
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("complete-etag", result.getEtag());
+
+        ArgumentCaptor<CompleteMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+        verify(mpuClient).completeMultipartUpload(captor.capture());
+
+        CompleteMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+        assertEquals(3, capturedRequest.multipartUpload().parts().size());
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_SortsPartsByPartNumber() {
+        // Given - parts in non-sequential order
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(3, "etag-3", 512L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L)
+        );
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+
+        ArgumentCaptor<CompleteMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+        verify(mpuClient).completeMultipartUpload(captor.capture());
+
+        CompleteMultipartUploadRequest capturedRequest = captor.getValue();
+        List<CompletedPart> completedParts = capturedRequest.multipartUpload().parts();
+
+        // Verify parts are sorted by part number
+        assertEquals(1, completedParts.get(0).partNumber());
+        assertEquals(2, completedParts.get(1).partNumber());
+        assertEquals(3, completedParts.get(2).partNumber());
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_EmptyParts() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Collections.emptyList();
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag-empty")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("complete-etag-empty", result.getEtag());
+    }
+
+    @Test
+    void testDoListMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        // Create mock parts
+        List<Part> gcpParts = new ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            Part mockPart = mock(Part.class);
+            when(mockPart.partNumber()).thenReturn(i);
+            when(mockPart.eTag()).thenReturn("etag-" + i);
+            if (i == 1) {
+                when(mockPart.size()).thenReturn(1024L);
+            } else if (i == 2) {
+                when(mockPart.size()).thenReturn(2048L);
+            } else {
+                when(mockPart.size()).thenReturn(512L);
+            }
+            gcpParts.add(mockPart);
+        }
+
+        ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
+        when(mockGcpResponse.getParts()).thenReturn(gcpParts);
+
+        when(mpuClient.listParts(any(ListPartsRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> result =
+                gcpBlobStore.doListMultipartUpload(mpu);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(3, result.size());
+
+        assertEquals(1, result.get(0).getPartNumber());
+        assertEquals("etag-1", result.get(0).getEtag());
+        assertEquals(1024L, result.get(0).getSizeInBytes());
+
+        assertEquals(2, result.get(1).getPartNumber());
+        assertEquals("etag-2", result.get(1).getEtag());
+        assertEquals(2048L, result.get(1).getSizeInBytes());
+
+        assertEquals(3, result.get(2).getPartNumber());
+        assertEquals("etag-3", result.get(2).getEtag());
+        assertEquals(512L, result.get(2).getSizeInBytes());
+
+        ArgumentCaptor<ListPartsRequest> captor = ArgumentCaptor.forClass(ListPartsRequest.class);
+        verify(mpuClient).listParts(captor.capture());
+
+        ListPartsRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+    }
+
+    @Test
+    void testDoListMultipartUpload_EmptyList() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
+        when(mockGcpResponse.getParts()).thenReturn(Collections.emptyList());
+
+        when(mpuClient.listParts(any(ListPartsRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> result =
+                gcpBlobStore.doListMultipartUpload(mpu);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testDoAbortMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        // When
+        gcpBlobStore.doAbortMultipartUpload(mpu);
+
+        // Then
+        ArgumentCaptor<AbortMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(AbortMultipartUploadRequest.class);
+        verify(mpuClient).abortMultipartUpload(captor.capture());
+
+        AbortMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
     }
 }
