@@ -831,7 +831,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
 
         /**
-         * Helper function for generating the Storage client
+         * Helper function for generating the MultipartUpload client
          */
         private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
             CloseableHttpClient httpClient = buildHttpClient(builder);
