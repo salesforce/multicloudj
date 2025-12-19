@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.blob.gcp;
 
-import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -12,11 +11,9 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import org.apache.commons.lang3.tuple.Pair;
@@ -40,7 +37,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,8 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -774,37 +768,6 @@ class GcpTransformerTest {
     }
 
     @Test
-    public void testToPartName() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        assertEquals(TEST_KEY+"/id/part-1", transformer.toPartName(mpu, 1));
-        assertEquals(TEST_KEY+"/id/part-8", transformer.toPartName(mpu, 8));
-        mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY+"_test")
-                .id("id2")
-                .build();
-        assertEquals(TEST_KEY+"_test/id2/part-4", transformer.toPartName(mpu, 4));
-    }
-
-    @Test
-    public void testToUploadRequest() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        MultipartPart mpp = new MultipartPart(1, "Test Data".getBytes());
-
-        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
-        assertEquals(TEST_KEY+"/id/part-1", uploadRequest.getKey());
-        assertEquals(9, uploadRequest.getContentLength());
-    }
-
-    @Test
     public void testToBlobInfo_multipartUpload() {
         MultipartUpload mpu = MultipartUpload.builder()
                 .bucket(TEST_BUCKET)
@@ -832,44 +795,6 @@ class GcpTransformerTest {
         assertEquals(2, blobInfo.getMetadata().size());
         assertEquals("value1", blobInfo.getMetadata().get("gcp-tag-tag1"));
         assertEquals("value2", blobInfo.getMetadata().get("gcp-tag-tag2"));
-    }
-
-    @Test
-    public void testToBlobIdList() {
-        Page<Blob> page = mock(Page.class);
-        Blob mockBlob1 = mock(Blob.class);
-        BlobId mockBlobId1 = mock(BlobId.class);
-        doReturn(mockBlobId1).when(mockBlob1).getBlobId();
-        Blob mockBlob2 = mock(Blob.class);
-        BlobId mockBlobId2 = mock(BlobId.class);
-        doReturn(mockBlobId2).when(mockBlob2).getBlobId();
-        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
-        doReturn(stream).when(page).streamAll();
-        transformer.toBlobIdList(page);
-    }
-
-    @Test
-    public void testToUploadPartResponseList() {
-        Page<Blob> page = mock(Page.class);
-        Blob mockBlob1 = mock(Blob.class);
-        doReturn(TEST_KEY+"/123456/part-1").when(mockBlob1).getName();
-        doReturn("part-1-etag").when(mockBlob1).getEtag();
-        doReturn(100L).when(mockBlob1).getSize();
-        Blob mockBlob2 = mock(Blob.class);
-        doReturn(TEST_KEY+"/123456/part-2").when(mockBlob2).getName();
-        doReturn("part-2-etag").when(mockBlob2).getEtag();
-        doReturn(200L).when(mockBlob2).getSize();
-        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
-        doReturn(stream).when(page).streamAll();
-
-        List<UploadPartResponse> response = transformer.toUploadPartResponseList(page);
-
-        assertEquals(1, response.get(0).getPartNumber());
-        assertEquals(100L, response.get(0).getSizeInBytes());
-        assertEquals("part-1-etag", response.get(0).getEtag());
-        assertEquals(2, response.get(1).getPartNumber());
-        assertEquals(200L, response.get(1).getSizeInBytes());
-        assertEquals("part-2-etag", response.get(1).getEtag());
     }
 
     @Test

@@ -1,0 +1,26 @@
+{
+  "id" : "36e520d9-fdd5-4fe4-b04a-413f48446f06",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_versioned-blob-that-doesnt-exist",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/versioned-blob-that-doesnt-exist",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/versioned-blob-that-doesnt-exist\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/versioned-blob-that-doesnt-exist\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AHVrFxO7GEA4d8Btm3WLp1WeWoDizXKfF1MdFs5M7piZYLzlIbAHHe96IhAbggtm2ieWWLykaECrZdw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 19 Dec 2025 20:37:33 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "36e520d9-fdd5-4fe4-b04a-413f48446f06",
+  "persistent" : true,
+  "insertionIndex" : 358
+}
