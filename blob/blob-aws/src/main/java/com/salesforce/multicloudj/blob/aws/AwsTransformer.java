@@ -339,6 +339,7 @@ public class AwsTransformer {
         return UploadPartRequest.builder()
                 .bucket(getBucket())
                 .key(mpu.getKey())
+                .uploadId(mpu.getId())
                 .partNumber(mpp.getPartNumber())
                 .contentLength(mpp.getContentLength())
                 .build();
