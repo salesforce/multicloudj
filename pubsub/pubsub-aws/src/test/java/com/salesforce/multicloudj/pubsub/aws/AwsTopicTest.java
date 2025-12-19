@@ -22,6 +22,12 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResultEntry;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.PublishBatchRequest;
+import software.amazon.awssdk.services.sns.model.PublishBatchResponse;
+import software.amazon.awssdk.services.sns.model.PublishBatchRequestEntry;
+import software.amazon.awssdk.services.sns.model.PublishBatchResultEntry;
+import software.amazon.awssdk.services.sns.model.BatchResultErrorEntry;
 
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -826,5 +832,275 @@ public class AwsTopicTest {
                     "Should throw SdkClientException for invalid queue name format: " + invalidName);
             }
         }
+    }
+
+    // SNS-related tests
+
+    private static final String VALID_SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:test-topic";
+
+    @Mock
+    private SnsClient mockSnsClient;
+
+    private AwsTopic snsTopic;
+
+    @BeforeEach
+    void setUpSnsTopic() {
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withSnsClient(mockSnsClient);
+        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
+        builder.withRegion("us-east-1");
+        snsTopic = builder.build();
+    }
+
+    @Test
+    void testBuildSnsTopic_WithTopicArn() {
+        assertNotNull(snsTopic);
+        assertEquals("aws", snsTopic.getProviderId());
+    }
+
+    @Test
+    void testBuildSnsTopic_WithoutTopicArn_ThrowsException() {
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withSnsClient(mockSnsClient);
+        builder.withRegion("us-east-1");
+        // Missing topicArn
+
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
+        assertTrue(exception.getMessage().contains("SNS requires topicArn to be set"));
+    }
+
+    @Test
+    void testBuildSnsTopic_WithoutServiceType_ThrowsException() {
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withSnsClient(mockSnsClient);
+        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
+        // Missing serviceType
+
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
+        assertTrue(exception.getMessage().contains("Service type must be explicitly specified"));
+    }
+
+    @Test
+    void testDoSendBatchSnsSuccess() throws Exception {
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody("test message".getBytes())
+            .withMetadata(Map.of("test-key", "test-value"))
+            .build());
+
+        PublishBatchResultEntry successEntry = PublishBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(messages));
+
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(VALID_SNS_TOPIC_ARN, capturedRequest.topicArn());
+        assertEquals(1, capturedRequest.publishBatchRequestEntries().size());
+        
+        // Verify message attributes are converted
+        PublishBatchRequestEntry entry = capturedRequest.publishBatchRequestEntries().get(0);
+        assertNotNull(entry.messageAttributes());
+        assertTrue(entry.messageAttributes().containsKey("test-key"));
+    }
+
+    @Test
+    void testDoSendBatchSnsWithSubject() throws Exception {
+        List<Message> messages = new ArrayList<>();
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("Subject", "Test Subject");
+        metadata.put("test-key", "test-value");
+
+        messages.add(Message.builder()
+            .withBody("test message".getBytes())
+            .withMetadata(metadata)
+            .build());
+
+        PublishBatchResultEntry successEntry = PublishBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(messages));
+
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        PublishBatchRequestEntry entry = capturedRequest.publishBatchRequestEntries().get(0);
+        assertEquals("Test Subject", entry.subject());
+    }
+
+    @Test
+    void testDoSendBatchSnsWithFifoAttributes() throws Exception {
+        List<Message> messages = new ArrayList<>();
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("DeduplicationId", "dedup-123");
+        metadata.put("MessageGroupId", "group-456");
+
+        messages.add(Message.builder()
+            .withBody("test message".getBytes())
+            .withMetadata(metadata)
+            .build());
+
+        PublishBatchResultEntry successEntry = PublishBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(messages));
+
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        PublishBatchRequestEntry entry = capturedRequest.publishBatchRequestEntries().get(0);
+        assertEquals("dedup-123", entry.messageDeduplicationId());
+        assertEquals("group-456", entry.messageGroupId());
+    }
+
+    @Test
+    void testDoSendBatchSnsWithBase64Encoding() throws Exception {
+        // Create topic with ALWAYS base64 encoding
+        AwsTopic.TopicOptions topicOptions = new AwsTopic.TopicOptions()
+            .withBodyBase64Encoding(AwsTopic.BodyBase64Encoding.ALWAYS);
+        AwsTopic.Builder builder = new AwsTopic.Builder();
+        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withSnsClient(mockSnsClient);
+        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
+        builder.withRegion("us-east-1");
+        builder.withTopicOptions(topicOptions);
+        AwsTopic topicWithEncoding = builder.build();
+
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody("test message".getBytes())
+            .build());
+
+        PublishBatchResultEntry successEntry = PublishBatchResultEntry.builder()
+            .id("0")
+            .messageId("msg-123")
+            .build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(List.of(successEntry))
+            .failed(new ArrayList<>())
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> topicWithEncoding.doSendBatch(messages));
+
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        PublishBatchRequestEntry entry = capturedRequest.publishBatchRequestEntries().get(0);
+        // Verify base64 encoding flag is set
+        assertTrue(entry.messageAttributes().containsKey("base64encoded"));
+        assertEquals("true", entry.messageAttributes().get("base64encoded").stringValue());
+    }
+
+    @Test
+    void testDoSendBatchSnsWithMultipleMessages() throws Exception {
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder().withBody("message1".getBytes()).build());
+        messages.add(Message.builder().withBody("message2".getBytes()).build());
+        messages.add(Message.builder().withBody("message3".getBytes()).build());
+
+        PublishBatchResultEntry entry1 = PublishBatchResultEntry.builder().id("0").messageId("msg-1").build();
+        PublishBatchResultEntry entry2 = PublishBatchResultEntry.builder().id("1").messageId("msg-2").build();
+        PublishBatchResultEntry entry3 = PublishBatchResultEntry.builder().id("2").messageId("msg-3").build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(List.of(entry1, entry2, entry3))
+            .failed(new ArrayList<>())
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(messages));
+
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(3, capturedRequest.publishBatchRequestEntries().size());
+    }
+
+    @Test
+    void testDoSendBatchSnsFailure() throws Exception {
+        List<Message> messages = new ArrayList<>();
+        messages.add(Message.builder()
+            .withBody("test message".getBytes())
+            .build());
+
+        BatchResultErrorEntry errorEntry = BatchResultErrorEntry.builder()
+            .id("0")
+            .code("InvalidParameter")
+            .message("Invalid parameter")
+            .build();
+
+        PublishBatchResponse mockResponse = PublishBatchResponse.builder()
+            .successful(new ArrayList<>())
+            .failed(List.of(errorEntry))
+            .build();
+
+        when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
+            .thenReturn(mockResponse);
+
+        assertThrows(SubstrateSdkException.class, () -> snsTopic.doSendBatch(messages));
+
+        verify(mockSnsClient).publishBatch(any(PublishBatchRequest.class));
+    }
+
+    @Test
+    void testDoSendBatchSnsWithEmptyOrNullMessages() throws Exception {
+        // Test empty messages
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(new ArrayList<>()));
+        verify(mockSnsClient, never()).publishBatch(any(PublishBatchRequest.class));
+
+        // Reset mock
+        reset(mockSnsClient);
+
+        // Test null messages
+        assertDoesNotThrow(() -> snsTopic.doSendBatch(null));
+        verify(mockSnsClient, never()).publishBatch(any(PublishBatchRequest.class));
     }
 }
