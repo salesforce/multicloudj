@@ -4,6 +4,7 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.http.apache.internal.conn.SdkTlsSocketFactory;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -62,7 +63,57 @@ public class TestsUtilAws {
             return ApacheHttpClient.builder()
                     .proxyConfiguration(proxyConfig)
                     .tlsTrustManagersProvider(() -> trustAllCerts)
+                    .expectContinueEnabled(false)
                     .socketFactory(sslSocketFactory)
+                    .build();
+        }
+        catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static SdkHttpClient getProxyClientV3(String scheme, int port) {
+
+        ProxyConfiguration proxyConfig = ProxyConfiguration.builder().endpoint(URI.create(scheme + "://" + WIREMOCK_HOST + ":" + port)).build();
+        TrustManager[] trustAllCerts = createTrustAllManager();
+
+        try {
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new SecureRandom());
+
+            SdkTlsSocketFactory sslSocketFactory = new SdkTlsSocketFactory(sslContext, new TrustAllHostNameVerifier());
+
+            return ApacheHttpClient.builder()
+                    .proxyConfiguration(proxyConfig)
+                    .tlsTrustManagersProvider(() -> trustAllCerts)
+                    .socketFactory(sslSocketFactory)
+                    .expectContinueEnabled(false)
+                    .build();
+        }
+        catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static UrlConnectionHttpClient getProxyClientV2(String scheme, int port) {
+
+        software.amazon.awssdk.http.urlconnection.ProxyConfiguration proxyConfig = software.amazon.awssdk.http.urlconnection.ProxyConfiguration
+                .builder()
+                .endpoint(URI.create(scheme + "://" + WIREMOCK_HOST + ":" + port))
+                .build();
+
+        TrustManager[] trustAllCerts = createTrustAllManager();
+
+        try {
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new SecureRandom());
+
+            SdkTlsSocketFactory sslSocketFactory = new SdkTlsSocketFactory(sslContext, new TrustAllHostNameVerifier());
+
+            return (UrlConnectionHttpClient) UrlConnectionHttpClient.builder()
+                    .proxyConfiguration(proxyConfig)
+                    .tlsTrustManagersProvider(() -> trustAllCerts)
+                    //.socketFactory(sslSocketFactory)
                     .build();
         }
         catch (NoSuchAlgorithmException | KeyManagementException e) {

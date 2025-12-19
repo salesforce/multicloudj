@@ -80,5 +80,11 @@
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-aws</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common-aws</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
