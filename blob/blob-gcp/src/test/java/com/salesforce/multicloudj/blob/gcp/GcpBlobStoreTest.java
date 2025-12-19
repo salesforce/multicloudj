@@ -101,6 +101,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -2466,7 +2467,7 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoUploadMultipartPart_IOError() {
+    void testDoUploadMultipartPart_IOError() throws IOException {
         // Given
         MultipartUpload mpu = MultipartUpload.builder()
                 .bucket(TEST_BUCKET)
@@ -2477,11 +2478,9 @@ class GcpBlobStoreTest {
         InputStream errorStream = mock(InputStream.class);
         MultipartPart mpp = new MultipartPart(1, errorStream, 100);
 
-        try {
-            when(errorStream.read(any(byte[].class))).thenThrow(new IOException("Read error"));
-        } catch (IOException e) {
-            // This shouldn't happen in the setup
-        }
+        // Mock the read method with correct signature (byte[], int, int)
+        when(errorStream.read(any(byte[].class), anyInt(), anyInt()))
+                .thenThrow(new IOException("Read error"));
 
         // When & Then
         assertThrows(SubstrateSdkException.class, () -> {
