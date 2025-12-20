@@ -66,14 +66,6 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
                         .uri(new URI(request.getAbsoluteUrl()));
 
         requestToSign.putHeader("Content-Length", String.valueOf(request.getBody().length));
-        
-        // Copy all headers from the original request
-        request.getHeaders().all().forEach(header -> {
-            if (!header.key().equalsIgnoreCase("Authorization") && 
-                !header.key().equalsIgnoreCase("Content-Length")) {
-                requestToSign.putHeader(header.key(), header.values());
-            }
-        });
 
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 

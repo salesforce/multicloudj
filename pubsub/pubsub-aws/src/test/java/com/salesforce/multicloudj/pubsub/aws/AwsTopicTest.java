@@ -706,26 +706,19 @@ public class AwsTopicTest {
     }
 
     @Test
-    void testBuildWithUrl_RejectsUrl() {
-        // We rely on AWS to validate the queue name and throw appropriate exceptions.
+    void testBuildWithUrl_AcceptsUrl() {
         String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
         
         SqsClient mockSqsClient = mock(SqsClient.class);
         
-        when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
-            .thenThrow(SdkClientException.builder()
-                .message("Invalid queue name format")
-                .build());
-        
         AwsTopic.Builder testBuilder = new AwsTopic.Builder();
-        testBuilder.withTopicName(fullQueueUrl);
-        testBuilder.withServiceType(AwsTopic.ServiceType.SQS);
+        testBuilder.withTopicName(fullQueueUrl);  
         testBuilder.withRegion("us-east-1");
         testBuilder.withSqsClient(mockSqsClient);
         
-        assertThrows(SdkClientException.class, () -> {
-            testBuilder.build();
-        });
+        assertDoesNotThrow(() -> testBuilder.build());
+        
+        verify(mockSqsClient, never()).getQueueUrl(any(GetQueueUrlRequest.class));
     }
 
     @Test
@@ -849,7 +842,7 @@ public class AwsTopicTest {
         builder.withTopicName(VALID_SNS_TOPIC_ARN);
         builder.withServiceType(AwsTopic.ServiceType.SNS);
         builder.withSnsClient(mockSnsClient);
-        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
+        builder.withTopicName(VALID_SNS_TOPIC_ARN); 
         builder.withRegion("us-east-1");
         snsTopic = builder.build();
     }
@@ -863,26 +856,22 @@ public class AwsTopicTest {
     @Test
     void testBuildSnsTopic_WithoutTopicArn_ThrowsException() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
-        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withTopicName("my-topic"); 
         builder.withServiceType(AwsTopic.ServiceType.SNS);
         builder.withSnsClient(mockSnsClient);
         builder.withRegion("us-east-1");
-        // Missing topicArn
 
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
-        assertTrue(exception.getMessage().contains("SNS requires topicArn to be set"));
+        assertTrue(exception.getMessage().contains("Topic ARN must be set when using SNS"));
     }
 
     @Test
-    void testBuildSnsTopic_WithoutServiceType_ThrowsException() {
+    void testBuildSnsTopic_WithoutServiceType_AutoDetected() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
-        builder.withTopicName(VALID_SNS_TOPIC_ARN);
+        builder.withTopicName(VALID_SNS_TOPIC_ARN); 
         builder.withSnsClient(mockSnsClient);
-        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
-        // Missing serviceType
 
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
-        assertTrue(exception.getMessage().contains("Service type must be explicitly specified"));
+        assertDoesNotThrow(() -> builder.build());
     }
 
     @Test
@@ -1001,7 +990,7 @@ public class AwsTopicTest {
         builder.withTopicName(VALID_SNS_TOPIC_ARN);
         builder.withServiceType(AwsTopic.ServiceType.SNS);
         builder.withSnsClient(mockSnsClient);
-        builder.withTopicArn(VALID_SNS_TOPIC_ARN);
+        builder.withTopicName(VALID_SNS_TOPIC_ARN); 
         builder.withRegion("us-east-1");
         builder.withTopicOptions(topicOptions);
         AwsTopic topicWithEncoding = builder.build();

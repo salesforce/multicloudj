@@ -576,7 +576,30 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             this.providerId = AwsConstants.PROVIDER_ID;
         }
         
-        public Builder withServiceType(ServiceType serviceType) {
+        /**
+         * Sets the topic name, ARN, or URL.
+         */
+        @Override
+        public Builder withTopicName(String topicName) {
+            super.withTopicName(topicName);
+            
+            // Auto-detect ARN or URL format
+            if (topicName != null) {
+                if (topicName.startsWith("arn:aws:sns:")) {
+                    // SNS topic ARN - user provided ARN format
+                    this.topicArn = topicName;
+                } else if (topicName.startsWith("https://sqs.")) {
+                    // SQS queue URL, in case user provides full URL
+                    // This avoids treating the URL as a queue name and calling GetQueueUrl with invalid input
+                    this.topicUrl = topicName;
+                }
+                // Otherwise, treat as name (will be resolved to URL via GetQueueUrl)
+            }
+            
+            return this;
+        }
+        
+        Builder withServiceType(ServiceType serviceType) {
             this.serviceType = serviceType;
             return this;
         }
@@ -597,11 +620,6 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
          */
         Builder withTopicUrl(String topicUrl) {
             this.topicUrl = topicUrl;
-            return this;
-        }
-        
-        Builder withTopicArn(String topicArn) {
-            this.topicArn = topicArn;
             return this;
         }
         
@@ -628,10 +646,16 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         public AwsTopic build() {
             validateTopicName(this.topicName);
             
-            // Require explicit service type specification
+            // Auto-detect service type based on provided parameters
             if (serviceType == null) {
-                throw new InvalidArgumentException(
-                    "Service type must be explicitly specified.");
+                if (this.topicArn != null || this.snsClient != null) {
+                    serviceType = ServiceType.SNS;
+                } else if (this.topicUrl != null || this.sqsClient != null) {
+                    serviceType = ServiceType.SQS;
+                } else {
+                    // Default to SQS if only topicName is provided
+                    serviceType = ServiceType.SQS;
+                }
             }
             
             if (serviceType == ServiceType.SNS) {
@@ -641,9 +665,11 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 }
                 
                 // SNS requires topicArn to be set
+                // Note: topicArn might be null if user provided snsClient or set serviceType explicitly
+                // but didn't provide an ARN-format topicName (e.g., provided regular name instead)
                 if (this.topicArn == null) {
                     throw new InvalidArgumentException(
-                        "SNS requires topicArn to be set. Use withTopicArn() to set the topic ARN.");
+                        "Topic ARN must be set when using SNS. Use withTopicName() with an ARN format (e.g., 'arn:aws:sns:region:account:topic-name').");
                 }
             } else {
                 // SQS mode 

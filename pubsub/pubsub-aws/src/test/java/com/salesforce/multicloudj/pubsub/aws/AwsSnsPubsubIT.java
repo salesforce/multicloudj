@@ -191,9 +191,8 @@ public class AwsSnsPubsubIT extends AbstractPubsubIT {
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             System.out.println("createTopicDriver using topicName: " + topicName + ", topicArn: " + cachedTopicArn);
             topicBuilder.withServiceType(AwsTopic.ServiceType.SNS);
-            topicBuilder.withTopicName(cachedTopicArn); // Use ARN as topic name
+            topicBuilder.withTopicName(cachedTopicArn);
             topicBuilder.withSnsClient(snsClient);
-            topicBuilder.withTopicArn(cachedTopicArn);
             topic = topicBuilder.build();
 
             return topic;
