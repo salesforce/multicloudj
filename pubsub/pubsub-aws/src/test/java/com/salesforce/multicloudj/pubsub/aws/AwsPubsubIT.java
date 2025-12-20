@@ -124,6 +124,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
             System.out.println("createTopicDriver using queueName: " + queueName);
             topicBuilder.withTopicName(queueName);
+            topicBuilder.withServiceType(AwsTopic.ServiceType.SQS);
             topicBuilder.withSqsClient(sqsClient);
             topicBuilder.withTopicUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
             topic = topicBuilder.build();

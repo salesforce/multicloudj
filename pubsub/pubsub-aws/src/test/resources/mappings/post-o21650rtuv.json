@@ -1,0 +1,24 @@
+{
+  "id" : "02e40a0b-8edc-4afc-bbb4-e44f4017ebef",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateTopic&Version=2010-03-31&Name=test-sns-topic-testSendBatchMessages",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<CreateTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <CreateTopicResult>\n    <TopicArn>arn:aws:sns:us-west-2:654654370895:test-sns-topic-testSendBatchMessages</TopicArn>\n  </CreateTopicResult>\n  <ResponseMetadata>\n    <RequestId>e93f5744-208a-5f58-a324-36fa6455e64f</RequestId>\n  </ResponseMetadata>\n</CreateTopicResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "e93f5744-208a-5f58-a324-36fa6455e64f",
+      "Date" : "Thu, 18 Dec 2025 18:06:24 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "02e40a0b-8edc-4afc-bbb4-e44f4017ebef",
+  "persistent" : true,
+  "insertionIndex" : 4
+}
