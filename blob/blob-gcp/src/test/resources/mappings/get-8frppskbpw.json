@@ -1,0 +1,29 @@
+{
+  "id" : "7f62ff3b-09d5-414f-925c-5e0a2a9e62bc",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_kms_upload-empty-key",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fupload-empty-key?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/upload-empty-key/1766443816649683\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fupload-empty-key\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Fupload-empty-key?generation=1766443816649683&alt=media\",\n  \"name\": \"conformance-tests/kms/upload-empty-key\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1766443816649683\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"28\",\n  \"md5Hash\": \"4Ry4oYRPjP5uuZZsEjd+Gw==\",\n  \"crc32c\": \"jMmo+Q==\",\n  \"etag\": \"CNOH1IGk0pEDEAE=\",\n  \"timeCreated\": \"2025-12-22T22:50:16.697Z\",\n  \"updated\": \"2025-12-22T22:50:16.697Z\",\n  \"timeStorageClassUpdated\": \"2025-12-22T22:50:16.697Z\",\n  \"timeFinalized\": \"2025-12-22T22:50:16.697Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CNOH1IGk0pEDEAE=",
+      "X-GUploader-UploadID" : "AHVrFxOozw9NmtEr1bCICunMrfeMXiGfGCzqFDHqGOBtHkdg1PAd-KCFo0AlU4v-Qsjy3UqUZjsQnQA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 22 Dec 2025 22:50:17 GMT",
+      "Date" : "Mon, 22 Dec 2025 22:50:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "7f62ff3b-09d5-414f-925c-5e0a2a9e62bc",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-upload-empty-key",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-upload-empty-key-2",
+  "insertionIndex" : 883
+}

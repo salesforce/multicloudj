@@ -1,0 +1,29 @@
+{
+  "id" : "b84ee0d6-e0f0-4840-9321-b619b6308f3e",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_versionedcopyfrom_copied-from-blob-v2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopyFrom%2Fcopied-from-blob-v2?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/versionedCopyFrom/copied-from-blob-v2/1766443845484349\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopyFrom%2Fcopied-from-blob-v2\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopyFrom%2Fcopied-from-blob-v2?generation=1766443845484349&alt=media\",\n  \"name\": \"conformance-tests/versionedCopyFrom/copied-from-blob-v2\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1766443845484349\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"30\",\n  \"md5Hash\": \"H+P0JF15Fcgjy1tB6nrJ/A==\",\n  \"crc32c\": \"JmVNPQ==\",\n  \"etag\": \"CL3+s4+k0pEDEAE=\",\n  \"timeCreated\": \"2025-12-22T22:50:45.529Z\",\n  \"updated\": \"2025-12-22T22:50:45.529Z\",\n  \"timeStorageClassUpdated\": \"2025-12-22T22:50:45.529Z\",\n  \"timeFinalized\": \"2025-12-22T22:50:45.529Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CL3+s4+k0pEDEAE=",
+      "X-GUploader-UploadID" : "AHVrFxPqVebF7ekf1LzIpvEeeZVSBU2XxbTkWj3vgSR6P4r9e_5fXtWY2FEZidFEnbdqj1pQ4w4iZps",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 22 Dec 2025 22:50:46 GMT",
+      "Date" : "Mon, 22 Dec 2025 22:50:46 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b84ee0d6-e0f0-4840-9321-b619b6308f3e",
+  "persistent" : true,
+  "scenarioName" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versionedCopyFrom-copied-from-blob-v2",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versionedCopyFrom-copied-from-blob-v2-2",
+  "insertionIndex" : 947
+}
