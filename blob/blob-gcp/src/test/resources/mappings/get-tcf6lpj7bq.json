@@ -1,0 +1,28 @@
+{
+  "id" : "8a2b4780-e3c6-4263-8a40-cca324ede3fb",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_upload_happypath_versioned_inputstream",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FhappyPath_versioned_InputStream?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/upload/happyPath_versioned_InputStream/1766520535398030\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FhappyPath_versioned_InputStream\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FhappyPath_versioned_InputStream?generation=1766520535398030&alt=media\",\n  \"name\": \"conformance-tests/upload/happyPath_versioned_InputStream\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1766520535398030\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CI7tgOjB1JEDEAE=\",\n  \"timeCreated\": \"2025-12-23T20:08:55.423Z\",\n  \"updated\": \"2025-12-23T20:08:55.423Z\",\n  \"timeStorageClassUpdated\": \"2025-12-23T20:08:55.423Z\",\n  \"timeFinalized\": \"2025-12-23T20:08:55.423Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CI7tgOjB1JEDEAE=",
+      "X-GUploader-UploadID" : "AHVrFxNZGHqYIqgAbGmsUUF8PIHPMRBtkCPgGIIoQy-rD4MRXpKXqcqZM_lYxhiflFWM8uYB473Mwp0",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 23 Dec 2025 20:08:55 GMT",
+      "Date" : "Tue, 23 Dec 2025 20:08:55 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8a2b4780-e3c6-4263-8a40-cca324ede3fb",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-upload-happyPath_versioned_InputStream",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-upload-happyPath_versioned_InputStream-2",
+  "insertionIndex" : 973
+}

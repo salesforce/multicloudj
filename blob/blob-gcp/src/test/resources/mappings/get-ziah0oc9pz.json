@@ -1,0 +1,35 @@
+{
+  "id" : "cda57061-fbf1-4f93-ac39-63fa7d10f285",
+  "name" : "download_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_delete_happypath",
+  "request" : {
+    "url" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?alt=media&generation=1766443825118388",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHRlc3QgZGF0YQ==",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1766443825118388",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Mon, 22 Dec 2025 22:50:25 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Mon, 22 Dec 2025 22:50:28 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=c5ssQQ==,md5=wKUIq7ZI/wYgn2BcGDmCDw==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CLT52IWk0pEDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AHVrFxPuabvZNIDU8FS3mzMSJWZr3qPtoyQwXkMnTAbieUZuBhP2IzEh_QcWSoA3sC6Kr9rFG10Pk_8",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "28",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "cda57061-fbf1-4f93-ac39-63fa7d10f285",
+  "persistent" : true,
+  "insertionIndex" : 903
+}
