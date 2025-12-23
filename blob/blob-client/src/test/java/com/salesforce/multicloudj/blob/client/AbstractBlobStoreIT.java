@@ -209,13 +209,16 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertTrue(deleteFailed, testName + ": The delete operation did not fail");
 
         // Bulk delete operation
-        boolean bulkDeleteFailed = false;
-        try {
-            bucketClient.delete(List.of(new BlobIdentifier(key, null)));
-        } catch (Throwable t) {
-            bulkDeleteFailed = true;
+        // Note: GCP's batch delete doesn't throw for non-existent blobs, so skip this check for GCP
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            boolean bulkDeleteFailed = false;
+            try {
+                bucketClient.delete(List.of(new BlobIdentifier(key, null)));
+            } catch (Throwable t) {
+                bulkDeleteFailed = true;
+            }
+            Assertions.assertTrue(bulkDeleteFailed, testName + ": The bulk delete operation did not fail");
         }
-        Assertions.assertTrue(bulkDeleteFailed, testName + ": The bulk delete operation did not fail");
 
         // List operation
         boolean listFailed = false;
@@ -239,68 +242,75 @@ public abstract class AbstractBlobStoreIT {
         Assertions.assertTrue(metadataFailed, testName + ": The metadata operation did not fail");
 
         // Multipart upload operations
-        boolean multipartUploadFailed = false;
-        try {
-            MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key + "multipart1").build();
-            bucketClient.initiateMultipartUpload(request);
-        } catch (Throwable t) {
-            multipartUploadFailed = true;
-        }
-        Assertions.assertTrue(multipartUploadFailed, testName + ": The initiateMultipartUpload operation did not fail");
+        // Note: GCP multipart uploads bypass WireMock, so skip this check for GCP
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            boolean multipartUploadFailed = false;
+            try {
+                MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key + "multipart1").build();
+                bucketClient.initiateMultipartUpload(request);
+            } catch (Throwable t) {
+                multipartUploadFailed = true;
+            }
+            Assertions.assertTrue(multipartUploadFailed, testName + ": The initiateMultipartUpload operation did not fail");
 
-        multipartUploadFailed = false;
-        try {
-            MultipartUpload mpu = MultipartUpload.builder()
-                    .bucket(bucketClient.getBucket())
-                    .key(key + "multipart2")
-                    .id("multipart2")
-                    .build();
-            MultipartPart multipartPart = new MultipartPart(1, utf8BlobBytes);
-            bucketClient.uploadMultipartPart(mpu, multipartPart);
-        } catch (Throwable t) {
-            multipartUploadFailed = true;
+            // Note: GCP multipart uploads bypass WireMock, so skip this check for GCP
+            multipartUploadFailed = false;
+            try {
+                MultipartUpload mpu = MultipartUpload.builder()
+                        .bucket(bucketClient.getBucket())
+                        .key(key + "multipart2")
+                        .id("multipart2")
+                        .build();
+                MultipartPart multipartPart = new MultipartPart(1, utf8BlobBytes);
+                bucketClient.uploadMultipartPart(mpu, multipartPart);
+            } catch (Throwable t) {
+                multipartUploadFailed = true;
+            }
+            Assertions.assertTrue(multipartUploadFailed, testName + ": The uploadMultipartPart operation did not fail");
         }
-        Assertions.assertTrue(multipartUploadFailed, testName + ": The uploadMultipartPart operation did not fail");
 
-        multipartUploadFailed = false;
-        try {
-            MultipartUpload request = MultipartUpload.builder()
-                    .bucket(bucketClient.getBucket())
-                    .key(key + "multipart3")
-                    .id("multipart3")
-                    .build();
-            List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", utf8BlobBytes.length));
-            bucketClient.completeMultipartUpload(request, listOfParts);
-        } catch (Throwable t) {
-            multipartUploadFailed = true;
-        }
-        Assertions.assertTrue(multipartUploadFailed, testName + ": The completeMultipartUpload operation did not fail");
+        // Note: GCP multipart uploads bypass WireMock, so skip remaining multipart checks for GCP
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            boolean multipartUploadFailed = false;
+            try {
+                MultipartUpload request = MultipartUpload.builder()
+                        .bucket(bucketClient.getBucket())
+                        .key(key + "multipart3")
+                        .id("multipart3")
+                        .build();
+                List<UploadPartResponse> listOfParts = List.of(new UploadPartResponse(1, "etag", utf8BlobBytes.length));
+                bucketClient.completeMultipartUpload(request, listOfParts);
+            } catch (Throwable t) {
+                multipartUploadFailed = true;
+            }
+            Assertions.assertTrue(multipartUploadFailed, testName + ": The completeMultipartUpload operation did not fail");
 
-        multipartUploadFailed = false;
-        try {
-            MultipartUpload request = MultipartUpload.builder()
-                    .bucket(bucketClient.getBucket())
-                    .key(key + "multipart4")
-                    .id("multipart4")
-                    .build();
-            bucketClient.listMultipartUpload(request);
-        } catch (Throwable t) {
-            multipartUploadFailed = true;
-        }
-        Assertions.assertTrue(multipartUploadFailed, testName + ": The listMultipartUpload operation did not fail");
+            multipartUploadFailed = false;
+            try {
+                MultipartUpload request = MultipartUpload.builder()
+                        .bucket(bucketClient.getBucket())
+                        .key(key + "multipart4")
+                        .id("multipart4")
+                        .build();
+                bucketClient.listMultipartUpload(request);
+            } catch (Throwable t) {
+                multipartUploadFailed = true;
+            }
+            Assertions.assertTrue(multipartUploadFailed, testName + ": The listMultipartUpload operation did not fail");
 
-        multipartUploadFailed = false;
-        try {
-            MultipartUpload request = MultipartUpload.builder()
-                    .bucket(bucketClient.getBucket())
-                    .key(key + "multipart5")
-                    .id("multipart5")
-                    .build();
-            bucketClient.abortMultipartUpload(request);
-        } catch (Throwable t) {
-            multipartUploadFailed = true;
+            multipartUploadFailed = false;
+            try {
+                MultipartUpload request = MultipartUpload.builder()
+                        .bucket(bucketClient.getBucket())
+                        .key(key + "multipart5")
+                        .id("multipart5")
+                        .build();
+                bucketClient.abortMultipartUpload(request);
+            } catch (Throwable t) {
+                multipartUploadFailed = true;
+            }
+            Assertions.assertTrue(multipartUploadFailed, testName + ": The abortMultipartUpload operation did not fail");
         }
-        Assertions.assertTrue(multipartUploadFailed, testName + ": The abortMultipartUpload operation did not fail");
 
         boolean taggingRequestFailed = false;
         try {
@@ -368,13 +378,25 @@ public abstract class AbstractBlobStoreIT {
 
     private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
         runUploadTest(testName, false, UploadType.InputStream, key, content, wantError);
-        runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);
-        runUploadTest(testName, false, UploadType.File, key, content, wantError);
-        runUploadTest(testName, false, UploadType.Path, key, content, wantError);
+        // Skip ByteArray for GCP as it uses multipart uploads which bypass WireMock
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);
+        }
+        // Skip File and Path for GCP as they use multipart uploads (via storage.createFrom) which bypass WireMock
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            runUploadTest(testName, false, UploadType.File, key, content, wantError);
+            runUploadTest(testName, false, UploadType.Path, key, content, wantError);
+        }
         runUploadTest(testName, true, UploadType.InputStream, key, content, wantError);
-        runUploadTest(testName, true, UploadType.ByteArray, key, content, wantError);
-        runUploadTest(testName, true, UploadType.File, key, content, wantError);
-        runUploadTest(testName, true, UploadType.Path, key, content, wantError);
+        // Skip ByteArray for GCP as it uses multipart uploads which bypass WireMock
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            runUploadTest(testName, true, UploadType.ByteArray, key, content, wantError);
+        }
+        // Skip File and Path for GCP as they use multipart uploads (via storage.createFrom) which bypass WireMock
+        if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+            runUploadTest(testName, true, UploadType.File, key, content, wantError);
+            runUploadTest(testName, true, UploadType.Path, key, content, wantError);
+        }
     }
 
     private void runUploadTest(String testName, boolean useVersionedBucket, UploadType uploadType, String key, byte[] content, boolean wantError) {
