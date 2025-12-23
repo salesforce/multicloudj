@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.Base64;
 import java.nio.charset.StandardCharsets;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonElement;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -153,8 +155,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         ReceiveMessageRequest.Builder requestBuilder = ReceiveMessageRequest.builder()
             .queueUrl(subscriptionUrl)
             .maxNumberOfMessages(Math.min(batchSize, 10)) // SQS supports max 10 messages
-            .messageAttributeNames("All")
-            .attributeNames(QueueAttributeName.ALL);
+            .messageAttributeNames("All");
 
         if (waitTimeSeconds > 0) {
             requestBuilder.waitTimeSeconds((int) waitTimeSeconds);
@@ -179,22 +180,29 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         return messages;
     }
 
-    protected void validateAckIDType(AckID ackID) {
-        if (!(ackID instanceof AwsAckID)) {
-            throw new InvalidArgumentException("Expected AwsAckID, got: " + ackID.getClass().getSimpleName());
-        }
-    }
-
     /**
      * Converts SQS message to internal Message format.
+     * 
+     * When messages are received from SQS queues subscribed to SNS topics,
+     * the message body is wrapped in SNS JSON format. This method detects
+     * and unwraps SNS messages, extracting the actual message body and
+     * merging SNS MessageAttributes into the message attributes.
+     * 
+     * Reference: https://aws.amazon.com/sns/faqs/#Raw_message_delivery
      */
     protected Message convertToMessage(software.amazon.awssdk.services.sqs.model.Message sqsMessage) {
         String bodyStr = sqsMessage.body();
         Map<String, String> rawAttrs = new HashMap<>();
         
-        // Extract message attributes
+        // Extract message attributes from SQS message
         for (Map.Entry<String, MessageAttributeValue> entry : sqsMessage.messageAttributes().entrySet()) {
             rawAttrs.put(entry.getKey(), entry.getValue().stringValue());
+        }
+        // Unwrap SNS JSON messages if present; otherwise treat the body as a raw SQS message.
+        SnsJsonParser.ExtractionResult extraction = SnsJsonParser.extractSnsMessage(bodyStr);
+        if (extraction != null) {
+            bodyStr = extraction.message;
+            rawAttrs.putAll(extraction.messageAttributes);
         }
         
         // Decode metadata attributes
@@ -307,6 +315,95 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
             return value;
+        }
+    }
+
+    /**
+     * Parses SNS-style JSON messages delivered to SQS.
+     *
+     * When an SQS queue is subscribed to an SNS topic, the message body may be
+     * wrapped in a JSON envelope. This utility extracts the real message body
+     * and its attributes. If the body is not SNS JSON, it is treated as a
+     * normal SQS message.
+     */
+    private static class SnsJsonParser {
+        
+        static class ExtractionResult {
+            final String message;
+            final Map<String, String> messageAttributes;
+            
+            ExtractionResult(String message, Map<String, String> messageAttributes) {
+                this.message = message;
+                this.messageAttributes = messageAttributes;
+            }
+        }
+        
+        /**
+         * Extracts the actual message body and attributes from SNS JSON format.
+         */
+        static ExtractionResult extractSnsMessage(String bodyStr) {
+            if (bodyStr == null || bodyStr.trim().isEmpty()) {
+                return null;
+            }
+            
+            String trimmed = bodyStr.trim();
+            if (!trimmed.startsWith("{") || !trimmed.contains("\"TopicArn\"")) {
+                return null;
+            }
+            
+            try {
+                JsonElement jsonElement = JsonParser.parseString(trimmed);
+                if (!jsonElement.isJsonObject()) {
+                    return null;
+                }
+                JsonObject json = jsonElement.getAsJsonObject();
+                
+                if (!json.has("TopicArn") || json.get("TopicArn").isJsonNull()) {
+                    return null;
+                }
+                
+                // Extract "Message" field
+                if (!json.has("Message")) {
+                    return null;
+                }
+                String message = json.get("Message").getAsString();
+                
+                // Extract MessageAttributes
+                Map<String, String> messageAttributes = extractSnsMessageAttributes(json);
+                
+                return new ExtractionResult(message, messageAttributes);
+            } catch (Exception e) {
+                // If parsing fails, treat as raw message
+                return null;
+            }
+        }
+        
+        /**
+         * Extracts MessageAttributes from SNS JSON format.
+         * MessageAttributes format: { "key": { "Type": "String", "Value": "value" } }
+         */
+        private static Map<String, String> extractSnsMessageAttributes(JsonObject json) {
+            Map<String, String> attributes = new HashMap<>();
+            
+            if (!json.has("MessageAttributes")) {
+                return attributes;
+            }
+            
+            try {
+                JsonObject messageAttrsObj = json.getAsJsonObject("MessageAttributes");
+                for (Map.Entry<String, JsonElement> entry : messageAttrsObj.entrySet()) {
+                    String key = entry.getKey();
+                    JsonObject attrObj = entry.getValue().getAsJsonObject();
+                    if (attrObj.has("Value")) {
+                        String value = attrObj.get("Value").getAsString();
+                        attributes.put(key, value);
+                    }
+                }
+            } catch (Exception e) {
+                // If parsing fails, return empty map
+            }
+            
+            return attributes;
         }
     }
 
