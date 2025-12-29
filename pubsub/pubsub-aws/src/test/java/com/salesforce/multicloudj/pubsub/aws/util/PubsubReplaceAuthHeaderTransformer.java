@@ -48,8 +48,7 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
         } catch (URISyntaxException e) {
             throw new RuntimeException("Failed to compute auth header for: " + url, e);
         } catch (Exception e) {
-            // If signing fails, log and continue with original request
-            System.err.println("Warning: Failed to re-sign request: " + e.getMessage());
+            // If signing fails, continue with original request
             return RequestFilterAction.continueWith(request);
         }
         Request wrappedRequest = RequestWrapper.create()
@@ -66,6 +65,30 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
                         .uri(new URI(request.getAbsoluteUrl()));
 
         requestToSign.putHeader("Content-Length", String.valueOf(request.getBody().length));
+        
+        // Copy Content-Type (required for SNS form-urlencoded)
+        if (request.containsHeader("Content-Type")) {
+            requestToSign.putHeader("Content-Type", request.header("Content-Type").values());
+        }
+        
+        // Copy X-Amz-Security-Token if present (required for temporary credentials)
+        if (request.containsHeader("X-Amz-Security-Token")) {
+            requestToSign.putHeader("X-Amz-Security-Token", request.header("X-Amz-Security-Token").values());
+        }
+        
+        // Copy SDK headers that are included in the signature
+        if (request.containsHeader("amz-sdk-invocation-id")) {
+            requestToSign.putHeader("amz-sdk-invocation-id", request.header("amz-sdk-invocation-id").values());
+        }
+        
+        if (request.containsHeader("amz-sdk-request")) {
+            requestToSign.putHeader("amz-sdk-request", request.header("amz-sdk-request").values());
+        }
+        
+        // Copy x-amz-content-sha256 if present
+        if (request.containsHeader("x-amz-content-sha256")) {
+            requestToSign.putHeader("x-amz-content-sha256", request.header("x-amz-content-sha256").values());
+        }
 
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 
@@ -87,7 +110,7 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
             serviceName = hostname.contains("sns") ? "sns" : "sqs";
         }
 
-        final SignedRequest signerOutput = signer.sign(r -> r.identity(DefaultCredentialsProvider.builder().build().resolveCredentials())
+        final SignedRequest signerOutput = signer.sign(r -> r.identity(DefaultCredentialsProvider.create().resolveCredentials())
                 .request(requestToSign.build())
                 .payload(requestToSign.contentStreamProvider())
                 .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, serviceName)

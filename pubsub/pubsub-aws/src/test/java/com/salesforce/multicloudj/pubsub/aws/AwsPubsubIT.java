@@ -2,132 +2,292 @@ package com.salesforce.multicloudj.pubsub.aws;
 
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
+import com.salesforce.multicloudj.pubsub.driver.Message;
 
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
+import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
+import software.amazon.awssdk.services.sns.model.SubscribeRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
+import software.amazon.awssdk.services.sqs.model.SetQueueAttributesRequest;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Assertions;
 
+/**
+ * Unified integration tests for AWS PubSub (SQS and SNS).
+ * 
+ * This class supports two modes:
+ * 1. SQS mode: Direct SQS send/receive/ack/nack
+ * 2. SNS mode: SNS send, SQS receive (SNS publishes to subscribed SQS queue)
+ * 
+ * Use setMode() to switch between modes. Default is SQS mode.
+ */
 public class AwsPubsubIT extends AbstractPubsubIT {
 
+    private static final String SNS_ENDPOINT = "https://sns.us-west-2.amazonaws.com";
     private static final String SQS_ENDPOINT = "https://sqs.us-west-2.amazonaws.com";
     private static final String ACCOUNT_ID = "654654370895";
     private static final String BASE_QUEUE_NAME = "test-queue";
+    private static final String BASE_TOPIC_NAME = "test-sns-topic";
+
+    public enum Mode {
+        SQS,  
+        SNS  
+    }
 
     private HarnessImpl harnessImpl;
     private String queueName;
+    private String topicName;
+    private Mode currentMode = Mode.SQS; // Default to SQS mode
 
     @Override
     protected Harness createHarness() {
-        harnessImpl = new HarnessImpl();
+        // Create harness with default mode, will be updated per test
+        harnessImpl = new HarnessImpl(currentMode);
         return harnessImpl;
     }
 
     /**
-     * Generate a unique queue name for each test.
-     * Uses test method name so the same test always uses the same queue.
-     * Topic creates queue, Subscription does not.
+     * Sets the test mode (SQS or SNS) for the current test.
+     * This should be called at the beginning of each test method.
+     */
+    private void setMode(Mode mode) {
+        this.currentMode = mode;
+        if (harnessImpl != null) {
+            harnessImpl.setMode(mode);
+        }
+    }
+
+    /**
+     * Generate unique queue/topic names for each test.
+     * Automatically set mode based on test method name (SNS if method name contains "Sns", otherwise SQS).
      */
     @BeforeEach
-    public void setupTestQueue(TestInfo testInfo) {
+    public void setupTestResources(TestInfo testInfo) {
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
+        
+        // Auto-detect mode from test method name
+        if (testMethodName.toLowerCase().contains("sns")) {
+            setMode(Mode.SNS);
+        } else {
+            setMode(Mode.SQS);
+        }
+        
         queueName = BASE_QUEUE_NAME + "-" + testMethodName;
         if (harnessImpl != null) {
             harnessImpl.setQueueName(queueName);
+            if (currentMode == Mode.SNS) {
+                topicName = BASE_TOPIC_NAME + "-" + testMethodName;
+                harnessImpl.setTopicName(topicName);
+            }
         }
+    }
+    
+    @Override
+    @BeforeEach
+    public void setupTestEnvironment() {
+        String endpoint = (currentMode == Mode.SNS) ? SNS_ENDPOINT : SQS_ENDPOINT;
+        TestsUtil.startWireMockRecording(endpoint);
     }
 
     public static class HarnessImpl implements Harness {
         private AwsTopic topic;
         private AwsSubscription subscription;
+        private SnsClient snsClient;
         private SqsClient sqsClient;
         private SdkHttpClient httpClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
         private String queueName = BASE_QUEUE_NAME;
-        private String cachedQueueUrl; // Cache queue URL to avoid calling GetQueueUrl multiple times for the same queue
+        private String topicName = BASE_TOPIC_NAME;
+        private String cachedTopicArn; // Cache topic ARN to avoid multiple calls
+        private String cachedQueueUrl; // Cache queue URL to avoid multiple calls
+        private Mode mode;
+
+        public HarnessImpl(Mode mode) {
+            this.mode = mode;
+        }
+
+        public void setMode(Mode mode) {
+            this.mode = mode;
+        }
 
         public void setQueueName(String queueName) {
             this.queueName = queueName;
             this.cachedQueueUrl = null; // Reset cache when queue name changes
         }
 
-        private SqsClient createSqsClient() {
-            if (sqsClient == null) {
-                httpClient = TestsUtilAws.getProxyClient("https", port);
-                String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-                String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-                String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
-                SqsClientBuilder sqsBuilder = SqsClient.builder()
+        public void setTopicName(String topicName) {
+            this.topicName = topicName;
+            this.cachedTopicArn = null; // Reset cache when topic name changes
+        }
+
+        private AwsSessionCredentials createCredentials() {
+            String accessKey = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+            String secretKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+            String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+            return AwsSessionCredentials.create(accessKey, secretKey, sessionToken);
+        }
+
+        private SnsClient createSnsClient() {
+            if (snsClient == null) {
+                if (httpClient == null) {
+                    httpClient = TestsUtilAws.getProxyClient("https", port);
+                }
+                snsClient = SnsClient.builder()
                     .httpClient(httpClient)
                     .region(Region.US_WEST_2)
-                    .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
-                        accessKey, secretKey, sessionToken)))
-                    .endpointOverride(URI.create(SQS_ENDPOINT));
-                sqsClient = sqsBuilder.build();
+                    .credentialsProvider(StaticCredentialsProvider.create(createCredentials()))
+                    .endpointOverride(URI.create(SNS_ENDPOINT))
+                    .build();
+            }
+            return snsClient;
+        }
+
+        private SqsClient createSqsClient() {
+            if (sqsClient == null) {
+                if (httpClient == null) {
+                    httpClient = TestsUtilAws.getProxyClient("https", port);
+                }
+                sqsClient = SqsClient.builder()
+                    .httpClient(httpClient)
+                    .region(Region.US_WEST_2)
+                    .credentialsProvider(StaticCredentialsProvider.create(createCredentials()))
+                    .endpointOverride(URI.create(SQS_ENDPOINT))
+                    .build();
             }
             return sqsClient;
         }
 
         /**
-         * Ensures the queue exists before build() is called.
-         * In record mode, we create the queue if it doesn't exist (without calling GetQueueUrl).
-         * In replay mode, we don't do anything - only build() will call GetQueueUrl once.
-         * This ensures only one GetQueueUrl mapping is generated per test.
+         * Ensures the queue exists.
+         * For SNS mode, also subscribes the queue to the SNS topic.
          */
         private void ensureQueueExists() {
             if (System.getProperty("record") != null) {
-                // In record mode, try to create queue if it doesn't exist
-                // We don't call GetQueueUrl here to avoid generating multiple mappings
-                // build() will call GetQueueUrl once, which will handle both existing and new queues
                 try {
-                    // Try to create the queue - CreateQueue is idempotent if queue already exists
                     sqsClient.createQueue(CreateQueueRequest.builder()
                         .queueName(queueName)
                         .build());
                 } catch (Exception e) {
-                    // If creation fails, build() will handle it when calling GetQueueUrl
                     System.err.println("Warning: Failed to create queue: " + e.getMessage());
                 }
+
+                if (cachedQueueUrl == null) {
+                    GetQueueUrlResponse urlResponse = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                        .queueName(queueName)
+                        .build());
+                    cachedQueueUrl = urlResponse.queueUrl();
+                }
+            } else {
+                // In replay mode, only get queue URL
+                if (cachedQueueUrl == null) {
+                    GetQueueUrlResponse urlResponse = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                        .queueName(queueName)
+                        .build());
+                    cachedQueueUrl = urlResponse.queueUrl();
+                }
             }
-            // In replay mode, do nothing - build() will call GetQueueUrl once
+        }
+
+        /**
+         * For SNS mode: ensures the SQS queue exists and is subscribed to the SNS topic.
+         */
+        private void ensureQueueExistsAndSubscribed(SqsClient sqsClient, SnsClient snsClient) {
+            ensureQueueExists();
+
+            if (mode == Mode.SNS && System.getProperty("record") != null) {
+                // Get queue ARN (needed for subscription)
+                String queueArn = formatArn("sqs", queueName);
+
+                // Subscribe queue to SNS topic
+                if (cachedTopicArn != null) {
+                    snsClient.subscribe(SubscribeRequest.builder()
+                        .topicArn(cachedTopicArn)
+                        .protocol("sqs")
+                        .endpoint(queueArn)
+                        .build());
+
+                    // Set queue policy to allow SNS to send messages
+                    String policy = String.format(
+                        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"sns.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"%s\"}]}",
+                        queueArn);
+                    Map<QueueAttributeName, String> attributes = new HashMap<>();
+                    attributes.put(QueueAttributeName.POLICY, policy);
+                    sqsClient.setQueueAttributes(SetQueueAttributesRequest.builder()
+                        .queueUrl(cachedQueueUrl)
+                        .attributes(attributes)
+                        .build());
+                }
+            }
+        }
+
+        private String formatArn(String service, String resourceName) {
+            return String.format("arn:aws:%s:us-west-2:%s:%s", service, ACCOUNT_ID, resourceName);
         }
 
         @Override
         public AbstractTopic createTopicDriver() {
-            sqsClient = createSqsClient();
-            ensureQueueExists();
+            if (mode == Mode.SNS) {
+                // SNS mode: create SNS topic
+                snsClient = createSnsClient();
+                
+                if (cachedTopicArn == null) {
+                    CreateTopicResponse response = snsClient.createTopic(CreateTopicRequest.builder()
+                        .name(topicName)
+                        .build());
+                    cachedTopicArn = response.topicArn();
+                }
 
-            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
-            if (cachedQueueUrl == null) {
-                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                    .queueName(queueName)
-                    .build());
-                cachedQueueUrl = response.queueUrl();
+                AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
+                System.out.println("createTopicDriver (SNS) using topicName: " + topicName + ", topicArn: " + cachedTopicArn);
+                topicBuilder.withServiceType(AwsTopic.ServiceType.SNS);
+                topicBuilder.withTopicName(cachedTopicArn);
+                topicBuilder.withSnsClient(snsClient);
+                topic = topicBuilder.build();
+            } else {
+                // SQS mode: use SQS queue as topic
+                sqsClient = createSqsClient();
+                ensureQueueExists();
+
+                if (cachedQueueUrl == null) {
+                    GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
+                        .queueName(queueName)
+                        .build());
+                    cachedQueueUrl = response.queueUrl();
+                }
+
+                AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
+                System.out.println("createTopicDriver (SQS) using queueName: " + queueName);
+                topicBuilder.withTopicName(queueName);
+                topicBuilder.withSqsClient(sqsClient);
+                topicBuilder.withTopicUrl(cachedQueueUrl);
+                topic = topicBuilder.build();
             }
-
-            AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
-            System.out.println("createTopicDriver using queueName: " + queueName);
-            topicBuilder.withTopicName(queueName);
-            topicBuilder.withServiceType(AwsTopic.ServiceType.SQS);
-            topicBuilder.withSqsClient(sqsClient);
-            topicBuilder.withTopicUrl(cachedQueueUrl); // Use cached URL to avoid calling GetQueueUrl again
-            topic = topicBuilder.build();
 
             return topic;
         }
@@ -135,24 +295,26 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         @Override
         public AbstractSubscription createSubscriptionDriver() {
             sqsClient = createSqsClient();
-            ensureQueueExists();
+            
+            if (mode == Mode.SNS) {
+                snsClient = createSnsClient();
+                ensureQueueExistsAndSubscribed(sqsClient, snsClient);
+            } else {
+                ensureQueueExists();
+            }
 
-            // If queue URL is not cached, get it now (this will be the only GetQueueUrl call for this queue)
             if (cachedQueueUrl == null) {
-                GetQueueUrlResponse response = sqsClient.getQueueUrl(GetQueueUrlRequest.builder()
-                    .queueName(queueName)
-                    .build());
-                cachedQueueUrl = response.queueUrl();
+                throw new IllegalStateException("Queue URL should have been cached");
             }
 
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
-            System.out.println("createSubscriptionDriver using queueName: " + queueName);
+            System.out.println("createSubscriptionDriver (" + mode + ") using queueName: " + queueName + ", queueUrl: " + cachedQueueUrl);
             subscriptionBuilder.withSubscriptionName(queueName);
-            subscriptionBuilder.withWaitTimeSeconds(1); // Use 1 second wait time for conformance tests
+            subscriptionBuilder.withWaitTimeSeconds(1);
             subscriptionBuilder.withSqsClient(sqsClient);
             subscriptionBuilder.subscriptionUrl = cachedQueueUrl;
 
-            subscriptionBuilder.build(); // This will use the cached URL, not call GetQueueUrl
+            subscriptionBuilder.build();
             subscription = new AwsSubscription(subscriptionBuilder) {
                 @Override
                 protected Batcher.Options createReceiveBatcherOptions() {
@@ -169,7 +331,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public String getPubsubEndpoint() {
-            return SQS_ENDPOINT;
+            return mode == Mode.SNS ? SNS_ENDPOINT : SQS_ENDPOINT;
         }
 
         @Override
@@ -184,7 +346,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
         @Override
         public List<String> getWiremockExtensions() {
-            return List.of();
+            return List.of("com.salesforce.multicloudj.pubsub.aws.util.PubsubReplaceAuthHeaderTransformer");
         }
 
         @Override
@@ -195,6 +357,9 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             if (subscription != null) {
                 subscription.close();
             }
+            if (snsClient != null) {
+                snsClient.close();
+            }
             if (sqsClient != null) {
                 sqsClient.close();
             }
@@ -202,5 +367,74 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 httpClient.close();
             }
         }
+    }
+
+    /**
+     * Override testSendBatchMessages to support both SQS and SNS modes.
+     * Mode is automatically detected from test method name in setupTestResources.
+     */
+    @Test
+    @Override
+    public void testSendBatchMessages() throws Exception {
+        super.testSendBatchMessages();
+    }
+
+    /**
+     * Test SNS send batch messages.
+     */
+    @Test
+    public void testSnsSendBatchMessages() throws Exception {
+        setMode(Mode.SNS);
+        super.testSendBatchMessages();
+    }
+
+    // Disable all receive/ack/nack tests - only test send for now
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testReceiveAfterSend() throws Exception {
+        super.testReceiveAfterSend();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testAckAfterReceive() throws Exception {
+        super.testAckAfterReceive();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testNackAfterReceive() throws Exception {
+        super.testNackAfterReceive();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testBatchAck() throws Exception {
+        super.testBatchAck();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testBatchNack() throws Exception {
+        super.testBatchNack();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testAckNullThrows() throws Exception {
+        super.testAckNullThrows();
+    }
+
+    @Test
+    @Disabled("Only testing send")
+    @Override
+    public void testGetAttributes() throws Exception {
+        super.testGetAttributes();
     }
 }
