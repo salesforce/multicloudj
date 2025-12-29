@@ -55,6 +55,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -94,6 +95,10 @@ public abstract class AbstractBlobStoreIT {
 
         // Returns the KMS key ID for encryption tests (provider-specific)
         String getKmsKeyId();
+
+        default List<String> getWiremockExtensions() {
+            return Collections.emptyList();
+        }
     }
 
     protected abstract Harness createHarness();
@@ -108,7 +113,9 @@ public abstract class AbstractBlobStoreIT {
     @BeforeAll
     public void initializeWireMockServer() {
         harness = createHarness();
-        TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+        List<String> extensions = harness.getWiremockExtensions();
+        TestsUtil.startWireMockServer("src/test/resources", harness.getPort(), 
+                extensions.toArray(new String[0]));
     }
 
     /**
@@ -146,8 +153,8 @@ public abstract class AbstractBlobStoreIT {
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
         if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
-        runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
-    }
+            runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
+        }
     }
 
     @Test
@@ -160,8 +167,8 @@ public abstract class AbstractBlobStoreIT {
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
         if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
-        runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
-    }
+            runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
+        }
     }
 
     private void runOperationsThatShouldFail(String testName, BucketClient bucketClient) {
@@ -871,7 +878,7 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete_fileDoesNotExist() throws IOException {
-
+        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         // Create the BucketClient
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1356,8 +1363,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedCopyFrom() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
-
         String key = "conformance-tests/versionedCopyFrom/blob";
         String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
         String destKeyV2 = "conformance-tests/versionedCopyFrom/copied-from-blob-v2";
@@ -2737,7 +2742,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_happyPath() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         runUploadWithKmsKeyTest(key, kmsKeyId, "Test data with KMS encryption".getBytes());
@@ -2745,14 +2749,12 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_nullKmsKeyId() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-null-key";
         runUploadWithKmsKeyTest(key, null, "Test data without KMS".getBytes());
     }
 
     @Test
     public void testUploadWithKmsKey_emptyKmsKeyId() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-empty-key";
         runUploadWithKmsKeyTest(key, "", "Test data with empty KMS key".getBytes());
     }
@@ -2795,7 +2797,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testDownloadWithKmsKey() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/download-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
@@ -2833,7 +2834,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testRangedReadWithKmsKey() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/ranged-read";
         String kmsKeyId = harness.getKmsKeyId();
         runRangedReadWithKmsKeyTest(key, kmsKeyId);
