@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * WireMock transformer that replaces the Authorization header with a newly computed one for PubSub (SNS/SQS).
+ * WireMock transformer that replaces the Authorization header with a newly computed one
  * 
  * This is needed because when WireMock proxies requests to AWS services, the original
  * signature becomes invalid. This transformer re-signs the request using the actual

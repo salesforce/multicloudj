@@ -20,7 +20,6 @@ import java.util.Map;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
@@ -37,19 +36,16 @@ import software.amazon.awssdk.services.sns.model.PublishBatchResponse;
 class MetadataKeys {
     /** 
      * DeduplicationId is used for FIFO queues/topics to ensure message deduplication.
-     * Supported by both SQS (FIFO queues) and SNS (FIFO topics).
      */
     public static final String DEDUPLICATION_ID = "DeduplicationId";
     
     /** 
      * MessageGroupId is used for FIFO queues/topics to ensure message ordering.
-     * Supported by both SQS (FIFO queues) and SNS (FIFO topics).
      */
     public static final String MESSAGE_GROUP_ID = "MessageGroupId";
     
     /** 
      * Subject is used for SNS topics to set the message subject.
-     * Only supported by SNS
      */
     public static final String SUBJECT = "Subject";
     
@@ -60,7 +56,6 @@ class MetadataKeys {
     public static final String BASE64_ENCODED = "base64encoded";
 }
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractTopic.class)
 public class AwsTopic extends AbstractTopic<AwsTopic> {
 
@@ -144,10 +139,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     @Override
     protected Batcher.Options createBatcherOptions() {
         return new Batcher.Options()
-            .setMaxHandlers(100)  // max concurrency for sends 
+            .setMaxHandlers(100) 
             .setMinBatchSize(1)
-            .setMaxBatchSize(10)  // SQS/SNS SendBatch supports 10 messages at a time
-            .setMaxBatchByteSize(256 * 1024); // 256KB per message limit
+            .setMaxBatchSize(10)  
+            .setMaxBatchByteSize(256 * 1024); 
     }
 
     @Override
@@ -278,6 +273,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
@@ -370,7 +366,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     private void reviseSnsEntryAttributes(Message message, PublishBatchRequestEntry.Builder entryBuilder) {
         Map<String, String> metadata = message.getMetadata();
         if (metadata != null) {
-            // Set subject if provided (SNS-specific)
+            // Set subject if provided
             String subject = metadata.get(MetadataKeys.SUBJECT);
             if (subject != null) {
                 entryBuilder.subject(subject);
@@ -664,12 +660,9 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                     snsClient = buildSnsClient(this);
                 }
                 
-                // SNS requires topicArn to be set
-                // Note: topicArn might be null if user provided snsClient or set serviceType explicitly
-                // but didn't provide an ARN-format topicName (e.g., provided regular name instead)
                 if (this.topicArn == null) {
                     throw new InvalidArgumentException(
-                        "Topic ARN must be set when using SNS. Use withTopicName() with an ARN format (e.g., 'arn:aws:sns:region:account:topic-name').");
+                        "Topic ARN must be set when using SNS.");
                 }
             } else {
                 // SQS mode 

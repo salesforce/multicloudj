@@ -7,7 +7,6 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
-import com.salesforce.multicloudj.pubsub.driver.Message;
 
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -25,22 +24,18 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.SetQueueAttributesRequest;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.Assertions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Unified integration tests for AWS PubSub (SQS and SNS).
- * 
  * This class supports two modes:
  * 1. SQS mode: Direct SQS send/receive/ack/nack
  * 2. SNS mode: SNS send, SQS receive (SNS publishes to subscribed SQS queue)
@@ -67,7 +62,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     @Override
     protected Harness createHarness() {
-        // Create harness with default mode, will be updated per test
         harnessImpl = new HarnessImpl(currentMode);
         return harnessImpl;
     }
@@ -85,7 +79,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     /**
      * Generate unique queue/topic names for each test.
-     * Automatically set mode based on test method name (SNS if method name contains "Sns", otherwise SQS).
+     * Auto-detect mode from test method name (SNS if method name contains "sns", otherwise SQS).
      */
     @BeforeEach
     public void setupTestResources(TestInfo testInfo) {
@@ -116,6 +110,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     public static class HarnessImpl implements Harness {
+        private static final Logger logger = LoggerFactory.getLogger(HarnessImpl.class);
         private AwsTopic topic;
         private AwsSubscription subscription;
         private SnsClient snsClient;
@@ -194,7 +189,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                         .queueName(queueName)
                         .build());
                 } catch (Exception e) {
-                    System.err.println("Warning: Failed to create queue: " + e.getMessage());
+                    logger.warn("Failed to create queue: {}", e.getMessage());
                 }
 
                 if (cachedQueueUrl == null) {
@@ -221,7 +216,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             ensureQueueExists();
 
             if (mode == Mode.SNS && System.getProperty("record") != null) {
-                // Get queue ARN (needed for subscription)
                 String queueArn = formatArn("sqs", queueName);
 
                 // Subscribe queue to SNS topic
@@ -251,6 +245,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
 
         @Override
+        @SuppressWarnings("rawtypes")
         public AbstractTopic createTopicDriver() {
             if (mode == Mode.SNS) {
                 // SNS mode: create SNS topic
@@ -264,7 +259,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 }
 
                 AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
-                System.out.println("createTopicDriver (SNS) using topicName: " + topicName + ", topicArn: " + cachedTopicArn);
+                logger.debug("createTopicDriver (SNS) using topicName: {}, topicArn: {}", topicName, cachedTopicArn);
                 topicBuilder.withServiceType(AwsTopic.ServiceType.SNS);
                 topicBuilder.withTopicName(cachedTopicArn);
                 topicBuilder.withSnsClient(snsClient);
@@ -282,7 +277,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 }
 
                 AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
-                System.out.println("createTopicDriver (SQS) using queueName: " + queueName);
+                logger.debug("createTopicDriver (SQS) using queueName: {}", queueName);
                 topicBuilder.withTopicName(queueName);
                 topicBuilder.withSqsClient(sqsClient);
                 topicBuilder.withTopicUrl(cachedQueueUrl);
@@ -293,6 +288,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
 
         @Override
+        @SuppressWarnings("rawtypes")
         public AbstractSubscription createSubscriptionDriver() {
             sqsClient = createSqsClient();
             
@@ -308,7 +304,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             }
 
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
-            System.out.println("createSubscriptionDriver (" + mode + ") using queueName: " + queueName + ", queueUrl: " + cachedQueueUrl);
+            logger.debug("createSubscriptionDriver ({}) using queueName: {}, queueUrl: {}", mode, queueName, cachedQueueUrl);
             subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1);
             subscriptionBuilder.withSqsClient(sqsClient);
@@ -370,16 +366,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     /**
-     * Override testSendBatchMessages to support both SQS and SNS modes.
-     * Mode is automatically detected from test method name in setupTestResources.
-     */
-    @Test
-    @Override
-    public void testSendBatchMessages() throws Exception {
-        super.testSendBatchMessages();
-    }
-
-    /**
      * Test SNS send batch messages.
      */
     @Test
@@ -387,54 +373,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         setMode(Mode.SNS);
         super.testSendBatchMessages();
     }
-
-    // Disable all receive/ack/nack tests - only test send for now
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testReceiveAfterSend() throws Exception {
-        super.testReceiveAfterSend();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testAckAfterReceive() throws Exception {
-        super.testAckAfterReceive();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testNackAfterReceive() throws Exception {
-        super.testNackAfterReceive();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testBatchAck() throws Exception {
-        super.testBatchAck();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testBatchNack() throws Exception {
-        super.testBatchNack();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testAckNullThrows() throws Exception {
-        super.testAckNullThrows();
-    }
-
-    @Test
-    @Disabled("Only testing send")
-    @Override
-    public void testGetAttributes() throws Exception {
-        super.testGetAttributes();
-    }
 }
+
+
