@@ -1182,4 +1182,5 @@ public class AwsBlobStoreTest {
         assertNotNull(store);
         assertEquals("bucket-1", store.getBucket());
     }
+
 }
