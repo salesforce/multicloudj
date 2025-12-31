@@ -16,8 +16,8 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -93,7 +93,7 @@ public class GcpTransformer {
      * Convenience method that uses the bucket from the transformer context
      */
     public BlobId toBlobId(String key, String versionId) {
-        return toBlobId(getBucket(), key, versionId);
+        return toBlobId(this.bucket, key, versionId);
     }
 
     /**
@@ -190,13 +190,27 @@ public class GcpTransformer {
         if(presignedUrlRequest.getMetadata() != null) {
             metadata.putAll(presignedUrlRequest.getMetadata());
         }
-        
+
         // Add tags to metadata with TAG_PREFIX
         if(presignedUrlRequest.getTags() != null && !presignedUrlRequest.getTags().isEmpty()) {
             presignedUrlRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
-        
+
         return toBlobInfo(presignedUrlRequest.getKey(), metadata);
+    }
+
+    public BlobInfo toBlobInfo(MultipartUploadRequest request) {
+        Map<String, String> metadata = new HashMap<>();
+        if(request.getMetadata() != null) {
+            metadata.putAll(request.getMetadata());
+        }
+
+        // Add tags to metadata with TAG_PREFIX
+        if(request.getTags() != null && !request.getTags().isEmpty()) {
+            request.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+        }
+
+        return toBlobInfo(request.getKey(), metadata);
     }
 
     public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
@@ -260,50 +274,18 @@ public class GcpTransformer {
         return new Storage.BlobWriteOption[0];
     }
 
-    public String toPartName(MultipartUpload mpu, int partNumber) {
-        return String.format("%s/%s/part-%d", mpu.getKey(), mpu.getId(), partNumber);
-    }
-
-    public UploadRequest toUploadRequest(MultipartUpload mpu, MultipartPart mpp) {
-        String partKey = toPartName(mpu, mpp.getPartNumber());
-        UploadRequest.Builder builder = UploadRequest.builder()
-                .withKey(partKey)
-                .withContentLength(mpp.getContentLength());
-
-        if (mpu.getKmsKeyId() != null && !mpu.getKmsKeyId().isEmpty()) {
-            builder.withKmsKeyId(mpu.getKmsKeyId());
-        }
-
-        return builder.build();
-    }
-
     public BlobInfo toBlobInfo(MultipartUpload mpu) {
         Map<String, String> metadata = new HashMap<>();
         if(mpu.getMetadata() != null) {
             metadata.putAll(mpu.getMetadata());
         }
-        
+
         // Add tags to metadata with TAG_PREFIX
         if(mpu.getTags() != null && !mpu.getTags().isEmpty()) {
             mpu.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
-        
+
         return toBlobInfo(mpu.getKey(), metadata);
-    }
-
-    public List<BlobId> toBlobIdList(Page<Blob> blobs) {
-        return blobs.streamAll()
-                .map(Blob::getBlobId)
-                .collect(Collectors.toList());
-    }
-
-    public List<UploadPartResponse> toUploadPartResponseList(Page<Blob> blobs) {
-        return blobs.streamAll()
-                .map(blob -> {
-                    String partNumber = blob.getName().substring(blob.getName().lastIndexOf("-") + 1);
-                    return new UploadPartResponse(Integer.parseInt(partNumber), blob.getEtag(), blob.getSize());
-                })
-                .collect(Collectors.toList());
     }
 
 

@@ -5,6 +5,9 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.http.HttpTransportOptions;
+import com.google.cloud.storage.HttpStorageOptions;
+import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.MultipartUploadSettings;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
@@ -69,8 +72,13 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
                     .setHost(endpoint)
                     .build().getService();
 
+
+            HttpStorageOptions.Builder storageOptionsBuilder  = HttpStorageOptions.http().setTransportOptions(transportOptions);
+            MultipartUploadClient mpuClient = MultipartUploadClient
+                    .create(MultipartUploadSettings.of(storageOptionsBuilder.build()));
             return new GcpBlobStore.Builder()
                     .withStorage(storage)
+                    .withMultipartUploadClient(mpuClient)
                     .withEndpoint(URI.create(endpoint))
                     .withBucket(bucketName)
                     .build();
@@ -88,7 +96,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
         @Override
         public String getMetadataHeader(String key) {
-            return key;     // Metadata headers don't exist in GCP
+            return "x-goog-meta-" + key;
         }
 
         @Override
@@ -103,7 +111,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
         @Override
         public String getKmsKeyId() {
-            return "projects/chameleon-jcloud/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+            return "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
         }
 
         @Override
