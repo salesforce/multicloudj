@@ -1,0 +1,24 @@
+{
+  "id" : "a04615ba-185b-47f3-bfb3-af2e81f3c1d6",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateRole&Version=2010-05-08&RoleName=testSa&AssumeRolePolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%7D%7D%5D%7D&Description=Test+identity+for+MultiCloudJ+integration+tests",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<CreateRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreateRoleResult>\n    <Role>\n      <Path>/</Path>\n      <AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%7D%7D%5D%7D</AssumeRolePolicyDocument>\n      <RoleId>AROAZQ3DQ6RH6BNH2642M</RoleId>\n      <RoleName>testSa</RoleName>\n      <Arn>arn:aws:iam::654654370895:role/testSa</Arn>\n      <CreateDate>2026-01-07T06:55:16Z</CreateDate>\n    </Role>\n  </CreateRoleResult>\n  <ResponseMetadata>\n    <RequestId>891f3e97-0565-466c-9d34-e0fefccd89bd</RequestId>\n  </ResponseMetadata>\n</CreateRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "891f3e97-0565-466c-9d34-e0fefccd89bd",
+      "Date" : "Wed, 07 Jan 2026 06:55:16 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "a04615ba-185b-47f3-bfb3-af2e81f3c1d6",
+  "persistent" : true,
+  "insertionIndex" : 22
+}

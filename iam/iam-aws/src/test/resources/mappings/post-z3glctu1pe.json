@@ -1,0 +1,24 @@
+{
+  "id" : "3d8ab652-4364-4f89-a8dc-95e641c25141",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=GetRole&Version=2010-05-08&RoleName=testSa",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<GetRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <GetRoleResult>\n    <Role>\n      <Path>/</Path>\n      <AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Principal%22%3A%7B%22AWS%22%3A%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%7D%2C%22Action%22%3A%22sts%3AAssumeRole%22%7D%5D%7D</AssumeRolePolicyDocument>\n      <MaxSessionDuration>3600</MaxSessionDuration>\n      <RoleId>AROAZQ3DQ6RH6BNH2642M</RoleId>\n      <RoleLastUsed/>\n      <RoleName>testSa</RoleName>\n      <Description>Test identity for MultiCloudJ integration tests</Description>\n      <Arn>arn:aws:iam::654654370895:role/testSa</Arn>\n      <CreateDate>2026-01-07T06:55:16Z</CreateDate>\n    </Role>\n  </GetRoleResult>\n  <ResponseMetadata>\n    <RequestId>9879009a-4f49-4e79-9e96-2c9c6be8675e</RequestId>\n  </ResponseMetadata>\n</GetRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "9879009a-4f49-4e79-9e96-2c9c6be8675e",
+      "Date" : "Wed, 07 Jan 2026 06:56:12 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "3d8ab652-4364-4f89-a8dc-95e641c25141",
+  "persistent" : true,
+  "insertionIndex" : 24
+}

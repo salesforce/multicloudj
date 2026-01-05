@@ -18,6 +18,9 @@ import software.amazon.awssdk.services.iam.model.DeleteRoleResponse;
 import software.amazon.awssdk.services.iam.model.EntityAlreadyExistsException;
 import software.amazon.awssdk.services.iam.model.GetRoleRequest;
 import software.amazon.awssdk.services.iam.model.GetRoleResponse;
+import software.amazon.awssdk.services.iam.model.GetRolePolicyRequest;
+import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
+import software.amazon.awssdk.services.iam.model.NoSuchEntityException;
 import software.amazon.awssdk.services.iam.model.Role;
 
 import java.util.Optional;
@@ -41,6 +44,8 @@ public class AwsIamTest {
     private static final String TEST_TENANT_ID = "123456789012";
     private static final String TEST_REGION = "us-west-2";
     private static final String TEST_ROLE_ARN = "arn:aws:iam::123456789012:role/TestRole";
+    private static final String TEST_POLICY_NAME = "TestPolicy";
+    private static final String TEST_POLICY_DOCUMENT = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:GetObject\",\"Resource\":\"*\"}]}";
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Mock
@@ -149,16 +154,10 @@ public class AwsIamTest {
 
         JsonNode stmt = doc.at("/Statement/0");
         assertFalse(stmt.isMissingNode(), "Statement should not be missing");
-        JsonNode effect = stmt.at("/Effect");
-        assertFalse(effect.isMissingNode(), "Effect should not be missing");
-        assertEquals("Allow", effect.asText());
-        JsonNode action = stmt.at("/Action");
-        assertFalse(action.isMissingNode(), "Action should not be missing");
-        assertEquals("sts:AssumeRole", action.asText());
-        JsonNode principal = stmt.at("/Principal/AWS");
-        assertFalse(principal.isMissingNode(), "Principal should not be missing");
+        assertEquals("Allow", stmt.at("/Effect").asText());
+        assertEquals("sts:AssumeRole", stmt.at("/Action").asText());
         assertEquals("arn:aws:iam::" + TEST_TENANT_ID + ":root",
-                principal.asText());
+                stmt.at("/Principal/AWS").asText());
     }
 
     @Test
@@ -318,5 +317,90 @@ public class AwsIamTest {
 
         DeleteRoleRequest capturedRequest = captor.getValue();
         assertEquals(TEST_ROLE_NAME, capturedRequest.roleName());
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsReturnsDocument() {
+        when(mockIamClient.getRolePolicy(any(GetRolePolicyRequest.class)))
+                .thenReturn(GetRolePolicyResponse.builder()
+                        .policyDocument(TEST_POLICY_DOCUMENT)
+                        .build());
+
+        String result = awsIam.getInlinePolicyDetails(
+                TEST_ROLE_NAME,
+                TEST_POLICY_NAME,
+                TEST_ROLE_NAME,
+                TEST_TENANT_ID,
+                TEST_REGION);
+
+        assertEquals(TEST_POLICY_DOCUMENT, result);
+
+        ArgumentCaptor<GetRolePolicyRequest> captor = ArgumentCaptor.forClass(GetRolePolicyRequest.class);
+        verify(mockIamClient, times(1)).getRolePolicy(captor.capture());
+        assertEquals(TEST_ROLE_NAME, captor.getValue().roleName());
+        assertEquals(TEST_POLICY_NAME, captor.getValue().policyName());
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsWithNoSuchEntityException() {
+        when(mockIamClient.getRolePolicy(any(GetRolePolicyRequest.class)))
+                .thenThrow(NoSuchEntityException.builder()
+                        .message("Policy not found")
+                        .build());
+
+        assertThrows(NoSuchEntityException.class, () ->
+                awsIam.getInlinePolicyDetails(
+                        TEST_ROLE_NAME,
+                        TEST_POLICY_NAME,
+                        TEST_ROLE_NAME,
+                        TEST_TENANT_ID,
+                        TEST_REGION)
+        );
+
+        ArgumentCaptor<GetRolePolicyRequest> captor = ArgumentCaptor.forClass(GetRolePolicyRequest.class);
+        verify(mockIamClient, times(1)).getRolePolicy(captor.capture());
+        assertEquals(TEST_ROLE_NAME, captor.getValue().roleName());
+        assertEquals(TEST_POLICY_NAME, captor.getValue().policyName());
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsVerifiesParameters() {
+        when(mockIamClient.getRolePolicy(any(GetRolePolicyRequest.class)))
+                .thenReturn(GetRolePolicyResponse.builder()
+                        .policyDocument(TEST_POLICY_DOCUMENT)
+                        .build());
+
+        awsIam.getInlinePolicyDetails(
+                TEST_ROLE_NAME,
+                TEST_POLICY_NAME,
+                TEST_ROLE_NAME,
+                TEST_TENANT_ID,
+                TEST_REGION);
+
+        ArgumentCaptor<GetRolePolicyRequest> captor = ArgumentCaptor.forClass(GetRolePolicyRequest.class);
+        verify(mockIamClient).getRolePolicy(captor.capture());
+
+        GetRolePolicyRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_ROLE_NAME, capturedRequest.roleName());
+        assertEquals(TEST_POLICY_NAME, capturedRequest.policyName());
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsThrowsGenericException() {
+        RuntimeException genericException = new RuntimeException("Service error");
+
+        when(mockIamClient.getRolePolicy(any(GetRolePolicyRequest.class)))
+                .thenThrow(genericException);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                awsIam.getInlinePolicyDetails(
+                        TEST_ROLE_NAME,
+                        TEST_POLICY_NAME,
+                        TEST_ROLE_NAME,
+                        TEST_TENANT_ID,
+                        TEST_REGION)
+        );
+
+        assertEquals(genericException, exception);
     }
 }
