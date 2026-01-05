@@ -56,8 +56,11 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     private static final String PROVIDER_ID = "memory";
 
-    // Shared storage across all instances - key is "bucket:key"
+    // Shared storage across all instances - key is "bucket:key:versionId"
     private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
+    // Track latest version for each key - key is "bucket:key", value is versionId
+    private static final Map<String, String> LATEST_VERSIONS = new ConcurrentHashMap<>();
+    // Tags are per version - key is "bucket:key:versionId"
     private static final Map<String, Map<String, String>> TAGS = new ConcurrentHashMap<>();
     private static final Map<String, MultipartUploadState> MULTIPART_UPLOADS = new ConcurrentHashMap<>();
 
@@ -102,9 +105,10 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
         validateBucketExists();
-        String storageKey = getStorageKey(uploadRequest.getKey());
+        String baseKey = getStorageKey(uploadRequest.getKey());
         String etag = generateEtag(content);
         String versionId = UUID.randomUUID().toString();
+        String versionedKey = baseKey + ":" + versionId;
 
         StoredBlob blob = new StoredBlob(
                 content,
@@ -114,11 +118,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 uploadRequest.getMetadata()
         );
 
-        STORAGE.put(storageKey, blob);
+        STORAGE.put(versionedKey, blob);
+        LATEST_VERSIONS.put(baseKey, versionId);
 
         // Store tags if provided
         if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
-            TAGS.put(storageKey, new HashMap<>(uploadRequest.getTags()));
+            TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
         }
 
         return UploadResponse.builder()
@@ -151,11 +156,23 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, OutputStream outputStream) {
         validateBucketExists();
-        String storageKey = getStorageKey(downloadRequest.getKey());
-        StoredBlob blob = STORAGE.get(storageKey);
+        String baseKey = getStorageKey(downloadRequest.getKey());
+        String versionId = downloadRequest.getVersionId();
+
+        // If no version specified, get the latest version
+        if (versionId == null) {
+            versionId = LATEST_VERSIONS.get(baseKey);
+        }
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        StoredBlob blob = STORAGE.get(versionedKey);
 
         if (blob == null) {
-            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+            throw new ResourceNotFoundException("Blob version not found: " + downloadRequest.getKey() + " version: " + versionId);
         }
 
         try {
@@ -170,11 +187,23 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
         validateBucketExists();
-        String storageKey = getStorageKey(downloadRequest.getKey());
-        StoredBlob blob = STORAGE.get(storageKey);
+        String baseKey = getStorageKey(downloadRequest.getKey());
+        String versionId = downloadRequest.getVersionId();
+
+        // If no version specified, get the latest version
+        if (versionId == null) {
+            versionId = LATEST_VERSIONS.get(baseKey);
+        }
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        StoredBlob blob = STORAGE.get(versionedKey);
 
         if (blob == null) {
-            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+            throw new ResourceNotFoundException("Blob version not found: " + downloadRequest.getKey() + " version: " + versionId);
         }
 
         byte[] data = extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
@@ -194,11 +223,23 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
         validateBucketExists();
-        String storageKey = getStorageKey(downloadRequest.getKey());
-        StoredBlob blob = STORAGE.get(storageKey);
+        String baseKey = getStorageKey(downloadRequest.getKey());
+        String versionId = downloadRequest.getVersionId();
+
+        // If no version specified, get the latest version
+        if (versionId == null) {
+            versionId = LATEST_VERSIONS.get(baseKey);
+        }
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        StoredBlob blob = STORAGE.get(versionedKey);
 
         if (blob == null) {
-            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+            throw new ResourceNotFoundException("Blob version not found: " + downloadRequest.getKey() + " version: " + versionId);
         }
 
         try {
@@ -213,11 +254,23 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
         validateBucketExists();
-        String storageKey = getStorageKey(downloadRequest.getKey());
-        StoredBlob blob = STORAGE.get(storageKey);
+        String baseKey = getStorageKey(downloadRequest.getKey());
+        String versionId = downloadRequest.getVersionId();
+
+        // If no version specified, get the latest version
+        if (versionId == null) {
+            versionId = LATEST_VERSIONS.get(baseKey);
+        }
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        StoredBlob blob = STORAGE.get(versionedKey);
 
         if (blob == null) {
-            throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
+            throw new ResourceNotFoundException("Blob version not found: " + downloadRequest.getKey() + " version: " + versionId);
         }
 
         byte[] data = extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
@@ -228,9 +281,41 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected void doDelete(String key, String versionId) {
         validateBucketExists();
-        String storageKey = getStorageKey(key);
-        STORAGE.remove(storageKey);
-        TAGS.remove(storageKey);
+        String baseKey = getStorageKey(key);
+
+        // If version ID is provided, delete only that version
+        if (versionId != null) {
+            String versionedKey = baseKey + ":" + versionId;
+            STORAGE.remove(versionedKey);
+            TAGS.remove(versionedKey);
+
+            // If deleting the latest version, clear the latest version tracker
+            String latestVersion = LATEST_VERSIONS.get(baseKey);
+            if (versionId.equals(latestVersion)) {
+                LATEST_VERSIONS.remove(baseKey);
+            }
+        } else {
+            // Delete all versions of this key
+            String latestVersion = LATEST_VERSIONS.get(baseKey);
+            if (latestVersion != null) {
+                String versionedKey = baseKey + ":" + latestVersion;
+                STORAGE.remove(versionedKey);
+                TAGS.remove(versionedKey);
+                LATEST_VERSIONS.remove(baseKey);
+            }
+
+            // Also delete any other versions
+            List<String> keysToDelete = new ArrayList<>();
+            for (String storageKey : STORAGE.keySet()) {
+                if (storageKey.startsWith(baseKey + ":")) {
+                    keysToDelete.add(storageKey);
+                }
+            }
+            for (String storageKey : keysToDelete) {
+                STORAGE.remove(storageKey);
+                TAGS.remove(storageKey);
+            }
+        }
     }
 
     @Override
@@ -247,16 +332,30 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         if (!InMemoryBlobClient.BUCKETS.containsKey(request.getDestBucket())) {
             throw new ResourceNotFoundException("Destination bucket not found: " + request.getDestBucket());
         }
-        String sourceKey = getStorageKey(request.getSrcKey());
-        StoredBlob sourceBlob = STORAGE.get(sourceKey);
+
+        String srcBaseKey = getStorageKey(request.getSrcKey());
+        String srcVersionId = request.getSrcVersionId();
+
+        // If no version specified, get the latest version
+        if (srcVersionId == null) {
+            srcVersionId = LATEST_VERSIONS.get(srcBaseKey);
+        }
+
+        if (srcVersionId == null) {
+            throw new ResourceNotFoundException("Source blob not found: " + request.getSrcKey());
+        }
+
+        String srcVersionedKey = srcBaseKey + ":" + srcVersionId;
+        StoredBlob sourceBlob = STORAGE.get(srcVersionedKey);
 
         if (sourceBlob == null) {
             throw new ResourceNotFoundException("Source blob not found: " + request.getSrcKey());
         }
 
         // Copy to destination (could be different bucket)
-        String destStorageKey = request.getDestBucket() + ":" + request.getDestKey();
+        String destBaseKey = request.getDestBucket() + ":" + request.getDestKey();
         String newVersionId = UUID.randomUUID().toString();
+        String destVersionedKey = destBaseKey + ":" + newVersionId;
         StoredBlob destBlob = new StoredBlob(
                 sourceBlob.getData().clone(),
                 sourceBlob.getEtag(),
@@ -265,7 +364,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 sourceBlob.getMetadata()
         );
 
-        STORAGE.put(destStorageKey, destBlob);
+        STORAGE.put(destVersionedKey, destBlob);
+        LATEST_VERSIONS.put(destBaseKey, newVersionId);
 
         return CopyResponse.builder()
                 .key(request.getDestKey())
@@ -278,16 +378,29 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected CopyResponse doCopyFrom(CopyFromRequest request) {
         validateBucketExists();
-        // For simplicity, assume source is in the same in-memory storage
-        String sourceKey = request.getSrcBucket() + ":" + request.getSrcKey();
-        StoredBlob sourceBlob = STORAGE.get(sourceKey);
+
+        String srcBaseKey = request.getSrcBucket() + ":" + request.getSrcKey();
+        String srcVersionId = request.getSrcVersionId();
+
+        // If no version specified, get the latest version
+        if (srcVersionId == null) {
+            srcVersionId = LATEST_VERSIONS.get(srcBaseKey);
+        }
+
+        if (srcVersionId == null) {
+            throw new ResourceNotFoundException("Source blob not found: " + request.getSrcBucket() + "/" + request.getSrcKey());
+        }
+
+        String srcVersionedKey = srcBaseKey + ":" + srcVersionId;
+        StoredBlob sourceBlob = STORAGE.get(srcVersionedKey);
 
         if (sourceBlob == null) {
             throw new ResourceNotFoundException("Source blob not found: " + request.getSrcBucket() + "/" + request.getSrcKey());
         }
 
-        String destStorageKey = getStorageKey(request.getDestKey());
+        String destBaseKey = getStorageKey(request.getDestKey());
         String newVersionId = UUID.randomUUID().toString();
+        String destVersionedKey = destBaseKey + ":" + newVersionId;
         StoredBlob destBlob = new StoredBlob(
                 sourceBlob.getData().clone(),
                 sourceBlob.getEtag(),
@@ -296,7 +409,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 sourceBlob.getMetadata()
         );
 
-        STORAGE.put(destStorageKey, destBlob);
+        STORAGE.put(destVersionedKey, destBlob);
+        LATEST_VERSIONS.put(destBaseKey, newVersionId);
 
         return CopyResponse.builder()
                 .key(request.getDestKey())
@@ -309,11 +423,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         validateBucketExists();
-        String storageKey = getStorageKey(key);
-        StoredBlob blob = STORAGE.get(storageKey);
+        String baseKey = getStorageKey(key);
+
+        // If no version specified, get the latest version
+        if (versionId == null) {
+            versionId = LATEST_VERSIONS.get(baseKey);
+        }
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + key);
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        StoredBlob blob = STORAGE.get(versionedKey);
 
         if (blob == null) {
-            throw new ResourceNotFoundException("Blob not found: " + key);
+            throw new ResourceNotFoundException("Blob version not found: " + key + " version: " + versionId);
         }
 
         return BlobMetadata.builder()
@@ -331,7 +456,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         validateBucketExists();
         String prefix = request.getPrefix() != null ? request.getPrefix() : "";
 
-        List<BlobInfo> blobs = STORAGE.entrySet().stream()
+        // List only latest versions
+        List<BlobInfo> blobs = LATEST_VERSIONS.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(bucket + ":"))
                 .filter(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
@@ -339,13 +465,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 })
                 .map(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
-                    StoredBlob blob = entry.getValue();
+                    String versionId = entry.getValue();
+                    String versionedKey = entry.getKey() + ":" + versionId;
+                    StoredBlob blob = STORAGE.get(versionedKey);
+                    if (blob == null) {
+                        return null;
+                    }
                     return new BlobInfo.Builder()
                             .withKey(key)
                             .withObjectSize((long) blob.getData().length)
                             .withLastModified(blob.getLastModified())
                             .build();
                 })
+                .filter(blobInfo -> blobInfo != null)
                 .sorted(Comparator.comparing(BlobInfo::getKey))
                 .collect(Collectors.toList());
 
@@ -359,7 +491,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         Integer maxKeys = request.getMaxResults() != null ? request.getMaxResults() : 1000;
         String continuationToken = request.getPaginationToken();
 
-        List<BlobInfo> allBlobs = STORAGE.entrySet().stream()
+        // List only latest versions
+        List<BlobInfo> allBlobs = LATEST_VERSIONS.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(bucket + ":"))
                 .filter(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
@@ -367,13 +500,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 })
                 .map(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
-                    StoredBlob blob = entry.getValue();
+                    String versionId = entry.getValue();
+                    String versionedKey = entry.getKey() + ":" + versionId;
+                    StoredBlob blob = STORAGE.get(versionedKey);
+                    if (blob == null) {
+                        return null;
+                    }
                     return new BlobInfo.Builder()
                             .withKey(key)
                             .withObjectSize((long) blob.getData().length)
                             .withLastModified(blob.getLastModified())
                             .build();
                 })
+                .filter(blobInfo -> blobInfo != null)
                 .sorted(Comparator.comparing(BlobInfo::getKey))
                 .collect(Collectors.toList());
 
@@ -486,7 +625,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             String etag = generateEtag(finalData);
             String versionId = UUID.randomUUID().toString();
 
-            String storageKey = getStorageKey(mpu.getKey());
+            String baseKey = getStorageKey(mpu.getKey());
+            String versionedKey = baseKey + ":" + versionId;
             StoredBlob blob = new StoredBlob(
                     finalData,
                     etag,
@@ -495,7 +635,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                     state.getMetadata()
             );
 
-            STORAGE.put(storageKey, blob);
+            STORAGE.put(versionedKey, blob);
+            LATEST_VERSIONS.put(baseKey, versionId);
             MULTIPART_UPLOADS.remove(mpu.getId());
 
             return new MultipartUploadResponse(etag);
@@ -524,27 +665,42 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     @Override
     protected void doAbortMultipartUpload(MultipartUpload mpu) {
+        validateBucketExists();
         MULTIPART_UPLOADS.remove(mpu.getId());
     }
 
     @Override
     protected Map<String, String> doGetTags(String key) {
         validateBucketExists();
-        String storageKey = getStorageKey(key);
-        Map<String, String> tags = TAGS.get(storageKey);
+        String baseKey = getStorageKey(key);
+        String versionId = LATEST_VERSIONS.get(baseKey);
+
+        if (versionId == null) {
+            return new HashMap<>();
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        Map<String, String> tags = TAGS.get(versionedKey);
         return tags != null ? new HashMap<>(tags) : new HashMap<>();
     }
 
     @Override
     protected void doSetTags(String key, Map<String, String> tags) {
         validateBucketExists();
-        String storageKey = getStorageKey(key);
-        TAGS.put(storageKey, new HashMap<>(tags));
+        String baseKey = getStorageKey(key);
+        String versionId = LATEST_VERSIONS.get(baseKey);
+
+        if (versionId == null) {
+            throw new ResourceNotFoundException("Blob not found: " + key);
+        }
+
+        String versionedKey = baseKey + ":" + versionId;
+        TAGS.put(versionedKey, new HashMap<>(tags));
     }
 
     @Override
     protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-        validateBucketExists();
+        // Don't validate bucket existence - presigned URLs are client-side operations
         try {
             // For in-memory implementation, just return a fake URL
             return new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
@@ -556,8 +712,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {
         validateBucketExists();
-        String storageKey = getStorageKey(key);
-        return STORAGE.containsKey(storageKey);
+        String baseKey = getStorageKey(key);
+
+        // If version ID is provided, check for that specific version
+        if (versionId != null) {
+            String versionedKey = baseKey + ":" + versionId;
+            return STORAGE.containsKey(versionedKey);
+        }
+
+        // Otherwise, check if any version exists (check latest version tracker)
+        return LATEST_VERSIONS.containsKey(baseKey);
     }
 
     @Override
@@ -739,6 +903,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Public method to clear storage for testing
     public static void clearStorage() {
         STORAGE.clear();
+        LATEST_VERSIONS.clear();
         TAGS.clear();
         MULTIPART_UPLOADS.clear();
         // Note: Buckets are cleared via InMemoryBlobClient.clearBuckets()
