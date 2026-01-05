@@ -108,7 +108,7 @@ public abstract class AbstractBlobStoreIT {
     @BeforeAll
     public void initializeWireMockServer() {
         harness = createHarness();
-        TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+        //TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
 
     /**
@@ -116,7 +116,7 @@ public abstract class AbstractBlobStoreIT {
      */
     @AfterAll
     public void shutdownWireMockServer() throws Exception {
-        TestsUtil.stopWireMockServer();
+        //TestsUtil.stopWireMockServer();
         harness.close();
     }
 
@@ -125,7 +125,7 @@ public abstract class AbstractBlobStoreIT {
      */
     @BeforeEach
     public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getEndpoint());
+        //TestsUtil.startWireMockRecording(harness.getEndpoint());
     }
 
     /**
@@ -133,7 +133,7 @@ public abstract class AbstractBlobStoreIT {
      */
     @AfterEach
     public void cleanupTestEnvironment() {
-        TestsUtil.stopWireMockRecording();
+        //TestsUtil.stopWireMockRecording();
     }
 
     @Test
