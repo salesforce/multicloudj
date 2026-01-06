@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonSyntaxException;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -364,34 +363,26 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                 }
                 
                 // Extract "Message" field
-                // Match Go behavior: if Message is missing or null, use empty string (zero value)
-                // If Message is not a string (object/array), treat as raw message (unmarshal would fail in Go)
+                // if Message is missing or null, use empty string (zero value)
+                // If Message is not a string, treat as raw message
                 String message = "";
                 if (json.has("Message")) {
                     JsonElement messageElement = json.get("Message");
                     if (messageElement.isJsonNull()) {
-                        // Message is null, use empty string (zero value like Go)
                         message = "";
                     } else if (messageElement.isJsonPrimitive() && messageElement.getAsJsonPrimitive().isString()) {
                         message = messageElement.getAsString();
                     } else {
-                        // Message is not a string (object/array), treat as raw message
-                        // This matches Go behavior where json.Unmarshal would fail
                         return null;
                     }
                 }
-                // If Message field is missing, message remains empty string (zero value like Go)
                 
                 // Extract MessageAttributes
                 Map<String, String> messageAttributes = extractSnsMessageAttributes(json);
                 
                 return new ExtractionResult(message, messageAttributes);
-            } catch (JsonSyntaxException e) {
-                // JSON syntax error - definitely not valid SNS JSON
-                return null;
             } catch (Exception e) {
-                // Other parsing errors - could be malformed SNS JSON or not SNS JSON at all
-                // Treat as raw message to be safe
+                // If parsing fails, treat as raw message
                 return null;
             }
         }
