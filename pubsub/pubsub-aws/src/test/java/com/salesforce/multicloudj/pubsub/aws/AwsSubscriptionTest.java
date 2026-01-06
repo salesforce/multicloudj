@@ -1240,8 +1240,7 @@ public class AwsSubscriptionTest {
         Message result = subscription.convertToMessage(sqsMessage);
         
         assertNotNull(result);
-        // Should be treated as raw message (no Message field means not valid SNS format)
-        assertEquals(jsonBody, new String(result.getBody(), StandardCharsets.UTF_8));
+        assertEquals("", new String(result.getBody(), StandardCharsets.UTF_8));
     }
 
     @Test

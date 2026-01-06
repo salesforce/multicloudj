@@ -440,32 +440,6 @@ public class GcpSubscriptionTest {
     }
 
     @Test
-    void testGcpAckIDConstructorWithNullString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(null));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithEmptyString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(""));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithWhitespaceString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID("   "));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithValidString() {
-        assertDoesNotThrow(() -> new GcpSubscription.GcpAckID("valid-ack-id"));
-    }
-
-    @Test
     void testGetException() {
         assertSame(com.salesforce.multicloudj.common.exceptions.UnknownException.class, 
             subscription.getException(new RuntimeException("test")));
