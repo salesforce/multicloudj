@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -363,17 +364,34 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
                 }
                 
                 // Extract "Message" field
-                if (!json.has("Message")) {
-                    return null;
+                // Match Go behavior: if Message is missing or null, use empty string (zero value)
+                // If Message is not a string (object/array), treat as raw message (unmarshal would fail in Go)
+                String message = "";
+                if (json.has("Message")) {
+                    JsonElement messageElement = json.get("Message");
+                    if (messageElement.isJsonNull()) {
+                        // Message is null, use empty string (zero value like Go)
+                        message = "";
+                    } else if (messageElement.isJsonPrimitive() && messageElement.getAsJsonPrimitive().isString()) {
+                        message = messageElement.getAsString();
+                    } else {
+                        // Message is not a string (object/array), treat as raw message
+                        // This matches Go behavior where json.Unmarshal would fail
+                        return null;
+                    }
                 }
-                String message = json.get("Message").getAsString();
+                // If Message field is missing, message remains empty string (zero value like Go)
                 
                 // Extract MessageAttributes
                 Map<String, String> messageAttributes = extractSnsMessageAttributes(json);
                 
                 return new ExtractionResult(message, messageAttributes);
+            } catch (JsonSyntaxException e) {
+                // JSON syntax error - definitely not valid SNS JSON
+                return null;
             } catch (Exception e) {
-                // If parsing fails, treat as raw message
+                // Other parsing errors - could be malformed SNS JSON or not SNS JSON at all
+                // Treat as raw message to be safe
                 return null;
             }
         }
@@ -385,22 +403,35 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         private static Map<String, String> extractSnsMessageAttributes(JsonObject json) {
             Map<String, String> attributes = new HashMap<>();
             
-            if (!json.has("MessageAttributes")) {
+            if (!json.has("MessageAttributes") || json.get("MessageAttributes").isJsonNull()) {
                 return attributes;
             }
             
-            try {
-                JsonObject messageAttrsObj = json.getAsJsonObject("MessageAttributes");
-                for (Map.Entry<String, JsonElement> entry : messageAttrsObj.entrySet()) {
-                    String key = entry.getKey();
-                    JsonObject attrObj = entry.getValue().getAsJsonObject();
-                    if (attrObj.has("Value")) {
+            JsonElement messageAttrsElement = json.get("MessageAttributes");
+            if (!messageAttrsElement.isJsonObject()) {
+                return attributes;
+            }
+            
+            JsonObject messageAttrsObj = messageAttrsElement.getAsJsonObject();
+            for (Map.Entry<String, JsonElement> entry : messageAttrsObj.entrySet()) {
+                String key = entry.getKey();
+                JsonElement element = entry.getValue();
+                
+                // Skip if the element is not a JSON object
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                
+                try {
+                    JsonObject attrObj = element.getAsJsonObject();
+                    if (attrObj.has("Value") && !attrObj.get("Value").isJsonNull()) {
                         String value = attrObj.get("Value").getAsString();
                         attributes.put(key, value);
                     }
+                } catch (Exception e) {
+                    // Skip this malformed attribute and continue with others
+                    continue;
                 }
-            } catch (Exception e) {
-                // If parsing fails, return empty map
             }
             
             return attributes;
