@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.blob.inmemory;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 
 public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -16,6 +18,13 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
         // Clear the in-memory storage after each test
         InMemoryBlobStore.clearStorage();
         InMemoryBlobClient.clearBuckets();
+    }
+
+    @Test
+    @Override
+    public void testInvalidCredentials() {
+        // This test doesn't apply to in memory blobstore.
+        Assumptions.assumeTrue(true, "testInvalidCredentials");
     }
 
     @Override

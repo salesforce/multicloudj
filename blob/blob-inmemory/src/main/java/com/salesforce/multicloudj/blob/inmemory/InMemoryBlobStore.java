@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -82,6 +83,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
         if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
+        } else if (t instanceof IllegalArgumentException) {
+            return InvalidArgumentException.class;
         }
         return UnknownException.class;
     }
@@ -455,13 +458,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
         validateBucketExists();
         String prefix = request.getPrefix() != null ? request.getPrefix() : "";
+        String delimiter = request.getDelimiter();
 
         // List only latest versions
         List<BlobInfo> blobs = LATEST_VERSIONS.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(bucket + ":"))
                 .filter(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
-                    return key.startsWith(prefix);
+                    if (!key.startsWith(prefix)) {
+                        return false;
+                    }
+                    // If delimiter is specified, filter out keys containing the delimiter after the prefix
+                    if (delimiter != null && !delimiter.isEmpty()) {
+                        String keyAfterPrefix = key.substring(prefix.length());
+                        return !keyAfterPrefix.contains(delimiter);
+                    }
+                    return true;
                 })
                 .map(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
@@ -488,6 +500,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
         validateBucketExists();
         String prefix = request.getPrefix() != null ? request.getPrefix() : "";
+        String delimiter = request.getDelimiter();
         Integer maxKeys = request.getMaxResults() != null ? request.getMaxResults() : 1000;
         String continuationToken = request.getPaginationToken();
 
@@ -496,7 +509,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .filter(entry -> entry.getKey().startsWith(bucket + ":"))
                 .filter(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
-                    return key.startsWith(prefix);
+                    if (!key.startsWith(prefix)) {
+                        return false;
+                    }
+                    // If delimiter is specified, filter out keys containing the delimiter after the prefix
+                    if (delimiter != null && !delimiter.isEmpty()) {
+                        String keyAfterPrefix = key.substring(prefix.length());
+                        return !keyAfterPrefix.contains(delimiter);
+                    }
+                    return true;
                 })
                 .map(entry -> {
                     String key = entry.getKey().substring((bucket + ":").length());
