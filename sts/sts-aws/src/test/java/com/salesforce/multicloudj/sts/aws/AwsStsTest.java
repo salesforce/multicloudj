@@ -127,13 +127,13 @@ public class AwsStsTest {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
 
         // Create cloud-agnostic CredentialScope using storage:// format
-        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.newBuilder()
-                .withAvailableResource("storage://my-bucket/*")
-                .addAvailablePermission("storage:GetObject")
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://my-bucket/*")
+                .availablePermission("storage:GetObject")
                 .build();
 
-        CredentialScope credentialScope = CredentialScope.newBuilder()
-                .addRule(rule)
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
                 .build();
 
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()

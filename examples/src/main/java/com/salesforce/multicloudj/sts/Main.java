@@ -37,15 +37,22 @@ public class Main {
     public static void assumeRole() {
         StsClient client = StsClient.builder(provider).withRegion("us-west-2").build();
 
-        // Create a cloud-agnostic credential scope
-        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.newBuilder()
-                .withAvailableResource("storage://my-bucket/*")
-                .addAvailablePermission("storage:GetObject")
-                .addAvailablePermission("storage:PutObject")
+        // Create a cloud-agnostic credential scope with condition
+        CredentialScope.AvailabilityCondition condition = CredentialScope.AvailabilityCondition.builder()
+                .expression("resource.name.startsWith('storage://my-bucket/documents/')")
+                .title("Limit to documents folder")
+                .description("Only allow access to objects in the documents folder")
                 .build();
 
-        CredentialScope credentialScope = CredentialScope.newBuilder()
-                .addRule(rule)
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://my-bucket/*")
+                .availablePermission("storage:GetObject")
+                .availablePermission("storage:PutObject")
+                .availabilityCondition(condition)
+                .build();
+
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
                 .build();
 
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()

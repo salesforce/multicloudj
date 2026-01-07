@@ -210,13 +210,13 @@ public class GcpStsTest {
         GcpSts sts = new GcpSts().builder().build(mockStsClient);
 
         // Create a cloud-agnostic CredentialScope using storage:// format
-        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.newBuilder()
-                .withAvailableResource("storage://test-bucket/*")
-                .addAvailablePermission("storage:GetObject")
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://test-bucket/*")
+                .availablePermission("storage:GetObject")
                 .build();
 
-        CredentialScope credentialScope = CredentialScope.newBuilder()
-                .addRule(rule)
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
                 .build();
 
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
