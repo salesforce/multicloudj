@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Base64;
 import java.nio.charset.StandardCharsets;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonElement;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -198,11 +199,15 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         for (Map.Entry<String, MessageAttributeValue> entry : sqsMessage.messageAttributes().entrySet()) {
             rawAttrs.put(entry.getKey(), entry.getValue().stringValue());
         }
+        
         // Unwrap SNS JSON messages if present; otherwise treat the body as a raw SQS message.
-        SnsJsonParser.ExtractionResult extraction = SnsJsonParser.extractSnsMessage(bodyStr);
-        if (extraction != null) {
-            bodyStr = extraction.message;
-            rawAttrs.putAll(extraction.messageAttributes);
+        // Only check for SNS format if there are no raw attributes (SNS messages typically don't have SQS attributes)
+        if (rawAttrs.isEmpty()) {
+            SnsJsonParser.SnsPayload payload = SnsJsonParser.extractSnsMessage(bodyStr);
+            if (payload != null) {
+                bodyStr = payload.message;
+                rawAttrs.putAll(payload.messageAttributes);
+            }
         }
         
         // Decode metadata attributes
@@ -327,12 +332,13 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
      * normal SQS message.
      */
     private static class SnsJsonParser {
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
         
-        static class ExtractionResult {
+        static class SnsPayload {
             final String message;
             final Map<String, String> messageAttributes;
             
-            ExtractionResult(String message, Map<String, String> messageAttributes) {
+            SnsPayload(String message, Map<String, String> messageAttributes) {
                 this.message = message;
                 this.messageAttributes = messageAttributes;
             }
@@ -341,91 +347,68 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         /**
          * Extracts the actual message body and attributes from SNS JSON format.
          */
-        static ExtractionResult extractSnsMessage(String bodyStr) {
+        static SnsPayload extractSnsMessage(String bodyStr) {
             if (bodyStr == null || bodyStr.trim().isEmpty()) {
                 return null;
             }
             
-            String trimmed = bodyStr.trim();
-            if (!trimmed.startsWith("{") || !trimmed.contains("\"TopicArn\"")) {
+            String trimmedBody = bodyStr.trim();
+            if (!trimmedBody.startsWith("{") || !trimmedBody.contains("\"TopicArn\"")) {
                 return null;
             }
             
             try {
-                JsonElement jsonElement = JsonParser.parseString(trimmed);
-                if (!jsonElement.isJsonObject()) {
-                    return null;
-                }
-                JsonObject json = jsonElement.getAsJsonObject();
+                SnsMessage snsMessage = OBJECT_MAPPER.readValue(trimmedBody, SnsMessage.class);
                 
-                if (!json.has("TopicArn") || json.get("TopicArn").isJsonNull()) {
+                // If TopicArn is null or missing, treat as raw message
+                if (snsMessage.topicArn == null) {
                     return null;
                 }
                 
-                // Extract "Message" field
-                // if Message is missing or null, use empty string (zero value)
-                // If Message is not a string, treat as raw message
-                String message = "";
-                if (json.has("Message")) {
-                    JsonElement messageElement = json.get("Message");
-                    if (messageElement.isJsonNull()) {
-                        message = "";
-                    } else if (messageElement.isJsonPrimitive() && messageElement.getAsJsonPrimitive().isString()) {
-                        message = messageElement.getAsString();
-                    } else {
-                        return null;
+                // Extract message (default to empty string if null)
+                String message = snsMessage.message != null ? snsMessage.message : "";
+                
+                // Extract MessageAttributes
+                Map<String, String> messageAttributes = new HashMap<>();
+                if (snsMessage.messageAttributes != null) {
+                    for (Map.Entry<String, AttributeValue> entry : snsMessage.messageAttributes.entrySet()) {
+                        if (entry.getValue() != null && entry.getValue().value != null) {
+                            messageAttributes.put(entry.getKey(), entry.getValue().value);
+                        }
                     }
                 }
                 
-                // Extract MessageAttributes
-                Map<String, String> messageAttributes = extractSnsMessageAttributes(json);
-                
-                return new ExtractionResult(message, messageAttributes);
-            } catch (Exception e) {
+                return new SnsPayload(message, messageAttributes);
+            } catch (JsonProcessingException e) {
                 // If parsing fails, treat as raw message
                 return null;
             }
         }
         
         /**
-         * Extracts MessageAttributes from SNS JSON format.
-         * MessageAttributes format: { "key": { "Type": "String", "Value": "value" } }
+         * SNS message structure as delivered to SQS.
          */
-        private static Map<String, String> extractSnsMessageAttributes(JsonObject json) {
-            Map<String, String> attributes = new HashMap<>();
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        private static class SnsMessage {
+            @JsonProperty("TopicArn")
+            String topicArn;
             
-            if (!json.has("MessageAttributes") || json.get("MessageAttributes").isJsonNull()) {
-                return attributes;
-            }
+            @JsonProperty("Message")
+            String message;
             
-            JsonElement messageAttrsElement = json.get("MessageAttributes");
-            if (!messageAttrsElement.isJsonObject()) {
-                return attributes;
-            }
+            @JsonProperty("MessageAttributes")
+            Map<String, AttributeValue> messageAttributes;
+        }
+        
+        /**
+         * SNS message attribute value structure.
+         */
+        private static class AttributeValue {
+            @JsonProperty("Type")
+            String type;
             
-            JsonObject messageAttrsObj = messageAttrsElement.getAsJsonObject();
-            for (Map.Entry<String, JsonElement> entry : messageAttrsObj.entrySet()) {
-                String key = entry.getKey();
-                JsonElement element = entry.getValue();
-                
-                // Skip if the element is not a JSON object
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                
-                try {
-                    JsonObject attrObj = element.getAsJsonObject();
-                    if (attrObj.has("Value") && !attrObj.get("Value").isJsonNull()) {
-                        String value = attrObj.get("Value").getAsString();
-                        attributes.put(key, value);
-                    }
-                } catch (Exception e) {
-                    // Skip this malformed attribute and continue with others
-                    continue;
-                }
-            }
-            
-            return attributes;
+            @JsonProperty("Value")
+            String value;
         }
     }
 
