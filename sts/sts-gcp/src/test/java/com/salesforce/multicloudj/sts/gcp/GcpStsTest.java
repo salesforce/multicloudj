@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.auth.oauth2.AccessToken;
-import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -21,6 +20,7 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
@@ -206,25 +206,23 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestAssumedRoleStsWithAccessBoundaryWithRole() {
+    public void TestAssumedRoleStsWithCredentialScope() {
         GcpSts sts = new GcpSts().builder().build(mockStsClient);
 
-        // Create a CredentialAccessBoundary
-        CredentialAccessBoundary.AccessBoundaryRule rule =
-                CredentialAccessBoundary.AccessBoundaryRule.newBuilder()
-                        .setAvailableResource("//storage.googleapis.com/projects/_/buckets/test-bucket")
-                        .addAvailablePermission("inRole:roles/storage.objectViewer")
-                        .build();
+        // Create a cloud-agnostic CredentialScope using storage:// format
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.newBuilder()
+                .withAvailableResource("storage://test-bucket/*")
+                .addAvailablePermission("storage:GetObject")
+                .build();
 
-        CredentialAccessBoundary accessBoundary =
-                CredentialAccessBoundary.newBuilder()
-                        .addRule(rule)
-                        .build();
+        CredentialScope credentialScope = CredentialScope.newBuilder()
+                .addRule(rule)
+                .build();
 
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
                 .withRole("testRole@test-project.iam.gserviceaccount.com")
                 .withSessionName("testSession")
-                .withAccessBoundary(accessBoundary)
+                .withCredentialScope(credentialScope)
                 .build();
 
         // This test verifies the code path is taken; actual credential generation
@@ -232,17 +230,6 @@ public class GcpStsTest {
         Assertions.assertThrows(SubstrateSdkException.class, () -> sts.assumeRole(request));
     }
 
-    @Test
-    public void TestAssumedRoleStsWithInvalidAccessBoundary() {
-        GcpSts sts = new GcpSts().builder().build(mockStsClient);
-        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
-                .withRole("testRole")
-                .withSessionName("testSession")
-                .withAccessBoundary("invalid-access-boundary")
-                .build();
-
-        Assertions.assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
-    }
 
     private void assertExceptionMapping(GcpSts sts, StatusCode.Code statusCode, Class<? extends SubstrateSdkException> expectedExceptionClass) {
         ApiException apiException = Mockito.mock(ApiException.class);

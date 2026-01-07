@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.sts.aws;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Assertions;
@@ -116,6 +117,32 @@ public class AwsStsTest {
                 .webIdentityToken("testWebIdentityToken")
                 .build();
         StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+        Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
+        Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
+        Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    }
+
+    @Test
+    public void TestAssumeRoleWithCredentialScope() {
+        AwsSts sts = new AwsSts().builder().build(mockStsClient);
+
+        // Create cloud-agnostic CredentialScope using storage:// format
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.newBuilder()
+                .withAvailableResource("storage://my-bucket/*")
+                .addAvailablePermission("storage:GetObject")
+                .build();
+
+        CredentialScope credentialScope = CredentialScope.newBuilder()
+                .addRule(rule)
+                .build();
+
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("arn:aws:iam::123456789012:role/test-role")
+                .withSessionName("testSession")
+                .withCredentialScope(credentialScope)
+                .build();
+
+        StsCredentials credentials = sts.assumeRole(request);
         Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
         Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
         Assertions.assertEquals("testToken", credentials.getSecurityToken());

@@ -1,33 +1,20 @@
 package com.salesforce.multicloudj.sts.model;
 
+import lombok.Getter;
+
+@Getter
 public class AssumedRoleRequest {
 
     private final String role;
     private final String sessionName;
     private final int expiration;
-    private final Object accessBoundary;
+    private final CredentialScope credentialScope;
 
     private AssumedRoleRequest(Builder b) {
         this.role = b.role;
         this.sessionName = b.sessionName;
         this.expiration = b.expiration;
-        this.accessBoundary = b.accessBoundary;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public String getSessionName() {
-        return sessionName;
-    }
-
-    public int getExpiration() {
-        return expiration;
-    }
-
-    public Object getAccessBoundary() {
-        return accessBoundary;
+        this.credentialScope = b.credentialScope;
     }
 
     public static Builder newBuilder() {
@@ -38,7 +25,7 @@ public class AssumedRoleRequest {
         private String role;
         private String sessionName;
         private int expiration;
-        private Object accessBoundary;
+        private CredentialScope credentialScope;
 
         public Builder() {
         }
@@ -59,8 +46,8 @@ public class AssumedRoleRequest {
             return this;
         }
 
-        public Builder withAccessBoundary(Object accessBoundary) {
-            this.accessBoundary = accessBoundary;
+        public Builder withCredentialScope(CredentialScope credentialScope) {
+            this.credentialScope = credentialScope;
             return this;
         }
 

@@ -2,12 +2,14 @@ package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.DownscopedCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
 import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
@@ -28,6 +30,7 @@ import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -74,37 +77,37 @@ public class GcpSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request){
-        // If access boundary is provided, use DownscopedCredentials
-        if (request.getAccessBoundary() != null) {
-            if (!(request.getAccessBoundary() instanceof CredentialAccessBoundary)) {
-                throw new InvalidArgumentException("accessBoundary must be of type CredentialAccessBoundary");
-            }
+        // If credential scope is provided, use DownscopedCredentials
+        if (request.getCredentialScope() != null) {
             try {
                 // Create credentials for the service account
                 GoogleCredentials sourceCredentials = getCredentials();
 
-                // If service account impersonation is needed, generate an access token first
+                // If service account impersonation is needed, use ImpersonatedCredentials
                 if (request.getRole() != null && !request.getRole().isEmpty()) {
-                    GenerateAccessTokenRequest.Builder accessTokenRequestBuilder = GenerateAccessTokenRequest.newBuilder()
-                            .setName("projects/-/serviceAccounts/" + request.getRole())
-                            .addAllScope(List.of(scope));
+                    ImpersonatedCredentials.Builder impersonatedBuilder = ImpersonatedCredentials.newBuilder()
+                            .setSourceCredentials(sourceCredentials)
+                            .setTargetPrincipal(request.getRole())
+                            .setScopes(List.of(scope));
+
                     if (request.getExpiration() > 0) {
-                        accessTokenRequestBuilder.setLifetime(Duration.newBuilder().setSeconds(request.getExpiration()));
+                        impersonatedBuilder.setLifetime(request.getExpiration());
                     }
-                    GenerateAccessTokenResponse response = this.stsClient.generateAccessToken(accessTokenRequestBuilder.build());
-                    sourceCredentials = GoogleCredentials.create(new com.google.auth.oauth2.AccessToken(
-                            response.getAccessToken(),
-                            new java.util.Date(System.currentTimeMillis() + request.getExpiration() * 1000)));
+
+                    sourceCredentials = impersonatedBuilder.build();
                 }
+
+                // Convert cloud-agnostic CredentialScope to GCP CredentialAccessBoundary
+                CredentialAccessBoundary gcpAccessBoundary = convertToGcpAccessBoundary(request.getCredentialScope());
 
                 // Create downscoped credentials with the access boundary
                 DownscopedCredentials downscopedCredentials = DownscopedCredentials.newBuilder()
                         .setSourceCredential(sourceCredentials)
-                        .setCredentialAccessBoundary((CredentialAccessBoundary) request.getAccessBoundary())
+                        .setCredentialAccessBoundary(gcpAccessBoundary)
                         .build();
 
                 // Get the downscoped access token
-                com.google.auth.oauth2.AccessToken accessToken = downscopedCredentials.refreshAccessToken();
+                AccessToken accessToken = downscopedCredentials.refreshAccessToken();
                 return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
             } catch (IOException e) {
                 throw new SubstrateSdkException("Failed to create downscoped credentials", e);
@@ -120,6 +123,127 @@ public class GcpSts extends AbstractSts {
         }
         GenerateAccessTokenResponse response = this.stsClient.generateAccessToken(accessTokenRequestBuilder.build());
         return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, response.getAccessToken());
+    }
+
+    /**
+     * Converts cloud-agnostic CredentialScope to GCP-specific CredentialAccessBoundary.
+     * Maps cloud-agnostic storage actions and resources to GCP format.
+     */
+    private CredentialAccessBoundary convertToGcpAccessBoundary(
+            com.salesforce.multicloudj.sts.model.CredentialScope credentialScope) {
+        CredentialAccessBoundary.Builder gcpBoundaryBuilder = CredentialAccessBoundary.newBuilder();
+
+        for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
+            CredentialAccessBoundary.AccessBoundaryRule.Builder gcpRuleBuilder =
+                    CredentialAccessBoundary.AccessBoundaryRule.newBuilder()
+                            .setAvailableResource(convertToGcpResource(rule.getAvailableResource()));
+
+            // Add permissions - convert cloud-agnostic to GCP format
+            for (String permission : rule.getAvailablePermissions()) {
+                gcpRuleBuilder.addAvailablePermission(convertToGcpPermission(permission));
+            }
+
+            // Add availability condition if present
+            if (rule.getAvailabilityCondition() != null) {
+                CredentialScope.AvailabilityCondition condition =
+                        rule.getAvailabilityCondition();
+                CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition.Builder gcpConditionBuilder =
+                        CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition.newBuilder();
+
+                if (condition.getExpression() != null) {
+                    // Convert cloud-agnostic expression to GCP CEL format
+                    String gcpExpression = convertToGcpExpression(condition.getExpression());
+                    gcpConditionBuilder.setExpression(gcpExpression);
+                }
+                if (condition.getTitle() != null) {
+                    gcpConditionBuilder.setTitle(condition.getTitle());
+                }
+                if (condition.getDescription() != null) {
+                    gcpConditionBuilder.setDescription(condition.getDescription());
+                }
+
+                gcpRuleBuilder.setAvailabilityCondition(gcpConditionBuilder.build());
+            }
+
+            gcpBoundaryBuilder.addRule(gcpRuleBuilder.build());
+        }
+
+        return gcpBoundaryBuilder.build();
+    }
+
+    /**
+     * Converts cloud-agnostic permission to GCP permission format.
+     * Example: "storage:GetObject" -> "inRole:roles/storage.objectViewer"
+     */
+    private String convertToGcpPermission(String permission) {
+        // Handle cloud-agnostic storage: format
+        // based on the need, this can be extended to more services
+        if (permission.startsWith("storage:")) {
+            String action = permission.substring("storage:".length());
+
+            // Map common actions to GCP roles
+            switch (action) {
+                case "GetObject":
+                    return "inRole:roles/storage.objectViewer";
+                case "PutObject":
+                    return "inRole:roles/storage.objectCreator";
+                case "DeleteObject":
+                    return "inRole:roles/storage.objectAdmin";
+                case "ListBucket":
+                    return "inRole:roles/storage.objectViewer";
+                default:
+                    // For unknown actions, default to objectViewer
+                    return "inRole:roles/storage.objectViewer";
+            }
+        }
+
+        // If it's already a GCP format (inRole:*), return as-is
+        if (permission.startsWith("inRole:")) {
+            return permission;
+        }
+
+        // Default: wrap in inRole if no format detected
+        return "inRole:" + permission;
+    }
+
+    /**
+     * Converts cloud-agnostic resource to GCP resource format.
+     * Example: "storage://my-bucket/*" -> "//storage.googleapis.com/projects/_/buckets/my-bucket"
+     */
+    private String convertToGcpResource(String resource) {
+        // Handle cloud-agnostic storage:// format
+        if (resource.startsWith("storage://")) {
+            String path = resource.substring("storage://".length());
+            // Remove trailing /* if present
+            if (path.endsWith("/*")) {
+                path = path.substring(0, path.length() - 2);
+            }
+            // Extract bucket name (before first /)
+            String bucketName = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
+            return "//storage.googleapis.com/projects/_/buckets/" + bucketName;
+        }
+
+        // If it's already a GCP format (//storage.googleapis.com/*), return as-is
+        if (resource.startsWith("//storage.googleapis.com/")) {
+            return resource;
+        }
+
+        // Default: assume it's a bucket name
+        return "//storage.googleapis.com/projects/_/buckets/" + resource;
+    }
+
+    /**
+     * Converts cloud-agnostic CEL expression to GCP CEL format.
+     * Example: "resource.name.startsWith('storage://my-bucket/prefix/')" ->
+     *          "resource.name.startsWith('projects/_/buckets/my-bucket/objects/prefix/')"
+     */
+    private String convertToGcpExpression(String expression) {
+        // Replace storage:// with GCP format in expressions
+        if (expression.contains("storage://")) {
+            return expression.replace("storage://", "projects/_/buckets/")
+                           .replace("/", "/objects/");
+        }
+        return expression;
     }
 
     @Override
