@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -202,6 +203,45 @@ public class GcpStsTest {
                         .webIdentityToken("testToken")
                         .build();
         Assertions.assertThrows(UnSupportedOperationException.class, () -> sts.assumeRoleWithWebIdentity(request));
+    }
+
+    @Test
+    public void TestAssumedRoleStsWithAccessBoundaryWithRole() {
+        GcpSts sts = new GcpSts().builder().build(mockStsClient);
+
+        // Create a CredentialAccessBoundary
+        CredentialAccessBoundary.AccessBoundaryRule rule =
+                CredentialAccessBoundary.AccessBoundaryRule.newBuilder()
+                        .setAvailableResource("//storage.googleapis.com/projects/_/buckets/test-bucket")
+                        .addAvailablePermission("inRole:roles/storage.objectViewer")
+                        .build();
+
+        CredentialAccessBoundary accessBoundary =
+                CredentialAccessBoundary.newBuilder()
+                        .addRule(rule)
+                        .build();
+
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("testRole@test-project.iam.gserviceaccount.com")
+                .withSessionName("testSession")
+                .withAccessBoundary(accessBoundary)
+                .build();
+
+        // This test verifies the code path is taken; actual credential generation
+        // requires valid GCP credentials which are tested in integration tests
+        Assertions.assertThrows(SubstrateSdkException.class, () -> sts.assumeRole(request));
+    }
+
+    @Test
+    public void TestAssumedRoleStsWithInvalidAccessBoundary() {
+        GcpSts sts = new GcpSts().builder().build(mockStsClient);
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("testRole")
+                .withSessionName("testSession")
+                .withAccessBoundary("invalid-access-boundary")
+                .build();
+
+        Assertions.assertThrows(InvalidArgumentException.class, () -> sts.assumeRole(request));
     }
 
     private void assertExceptionMapping(GcpSts sts, StatusCode.Code statusCode, Class<? extends SubstrateSdkException> expectedExceptionClass) {

@@ -19,5 +19,17 @@ public class AssumedRoleRequestTest {
         Assertions.assertNull(request.getRole());
         Assertions.assertNull(request.getSessionName());
         Assertions.assertEquals(0, request.getExpiration());
+        Assertions.assertNull(request.getAccessBoundary());
+    }
+
+    @Test
+    public void TestAssumedRoleRequestBuilderWithAccessBoundary() {
+        Object mockAccessBoundary = new Object();
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("testRole")
+                .withAccessBoundary(mockAccessBoundary)
+                .build();
+        Assertions.assertEquals("testRole", request.getRole());
+        Assertions.assertEquals(mockAccessBoundary, request.getAccessBoundary());
     }
 }

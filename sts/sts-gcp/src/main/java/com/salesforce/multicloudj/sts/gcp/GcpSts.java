@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.sts.gcp;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.oauth2.ComputeEngineCredentials;
+import com.google.auth.oauth2.CredentialAccessBoundary;
+import com.google.auth.oauth2.DownscopedCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -72,6 +74,44 @@ public class GcpSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request){
+        // If access boundary is provided, use DownscopedCredentials
+        if (request.getAccessBoundary() != null) {
+            if (!(request.getAccessBoundary() instanceof CredentialAccessBoundary)) {
+                throw new InvalidArgumentException("accessBoundary must be of type CredentialAccessBoundary");
+            }
+            try {
+                // Create credentials for the service account
+                GoogleCredentials sourceCredentials = getCredentials();
+
+                // If service account impersonation is needed, generate an access token first
+                if (request.getRole() != null && !request.getRole().isEmpty()) {
+                    GenerateAccessTokenRequest.Builder accessTokenRequestBuilder = GenerateAccessTokenRequest.newBuilder()
+                            .setName("projects/-/serviceAccounts/" + request.getRole())
+                            .addAllScope(List.of(scope));
+                    if (request.getExpiration() > 0) {
+                        accessTokenRequestBuilder.setLifetime(Duration.newBuilder().setSeconds(request.getExpiration()));
+                    }
+                    GenerateAccessTokenResponse response = this.stsClient.generateAccessToken(accessTokenRequestBuilder.build());
+                    sourceCredentials = GoogleCredentials.create(new com.google.auth.oauth2.AccessToken(
+                            response.getAccessToken(),
+                            new java.util.Date(System.currentTimeMillis() + request.getExpiration() * 1000)));
+                }
+
+                // Create downscoped credentials with the access boundary
+                DownscopedCredentials downscopedCredentials = DownscopedCredentials.newBuilder()
+                        .setSourceCredential(sourceCredentials)
+                        .setCredentialAccessBoundary((CredentialAccessBoundary) request.getAccessBoundary())
+                        .build();
+
+                // Get the downscoped access token
+                com.google.auth.oauth2.AccessToken accessToken = downscopedCredentials.refreshAccessToken();
+                return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+            } catch (IOException e) {
+                throw new SubstrateSdkException("Failed to create downscoped credentials", e);
+            }
+        }
+
+        // Original behavior when no access boundary is provided
         GenerateAccessTokenRequest.Builder accessTokenRequestBuilder = GenerateAccessTokenRequest.newBuilder()
                 .setName("projects/-/serviceAccounts/" + request.getRole())
                 .addAllScope(List.of(scope));
