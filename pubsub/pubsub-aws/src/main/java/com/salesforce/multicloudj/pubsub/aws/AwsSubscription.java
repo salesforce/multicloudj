@@ -4,9 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.Base64;
 import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -153,8 +156,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         ReceiveMessageRequest.Builder requestBuilder = ReceiveMessageRequest.builder()
             .queueUrl(subscriptionUrl)
             .maxNumberOfMessages(Math.min(batchSize, 10)) // SQS supports max 10 messages
-            .messageAttributeNames("All")
-            .attributeNames(QueueAttributeName.ALL);
+            .messageAttributeNames("All");
 
         if (waitTimeSeconds > 0) {
             requestBuilder.waitTimeSeconds((int) waitTimeSeconds);
@@ -179,22 +181,33 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         return messages;
     }
 
-    protected void validateAckIDType(AckID ackID) {
-        if (!(ackID instanceof AwsAckID)) {
-            throw new InvalidArgumentException("Expected AwsAckID, got: " + ackID.getClass().getSimpleName());
-        }
-    }
-
     /**
      * Converts SQS message to internal Message format.
+     * 
+     * When messages are received from SQS queues subscribed to SNS topics,
+     * the message body is wrapped in SNS JSON format. This method detects
+     * and unwraps SNS messages, extracting the actual message body and
+     * merging SNS MessageAttributes into the message attributes.
+     * 
+     * Reference: https://aws.amazon.com/sns/faqs/#Raw_message_delivery
      */
     protected Message convertToMessage(software.amazon.awssdk.services.sqs.model.Message sqsMessage) {
         String bodyStr = sqsMessage.body();
         Map<String, String> rawAttrs = new HashMap<>();
         
-        // Extract message attributes
+        // Extract message attributes from SQS message
         for (Map.Entry<String, MessageAttributeValue> entry : sqsMessage.messageAttributes().entrySet()) {
             rawAttrs.put(entry.getKey(), entry.getValue().stringValue());
+        }
+        
+        // Unwrap SNS JSON messages if present; otherwise treat the body as a raw SQS message.
+        // Only check for SNS format if there are no raw attributes (SNS messages typically don't have SQS attributes)
+        if (rawAttrs.isEmpty()) {
+            SnsJsonParser.SnsPayload payload = SnsJsonParser.extractSnsMessage(bodyStr);
+            if (payload != null) {
+                bodyStr = payload.message;
+                rawAttrs.putAll(payload.messageAttributes);
+            }
         }
         
         // Decode metadata attributes
@@ -307,6 +320,95 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
             return value;
+        }
+    }
+
+    /**
+     * Parses SNS-style JSON messages delivered to SQS.
+     *
+     * When an SQS queue is subscribed to an SNS topic, the message body may be
+     * wrapped in a JSON envelope. This utility extracts the real message body
+     * and its attributes. If the body is not SNS JSON, it is treated as a
+     * normal SQS message.
+     */
+    private static class SnsJsonParser {
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+        
+        static class SnsPayload {
+            final String message;
+            final Map<String, String> messageAttributes;
+            
+            SnsPayload(String message, Map<String, String> messageAttributes) {
+                this.message = message;
+                this.messageAttributes = messageAttributes;
+            }
+        }
+        
+        /**
+         * Extracts the actual message body and attributes from SNS JSON format.
+         */
+        static SnsPayload extractSnsMessage(String bodyStr) {
+            if (bodyStr == null || bodyStr.trim().isEmpty()) {
+                return null;
+            }
+            
+            String trimmedBody = bodyStr.trim();
+            if (!trimmedBody.startsWith("{") || !trimmedBody.contains("\"TopicArn\"")) {
+                return null;
+            }
+            
+            try {
+                SnsMessage snsMessage = OBJECT_MAPPER.readValue(trimmedBody, SnsMessage.class);
+                
+                // If TopicArn is null or missing, treat as raw message
+                if (snsMessage.topicArn == null) {
+                    return null;
+                }
+                
+                // Extract message (default to empty string if null)
+                String message = snsMessage.message != null ? snsMessage.message : "";
+                
+                // Extract MessageAttributes
+                Map<String, String> messageAttributes = new HashMap<>();
+                if (snsMessage.messageAttributes != null) {
+                    for (Map.Entry<String, AttributeValue> entry : snsMessage.messageAttributes.entrySet()) {
+                        if (entry.getValue() != null && entry.getValue().value != null) {
+                            messageAttributes.put(entry.getKey(), entry.getValue().value);
+                        }
+                    }
+                }
+                
+                return new SnsPayload(message, messageAttributes);
+            } catch (JsonProcessingException e) {
+                // If parsing fails, treat as raw message
+                return null;
+            }
+        }
+        
+        /**
+         * SNS message structure as delivered to SQS.
+         */
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        private static class SnsMessage {
+            @JsonProperty("TopicArn")
+            String topicArn;
+            
+            @JsonProperty("Message")
+            String message;
+            
+            @JsonProperty("MessageAttributes")
+            Map<String, AttributeValue> messageAttributes;
+        }
+        
+        /**
+         * SNS message attribute value structure.
+         */
+        private static class AttributeValue {
+            @JsonProperty("Type")
+            String type;
+            
+            @JsonProperty("Value")
+            String value;
         }
     }
 
