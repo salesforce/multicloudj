@@ -39,7 +39,7 @@ public class Main {
 
         // Create a cloud-agnostic credential scope with condition
         CredentialScope.AvailabilityCondition condition = CredentialScope.AvailabilityCondition.builder()
-                .expression("resource.name.startsWith('storage://my-bucket/documents/')")
+                .resourcePrefix("storage://my-bucket/documents/")
                 .title("Limit to documents folder")
                 .description("Only allow access to objects in the documents folder")
                 .build();

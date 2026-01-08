@@ -169,30 +169,20 @@ public class AwsSts extends AbstractSts {
 
     /**
      * Converts cloud-agnostic availability condition to AWS IAM condition.
-     * Note: This is a simplified implementation. Full CEL expression parsing
-     * would require a more sophisticated approach.
+     * Converts resourcePrefix to AWS IAM Condition with StringLike and s3:prefix.
      */
     private Map<String, Object> convertConditionToAwsCondition(
             CredentialScope.AvailabilityCondition condition) {
         Map<String, Object> awsCondition = new HashMap<>();
 
-        if (condition.getExpression() == null || condition.getExpression().isEmpty()) {
-            return awsCondition;
-        }
-
-        String expression = condition.getExpression();
-
-        // Handle common patterns
-        // Example: "resource.name.startsWith('storage://my-bucket/prefix/')"
-        if (expression.contains("startsWith") && expression.contains("storage://")) {
-            // Extract the prefix from the expression
-            int startIdx = expression.indexOf("storage://");
-            int endIdx = expression.indexOf("'", startIdx + 1);
-            if (endIdx > startIdx) {
-                String prefix = expression.substring(startIdx + "storage://".length(), endIdx);
-                // Remove bucket name, keep only the path prefix
-                if (prefix.contains("/")) {
-                    String pathPrefix = prefix.substring(prefix.indexOf("/") + 1);
+        // Convert cloud-agnostic resourcePrefix to AWS IAM condition
+        if (condition.getResourcePrefix() != null && !condition.getResourcePrefix().isEmpty()) {
+            String resourcePrefix = condition.getResourcePrefix();
+            if (resourcePrefix.startsWith("storage://")) {
+                String path = resourcePrefix.substring("storage://".length());
+                // Extract path prefix after bucket name
+                if (path.contains("/")) {
+                    String pathPrefix = path.substring(path.indexOf("/") + 1);
                     if (!pathPrefix.isEmpty()) {
                         Map<String, String> stringLike = new HashMap<>();
                         stringLike.put("s3:prefix", pathPrefix);

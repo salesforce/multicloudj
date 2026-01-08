@@ -150,9 +150,9 @@ public class GcpSts extends AbstractSts {
                 CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition.Builder gcpConditionBuilder =
                         CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition.newBuilder();
 
-                if (condition.getExpression() != null) {
-                    // Convert cloud-agnostic expression to GCP CEL format
-                    String gcpExpression = convertToGcpExpression(condition.getExpression());
+                // Convert cloud-agnostic resourcePrefix to GCP CEL format
+                if (condition.getResourcePrefix() != null) {
+                    String gcpExpression = buildGcpPrefixExpression(condition.getResourcePrefix());
                     gcpConditionBuilder.setExpression(gcpExpression);
                 }
                 if (condition.getTitle() != null) {
@@ -233,17 +233,25 @@ public class GcpSts extends AbstractSts {
     }
 
     /**
-     * Converts cloud-agnostic CEL expression to GCP CEL format.
-     * Example: "resource.name.startsWith('storage://my-bucket/prefix/')" ->
-     *          "resource.name.startsWith('projects/_/buckets/my-bucket/objects/prefix/')"
+     * Builds GCP CEL expression from cloud-agnostic resource prefix.
+     * Example: "storage://my-bucket/documents/" ->
+     *          "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')"
      */
-    private String convertToGcpExpression(String expression) {
-        // Replace storage:// with GCP format in expressions
-        if (expression.contains("storage://")) {
-            return expression.replace("storage://", "projects/_/buckets/")
-                           .replace("/", "/objects/");
+    private String buildGcpPrefixExpression(String resourcePrefix) {
+        // Convert storage:// prefix to GCP format
+        if (resourcePrefix.startsWith("storage://")) {
+            String path = resourcePrefix.substring("storage://".length());
+            // Extract bucket name (before first /)
+            int slashIdx = path.indexOf('/');
+            if (slashIdx > 0) {
+                String bucketName = path.substring(0, slashIdx);
+                String prefix = path.substring(slashIdx + 1);
+                String gcpPath = "projects/_/buckets/" + bucketName + "/objects/" + prefix;
+                return "resource.name.startsWith('" + gcpPath + "')";
+            }
         }
-        return expression;
+        // Fallback: return expression that checks the prefix as-is
+        return "resource.name.startsWith('" + resourcePrefix + "')";
     }
 
     @Override

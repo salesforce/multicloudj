@@ -61,12 +61,35 @@ public class CredentialScope {
 
     /**
      * Represents a condition that must be met for a rule to apply.
+     * Uses cloud-agnostic structured conditions.
+     *
+     * <p>Usage example:
+     * <pre>
+     * AvailabilityCondition.builder()
+     *     .resourcePrefix("storage://my-bucket/documents/")
+     *     .title("Limit to documents folder")
+     *     .description("Only allow access to documents")
+     *     .build()
+     * </pre>
      */
     @Getter
     @Builder
     public static class AvailabilityCondition {
-        private final String expression;
+        /**
+         * Cloud-agnostic resource prefix constraint.
+         * Example: "storage://my-bucket/documents/" restricts access to objects under that prefix.
+         * Automatically converted to provider-specific format (CEL for GCP, IAM Condition for AWS).
+         */
+        private final String resourcePrefix;
+
+        /**
+         * Optional title for the condition.
+         */
         private final String title;
+
+        /**
+         * Optional description of what this condition restricts.
+         */
         private final String description;
     }
 }
