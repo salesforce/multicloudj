@@ -13,9 +13,24 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
+import com.google.cloud.storage.HttpStorageOptions;
+import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.MultipartUploadSettings;
+import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.CompletedMultipartUpload;
+import com.google.cloud.storage.multipartupload.model.CompletedPart;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
+import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
+import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -42,7 +57,6 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -68,6 +82,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,11 +90,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -90,16 +105,18 @@ import java.util.stream.Collectors;
 public class GcpBlobStore extends AbstractBlobStore {
 
     private final Storage storage;
+    private final MultipartUploadClient multipartUploadClient;
     private final GcpTransformer transformer;
     private static final String TAG_PREFIX = "gcp-tag-";
 
     public GcpBlobStore() {
-        this(new Builder(), null);
+        this(new Builder(), null, null);
     }
 
-    public GcpBlobStore(Builder builder, Storage storage) {
+    public GcpBlobStore(Builder builder, Storage storage, MultipartUploadClient mpuClient) {
         super(builder);
         this.storage = storage;
+        this.multipartUploadClient = mpuClient;
         this.transformer = builder.transformerSupplier.get(bucket);
     }
 
@@ -328,12 +345,24 @@ public class GcpBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
         validateBucketExists();
 
-        String uploadId = UUID.randomUUID().toString();
+        CreateMultipartUploadRequest.Builder createRequestBuilder = CreateMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(request.getKey());
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            createRequestBuilder.kmsKeyName(request.getKmsKeyId());
+        }
+
+        if (request.getMetadata() != null) {
+            createRequestBuilder.metadata(request.getMetadata());
+        }
+
+        CreateMultipartUploadResponse gcpMultipartUpload =
+            multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
         return MultipartUpload.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
-                .id(uploadId)
+                .id(gcpMultipartUpload.uploadId())
                 .metadata(request.getMetadata())
                 .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
@@ -341,42 +370,80 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
-    protected UploadPartResponse doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
-        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
-        UploadResponse uploadResponse = doUpload(uploadRequest, mpp.getInputStream());
-        return new UploadPartResponse(mpp.getPartNumber(), uploadResponse.getETag(), mpp.getContentLength());
+    protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
+        try {
+            // Read the InputStream into a byte array, then wrap in ByteBuffer
+            byte[] data = ByteStreams.toByteArray(mpp.getInputStream());
+            ByteBuffer buffer = ByteBuffer.wrap(data);
+
+            UploadPartRequest uploadPartRequest = UploadPartRequest.builder().bucket(getBucket())
+                    .key(mpu.getKey()).partNumber(mpp.getPartNumber())
+                .uploadId(mpu.getId())
+                .build();
+
+            UploadPartResponse gcpResponse =
+                multipartUploadClient.uploadPart(uploadPartRequest, RequestBody.of(buffer));
+
+            return new com.salesforce.multicloudj.blob.driver.UploadPartResponse(mpp.getPartNumber(), gcpResponse.eTag(), -1);
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Failed to upload multipart part", e);
+        }
     }
 
     @Override
-    protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<UploadPartResponse> parts) {
-        List<BlobId> sourceBlobs = parts.stream()
-                .map(part -> BlobId.of(getBucket(), transformer.toPartName(mpu, part.getPartNumber())))
+    protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts) {
+        List<CompletedPart> completedParts = parts.stream()
+                // Google cloud rejects the multipart upload if the parts are not in order,
+                // we need to bring it to parity with other cloud providers.
+                .sorted(Comparator.comparingInt(com.salesforce.multicloudj.blob.driver.UploadPartResponse::getPartNumber))
+                .map(part -> CompletedPart.builder()
+                    .partNumber(part.getPartNumber())
+                    .eTag(part.getEtag())
+                    .build())
                 .collect(Collectors.toList());
-        List<String> blobPartKeys = sourceBlobs.stream()
-                .map(part -> part.getName())
-                .collect(Collectors.toList());
 
-        Blob composedBlob = storage.compose(Storage.ComposeRequest.newBuilder()
-                .setTarget(transformer.toBlobInfo(mpu))
-                .addSource(blobPartKeys)
-                .build());
+        CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder()
+            .parts(completedParts)
+            .build();
 
-        // Clean up the temporary part objects
-        storage.delete(sourceBlobs);
+        CompleteMultipartUploadRequest completeRequest = CompleteMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .multipartUpload(completedMultipartUpload)
+            .build();
 
-        return new MultipartUploadResponse(composedBlob.getEtag());
+        CompleteMultipartUploadResponse response = multipartUploadClient.completeMultipartUpload(completeRequest);
+
+        return new MultipartUploadResponse(response.etag());
     }
 
     @Override
-    protected List<UploadPartResponse> doListMultipartUpload(MultipartUpload mpu) {
-        return transformer.toUploadPartResponseList(listMultipartParts(mpu));
+    protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(MultipartUpload mpu) {
+        ListPartsRequest listPartsRequest = ListPartsRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .build();
+        ListPartsResponse response = multipartUploadClient.listParts(listPartsRequest);
+
+        return response.getParts().stream()
+                .map(part -> new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
+                    part.partNumber(),
+                    part.eTag(),
+                    part.size()
+                ))
+                .collect(Collectors.toList());
     }
 
     @Override
     protected void doAbortMultipartUpload(MultipartUpload mpu) {
-        Page<Blob> blobs = listMultipartParts(mpu);
-        List<BlobId> blobIds = transformer.toBlobIdList(blobs);
-        storage.delete(blobIds);
+        AbortMultipartUploadRequest abortRequest = AbortMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .build();
+        multipartUploadClient.abortMultipartUpload(abortRequest);
     }
 
     /**
@@ -393,10 +460,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         } catch (StorageException e) {
             throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
         }
-    }
-
-    private Page<Blob> listMultipartParts(MultipartUpload mpu) {
-        return storage.list(getBucket(), Storage.BlobListOption.prefix(mpu.getKey() + "/" + mpu.getId() + "/part-"));
     }
 
     @Override
@@ -458,11 +521,17 @@ public class GcpBlobStore extends AbstractBlobStore {
                 httpMethod = HttpMethod.GET;
                 break;
         }
+        List<Storage.SignUrlOption> options = new ArrayList<>();
+        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
+        options.add(Storage.SignUrlOption.withV4Signature());
+        if (request.getMetadata() != null) {
+            options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+        }
+
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                Storage.SignUrlOption.httpMethod(httpMethod),
-                Storage.SignUrlOption.withV4Signature());
+                options.toArray(new Storage.SignUrlOption[0]));
     }
 
     @Override
@@ -667,6 +736,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 
         private Storage storage;
+        private MultipartUploadClient mpuClient;
         private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
 
         public Builder() {
@@ -680,6 +750,11 @@ public class GcpBlobStore extends AbstractBlobStore {
 
         public Builder withStorage(Storage storage) {
             this.storage = storage;
+            return this;
+        }
+
+        public Builder withMultipartUploadClient(MultipartUploadClient mpuClient) {
+            this.mpuClient = mpuClient;
             return this;
         }
 
@@ -755,6 +830,31 @@ public class GcpBlobStore extends AbstractBlobStore {
             return storageOptionsBuilder.build().getService();
         }
 
+        /**
+         * Helper function for generating the MultipartUpload client
+         */
+        private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
+            CloseableHttpClient httpClient = buildHttpClient(builder);
+
+            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+            HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()
+                    .setHttpTransportFactory(() -> transport)
+                    .build();
+
+            HttpStorageOptions.Builder storageOptionsBuilder  = HttpStorageOptions.http().setTransportOptions(transportOptions);
+
+            if (builder.getEndpoint() != null) {
+                storageOptionsBuilder.setHost(builder.getEndpoint().toString());
+            }
+
+            if (builder.getCredentialsOverrider() != null) {
+                Credentials credentials = GcpCredentialsProvider.getCredentials(builder.getCredentialsOverrider());
+                storageOptionsBuilder.setCredentials(credentials);
+            }
+
+            return MultipartUploadClient.create(MultipartUploadSettings.of(storageOptionsBuilder.build()));
+        }
+
         private static CloseableHttpClient buildHttpClient(Builder builder) {
             HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
             httpClientBuilder.setDefaultRequestConfig(buildRequestConfig(builder));
@@ -791,10 +891,14 @@ public class GcpBlobStore extends AbstractBlobStore {
         @Override
         public GcpBlobStore build() {
             Storage storage = this.storage;
+            MultipartUploadClient mpuClient = this.mpuClient;
             if(storage == null) {
                 storage = buildStorage(this);
             }
-            return new GcpBlobStore(this, storage);
+            if(mpuClient == null) {
+                mpuClient = buildMultipartUploadClient(this);
+            }
+            return new GcpBlobStore(this, storage, mpuClient);
         }
     }
 }

@@ -245,6 +245,60 @@ public class Main {
     }
 
     /**
+     * Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete.
+     */
+    public static void fullMultipartUploadExample() {
+        BucketClient bucketClient = getBucketClient(getProvider());
+        String key = "multipart-example-" + System.currentTimeMillis();
+
+        getLogger().info("Starting full multipart upload example for key: {}", key);
+
+        // 1. Initiate
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(key)
+                .withMetadata(Map.of("type", "multipart-example"))
+                .build();
+
+        MultipartUpload upload = bucketClient.initiateMultipartUpload(request);
+        getLogger().info("Initiated multipart upload: id={}", upload.getId());
+
+        try {
+            List<UploadPartResponse> partResponses = new ArrayList<>();
+
+            // 2. Upload Parts (Example: 2 parts, 5MB each to meet minimum part size requirements for some providers)
+            int partSize = 5 * 1024 * 1024; // 5MB
+            byte[] partData = new byte[partSize];
+            
+            for (int i = 0; i < 2; i++) {
+                int partNumber = i + 1;
+                // Fill with some data
+                Arrays.fill(partData, (byte) ('0' + i));
+                
+                MultipartPart part = new MultipartPart(partNumber, partData);
+
+                getLogger().info("Uploading part {} ({} bytes)...", partNumber, partSize);
+                UploadPartResponse response = bucketClient.uploadMultipartPart(upload, part);
+                partResponses.add(response);
+                getLogger().info("Uploaded part {}: etag={}", partNumber, response.getEtag());
+            }
+
+            // 3. Complete
+            getLogger().info("Completing multipart upload...");
+            MultipartUploadResponse response = bucketClient.completeMultipartUpload(upload, partResponses);
+            getLogger().info("Completed multipart upload. Etag={}", response.getEtag());
+
+        } catch (Exception e) {
+            getLogger().error("Multipart upload failed, aborting...", e);
+            try {
+                bucketClient.abortMultipartUpload(upload);
+                getLogger().info("Aborted multipart upload");
+            } catch (Exception abortEx) {
+                getLogger().error("Failed to abort multipart upload", abortEx);
+            }
+        }
+    }
+
+    /**
      * This method retrieves all tags associated with a specific blob.
      */
     public static void getTags() {
@@ -442,7 +496,7 @@ public class Main {
 
     private static BucketClient getBucketClient(String provider) {
         // Get configuration from environment variables or system properties
-        String bucketName = System.getProperty("bucket.name", System.getenv("BUCKET_NAME"));
+        String bucketName = System.getProperty("bucket.name", "palsfdc");
         String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
         String endpoint = System.getProperty("bucket.endpoint", System.getenv("BUCKET_ENDPOINT"));
         String proxyEndpoint = System.getProperty("bucket.proxy.endpoint", System.getenv("BUCKET_PROXY_ENDPOINT"));
@@ -549,21 +603,26 @@ public class Main {
         try {
             // Create test directory first
             System.out.println("=== Creating Test Directory ===");
-            createTestDirectory();
+            //createTestDirectory();
             
             // Test directory upload only
             System.out.println("=== Testing Directory Upload ===");
-            uploadDirectory();
+            //uploadDirectory();
 
             // Test directory download
             getLogger().info("=== Testing Directory Download ===");
-            downloadDirectory();
+            //downloadDirectory();
                        
             // Test directory delete
             getLogger().info("=== Testing Directory Delete ===");
-            deleteDirectory();
+            //deleteDirectory();
             
             System.out.println("Directory operations test completed!");
+
+            // Test multipart upload
+            System.out.println("=== Testing Multipart Upload ===");
+            fullMultipartUploadExample();
+            System.out.println("Multipart upload test completed!");
             
         } catch (Exception e) {
             System.out.println("Test failed: " + e.getMessage());

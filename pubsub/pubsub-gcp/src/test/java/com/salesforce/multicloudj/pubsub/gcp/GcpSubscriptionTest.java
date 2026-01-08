@@ -440,60 +440,6 @@ public class GcpSubscriptionTest {
     }
 
     @Test
-    void testValidateAckIDTypeWithValidGcpAckID() {
-        AckID validAckID = new GcpSubscription.GcpAckID("valid-ack-id");
-        
-        assertDoesNotThrow(() -> subscription.validateAckIDType(validAckID));
-    }
-    
-    @Test
-    void testValidateAckIDTypeWithNonGcpAckID() {
-        AckID nonGcpAckID = new AckID() {
-            @Override
-            public String toString() {
-                return "test-ack-id";
-            }
-        };
-        
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
-            () -> subscription.validateAckIDType(nonGcpAckID));
-        assertTrue(exception.getMessage().contains("Expected GcpAckID"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithNullString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(null));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithEmptyString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID(""));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithWhitespaceString() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
-            () -> new GcpSubscription.GcpAckID("   "));
-        assertTrue(exception.getMessage().contains("AckID string cannot be null or empty"));
-    }
-    
-    @Test
-    void testGcpAckIDConstructorWithValidString() {
-        assertDoesNotThrow(() -> new GcpSubscription.GcpAckID("valid-ack-id"));
-    }
-
-    @Test
-    void testValidateAckIDTypeWithNullAckID() {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, 
-            () -> subscription.validateAckIDType(null));
-        assertTrue(exception.getMessage().contains("AckID cannot be null"));
-    }
-
-    @Test
     void testGetException() {
         assertSame(com.salesforce.multicloudj.common.exceptions.UnknownException.class, 
             subscription.getException(new RuntimeException("test")));

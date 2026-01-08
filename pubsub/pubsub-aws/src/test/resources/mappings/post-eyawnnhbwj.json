@@ -1,0 +1,32 @@
+{
+  "id" : "52656b60-d8e3-458b-aa91-53d1475b5b54",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-queue-testReceiveAfterSend\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-queue-testReceiveAfterSend\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "738b419d-b6f2-5942-b0bd-204a1855c80b",
+      "Date" : "Wed, 07 Jan 2026 00:44:23 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "52656b60-d8e3-458b-aa91-53d1475b5b54",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "scenario-1--2",
+  "insertionIndex" : 32
+}

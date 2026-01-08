@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.21](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.20...multicloudj-v0.2.21) (2025-12-19)
+
+
+### Blob Store
+
+* onboard GCS native Multipart Upload ([#228](https://github.com/salesforce/multicloudj/issues/228)) ([8193069](https://github.com/salesforce/multicloudj/commit/819306958fb32d5296b5a44b3aef78e21aab6454))
+* Upgrade the google-cloud-storage version to v2.60.0 ([#211](https://github.com/salesforce/multicloudj/issues/211)) ([fcb0943](https://github.com/salesforce/multicloudj/commit/fcb09437f87fb95bd09fad7e89ebaf7b819397c3))
+
+
+### IAM
+
+* add conformance tests for IAM Identity Management APIs for GCP ([#186](https://github.com/salesforce/multicloudj/issues/186)) ([3a5f83c](https://github.com/salesforce/multicloudj/commit/3a5f83cbd4d9740be77417b3da460109a1d12872))
+* getInlinePolicyDetails API(GCP) ([#163](https://github.com/salesforce/multicloudj/issues/163)) ([5472da6](https://github.com/salesforce/multicloudj/commit/5472da6ce2ea0fb6d2cc6b7f2574619726e51d9e))
+
 ## [0.2.20](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.19...multicloudj-v0.2.20) (2025-12-15)
 
 

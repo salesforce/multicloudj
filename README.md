@@ -18,7 +18,7 @@ MultiCloudJ is a cloud-agnostic Java SDK providing unified and substrate-neutral
 - **Security Token Service (STS)**
 - **Blob Store**
 - **Document Store**
-- more to common...
+- more to come...
 
 MultiCloudJ simplifies multi-cloud compatibility, enabling consistent codebases and accelerating development for applications that needs to be deployed across different cloud platforms.
 
