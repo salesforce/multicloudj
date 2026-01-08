@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,10 @@ public abstract class AbstractIamIT {
 		List<String> getTestPolicyActions();
 
         String getTestPolicyName();
+
+        default boolean supportsPolicyAPIs() {
+            return true;
+        }
     }
 
 	protected abstract Harness createHarness();
@@ -99,6 +104,7 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testAttachInlinePolicy() {
+        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
 		for (String action : harness.getTestPolicyActions()) {
@@ -120,6 +126,7 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testGetInlinePolicyDetails() {
+        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         PolicyDocument policyDocument = PolicyDocument.builder()
 				.version(harness.getPolicyVersion())
 				.statement(Statement.builder()
@@ -148,6 +155,7 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testGetAttachedPolicies() {
+        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
 		for (String action : harness.getTestPolicyActions()) {
@@ -177,6 +185,7 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testRemovePolicy() {
+        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         PolicyDocument policyDocument = PolicyDocument.builder()
 				.version(harness.getPolicyVersion())
 				.statement(Statement.builder()

@@ -4,12 +4,10 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.extension.Extension;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
-import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
-import com.github.tomakehurst.wiremock.matching.EqualToPattern;
-import com.github.tomakehurst.wiremock.matching.MatchesJsonPathPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
@@ -17,9 +15,7 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -79,15 +75,15 @@ public class TestsUtil {
         logger.info("Recording enabled: {}", isRecordingEnabled);
 
         // Create extensions list with default transformer
-        List<StubMappingTransformer> extensions = new ArrayList<>();
+        List<Extension> extensions = new ArrayList<>();
         extensions.add(new TruncateRequestBodyTransformer());
 
         // Load additional extensions if provided
         for (String extensionClass : extensionInstances) {
             try {
                 Class<?> clazz = Class.forName(extensionClass);
-                StubMappingTransformer transformer = (StubMappingTransformer) clazz.getDeclaredConstructor().newInstance();
-                extensions.add(transformer);
+                Extension extension = (Extension) clazz.getDeclaredConstructor().newInstance();
+                extensions.add(extension);
                 logger.info("Loaded WireMock extension: {}", extensionClass);
             } catch (Exception e) {
                 logger.warn("Failed to load WireMock extension: {}", extensionClass, e);
@@ -104,7 +100,7 @@ public class TestsUtil {
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{request.method}}-{{randomValue length=10}}.json")
                 //.extensions(new TruncateRequestBodyTransformer()) // TODO: enable it after converting to plain text body in multipart uploads for tests
-                .extensions(extensions.toArray(new StubMappingTransformer[0]))
+                .extensions(extensions.toArray(new Extension[0]))
                 .enableBrowserProxying(true));
         wireMockServer.start();
     }

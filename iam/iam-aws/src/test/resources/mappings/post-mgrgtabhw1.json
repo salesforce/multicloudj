@@ -1,0 +1,24 @@
+{
+  "id" : "33422bc2-7c91-47ba-b393-2d196cc2b159",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%5B%22s3%3AGetObject%22%2C%22s3%3APutObject%22%5D%2C%22Resource%22%3A%5B%22*%22%5D%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<PutRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>26451812-f697-49b8-aaf9-f0bbb1d8c24b</RequestId>\n  </ResponseMetadata>\n</PutRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "26451812-f697-49b8-aaf9-f0bbb1d8c24b",
+      "Date" : "Wed, 07 Jan 2026 11:40:48 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "33422bc2-7c91-47ba-b393-2d196cc2b159",
+  "persistent" : true,
+  "insertionIndex" : 61
+}

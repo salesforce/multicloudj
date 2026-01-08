@@ -1,0 +1,24 @@
+{
+  "id" : "84e5bc3c-b7d9-49a7-accd-4e0bdab1b6a1",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22version%22%3A%222012-10-17%22%2C%22statements%22%3A%5B%7B%22sid%22%3Anull%2C%22effect%22%3A%22Allow%22%2C%22principals%22%3A%5B%5D%2C%22actions%22%3A%5B%22TestPolicy%22%5D%2C%22resources%22%3A%5B%5D%2C%22conditions%22%3A%7B%7D%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>NoSuchEntity</Code>\n    <Message>The role with name testSa cannot be found.</Message>\n  </Error>\n  <RequestId>d6dfedf2-7737-4c0c-a6a5-a022b92ae5f9</RequestId>\n</ErrorResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "d6dfedf2-7737-4c0c-a6a5-a022b92ae5f9",
+      "Date" : "Wed, 07 Jan 2026 06:52:55 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "84e5bc3c-b7d9-49a7-accd-4e0bdab1b6a1",
+  "persistent" : true,
+  "insertionIndex" : 18
+}
