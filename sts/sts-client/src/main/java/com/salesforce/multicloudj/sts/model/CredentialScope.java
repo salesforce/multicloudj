@@ -16,11 +16,13 @@ import java.util.List;
  * <pre>
  * CredentialScope scope = CredentialScope.builder()
  *     .rule(CredentialScope.ScopeRule.builder()
- *         .availableResource("storage://my-bucket/*")
+ *         .availableResource("storage://my-bucket")
  *         .availablePermission("storage:GetObject")
  *         .availablePermission("storage:PutObject")
  *         .availabilityCondition(CredentialScope.AvailabilityCondition.builder()
- *             .expression("resource.name.startsWith('storage://my-bucket/prefix/')")
+ *             .resourcePrefix("storage://my-bucket/prefix/")
+ *             .title("Limit to documents folder")
+ *             .description("Only allow access to objects in the documents folder")
  *             .build())
  *         .build())
  *     .build();
@@ -36,8 +38,7 @@ import java.util.List;
  *
  * <p>Use cloud-agnostic resource formats:
  * <ul>
- *   <li>storage://bucket-name/* - All objects in bucket</li>
- *   <li>storage://bucket-name/prefix/* - Objects under prefix</li>
+ *   <li>storage://bucket-name - Specifies the bucket resource (use resourcePrefix in AvailabilityCondition to restrict to specific prefixes)</li>
  * </ul>
  */
 @Getter

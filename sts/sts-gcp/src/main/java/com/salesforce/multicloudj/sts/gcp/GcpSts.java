@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.sts.gcp;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.CredentialAccessBoundary;
@@ -11,10 +12,6 @@ import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
 import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auto.service.AutoService;
-import com.google.cloud.iam.credentials.v1.GenerateAccessTokenRequest;
-import com.google.cloud.iam.credentials.v1.GenerateAccessTokenResponse;
-import com.google.cloud.iam.credentials.v1.IamCredentialsClient;
-import com.google.protobuf.Duration;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -44,85 +41,34 @@ import java.util.Map;
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
     private final String scope = "https://www.googleapis.com/auth/cloud-platform";
-    private IamCredentialsClient stsClient;
-    /**
-     * Optionally injected GoogleCredentials (used primarily for testing). If null the
-     * class falls back to {@code GoogleCredentials.getApplicationDefault()} at runtime.
-     */
+
     private GoogleCredentials googleCredentials;
+
+    private HttpTransportFactory httpTransportFactory;
 
     public GcpSts(Builder builder) {
         super(builder);
-        try {
-            this.stsClient = IamCredentialsClient.create();
-        } catch (IOException e) {
-            throw new SubstrateSdkException("Could not create IAM client ", e);
-        }
     }
 
-    public GcpSts(Builder builder, IamCredentialsClient stsClient) {
+    public GcpSts(Builder builder, GoogleCredentials credentials) {
         super(builder);
-        this.stsClient = stsClient;
-    }
-
-    public GcpSts(Builder builder, IamCredentialsClient stsClient, GoogleCredentials credentials) {
-        super(builder);
-        this.stsClient = stsClient;
         this.googleCredentials = credentials;
+    }
+
+    public GcpSts(Builder builder, HttpTransportFactory httpTransportFactory) {
+        super(builder);
+        this.httpTransportFactory = httpTransportFactory;
+    }
+
+    public GcpSts(Builder builder, GoogleCredentials credentials,
+                  HttpTransportFactory httpTransportFactory) {
+        super(builder);
+        this.googleCredentials = credentials;
+        this.httpTransportFactory = httpTransportFactory;
     }
 
     public GcpSts() {
         super(new Builder());
-    }
-
-    @Override
-    protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request){
-        // If credential scope is provided, use DownscopedCredentials
-        if (request.getCredentialScope() != null) {
-            try {
-                // Create credentials for the service account
-                GoogleCredentials sourceCredentials = getCredentials();
-
-                // If service account impersonation is needed, use ImpersonatedCredentials
-                if (request.getRole() != null && !request.getRole().isEmpty()) {
-                    ImpersonatedCredentials.Builder impersonatedBuilder = ImpersonatedCredentials.newBuilder()
-                            .setSourceCredentials(sourceCredentials)
-                            .setTargetPrincipal(request.getRole())
-                            .setScopes(List.of(scope));
-
-                    if (request.getExpiration() > 0) {
-                        impersonatedBuilder.setLifetime(request.getExpiration());
-                    }
-
-                    sourceCredentials = impersonatedBuilder.build();
-                }
-
-                // Convert cloud-agnostic CredentialScope to GCP CredentialAccessBoundary
-                CredentialAccessBoundary gcpAccessBoundary = convertToGcpAccessBoundary(request.getCredentialScope());
-
-                // Create downscoped credentials with the access boundary
-                DownscopedCredentials downscopedCredentials = DownscopedCredentials.newBuilder()
-                        .setSourceCredential(sourceCredentials)
-                        .setCredentialAccessBoundary(gcpAccessBoundary)
-                        .build();
-
-                // Get the downscoped access token
-                AccessToken accessToken = downscopedCredentials.refreshAccessToken();
-                return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
-            } catch (IOException e) {
-                throw new SubstrateSdkException("Failed to create downscoped credentials", e);
-            }
-        }
-
-        // Original behavior when no access boundary is provided
-        GenerateAccessTokenRequest.Builder accessTokenRequestBuilder = GenerateAccessTokenRequest.newBuilder()
-                .setName("projects/-/serviceAccounts/" + request.getRole())
-                .addAllScope(List.of(scope));
-        if (request.getExpiration() > 0) {
-            accessTokenRequestBuilder.setLifetime(Duration.newBuilder().setSeconds(request.getExpiration()));
-        }
-        GenerateAccessTokenResponse response = this.stsClient.generateAccessToken(accessTokenRequestBuilder.build());
-        return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, response.getAccessToken());
     }
 
     /**
@@ -173,63 +119,36 @@ public class GcpSts extends AbstractSts {
 
     /**
      * Converts cloud-agnostic permission to GCP permission format.
+     * For now, it's limited to storage/gcs service.
      * Example: "storage:GetObject" -> "inRole:roles/storage.objectViewer"
      */
     private String convertToGcpPermission(String permission) {
-        // Handle cloud-agnostic storage: format
-        // based on the need, this can be extended to more services
-        if (permission.startsWith("storage:")) {
-            String action = permission.substring("storage:".length());
+        String action = permission.substring("storage:".length());
 
-            // Map common actions to GCP roles
-            switch (action) {
-                case "GetObject":
-                    return "inRole:roles/storage.objectViewer";
-                case "PutObject":
-                    return "inRole:roles/storage.objectCreator";
-                case "DeleteObject":
-                    return "inRole:roles/storage.objectAdmin";
-                case "ListBucket":
-                    return "inRole:roles/storage.objectViewer";
-                default:
-                    // For unknown actions, default to objectViewer
-                    return "inRole:roles/storage.objectViewer";
-            }
+        // Map common actions to GCP roles
+        switch (action) {
+            case "GetObject":
+                return "inRole:roles/storage.objectViewer";
+            case "PutObject":
+                return "inRole:roles/storage.objectCreator";
+            case "DeleteObject":
+                return "inRole:roles/storage.objectAdmin";
+            case "ListBucket":
+                return "inRole:roles/storage.objectViewer";
+            default:
+                // For unknown actions, default to objectViewer
+                return "inRole:roles/storage.objectViewer";
         }
-
-        // If it's already a GCP format (inRole:*), return as-is
-        if (permission.startsWith("inRole:")) {
-            return permission;
-        }
-
-        // Default: wrap in inRole if no format detected
-        return "inRole:" + permission;
     }
 
     /**
      * Converts cloud-agnostic resource to GCP resource format.
-     * Example: "storage://my-bucket/*" -> "//storage.googleapis.com/projects/_/buckets/my-bucket"
+     * For now, it's limited to storage/gcs service.
+     * Example: "storage://my-bucket" -> "//storage.googleapis.com/projects/_/buckets/my-bucket"
      */
     private String convertToGcpResource(String resource) {
-        // Handle cloud-agnostic storage:// format
-        if (resource.startsWith("storage://")) {
-            String path = resource.substring("storage://".length());
-            // Remove trailing /* if present
-            if (path.endsWith("/*")) {
-                path = path.substring(0, path.length() - 2);
-            }
-            // Extract bucket name (before first /)
-            String bucketName = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
-            return "//storage.googleapis.com/projects/_/buckets/" + bucketName;
-        }
-
-        // If it's already a GCP format (//storage.googleapis.com/*), return as-is
-        if (resource.startsWith("//storage.googleapis.com/")) {
-            return resource;
-        }
-
-        // Default: assume it's a bucket name
-        return "//storage.googleapis.com/projects/_/buckets/" + resource;
+        String bucketName = resource.substring("storage://".length());
+        return "//storage.googleapis.com/projects/_/buckets/" + bucketName;
     }
 
     /**
@@ -252,6 +171,57 @@ public class GcpSts extends AbstractSts {
         }
         // Fallback: return expression that checks the prefix as-is
         return "resource.name.startsWith('" + resourcePrefix + "')";
+    }
+
+    @Override
+    protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request){
+        try {
+            // Create credentials for the service account
+            GoogleCredentials sourceCredentials = getCredentials();
+
+            // If service account impersonation is needed, use ImpersonatedCredentials
+            if (request.getRole() != null && !request.getRole().isEmpty()) {
+                ImpersonatedCredentials.Builder impersonatedBuilder = ImpersonatedCredentials.newBuilder()
+                        .setSourceCredentials(sourceCredentials)
+                        .setTargetPrincipal(request.getRole())
+                        .setScopes(List.of(scope));
+
+                if (request.getExpiration() > 0) {
+                    impersonatedBuilder.setLifetime(request.getExpiration());
+                }
+
+                // Set custom HTTP transport if available
+                if (httpTransportFactory != null) {
+                    impersonatedBuilder.setHttpTransportFactory(httpTransportFactory);
+                }
+
+                sourceCredentials = impersonatedBuilder.build();
+            }
+
+            // If credential scope is provided, apply downscoping
+            if (request.getCredentialScope() != null) {
+                // Convert cloud-agnostic CredentialScope to GCP CredentialAccessBoundary
+                CredentialAccessBoundary gcpAccessBoundary = convertToGcpAccessBoundary(request.getCredentialScope());
+
+                // Create downscoped credentials with the access boundary
+                DownscopedCredentials.Builder downscopedBuilder = DownscopedCredentials.newBuilder()
+                        .setSourceCredential(sourceCredentials)
+                        .setCredentialAccessBoundary(gcpAccessBoundary);
+                DownscopedCredentials downscopedCredentials = downscopedBuilder.build();
+
+                // Get the downscoped access token
+                downscopedCredentials.refreshIfExpired();
+                AccessToken accessToken = downscopedCredentials.getAccessToken();
+                return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+            }
+
+            // No downscoping - refresh and return the credentials
+            sourceCredentials.refreshIfExpired();
+            AccessToken accessToken = sourceCredentials.getAccessToken();
+            return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken.getTokenValue());
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Failed to create credentials", e);
+        }
     }
 
     @Override
@@ -351,12 +321,16 @@ public class GcpSts extends AbstractSts {
             return this;
         }
 
-        public GcpSts build(IamCredentialsClient stsClient, GoogleCredentials credentials) {
-            return new GcpSts(this, stsClient, credentials);
+        public GcpSts build(GoogleCredentials credentials) {
+            return new GcpSts(this, credentials);
         }
 
-        public GcpSts build(IamCredentialsClient stsClient) {
-            return new GcpSts(this, stsClient);
+        public GcpSts build(HttpTransportFactory httpTransportFactory) {
+            return new GcpSts(this, httpTransportFactory);
+        }
+
+        public GcpSts build(GoogleCredentials credentials, HttpTransportFactory httpTransportFactory) {
+            return new GcpSts(this, credentials, httpTransportFactory);
         }
 
         @Override

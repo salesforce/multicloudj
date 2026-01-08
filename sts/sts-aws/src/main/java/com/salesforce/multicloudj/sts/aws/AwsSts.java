@@ -131,40 +131,19 @@ public class AwsSts extends AbstractSts {
      * Example: "storage:GetObject" -> "s3:GetObject"
      */
     private String convertPermissionToAction(String permission) {
-        // Handle cloud-agnostic storage: format
-        if (permission.startsWith("storage:")) {
-            String action = permission.substring("storage:".length());
-            return "s3:" + action;  // storage:GetObject -> s3:GetObject
-        }
-
-        // If it's already an AWS action format (s3:*, iam:*, etc.), return as-is
-        if (permission.contains(":")) {
-            return permission;
-        }
-
-        // Default: assume s3 if no service specified
-        return "s3:" + permission;
+        String action = permission.substring("storage:".length());
+        return "s3:" + action;  // storage:GetObject -> s3:GetObject
     }
 
     /**
      * Converts cloud-agnostic resource to AWS ARN.
      * Maps MultiCloudJ storage URIs to AWS S3 ARNs.
-     * Example: "storage://my-bucket/*" -> "arn:aws:s3:::my-bucket/*"
+     * Example: "storage://my-bucket" -> "arn:aws:s3:::my-bucket/*"
      */
     private String convertResourceToArn(String resource) {
-        // Handle cloud-agnostic storage:// format
-        if (resource.startsWith("storage://")) {
-            String path = resource.substring("storage://".length());
-            return "arn:aws:s3:::" + path;  // storage://my-bucket/* -> arn:aws:s3:::my-bucket/*
-        }
-
-        // If it's already an AWS ARN format (arn:aws:*), return as-is
-        if (resource.startsWith("arn:aws:")) {
-            return resource;
-        }
-
-        // Default: assume S3 bucket path
-        return "arn:aws:s3:::" + resource;
+        String bucketName = resource.substring("storage://".length());
+        // AWS requires /* suffix for bucket-level access
+        return "arn:aws:s3:::" + bucketName + "/*";
     }
 
     /**
@@ -304,13 +283,6 @@ public class AwsSts extends AbstractSts {
 
         @Override
         public Builder self() {
-            return this;
-        }
-
-        public Builder setParam(Map<String, String> params) {
-            if (!Objects.equals(params.get("customPro"), "")) {
-                param = params.get("customPro");
-            }
             return this;
         }
 
