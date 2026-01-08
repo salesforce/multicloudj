@@ -112,8 +112,8 @@ public abstract class AbstractStsIT {
     public void testAssumeRole() {
         AbstractSts sts = harness.createStsDriver(false);
         StsClient stsClient = new StsClient(sts);
-        AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole(harness.getRoleName()).withSessionName("any-session").build();
-        StsCredentials credentials = stsClient.getAssumeRoleCredentials(request);
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole(harness.getRoleName()).withExpiration(3600).withSessionName("any-session").build();
+        StsCredentials credentials = stsClient. getAssumeRoleCredentials(request);
         Assertions.assertNotNull(credentials, "Credentials shouldn't be empty");
         Assertions.assertNotNull(credentials.getAccessKeySecret());
         Assertions.assertNotNull(credentials.getAccessKeyId());
