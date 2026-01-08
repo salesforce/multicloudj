@@ -1,0 +1,24 @@
+{
+  "id" : "17200ac9-5ae6-44e2-87ce-45c45328285d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=GetRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<GetRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <GetRolePolicyResult>\n    <PolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%5B%22s3%3AGetObject%22%2C%22s3%3APutObject%22%5D%2C%22Resource%22%3A%5B%22%2A%22%5D%7D%5D%7D</PolicyDocument>\n    <PolicyName>TestPolicy</PolicyName>\n    <RoleName>testSa</RoleName>\n  </GetRolePolicyResult>\n  <ResponseMetadata>\n    <RequestId>b4da106a-c9b3-4d03-8a5d-80f98aeec68e</RequestId>\n  </ResponseMetadata>\n</GetRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "b4da106a-c9b3-4d03-8a5d-80f98aeec68e",
+      "Date" : "Wed, 07 Jan 2026 11:36:46 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "17200ac9-5ae6-44e2-87ce-45c45328285d",
+  "persistent" : true,
+  "insertionIndex" : 56
+}

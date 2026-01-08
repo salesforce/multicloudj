@@ -1,0 +1,24 @@
+{
+  "id" : "3675f378-7f53-4276-a6a6-72adf29f851f",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateRole&Version=2010-05-08&RoleName=testSa&AssumeRolePolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%7D%7D%5D%7D&Description=Test+identity+for+MultiCloudJ+integration+tests",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 409,
+    "body" : "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>EntityAlreadyExists</Code>\n    <Message>Role with name testSa already exists.</Message>\n  </Error>\n  <RequestId>1643d485-57ba-476f-b613-aad77b6a664e</RequestId>\n</ErrorResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "1643d485-57ba-476f-b613-aad77b6a664e",
+      "Date" : "Wed, 07 Jan 2026 11:40:47 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "3675f378-7f53-4276-a6a6-72adf29f851f",
+  "persistent" : true,
+  "insertionIndex" : 63
+}

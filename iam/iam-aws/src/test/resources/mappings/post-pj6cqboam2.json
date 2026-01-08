@@ -1,0 +1,24 @@
+{
+  "id" : "aac25400-c17d-491b-92f4-a5a8ded7b2af",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statements%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%5B%22s3%3AGetObject%22%2C%22s3%3APutObject%22%5D%2C%22Resource%22%3A%5B%22*%22%5D%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MalformedPolicyDocument</Code>\n    <Message>Syntax errors in policy.</Message>\n  </Error>\n  <RequestId>37b22e71-3165-4408-83e1-903651ac4229</RequestId>\n</ErrorResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "37b22e71-3165-4408-83e1-903651ac4229",
+      "Date" : "Wed, 07 Jan 2026 11:34:22 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "aac25400-c17d-491b-92f4-a5a8ded7b2af",
+  "persistent" : true,
+  "insertionIndex" : 46
+}
