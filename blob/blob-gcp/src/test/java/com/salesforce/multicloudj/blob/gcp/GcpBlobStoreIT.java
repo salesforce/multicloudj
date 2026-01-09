@@ -17,6 +17,7 @@ import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
@@ -112,6 +113,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         @Override
         public String getKmsKeyId() {
             return "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+        }
+
+        public List<String> getWiremockExtensions() {
+            // return List.of("com.salesforce.multicloudj.blob.gcp.util.ResumableUploadIdTransformer");
+            return List.of();
         }
 
         @Override
