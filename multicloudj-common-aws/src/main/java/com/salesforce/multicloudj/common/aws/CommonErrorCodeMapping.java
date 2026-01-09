@@ -22,19 +22,60 @@ public class CommonErrorCodeMapping {
         // The common error codes as source of truth is here:
         // https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html
         // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/CommonErrors.html
-        ERROR_MAPPING = Map.ofEntries(
-                Map.entry("AccessDeniedException", UnAuthorizedException.class),
-                Map.entry("IncompleteSignature", InvalidArgumentException.class),
-                Map.entry("InternalFailure", UnknownException.class),
-                Map.entry("InvalidAction", InvalidArgumentException.class),
-                Map.entry("InvalidClientTokenId", InvalidArgumentException.class),
-                Map.entry("NotAuthorized", UnAuthorizedException.class),
-                Map.entry("OptInRequired", UnAuthorizedException.class),
-                Map.entry("RequestExpired", ResourceExhaustedException.class),
-                Map.entry("ServiceUnavailable", UnknownException.class),
-                Map.entry("ThrottlingException", ResourceExhaustedException.class),
-                Map.entry("ValidationError", InvalidArgumentException.class)
-        );
+        // https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
+        Map<String, Class<? extends SubstrateSdkException>> map = new HashMap<>();
+        
+        // Common errors from STS/DynamoDB
+        map.put("IncompleteSignature", InvalidArgumentException.class);
+        map.put("InternalFailure", UnknownException.class);
+        map.put("InvalidAction", InvalidArgumentException.class);
+        map.put("InvalidClientTokenId", InvalidArgumentException.class);
+        map.put("NotAuthorized", UnAuthorizedException.class);
+        map.put("OptInRequired", UnAuthorizedException.class);
+        map.put("RequestExpired", ResourceExhaustedException.class);
+        map.put("ServiceUnavailable", UnknownException.class);
+        map.put("ThrottlingException", ResourceExhaustedException.class);
+        map.put("ValidationError", InvalidArgumentException.class);
+        
+        // All 403 Forbidden errors from S3
+        map.put("AccessDenied", UnAuthorizedException.class);
+        map.put("AccountNotAuthorized", UnAuthorizedException.class);
+        map.put("AccountProblem", UnAuthorizedException.class);
+        map.put("AllAccessDisabled", UnAuthorizedException.class);
+        map.put("InvalidAccessKeyId", InvalidArgumentException.class);
+        map.put("InvalidPayer", UnAuthorizedException.class);
+        map.put("InvalidSecurity", UnAuthorizedException.class);
+        map.put("NotSignedUp", UnAuthorizedException.class);
+        map.put("RequestTimeTooSkewed", InvalidArgumentException.class);
+        map.put("SignatureDoesNotMatch", InvalidArgumentException.class);
+        map.put("TokenRefreshRequired", UnAuthorizedException.class);
+        
+        // Common 400 Bad Request errors
+        map.put("BadDigest", InvalidArgumentException.class);
+        map.put("InvalidRequest", InvalidArgumentException.class);
+        map.put("InvalidArgument", InvalidArgumentException.class);
+        map.put("MalformedPolicy", InvalidArgumentException.class);
+        map.put("MalformedXML", InvalidArgumentException.class);
+        map.put("MetadataTooLarge", InvalidArgumentException.class);
+        map.put("MissingContentLength", InvalidArgumentException.class);
+        map.put("MissingSecurityHeader", InvalidArgumentException.class);
+        map.put("RequestTimeout", ResourceExhaustedException.class);
+        
+        // Common 404 Not Found errors
+        map.put("NoSuchKey", ResourceNotFoundException.class);
+        map.put("NoSuchBucket", ResourceNotFoundException.class);
+        map.put("NoSuchVersion", ResourceNotFoundException.class);
+        map.put("NoSuchUpload", ResourceNotFoundException.class);
+        
+        // Common 409 Conflict errors
+        map.put("BucketAlreadyExists", ResourceAlreadyExistsException.class);
+        map.put("BucketAlreadyOwnedByYou", ResourceAlreadyExistsException.class);
+        map.put("OperationAborted", ResourceConflictException.class);
+        
+        // Common 503 Service Unavailable errors
+        map.put("SlowDown", ResourceExhaustedException.class);
+        
+        ERROR_MAPPING = Collections.unmodifiableMap(map);
     }
 
     public static Map<String, Class<? extends SubstrateSdkException>> get() {
