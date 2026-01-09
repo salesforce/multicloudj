@@ -1,11 +1,16 @@
 package com.salesforce.multicloudj.common.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
+import com.salesforce.multicloudj.common.exceptions.ResourceConflictException;
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
