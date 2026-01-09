@@ -2,7 +2,7 @@
   "id" : "68ba6716-6665-4c8f-91df-5a9455fef561",
   "name" : "",
   "request" : {
-    "urlPattern" : "/\\?SecurityToken=.*&SignatureVersion=1.0&Action=GetCallerIdentity&Format=JSON&SignatureNonce=.*&Version=2015-04-01&AccessKeyId=.*&Signature=.*&SignatureMethod=HMAC-SHA1&RegionId=cn-shanghai&Timestamp=.*&DurationSeconds=3600",
+    "urlPattern" : "/\\?SecurityToken=.*&SignatureVersion=1.0&Action=GetCallerIdentity&Format=JSON&SignatureNonce=.*&Version=2015-04-01&AccessKeyId=.*&Signature=.*&SignatureMethod=HMAC-SHA1&RegionId=cn-shanghai&Timestamp=.*",
     "method" : "POST"
   },
   "response" : {
