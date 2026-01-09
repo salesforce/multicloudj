@@ -24,7 +24,7 @@ public class CommonErrorCodeMapping {
         // The common error codes as source of truth is here:
         // https://docs.aws.amazon.com/STS/latest/APIReference/CommonErrors.html
         // https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/CommonErrors.html
-        // https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
+        // These are errors that are common across multiple AWS services (STS, DynamoDB, etc.)
         ERROR_MAPPING = Map.ofEntries(
                 // Common errors from STS/DynamoDB
                 Map.entry("IncompleteSignature", InvalidArgumentException.class),
@@ -37,7 +37,7 @@ public class CommonErrorCodeMapping {
                 Map.entry("ServiceUnavailable", UnknownException.class),
                 Map.entry("ThrottlingException", ResourceExhaustedException.class),
                 Map.entry("ValidationError", InvalidArgumentException.class),
-                // All 403 Forbidden errors from S3
+                // Common access/authorization errors
                 Map.entry("AccessDenied", UnAuthorizedException.class),
                 Map.entry("AccountNotAuthorized", UnAuthorizedException.class),
                 Map.entry("AccountProblem", UnAuthorizedException.class),
@@ -48,28 +48,7 @@ public class CommonErrorCodeMapping {
                 Map.entry("NotSignedUp", UnAuthorizedException.class),
                 Map.entry("RequestTimeTooSkewed", InvalidArgumentException.class),
                 Map.entry("SignatureDoesNotMatch", InvalidArgumentException.class),
-                Map.entry("TokenRefreshRequired", UnAuthorizedException.class),
-                // Common 400 Bad Request errors
-                Map.entry("BadDigest", InvalidArgumentException.class),
-                Map.entry("InvalidRequest", InvalidArgumentException.class),
-                Map.entry("InvalidArgument", InvalidArgumentException.class),
-                Map.entry("MalformedPolicy", InvalidArgumentException.class),
-                Map.entry("MalformedXML", InvalidArgumentException.class),
-                Map.entry("MetadataTooLarge", InvalidArgumentException.class),
-                Map.entry("MissingContentLength", InvalidArgumentException.class),
-                Map.entry("MissingSecurityHeader", InvalidArgumentException.class),
-                Map.entry("RequestTimeout", ResourceExhaustedException.class),
-                // Common 404 Not Found errors
-                Map.entry("NoSuchKey", ResourceNotFoundException.class),
-                Map.entry("NoSuchBucket", ResourceNotFoundException.class),
-                Map.entry("NoSuchVersion", ResourceNotFoundException.class),
-                Map.entry("NoSuchUpload", ResourceNotFoundException.class),
-                // Common 409 Conflict errors
-                Map.entry("BucketAlreadyExists", ResourceAlreadyExistsException.class),
-                Map.entry("BucketAlreadyOwnedByYou", ResourceAlreadyExistsException.class),
-                Map.entry("OperationAborted", ResourceConflictException.class),
-                // Common 503 Service Unavailable errors
-                Map.entry("SlowDown", ResourceExhaustedException.class)
+                Map.entry("TokenRefreshRequired", UnAuthorizedException.class)
         );
     }
 
