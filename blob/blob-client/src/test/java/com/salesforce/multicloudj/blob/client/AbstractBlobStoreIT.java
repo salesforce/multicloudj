@@ -95,10 +95,6 @@ public abstract class AbstractBlobStoreIT {
 
         // Returns the KMS key ID for encryption tests (provider-specific)
         String getKmsKeyId();
-
-        default List<String> getWiremockExtensions() {
-            return Collections.emptyList();
-        }
     }
 
     protected abstract Harness createHarness();
@@ -113,9 +109,7 @@ public abstract class AbstractBlobStoreIT {
     @BeforeAll
     public void initializeWireMockServer() {
         harness = createHarness();
-        List<String> extensions = harness.getWiremockExtensions();
-        TestsUtil.startWireMockServer("src/test/resources", harness.getPort(), 
-                extensions.toArray(new String[0]));
+        TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
 
     /**

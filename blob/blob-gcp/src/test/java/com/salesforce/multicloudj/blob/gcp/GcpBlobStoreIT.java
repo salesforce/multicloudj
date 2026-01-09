@@ -115,11 +115,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
             return "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test";
         }
 
-        public List<String> getWiremockExtensions() {
-            // return List.of("com.salesforce.multicloudj.blob.gcp.util.ResumableUploadIdTransformer");
-            return List.of();
-        }
-
         @Override
         public void close() {
             try {
