@@ -17,6 +17,7 @@ import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
