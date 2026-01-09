@@ -1,7 +1,10 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -121,7 +124,6 @@ public class AwsSts extends AbstractSts {
         policy.put("Version", "2012-10-17");
         policy.put("Statement", statements);
 
-        // Convert to JSON string
         return toJsonString(policy);
     }
 
@@ -179,36 +181,11 @@ public class AwsSts extends AbstractSts {
      * Converts Map to JSON string.
      */
     private String toJsonString(Map<String, Object> map) {
-        // Simple JSON serialization - in production, use a proper JSON library
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            if (!first) json.append(",");
-            first = false;
-            json.append("\"").append(entry.getKey()).append("\":");
-            json.append(toJsonValue(entry.getValue()));
+        try {
+            return new ObjectMapper().writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            throw new InvalidArgumentException("scoped credentials is not in right format", e);
         }
-        json.append("}");
-        return json.toString();
-    }
-
-    @SuppressWarnings("unchecked")
-    private String toJsonValue(Object value) {
-        if (value == null) {
-            return "null";
-        } else if (value instanceof String) {
-            return "\"" + value + "\"";
-        } else if (value instanceof Number || value instanceof Boolean) {
-            return value.toString();
-        } else if (value instanceof List) {
-            List<?> list = (List<?>) value;
-            return "[" + list.stream()
-                    .map(this::toJsonValue)
-                    .collect(Collectors.joining(",")) + "]";
-        } else if (value instanceof Map) {
-            return toJsonString((Map<String, Object>) value);
-        }
-        return "\"" + value + "\"";
     }
 
     @Override
