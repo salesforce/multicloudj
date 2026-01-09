@@ -1,8 +1,11 @@
 package com.salesforce.multicloudj.sts.aws;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Assertions;
@@ -119,5 +122,53 @@ public class AwsStsTest {
         Assertions.assertEquals("testKeyId", credentials.getAccessKeyId());
         Assertions.assertEquals("testSecret", credentials.getAccessKeySecret());
         Assertions.assertEquals("testToken", credentials.getSecurityToken());
+    }
+
+    private void assertJsonEquals(String expected, String actual) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode expectedNode = mapper.readTree(expected);
+        JsonNode actualNode = mapper.readTree(actual);
+        Assertions.assertEquals(expectedNode, actualNode);
+    }
+
+    @Test
+    public void TestAssumeRoleWithCredentialScope() throws Exception {
+        AwsSts sts = new AwsSts().builder().build(mockStsClient);
+
+        // Create cloud-agnostic CredentialScope with availability condition
+        CredentialScope.AvailabilityCondition condition = CredentialScope.AvailabilityCondition.builder()
+                .resourcePrefix("storage://my-bucket/documents/")
+                .title("Limit to documents folder")
+                .description("Only allow access to objects in the documents folder")
+                .build();
+
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://my-bucket")
+                .availablePermission("storage:GetObject")
+                .availablePermission("storage:PutObject")
+                .availabilityCondition(condition)
+                .build();
+
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
+                .build();
+
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("arn:aws:iam::123456789012:role/test-role")
+                .withSessionName("testSession")
+                .withCredentialScope(credentialScope)
+                .build();
+
+        StsCredentials credentials = sts.assumeRole(request);
+        Assertions.assertNotNull(credentials);
+
+        // Verify that policy was set with correct conversion including condition
+        org.mockito.ArgumentCaptor<AssumeRoleRequest> captor = org.mockito.ArgumentCaptor.forClass(AssumeRoleRequest.class);
+        Mockito.verify(mockStsClient, Mockito.atLeastOnce()).assumeRole(captor.capture());
+        AssumeRoleRequest capturedRequest = captor.getValue();
+
+        // Verify the complete policy structure with condition (parse JSON to ignore key ordering)
+        String expectedPolicy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\"],\"Resource\":\"arn:aws:s3:::my-bucket/*\",\"Condition\":{\"StringLike\":{\"s3:prefix\":\"documents/\"}}}]}";
+        assertJsonEquals(expectedPolicy, capturedRequest.policy());
     }
 }
