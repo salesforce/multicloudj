@@ -42,7 +42,6 @@ import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRes
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("rawtypes")
 @AutoService(AbstractSubscription.class)
 public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
@@ -53,6 +52,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
     private final boolean nackLazy;
     private final long waitTimeSeconds;
     private final String subscriptionUrl;
+    private final boolean raw;
     
     public AwsSubscription() {
         this(new Builder());
@@ -64,6 +64,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         this.waitTimeSeconds = builder.waitTimeSeconds;
         this.sqsClient = builder.sqsClient;
         this.subscriptionUrl = builder.subscriptionUrl;
+        this.raw = builder.raw;
     }
 
     @Override
@@ -185,9 +186,11 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
      * Converts SQS message to internal Message format.
      * 
      * When messages are received from SQS queues subscribed to SNS topics,
-     * the message body is wrapped in SNS JSON format. This method detects
+     * the message body may be wrapped in SNS JSON format. This method detects
      * and unwraps SNS messages, extracting the actual message body and
      * merging SNS MessageAttributes into the message attributes.
+     * If raw is true, or if there are top-level MessageAttributes,
+     * the message is treated as raw and SNS JSON unwrapping is skipped.
      * 
      * Reference: https://aws.amazon.com/sns/faqs/#Raw_message_delivery
      */
@@ -200,9 +203,11 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             rawAttrs.put(entry.getKey(), entry.getValue().stringValue());
         }
         
+        boolean isRaw = raw || !rawAttrs.isEmpty();
+        
         // Unwrap SNS JSON messages if present; otherwise treat the body as a raw SQS message.
-        // Only check for SNS format if there are no raw attributes (SNS messages typically don't have SQS attributes)
-        if (rawAttrs.isEmpty()) {
+        // Only check for SNS format if the message is not raw.
+        if (!isRaw) {
             SnsJsonParser.SnsPayload payload = SnsJsonParser.extractSnsMessage(bodyStr);
             if (payload != null) {
                 bodyStr = payload.message;
@@ -536,6 +541,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         private long waitTimeSeconds = 0;
         private SqsClient sqsClient;
         protected String subscriptionUrl; 
+        private boolean raw = false; 
         
         public Builder() {
             this.providerId = AwsConstants.PROVIDER_ID;
@@ -548,6 +554,11 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
         
         public Builder withWaitTimeSeconds(long waitTimeSeconds) {
             this.waitTimeSeconds = waitTimeSeconds;
+            return this;
+        }
+        
+        public Builder withRaw(boolean raw) {
+            this.raw = raw;
             return this;
         }
         

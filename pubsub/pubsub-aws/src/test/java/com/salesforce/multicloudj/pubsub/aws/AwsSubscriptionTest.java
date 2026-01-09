@@ -985,77 +985,6 @@ public class AwsSubscriptionTest {
     // SNS JSON Message Parsing Tests
 
     @Test
-    void testConvertToMessage_WithSnsJsonMessage_Simple() {
-        subscription = builder.build();
-        
-        // SNS JSON message format
-        String snsJsonBody = "{\n" +
-            "  \"Type\": \"Notification\",\n" +
-            "  \"TopicArn\": \"arn:aws:sns:us-east-1:123456789012:test-topic\",\n" +
-            "  \"Message\": \"Hello from SNS\"\n" +
-            "}";
-        
-        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
-            software.amazon.awssdk.services.sqs.model.Message.builder()
-                .body(snsJsonBody)
-                .messageId("test-message-id")
-                .receiptHandle("test-receipt-handle")
-                .messageAttributes(Map.of())
-                .build();
-        
-        Message result = subscription.convertToMessage(sqsMessage);
-        
-        assertNotNull(result);
-        assertEquals("Hello from SNS", new String(result.getBody(), StandardCharsets.UTF_8));
-        assertEquals("test-message-id", result.getLoggableID());
-        assertEquals("test-receipt-handle", result.getAckID().toString());
-    }
-
-    @Test
-    void testConvertToMessage_WithSnsJsonMessage_WithMessageAttributes() {
-        subscription = builder.build();
-        
-        // SNS JSON message with MessageAttributes, plus SQS message attributes
-        // When SQS attributes are present, SNS parsing is skipped (rawAttrs.isEmpty() check)
-        String snsJsonBody = "{\n" +
-            "  \"Type\": \"Notification\",\n" +
-            "  \"TopicArn\": \"arn:aws:sns:us-east-1:123456789012:test-topic\",\n" +
-            "  \"Message\": \"Hello from SNS\",\n" +
-            "  \"MessageAttributes\": {\n" +
-            "    \"attr1\": {\n" +
-            "      \"Type\": \"String\",\n" +
-            "      \"Value\": \"value1\"\n" +
-            "    },\n" +
-            "    \"attr2\": {\n" +
-            "      \"Type\": \"String\",\n" +
-            "      \"Value\": \"value2\"\n" +
-            "    }\n" +
-            "  }\n" +
-            "}";
-        
-        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
-            software.amazon.awssdk.services.sqs.model.Message.builder()
-                .body(snsJsonBody)
-                .messageId("test-message-id")
-                .receiptHandle("test-receipt-handle")
-                .messageAttributes(Map.of(
-                    "sqs-attr", MessageAttributeValue.builder().stringValue("sqs-value").build()
-                ))
-                .build();
-        
-        Message result = subscription.convertToMessage(sqsMessage);
-        
-        assertNotNull(result);
-        // When SQS attributes are present, SNS is not parsed, so body remains as raw JSON
-        assertEquals(snsJsonBody, new String(result.getBody(), StandardCharsets.UTF_8));
-        // Only SQS attributes should be present (SNS not parsed)
-        assertEquals("sqs-value", result.getMetadata().get("sqs-attr"));
-        assertNull(result.getMetadata().get("attr1"));
-        assertNull(result.getMetadata().get("attr2"));
-    }
-
-
-    @Test
     void testConvertToMessage_WithNonSnsJson_NotParsed() {
         subscription = builder.build();
         
@@ -1292,5 +1221,96 @@ public class AwsSubscriptionTest {
         assertNotNull(result);
         // Whitespace should be trimmed and message should be extracted
         assertEquals("Hello from SNS", new String(result.getBody(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void testWithRaw_True_SnsJsonNotParsed() {
+        // Test that withRaw(true) prevents SNS JSON parsing
+        subscription = builder.withRaw(true).build();
+        
+        String snsJsonBody = "{\n" +
+            "  \"Type\": \"Notification\",\n" +
+            "  \"TopicArn\": \"arn:aws:sns:us-east-1:123456789012:test-topic\",\n" +
+            "  \"Message\": \"Hello from SNS\",\n" +
+            "  \"MessageAttributes\": {\n" +
+            "    \"attr1\": {\n" +
+            "      \"Type\": \"String\",\n" +
+            "      \"Value\": \"value1\"\n" +
+            "    }\n" +
+            "  }\n" +
+            "}";
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(snsJsonBody)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of())
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        // With raw=true, SNS JSON should NOT be parsed, body should remain as raw JSON
+        assertEquals(snsJsonBody, new String(result.getBody(), StandardCharsets.UTF_8));
+        // SNS MessageAttributes should NOT be extracted
+        assertNull(result.getMetadata().get("attr1"));
+    }
+
+    @Test
+    void testWithRaw_Default_False() {
+        // Test that default value of raw is false
+        subscription = builder.build();
+        
+        String snsJsonBody = "{\n" +
+            "  \"Type\": \"Notification\",\n" +
+            "  \"TopicArn\": \"arn:aws:sns:us-east-1:123456789012:test-topic\",\n" +
+            "  \"Message\": \"Hello from SNS\"\n" +
+            "}";
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(snsJsonBody)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of())
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        // Default behavior (raw=false) should parse SNS JSON
+        assertEquals("Hello from SNS", new String(result.getBody(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void testWithRaw_False_WithTopLevelAttributes_TreatedAsRaw() {
+        // Test that even with raw=false, if there are top-level MessageAttributes,
+        // the message is treated as raw 
+        subscription = builder.withRaw(false).build();
+        
+        String snsJsonBody = "{\n" +
+            "  \"Type\": \"Notification\",\n" +
+            "  \"TopicArn\": \"arn:aws:sns:us-east-1:123456789012:test-topic\",\n" +
+            "  \"Message\": \"Hello from SNS\"\n" +
+            "}";
+        
+        software.amazon.awssdk.services.sqs.model.Message sqsMessage = 
+            software.amazon.awssdk.services.sqs.model.Message.builder()
+                .body(snsJsonBody)
+                .messageId("test-message-id")
+                .receiptHandle("test-receipt-handle")
+                .messageAttributes(Map.of(
+                    "sqs-attr", MessageAttributeValue.builder().stringValue("sqs-value").build()
+                ))
+                .build();
+        
+        Message result = subscription.convertToMessage(sqsMessage);
+        
+        assertNotNull(result);
+        // With top-level attributes present, SNS JSON should NOT be parsed
+        assertEquals(snsJsonBody, new String(result.getBody(), StandardCharsets.UTF_8));
+        // Only SQS attributes should be present
+        assertEquals("sqs-value", result.getMetadata().get("sqs-attr"));
     }
 }
