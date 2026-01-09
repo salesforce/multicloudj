@@ -34,12 +34,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @AutoService(AbstractSts.class)
 public class AwsSts extends AbstractSts {
-
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private StsClient stsClient;
 
     public AwsSts(Builder builder) {
@@ -182,7 +181,7 @@ public class AwsSts extends AbstractSts {
      */
     private String toJsonString(Map<String, Object> map) {
         try {
-            return new ObjectMapper().writeValueAsString(map);
+            return OBJECT_MAPPER.writeValueAsString(map);
         } catch (JsonProcessingException e) {
             throw new InvalidArgumentException("scoped credentials is not in right format", e);
         }
