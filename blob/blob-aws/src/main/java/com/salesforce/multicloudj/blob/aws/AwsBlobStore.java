@@ -6,7 +6,6 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
-import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -20,6 +19,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -27,11 +27,11 @@ import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -51,7 +51,6 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -64,6 +63,9 @@ import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.io.File;
@@ -78,12 +80,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.core.ResponseInputStream;
 
 /**
  * AWS implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
+
     private final S3Client s3Client;
     private final AwsTransformer transformer;
 
@@ -181,7 +185,11 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadResponse doUpload(UploadRequest uploadRequest, RequestBody requestBody) {
         PutObjectRequest request = transformer.toRequest(uploadRequest);
         PutObjectResponse response = s3Client.putObject(request, requestBody);
-        return transformer.toUploadResponse(uploadRequest.getKey(), response);
+        return UploadResponse.builder()
+                .key(uploadRequest.getKey())
+                .versionId(response.versionId())
+                .eTag(response.eTag())
+                .build();
     }
 
     /**
@@ -286,20 +294,12 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected CopyResponse doCopy(CopyRequest request) {
         CopyObjectRequest copyRequest = transformer.toRequest(request);
         CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
-    }
-
-    /**
-     * Copies a Blob from a source bucket to the current bucket
-     *
-     * @param request the copyFrom request
-     * @return CopyResponse of the copied Blob
-     */
-    @Override
-    protected CopyResponse doCopyFrom(CopyFromRequest request) {
-        CopyObjectRequest copyRequest = transformer.toRequest(request);
-        CopyObjectResponse copyResponse = s3Client.copyObject(copyRequest);
-        return transformer.toCopyResponse(request.getDestKey(), copyResponse);
+        return CopyResponse.builder()
+                .key(request.getDestKey())
+                .versionId(copyResponse.versionId())
+                .eTag(copyResponse.copyObjectResult().eTag())
+                .lastModified(copyResponse.copyObjectResult().lastModified())
+                .build();
     }
 
     /**
@@ -315,7 +315,16 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected BlobMetadata doGetMetadata(String key, String versionId) {
         HeadObjectRequest request = transformer.toHeadRequest(key, versionId);
         HeadObjectResponse response = s3Client.headObject(request);
-        return transformer.toMetadata(response, key);
+        String eTag = response.eTag();
+        return BlobMetadata.builder()
+                .key(key)
+                .versionId(response.versionId())
+                .eTag(eTag)
+                .objectSize(response.contentLength())
+                .metadata(response.metadata())
+                .lastModified(response.lastModified())
+                .md5(transformer.eTagToMD5(eTag))
+                .build();
     }
 
     /**
@@ -360,7 +369,13 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         CreateMultipartUploadRequest createMultipartUploadRequest = transformer.toCreateMultipartUploadRequest(request);
         CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
-        return transformer.toMultipartUpload(request, createMultipartUploadResponse);
+        return MultipartUpload.builder()
+                .bucket(createMultipartUploadResponse.bucket())
+                .key(createMultipartUploadResponse.key())
+                .id(createMultipartUploadResponse.uploadId())
+                .metadata(request.getMetadata())
+                .kmsKeyId(request.getKmsKeyId())
+                .build();
     }
 
     /**
@@ -374,7 +389,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp) {
         UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
         var uploadPartResponse = s3Client.uploadPart(uploadPartRequest, RequestBody.fromInputStream(mpp.getInputStream(), mpp.getContentLength()));
-        return transformer.toUploadPartResponse(mpp, uploadPartResponse);
+        return new UploadPartResponse(mpp.getPartNumber(), uploadPartResponse.eTag(), mpp.getContentLength());
     }
 
     /**
@@ -388,7 +403,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
         CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
         CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-        return transformer.toMultipartUploadResponse(completeMultipartUploadResponse);
+        return new MultipartUploadResponse(completeMultipartUploadResponse.eTag());
     }
 
     /**
@@ -500,6 +515,74 @@ public class AwsBlobStore extends AbstractBlobStore {
                 return false;
             }
             throw e;
+        }
+    }
+
+    /**
+     * Gets object lock configuration for a blob.
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        try {
+            GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
+                    transformer.toGetObjectRetentionRequest(key, versionId));
+            GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
+                    transformer.toGetObjectLegalHoldRequest(key, versionId));
+            return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to get object lock for key: " + key, e);
+        }
+    }
+    
+    /**
+     * Updates object retention date.
+     * Only works if object is in GOVERNANCE mode. COMPLIANCE mode objects cannot be updated.
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        try {
+            // First get current retention to check mode
+            GetObjectRetentionResponse currentRetention = s3Client.getObjectRetention(
+                    transformer.toGetObjectRetentionRequest(key, versionId));
+            
+            if (currentRetention == null || currentRetention.retention() == null) {
+                throw new InvalidArgumentException(
+                        "Object does not have retention configured. Cannot update retention.");
+            }
+            
+            ObjectLockRetentionMode currentMode = currentRetention.retention().mode();
+            
+            if (currentMode == ObjectLockRetentionMode.COMPLIANCE) {
+                throw new InvalidArgumentException(
+                        "Cannot update retention for objects in COMPLIANCE mode. " +
+                        "Only GOVERNANCE mode objects can have their retention updated.");
+            }
+            
+            s3Client.putObjectRetention(transformer.toPutObjectRetentionRequest(
+                    key, versionId, currentMode, retainUntilDate));
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to update object retention for key: " + key, e);
+        }
+    }
+    
+    /**
+     * Updates legal hold status on an object.
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        try {
+            s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to update legal hold for key: " + key, e);
         }
     }
 

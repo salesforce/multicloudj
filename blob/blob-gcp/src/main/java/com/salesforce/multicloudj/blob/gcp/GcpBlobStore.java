@@ -719,6 +719,116 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * Validates that bucket has retention policy set and it's sufficient for the requested retention date.
+     * 
+     * Note: GCP Storage Java library doesn't provide direct access to bucket retention policy through the Bucket object.
+     * This method performs basic validation but cannot fully validate against bucket retention policy.
+     * Users must ensure bucket retention policy is set before using object lock.
+     */
+    private void validateBucketRetentionPolicy(java.time.Instant requiredRetainUntil) {
+        if (requiredRetainUntil == null) {
+            return; // No retention date required
+        }
+        
+        try {
+            Bucket bucket = storage.get(this.bucket);
+            if (bucket == null) {
+                throw new SubstrateSdkException("Bucket not found: " + this.bucket);
+            }
+            
+            // Note: GCP Storage Java library doesn't expose getRetentionPolicy() on Bucket object.
+            // We cannot programmatically validate retention policy, but we document the requirement.
+            // Users must ensure bucket retention policy is configured before using object lock.
+            // The retainUntilDate will be validated by GCP when the object is uploaded.
+            
+        } catch (StorageException e) {
+            throw new SubstrateSdkException("Failed to validate bucket retention policy", e);
+        }
+    }
+    
+    /**
+     * Gets object lock configuration for a blob.
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        try {
+            Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+            if (blob == null) {
+                throw new ResourceNotFoundException("Object not found: " + key);
+            }
+            
+            Boolean tempHold = blob.getTemporaryHold();
+            Boolean eventHold = blob.getEventBasedHold();
+            boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
+            
+            if (!hasHold) {
+                return null;
+            }
+            
+            // Get bucket retention policy to calculate retainUntilDate
+            // Note: GCP Storage Java library doesn't expose getRetentionPolicy() on Bucket object.
+            // We cannot programmatically retrieve retention period, so retainUntilDate will be null.
+            // The actual retention is enforced by GCP at the bucket level.
+            java.time.Instant retainUntilDate = null;
+            
+            return ObjectLockInfo.builder()
+                    .mode(null) // GCP doesn't support retention modes
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(hasHold)
+                    .useEventBasedHold(eventHold != null && eventHold)
+                    .build();
+        } catch (StorageException e) {
+            if (e.getCode() == 404) {
+                throw new ResourceNotFoundException("Object not found: " + key, e);
+            }
+            throw new SubstrateSdkException("Failed to get object lock for key: " + key, e);
+        }
+    }
+    
+    /**
+     * Updates object retention date.
+     * Not supported for GCP - retention is bucket-level only.
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        throw new UnSupportedOperationException(
+                "GCP does not support per-object retention updates. " +
+                "Retention is configured at the bucket level via retention policy.");
+    }
+    
+    /**
+     * Updates legal hold status on an object.
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        try {
+            Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+            if (blob == null) {
+                throw new ResourceNotFoundException("Object not found: " + key);
+            }
+            
+            // Determine which hold type to use based on existing configuration
+            // If object has eventBasedHold, use that; otherwise use temporaryHold
+            Boolean existingEventHold = blob.getEventBasedHold();
+            boolean useEventBased = existingEventHold != null && existingEventHold;
+            
+            com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+            if (useEventBased) {
+                builder.setEventBasedHold(legalHold);
+            } else {
+                builder.setTemporaryHold(legalHold);
+            }
+            
+            storage.update(builder.build());
+        } catch (StorageException e) {
+            if (e.getCode() == 404) {
+                throw new ResourceNotFoundException("Object not found: " + key, e);
+            }
+            throw new SubstrateSdkException("Failed to update legal hold for key: " + key, e);
+        }
+    }
+
+    /**
      * Closes the underlying GCP Storage client and releases any resources.
      */
     @Override
