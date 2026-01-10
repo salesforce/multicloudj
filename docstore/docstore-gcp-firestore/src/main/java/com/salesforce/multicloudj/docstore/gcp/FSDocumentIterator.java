@@ -4,10 +4,10 @@ import com.google.api.gax.rpc.ServerStream;
 import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.Value;
 import com.salesforce.multicloudj.docstore.client.Query;
-import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
+import io.grpc.StatusRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -231,9 +231,12 @@ public class FSDocumentIterator implements DocumentIterator {
                 }
                 // Continue looping for responses without documents
             }
-        } catch (Exception e) {
-            // If there's any error reading from the stream, mark as done and close
-            markDoneAndClose();
+        } catch (StatusRuntimeException e) {
+            String errorMessage = e.getMessage(); // default
+            if (e.getCause() != null && e.getCause().getMessage() != null) {
+                errorMessage = e.getCause().getMessage();
+            }
+            throw new RuntimeException(errorMessage, e);
         }
         
         // Stream is exhausted
