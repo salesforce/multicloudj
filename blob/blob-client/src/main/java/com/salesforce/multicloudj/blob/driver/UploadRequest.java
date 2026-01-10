@@ -24,11 +24,11 @@ public class UploadRequest {
      */
     private final long contentLength;
     /**
-     * (Optional parameter) The map of metadataName->metadataValue to be associated with the blob
+     * (Optional parameter) The map of metadataName to metadataValue to be associated with the blob
      */
     private final Map<String, String> metadata;
     /**
-     * (Optional parameter) The map of tagName->tagValue to be associated with the blob
+     * (Optional parameter) The map of tagName to tagValue to be associated with the blob
      */
     private final Map<String, String> tags;
     /**
@@ -39,11 +39,6 @@ public class UploadRequest {
      * (Optional parameter) The KMS key ID or ARN to use for server-side encryption
      */
     private final String kmsKeyId;
-    /**
-     * (Optional parameter) Object lock configuration for WORM protection.
-     * Supported: AWS (full), GCP (partial - requires bucket retention policy), OSS (unsupported)
-     */
-    private final ObjectLockConfiguration objectLock;
 
     private UploadRequest(Builder builder) {
         this.key = builder.key;
@@ -52,7 +47,6 @@ public class UploadRequest {
         this.tags = builder.tags;
         this.storageClass = builder.storageClass;
         this.kmsKeyId = builder.kmsKeyId;
-        this.objectLock = builder.objectLock;
     }
 
     public Map<String, String> getMetadata() {
@@ -70,7 +64,6 @@ public class UploadRequest {
         private Map<String, String> tags = Collections.emptyMap();
         private String storageClass;
         private String kmsKeyId;
-        private ObjectLockConfiguration objectLock;
 
         public Builder withKey(String key) {
             this.key = key;
@@ -99,17 +92,6 @@ public class UploadRequest {
 
         public Builder withKmsKeyId(String kmsKeyId) {
             this.kmsKeyId = kmsKeyId;
-            return this;
-        }
-
-        /**
-         * Sets object lock configuration for WORM protection.
-         * 
-         * @param objectLock Object lock configuration
-         * @return This builder instance
-         */
-        public Builder withObjectLock(ObjectLockConfiguration objectLock) {
-            this.objectLock = objectLock;
             return this;
         }
 
