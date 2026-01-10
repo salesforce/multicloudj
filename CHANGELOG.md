@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.22](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.21...multicloudj-v0.2.22) (2026-01-10)
+
+
+### STS
+
+* support access boundary in aws and gcp sts  ([#240](https://github.com/salesforce/multicloudj/issues/240)) ([8157a56](https://github.com/salesforce/multicloudj/commit/8157a56fa8364457994183b3eebecae82c973460))
+
+
+### PubSub
+
+* support parsing sns messages in SQS subscription ([#231](https://github.com/salesforce/multicloudj/issues/231)) ([e355c22](https://github.com/salesforce/multicloudj/commit/e355c22308e932c8688bfd27a0fcbd81b470f9af))
+
 ## [0.2.21](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.20...multicloudj-v0.2.21) (2025-12-19)
 
 
