@@ -21,12 +21,14 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -60,6 +62,9 @@ import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -503,6 +508,74 @@ public class AwsBlobStore extends AbstractBlobStore {
         }
     }
 
+        /**
+     * Gets object lock configuration for a blob.
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        try {
+            GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
+                    transformer.toGetObjectRetentionRequest(key, versionId));
+            GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
+                    transformer.toGetObjectLegalHoldRequest(key, versionId));
+            return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to get object lock for key: " + key, e);
+        }
+    }
+
+    /**
+     * Updates object retention date.
+     * Only works if object is in GOVERNANCE mode. COMPLIANCE mode objects cannot be updated.
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        try {
+            // First get current retention to check mode
+            GetObjectRetentionResponse currentRetention = s3Client.getObjectRetention(
+                    transformer.toGetObjectRetentionRequest(key, versionId));
+
+            if (currentRetention == null || currentRetention.retention() == null) {
+                throw new InvalidArgumentException(
+                        "Object does not have retention configured. Cannot update retention.");
+            }
+
+            ObjectLockRetentionMode currentMode = currentRetention.retention().mode();
+
+            if (currentMode == ObjectLockRetentionMode.COMPLIANCE) {
+                throw new InvalidArgumentException(
+                        "Cannot update retention for objects in COMPLIANCE mode. " +
+                        "Only GOVERNANCE mode objects can have their retention updated.");
+            }
+
+            s3Client.putObjectRetention(transformer.toPutObjectRetentionRequest(
+                    key, versionId, currentMode, retainUntilDate));
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to update object retention for key: " + key, e);
+        }
+    }
+
+    /**
+     * Updates legal hold status on an object.
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        try {
+            s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+            throw new com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException(
+                    "Object not found: " + key, e);
+        } catch (AwsServiceException | SdkClientException e) {
+            throw new SubstrateSdkException("Failed to update legal hold for key: " + key, e);
+        }
+    }
+    
     /**
      * Closes the underlying S3 client and releases any resources.
      */

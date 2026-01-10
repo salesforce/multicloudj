@@ -47,6 +47,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import lombok.Getter;
@@ -446,6 +447,30 @@ public class AliBlobStore extends AbstractBlobStore {
     @Override
     protected void doSetTags(String key, Map<String, String> tags) {
         ossClient.setObjectTagging(bucket, key, new TagSet(tags));
+    }
+
+    /**
+     * Updates the object retention date
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param retainUntilDate The date until which the object should be retained
+     * @throws UnSupportedOperationException Alibaba OSS does not support object lock/retention
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/retention");
+    }
+
+    /**
+     * Updates the legal hold status of an object
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param legalHold true to apply hold, false to release hold
+     * @throws UnSupportedOperationException Alibaba OSS does not support object lock/legal hold
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/legal hold");
     }
 
     /**

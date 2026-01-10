@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -160,6 +161,22 @@ public class TestBlobStore extends AbstractBlobStore {
 
     @Override
     public void close() {
+        // Test implementation - no-op
+    }
+
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        // Test implementation - return null
+        return null;
+    }
+
+    @Override
+    public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+        // Test implementation - no-op
+    }
+
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
         // Test implementation - no-op
     }
 
