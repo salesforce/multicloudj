@@ -79,6 +79,7 @@ import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
 
 import java.io.InputStream;
 import java.nio.file.Paths;
