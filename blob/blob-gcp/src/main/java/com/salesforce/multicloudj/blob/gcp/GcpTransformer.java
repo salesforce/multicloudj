@@ -20,6 +20,8 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
@@ -60,7 +62,35 @@ public class GcpTransformer {
             uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
         
-        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass());
+        BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, uploadRequest.getKey())
+                .setMetadata(ImmutableMap.copyOf(metadata));
+
+        // Set storage class if provided
+        if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
+            try {
+                StorageClass gcpStorageClass = StorageClass.valueOf(uploadRequest.getStorageClass().toUpperCase());
+                builder.setStorageClass(gcpStorageClass);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidArgumentException("Invalid storage class: " + uploadRequest.getStorageClass(), e);
+            }
+        }
+
+        // Set object holds if object lock is configured
+        // Note: Bucket retention policy validation should be done in GcpBlobStore before calling this
+        if (uploadRequest.getObjectLock() != null) {
+            ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+            boolean useEventBased = lockConfig.getUseEventBasedHold() != null 
+                    ? lockConfig.getUseEventBasedHold() 
+                    : false;
+
+            if (useEventBased) {
+                builder.setEventBasedHold(lockConfig.isLegalHold());
+            } else {
+                builder.setTemporaryHold(lockConfig.isLegalHold());
+            }
+        }
+
+        return builder.build();
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -144,6 +174,23 @@ public class GcpTransformer {
     }
 
     public BlobMetadata toBlobMetadata(Blob blob) {
+        // Extract object lock info if holds are present
+        ObjectLockInfo objectLockInfo = null;
+        Boolean tempHold = blob.getTemporaryHold();
+        Boolean eventHold = blob.getEventBasedHold();
+        boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
+
+        if (hasHold) {
+            // For GCP, retainUntilDate is calculated from bucket retention policy
+            // This will be set in GcpBlobStore.getObjectLock() where we have access to bucket info
+            objectLockInfo = ObjectLockInfo.builder()
+                    .mode(null) // GCP doesn't support retention modes
+                    .retainUntilDate(null) // Will be calculated from bucket retention policy
+                    .legalHold(hasHold)
+                    .useEventBasedHold(eventHold != null && eventHold)
+                    .build();
+        }
+
         return BlobMetadata.builder()
                 .key(blob.getName())
                 .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
@@ -152,6 +199,7 @@ public class GcpTransformer {
                 .metadata(blob.getMetadata()==null ? Collections.emptyMap() : blob.getMetadata())
                 .lastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                 .md5(HexUtil.convertToBytes(blob.getMd5()))
+                .objectLockInfo(objectLockInfo)
                 .build();
     }
 

@@ -27,10 +27,12 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.StorageClass;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectLockMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
-import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -61,6 +63,14 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -175,10 +185,76 @@ public class AwsTransformer {
                 throw new InvalidArgumentException("Invalid storage class: " + request.getStorageClass(), e);
             }
         }
+
+        // Set object lock if provided
+        if (request.getObjectLock() != null) {
+            ObjectLockConfiguration lockConfig = request.getObjectLock();
+            if (lockConfig.getMode() != null) {
+                builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
+            }
+            if (lockConfig.getRetainUntilDate() != null) {
+                builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
+            }
+            builder.objectLockLegalHoldStatus(
+                lockConfig.isLegalHold() 
+                    ? ObjectLockLegalHoldStatus.ON 
+                    : ObjectLockLegalHoldStatus.OFF
+            );
+        }
         
         return builder.build();
     }
 
+        /**
+     * Converts SDK ObjectLockMode to AWS SDK ObjectLockMode
+     */
+        private software.amazon.awssdk.services.s3.model.ObjectLockMode toAwsObjectLockMode(
+            com.salesforce.multicloudj.blob.driver.ObjectLockMode mode) {
+        switch (mode) {
+            case GOVERNANCE:
+                return software.amazon.awssdk.services.s3.model.ObjectLockMode.GOVERNANCE;
+            case COMPLIANCE:
+                return software.amazon.awssdk.services.s3.model.ObjectLockMode.COMPLIANCE;
+            default:
+                throw new InvalidArgumentException("Unknown object lock mode: " + mode);
+        }
+    }
+
+    /**
+     * Converts AWS SDK ObjectLockMode to SDK ObjectLockMode
+     */
+    private com.salesforce.multicloudj.blob.driver.ObjectLockMode toDriverObjectLockMode(
+            software.amazon.awssdk.services.s3.model.ObjectLockMode awsMode) {
+        if (awsMode == null) {
+            return null;
+        }
+        switch (awsMode) {
+            case GOVERNANCE:
+                return com.salesforce.multicloudj.blob.driver.ObjectLockMode.GOVERNANCE;
+            case COMPLIANCE:
+                return com.salesforce.multicloudj.blob.driver.ObjectLockMode.COMPLIANCE;
+            default:
+                throw new InvalidArgumentException("Unknown AWS object lock mode: " + awsMode);
+        }
+    }
+
+    /**
+     * Converts AWS SDK ObjectLockRetentionMode to SDK ObjectLockMode
+     */
+    private com.salesforce.multicloudj.blob.driver.ObjectLockMode toDriverObjectLockMode(
+            ObjectLockRetentionMode awsMode) {
+        if (awsMode == null) {
+            return null;
+        }
+        switch (awsMode) {
+            case GOVERNANCE:
+                return com.salesforce.multicloudj.blob.driver.ObjectLockMode.GOVERNANCE;
+            case COMPLIANCE:
+                return com.salesforce.multicloudj.blob.driver.ObjectLockMode.COMPLIANCE;
+            default:
+                throw new InvalidArgumentException("Unknown AWS object lock retention mode: " + awsMode);
+        }
+    }
 
     public GetObjectRequest toRequest(DownloadRequest request) {
         var builder = GetObjectRequest
@@ -289,6 +365,18 @@ public class AwsTransformer {
         Long objectSize = response.contentLength();
         Map<String, String> metadata = response.metadata();
         String eTag = response.eTag();
+
+                // Extract object lock info if present
+        ObjectLockInfo objectLockInfo = null;
+        if (response.objectLockMode() != null || response.objectLockRetainUntilDate() != null) {
+            objectLockInfo = ObjectLockInfo.builder()
+                .mode(toDriverObjectLockMode(response.objectLockMode()))
+                .retainUntilDate(response.objectLockRetainUntilDate())
+                .legalHold(response.objectLockLegalHoldStatus() == ObjectLockLegalHoldStatus.ON)
+                .useEventBasedHold(null) // AWS doesn't use event-based holds
+                .build();
+        }
+
         return BlobMetadata
                 .builder()
                 .key(key)
@@ -298,6 +386,7 @@ public class AwsTransformer {
                 .metadata(metadata)
                 .lastModified(response.lastModified())
                 .md5(eTagToMD5(eTag))
+                .objectLockInfo(objectLockInfo)
                 .build();
     }
 
@@ -587,6 +676,8 @@ public class AwsTransformer {
             return strategyBuilder.build();
         }
 
+        
+
         // FIXED mode
         if (retryConfig.getFixedDelayMillis() <= 0) {
             throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
@@ -597,5 +688,78 @@ public class AwsTransformer {
                 )
         );
         return strategyBuilder.build();
+    }
+
+        /**
+     * Creates a GetObjectRetentionRequest for retrieving object retention
+     */
+    public GetObjectRetentionRequest toGetObjectRetentionRequest(String key, String versionId) {
+        return GetObjectRetentionRequest.builder()
+                .bucket(getBucket())
+                .key(key)
+                .versionId(versionId)
+                .build();
+    }
+
+    /**
+     * Creates a GetObjectLegalHoldRequest for retrieving legal hold status
+     */
+    public GetObjectLegalHoldRequest toGetObjectLegalHoldRequest(String key, String versionId) {
+        return GetObjectLegalHoldRequest.builder()
+                .bucket(getBucket())
+                .key(key)
+                .versionId(versionId)
+                .build();
+    }
+
+    /**
+     * Creates a PutObjectRetentionRequest for updating object retention
+     */
+    public PutObjectRetentionRequest toPutObjectRetentionRequest(String key, String versionId, 
+                                                                  ObjectLockRetentionMode mode, 
+                                                                  java.time.Instant retainUntilDate) {
+        return PutObjectRetentionRequest.builder()
+                .bucket(getBucket())
+                .key(key)
+                .versionId(versionId)
+                .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                        .mode(mode)
+                        .retainUntilDate(retainUntilDate)
+                        .build())
+                .build();
+    }
+
+    /**
+     * Creates a PutObjectLegalHoldRequest for updating legal hold status
+     */
+    public PutObjectLegalHoldRequest toPutObjectLegalHoldRequest(String key, String versionId, boolean legalHold) {
+        return PutObjectLegalHoldRequest.builder()
+                .bucket(getBucket())
+                .key(key)
+                .versionId(versionId)
+                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
+                        .status(legalHold ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF)
+                        .build())
+                .build();
+    }
+
+    /**
+     * Converts GetObjectRetentionResponse and GetObjectLegalHoldResponse to ObjectLockInfo
+     */
+    public ObjectLockInfo toObjectLockInfo(GetObjectRetentionResponse retentionResponse, 
+                                           GetObjectLegalHoldResponse legalHoldResponse) {
+        if (retentionResponse == null || retentionResponse.retention() == null) {
+            return null;
+        }
+
+        ObjectLockRetentionMode retentionMode = retentionResponse.retention().mode();
+        return ObjectLockInfo.builder()
+                .mode(toDriverObjectLockMode(retentionMode))
+                .retainUntilDate(retentionResponse.retention().retainUntilDate())
+                .legalHold(legalHoldResponse != null 
+                        && legalHoldResponse.legalHold() != null 
+                        && legalHoldResponse.legalHold().status() == ObjectLockLegalHoldStatus.ON)
+                .useEventBasedHold(null) // AWS doesn't use event-based holds
+                .build();
     }
 }
