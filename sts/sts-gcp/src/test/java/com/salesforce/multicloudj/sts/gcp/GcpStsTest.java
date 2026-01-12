@@ -1,5 +1,12 @@
 package com.salesforce.multicloudj.sts.gcp;
 
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpContent;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpTransport;
+import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.CredentialAccessBoundary;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -17,6 +24,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
@@ -30,8 +38,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.MockedStatic;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 public class GcpStsTest {
@@ -190,14 +201,82 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityReturnsNull() {
+    public void TestAssumeRoleWithWebIdentityNullRequest() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
-        com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request =
-                com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest.builder()
-                        .role("testRole")
-                        .webIdentityToken("testToken")
-                        .build();
-        Assertions.assertThrows(UnSupportedOperationException.class, () -> sts.assumeRoleWithWebIdentity(request));
+        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+            sts.assumeRoleWithWebIdentity(null);
+        });
+    }
+
+    @Test
+    public void TestAssumeRoleWithWebIdentityMissingRole() {
+        GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .webIdentityToken("test-token")
+                .build();
+        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+            sts.assumeRoleWithWebIdentity(request);
+        });
+    }
+
+    @Test
+    public void TestAssumeRoleWithWebIdentityMissingToken() {
+        GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .role("test-role")
+                .build();
+        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+            sts.assumeRoleWithWebIdentity(request);
+        });
+    }
+
+    @Test
+    public void TestGetSTSCredentialsWithAssumeRoleWebIdentityHappyPath() throws IOException {
+        // Mock HTTP transport chain
+        HttpResponse mockHttpResponse = Mockito.mock(HttpResponse.class);
+        HttpRequest mockHttpRequest = Mockito.mock(HttpRequest.class);
+        HttpRequestFactory mockRequestFactory = Mockito.mock(HttpRequestFactory.class);
+        HttpTransport mockHttpTransport = Mockito.mock(HttpTransport.class);
+        HttpTransportFactory mockHttpTransportFactory = Mockito.mock(HttpTransportFactory.class);
+
+        // Mock response content
+        String responseJson = "{\"access_token\":\"test-access-token\",\"expires_in\":3600}";
+        InputStream mockInputStream = new ByteArrayInputStream(responseJson.getBytes(StandardCharsets.UTF_8));
+        
+        // Setup mock chain
+        Mockito.when(mockHttpTransportFactory.create()).thenReturn(mockHttpTransport);
+        Mockito.when(mockHttpTransport.createRequestFactory()).thenReturn(mockRequestFactory);
+        Mockito.when(mockRequestFactory.buildPostRequest(
+                Mockito.any(GenericUrl.class),
+                Mockito.any(HttpContent.class))).thenReturn(mockHttpRequest);
+        Mockito.when(mockHttpRequest.execute()).thenReturn(mockHttpResponse);
+        Mockito.when(mockHttpResponse.getContent()).thenReturn(mockInputStream);
+        Mockito.when(mockHttpResponse.getContentCharset()).thenReturn(StandardCharsets.UTF_8);
+
+        // Create GcpSts with mocked HttpTransportFactory
+        GcpSts sts = new GcpSts().builder().build(mockHttpTransportFactory);
+        
+        // Create request
+        AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+                .role("//iam.googleapis.com/projects/test-project/locations/global/workloadIdentityPools/test-pool/providers/test-provider")
+                .webIdentityToken("test-oidc-token")
+                .sessionName("test-session")
+                .build();
+
+        // Execute
+        StsCredentials credentials = sts.assumeRoleWithWebIdentity(request);
+
+        // Verify
+        Assertions.assertNotNull(credentials);
+        Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
+        Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
+        Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
+        
+        // Verify HTTP request was made with correct parameters
+        Mockito.verify(mockRequestFactory).buildPostRequest(
+                Mockito.argThat(url -> url.toString().equals("https://sts.googleapis.com/v1/token")),
+                Mockito.any(HttpContent.class));
+        Mockito.verify(mockHttpRequest).execute();
     }
 
     @Test
