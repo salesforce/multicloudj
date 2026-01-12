@@ -36,8 +36,15 @@ MultiCloudJ uses [Release Please](https://github.com/googleapis/release-please) 
      - Runs all tests
      - Deploys artifacts to Maven Central using the `release` profile
      - Signs artifacts with GPG
+   - Creates the PR for the snapshot version bump with title `chore(main): release multicloudj <version++>-SNAPSHOT` . For example: https://github.com/salesforce/multicloudj/pull/229
    
 ## Manual Steps
 
 ![#f03c15](https://placehold.co/15x15/f03c15/f03c15.png) No manual steps are required. The entire release process is automated through GitHub Actions.
+
+## Important:
+- ![#f03c15](https://placehold.co/15x15/f03c15/f03c15.png) Do not create any tags manually, it breaks the state of release-please
+- ![#f03c15](https://placehold.co/15x15/f03c15/f03c15.png) Do not merge any PR's between the release and the snapshot update PR's by release-please.
+
+
 
