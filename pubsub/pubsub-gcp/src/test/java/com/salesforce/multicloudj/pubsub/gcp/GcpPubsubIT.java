@@ -72,6 +72,48 @@ public class GcpPubsubIT extends AbstractPubsubIT {
             this.subscriptionName = subscriptionName;
         }
 
+        /**
+         * Create a subscription with an index suffix.
+         * This allows creating multiple subscriptions to the same topic.
+         */
+        @Override
+        public AbstractSubscription createSubscriptionDriverWithIndex(int index) {
+            boolean isRecordingEnabled = System.getProperty("record") != null;
+
+            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
+
+            try {
+                SubscriptionAdminSettings.Builder settingsBuilder = SubscriptionAdminSettings.newBuilder()
+                        .setTransportChannelProvider(channelProvider);
+
+                if (!isRecordingEnabled) {
+                    // Replay path - inject mock credentials
+                    GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
+                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
+                }
+
+                SubscriptionAdminClient client = SubscriptionAdminClient.create(settingsBuilder.build());
+                
+                // add index suffix only if index > 0
+                String subscriptionNameWithIndex = index > 0 ? subscriptionName + "-" + index : subscriptionName;
+                String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionNameWithIndex;
+                
+                GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
+                        .withSubscriptionName(fullSubscriptionName);
+                GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client);
+                
+                if (index == 0) {
+                    subscription = sub;
+                    subscriptionAdminClient = client;
+                }
+                
+                return sub;
+            } catch (IOException e) {
+                Assertions.fail("Failed to create the SubscriptionAdminClient", e);
+                return null;
+            }
+        }
+
         @Override
         public AbstractTopic createTopicDriver() {
             boolean isRecordingEnabled = System.getProperty("record") != null;
@@ -103,31 +145,7 @@ public class GcpPubsubIT extends AbstractPubsubIT {
 
         @Override
         public AbstractSubscription createSubscriptionDriver() {
-            boolean isRecordingEnabled = System.getProperty("record") != null;
-
-            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
-
-            try {
-                SubscriptionAdminSettings.Builder settingsBuilder = SubscriptionAdminSettings.newBuilder()
-                        .setTransportChannelProvider(channelProvider);
-
-                if (!isRecordingEnabled) {
-                    // Replay path - inject mock credentials
-                    GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
-                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
-                }
-
-                subscriptionAdminClient = SubscriptionAdminClient.create(settingsBuilder.build());
-            } catch (IOException e) {
-                Assertions.fail("Failed to create the SubscriptionAdminClient", e);
-            }
-
-            String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionName;
-            GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
-                    .withSubscriptionName(fullSubscriptionName);
-            subscription = new GcpSubscription(subscriptionBuilder, subscriptionAdminClient);
-
-            return subscription;
+            return createSubscriptionDriverWithIndex(0);
         }
 
         @Override

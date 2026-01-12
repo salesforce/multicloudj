@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 public class AwsPubsubIT extends AbstractPubsubIT {
@@ -201,5 +203,17 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 httpClient.close();
             }
         }
+    }
+
+    /**
+     * Disable testSendReceiveTwo for AWS SQS.
+     * AWS SQS doesn't have the concept of multiple subscriptions to the same topic
+     * (topic and subscription are the same queue).
+     */
+    @Override
+    @Test
+    @Disabled("AWS SQS doesn't support multiple subscriptions to the same topic")
+    public void testSendReceiveTwo() throws Exception {
+        // This test is disabled for AWS
     }
 }

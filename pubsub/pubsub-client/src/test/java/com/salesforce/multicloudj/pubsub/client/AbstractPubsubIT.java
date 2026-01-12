@@ -18,9 +18,12 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
@@ -29,7 +32,19 @@ public abstract class AbstractPubsubIT {
 
         AbstractTopic createTopicDriver();
 
-        AbstractSubscription createSubscriptionDriver();
+        default AbstractSubscription createSubscriptionDriver() {
+            return createSubscriptionDriverWithIndex(0);
+        }
+
+        /**
+         * Create a subscription driver with an index suffix.
+         * This allows creating multiple subscriptions to the same topic.
+         */
+        default AbstractSubscription createSubscriptionDriverWithIndex(int index) {
+            // Default implementation: just create a subscription driver
+            // Providers that need index-based naming should override this method
+            return createSubscriptionDriver();
+        }
 
         String getPubsubEndpoint();
 
@@ -371,6 +386,132 @@ public abstract class AbstractPubsubIT {
                 Assertions.assertNotNull(received, "Received message " + i + " should not be null");
                 Assertions.assertNotNull(received.getBody(), "Received message " + i + " body should not be null");
                 Assertions.assertNotNull(received.getAckID(), "Received message " + i + " should have AckID");
+            }
+        }
+    }
+
+    /**
+     * Receive from two subscriptions to the same topic.
+     * Verify both get all the messages.
+     */
+    @Test
+    @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
+    public void testSendReceiveTwo() throws Exception {
+        // Create two subscriptions to the same topic
+        AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
+        AbstractSubscription subscription2 = harness.createSubscriptionDriverWithIndex(2);
+
+        try (AbstractTopic topic = harness.createTopicDriver();
+             AbstractSubscription sub1 = subscription1;
+             AbstractSubscription sub2 = subscription2) {
+
+            // Send 3 messages to the topic
+            List<Message> messagesToSend = List.of(
+                    Message.builder().withBody("fanout-msg1".getBytes()).withMetadata(Map.of("id", "1")).build(),
+                    Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build(),
+                    Message.builder().withBody("fanout-msg3".getBytes()).withMetadata(Map.of("id", "3")).build()
+            );
+
+            for (Message message : messagesToSend) {
+                topic.send(message);
+            }
+
+            TimeUnit.MILLISECONDS.sleep(500);
+
+            // Receive messages from both subscriptions
+            boolean isRecording = System.getProperty("record") != null;
+            long timeoutSeconds = isRecording ? 120 : 60;
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+
+            // Collect messages from subscription 1
+            List<Message> received1 = new ArrayList<>();
+            while (received1.size() < messagesToSend.size() && System.nanoTime() < deadline) {
+                try {
+                    Message r = sub1.receive();
+                    if (r != null && r.getAckID() != null) {
+                        received1.add(r);
+                    } else {
+                        TimeUnit.MILLISECONDS.sleep(100);
+                    }
+                } catch (Exception e) {
+                    TimeUnit.MILLISECONDS.sleep(100);
+                }
+            }
+
+            // Collect messages from subscription 2
+            List<Message> received2 = new ArrayList<>();
+            while (received2.size() < messagesToSend.size() && System.nanoTime() < deadline) {
+                try {
+                    Message r = sub2.receive();
+                    if (r != null && r.getAckID() != null) {
+                        received2.add(r);
+                    } else {
+                        TimeUnit.MILLISECONDS.sleep(100);
+                    }
+                } catch (Exception e) {
+                    TimeUnit.MILLISECONDS.sleep(100);
+                }
+            }
+
+            // Verify both subscriptions received all messages
+            Assertions.assertEquals(messagesToSend.size(), received1.size(),
+                    "Subscription 1 should receive all " + messagesToSend.size() + " messages. Got: " + received1.size());
+            Assertions.assertEquals(messagesToSend.size(), received2.size(),
+                    "Subscription 2 should receive all " + messagesToSend.size() + " messages. Got: " + received2.size());
+
+            // Verify messages match for both subscriptions
+            {
+                // Helper to verify messages for a subscription
+                BiConsumer<List<Message>, String> verifyMessages = (received, subscriptionName) -> {
+                    if (received.size() != messagesToSend.size()) {
+                        Assertions.fail(String.format("%s: got %d messages, expected %d", 
+                                subscriptionName, received.size(), messagesToSend.size()));
+                    }
+                    Map<String, Message> gotByBody = new HashMap<>();
+                    for (Message msg : received) {
+                        gotByBody.put(new String(msg.getBody()), msg);
+                    }
+                    for (Message exp : messagesToSend) {
+                        String body = new String(exp.getBody());
+                        Message got = gotByBody.get(body);
+                        if (got == null) {
+                            Assertions.fail(subscriptionName + ": missing message: " + body);
+                        }
+                        if (!Arrays.equals(exp.getBody(), got.getBody())) {
+                            Assertions.fail(subscriptionName + ": body mismatch for " + body);
+                        }
+                        if (exp.getMetadata() != null) {
+                            for (Map.Entry<String, String> entry : exp.getMetadata().entrySet()) {
+                                String expValue = entry.getValue();
+                                String gotValue = got.getMetadata() != null ? got.getMetadata().get(entry.getKey()) : null;
+                                if (!expValue.equals(gotValue)) {
+                                    Assertions.fail(String.format("%s: metadata[%s] mismatch for %s: expected %s, got %s",
+                                            subscriptionName, entry.getKey(), body, expValue, gotValue));
+                                }
+                            }
+                        }
+                    }
+                };
+
+                verifyMessages.accept(received1, "Subscription 1");
+                verifyMessages.accept(received2, "Subscription 2");
+            }
+
+            // Ack all messages from both subscriptions
+            {
+                // Helper to ack messages
+                BiConsumer<AbstractSubscription, List<Message>> ackMessages = (subscription, messages) -> {
+                    if (!messages.isEmpty()) {
+                        List<AckID> ackIDs = new ArrayList<>();
+                        for (Message msg : messages) {
+                            ackIDs.add(msg.getAckID());
+                        }
+                        subscription.sendAcks(ackIDs).join();
+                    }
+                };
+
+                ackMessages.accept(sub1, received1);
+                ackMessages.accept(sub2, received2);
             }
         }
     }
