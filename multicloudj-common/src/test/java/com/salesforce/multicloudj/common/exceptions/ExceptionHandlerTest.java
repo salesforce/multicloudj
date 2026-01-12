@@ -1,9 +1,12 @@
 package com.salesforce.multicloudj.common.exceptions;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.Test;
+
+/**
+ * Test class for ExceptionHandler.
+ */
 public class ExceptionHandlerTest {
 
     @Test
