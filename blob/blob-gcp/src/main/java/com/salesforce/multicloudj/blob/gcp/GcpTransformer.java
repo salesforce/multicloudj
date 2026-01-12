@@ -82,11 +82,14 @@ public class GcpTransformer {
             boolean useEventBased = lockConfig.getUseEventBasedHold() != null 
                     ? lockConfig.getUseEventBasedHold() 
                     : false;
+            boolean legalHold = lockConfig.isLegalHold();
 
             if (useEventBased) {
-                builder.setEventBasedHold(lockConfig.isLegalHold());
+                builder.setEventBasedHold(legalHold);
+                builder.setTemporaryHold(false); // Explicitly set to false when using event-based hold
             } else {
-                builder.setTemporaryHold(lockConfig.isLegalHold());
+                builder.setTemporaryHold(legalHold);
+                builder.setEventBasedHold(false); // Explicitly set to false when using temporary hold
             }
         }
 
