@@ -5,9 +5,11 @@
     "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testSendWithPushSubscription-push?$alt=json;enum-encoding%3Dint",
     "method" : "PUT",
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"topic\":\"projects/substrate-sdk-gcp-poc1/topics/topic-testSendWithPushSubscription\",\"pushConfig\":{\"pushEndpoint\":\"https://dannie-unrigorous-semiconically.ngrok-free.dev/push-endpoint\"},\"ackDeadlineSeconds\":10}",
-      "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "matchesJsonPath" : "$.topic"
+    }, {
+      "matchesJsonPath" : "$.pushConfig.pushEndpoint"
+    }, {
+      "matchesJsonPath" : "$.ackDeadlineSeconds"
     } ]
   },
   "response" : {

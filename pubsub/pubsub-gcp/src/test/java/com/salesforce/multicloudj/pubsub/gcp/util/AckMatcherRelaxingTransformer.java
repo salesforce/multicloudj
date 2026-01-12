@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.MatchesJsonPathPattern;
+import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 
 import java.util.List;
@@ -33,6 +34,11 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
         boolean isPublish = (url != null && url.contains(":publish")) ||
                 (urlPattern != null && urlPattern.contains(":publish")) ||
                 (urlPath != null && urlPath.contains(":publish"));
+
+        boolean isSubscriptionPut = (url != null && url.contains("/subscriptions/") && !url.contains(":")) ||
+                (urlPattern != null && urlPattern.contains("/subscriptions/") && !urlPattern.contains(":")) ||
+                (urlPath != null && urlPath.contains("/subscriptions/") && !urlPath.contains(":"));
+        boolean isPutMethod = stub.getRequest().getMethod() == RequestMethod.PUT;
 
         // During recording, if the Recorder detects repeated calls to the same endpoint,
         // it will usually auto-add `scenarioName`, `requiredScenarioState`, and `newScenarioState` to those stubs.
@@ -63,6 +69,17 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
                 bodyPatterns.clear();
                 bodyPatterns.add(new MatchesJsonPathPattern("$.messages"));
                 bodyPatterns.add(new MatchesJsonPathPattern("$.messages[*]"));
+            }
+        } else if (isSubscriptionPut && isPutMethod) {
+            // For push subscription creation/update, relax the matching to accept any pushEndpoint
+            // This allows replay mode to use localhost while record mode typically uses ngrok URL
+            // (pushEndpoint is a user configuration that appears in the request body, unlike service endpoints)
+            List<ContentPattern<?>> bodyPatterns = stub.getRequest().getBodyPatterns();
+            if (bodyPatterns != null) {
+                bodyPatterns.clear();
+                bodyPatterns.add(new MatchesJsonPathPattern("$.topic"));
+                bodyPatterns.add(new MatchesJsonPathPattern("$.pushConfig.pushEndpoint"));
+                bodyPatterns.add(new MatchesJsonPathPattern("$.ackDeadlineSeconds"));
             }
         }
 
