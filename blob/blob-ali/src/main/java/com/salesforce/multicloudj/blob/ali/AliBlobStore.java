@@ -450,6 +450,18 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * Gets object lock configuration for a blob
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @return ObjectLockInfo if object has lock, null otherwise
+     * @throws UnSupportedOperationException Alibaba OSS does not support object lock
+     */
+    @Override
+    public com.salesforce.multicloudj.blob.driver.ObjectLockInfo getObjectLock(String key, String versionId) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
+    }
+
+    /**
      * Updates the object retention date
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
