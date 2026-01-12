@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -129,7 +130,7 @@ public class AwsBlobClientTest {
                                 .build())
                 .build();
         Class<?> cls = aws.getException(awsServiceException);
-        assertEquals(cls, InvalidArgumentException.class);
+        assertEquals(cls, UnAuthorizedException.class);
 
         SdkClientException sdkClientException = SdkClientException.builder().build();
         cls = aws.getException(sdkClientException);

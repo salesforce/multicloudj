@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.sts.client.StsUtilities;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
+import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
@@ -20,10 +21,9 @@ import java.util.function.Supplier;
 
 import static com.salesforce.multicloudj.sts.curl.requestToCurl;
 
-
 public class Main {
 
-    static String provider = "aws";
+    static String provider = "gcp";
 
     public static void main(String[] args) {
         assumeRole();
@@ -35,9 +35,29 @@ public class Main {
 
     public static void assumeRole() {
         StsClient client = StsClient.builder(provider).withRegion("us-west-2").build();
+
+        // Create a cloud-agnostic credential scope with condition
+        CredentialScope.AvailabilityCondition condition = CredentialScope.AvailabilityCondition.builder()
+                .resourcePrefix("storage://my-bucket/documents/")
+                .title("Limit to documents folder")
+                .description("Only allow access to objects in the documents folder")
+                .build();
+
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://my-bucket/*")
+                .availablePermission("storage:GetObject")
+                .availablePermission("storage:PutObject")
+                .availabilityCondition(condition)
+                .build();
+
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
+                .build();
+
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
-                .withRole("arn:aws:iam::<account>:role/<role-name>")
+                .withRole("chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com")
                 .withSessionName("my-session")
+                .withCredentialScope(credentialScope)
                 .build();
         StsCredentials stsCredentials = client.getAssumeRoleCredentials(request);
 
