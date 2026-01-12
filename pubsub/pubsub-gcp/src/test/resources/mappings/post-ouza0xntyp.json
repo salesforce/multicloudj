@@ -1,0 +1,33 @@
+{
+  "id" : "6c97a65b-f160-4501-920b-cf488842ae33",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_topics_topic-testbatchackpublish",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/topics/topic-testBatchAck:publish?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.messages"
+    }, {
+      "matchesJsonPath" : "$.messages[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"messageIds\": [\n    \"17732049231656580\"\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 12 Jan 2026 03:46:24 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "6c97a65b-f160-4501-920b-cf488842ae33",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-v1-projects-substrate-sdk-gcp-poc1-topics-topic-testBatchAck:publish",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-v1-projects-substrate-sdk-gcp-poc1-topics-topic-testBatchAck:publish-2",
+  "insertionIndex" : 61
+}

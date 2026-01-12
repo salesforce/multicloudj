@@ -15,6 +15,8 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,17 +24,53 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpPubsubIT extends AbstractPubsubIT {
 
+    private static final String PROJECT_ID = "substrate-sdk-gcp-poc1";
+    private static final String BASE_TOPIC_NAME = "topic-test";
+    private static final String BASE_SUBSCRIPTION_NAME = "sub-test";
+
+    private HarnessImpl harnessImpl;
+    private String topicName;
+    private String subscriptionName;
+
     @Override
     protected Harness createHarness() {
-        return new HarnessImpl();
+        harnessImpl = new HarnessImpl();
+        return harnessImpl;
+    }
+
+    /**
+     * Generate unique topic and subscription names for each test.
+     */
+    @BeforeEach
+    public void setupTestResources(TestInfo testInfo) {
+        String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
+        topicName = BASE_TOPIC_NAME + testMethodName.substring(4); // Remove "test" prefix
+        subscriptionName = BASE_SUBSCRIPTION_NAME + testMethodName.substring(4); // Remove "test" prefix
+        if (harnessImpl != null) {
+            harnessImpl.setTopicName(topicName);
+            harnessImpl.setSubscriptionName(subscriptionName);
+        }
     }
 
     public static class HarnessImpl implements Harness {
+        private static final String DEFAULT_TOPIC_NAME = "topic-test";
+        private static final String DEFAULT_SUBSCRIPTION_NAME = "sub-test";
+        
         private GcpTopic topic;
         private GcpSubscription subscription;
         private TopicAdminClient topicAdminClient;
         private SubscriptionAdminClient subscriptionAdminClient;
         private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+        private String topicName = DEFAULT_TOPIC_NAME;
+        private String subscriptionName = DEFAULT_SUBSCRIPTION_NAME;
+
+        public void setTopicName(String topicName) {
+            this.topicName = topicName;
+        }
+
+        public void setSubscriptionName(String subscriptionName) {
+            this.subscriptionName = subscriptionName;
+        }
 
         @Override
         public AbstractTopic createTopicDriver() {
@@ -56,7 +94,8 @@ public class GcpPubsubIT extends AbstractPubsubIT {
             }
 
             GcpTopic.Builder topicBuilder = new GcpTopic.Builder();
-            topicBuilder.withTopicName("projects/substrate-sdk-gcp-poc1/topics/test-topic");
+            String fullTopicName = "projects/" + GcpPubsubIT.PROJECT_ID + "/topics/" + topicName;
+            topicBuilder.withTopicName(fullTopicName);
             topic = new GcpTopic(topicBuilder, topicAdminClient);
 
             return topic;
@@ -83,8 +122,9 @@ public class GcpPubsubIT extends AbstractPubsubIT {
                 Assertions.fail("Failed to create the SubscriptionAdminClient", e);
             }
 
+            String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionName;
             GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
-                    .withSubscriptionName("projects/substrate-sdk-gcp-poc1/subscriptions/test-subscription");
+                    .withSubscriptionName(fullSubscriptionName);
             subscription = new GcpSubscription(subscriptionBuilder, subscriptionAdminClient);
 
             return subscription;
