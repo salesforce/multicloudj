@@ -85,6 +85,40 @@ public class GcpPubsubIT extends AbstractPubsubIT {
             this.subscriptionName = subscriptionName;
         }
 
+        @Override
+        public AbstractTopic createTopicDriver() {
+            boolean isRecordingEnabled = System.getProperty("record") != null;
+
+            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
+
+            try {
+                TopicAdminSettings.Builder settingsBuilder = TopicAdminSettings.newBuilder()
+                        .setTransportChannelProvider(channelProvider);
+
+                if (!isRecordingEnabled) {
+                    // Replay path - inject mock credentials
+                    GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
+                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
+                }
+
+                topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
+            } catch (IOException e) {
+                Assertions.fail("Failed to create the TopicAdminClient", e);
+            }
+
+            GcpTopic.Builder topicBuilder = new GcpTopic.Builder();
+            String fullTopicName = "projects/" + GcpPubsubIT.PROJECT_ID + "/topics/" + topicName;
+            topicBuilder.withTopicName(fullTopicName);
+            topic = new GcpTopic(topicBuilder, topicAdminClient);
+
+            return topic;
+        }
+
+        @Override
+        public AbstractSubscription createSubscriptionDriver() {
+            return createSubscriptionDriverWithIndex(0);
+        }
+
         /**
          * Create a subscription with an index suffix.
          * This allows creating multiple subscriptions to the same topic.
@@ -163,40 +197,6 @@ public class GcpPubsubIT extends AbstractPubsubIT {
             client.createSubscription(subscription);
             
             subscriptionAdminClient = client;
-        }
-
-        @Override
-        public AbstractTopic createTopicDriver() {
-            boolean isRecordingEnabled = System.getProperty("record") != null;
-
-            TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
-
-            try {
-                TopicAdminSettings.Builder settingsBuilder = TopicAdminSettings.newBuilder()
-                        .setTransportChannelProvider(channelProvider);
-
-                if (!isRecordingEnabled) {
-                    // Replay path - inject mock credentials
-                    GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
-                    settingsBuilder.setCredentialsProvider(FixedCredentialsProvider.create(mockCreds));
-                }
-
-                topicAdminClient = TopicAdminClient.create(settingsBuilder.build());
-            } catch (IOException e) {
-                Assertions.fail("Failed to create the TopicAdminClient", e);
-            }
-
-            GcpTopic.Builder topicBuilder = new GcpTopic.Builder();
-            String fullTopicName = "projects/" + GcpPubsubIT.PROJECT_ID + "/topics/" + topicName;
-            topicBuilder.withTopicName(fullTopicName);
-            topic = new GcpTopic(topicBuilder, topicAdminClient);
-
-            return topic;
-        }
-
-        @Override
-        public AbstractSubscription createSubscriptionDriver() {
-            return createSubscriptionDriverWithIndex(0);
         }
 
         @Override
