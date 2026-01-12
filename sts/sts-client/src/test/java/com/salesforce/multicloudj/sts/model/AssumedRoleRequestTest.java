@@ -19,5 +19,26 @@ public class AssumedRoleRequestTest {
         Assertions.assertNull(request.getRole());
         Assertions.assertNull(request.getSessionName());
         Assertions.assertEquals(0, request.getExpiration());
+        Assertions.assertNull(request.getCredentialScope());
+    }
+
+    @Test
+    public void TestAssumedRoleRequestBuilderWithCredentialScope() {
+        CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
+                .availableResource("storage://test-bucket/*")
+                .availablePermission("storage:GetObject")
+                .build();
+
+        CredentialScope credentialScope = CredentialScope.builder()
+                .rule(rule)
+                .build();
+
+        AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
+                .withRole("testRole")
+                .withCredentialScope(credentialScope)
+                .build();
+        Assertions.assertEquals("testRole", request.getRole());
+        Assertions.assertNotNull(request.getCredentialScope());
+        Assertions.assertEquals(1, request.getCredentialScope().getRules().size());
     }
 }

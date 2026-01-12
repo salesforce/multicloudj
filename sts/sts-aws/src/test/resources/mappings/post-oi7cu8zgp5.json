@@ -5,13 +5,13 @@
     "url" : "/",
     "method" : "POST",
     "bodyPatterns" : [ {
-      "equalTo" : "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A654654370895%3Arole%2Fchameleon-jcloud-test&RoleSessionName=any-session",
+      "equalTo" : "Action=AssumeRole&Version=2011-06-15&RoleArn=arn%3Aaws%3Aiam%3A%3A654654370895%3Arole%2Fchameleon-jcloud-test&RoleSessionName=any-session&DurationSeconds=3600",
       "caseInsensitive" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <AssumeRoleResult>\n    <AssumedRoleUser>\n      <AssumedRoleId>AROAZQ3DQ6RHVFNX2KMJM:any-session</AssumedRoleId>\n      <Arn>arn:aws:sts::654654370895:assumed-role/chameleon-jcloud-test/any-session</Arn>\n    </AssumedRoleUser>\n    <Credentials>\n      <AccessKeyId>ASIAZQ3DQ6RHUHXN5WQ4</AccessKeyId>\n      <SecretAccessKey>gY8iT2TtBR/fuNS19U9L982ENLqbnIb+yp+XYLJm</SecretAccessKey>\n      <SessionToken>IQoJb3JpZ2luX2VjENv//////////wEaCXVzLXdlc3QtMiJIMEYCIQDxjYcXDRVfgKhH3ZYt026cz24g2w04d3FC7ORAyhPreAIhAIvfMmMoznPyul2Yg3kBtV31M3tvDKT97R2+3WOjTpC+KqECCPT//////////wEQABoMNjU0NjU0MzcwODk1IgzPfj05k2RjXQiU6+Mq9QFu9RdGQO/R4MRlRXmYhViCAv7Vg16jRnYAfHSVuKt+SctywLqqyqrkRs0kyTlCp0BZ4o0d9FR3ODzD9dOiMWZ+haB8iwJ0hrbHQPz9mmipTici8RFyc4uwfPWEkhc3Ra4U/TzfDs8N98Fry7xZjZmZ+1a378YpNLoWeSnFjXPMh2Ivkp01zi+k721nHf4nfpFFjgFNwsnEopE1Bc8G8W3ak0gqMZJQ6Oeo18HloFhbNpJBfIc7gjacpfPEvIWEKMOTtBGBKO0Fi+W/T2dPIfdrZhbbYdnOxEPEAEM9O5KFJKqwYAtDpoFjAb9xpOCFk47bkusY6zCs++e2BjqcAc1JPov5+mjvw+8PQ2grLuMXoxda+ZaP3xIJQ3xg1nr0KO8pJkHe46Tj92b1iy3lWpy2bZVAI9qFGBS2ZY53Oy5EXZb56o/k9quLAQjy/PcGvyB9m1KJln6LDhhKf+KCajpJWWG9iZWQIosJPXU64A6XxMju0JXC7S1nXNH46AuF2JwPAor0CxK7tHimuHjYN7Cxl7Gv1s7K/2oqWw==</SessionToken>\n      <Expiration>2024-09-05T19:51:24Z</Expiration>\n    </Credentials>\n  </AssumeRoleResult>\n  <ResponseMetadata>\n    <RequestId>5ad47c30-460b-4fe5-a15b-f3a4cef730f3</RequestId>\n  </ResponseMetadata>\n</AssumeRoleResponse>\n",
+    "body" : "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">\n  <AssumeRoleResult>\n    <AssumedRoleUser>\n      <AssumedRoleId>AROAZQ3DQ6RHVFNX2KMJM:any-session</AssumedRoleId>\n      <Arn>arn:aws:sts::654654370895:assumed-role/chameleon-jcloud-test/any-session</Arn>\n    </AssumedRoleUser>\n    <Credentials>\n      <AccessKeyId>keyid</AccessKeyId>\n      <SecretAccessKey>secretkey</SecretAccessKey>\n      <SessionToken>secrettoken</SessionToken>\n      <Expiration>2024-09-05T19:51:24Z</Expiration>\n    </Credentials>\n  </AssumeRoleResult>\n  <ResponseMetadata>\n    <RequestId>5ad47c30-460b-4fe5-a15b-f3a4cef730f3</RequestId>\n  </ResponseMetadata>\n</AssumeRoleResponse>\n",
     "headers" : {
       "x-amzn-RequestId" : "5ad47c30-460b-4fe5-a15b-f3a4cef730f3",
       "Date" : "Thu, 05 Sep 2024 18:51:24 GMT",
