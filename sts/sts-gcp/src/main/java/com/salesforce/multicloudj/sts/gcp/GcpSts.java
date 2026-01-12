@@ -51,10 +51,6 @@ public class GcpSts extends AbstractSts {
     private static final String STS_ENDPOINT = "https://sts.googleapis.com/v1/token";
     private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
-    /**
-     * Optionally injected GoogleCredentials (used primarily for testing). If null the
-     * class falls back to {@code GoogleCredentials.getApplicationDefault()} at runtime.
-     */
     private GoogleCredentials googleCredentials;
     private HttpTransportFactory httpTransportFactory;
 
