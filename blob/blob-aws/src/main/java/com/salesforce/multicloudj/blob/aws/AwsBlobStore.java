@@ -508,7 +508,7 @@ public class AwsBlobStore extends AbstractBlobStore {
         }
     }
 
-        /**
+    /**
      * Gets object lock configuration for a blob.
      */
     @Override
