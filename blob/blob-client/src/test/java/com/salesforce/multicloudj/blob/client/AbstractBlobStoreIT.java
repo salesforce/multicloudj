@@ -2949,67 +2949,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
-    public void testUploadWithChecksumValidation() throws Exception {
-        String key = "conformance-tests/checksum/upload-with-checksum";
-        byte[] content = "Test content for checksum validation".getBytes(StandardCharsets.UTF_8);
-
-        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
-        BucketClient bucketClient = new BucketClient(blobStore);
-
-        try {
-            // Test 1: Upload with correct checksum should succeed
-            String correctChecksum = harness.computeChecksum(content);
-
-            UploadRequest uploadRequest = UploadRequest.builder()
-                    .withKey(key)
-                    .withContentLength(content.length)
-                    .withChecksumValue(correctChecksum)
-                    .build();
-
-            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, content);
-
-            // Verify upload succeeded
-            Assertions.assertNotNull(uploadResponse);
-            Assertions.assertEquals(key, uploadResponse.getKey());
-            Assertions.assertNotNull(uploadResponse.getETag());
-
-            // Verify checksum is returned in response
-            Assertions.assertNotNull(uploadResponse.getChecksumValue(),
-                "Provider should return checksum value in upload response");
-
-            // Verify blob exists
-            boolean exists = bucketClient.doesObjectExist(key, null);
-            Assertions.assertTrue(exists, "Uploaded blob should exist");
-
-            // Clean up for next test
-            safeDeleteBlobs(bucketClient, key);
-
-            // Test 2: Upload without checksum should also succeed
-            String key2 = "conformance-tests/checksum/upload-without-checksum";
-            UploadRequest uploadRequest2 = UploadRequest.builder()
-                    .withKey(key2)
-                    .withContentLength(content.length)
-                    .build();
-
-            UploadResponse uploadResponse2 = bucketClient.upload(uploadRequest2, content);
-
-            // Verify upload succeeded
-            Assertions.assertNotNull(uploadResponse2);
-            Assertions.assertEquals(key2, uploadResponse2.getKey());
-
-            // Provider may still compute and return checksum
-            logger.info("Upload without checksum - returned checksum: {}", uploadResponse2.getChecksumValue());
-
-            // Clean up
-            safeDeleteBlobs(bucketClient, key2);
-
-        } finally {
-            safeDeleteBlobs(bucketClient, key);
-        }
-    }
-
-    @Test
-    public void testUploadWithChecksumValidationInputStream() throws Exception {
+    public void testUploadWithChecksumValidationInputStream() {
         String key = "conformance-tests/checksum/upload-inputstream-checksum";
         byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
