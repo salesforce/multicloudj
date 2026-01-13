@@ -59,6 +59,22 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRetentionRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectLockMode;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -1181,5 +1197,275 @@ public class AwsBlobStoreTest {
 
         assertNotNull(store);
         assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testGetObjectLock_Success() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+        Instant retainUntil = Instant.now().plusSeconds(3600);
+
+        GetObjectRetentionResponse retentionResponse = GetObjectRetentionResponse.builder()
+                .retention(ObjectLockRetention.builder()
+                        .mode(ObjectLockRetentionMode.GOVERNANCE)
+                        .retainUntilDate(retainUntil)
+                        .build())
+                .build();
+
+        GetObjectLegalHoldResponse legalHoldResponse = GetObjectLegalHoldResponse.builder()
+                .legalHold(ObjectLockLegalHold.builder()
+                        .status(ObjectLockLegalHoldStatus.ON)
+                        .build())
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenReturn(retentionResponse);
+        when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+                .thenReturn(legalHoldResponse);
+
+        // When
+        ObjectLockInfo result = aws.getObjectLock(key, versionId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(ObjectLockMode.GOVERNANCE, result.getMode());
+        assertEquals(retainUntil, result.getRetainUntilDate());
+        assertTrue(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_WithComplianceMode() {
+        // Given
+        String key = "test-key";
+        Instant retainUntil = Instant.now().plusSeconds(3600);
+
+        GetObjectRetentionResponse retentionResponse = GetObjectRetentionResponse.builder()
+                .retention(ObjectLockRetention.builder()
+                        .mode(ObjectLockRetentionMode.COMPLIANCE)
+                        .retainUntilDate(retainUntil)
+                        .build())
+                .build();
+
+        GetObjectLegalHoldResponse legalHoldResponse = GetObjectLegalHoldResponse.builder()
+                .legalHold(ObjectLockLegalHold.builder()
+                        .status(ObjectLockLegalHoldStatus.OFF)
+                        .build())
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenReturn(retentionResponse);
+        when(mockS3Client.getObjectLegalHold(any(GetObjectLegalHoldRequest.class)))
+                .thenReturn(legalHoldResponse);
+
+        // When
+        ObjectLockInfo result = aws.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(ObjectLockMode.COMPLIANCE, result.getMode());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        NoSuchKeyException exception = NoSuchKeyException.builder()
+                .message("Object not found")
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenThrow(exception);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            aws.getObjectLock(key, null);
+        });
+    }
+
+    @Test
+    void testGetObjectLock_ServiceException() {
+        // Given
+        String key = "test-key";
+        AwsServiceException exception = AwsServiceException.builder()
+                .message("Service error")
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenThrow(exception);
+
+        // When/Then
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> {
+            aws.getObjectLock(key, null);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_Success() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+        Instant newRetainUntil = Instant.now().plusSeconds(7200);
+
+        GetObjectRetentionResponse currentRetention = GetObjectRetentionResponse.builder()
+                .retention(ObjectLockRetention.builder()
+                        .mode(ObjectLockRetentionMode.GOVERNANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .build())
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenReturn(currentRetention);
+        when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+                .thenReturn(PutObjectRetentionResponse.builder().build());
+
+        // When
+        aws.updateObjectRetention(key, versionId, newRetainUntil);
+
+        // Then
+        verify(mockS3Client, times(1)).getObjectRetention(any(GetObjectRetentionRequest.class));
+        verify(mockS3Client, times(1)).putObjectRetention(any(PutObjectRetentionRequest.class));
+    }
+
+    @Test
+    void testUpdateObjectRetention_ComplianceModeThrowsException() {
+        // Given
+        String key = "test-key";
+        Instant newRetainUntil = Instant.now().plusSeconds(7200);
+
+        GetObjectRetentionResponse currentRetention = GetObjectRetentionResponse.builder()
+                .retention(ObjectLockRetention.builder()
+                        .mode(ObjectLockRetentionMode.COMPLIANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .build())
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenReturn(currentRetention);
+
+        // When/Then
+        assertThrows(InvalidArgumentException.class, () -> {
+            aws.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_NoRetentionConfigured() {
+        // Given
+        String key = "test-key";
+        Instant newRetainUntil = Instant.now().plusSeconds(7200);
+
+        GetObjectRetentionResponse currentRetention = GetObjectRetentionResponse.builder()
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenReturn(currentRetention);
+
+        // When/Then
+        assertThrows(InvalidArgumentException.class, () -> {
+            aws.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        Instant newRetainUntil = Instant.now().plusSeconds(7200);
+        NoSuchKeyException exception = NoSuchKeyException.builder()
+                .message("Object not found")
+                .build();
+
+        when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+                .thenThrow(exception);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            aws.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateLegalHold_Success() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+
+        when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
+                .thenReturn(PutObjectLegalHoldResponse.builder().build());
+
+        // When
+        aws.updateLegalHold(key, versionId, true);
+
+        // Then
+        verify(mockS3Client, times(1)).putObjectLegalHold(any(PutObjectLegalHoldRequest.class));
+    }
+
+    @Test
+    void testUpdateLegalHold_ReleaseHold() {
+        // Given
+        String key = "test-key";
+
+        when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
+                .thenReturn(PutObjectLegalHoldResponse.builder().build());
+
+        // When
+        aws.updateLegalHold(key, null, false);
+
+        // Then
+        verify(mockS3Client, times(1)).putObjectLegalHold(any(PutObjectLegalHoldRequest.class));
+    }
+
+    @Test
+    void testUpdateLegalHold_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        NoSuchKeyException exception = NoSuchKeyException.builder()
+                .message("Object not found")
+                .build();
+
+        when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
+                .thenThrow(exception);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            aws.updateLegalHold(key, null, true);
+        });
+    }
+
+    @Test
+    void testUpdateLegalHold_ServiceException() {
+        // Given
+        String key = "test-key";
+        AwsServiceException exception = AwsServiceException.builder()
+                .message("Service error")
+                .build();
+
+        when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
+                .thenThrow(exception);
+
+        // When/Then
+        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> {
+            aws.updateLegalHold(key, null, true);
+        });
+    }
+
+    @Test
+    void testClose() {
+        // When
+        aws.close();
+
+        // Then
+        verify(mockS3Client, times(1)).close();
+    }
+
+    @Test
+    void testClose_WithNullClient() {
+        // Given - create a store with null client
+        AwsBlobStore storeWithNullClient = new AwsBlobStore(new AwsBlobStore.Builder(), null);
+
+        // When/Then - should not throw exception
+        storeWithNullClient.close();
     }
 }

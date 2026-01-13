@@ -54,6 +54,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -873,5 +874,42 @@ public class AliBlobStoreTest {
         doReturn(100L).when(objectMetadata).getContentLength();
         doReturn(inputStream).when(ossObject).getObjectContent();
         return ossObject;
+    }
+
+    @Test
+    void testGetObjectLock_ThrowsUnsupportedException() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+
+        // When/Then
+        assertThrows(UnSupportedOperationException.class, () -> {
+            ali.getObjectLock(key, versionId);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_ThrowsUnsupportedException() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+        Instant retainUntil = Instant.now().plusSeconds(3600);
+
+        // When/Then
+        assertThrows(UnSupportedOperationException.class, () -> {
+            ali.updateObjectRetention(key, versionId, retainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateLegalHold_ThrowsUnsupportedException() {
+        // Given
+        String key = "test-key";
+        String versionId = "version-1";
+
+        // When/Then
+        assertThrows(UnSupportedOperationException.class, () -> {
+            ali.updateLegalHold(key, versionId, true);
+        });
     }
 }

@@ -18,6 +18,8 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.Test;
@@ -1046,5 +1048,166 @@ public class AwsTransformerTest {
         RetryStrategy strategy = transformer.toAwsRetryStrategy(config);
 
         assertNotNull(strategy);
+    }
+
+    @Test
+    void testToRequest_WithObjectLockConfiguration() {
+        var key = "some-key";
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withObjectLock(ObjectLockConfiguration.builder()
+                        .mode(ObjectLockMode.GOVERNANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .legalHold(true)
+                        .build())
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockMode.GOVERNANCE, actual.objectLockMode());
+        assertNotNull(actual.objectLockRetainUntilDate());
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
+    }
+
+    @Test
+    void testToRequest_WithObjectLockComplianceMode() {
+        var key = "some-key";
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withObjectLock(ObjectLockConfiguration.builder()
+                        .mode(ObjectLockMode.COMPLIANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .legalHold(false)
+                        .build())
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockMode.COMPLIANCE, actual.objectLockMode());
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF, actual.objectLockLegalHoldStatus());
+    }
+
+    @Test
+    void testToRequest_WithObjectLockPartialConfig() {
+        var key = "some-key";
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withObjectLock(ObjectLockConfiguration.builder()
+                        .legalHold(true)
+                        .build())
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertNull(actual.objectLockMode());
+        assertNull(actual.objectLockRetainUntilDate());
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
+    }
+
+    @Test
+    void testToObjectLockInfo_WithRetentionAndLegalHold() {
+        var retentionResponse = software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
+                .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                        .mode(software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.GOVERNANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .build())
+                .build();
+
+        var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
+                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON)
+                        .build())
+                .build();
+
+        var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
+
+        assertNotNull(result);
+        assertEquals(ObjectLockMode.GOVERNANCE, result.getMode());
+        assertNotNull(result.getRetainUntilDate());
+        assertTrue(result.isLegalHold());
+        assertNull(result.getUseEventBasedHold());
+    }
+
+    @Test
+    void testToObjectLockInfo_WithNullRetention() {
+        var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
+                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF)
+                        .build())
+                .build();
+
+        var result = transformer.toObjectLockInfo(null, legalHoldResponse);
+
+        assertNull(result);
+    }
+
+    @Test
+    void testToObjectLockInfo_WithComplianceMode() {
+        var retentionResponse = software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
+                .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                        .mode(software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.COMPLIANCE)
+                        .retainUntilDate(Instant.now().plusSeconds(3600))
+                        .build())
+                .build();
+
+        var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
+                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF)
+                        .build())
+                .build();
+
+        var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
+
+        assertNotNull(result);
+        assertEquals(ObjectLockMode.COMPLIANCE, result.getMode());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testToPutObjectRetentionRequest() {
+        var key = "test-key";
+        var versionId = "version-1";
+        var mode = software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.GOVERNANCE;
+        var retainUntil = Instant.now().plusSeconds(3600);
+
+        var result = transformer.toPutObjectRetentionRequest(key, versionId, mode, retainUntil);
+
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(versionId, result.versionId());
+        assertNotNull(result.retention());
+        assertEquals(mode, result.retention().mode());
+        assertEquals(retainUntil, result.retention().retainUntilDate());
+    }
+
+    @Test
+    void testToPutObjectLegalHoldRequest() {
+        var key = "test-key";
+        var versionId = "version-1";
+
+        var result = transformer.toPutObjectLegalHoldRequest(key, versionId, true);
+
+        assertEquals(BUCKET, result.bucket());
+        assertEquals(key, result.key());
+        assertEquals(versionId, result.versionId());
+        assertNotNull(result.legalHold());
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, result.legalHold().status());
+    }
+
+    @Test
+    void testToPutObjectLegalHoldRequest_Off() {
+        var key = "test-key";
+        var versionId = "version-1";
+
+        var result = transformer.toPutObjectLegalHoldRequest(key, versionId, false);
+
+        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF, result.legalHold().status());
     }
 }
