@@ -87,13 +87,8 @@ public class AliTransformer {
             metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());
         }
 
-        // Set CRC64 checksum if provided (Alibaba OSS native checksum)
-        // Note: Alibaba OSS computes CRC64 server-side automatically
-        // Client-provided CRC64 can be used for validation
         if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
-            // Set the CRC64 value in metadata for client-side tracking
-            // OSS will compute and validate CRC64 server-side
-            metadata.setHeader("x-oss-meta-crc64", uploadRequest.getChecksumValue());
+            metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
         }
 
         return metadata;
