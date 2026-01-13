@@ -18,4 +18,13 @@ public class UploadResponse {
      */
     String versionId;
     String eTag;
+
+    /**
+     * The base64-encoded checksum value returned by the service (if validation was requested).
+     * The checksum algorithm is provider-specific:
+     * - AWS: CRC32C
+     * - GCP: CRC32C
+     * - Alibaba: CRC64 (not that this is the disparity and will raise a request to alibaba to support crc32c)
+     */
+    String checksumValue;
 }

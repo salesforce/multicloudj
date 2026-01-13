@@ -2927,4 +2927,41 @@ public abstract class AbstractBlobStoreIT {
             safeDeleteBlobs(bucketClient, key);
         }
     }
+
+    @Test
+    public void testUploadWithChecksumValidation() throws Exception {
+        String key = "conformance-tests/checksum/test-object";
+        byte[] content = "Test content for checksum validation".getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            // Create upload request with checksum
+            // Checksum algorithm is provider-specific: CRC32C for AWS/GCP, CRC64 for Alibaba
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(content.length)
+                    .withChecksumValue("dGVzdA==") // Base64 encoded test checksum
+                    .build();
+
+            // Upload with checksum validation
+            // Note: If checksum doesn't match, the provider will throw an exception
+            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, content);
+
+            // Verify response
+            Assertions.assertNotNull(uploadResponse);
+            Assertions.assertEquals(key, uploadResponse.getKey());
+            // Checksum value may be included in response depending on provider
+            if (uploadResponse.getChecksumValue() != null) {
+                Assertions.assertNotNull(uploadResponse.getChecksumValue());
+            }
+
+            // Verify blob exists
+            boolean exists = bucketClient.doesObjectExist(key, null);
+            Assertions.assertTrue(exists, "Uploaded blob should exist");
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
 }

@@ -311,6 +311,36 @@ public class AwsBlobStoreTest {
         }
     }
 
+    @Test
+    void testDoUploadWithChecksumCRC32C() {
+        // Create mock response with CRC32C checksum
+        PutObjectResponse mockResponse = mock(PutObjectResponse.class);
+        doReturn("version-1").when(mockResponse).versionId();
+        doReturn("etag").when(mockResponse).eTag();
+        doReturn("AAAAAA==").when(mockResponse).checksumCRC32C();
+        doReturn(mockResponse).when(mockS3Client).putObject((PutObjectRequest) any(), (RequestBody) any());
+
+        // Create upload request with checksum (AWS uses CRC32C)
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey("object-1")
+                .withContentLength(1024)
+                .withChecksumValue("AAAAAA==")
+                .build();
+
+        // Execute upload
+        UploadResponse uploadResponse = aws.doUpload(uploadRequest, new byte[1024]);
+
+        // Verify CRC32C checksum was set in request
+        ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(mockS3Client, times(1)).putObject(requestCaptor.capture(), (RequestBody) any());
+        PutObjectRequest actualRequest = requestCaptor.getValue();
+        assertEquals(software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C, actualRequest.checksumAlgorithm());
+        assertEquals("AAAAAA==", actualRequest.checksumCRC32C());
+
+        // Verify checksum in response
+        assertEquals("AAAAAA==", uploadResponse.getChecksumValue());
+    }
+
     void verifyUploadTestResults(UploadResponse uploadResponse) {
 
         // Verify the parameters passed into the SDK
