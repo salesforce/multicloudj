@@ -61,7 +61,7 @@ public class GcpTransformer {
         if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
             uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
-        
+
         BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, uploadRequest.getKey())
                 .setMetadata(ImmutableMap.copyOf(metadata));
 
@@ -82,14 +82,11 @@ public class GcpTransformer {
             boolean useEventBased = lockConfig.getUseEventBasedHold() != null 
                     ? lockConfig.getUseEventBasedHold() 
                     : false;
-            boolean legalHold = lockConfig.isLegalHold();
 
             if (useEventBased) {
-                builder.setEventBasedHold(legalHold);
-                builder.setTemporaryHold(false); // Explicitly set to false when using event-based hold
+                builder.setEventBasedHold(lockConfig.isLegalHold());
             } else {
-                builder.setTemporaryHold(legalHold);
-                builder.setEventBasedHold(false); // Explicitly set to false when using temporary hold
+                builder.setTemporaryHold(lockConfig.isLegalHold());
             }
         }
 

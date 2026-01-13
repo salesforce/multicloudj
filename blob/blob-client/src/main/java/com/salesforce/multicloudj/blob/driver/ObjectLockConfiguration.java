@@ -14,20 +14,6 @@ import java.time.Instant;
  *   <li><b>GCP GCS:</b> Partial support - requires bucket retention policy; uses object holds (temporaryHold/eventBasedHold)</li>
  *   <li><b>OSS:</b> Not supported</li>
  * </ul>
- * 
- * <p><b>Usage Example:</b>
- * <pre>{@code
- * ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
- *     .mode(ObjectLockMode.COMPLIANCE)
- *     .retainUntilDate(Instant.now().plus(30, ChronoUnit.DAYS))
- *     .legalHold(true)
- *     .build();
- * 
- * UploadRequest request = UploadRequest.builder()
- *     .withKey("backup-snapshot")
- *     .withObjectLock(lockConfig)
- *     .build();
- * }</pre>
  */
 @Builder
 @Getter

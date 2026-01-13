@@ -129,11 +129,6 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-        // Validate bucket retention policy if object lock is configured
-        if (uploadRequest.getObjectLock() != null) {
-            validateBucketRetentionPolicy(uploadRequest.getObjectLock().getRetainUntilDate());
-        }
-
         try (WriteChannel writer = storage.writer(transformer.toBlobInfo(uploadRequest), transformer.getKmsWriteOptions(uploadRequest));
              var channel = Channels.newOutputStream(writer)) {
             ByteStreams.copy(inputStream, channel);
@@ -149,11 +144,6 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     @Override
     protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-        // Validate bucket retention policy if object lock is configured
-        if (uploadRequest.getObjectLock() != null) {
-            validateBucketRetentionPolicy(uploadRequest.getObjectLock().getRetainUntilDate());
-        }
-
         Blob blob = storage.create(transformer.toBlobInfo(uploadRequest), content, transformer.getKmsTargetOptions(uploadRequest));
         return transformer.toUploadResponse(blob);
     }
@@ -711,34 +701,6 @@ public class GcpBlobStore extends AbstractBlobStore {
 
         } catch (Exception e) {
             throw new SubstrateSdkException("Failed to delete directory", e);
-        }
-    }
-
-    /**
-     * Validates that bucket has retention policy set and it's sufficient for the requested retention date.
-     * 
-     * Note: GCP Storage Java library doesn't provide direct access to bucket retention policy through the Bucket object.
-     * This method performs basic validation but cannot fully validate against bucket retention policy.
-     * Users must ensure bucket retention policy is set before using object lock.
-     */
-    private void validateBucketRetentionPolicy(java.time.Instant requiredRetainUntil) {
-        if (requiredRetainUntil == null) {
-            return; // No retention date required
-        }
-
-        try {
-            Bucket bucket = storage.get(this.bucket);
-            if (bucket == null) {
-                throw new SubstrateSdkException("Bucket not found: " + this.bucket);
-            }
-
-            // Note: GCP Storage Java library doesn't expose getRetentionPolicy() on Bucket object.
-            // We cannot programmatically validate retention policy, but we document the requirement.
-            // Users must ensure bucket retention policy is configured before using object lock.
-            // The retainUntilDate will be validated by GCP when the object is uploaded.
-
-        } catch (StorageException e) {
-            throw new SubstrateSdkException("Failed to validate bucket retention policy", e);
         }
     }
 
