@@ -256,8 +256,14 @@ public class GcpSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
-        if (request == null || StringUtils.isBlank(request.getRole()) || StringUtils.isBlank(request.getWebIdentityToken())) {
-            throw new FailedPreconditionException("token and identity pool provider is required for gcp token exchange");
+        if (request == null) {
+            throw new InvalidArgumentException("request cannot be null");
+        }
+        if (StringUtils.isBlank(request.getRole())) {
+            throw new InvalidArgumentException("role (identity pool provider) is required for gcp token exchange");
+        }
+        if (StringUtils.isBlank(request.getWebIdentityToken())) {
+            throw new InvalidArgumentException("webIdentityToken is required for gcp token exchange");
         }
 
         try {
@@ -281,8 +287,9 @@ public class GcpSts extends AbstractSts {
                     response.getContent(),
                     response.getContentCharset(),
                     GenericJson.class);
+            String accessToken = String.valueOf(responseData.get("access_token"));
 
-            return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, (String) responseData.get("access_token"));
+            return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken);
         } catch (IOException e) {
             throw new SubstrateSdkException("Failed to exchange OIDC token for GCP access token", e);
         }

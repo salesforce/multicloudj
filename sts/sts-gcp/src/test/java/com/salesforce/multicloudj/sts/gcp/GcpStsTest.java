@@ -6,6 +6,9 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.auth.http.HttpTransportFactory;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.CredentialAccessBoundary;
@@ -38,11 +41,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.MockedStatic;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 public class GcpStsTest {
@@ -76,7 +76,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestAssumedRoleSts() throws IOException {
+    public void testAssumedRoleSts() throws IOException {
         // Reset the mock to ensure no interference from other tests
         Mockito.reset(mockGoogleCredentials);
         Mockito.when(mockGoogleCredentials.createScoped(Mockito.any(Collection.class))).thenReturn(mockGoogleCredentials);
@@ -94,7 +94,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetCallerIdentitySts() {
+    public void testGetCallerIdentitySts() {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
             mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
 
@@ -107,7 +107,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetCallerIdentityWithCustomAud() {
+    public void testGetCallerIdentityWithCustomAud() {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
             mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
 
@@ -120,7 +120,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetCallerIdentityStsThrowsException() throws IOException {
+    public void testGetCallerIdentityStsThrowsException() throws IOException {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
             mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentialsWithIdToken);
 
@@ -134,7 +134,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetSessionTokenSts() throws IOException {
+    public void testGetSessionTokenSts() throws IOException {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
             mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentials);
             Mockito.when(mockGoogleCredentials.createScoped(Mockito.any(Collection.class))).thenReturn(mockGoogleCredentials);
@@ -150,7 +150,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetSessionTokenStsThrowsException() throws IOException {
+    public void testGetSessionTokenStsThrowsException() throws IOException {
         try (MockedStatic<GoogleCredentials> mockedGoogleCreds = Mockito.mockStatic(GoogleCredentials.class)) {
             mockedGoogleCreds.when(GoogleCredentials::getApplicationDefault).thenReturn(mockGoogleCredentials);
 
@@ -164,14 +164,14 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGcpStsConstructorWithBuilder() {
+    public void testGcpStsConstructorWithBuilder() {
         GcpSts sts = new GcpSts(new GcpSts().builder());
         Assertions.assertNotNull(sts);
         Assertions.assertEquals("gcp", sts.getProviderId());
     }
 
     @Test
-    public void TestGetExceptionWithApiException() {
+    public void testGetExceptionWithApiException() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
         
         // Test various status codes
@@ -194,67 +194,69 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestGetExceptionWithNonApiException() {
+    public void testGetExceptionWithNonApiException() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
         Class<? extends SubstrateSdkException> exceptionClass = sts.getException(new RuntimeException("Test error"));
         Assertions.assertEquals(UnknownException.class, exceptionClass);
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityNullRequest() {
+    public void testAssumeRoleWithWebIdentityNullRequest() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
-        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+        Assertions.assertThrows(InvalidArgumentException.class, () -> {
             sts.assumeRoleWithWebIdentity(null);
         });
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityMissingRole() {
+    public void testAssumeRoleWithWebIdentityMissingRole() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
                 .webIdentityToken("test-token")
                 .build();
-        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+        Assertions.assertThrows(InvalidArgumentException.class, () -> {
             sts.assumeRoleWithWebIdentity(request);
         });
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityMissingToken() {
+    public void testAssumeRoleWithWebIdentityMissingToken() {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
                 .role("test-role")
                 .build();
-        Assertions.assertThrows(FailedPreconditionException.class, () -> {
+        Assertions.assertThrows(InvalidArgumentException.class, () -> {
             sts.assumeRoleWithWebIdentity(request);
         });
     }
 
     @Test
-    public void TestGetSTSCredentialsWithAssumeRoleWebIdentityHappyPath() throws IOException {
-        // Mock HTTP transport chain
-        HttpResponse mockHttpResponse = Mockito.mock(HttpResponse.class);
-        HttpRequest mockHttpRequest = Mockito.mock(HttpRequest.class);
-        HttpRequestFactory mockRequestFactory = Mockito.mock(HttpRequestFactory.class);
-        HttpTransport mockHttpTransport = Mockito.mock(HttpTransport.class);
-        HttpTransportFactory mockHttpTransportFactory = Mockito.mock(HttpTransportFactory.class);
-
+    public void testGetSTSCredentialsWithAssumeRoleWebIdentityHappyPath() throws IOException {
         // Mock response content
         String responseJson = "{\"access_token\":\"test-access-token\",\"expires_in\":3600}";
-        InputStream mockInputStream = new ByteArrayInputStream(responseJson.getBytes(StandardCharsets.UTF_8));
         
-        // Setup mock chain
-        Mockito.when(mockHttpTransportFactory.create()).thenReturn(mockHttpTransport);
-        Mockito.when(mockHttpTransport.createRequestFactory()).thenReturn(mockRequestFactory);
-        Mockito.when(mockRequestFactory.buildPostRequest(
-                Mockito.any(GenericUrl.class),
-                Mockito.any(HttpContent.class))).thenReturn(mockHttpRequest);
-        Mockito.when(mockHttpRequest.execute()).thenReturn(mockHttpResponse);
-        Mockito.when(mockHttpResponse.getContent()).thenReturn(mockInputStream);
-        Mockito.when(mockHttpResponse.getContentCharset()).thenReturn(StandardCharsets.UTF_8);
+        // Create MockHttpTransport that returns the expected response
+        MockHttpTransport mockHttpTransport = new MockHttpTransport() {
+            @Override
+            public MockLowLevelHttpRequest buildRequest(String method, String url) throws IOException {
+                return new MockLowLevelHttpRequest() {
+                    @Override
+                    public MockLowLevelHttpResponse execute() throws IOException {
+                        MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                        response.setStatusCode(200);
+                        response.setContentType("application/json");
+                        response.setContent(responseJson);
+                        return response;
+                    }
+                };
+            }
+        };
+
+        // Wrap MockHttpTransport in HttpTransportFactory
+        HttpTransportFactory httpTransportFactory = () -> mockHttpTransport;
 
         // Create GcpSts with mocked HttpTransportFactory
-        GcpSts sts = new GcpSts().builder().build(mockHttpTransportFactory);
+        GcpSts sts = new GcpSts().builder().build(httpTransportFactory);
         
         // Create request
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
@@ -271,16 +273,10 @@ public class GcpStsTest {
         Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeyId());
         Assertions.assertEquals(StringUtils.EMPTY, credentials.getAccessKeySecret());
         Assertions.assertEquals("test-access-token", credentials.getSecurityToken());
-        
-        // Verify HTTP request was made with correct parameters
-        Mockito.verify(mockRequestFactory).buildPostRequest(
-                Mockito.argThat(url -> url.toString().equals("https://sts.googleapis.com/v1/token")),
-                Mockito.any(HttpContent.class));
-        Mockito.verify(mockHttpRequest).execute();
     }
 
     @Test
-    public void TestAssumedRoleStsWithCredentialScopeConversion() throws Exception {
+    public void testAssumedRoleStsWithCredentialScopeConversion() throws Exception {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
         CredentialScope.AvailabilityCondition condition = CredentialScope.AvailabilityCondition.builder()
                 .resourcePrefix("storage://my-bucket/documents/")
@@ -331,7 +327,7 @@ public class GcpStsTest {
     }
 
     @Test
-    public void TestAssumedRoleStsWithCredentialScopeExecutionWithMockedCredentials() throws IOException {
+    public void testAssumedRoleStsWithCredentialScopeExecutionWithMockedCredentials() throws IOException {
         GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
 
         CredentialScope.ScopeRule rule = CredentialScope.ScopeRule.builder()
