@@ -68,7 +68,7 @@ public class GcpTransformer {
         return UploadResponse.builder()
                 .key(blob.getName())
                 .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
-                .checksumValue(blob.getCrc32c()  != null ? blob.getCrc32c()  : null)
+                .checksumValue(blob.getCrc32c() != null ? blob.getCrc32c() : null)
                 .eTag(blob.getEtag())
                 .build();
     }
