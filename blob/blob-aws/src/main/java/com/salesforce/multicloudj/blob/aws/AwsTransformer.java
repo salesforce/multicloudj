@@ -237,7 +237,7 @@ public class AwsTransformer {
             case COMPLIANCE:
                 return RetentionMode.COMPLIANCE;
             default:
-                throw new InvalidArgumentException("Unknown AWS object lock mode: " + awsMode);
+                throw new FailedPreconditionException("Unknown AWS object lock mode: " + awsMode);
         }
     }
 
