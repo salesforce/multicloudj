@@ -20,8 +20,8 @@ echo "Generating delomboked sources..."
 mvn clean generate-sources -DskipTests
 
 echo "Generating JavaDoc from delomboked sources..."
-mvn javadoc:aggregate -DskipTests
-cp -r target/reports/apidocs/* "$TEMP_DIR/"
+mvn site -DskipTests
+cp -r target/site/apidocs/* "$TEMP_DIR/"
 
 # 3. Checkout site branch
 git checkout "$SITE_BRANCH"

@@ -54,19 +54,21 @@ public class GcpTransformer {
         if(uploadRequest.getMetadata() != null) {
             metadata.putAll(uploadRequest.getMetadata());
         }
-        
+
         // Add tags to metadata with TAG_PREFIX
         if(uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
             uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
-        
-        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass());
+
+        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass(),
+                         uploadRequest.getChecksumValue());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
         return UploadResponse.builder()
                 .key(blob.getName())
                 .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
+                .checksumValue(blob.getCrc32c())
                 .eTag(blob.getEtag())
                 .build();
     }
@@ -233,10 +235,15 @@ public class GcpTransformer {
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-        return toBlobInfo(key, metadata, null);
+        return toBlobInfo(key, metadata, null, null);
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
+        return toBlobInfo(key, metadata, storageClass, null);
+    }
+
+    protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass,
+                                  String checksumValue) {
         metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
         BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
@@ -248,6 +255,11 @@ public class GcpTransformer {
             } catch (IllegalArgumentException e) {
                 throw new InvalidArgumentException("Invalid storage class: " + storageClass, e);
             }
+        }
+
+        // Set CRC32C checksum if provided (GCP's native checksum algorithm)
+        if (checksumValue != null && !checksumValue.isEmpty()) {
+            builder.setCrc32c(checksumValue);
         }
 
         return builder.build();

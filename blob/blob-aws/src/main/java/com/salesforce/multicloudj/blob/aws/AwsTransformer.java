@@ -81,6 +81,8 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
+
 public class AwsTransformer {
 
     private final String bucket;
@@ -165,7 +167,7 @@ public class AwsTransformer {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
         }
-        
+
         // Set storage class if provided
         if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
             try {
@@ -175,7 +177,13 @@ public class AwsTransformer {
                 throw new InvalidArgumentException("Invalid storage class: " + request.getStorageClass(), e);
             }
         }
-        
+
+        // Set checksum if provided
+        if (request.getChecksumValue() != null && !request.getChecksumValue().isEmpty()) {
+            builder.checksumAlgorithm(CRC32_C);
+            builder.checksumCRC32C(request.getChecksumValue());
+        }
+
         return builder.build();
     }
 
@@ -508,11 +516,17 @@ public class AwsTransformer {
     }
 
     public UploadResponse toUploadResponse(String key, PutObjectResponse response) {
-        return UploadResponse.builder()
+        UploadResponse.UploadResponseBuilder builder = UploadResponse.builder()
                 .key(key)
                 .versionId(response.versionId())
-                .eTag(response.eTag())
-                .build();
+                .eTag(response.eTag());
+
+        // Extract CRC32C checksum from response if present
+        if (response.checksumCRC32C() != null) {
+            builder.checksumValue(response.checksumCRC32C());
+        }
+
+        return builder.build();
     }
 
     public CopyResponse toCopyResponse(String destKey, CopyObjectResponse response) {
