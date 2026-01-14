@@ -40,11 +40,8 @@ public class UploadRequest {
      */
     private final String kmsKeyId;
     /**
-     * (Optional parameter) The base64-encoded checksum value for upload validation.
-     * The checksum algorithm used is provider-specific:
-     * - AWS: CRC32C
-     * - GCP: CRC32C
-     * - Alibaba: CRC64 (not that this is the disparity and will raise a request to alibaba to support crc32c)
+     * (Optional parameter) The base64-encoded checksum value for upload validation. crc32c is the most
+     * common across most cloud providers. No other checksum is supported for now.
      *
      */
     private final String checksumValue;
