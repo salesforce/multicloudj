@@ -44,6 +44,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -450,23 +451,15 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Gets object lock configuration for a blob
-     * @param key Object key
-     * @param versionId Optional version ID. For versioned buckets, null means latest version.
-     * @return ObjectLockInfo if object has lock, null otherwise
-     * @throws UnSupportedOperationException Alibaba OSS does not support object lock
+     * {@inheritdoc}
      */
     @Override
-    public com.salesforce.multicloudj.blob.driver.ObjectLockInfo getObjectLock(String key, String versionId) {
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
         throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
     }
 
     /**
-     * Updates the object retention date
-     * @param key Object key
-     * @param versionId Optional version ID. For versioned buckets, null means latest version.
-     * @param retainUntilDate The date until which the object should be retained
-     * @throws UnSupportedOperationException Alibaba OSS does not support object lock/retention
+     * {@inheritdoc}
      */
     @Override
     public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
@@ -474,11 +467,7 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Updates the legal hold status of an object
-     * @param key Object key
-     * @param versionId Optional version ID. For versioned buckets, null means latest version.
-     * @param legalHold true to apply hold, false to release hold
-     * @throws UnSupportedOperationException Alibaba OSS does not support object lock/legal hold
+     * {@inheritdoc}
      */
     @Override
     public void updateLegalHold(String key, String versionId, boolean legalHold) {
@@ -502,10 +491,7 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Determines if an object exists for a given key/versionId
-     * @param key Name of the blob to check
-     * @param versionId The version of the blob to check
-     * @return Returns true if the object exists. Returns false if it doesn't exist.
+     * {@inheritdoc}
      */
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {

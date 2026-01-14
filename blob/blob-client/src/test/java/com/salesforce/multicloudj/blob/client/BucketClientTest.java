@@ -16,6 +16,8 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -614,15 +616,15 @@ public class BucketClientTest {
     @Test
     void testGetObjectLock() {
         // Given
-        com.salesforce.multicloudj.blob.driver.ObjectLockInfo expectedLockInfo = 
-            com.salesforce.multicloudj.blob.driver.ObjectLockInfo.builder()
-                .mode(com.salesforce.multicloudj.blob.driver.ObjectLockMode.GOVERNANCE)
+        ObjectLockInfo expectedLockInfo = 
+            ObjectLockInfo.builder()
+                .mode(RetentionMode.GOVERNANCE)
                 .legalHold(true)
                 .build();
         doReturn(expectedLockInfo).when(mockBlobStore).getObjectLock("key1", null);
 
         // When
-        com.salesforce.multicloudj.blob.driver.ObjectLockInfo result = client.getObjectLock("key1", null);
+        ObjectLockInfo result = client.getObjectLock("key1", null);
 
         // Then
         assertEquals(expectedLockInfo, result);

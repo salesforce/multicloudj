@@ -26,7 +26,7 @@ public class ObjectLockInfo {
      * <p>For AWS S3: The actual mode set on the object.
      * <p>For GCP GCS: Always null (GCP doesn't support retention modes).
      */
-    private final ObjectLockMode mode;
+    private final RetentionMode mode;
 
     /**
      * Date until which the object is retained.

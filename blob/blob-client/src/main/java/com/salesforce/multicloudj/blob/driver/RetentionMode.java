@@ -1,7 +1,7 @@
 package com.salesforce.multicloudj.blob.driver;
 
 /**
- * Object lock retention mode for WORM (Write Once Read Many) protection.
+ * Retention mode for WORM (Write Once Read Many) protection.
  * 
  * <p>For AWS S3:
  * <ul>
@@ -16,7 +16,7 @@ package com.salesforce.multicloudj.blob.driver;
  *   <li>When using this SDK, the mode is ignored for GCP and bucket retention policy provides the WORM protection.</li>
  * </ul>
  */
-public enum ObjectLockMode {
+public enum RetentionMode {
     /**
      * Governance mode: Retention can be bypassed by users with special permissions.
      * For AWS S3: Maps to GOVERNANCE mode.

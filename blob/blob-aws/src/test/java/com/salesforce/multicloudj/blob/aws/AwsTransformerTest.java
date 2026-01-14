@@ -19,7 +19,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
-import com.salesforce.multicloudj.blob.driver.ObjectLockMode;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.Test;
@@ -1057,7 +1057,7 @@ public class AwsTransformerTest {
                 .builder()
                 .withKey(key)
                 .withObjectLock(ObjectLockConfiguration.builder()
-                        .mode(ObjectLockMode.GOVERNANCE)
+                        .mode(RetentionMode.GOVERNANCE)
                         .retainUntilDate(Instant.now().plusSeconds(3600))
                         .legalHold(true)
                         .build())
@@ -1079,7 +1079,7 @@ public class AwsTransformerTest {
                 .builder()
                 .withKey(key)
                 .withObjectLock(ObjectLockConfiguration.builder()
-                        .mode(ObjectLockMode.COMPLIANCE)
+                        .mode(RetentionMode.COMPLIANCE)
                         .retainUntilDate(Instant.now().plusSeconds(3600))
                         .legalHold(false)
                         .build())
@@ -1129,7 +1129,7 @@ public class AwsTransformerTest {
         var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
 
         assertNotNull(result);
-        assertEquals(ObjectLockMode.GOVERNANCE, result.getMode());
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
         assertNotNull(result.getRetainUntilDate());
         assertTrue(result.isLegalHold());
         assertNull(result.getUseEventBasedHold());
@@ -1166,7 +1166,7 @@ public class AwsTransformerTest {
         var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
 
         assertNotNull(result);
-        assertEquals(ObjectLockMode.COMPLIANCE, result.getMode());
+        assertEquals(RetentionMode.COMPLIANCE, result.getMode());
         assertFalse(result.isLegalHold());
     }
 

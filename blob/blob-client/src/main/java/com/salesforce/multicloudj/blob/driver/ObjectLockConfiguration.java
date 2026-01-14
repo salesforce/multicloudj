@@ -25,7 +25,7 @@ public class ObjectLockConfiguration {
      * <p>For AWS S3: Directly maps to objectLockMode.
      * <p>For GCP GCS: Not applicable, ignored. Bucket retention policy provides the protection.
      */
-    private final ObjectLockMode mode;
+    private final RetentionMode mode;
 
     /**
      * Date until which the object should be retained (WORM protection).

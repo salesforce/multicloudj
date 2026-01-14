@@ -20,6 +20,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -74,7 +75,7 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
 import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
-import com.salesforce.multicloudj.blob.driver.ObjectLockMode;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
@@ -1230,7 +1231,7 @@ public class AwsBlobStoreTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(ObjectLockMode.GOVERNANCE, result.getMode());
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
         assertEquals(retainUntil, result.getRetainUntilDate());
         assertTrue(result.isLegalHold());
     }
@@ -1264,7 +1265,7 @@ public class AwsBlobStoreTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(ObjectLockMode.COMPLIANCE, result.getMode());
+        assertEquals(RetentionMode.COMPLIANCE, result.getMode());
         assertFalse(result.isLegalHold());
     }
 
@@ -1346,7 +1347,7 @@ public class AwsBlobStoreTest {
                 .thenReturn(currentRetention);
 
         // When/Then
-        assertThrows(InvalidArgumentException.class, () -> {
+        assertThrows(FailedPreconditionException.class, () -> {
             aws.updateObjectRetention(key, null, newRetainUntil);
         });
     }
@@ -1364,7 +1365,7 @@ public class AwsBlobStoreTest {
                 .thenReturn(currentRetention);
 
         // When/Then
-        assertThrows(InvalidArgumentException.class, () -> {
+        assertThrows(FailedPreconditionException.class, () -> {
             aws.updateObjectRetention(key, null, newRetainUntil);
         });
     }
