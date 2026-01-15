@@ -76,7 +76,7 @@ public class AwsTopicTest {
             
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SQS_TOPIC_NAME);
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withCredentialsOverrider(mockCredentialsOverrider);
         builder.withSqsClient(mockSqsClient);
         builder.withRegion("us-east-1");
@@ -86,7 +86,7 @@ public class AwsTopicTest {
     @Test
     void testTopicNameValidation_Null() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withSqsClient(mockSqsClient);
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
         assertTrue(exception.getMessage().contains("Topic name/ARN cannot be null or empty"));
@@ -96,7 +96,7 @@ public class AwsTopicTest {
     void testTopicNameValidation_Empty() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName("");
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withSqsClient(mockSqsClient);
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> builder.build());
         assertTrue(exception.getMessage().contains("cannot be null or empty"));
@@ -113,7 +113,7 @@ public class AwsTopicTest {
         
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName("my-queue");
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withSqsClient(mockSqsClient);
         builder.withRegion("us-east-1");
         assertDoesNotThrow(() -> builder.build());
@@ -123,7 +123,7 @@ public class AwsTopicTest {
     void testBuilder() {
         AwsTopic.Builder builder1 = new AwsTopic.Builder();
         builder1.withTopicName(VALID_SQS_TOPIC_NAME);
-        builder1.withServiceType(AwsTopic.ServiceType.SQS);
+        builder1.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder1.withRegion("us-east-1");
         builder1.withCredentialsOverrider(mockCredentialsOverrider);
         builder1.withSqsClient(mockSqsClient);
@@ -134,7 +134,7 @@ public class AwsTopicTest {
         
         // Test that missing topic name throws exception
         AwsTopic.Builder builder2 = new AwsTopic.Builder();
-        builder2.withServiceType(AwsTopic.ServiceType.SQS);
+        builder2.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder2.withRegion("us-east-1");
         builder2.withSqsClient(mockSqsClient);
         assertThrows(InvalidArgumentException.class, () -> builder2.build());
@@ -148,7 +148,7 @@ public class AwsTopicTest {
         
         AwsTopic.Builder builder3 = new AwsTopic.Builder();
         builder3.withTopicName(VALID_SQS_TOPIC_NAME);
-        builder3.withServiceType(AwsTopic.ServiceType.SQS);
+        builder3.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder3.withEndpoint(URI.create("https://custom-endpoint.com"));
         builder3.withCredentialsOverrider(mockCredentialsOverrider);
         builder3.withSqsClient(mockSqsClient);
@@ -364,7 +364,7 @@ public class AwsTopicTest {
         
         Class<? extends SubstrateSdkException> result = sqsTopic.getException(baseException);
         
-        assertEquals(UnknownException.class, result);
+        assertEquals(SubstrateSdkException.class, result);
     }
 
     @Test
@@ -415,7 +415,7 @@ public class AwsTopicTest {
     void testBuilderReturnsNonNullInstance() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SQS_TOPIC_NAME);
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withSqsClient(mockSqsClient);
         builder.withRegion("us-east-1");
         AwsTopic topic = builder.build();
@@ -693,7 +693,7 @@ public class AwsTopicTest {
         
         AwsTopic.Builder testBuilder = new AwsTopic.Builder();
         testBuilder.withTopicName(queueName);
-        testBuilder.withServiceType(AwsTopic.ServiceType.SQS);
+        testBuilder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         testBuilder.withRegion("us-east-1");
         testBuilder.withSqsClient(mockSqsClient);
         testBuilder.build();
@@ -735,7 +735,7 @@ public class AwsTopicTest {
         
         AwsTopic.Builder testBuilder = new AwsTopic.Builder();
         testBuilder.withTopicName(queueName);
-        testBuilder.withServiceType(AwsTopic.ServiceType.SQS);
+        testBuilder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         testBuilder.withRegion("us-east-1");
         testBuilder.withSqsClient(mockSqsClient);
         
@@ -763,7 +763,7 @@ public class AwsTopicTest {
         
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(queueName);
-        builder.withServiceType(AwsTopic.ServiceType.SQS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
         builder.withRegion("us-east-1");
         builder.withSqsClient(mockSqsClient);
         
@@ -802,7 +802,7 @@ public class AwsTopicTest {
             if (invalidName == null || invalidName.trim().isEmpty()) {
                 AwsTopic.Builder builder = new AwsTopic.Builder();
                 builder.withTopicName(invalidName);
-                builder.withServiceType(AwsTopic.ServiceType.SQS);
+                builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
                 builder.withSqsClient(mockSqsClient);
                 builder.withRegion("us-east-1");
                 
@@ -817,7 +817,7 @@ public class AwsTopicTest {
                 
                 AwsTopic.Builder builder = new AwsTopic.Builder();
                 builder.withTopicName(invalidName);
-                builder.withServiceType(AwsTopic.ServiceType.SQS);
+                builder.withServiceType(AwsTopic.MessagePublisherType.SQS);
                 builder.withSqsClient(mockSqsClient);
                 builder.withRegion("us-east-1");
                 
@@ -840,7 +840,7 @@ public class AwsTopicTest {
     void setUpSnsTopic() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SNS_TOPIC_ARN);
-        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SNS);
         builder.withSnsClient(mockSnsClient);
         builder.withTopicName(VALID_SNS_TOPIC_ARN); 
         builder.withRegion("us-east-1");
@@ -857,7 +857,7 @@ public class AwsTopicTest {
     void testBuildSnsTopic_WithoutTopicArn_ThrowsException() {
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName("my-topic"); 
-        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SNS);
         builder.withSnsClient(mockSnsClient);
         builder.withRegion("us-east-1");
 
@@ -988,7 +988,7 @@ public class AwsTopicTest {
             .withBodyBase64Encoding(AwsTopic.BodyBase64Encoding.ALWAYS);
         AwsTopic.Builder builder = new AwsTopic.Builder();
         builder.withTopicName(VALID_SNS_TOPIC_ARN);
-        builder.withServiceType(AwsTopic.ServiceType.SNS);
+        builder.withServiceType(AwsTopic.MessagePublisherType.SNS);
         builder.withSnsClient(mockSnsClient);
         builder.withTopicName(VALID_SNS_TOPIC_ARN); 
         builder.withRegion("us-east-1");

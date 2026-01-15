@@ -260,7 +260,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
                 AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
                 logger.debug("createTopicDriver (SNS) using topicName: {}, topicArn: {}", topicName, cachedTopicArn);
-                topicBuilder.withServiceType(AwsTopic.ServiceType.SNS);
+                topicBuilder.withServiceType(AwsTopic.MessagePublisherType.SNS);
                 topicBuilder.withTopicName(cachedTopicArn);
                 topicBuilder.withSnsClient(snsClient);
                 topic = topicBuilder.build();

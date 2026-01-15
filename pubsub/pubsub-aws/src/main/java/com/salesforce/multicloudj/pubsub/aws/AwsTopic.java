@@ -63,9 +63,46 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     private static final int MAX_SNS_ATTRIBUTES = 10;
     
     /**
+     * Prefix for AWS SNS topic ARNs.
+     */
+    private static final String SNS_TOPIC_ARN_PREFIX = "arn:aws:sns:";
+    
+    /**
+     * Prefix for AWS SQS queue URLs.
+     */
+    private static final String SQS_QUEUE_URL_PREFIX = "https://sqs.";
+    
+    /**
+     * Maximum number of concurrent handler threads for batching operations.
+     * This value is based on performance tuning.
+     */
+    private static final int MAX_BATCH_HANDLERS = 100;
+    
+    /**
+     * Minimum number of messages per batch before sending.
+     * A value of 1 means messages are sent immediately without waiting for more messages.
+     */
+    private static final int MIN_BATCH_SIZE = 1;
+    
+    /**
+     * Maximum number of messages per batch for AWS SQS/SNS.
+     * AWS SQS and SNS both support up to 10 messages per batch request.
+     * Reference: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessageBatch.html
+     * Reference: https://docs.aws.amazon.com/sns/latest/api/API_PublishBatch.html
+     */
+    private static final int MAX_BATCH_SIZE = 10;
+    
+    /**
+     * Maximum batch size in bytes (256KB).
+     * AWS SQS has a 256KB limit per message, and this limit applies to batch operations as well.
+     * Reference: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html
+     */
+    private static final int MAX_BATCH_BYTE_SIZE = 256 * 1024; // 256KB
+    
+    /**
      * Used to specify whether to use SQS or SNS for message publishing.
      */
-    public enum ServiceType {
+    public enum MessagePublisherType {
         SQS,
         SNS
     }
@@ -75,11 +112,11 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
      */
     public enum BodyBase64Encoding {
         /**
-         * NonUTF8Only means that message bodies that are valid UTF-8 encodings are
-         * sent as-is. Invalid UTF-8 message bodies are base64 encoded, and a
-         * MessageAttribute with key "base64encoded" is added to the message.
+         * Automatically determines if encoding is required.
+         * Valid UTF-8 text is sent as-is; invalid sequences are base64 encoded,
+         * and a MessageAttribute with key "base64encoded" is added to the message.
          */
-        NON_UTF8_ONLY,
+        AUTO,
         /**
          * Always means that all message bodies are base64 encoded.
          * A MessageAttribute with key "base64encoded" is added to the message.
@@ -98,9 +135,9 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     public static class TopicOptions {
         /**
          * BodyBase64Encoding determines when message bodies are base64 encoded.
-         * The default is NON_UTF8_ONLY.
+         * The default is AUTO.
          */
-        private BodyBase64Encoding bodyBase64Encoding = BodyBase64Encoding.NON_UTF8_ONLY;
+        private BodyBase64Encoding bodyBase64Encoding = BodyBase64Encoding.AUTO;
         
         public BodyBase64Encoding getBodyBase64Encoding() {
             return bodyBase64Encoding;
@@ -112,7 +149,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
         }
     }
     
-    private final ServiceType serviceType;
+    private final MessagePublisherType serviceType;
     private final SqsClient sqsClient;
     private final SnsClient snsClient;
     private final String topicUrl;  // For SQS
@@ -139,10 +176,10 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     @Override
     protected Batcher.Options createBatcherOptions() {
         return new Batcher.Options()
-            .setMaxHandlers(100) 
-            .setMinBatchSize(1)
-            .setMaxBatchSize(10)  
-            .setMaxBatchByteSize(256 * 1024); 
+            .setMaxHandlers(MAX_BATCH_HANDLERS)
+            .setMinBatchSize(MIN_BATCH_SIZE)
+            .setMaxBatchSize(MAX_BATCH_SIZE)
+            .setMaxBatchByteSize(MAX_BATCH_BYTE_SIZE);
     }
 
     @Override
@@ -151,7 +188,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             return;
         }
 
-        if (serviceType == ServiceType.SNS) {
+        if (serviceType == MessagePublisherType.SNS) {
             sendToSns(messages);
         } else {
             sendToSqs(messages);
@@ -273,9 +310,8 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
+        if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
         }
         if (t instanceof AwsServiceException) {
@@ -530,7 +566,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
                 return true;
             case NEVER:
                 return false;
-            case NON_UTF8_ONLY:
+            case AUTO:
             default:
                 return !isValidUtf8(body);
         }
@@ -561,7 +597,7 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
     }
     
     public static class Builder extends AbstractTopic.Builder<AwsTopic> {
-        private ServiceType serviceType; 
+        private MessagePublisherType serviceType; 
         private SqsClient sqsClient;
         private SnsClient snsClient;
         private String topicUrl;  // For SQS
@@ -581,21 +617,27 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             
             // Auto-detect ARN or URL format
             if (topicName != null) {
-                if (topicName.startsWith("arn:aws:sns:")) {
+                if (topicName.startsWith(SNS_TOPIC_ARN_PREFIX)) {
                     // SNS topic ARN - user provided ARN format
                     this.topicArn = topicName;
-                } else if (topicName.startsWith("https://sqs.")) {
+                } else if (topicName.startsWith(SQS_QUEUE_URL_PREFIX)) {
                     // SQS queue URL, in case user provides full URL
                     // This avoids treating the URL as a queue name and calling GetQueueUrl with invalid input
                     this.topicUrl = topicName;
+                } else {
+                    // If service type is already explicitly set to SNS, treat topicName as topicArn
+                    // Otherwise, it will be treated as a queue name
+                    if (this.serviceType == MessagePublisherType.SNS || this.snsClient != null) {
+                        this.topicArn = topicName;
+                    }
+                    // Otherwise, treat as queue name (will be resolved to URL via GetQueueUrl)
                 }
-                // Otherwise, treat as name (will be resolved to URL via GetQueueUrl)
             }
             
             return this;
         }
         
-        Builder withServiceType(ServiceType serviceType) {
+        Builder withServiceType(MessagePublisherType serviceType) {
             this.serviceType = serviceType;
             return this;
         }
@@ -645,16 +687,16 @@ public class AwsTopic extends AbstractTopic<AwsTopic> {
             // Auto-detect service type based on provided parameters
             if (serviceType == null) {
                 if (this.topicArn != null || this.snsClient != null) {
-                    serviceType = ServiceType.SNS;
+                    serviceType = MessagePublisherType.SNS;
                 } else if (this.topicUrl != null || this.sqsClient != null) {
-                    serviceType = ServiceType.SQS;
+                    serviceType = MessagePublisherType.SQS;
                 } else {
                     // Default to SQS if only topicName is provided
-                    serviceType = ServiceType.SQS;
+                    serviceType = MessagePublisherType.SQS;
                 }
             }
             
-            if (serviceType == ServiceType.SNS) {
+            if (serviceType == MessagePublisherType.SNS) {
                 // SNS mode
                 if (snsClient == null) {
                     snsClient = buildSnsClient(this);
