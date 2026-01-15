@@ -9,6 +9,8 @@ import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * Relax the request body matching for ack/nack/pull operations.
@@ -35,9 +37,9 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
                 (urlPattern != null && urlPattern.contains(":publish")) ||
                 (urlPath != null && urlPath.contains(":publish"));
 
-        boolean isSubscriptionPut = (url != null && url.contains("/subscriptions/") && !url.contains(":")) ||
-                (urlPattern != null && urlPattern.contains("/subscriptions/") && !urlPattern.contains(":")) ||
-                (urlPath != null && urlPath.contains("/subscriptions/") && !urlPath.contains(":"));
+        boolean isSubscriptionPut = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull) 
+                .anyMatch(s -> s.contains("/subscriptions/") && !s.contains(":"));
         boolean isPutMethod = stub.getRequest().getMethod() == RequestMethod.PUT;
 
         // During recording, if the Recorder detects repeated calls to the same endpoint,
@@ -71,7 +73,7 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
                 bodyPatterns.add(new MatchesJsonPathPattern("$.messages[*]"));
             }
         } else if (isSubscriptionPut && isPutMethod) {
-            // For push subscription creation/update, relax the matching to accept any pushEndpoint
+            // For push subscription create/update, relax the matching to accept any pushEndpoint
             // This allows replay mode to use localhost while record mode typically uses ngrok URL
             // (pushEndpoint is a user configuration that appears in the request body, unlike service endpoints)
             List<ContentPattern<?>> bodyPatterns = stub.getRequest().getBodyPatterns();

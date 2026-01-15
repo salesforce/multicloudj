@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
@@ -419,39 +418,8 @@ public abstract class AbstractPubsubIT {
             TimeUnit.MILLISECONDS.sleep(500);
 
             // Receive messages from both subscriptions
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60;
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            // Collect messages from subscription 1
-            List<Message> received1 = new ArrayList<>();
-            while (received1.size() < messagesToSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = sub1.receive();
-                    if (r != null && r.getAckID() != null) {
-                        received1.add(r);
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
-
-            // Collect messages from subscription 2
-            List<Message> received2 = new ArrayList<>();
-            while (received2.size() < messagesToSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = sub2.receive();
-                    if (r != null && r.getAckID() != null) {
-                        received2.add(r);
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
+            List<Message> received1 = receiveMessages(sub1, messagesToSend.size());
+            List<Message> received2 = receiveMessages(sub2, messagesToSend.size());
 
             // Verify both subscriptions received all messages
             Assertions.assertEquals(messagesToSend.size(), received1.size(),
@@ -460,59 +428,84 @@ public abstract class AbstractPubsubIT {
                     "Subscription 2 should receive all " + messagesToSend.size() + " messages. Got: " + received2.size());
 
             // Verify messages match for both subscriptions
-            {
-                // Helper to verify messages for a subscription
-                BiConsumer<List<Message>, String> verifyMessages = (received, subscriptionName) -> {
-                    if (received.size() != messagesToSend.size()) {
-                        Assertions.fail(String.format("%s: got %d messages, expected %d", 
-                                subscriptionName, received.size(), messagesToSend.size()));
-                    }
-                    Map<String, Message> gotByBody = new HashMap<>();
-                    for (Message msg : received) {
-                        gotByBody.put(new String(msg.getBody()), msg);
-                    }
-                    for (Message exp : messagesToSend) {
-                        String body = new String(exp.getBody());
-                        Message got = gotByBody.get(body);
-                        if (got == null) {
-                            Assertions.fail(subscriptionName + ": missing message: " + body);
-                        }
-                        if (!Arrays.equals(exp.getBody(), got.getBody())) {
-                            Assertions.fail(subscriptionName + ": body mismatch for " + body);
-                        }
-                        if (exp.getMetadata() != null) {
-                            for (Map.Entry<String, String> entry : exp.getMetadata().entrySet()) {
-                                String expValue = entry.getValue();
-                                String gotValue = got.getMetadata() != null ? got.getMetadata().get(entry.getKey()) : null;
-                                if (!expValue.equals(gotValue)) {
-                                    Assertions.fail(String.format("%s: metadata[%s] mismatch for %s: expected %s, got %s",
-                                            subscriptionName, entry.getKey(), body, expValue, gotValue));
-                                }
-                            }
-                        }
-                    }
-                };
-
-                verifyMessages.accept(received1, "Subscription 1");
-                verifyMessages.accept(received2, "Subscription 2");
-            }
+            verifyMessages(received1, messagesToSend, "Subscription 1");
+            verifyMessages(received2, messagesToSend, "Subscription 2");
 
             // Ack all messages from both subscriptions
-            {
-                // Helper to ack messages
-                BiConsumer<AbstractSubscription, List<Message>> ackMessages = (subscription, messages) -> {
-                    if (!messages.isEmpty()) {
-                        List<AckID> ackIDs = new ArrayList<>();
-                        for (Message msg : messages) {
-                            ackIDs.add(msg.getAckID());
-                        }
-                        subscription.sendAcks(ackIDs).join();
-                    }
-                };
+            ackMessages(sub1, received1);
+            ackMessages(sub2, received2);
+        }
+    }
 
-                ackMessages.accept(sub1, received1);
-                ackMessages.accept(sub2, received2);
+    /**
+     * Helper function: Receives messages from a subscription until the expected count is reached.
+     */
+    private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount) throws InterruptedException {
+        boolean isRecording = System.getProperty("record") != null;
+        long timeoutSeconds = isRecording ? 120 : 60;
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+
+        List<Message> received = new ArrayList<>();
+        while (received.size() < expectedCount && System.nanoTime() < deadline) {
+            try {
+                Message r = subscription.receive();
+                if (r != null && r.getAckID() != null) {
+                    received.add(r);
+                } else {
+                    TimeUnit.MILLISECONDS.sleep(100);
+                }
+            } catch (Exception e) {
+                TimeUnit.MILLISECONDS.sleep(100);
             }
+        }
+        return received;
+    }
+
+    /**
+     * Helper function: Verifies that received messages match the expected messages.
+     */
+    private void verifyMessages(List<Message> received, List<Message> expected, String subscriptionName) {
+        if (received.size() != expected.size()) {
+            Assertions.fail(String.format("%s: got %d messages, expected %d", 
+                    subscriptionName, received.size(), expected.size()));
+        }
+        Map<String, Message> gotByBody = new HashMap<>();
+        for (Message msg : received) {
+            gotByBody.put(new String(msg.getBody()), msg);
+        }
+        for (Message exp : expected) {
+            String body = new String(exp.getBody());
+            Message got = gotByBody.get(body);
+            if (got == null) {
+                Assertions.fail(subscriptionName + ": missing message: " + body);
+            }
+            if (!Arrays.equals(exp.getBody(), got.getBody())) {
+                Assertions.fail(subscriptionName + ": body mismatch for " + body);
+            }
+            if (exp.getMetadata() != null) {
+                for (Map.Entry<String, String> entry : exp.getMetadata().entrySet()) {
+                    String expValue = entry.getValue();
+                    String gotValue = got.getMetadata() != null ? got.getMetadata().get(entry.getKey()) : null;
+                    if (!expValue.equals(gotValue)) {
+                        Assertions.fail(String.format("%s: metadata[%s] mismatch for %s: expected %s, got %s",
+                                subscriptionName, entry.getKey(), body, expValue, gotValue));
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Helper function: Acknowledges all messages in the given list.
+     */
+    private void ackMessages(AbstractSubscription subscription, List<Message> messages) {
+        if (!messages.isEmpty()) {
+            List<AckID> ackIDs = new ArrayList<>();
+            for (Message msg : messages) {
+                ackIDs.add(msg.getAckID());
+            }
+            subscription.sendAcks(ackIDs).join();
         }
     }
 }

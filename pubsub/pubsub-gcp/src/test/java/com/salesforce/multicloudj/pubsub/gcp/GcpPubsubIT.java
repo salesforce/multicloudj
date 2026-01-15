@@ -24,6 +24,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Timeout;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -57,12 +58,17 @@ public class GcpPubsubIT extends AbstractPubsubIT {
     @BeforeEach
     public void setupTestResources(TestInfo testInfo) {
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
-        topicName = BASE_TOPIC_NAME + testMethodName.substring(4); // Remove "test" prefix
-        subscriptionName = BASE_SUBSCRIPTION_NAME + testMethodName.substring(4); // Remove "test" prefix
+        String nameWithoutTestPrefix = removeTestPrefix(testMethodName);
+        topicName = BASE_TOPIC_NAME + nameWithoutTestPrefix;
+        subscriptionName = BASE_SUBSCRIPTION_NAME + nameWithoutTestPrefix;
         if (harnessImpl != null) {
             harnessImpl.setTopicName(topicName);
             harnessImpl.setSubscriptionName(subscriptionName);
         }
+    }
+
+    private static String removeTestPrefix(String testMethodName) {
+        return testMethodName.substring(4);
     }
 
     public static class HarnessImpl implements Harness {
@@ -251,7 +257,7 @@ public class GcpPubsubIT extends AbstractPubsubIT {
         
         // Get push endpoint URL from environment variable
         String pushEndpoint = System.getenv("PUSH_ENDPOINT_URL");
-        if (pushEndpoint == null || pushEndpoint.isEmpty()) {
+        if (StringUtils.isBlank(pushEndpoint)) {
             // Use WireMock HTTP port (port + 1) for localhost endpoint
             int wiremockHttpPort = harnessImpl.getWireMockHttpPort();
             pushEndpoint = "http://localhost:" + wiremockHttpPort + "/push-endpoint";
