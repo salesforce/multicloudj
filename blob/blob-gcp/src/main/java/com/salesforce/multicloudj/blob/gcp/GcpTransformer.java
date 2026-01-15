@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.gcp;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
@@ -63,52 +64,8 @@ public class GcpTransformer {
             uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
 
-        BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, uploadRequest.getKey())
-                .setMetadata(ImmutableMap.copyOf(metadata));
-
-        // Set storage class if provided
-        if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
-            try {
-                StorageClass gcpStorageClass = StorageClass.valueOf(uploadRequest.getStorageClass().toUpperCase());
-                builder.setStorageClass(gcpStorageClass);
-            } catch (IllegalArgumentException e) {
-                throw new InvalidArgumentException("Invalid storage class: " + uploadRequest.getStorageClass(), e);
-            }
-        }
-
-        // Set object retention and holds if object lock is configured
-        if (uploadRequest.getObjectLock() != null) {
-            ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
-            
-            // Set object retention (retention mode and retain-until date)
-            if (lockConfig.getRetainUntilDate() != null) {
-                com.google.cloud.storage.BlobInfo.Retention.Mode retentionMode = lockConfig.getMode() == RetentionMode.COMPLIANCE
-                        ? com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED
-                        : com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED;
-                
-                builder.setRetention(
-                    com.google.cloud.storage.BlobInfo.Retention.newBuilder()
-                        .setMode(retentionMode)
-                        .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(
-                            lockConfig.getRetainUntilDate(), 
-                            java.time.ZoneOffset.UTC))
-                        .build()
-                );
-            }
-            
-            // Set object holds (legal hold)
-            boolean useEventBased = lockConfig.getUseEventBasedHold() != null 
-                    ? lockConfig.getUseEventBasedHold() 
-                    : false;
-
-            if (useEventBased) {
-                builder.setEventBasedHold(lockConfig.isLegalHold());
-            } else {
-                builder.setTemporaryHold(lockConfig.isLegalHold());
-            }
-        }
-
-        return builder.build();
+        // Delegate to the protected toBlobInfo method which handles storage class, checksum, and object lock
+        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass(), null, uploadRequest.getObjectLock());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -197,7 +154,7 @@ public class GcpTransformer {
         ObjectLockInfo objectLockInfo = null;
         
         // Check for object retention
-        com.google.cloud.storage.BlobInfo.Retention retention = blob.getRetention();
+        Retention retention = blob.getRetention();
         boolean hasRetention = retention != null;
         
         // Check for object holds
@@ -211,7 +168,7 @@ public class GcpTransformer {
             
             if (hasRetention) {
                 // Map GCP retention mode to SDK retention mode
-                mode = retention.getMode() == com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED
+                mode = retention.getMode() == Retention.Mode.LOCKED
                         ? RetentionMode.COMPLIANCE
                         : RetentionMode.GOVERNANCE;
                 retainUntilDate = retention.getRetainUntilTime() != null
@@ -317,15 +274,15 @@ public class GcpTransformer {
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-        return toBlobInfo(key, metadata, null, null);
+        return toBlobInfo(key, metadata, null, null, null);
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
-        return toBlobInfo(key, metadata, storageClass, null);
+        return toBlobInfo(key, metadata, storageClass, null, null);
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass,
-                                  String checksumValue) {
+                                  String checksumValue, ObjectLockConfiguration objectLock) {
         metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
         BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
@@ -342,6 +299,36 @@ public class GcpTransformer {
         // Set CRC32C checksum if provided (GCP's native checksum algorithm)
         if (checksumValue != null && !checksumValue.isEmpty()) {
             builder.setCrc32c(checksumValue);
+        }
+
+        // Set object retention and holds if object lock is configured
+        if (objectLock != null) {
+            // Set object retention (retention mode and retain-until date)
+            if (objectLock.getRetainUntilDate() != null) {
+                Retention.Mode retentionMode = objectLock.getMode() == RetentionMode.COMPLIANCE
+                        ? Retention.Mode.LOCKED
+                        : Retention.Mode.UNLOCKED;
+                
+                builder.setRetention(
+                    Retention.newBuilder()
+                        .setMode(retentionMode)
+                        .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(
+                            objectLock.getRetainUntilDate(), 
+                            java.time.ZoneOffset.UTC))
+                        .build()
+                );
+            }
+            
+            // Set object holds (legal hold)
+            boolean useEventBased = objectLock.getUseEventBasedHold() != null 
+                    ? objectLock.getUseEventBasedHold() 
+                    : false;
+
+            if (useEventBased) {
+                builder.setEventBasedHold(objectLock.isLegalHold());
+            } else {
+                builder.setTemporaryHold(objectLock.isLegalHold());
+            }
         }
 
         return builder.build();
