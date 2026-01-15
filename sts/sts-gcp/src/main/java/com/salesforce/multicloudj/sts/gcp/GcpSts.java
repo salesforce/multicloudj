@@ -32,6 +32,14 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.apache.commons.lang3.StringUtils;
+import com.google.api.client.http.ByteArrayContent;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.GenericJson;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -40,10 +48,10 @@ import java.util.Map;
 
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
-    private final String scope = "https://www.googleapis.com/auth/cloud-platform";
+    private static final String STS_ENDPOINT = "https://sts.googleapis.com/v1/token";
+    private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
     private GoogleCredentials googleCredentials;
-
     private HttpTransportFactory httpTransportFactory;
 
     public GcpSts(Builder builder) {
@@ -177,7 +185,7 @@ public class GcpSts extends AbstractSts {
                 ImpersonatedCredentials.Builder impersonatedBuilder = ImpersonatedCredentials.newBuilder()
                         .setSourceCredentials(sourceCredentials)
                         .setTargetPrincipal(request.getRole())
-                        .setScopes(List.of(scope));
+                        .setScopes(List.of(SCOPE));
 
                 if (request.getExpiration() > 0) {
                     impersonatedBuilder.setLifetime(request.getExpiration());
@@ -248,7 +256,43 @@ public class GcpSts extends AbstractSts {
 
     @Override
     protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(AssumeRoleWebIdentityRequest request) {
-        throw new UnSupportedOperationException("Not supported yet.");
+        if (request == null) {
+            throw new InvalidArgumentException("request cannot be null");
+        }
+        if (StringUtils.isBlank(request.getRole())) {
+            throw new InvalidArgumentException("role (identity pool provider) is required for gcp token exchange");
+        }
+        if (StringUtils.isBlank(request.getWebIdentityToken())) {
+            throw new InvalidArgumentException("webIdentityToken is required for gcp token exchange");
+        }
+
+        try {
+            // Build token exchange request
+            GenericJson tokenRequest = new GenericJson();
+            tokenRequest.set("audience", request.getRole());
+            tokenRequest.set("grantType", "urn:ietf:params:oauth:grant-type:token-exchange");
+            tokenRequest.set("requestedTokenType", "urn:ietf:params:oauth:token-type:access_token");
+            tokenRequest.set("subjectToken", request.getWebIdentityToken());
+            tokenRequest.set("subjectTokenType", "urn:ietf:params:oauth:token-type:jwt");
+            tokenRequest.set("scope", SCOPE);
+
+            // Execute token exchange
+            HttpTransport transport = httpTransportFactory != null ? httpTransportFactory.create() : new NetHttpTransport();
+            JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+            HttpRequest httpRequest = transport.createRequestFactory()
+                    .buildPostRequest(new GenericUrl(STS_ENDPOINT),
+                            new ByteArrayContent("application/json", jsonFactory.toByteArray(tokenRequest)));
+            com.google.api.client.http.HttpResponse response = httpRequest.execute();
+            GenericJson responseData = jsonFactory.fromInputStream(
+                    response.getContent(),
+                    response.getContentCharset(),
+                    GenericJson.class);
+            String accessToken = String.valueOf(responseData.get("access_token"));
+
+            return new StsCredentials(StringUtils.EMPTY, StringUtils.EMPTY, accessToken);
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Failed to exchange OIDC token for GCP access token", e);
+        }
     }
 
     @Override
@@ -266,7 +310,7 @@ public class GcpSts extends AbstractSts {
             }
             GoogleCredentials adc = GoogleCredentials.getApplicationDefault();
             if (adc.createScopedRequired()) {
-                adc = adc.createScoped(List.of(scope));
+                adc = adc.createScoped(List.of(SCOPE));
             }
             return adc;
         } catch (IOException e) {
