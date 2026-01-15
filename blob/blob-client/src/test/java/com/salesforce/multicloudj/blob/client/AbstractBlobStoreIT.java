@@ -94,6 +94,26 @@ public abstract class AbstractBlobStoreIT {
 
         // Returns the KMS key ID for encryption tests (provider-specific)
         String getKmsKeyId();
+
+        // Computes the checksum value for the given content using provider-specific algorithm
+        // (CRC32C for AWS/GCP, CRC64 for Alibaba)
+        // Default implementation uses CRC32C which is common for AWS and GCP
+        default String computeChecksum(byte[] content) {
+            // Compute CRC32C checksum and return as base64-encoded string
+            java.util.zip.CRC32C crc32c = new java.util.zip.CRC32C();
+            crc32c.update(content);
+            long checksumValue = crc32c.getValue();
+
+            // Convert to 4-byte array (big-endian)
+            byte[] checksumBytes = new byte[4];
+            checksumBytes[0] = (byte) (checksumValue >> 24);
+            checksumBytes[1] = (byte) (checksumValue >> 16);
+            checksumBytes[2] = (byte) (checksumValue >> 8);
+            checksumBytes[3] = (byte) checksumValue;
+
+            // Return base64-encoded
+            return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+        }
     }
 
     protected abstract Harness createHarness();
@@ -2927,4 +2947,80 @@ public abstract class AbstractBlobStoreIT {
             safeDeleteBlobs(bucketClient, key);
         }
     }
+
+    @Test
+    public void testUploadWithChecksumValidationInputStream() {
+        String key = "conformance-tests/checksum/upload-inputstream-checksum";
+        byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            String checksum = harness.computeChecksum(content);
+
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(content.length)
+                    .withChecksumValue(checksum)
+                    .build();
+
+            InputStream inputStream = new ByteArrayInputStream(content);
+            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, inputStream);
+
+            // Verify upload succeeded
+            Assertions.assertNotNull(uploadResponse);
+            Assertions.assertEquals(key, uploadResponse.getKey());
+            Assertions.assertNotNull(uploadResponse.getChecksumValue());
+
+            // Verify blob exists
+            boolean exists = bucketClient.doesObjectExist(key, null);
+            Assertions.assertTrue(exists, "Uploaded blob should exist");
+
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testUploadWithChecksumValidationFile() throws Exception {
+        String key = "conformance-tests/checksum/upload-file-checksum";
+        byte[] content = "Test checksum with File".getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        Path tempFile = null;
+        try {
+            // Create temp file
+            tempFile = Files.createTempFile("checksum-test", ".txt");
+            Files.write(tempFile, content);
+
+            String checksum = harness.computeChecksum(content);
+
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(content.length)
+                    .withChecksumValue(checksum)
+                    .build();
+
+            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, tempFile.toFile());
+
+            // Verify upload succeeded
+            Assertions.assertNotNull(uploadResponse);
+            Assertions.assertEquals(key, uploadResponse.getKey());
+            Assertions.assertNotNull(uploadResponse.getChecksumValue());
+
+            // Verify blob exists
+            boolean exists = bucketClient.doesObjectExist(key, null);
+            Assertions.assertTrue(exists, "Uploaded blob should exist");
+
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+            if (tempFile != null) {
+                Files.deleteIfExists(tempFile);
+            }
+        }
+    }
+
 }

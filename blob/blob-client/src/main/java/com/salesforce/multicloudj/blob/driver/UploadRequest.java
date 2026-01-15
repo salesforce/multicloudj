@@ -39,6 +39,12 @@ public class UploadRequest {
      * (Optional parameter) The KMS key ID or ARN to use for server-side encryption
      */
     private final String kmsKeyId;
+    /**
+     * (Optional parameter) The base64-encoded checksum value for upload validation. crc32c is the most
+     * common across most cloud providers. No other checksum is supported for now.
+     *
+     */
+    private final String checksumValue;
 
     /**
      * (Optional parameter) Object lock configuration for WORM protection.
@@ -54,6 +60,7 @@ public class UploadRequest {
         this.storageClass = builder.storageClass;
         this.kmsKeyId = builder.kmsKeyId;
         this.objectLock = builder.objectLock;
+        this.checksumValue = builder.checksumValue;
     }
 
     public Map<String, String> getMetadata() {
@@ -72,6 +79,7 @@ public class UploadRequest {
         private String storageClass;
         private String kmsKeyId;
         private ObjectLockConfiguration objectLock;
+        private String checksumValue;
 
         public Builder withKey(String key) {
             this.key = key;
@@ -103,14 +111,13 @@ public class UploadRequest {
             return this;
         }
 
-        /**
-         * Sets object lock configuration for WORM protection.
-         * 
-         * @param objectLock Object lock configuration
-         * @return This builder instance
-         */
         public Builder withObjectLock(ObjectLockConfiguration objectLock) {
             this.objectLock = objectLock;
+            return this;
+        }
+
+        public Builder withChecksumValue(String checksumValue) {
+            this.checksumValue = checksumValue;
             return this;
         }
 

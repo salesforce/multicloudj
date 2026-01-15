@@ -48,13 +48,13 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestAwsStsInitialization() {
+    public void testAwsStsInitialization() {
         AwsSts sts = new AwsSts();
         Assertions.assertEquals("aws", sts.getProviderId());
     }
 
     @Test
-    public void TestAssumedRoleSts() {
+    public void testAssumedRoleSts() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole("testRole").withSessionName("testSession").build();
         StsCredentials credentials = sts.assumeRole(request);
@@ -64,7 +64,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestGetCallerIdentitySts() {
+    public void testGetCallerIdentitySts() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         GetAccessTokenRequest request = GetAccessTokenRequest.newBuilder().withDurationSeconds(60).build();
         StsCredentials credentials = sts.getAccessToken(request);
@@ -74,7 +74,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestGetSessionTokenSts() {
+    public void testGetSessionTokenSts() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         CallerIdentity identity = sts.getCallerIdentity((com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build()));
         Assertions.assertEquals("testUserId", identity.getUserId());
@@ -83,7 +83,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentity() {
+    public void testAssumeRoleWithWebIdentity() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
                 .role("testRole")
@@ -97,7 +97,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityWithExpiration() {
+    public void testAssumeRoleWithWebIdentityWithExpiration() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
                 .role("testRole")
@@ -112,7 +112,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestAssumeRoleWithWebIdentityWithoutSessionName() {
+    public void testAssumeRoleWithWebIdentityWithoutSessionName() {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
         AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
                 .role("testRole")
@@ -132,7 +132,7 @@ public class AwsStsTest {
     }
 
     @Test
-    public void TestAssumeRoleWithCredentialScope() throws Exception {
+    public void testAssumeRoleWithCredentialScope() throws Exception {
         AwsSts sts = new AwsSts().builder().build(mockStsClient);
 
         // Create cloud-agnostic CredentialScope with availability condition

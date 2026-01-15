@@ -30,11 +30,11 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -80,21 +80,31 @@ public class AliTransformer {
         if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
             metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
         }
-        
+
         if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
             metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
             metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());
+        }
+
+        if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
+            metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
         }
 
         return metadata;
     }
 
     public UploadResponse toUploadResponse(UploadRequest uploadRequest, PutObjectResult result) {
-        return UploadResponse.builder()
+        UploadResponse.UploadResponseBuilder builder = UploadResponse.builder()
                 .key(uploadRequest.getKey())
                 .versionId(result.getVersionId())
-                .eTag(result.getETag())
-                .build();
+                .eTag(result.getETag());
+
+        // Extract CRC64 checksum from response (computed by OSS server-side)
+        if (result.getClientCRC() != null) {
+            builder.checksumValue(String.valueOf(result.getClientCRC()));
+        }
+
+        return builder.build();
     }
 
     public GetObjectRequest toGetObjectRequest(DownloadRequest downloadRequest) {
