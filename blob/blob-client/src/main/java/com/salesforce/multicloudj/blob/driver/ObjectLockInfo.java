@@ -24,7 +24,7 @@ public class ObjectLockInfo {
      * Retention mode: GOVERNANCE or COMPLIANCE.
      * 
      * <p>For AWS S3: The actual mode set on the object.
-     * <p>For GCP GCS: Always null (GCP doesn't support retention modes).
+     * <p>For GCP GCS: Maps from UNLOCKED (GOVERNANCE) or LOCKED (COMPLIANCE) retention mode.
      */
     private final RetentionMode mode;
 
@@ -32,7 +32,7 @@ public class ObjectLockInfo {
      * Date until which the object is retained.
      * 
      * <p>For AWS S3: The objectLockRetainUntilDate.
-     * <p>For GCP GCS: Calculated from bucket retention policy and object creation time.
+     * <p>For GCP GCS: The retain-until time from object retention configuration.
      */
     private final Instant retainUntilDate;
 

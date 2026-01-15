@@ -11,23 +11,22 @@ package com.salesforce.multicloudj.blob.driver;
  * 
  * <p>For GCP GCS:
  * <ul>
- *   <li>GCP does not support retention modes. Object lock is achieved through bucket retention policies
- *       combined with object holds (temporaryHold or eventBasedHold).</li>
- *   <li>When using this SDK, the mode is ignored for GCP and bucket retention policy provides the WORM protection.</li>
+ *   <li>UNLOCKED (GOVERNANCE): Authorized users can modify or remove retention with bypass header (x-goog-bypass-governance-retention: true)</li>
+ *   <li>LOCKED (COMPLIANCE): Retention cannot be reduced or removed, only increased. Mode cannot be changed once set.</li>
  * </ul>
  */
 public enum RetentionMode {
     /**
      * Governance mode: Retention can be bypassed by users with special permissions.
      * For AWS S3: Maps to GOVERNANCE mode.
-     * For GCP: Not applicable, ignored.
+     * For GCP GCS: Maps to UNLOCKED mode (requires bypass header to modify/remove).
      */
     GOVERNANCE,
 
     /**
      * Compliance mode: Retention cannot be bypassed by anyone until it expires.
      * For AWS S3: Maps to COMPLIANCE mode.
-     * For GCP: Not applicable, ignored.
+     * For GCP GCS: Maps to LOCKED mode (cannot be reduced or removed, only increased).
      */
     COMPLIANCE
 }

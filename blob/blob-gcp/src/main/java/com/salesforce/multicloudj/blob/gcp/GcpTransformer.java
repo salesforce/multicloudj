@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
@@ -75,10 +76,27 @@ public class GcpTransformer {
             }
         }
 
-        // Set object holds if object lock is configured
-        // Note: Bucket retention policy validation should be done in GcpBlobStore before calling this
+        // Set object retention and holds if object lock is configured
         if (uploadRequest.getObjectLock() != null) {
             ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+            
+            // Set object retention (retention mode and retain-until date)
+            if (lockConfig.getRetainUntilDate() != null) {
+                com.google.cloud.storage.BlobInfo.Retention.Mode retentionMode = lockConfig.getMode() == RetentionMode.COMPLIANCE
+                        ? com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED
+                        : com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED;
+                
+                builder.setRetention(
+                    com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                        .setMode(retentionMode)
+                        .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(
+                            lockConfig.getRetainUntilDate(), 
+                            java.time.ZoneOffset.UTC))
+                        .build()
+                );
+            }
+            
+            // Set object holds (legal hold)
             boolean useEventBased = lockConfig.getUseEventBasedHold() != null 
                     ? lockConfig.getUseEventBasedHold() 
                     : false;
@@ -174,18 +192,35 @@ public class GcpTransformer {
     }
 
     public BlobMetadata toBlobMetadata(Blob blob) {
-        // Extract object lock info if holds are present
+        // Extract object lock info if retention or holds are present
         ObjectLockInfo objectLockInfo = null;
+        
+        // Check for object retention
+        com.google.cloud.storage.BlobInfo.Retention retention = blob.getRetention();
+        boolean hasRetention = retention != null;
+        
+        // Check for object holds
         Boolean tempHold = blob.getTemporaryHold();
         Boolean eventHold = blob.getEventBasedHold();
         boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
 
-        if (hasHold) {
-            // For GCP, retainUntilDate is calculated from bucket retention policy
-            // This will be set in GcpBlobStore.getObjectLock() where we have access to bucket info
+        if (hasRetention || hasHold) {
+            RetentionMode mode = null;
+            java.time.Instant retainUntilDate = null;
+            
+            if (hasRetention) {
+                // Map GCP retention mode to SDK retention mode
+                mode = retention.getMode() == com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED
+                        ? RetentionMode.COMPLIANCE
+                        : RetentionMode.GOVERNANCE;
+                retainUntilDate = retention.getRetainUntilTime() != null
+                        ? retention.getRetainUntilTime().toInstant()
+                        : null;
+            }
+            
             objectLockInfo = ObjectLockInfo.builder()
-                    .mode(null) // GCP doesn't support retention modes
-                    .retainUntilDate(null) // Will be calculated from bucket retention policy
+                    .mode(mode)
+                    .retainUntilDate(retainUntilDate)
                     .legalHold(hasHold)
                     .useEventBasedHold(eventHold != null && eventHold)
                     .build();

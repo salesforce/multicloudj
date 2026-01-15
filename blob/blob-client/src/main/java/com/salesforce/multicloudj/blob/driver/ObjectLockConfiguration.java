@@ -11,7 +11,7 @@ import java.time.Instant;
  * <p>This provides a unified API for object lock across cloud providers:
  * <ul>
  *   <li><b>AWS S3:</b> Full support - object-level retention with mode (GOVERNANCE/COMPLIANCE) and legal hold</li>
- *   <li><b>GCP GCS:</b> Partial support - requires bucket retention policy; uses object holds (temporaryHold/eventBasedHold)</li>
+ *   <li><b>GCP GCS:</b> Full support - object-level retention with mode (GOVERNANCE/COMPLIANCE) and legal hold (object holds)</li>
  *   <li><b>OSS:</b> Not supported</li>
  * </ul>
  */
@@ -23,7 +23,7 @@ public class ObjectLockConfiguration {
      * Retention mode: GOVERNANCE (can be bypassed) or COMPLIANCE (cannot be bypassed).
      * 
      * <p>For AWS S3: Directly maps to objectLockMode.
-     * <p>For GCP GCS: Not applicable, ignored. Bucket retention policy provides the protection.
+     * <p>For GCP GCS: Maps to UNLOCKED (GOVERNANCE) or LOCKED (COMPLIANCE) retention mode.
      */
     private final RetentionMode mode;
 
@@ -31,8 +31,7 @@ public class ObjectLockConfiguration {
      * Date until which the object should be retained (WORM protection).
      * 
      * <p>For AWS S3: Directly maps to objectLockRetainUntilDate.
-     * <p>For GCP GCS: Requires bucket retention policy to be set. This value is validated against
-     *    the bucket's retention period to ensure compliance.
+     * <p>For GCP GCS: Maps to retain-until time in object retention configuration.
      */
     private final Instant retainUntilDate;
 

@@ -52,6 +52,8 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
@@ -109,6 +111,9 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -2704,6 +2709,330 @@ class GcpBlobStoreTest {
         assertEquals(TEST_BUCKET, capturedRequest.bucket());
         assertEquals(TEST_KEY, capturedRequest.key());
         assertEquals("test-upload-id", capturedRequest.uploadId());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionGovernance() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionCompliance() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.COMPLIANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionAndHold() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(true);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertTrue(result.isLegalHold());
+        assertFalse(result.getUseEventBasedHold());
+    }
+
+    @Test
+    void testGetObjectLock_NoRetentionOrHold() {
+        // Given
+        String key = "test-key";
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(null);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void testGetObjectLock_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            gcpBlobStore.getObjectLock(key, null);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_GovernanceMode_Success() {
+        // Given - shortening retention (newRetainUntil is before currentRetainUntil)
+        // This requires the overrideUnlockedRetention option
+        String key = "test-key";
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(7200); // 2 hours
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(3600); // 1 hour (shortening)
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        
+        // Mock the builder chain - use lenient to avoid strict stubbing issues
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // The code expects build() to return BlobInfo, but Blob.Builder.build() returns Blob
+        // We'll use lenient mocking and verify the final storage.update() call instead
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock storage.update() to accept either BlobInfo or Blob (the code passes BlobInfo)
+        lenient().when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class), any(Storage.BlobTargetOption.class)))
+                .thenReturn(mockUpdatedBlob);
+        lenient().when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then - verify storage.update() was called with the override option for shortening retention
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        ArgumentCaptor<Storage.BlobTargetOption> optionCaptor = 
+                ArgumentCaptor.forClass(Storage.BlobTargetOption.class);
+        verify(mockStorage).update(blobInfoCaptor.capture(), optionCaptor.capture());
+        
+        // Verify the override option was used for shortening retention
+        assertEquals(Storage.BlobTargetOption.overrideUnlockedRetention(true), optionCaptor.getValue());
+        
+        // Verify the BlobInfo has the correct retention time
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_GovernanceMode_IncreaseRetention() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(10800); // 3 hours (increasing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // blob.toBuilder() returns Blob.Builder (matching the GCP SDK signature)
+        // We'll mock the builder chain but focus on verifying the final storage.update() call
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // Note: In the actual code, build() returns BlobInfo, but for mocking we'll use a Blob mock
+        // The storage.update() method will accept the BlobInfo that gets created internally
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        verify(mockStorage).update(blobInfoCaptor.capture());
+        
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_ComplianceMode_IncreaseRetention() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(10800); // 3 hours (increasing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // blob.toBuilder() returns Blob.Builder (matching the GCP SDK signature)
+        // We'll mock the builder chain but focus on verifying the final storage.update() call
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // Note: In the actual code, build() returns BlobInfo, but for mocking we'll use a Blob mock
+        // The storage.update() method will accept the BlobInfo that gets created internally
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        verify(mockStorage).update(blobInfoCaptor.capture());
+        
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_ComplianceMode_CannotReduce() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(1800); // 30 minutes (reducing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When/Then
+        assertThrows(FailedPreconditionException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_NoRetentionConfigured() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(7200);
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(null);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When/Then
+        assertThrows(FailedPreconditionException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(7200);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
     }
 
 }

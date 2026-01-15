@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,6 +126,18 @@ class GcpTransformerTest {
                 // If all else fails, return null (holds not set)
                 return null;
             }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to get retention from BlobInfo.
+     */
+    private com.google.cloud.storage.BlobInfo.Retention getRetention(BlobInfo blobInfo) {
+        try {
+            Method method = blobInfo.getClass().getMethod("getRetention");
+            return (com.google.cloud.storage.BlobInfo.Retention) method.invoke(blobInfo);
         } catch (Exception e) {
             return null;
         }
@@ -1387,6 +1400,8 @@ class GcpTransformerTest {
         Boolean eventHold = getEventBasedHold(blobInfo);
         assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
         assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
+        // No retention should be set when retainUntilDate is not provided
+        assertNull(getRetention(blobInfo), "Retention should be null when retainUntilDate is not provided");
     }
 
     @Test
@@ -1479,6 +1494,67 @@ class GcpTransformerTest {
         assertEquals(TEST_KEY, blobInfo.getName());
         assertNull(getTemporaryHold(blobInfo));
         assertNull(getEventBasedHold(blobInfo));
+        assertNull(getRetention(blobInfo));
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockRetentionGovernance() {
+        // Given
+        java.time.Instant retainUntil = java.time.Instant.now().plusSeconds(86400); // 1 day from now
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .retainUntilDate(retainUntil)
+                .legalHold(true)
+                .useEventBasedHold(false)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        com.google.cloud.storage.BlobInfo.Retention retention = getRetention(blobInfo);
+        assertNotNull(retention, "Retention should be set");
+        assertEquals(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, retention.getMode());
+        assertEquals(retainUntil, retention.getRetainUntilTime().toInstant());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockRetentionCompliance() {
+        // Given
+        java.time.Instant retainUntil = java.time.Instant.now().plusSeconds(86400); // 1 day from now
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .mode(RetentionMode.COMPLIANCE)
+                .retainUntilDate(retainUntil)
+                .legalHold(true)
+                .useEventBasedHold(false)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        com.google.cloud.storage.BlobInfo.Retention retention = getRetention(blobInfo);
+        assertNotNull(retention, "Retention should be set");
+        assertEquals(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED, retention.getMode());
+        assertEquals(retainUntil, retention.getRetainUntilTime().toInstant());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
     }
 
     @Test
@@ -1507,6 +1583,7 @@ class GcpTransformerTest {
         assertNotNull(blobMetadata.getObjectLockInfo());
         assertTrue(blobMetadata.getObjectLockInfo().isLegalHold());
         assertFalse(blobMetadata.getObjectLockInfo().getUseEventBasedHold());
+        // No retention mode when only holds are present
         assertNull(blobMetadata.getObjectLockInfo().getMode());
         assertNull(blobMetadata.getObjectLockInfo().getRetainUntilDate());
     }
@@ -1537,6 +1614,7 @@ class GcpTransformerTest {
         assertNotNull(blobMetadata.getObjectLockInfo());
         assertTrue(blobMetadata.getObjectLockInfo().isLegalHold());
         assertTrue(blobMetadata.getObjectLockInfo().getUseEventBasedHold());
+        // No retention mode when only holds are present
         assertNull(blobMetadata.getObjectLockInfo().getMode());
         assertNull(blobMetadata.getObjectLockInfo().getRetainUntilDate());
     }
@@ -1593,6 +1671,78 @@ class GcpTransformerTest {
         // Then
         assertEquals(TEST_KEY, blobMetadata.getKey());
         assertNull(blobMetadata.getObjectLockInfo());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithRetentionGovernance() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime retainUntilTime = OffsetDateTime.of(2024, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertEquals(RetentionMode.GOVERNANCE, blobMetadata.getObjectLockInfo().getMode());
+        assertEquals(retainUntilTime.toInstant(), blobMetadata.getObjectLockInfo().getRetainUntilDate());
+        assertFalse(blobMetadata.getObjectLockInfo().isLegalHold());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithRetentionCompliance() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime retainUntilTime = OffsetDateTime.of(2024, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertEquals(RetentionMode.COMPLIANCE, blobMetadata.getObjectLockInfo().getMode());
+        assertEquals(retainUntilTime.toInstant(), blobMetadata.getObjectLockInfo().getRetainUntilDate());
+        assertFalse(blobMetadata.getObjectLockInfo().isLegalHold());
     }
 
     @Test

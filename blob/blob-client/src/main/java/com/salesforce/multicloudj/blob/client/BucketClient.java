@@ -532,7 +532,7 @@ public class BucketClient implements AutoCloseable {
      * <p>Supported providers:
      * <ul>
      *   <li>AWS S3: Supported only if object is in GOVERNANCE mode. COMPLIANCE mode objects cannot be updated.</li>
-     *   <li>GCP GCS: Not supported - retention is bucket-level only. Throws UnSupportedOperationException.</li>
+     *   <li>GCP GCS: Supported. GOVERNANCE (UNLOCKED) mode can be updated with bypass header. COMPLIANCE (LOCKED) mode can only be increased.</li>
      *   <li>OSS: Not supported - throws UnSupportedOperationException</li>
      * </ul>
      *
