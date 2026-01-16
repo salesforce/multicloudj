@@ -1,40 +1,5 @@
 # Changelog
 
-## [0.2.23](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.22...multicloudj-v0.2.23) (2026-01-16)
-
-
-### Blob Store
-
-* add checksum support in putobject ([#250](https://github.com/salesforce/multicloudj/issues/250)) ([7ed72c7](https://github.com/salesforce/multicloudj/commit/7ed72c70f46c10de5dcc012b95974e3e8e98ec7d))
-
-
-### STS
-
-* support web identity tokens in gcp sts ([#249](https://github.com/salesforce/multicloudj/issues/249)) ([abe66c5](https://github.com/salesforce/multicloudj/commit/abe66c5e227929fa84e0760408185276a7878ef7))
-
-
-### PubSub
-
-* expose raw message delivery option for client ([#238](https://github.com/salesforce/multicloudj/issues/238)) ([681dcd0](https://github.com/salesforce/multicloudj/commit/681dcd09db18db96f85454d78be9ebf89f393c5c))
-
-
-### IAM
-
-* implement getInlinePolicyDetails API for AWS Substrate ([#233](https://github.com/salesforce/multicloudj/issues/233)) ([a591aeb](https://github.com/salesforce/multicloudj/commit/a591aeb0ddb7f58adc09564c2072edae1efd6200))
-* implement identity APIs for AWS substrate ([#225](https://github.com/salesforce/multicloudj/issues/225)) ([470fb75](https://github.com/salesforce/multicloudj/commit/470fb757a966d5008aeb956805d5e4ca3c931472))
-
-## [0.2.22](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.21...multicloudj-v0.2.22) (2026-01-12)
-
-
-### STS
-
-* support access boundary in aws and gcp sts  ([#240](https://github.com/salesforce/multicloudj/issues/240)) ([8157a56](https://github.com/salesforce/multicloudj/commit/8157a56fa8364457994183b3eebecae82c973460))
-
-
-### PubSub
-
-* support parsing sns messages in SQS subscription ([#231](https://github.com/salesforce/multicloudj/issues/231)) ([e355c22](https://github.com/salesforce/multicloudj/commit/e355c22308e932c8688bfd27a0fcbd81b470f9af))
-
 ## [0.2.22](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.21...multicloudj-v0.2.22) (2026-01-10)
 
 
