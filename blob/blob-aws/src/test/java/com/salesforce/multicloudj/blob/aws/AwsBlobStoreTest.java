@@ -1311,8 +1311,7 @@ public class AwsBlobStoreTest {
         when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
                 .thenThrow(exception);
 
-        // When/Then
-        assertThrows(ResourceNotFoundException.class, () -> {
+        assertThrows(NoSuchKeyException.class, () -> {
             aws.getObjectLock(key, null);
         });
     }
@@ -1328,8 +1327,7 @@ public class AwsBlobStoreTest {
         when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
                 .thenThrow(exception);
 
-        // When/Then
-        assertThrows(SubstrateSdkException.class, () -> {
+        assertThrows(AwsServiceException.class, () -> {
             aws.getObjectLock(key, null);
         });
     }
@@ -1412,9 +1410,8 @@ public class AwsBlobStoreTest {
 
         when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
                 .thenThrow(exception);
-
-        // When/Then
-        assertThrows(ResourceNotFoundException.class, () -> {
+                
+        assertThrows(NoSuchKeyException.class, () -> {
             aws.updateObjectRetention(key, null, newRetainUntil);
         });
     }
@@ -1461,8 +1458,7 @@ public class AwsBlobStoreTest {
         when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
                 .thenThrow(exception);
 
-        // When/Then - NoSuchKeyException is transformed to ResourceNotFoundException
-        assertThrows(ResourceNotFoundException.class, () -> {
+        assertThrows(NoSuchKeyException.class, () -> {
             aws.updateLegalHold(key, null, true);
         });
     }
