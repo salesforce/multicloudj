@@ -137,9 +137,6 @@ public final class AwsTopicUtils {
         }
     }
 
-    /**
-     * Maps AWS exceptions to SubstrateSdkException types.
-     */
     public static Class<? extends SubstrateSdkException> getException(Throwable t) {
         if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();

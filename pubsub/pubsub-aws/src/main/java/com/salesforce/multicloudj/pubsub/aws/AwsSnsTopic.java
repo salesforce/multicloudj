@@ -211,8 +211,6 @@ public class AwsSnsTopic extends AbstractTopic<AwsSnsTopic> {
         @Override
         public Builder withTopicName(String topicName) {
             super.withTopicName(topicName);
-            // SNS requires topic ARN
-            // User should provide full ARN: arn:aws:sns:region:account-id:topic-name
             this.topicArn = topicName;
             return this;
         }
@@ -236,18 +234,12 @@ public class AwsSnsTopic extends AbstractTopic<AwsSnsTopic> {
         
         @Override
         public AwsSnsTopic build() {
-            // Basic null/empty check for topicName
-            if (this.topicName == null || this.topicName.trim().isEmpty()) {
-                throw new InvalidArgumentException("Topic name/ARN cannot be null or empty");
+            if (this.topicArn == null || this.topicArn.trim().isEmpty()) {
+                throw new InvalidArgumentException("Topic ARN cannot be null or empty");
             }
             
             if (snsClient == null) {
                 snsClient = buildSnsClient(this);
-            }
-            
-            if (this.topicArn == null) {
-                throw new InvalidArgumentException(
-                    "Topic ARN must be set when using SNS.");
             }
             
             // Validate that the topic actually exists
