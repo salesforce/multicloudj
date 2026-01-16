@@ -21,10 +21,11 @@ import java.time.Duration;
 import java.util.stream.Collectors;
 
 /**
- * An implementation of the {@link AbstractBlobClient}.
- * AwsBlobClient is service client for interacting with cloud blob storage.
+ * An implementation of the {@link AbstractBlobClient} for AWS S3.
+ * AwsBlobClient is service client for interacting with AWS Cloud Blob Storage.
  *
- * <p>This class provides methods to interact with cloud resources.
+ * <p>This class provides methods to interact with AWS resources using AWS SDK for Java to interact
+ * with the S3 service.
  *
  * @see AbstractBlobClient
  */
@@ -60,8 +61,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     }
 
     /**
-     * Constructs an instance of {@link AwsBlobClient} using the provided builder.
-     *
+     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.     
+     * 
      * @param builder  the builder used to configure this client.
      */
     public AwsBlobClient(Builder builder) {
@@ -69,10 +70,10 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     }
 
     /**
-     * Constructs an instance of {@link AwsBlobClient} using the provided builder and client.
-     *
+     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.      
+     * 
      * @param builder  the builder used to configure this client.
-     * @param s3Client the client used to communicate with the service.
+     * @param s3Client the S3 client used to communicate with the S3 service.
      */
     public AwsBlobClient(Builder builder, S3Client s3Client) {
         super(builder);
@@ -144,7 +145,7 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     }
 
     /**
-     * Closes the underlying client and releases any resources.
+     * Closes the underlying S3 client and releases any resources.
      */
     @Override
     public void close() {

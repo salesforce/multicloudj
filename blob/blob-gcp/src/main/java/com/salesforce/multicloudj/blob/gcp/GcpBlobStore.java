@@ -103,7 +103,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Implementation of BlobStore
+ * GCP implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
@@ -397,7 +397,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     @Override
     protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts) {
         List<CompletedPart> completedParts = parts.stream()
-                // Provider rejects the multipart upload if the parts are not in order,
+                // Google cloud rejects the multipart upload if the parts are not in order,
                 // we need to bring it to parity with other cloud providers.
                 .sorted(Comparator.comparingInt(com.salesforce.multicloudj.blob.driver.UploadPartResponse::getPartNumber))
                 .map(part -> CompletedPart.builder()
@@ -495,7 +495,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 : new HashMap<>();
 
         // Delete all existing tags by setting them to null
-        // In provider storage, setting a metadata key to null means "delete this key"
+        // In GCP Storage, setting a metadata key to null means "delete this key"
         // The storage.update method only add new tags, it does not remove existing tags.
         for (String k : new ArrayList<>(metadata.keySet())) {
             if (k.startsWith(TAG_PREFIX)) {
@@ -562,7 +562,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /**
      * Maximum number of objects that can be deleted in a single batch operation.
-     * Provider supports up to 1000 objects per batch delete.
+     * GCP supports up to 1000 objects per batch delete.
      */
     private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
 
@@ -591,7 +591,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                     // Generate blob key
                     String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
 
-                    // Upload file to storage - use same approach as single file upload
+                    // Upload file to GCS - use same approach as single file upload
                     com.google.cloud.storage.BlobInfo blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey).build();
                     storage.createFrom(blobInfo, filePath);
                 } catch (Exception e) {
@@ -680,7 +680,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 blobs.add(blob);
             }
 
-            // Convert provider Blob objects to DriverBlobInfo objects for partitioning
+            // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
             var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
             for (Blob blob : blobs) {
                 blobInfos.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
@@ -854,7 +854,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Closes the underlying storage client and releases any resources.
+     * Closes the underlying GCP Storage client and releases any resources.
      */
     @Override
     public void close() {

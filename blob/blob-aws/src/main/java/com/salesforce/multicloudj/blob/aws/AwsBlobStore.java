@@ -88,7 +88,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Implementation of BlobStore
+ * AWS implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
@@ -559,7 +559,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     }
     
     /**
-     * Closes the underlying client and releases any resources.
+     * Closes the underlying S3 client and releases any resources.
      */
     @Override
     public void close() {

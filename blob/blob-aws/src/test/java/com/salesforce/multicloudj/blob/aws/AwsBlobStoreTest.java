@@ -864,7 +864,7 @@ public class AwsBlobStoreTest {
 
     @Test
     void testDoUploadMultipartPart() {
-        software.amazon.awssdk.services.s3.model.UploadPartResponse mockResponse = mock(software.amazon.awssdk.services.s3.model.UploadPartResponse.class);
+        UploadPartResponse mockResponse = mock(UploadPartResponse.class);
         doReturn("etag").when(mockResponse).eTag();
         doReturn(mockResponse).when(mockS3Client).uploadPart(any(UploadPartRequest.class), any(RequestBody.class));
         MultipartUpload multipartUpload = MultipartUpload.builder()

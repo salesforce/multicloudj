@@ -652,10 +652,10 @@ public class AwsTransformer {
     }
 
     /**
-     * Converts MultiCloudJ RetryConfig to provider SDK RetryStrategy
+     * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
      *
      * @param retryConfig The retry configuration to convert
-     * @return Provider SDK RetryStrategy
+     * @return AWS SDK RetryStrategy
      * @throws InvalidArgumentException if retryConfig is null or has invalid values
      */
     public RetryStrategy toAwsRetryStrategy(RetryConfig retryConfig) {
@@ -668,12 +668,12 @@ public class AwsTransformer {
 
         StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
 
-        // Only set maxAttempts if provided, otherwise use provider SDK default
+        // Only set maxAttempts if provided, otherwise use AWS SDK default
         if (retryConfig.getMaxAttempts() != null) {
             strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
         }
 
-        // If mode is not set, use provider SDK's default backoff strategy
+        // If mode is not set, use AWS SDK's default backoff strategy
         if (retryConfig.getMode() == null) {
             return strategyBuilder.build();
         }

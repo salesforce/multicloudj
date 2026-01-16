@@ -299,7 +299,7 @@ public class GcpTransformer {
             }
         }
 
-        // Set CRC32C checksum if provided (provider's native checksum algorithm)
+        // Set CRC32C checksum if provided (GCP's native checksum algorithm)
         if (checksumValue != null && !checksumValue.isEmpty()) {
             builder.setCrc32c(checksumValue);
         }
