@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.gcp;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageClass;
 import com.google.common.collect.ImmutableMap;
@@ -20,6 +21,9 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
@@ -31,6 +35,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,8 +67,8 @@ public class GcpTransformer {
             uploadRequest.getTags().forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
         }
 
-        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass(),
-                         uploadRequest.getChecksumValue());
+        // Delegate to the protected toBlobInfo method which handles storage class, checksum, and object lock
+        return toBlobInfo(uploadRequest.getKey(), metadata, uploadRequest.getStorageClass(), null, uploadRequest.getObjectLock());
     }
 
     public UploadResponse toUploadResponse(Blob blob) {
@@ -146,6 +153,40 @@ public class GcpTransformer {
     }
 
     public BlobMetadata toBlobMetadata(Blob blob) {
+        // Extract object lock info if retention or holds are present
+        ObjectLockInfo objectLockInfo = null;
+        
+        // Check for object retention
+        Retention retention = blob.getRetention();
+        boolean hasRetention = retention != null;
+        
+        // Check for object holds
+        Boolean tempHold = blob.getTemporaryHold();
+        Boolean eventHold = blob.getEventBasedHold();
+        boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
+
+        if (hasRetention || hasHold) {
+            RetentionMode mode = null;
+            Instant retainUntilDate = null;
+            
+            if (hasRetention) {
+                // Map provider retention mode to SDK retention mode
+                mode = retention.getMode() == Retention.Mode.LOCKED
+                        ? RetentionMode.COMPLIANCE
+                        : RetentionMode.GOVERNANCE;
+                retainUntilDate = retention.getRetainUntilTime() != null
+                        ? retention.getRetainUntilTime().toInstant()
+                        : null;
+            }
+            
+            objectLockInfo = ObjectLockInfo.builder()
+                    .mode(mode)
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(hasHold)
+                    .useEventBasedHold(eventHold != null && eventHold)
+                    .build();
+        }
+
         return BlobMetadata.builder()
                 .key(blob.getName())
                 .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
@@ -154,6 +195,7 @@ public class GcpTransformer {
                 .metadata(blob.getMetadata()==null ? Collections.emptyMap() : blob.getMetadata())
                 .lastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
                 .md5(HexUtil.convertToBytes(blob.getMd5()))
+                .objectLockInfo(objectLockInfo)
                 .build();
     }
 
@@ -235,15 +277,15 @@ public class GcpTransformer {
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-        return toBlobInfo(key, metadata, null, null);
+        return toBlobInfo(key, metadata, null, null, null);
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
-        return toBlobInfo(key, metadata, storageClass, null);
+        return toBlobInfo(key, metadata, storageClass, null, null);
     }
 
     protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass,
-                                  String checksumValue) {
+                                  String checksumValue, ObjectLockConfiguration objectLock) {
         metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
         BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
@@ -260,6 +302,36 @@ public class GcpTransformer {
         // Set CRC32C checksum if provided (GCP's native checksum algorithm)
         if (checksumValue != null && !checksumValue.isEmpty()) {
             builder.setCrc32c(checksumValue);
+        }
+
+        // Set object retention and holds if object lock is configured
+        if (objectLock != null) {
+            // Set object retention (retention mode and retain-until date)
+            if (objectLock.getRetainUntilDate() != null) {
+                Retention.Mode retentionMode = objectLock.getMode() == RetentionMode.COMPLIANCE
+                        ? Retention.Mode.LOCKED
+                        : Retention.Mode.UNLOCKED;
+                
+                builder.setRetention(
+                    Retention.newBuilder()
+                        .setMode(retentionMode)
+                        .setRetainUntilTime(OffsetDateTime.ofInstant(
+                            objectLock.getRetainUntilDate(), 
+                            ZoneOffset.UTC))
+                        .build()
+                );
+            }
+            
+            // Set object holds (legal hold)
+            boolean useEventBased = objectLock.getUseEventBasedHold() != null 
+                    ? objectLock.getUseEventBasedHold() 
+                    : false;
+
+            if (useEventBased) {
+                builder.setEventBasedHold(objectLock.isLegalHold());
+            } else {
+                builder.setTemporaryHold(objectLock.isLegalHold());
+            }
         }
 
         return builder.build();
@@ -333,7 +405,7 @@ public class GcpTransformer {
      *
      * @param sourceDir the source directory path
      * @param filePath the file path to convert
-     * @param prefix the S3 prefix to apply
+     * @param prefix the blob prefix to apply
      * @return the blob key
      */
     public String toBlobKey(Path sourceDir, Path filePath, String prefix) {

@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -22,7 +23,7 @@ public class ErrorCodeMapping {
     static {
         Map<String, Class<? extends SubstrateSdkException>> map = new HashMap<>(CommonErrorCodeMapping.get());
         map.put("InvalidAccessKeyId", InvalidArgumentException.class);
-        map.put("NoSuchKey", InvalidArgumentException.class);
+        map.put("NoSuchKey", ResourceNotFoundException.class);
         map.put("NoSuchBucket", InvalidArgumentException.class);
         map.put("InvalidObjectState", UnAuthorizedException.class);
         ERROR_MAPPING = Collections.unmodifiableMap(map);

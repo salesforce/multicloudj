@@ -44,9 +44,11 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import lombok.Getter;
@@ -449,6 +451,30 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
+     * {@inheritdoc}
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/retention");
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/legal hold");
+    }
+
+    /**
      * Generates a presigned URL for uploading/downloading blobs
      * @param request The PresignedUrlRequest
      * @return Returns the presigned URL
@@ -465,10 +491,7 @@ public class AliBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Determines if an object exists for a given key/versionId
-     * @param key Name of the blob to check
-     * @param versionId The version of the blob to check
-     * @return Returns true if the object exists. Returns false if it doesn't exist.
+     * {@inheritdoc}
      */
     @Override
     protected boolean doDoesObjectExist(String key, String versionId) {

@@ -46,6 +46,11 @@ public class UploadRequest {
      */
     private final String checksumValue;
 
+    /**
+     * (Optional parameter) Object lock configuration for WORM protection.
+     */
+    private final ObjectLockConfiguration objectLock;
+    
     private UploadRequest(Builder builder) {
         this.key = builder.key;
         this.contentLength = builder.contentLength;
@@ -53,6 +58,7 @@ public class UploadRequest {
         this.tags = builder.tags;
         this.storageClass = builder.storageClass;
         this.kmsKeyId = builder.kmsKeyId;
+        this.objectLock = builder.objectLock;
         this.checksumValue = builder.checksumValue;
     }
 
@@ -71,6 +77,7 @@ public class UploadRequest {
         private Map<String, String> tags = Collections.emptyMap();
         private String storageClass;
         private String kmsKeyId;
+        private ObjectLockConfiguration objectLock;
         private String checksumValue;
 
         public Builder withKey(String key) {
@@ -100,6 +107,11 @@ public class UploadRequest {
 
         public Builder withKmsKeyId(String kmsKeyId) {
             this.kmsKeyId = kmsKeyId;
+            return this;
+        }
+
+        public Builder withObjectLock(ObjectLockConfiguration objectLock) {
+            this.objectLock = objectLock;
             return this;
         }
 
