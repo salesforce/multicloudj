@@ -35,6 +35,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -164,10 +167,10 @@ public class GcpTransformer {
 
         if (hasRetention || hasHold) {
             RetentionMode mode = null;
-            java.time.Instant retainUntilDate = null;
+            Instant retainUntilDate = null;
             
             if (hasRetention) {
-                // Map GCP retention mode to SDK retention mode
+                // Map provider retention mode to SDK retention mode
                 mode = retention.getMode() == Retention.Mode.LOCKED
                         ? RetentionMode.COMPLIANCE
                         : RetentionMode.GOVERNANCE;
@@ -296,7 +299,7 @@ public class GcpTransformer {
             }
         }
 
-        // Set CRC32C checksum if provided (GCP's native checksum algorithm)
+        // Set CRC32C checksum if provided (provider's native checksum algorithm)
         if (checksumValue != null && !checksumValue.isEmpty()) {
             builder.setCrc32c(checksumValue);
         }
@@ -312,9 +315,9 @@ public class GcpTransformer {
                 builder.setRetention(
                     Retention.newBuilder()
                         .setMode(retentionMode)
-                        .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(
+                        .setRetainUntilTime(OffsetDateTime.ofInstant(
                             objectLock.getRetainUntilDate(), 
-                            java.time.ZoneOffset.UTC))
+                            ZoneOffset.UTC))
                         .build()
                 );
             }
@@ -402,7 +405,7 @@ public class GcpTransformer {
      *
      * @param sourceDir the source directory path
      * @param filePath the file path to convert
-     * @param prefix the S3 prefix to apply
+     * @param prefix the blob prefix to apply
      * @return the blob key
      */
     public String toBlobKey(Path sourceDir, Path filePath, String prefix) {

@@ -66,7 +66,6 @@ import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -89,7 +88,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * AWS implementation of BlobStore
+ * Implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
@@ -517,18 +516,11 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     public ObjectLockInfo getObjectLock(String key, String versionId) {
-        try {
-            GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
-                    transformer.toGetObjectRetentionRequest(key, versionId));
-            GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
-                    transformer.toGetObjectLegalHoldRequest(key, versionId));
-            return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
-        } catch (NoSuchKeyException e) {
-            throw new ResourceNotFoundException(
-                    "Object not found: " + key, e);
-        } catch (AwsServiceException | SdkClientException e) {
-            throw new SubstrateSdkException("Failed to get object lock for key: " + key, e);
-        }
+        GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
+                transformer.toGetObjectRetentionRequest(key, versionId));
+        GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
+                transformer.toGetObjectLegalHoldRequest(key, versionId));
+        return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
     }
 
     /**
@@ -537,32 +529,25 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
-        try {
-            // First get current retention to check mode
-            GetObjectRetentionResponse currentRetention = s3Client.getObjectRetention(
-                    transformer.toGetObjectRetentionRequest(key, versionId));
+        // First get current retention to check mode
+        GetObjectRetentionResponse currentRetention = s3Client.getObjectRetention(
+                transformer.toGetObjectRetentionRequest(key, versionId));
 
-            if (currentRetention == null || currentRetention.retention() == null) {
-                throw new FailedPreconditionException(
-                        "Object does not have retention configured. Cannot update retention.");
-            }
-
-            ObjectLockRetentionMode currentMode = currentRetention.retention().mode();
-
-            if (currentMode == ObjectLockRetentionMode.COMPLIANCE) {
-                throw new FailedPreconditionException(
-                        "Cannot update retention for objects in COMPLIANCE mode. " +
-                        "Only GOVERNANCE mode objects can have their retention updated.");
-            }
-
-            s3Client.putObjectRetention(transformer.toPutObjectRetentionRequest(
-                    key, versionId, currentMode, retainUntilDate));
-        } catch (NoSuchKeyException e) {
-            throw new ResourceNotFoundException(
-                    "Object not found: " + key, e);
-        } catch (AwsServiceException | SdkClientException e) {
-            throw new SubstrateSdkException("Failed to update object retention for key: " + key, e);
+        if (currentRetention == null || currentRetention.retention() == null) {
+            throw new FailedPreconditionException(
+                    "Object does not have retention configured. Cannot update retention.");
         }
+
+        ObjectLockRetentionMode currentMode = currentRetention.retention().mode();
+
+        if (currentMode == ObjectLockRetentionMode.COMPLIANCE) {
+            throw new FailedPreconditionException(
+                    "Cannot update retention for objects in COMPLIANCE mode. " +
+                    "Only GOVERNANCE mode objects can have their retention updated.");
+        }
+
+        s3Client.putObjectRetention(transformer.toPutObjectRetentionRequest(
+                key, versionId, currentMode, retainUntilDate));
     }
 
     /**
@@ -570,18 +555,11 @@ public class AwsBlobStore extends AbstractBlobStore {
      */
     @Override
     public void updateLegalHold(String key, String versionId, boolean legalHold) {
-        try {
-            s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
-        } catch (NoSuchKeyException e) {
-            throw new ResourceNotFoundException(
-                    "Object not found: " + key, e);
-        } catch (AwsServiceException | SdkClientException e) {
-            throw new SubstrateSdkException("Failed to update legal hold for key: " + key, e);
-        }
+        s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
     }
     
     /**
-     * Closes the underlying S3 client and releases any resources.
+     * Closes the underlying client and releases any resources.
      */
     @Override
     public void close() {

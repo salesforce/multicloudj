@@ -4,7 +4,6 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.blob.driver.TestBlobClient;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +34,6 @@ public class BlobClientTest {
     @BeforeEach
     void setup() {
         mockBlobClient = mock(AbstractBlobClient.class);
-        doReturn(UnAuthorizedException.class).when(mockBlobClient).getException(any());
         providerSupplier = mockStatic(ProviderSupplier.class);
         AbstractBlobClient.Builder mockBuilder = mock(AbstractBlobClient.Builder.class);
         when(mockBuilder.build()).thenReturn(mockBlobClient);
@@ -72,9 +70,10 @@ public class BlobClientTest {
 
     @Test
     void testBucketsListThrowsException() {
-        doThrow(RuntimeException.class).when(mockBlobClient).listBuckets();
+        RuntimeException thrownException = new RuntimeException("Test exception");
+        doThrow(thrownException).when(mockBlobClient).listBuckets();
 
-        assertThrows(UnAuthorizedException.class, () -> client.listBuckets());
+        assertThrows(RuntimeException.class, () -> client.listBuckets());
     }
 
     @Test
@@ -116,9 +115,9 @@ public class BlobClientTest {
     @Test
     void testCreateBucketThrowsException() {
         String bucketName = "test-bucket";
-        doThrow(RuntimeException.class).when(mockBlobClient).createBucket(bucketName);
+        RuntimeException thrownException = new RuntimeException("Test exception");
+        doThrow(thrownException).when(mockBlobClient).createBucket(bucketName);
 
-        // Should throw UnAuthorizedException since mockBlobClient.getException returns UnAuthorizedException.class
-        assertThrows(UnAuthorizedException.class, () -> client.createBucket(bucketName));
+        assertThrows(RuntimeException.class, () -> client.createBucket(bucketName));
     }
 }

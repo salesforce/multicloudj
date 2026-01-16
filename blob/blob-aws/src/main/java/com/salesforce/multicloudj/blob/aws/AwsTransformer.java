@@ -220,7 +220,7 @@ public class AwsTransformer {
     }
 
         /**
-     * Converts SDK RetentionMode to AWS SDK ObjectLockMode
+     * Converts SDK RetentionMode to provider SDK ObjectLockMode
      */
         private ObjectLockMode toAwsObjectLockMode(
             RetentionMode mode) {
@@ -235,7 +235,7 @@ public class AwsTransformer {
     }
 
     /**
-     * Converts AWS SDK ObjectLockMode to SDK RetentionMode
+     * Converts provider SDK ObjectLockMode to SDK RetentionMode
      */
     private RetentionMode toDriverRetentionMode(
             ObjectLockMode awsMode) {
@@ -248,12 +248,12 @@ public class AwsTransformer {
             case COMPLIANCE:
                 return RetentionMode.COMPLIANCE;
             default:
-                throw new FailedPreconditionException("Unknown AWS object lock mode: " + awsMode);
+                throw new FailedPreconditionException("Unknown object lock mode: " + awsMode);
         }
     }
 
     /**
-     * Converts AWS SDK ObjectLockRetentionMode to SDK RetentionMode
+     * Converts provider SDK ObjectLockRetentionMode to SDK RetentionMode
      */
     private RetentionMode toDriverRetentionMode(
             ObjectLockRetentionMode awsMode) {
@@ -266,7 +266,7 @@ public class AwsTransformer {
             case COMPLIANCE:
                 return RetentionMode.COMPLIANCE;
             default:
-                throw new FailedPreconditionException("Unknown AWS object lock retention mode: " + awsMode);
+                throw new FailedPreconditionException("Unknown object lock retention mode: " + awsMode);
         }
     }
 
@@ -652,10 +652,10 @@ public class AwsTransformer {
     }
 
     /**
-     * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy
+     * Converts MultiCloudJ RetryConfig to provider SDK RetryStrategy
      *
      * @param retryConfig The retry configuration to convert
-     * @return AWS SDK RetryStrategy
+     * @return Provider SDK RetryStrategy
      * @throws InvalidArgumentException if retryConfig is null or has invalid values
      */
     public RetryStrategy toAwsRetryStrategy(RetryConfig retryConfig) {
@@ -668,12 +668,12 @@ public class AwsTransformer {
 
         StandardRetryStrategy.Builder strategyBuilder = StandardRetryStrategy.builder();
 
-        // Only set maxAttempts if provided, otherwise use AWS SDK default
+        // Only set maxAttempts if provided, otherwise use provider SDK default
         if (retryConfig.getMaxAttempts() != null) {
             strategyBuilder.maxAttempts(retryConfig.getMaxAttempts());
         }
 
-        // If mode is not set, use AWS SDK's default backoff strategy
+        // If mode is not set, use provider SDK's default backoff strategy
         if (retryConfig.getMode() == null) {
             return strategyBuilder.build();
         }
@@ -693,9 +693,7 @@ public class AwsTransformer {
                     )
             );
             return strategyBuilder.build();
-        }
-
-        
+        } 
 
         // FIXED mode
         if (retryConfig.getFixedDelayMillis() <= 0) {

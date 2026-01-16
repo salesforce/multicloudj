@@ -48,7 +48,6 @@ public class UploadRequest {
 
     /**
      * (Optional parameter) Object lock configuration for WORM protection.
-     * Supported: AWS (full), GCP (partial - requires bucket retention policy), OSS (unsupported)
      */
     private final ObjectLockConfiguration objectLock;
     

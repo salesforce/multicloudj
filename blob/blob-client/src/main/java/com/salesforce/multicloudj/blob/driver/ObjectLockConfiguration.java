@@ -28,8 +28,6 @@ public class ObjectLockConfiguration {
     private final boolean legalHold;
 
     /**
-     * For GCP GCS only: Whether to use eventBasedHold (true) or temporaryHold (false).
-     * 
      * <p>Event-based hold: Resets the object's time-in-bucket for retention policy calculation when released.
      * <p>Temporary hold: Does not affect retention policy calculation.
      * <p>Default: false (temporaryHold)

@@ -43,6 +43,14 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectLockMode;
+import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -756,7 +764,7 @@ public class AwsTransformerTest {
         assertEquals(key, result.key());
         assertEquals(metadata, result.metadata());
         assertEquals("tag-key=tag-value", result.tagging());
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD_IA, result.storageClass());
+        assertEquals(StorageClass.STANDARD_IA, result.storageClass());
     }
 
     @Test
@@ -772,7 +780,7 @@ public class AwsTransformerTest {
 
         var result = transformer.toRequest(request);
         
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.STANDARD, result.storageClass());
+        assertEquals(StorageClass.STANDARD, result.storageClass());
     }
 
     @Test
@@ -788,7 +796,7 @@ public class AwsTransformerTest {
 
         var result = transformer.toRequest(request);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER, result.storageClass());
+        assertEquals(StorageClass.GLACIER, result.storageClass());
     }
 
     @Test
@@ -804,7 +812,7 @@ public class AwsTransformerTest {
 
         var result = transformer.toRequest(request);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.INTELLIGENT_TIERING, result.storageClass());
+        assertEquals(StorageClass.INTELLIGENT_TIERING, result.storageClass());
     }
 
     @Test
@@ -820,7 +828,7 @@ public class AwsTransformerTest {
 
         var result = transformer.toRequest(request);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.DEEP_ARCHIVE, result.storageClass());
+        assertEquals(StorageClass.DEEP_ARCHIVE, result.storageClass());
     }
 
     @Test
@@ -836,7 +844,7 @@ public class AwsTransformerTest {
 
         var result = transformer.toRequest(request);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.StorageClass.GLACIER_IR, result.storageClass());
+        assertEquals(StorageClass.GLACIER_IR, result.storageClass());
     }
 
     @Test
@@ -1067,9 +1075,9 @@ public class AwsTransformerTest {
 
         assertEquals(BUCKET, actual.bucket());
         assertEquals(key, actual.key());
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockMode.GOVERNANCE, actual.objectLockMode());
+        assertEquals(ObjectLockMode.GOVERNANCE, actual.objectLockMode());
         assertNotNull(actual.objectLockRetainUntilDate());
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
+        assertEquals(ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
     }
 
     @Test
@@ -1087,8 +1095,8 @@ public class AwsTransformerTest {
 
         var actual = transformer.toRequest(request);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockMode.COMPLIANCE, actual.objectLockMode());
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF, actual.objectLockLegalHoldStatus());
+        assertEquals(ObjectLockMode.COMPLIANCE, actual.objectLockMode());
+        assertEquals(ObjectLockLegalHoldStatus.OFF, actual.objectLockLegalHoldStatus());
     }
 
     @Test
@@ -1108,21 +1116,21 @@ public class AwsTransformerTest {
         assertEquals(key, actual.key());
         assertNull(actual.objectLockMode());
         assertNull(actual.objectLockRetainUntilDate());
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
+        assertEquals(ObjectLockLegalHoldStatus.ON, actual.objectLockLegalHoldStatus());
     }
 
     @Test
     void testToObjectLockInfo_WithRetentionAndLegalHold() {
-        var retentionResponse = software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
-                .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
-                        .mode(software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.GOVERNANCE)
+        var retentionResponse = GetObjectRetentionResponse.builder()
+                .retention(ObjectLockRetention.builder()
+                        .mode(ObjectLockRetentionMode.GOVERNANCE)
                         .retainUntilDate(Instant.now().plusSeconds(3600))
                         .build())
                 .build();
 
-        var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
-                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON)
+        var legalHoldResponse = GetObjectLegalHoldResponse.builder()
+                .legalHold(ObjectLockLegalHold.builder()
+                        .status(ObjectLockLegalHoldStatus.ON)
                         .build())
                 .build();
 
@@ -1139,7 +1147,7 @@ public class AwsTransformerTest {
     void testToObjectLockInfo_WithNullRetention() {
         var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
                 .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF)
+                        .status(ObjectLockLegalHoldStatus.OFF)
                         .build())
                 .build();
 
@@ -1152,14 +1160,14 @@ public class AwsTransformerTest {
     void testToObjectLockInfo_WithComplianceMode() {
         var retentionResponse = software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
                 .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
-                        .mode(software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.COMPLIANCE)
+                        .mode(ObjectLockRetentionMode.COMPLIANCE)
                         .retainUntilDate(Instant.now().plusSeconds(3600))
                         .build())
                 .build();
 
         var legalHoldResponse = software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
                 .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                        .status(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF)
+                        .status(ObjectLockLegalHoldStatus.OFF)
                         .build())
                 .build();
 
@@ -1174,7 +1182,7 @@ public class AwsTransformerTest {
     void testToPutObjectRetentionRequest() {
         var key = "test-key";
         var versionId = "version-1";
-        var mode = software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode.GOVERNANCE;
+        var mode = ObjectLockRetentionMode.GOVERNANCE;
         var retainUntil = Instant.now().plusSeconds(3600);
 
         var result = transformer.toPutObjectRetentionRequest(key, versionId, mode, retainUntil);
@@ -1198,7 +1206,7 @@ public class AwsTransformerTest {
         assertEquals(key, result.key());
         assertEquals(versionId, result.versionId());
         assertNotNull(result.legalHold());
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON, result.legalHold().status());
+        assertEquals(ObjectLockLegalHoldStatus.ON, result.legalHold().status());
     }
 
     @Test
@@ -1208,6 +1216,6 @@ public class AwsTransformerTest {
 
         var result = transformer.toPutObjectLegalHoldRequest(key, versionId, false);
 
-        assertEquals(software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.OFF, result.legalHold().status());
+        assertEquals(ObjectLockLegalHoldStatus.OFF, result.legalHold().status());
     }
 }

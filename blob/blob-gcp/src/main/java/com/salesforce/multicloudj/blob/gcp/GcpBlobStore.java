@@ -11,6 +11,8 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.HttpStorageOptions;
@@ -103,7 +105,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * GCP implementation of BlobStore
+ * Implementation of BlobStore
  */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
@@ -397,7 +399,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     @Override
     protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts) {
         List<CompletedPart> completedParts = parts.stream()
-                // Google cloud rejects the multipart upload if the parts are not in order,
+                // Provider rejects the multipart upload if the parts are not in order,
                 // we need to bring it to parity with other cloud providers.
                 .sorted(Comparator.comparingInt(com.salesforce.multicloudj.blob.driver.UploadPartResponse::getPartNumber))
                 .map(part -> CompletedPart.builder()
@@ -495,7 +497,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 : new HashMap<>();
 
         // Delete all existing tags by setting them to null
-        // In GCP Storage, setting a metadata key to null means "delete this key"
+        // In provider storage, setting a metadata key to null means "delete this key"
         // The storage.update method only add new tags, it does not remove existing tags.
         for (String k : new ArrayList<>(metadata.keySet())) {
             if (k.startsWith(TAG_PREFIX)) {
@@ -562,7 +564,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /**
      * Maximum number of objects that can be deleted in a single batch operation.
-     * GCP supports up to 1000 objects per batch delete.
+     * Provider supports up to 1000 objects per batch delete.
      */
     private static final int MAX_OBJECTS_PER_BATCH_DELETE = 1000;
 
@@ -591,7 +593,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                     // Generate blob key
                     String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
 
-                    // Upload file to GCS - use same approach as single file upload
+                    // Upload file to storage - use same approach as single file upload
                     com.google.cloud.storage.BlobInfo blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey).build();
                     storage.createFrom(blobInfo, filePath);
                 } catch (Exception e) {
@@ -680,7 +682,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 blobs.add(blob);
             }
 
-            // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
+            // Convert provider Blob objects to DriverBlobInfo objects for partitioning
             var blobInfos = new ArrayList<BlobInfo>();
             for (Blob blob : blobs) {
                 blobInfos.add(BlobInfo.builder()
@@ -711,56 +713,49 @@ public class GcpBlobStore extends AbstractBlobStore {
      */
     @Override
     public ObjectLockInfo getObjectLock(String key, String versionId) {
-        try {
-            Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-            if (blob == null) {
-                throw new ResourceNotFoundException("Object not found: " + key);
-            }
-
-            // Check for object retention
-            com.google.cloud.storage.BlobInfo.Retention retention = blob.getRetention();
-            boolean hasRetention = retention != null;
-            
-            // Check for object holds
-            Boolean tempHold = blob.getTemporaryHold();
-            Boolean eventHold = blob.getEventBasedHold();
-            boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
-
-            if (!hasRetention && !hasHold) {
-                return null;
-            }
-
-            RetentionMode mode = null;
-            java.time.Instant retainUntilDate = null;
-            
-            if (hasRetention) {
-                // Map GCP retention mode to SDK retention mode
-                mode = retention.getMode() == com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED
-                        ? RetentionMode.COMPLIANCE
-                        : RetentionMode.GOVERNANCE;
-                retainUntilDate = retention.getRetainUntilTime() != null
-                        ? retention.getRetainUntilTime().toInstant()
-                        : null;
-            }
-
-            return ObjectLockInfo.builder()
-                    .mode(mode)
-                    .retainUntilDate(retainUntilDate)
-                    .legalHold(hasHold)
-                    .useEventBasedHold(eventHold != null && eventHold)
-                    .build();
-        } catch (StorageException e) {
-            if (e.getCode() == 404) {
-                throw new ResourceNotFoundException("Object not found: " + key, e);
-            }
-            throw new SubstrateSdkException("Failed to get object lock for key: " + key, e);
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
         }
+
+        // Check for object retention
+        Retention retention = blob.getRetention();
+        boolean hasRetention = retention != null;
+        
+        // Check for object holds
+        Boolean tempHold = blob.getTemporaryHold();
+        Boolean eventHold = blob.getEventBasedHold();
+        boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
+
+        if (!hasRetention && !hasHold) {
+            return null;
+        }
+
+        RetentionMode mode = null;
+        java.time.Instant retainUntilDate = null;
+        
+        if (hasRetention) {
+            // Map provider retention mode to SDK retention mode
+            mode = retention.getMode() == Retention.Mode.LOCKED
+                    ? RetentionMode.COMPLIANCE
+                    : RetentionMode.GOVERNANCE;
+            retainUntilDate = retention.getRetainUntilTime() != null
+                    ? retention.getRetainUntilTime().toInstant()
+                    : null;
+        }
+
+        return ObjectLockInfo.builder()
+                .mode(mode)
+                .retainUntilDate(retainUntilDate)
+                .legalHold(hasHold)
+                .useEventBasedHold(eventHold != null && eventHold)
+                .build();
     }
 
     /**
      * Updates object retention date.
      * 
-     * <p>For GCP GCS:
+     * <p>For provider:
      * <ul>
      *   <li>GOVERNANCE mode (UNLOCKED): Can be updated with bypass header if user has permission</li>
      *   <li>COMPLIANCE mode (LOCKED): Cannot be shortened or removed, only increased</li>
@@ -768,61 +763,54 @@ public class GcpBlobStore extends AbstractBlobStore {
      */
     @Override
     public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
-        try {
-            Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-            if (blob == null) {
-                throw new ResourceNotFoundException("Object not found: " + key);
-            }
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
+        }
 
-            com.google.cloud.storage.BlobInfo.Retention currentRetention = blob.getRetention();
-            if (currentRetention == null) {
+        Retention currentRetention = blob.getRetention();
+        if (currentRetention == null) {
+            throw new FailedPreconditionException(
+                    "Object does not have retention configured. Cannot update retention.");
+        }
+
+        Retention.Mode currentMode = currentRetention.getMode();
+        
+        // Check if trying to shorten retention (not allowed for LOCKED/COMPLIANCE mode)
+        if (currentMode == Retention.Mode.LOCKED) {
+            java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
+                    ? currentRetention.getRetainUntilTime().toInstant()
+                    : null;
+            if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
                 throw new FailedPreconditionException(
-                        "Object does not have retention configured. Cannot update retention.");
+                        "Cannot reduce retention for objects in COMPLIANCE (LOCKED) mode. " +
+                        "Only GOVERNANCE (UNLOCKED) mode objects can have their retention reduced, " +
+                        "and COMPLIANCE mode retention can only be increased.");
             }
+        }
 
-            com.google.cloud.storage.BlobInfo.Retention.Mode currentMode = currentRetention.getMode();
-            
-            // Check if trying to shorten retention (not allowed for LOCKED/COMPLIANCE mode)
-            if (currentMode == com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED) {
-                java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
-                        ? currentRetention.getRetainUntilTime().toInstant()
-                        : null;
-                if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
-                    throw new FailedPreconditionException(
-                            "Cannot reduce retention for objects in COMPLIANCE (LOCKED) mode. " +
-                            "Only GOVERNANCE (UNLOCKED) mode objects can have their retention reduced, " +
-                            "and COMPLIANCE mode retention can only be increased.");
-                }
-            }
+        // Build updated retention with same mode but new retain-until time
+        Retention updatedRetention = currentRetention.toBuilder()
+                .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
+                .build();
 
-            // Build updated retention with same mode but new retain-until time
-            com.google.cloud.storage.BlobInfo.Retention updatedRetention = currentRetention.toBuilder()
-                    .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
-                    .build();
-
-            com.google.cloud.storage.BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
-            
-            // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
-            if (currentMode == com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED) {
-                java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
-                        ? currentRetention.getRetainUntilTime().toInstant()
-                        : null;
-                if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
-                    // Shortening retention requires bypass header
-                    storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
-                } else {
-                    // Increasing retention doesn't need bypass header
-                    storage.update(updatedBlobInfo);
-                }
+        com.google.cloud.storage.BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
+        
+        // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
+        if (currentMode == Retention.Mode.UNLOCKED) {
+            java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
+                    ? currentRetention.getRetainUntilTime().toInstant()
+                    : null;
+            if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
+                // Shortening retention requires bypass header
+                storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
             } else {
-                // COMPLIANCE (LOCKED) mode - only allow increasing
+                // Increasing retention doesn't need bypass header
                 storage.update(updatedBlobInfo);
             }
-        } catch (StorageException e) {
-            if (e.getCode() == 404) {
-                throw new ResourceNotFoundException("Object not found: " + key, e);
-            }
-            throw new SubstrateSdkException("Failed to update object retention for key: " + key, e);
+        } else {
+            // COMPLIANCE (LOCKED) mode - only allow increasing
+            storage.update(updatedBlobInfo);
         }
     }
 
@@ -831,31 +819,24 @@ public class GcpBlobStore extends AbstractBlobStore {
      */
     @Override
     public void updateLegalHold(String key, String versionId, boolean legalHold) {
-        try {
-            Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-            if (blob == null) {
-                throw new ResourceNotFoundException("Object not found: " + key);
-            }
-
-            // Determine which hold type to use based on existing configuration
-            // If object has eventBasedHold, use that; otherwise use temporaryHold
-            Boolean existingEventHold = blob.getEventBasedHold();
-            boolean useEventBased = existingEventHold != null && existingEventHold;
-
-            com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
-            if (useEventBased) {
-                builder.setEventBasedHold(legalHold);
-            } else {
-                builder.setTemporaryHold(legalHold);
-            }
-
-            storage.update(builder.build());
-        } catch (StorageException e) {
-            if (e.getCode() == 404) {
-                throw new ResourceNotFoundException("Object not found: " + key, e);
-            }
-            throw new SubstrateSdkException("Failed to update legal hold for key: " + key, e);
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
         }
+
+        // Determine which hold type to use based on existing configuration
+        // If object has eventBasedHold, use that; otherwise use temporaryHold
+        Boolean existingEventHold = blob.getEventBasedHold();
+        boolean useEventBased = existingEventHold != null && existingEventHold;
+
+        com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+        if (useEventBased) {
+            builder.setEventBasedHold(legalHold);
+        } else {
+            builder.setTemporaryHold(legalHold);
+        }
+
+        storage.update(builder.build());
     }
 
     @Override
@@ -875,7 +856,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     /**
-     * Closes the underlying GCP Storage client and releases any resources.
+     * Closes the underlying storage client and releases any resources.
      */
     @Override
     public void close() {
@@ -884,7 +865,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 storage.close();
             }
         } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+            throw new SubstrateSdkException("Failed to close storage client", e);
         }
     }
 

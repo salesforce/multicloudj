@@ -10,10 +10,8 @@ import java.time.Instant;
  * 
  * <p>This represents the current object lock state of an object, including:
  * <ul>
- *   <li>Retention mode (AWS S3 only)</li>
  *   <li>Retention expiration date</li>
  *   <li>Legal hold status</li>
- *   <li>Hold type for GCP (temporary vs event-based)</li>
  * </ul>
  */
 @Builder

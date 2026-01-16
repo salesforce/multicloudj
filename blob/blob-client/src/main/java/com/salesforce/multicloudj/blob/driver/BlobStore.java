@@ -278,7 +278,6 @@ public interface BlobStore extends SdkService, Provider {
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
      * @return ObjectLockInfo containing lock configuration, or null if object lock is not configured
-     * @throws com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException if provider doesn't support object lock
      */
     ObjectLockInfo getObjectLock(String key, String versionId);
 
@@ -288,8 +287,6 @@ public interface BlobStore extends SdkService, Provider {
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
      * @param retainUntilDate New retention expiration date
-     * @throws com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException if provider doesn't support updating retention
-     * @throws com.salesforce.multicloudj.common.exceptions.InvalidArgumentException if object is in COMPLIANCE mode (AWS) or invalid date
      */
     void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate);
 
@@ -299,7 +296,6 @@ public interface BlobStore extends SdkService, Provider {
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
      * @param legalHold true to apply hold, false to release hold
-     * @throws com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException if provider doesn't support legal hold
      */
     void updateLegalHold(String key, String versionId, boolean legalHold);
 }
