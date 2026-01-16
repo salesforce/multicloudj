@@ -7,13 +7,6 @@ import java.time.Instant;
 
 /**
  * Configuration for object lock (WORM protection) when uploading objects.
- * 
- * <p>This provides a unified API for object lock across cloud providers:
- * <ul>
- *   <li><b>AWS S3:</b> Full support - object-level retention with mode (GOVERNANCE/COMPLIANCE) and legal hold</li>
- *   <li><b>GCP GCS:</b> Full support - object-level retention with mode (GOVERNANCE/COMPLIANCE) and legal hold (object holds)</li>
- *   <li><b>OSS:</b> Not supported</li>
- * </ul>
  */
 @Builder
 @Getter
@@ -21,25 +14,16 @@ public class ObjectLockConfiguration {
 
     /**
      * Retention mode: GOVERNANCE (can be bypassed) or COMPLIANCE (cannot be bypassed).
-     * 
-     * <p>For AWS S3: Directly maps to objectLockMode.
-     * <p>For GCP GCS: Maps to UNLOCKED (GOVERNANCE) or LOCKED (COMPLIANCE) retention mode.
      */
     private final RetentionMode mode;
 
     /**
      * Date until which the object should be retained (WORM protection).
-     * 
-     * <p>For AWS S3: Directly maps to objectLockRetainUntilDate.
-     * <p>For GCP GCS: Maps to retain-until time in object retention configuration.
      */
     private final Instant retainUntilDate;
 
     /**
      * Legal hold status: prevents deletion/modification until removed.
-     * 
-     * <p>For AWS S3: Maps to objectLockLegalHoldStatus (ON/OFF).
-     * <p>For GCP GCS: Maps to temporaryHold or eventBasedHold (based on useEventBasedHold flag).
      */
     private final boolean legalHold;
 
@@ -49,7 +33,6 @@ public class ObjectLockConfiguration {
      * <p>Event-based hold: Resets the object's time-in-bucket for retention policy calculation when released.
      * <p>Temporary hold: Does not affect retention policy calculation.
      * <p>Default: false (temporaryHold)
-     * <p>For AWS S3: Ignored.
      */
     private final Boolean useEventBasedHold;
 }

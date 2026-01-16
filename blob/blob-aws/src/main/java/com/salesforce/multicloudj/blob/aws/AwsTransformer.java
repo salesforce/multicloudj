@@ -382,13 +382,11 @@ public class AwsTransformer {
 
         // Extract object lock info if present
         ObjectLockInfo objectLockInfo = null;
-        boolean hasRetention = response.objectLockMode() != null || response.objectLockRetainUntilDate() != null;
-        boolean hasLegalHold = response.objectLockLegalHoldStatus() == ObjectLockLegalHoldStatus.ON;
-        if (hasRetention || hasLegalHold) {
+        if (response.objectLockMode() != null || response.objectLockRetainUntilDate() != null) {
             objectLockInfo = ObjectLockInfo.builder()
                 .mode(toDriverRetentionMode(response.objectLockMode()))
                 .retainUntilDate(response.objectLockRetainUntilDate())
-                .legalHold(hasLegalHold)
+                .legalHold(response.objectLockLegalHoldStatus() == ObjectLockLegalHoldStatus.ON)
                 .build();
         }
 

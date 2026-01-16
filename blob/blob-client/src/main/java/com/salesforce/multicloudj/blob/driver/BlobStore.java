@@ -274,13 +274,6 @@ public interface BlobStore extends SdkService, Provider {
 
     /**
      * Gets object lock configuration for a blob.
-     * 
-     * <p>Supported providers:
-     * <ul>
-     *   <li>AWS S3: Full support - returns mode, retainUntilDate, and legalHold</li>
-     *   <li>GCP GCS: Partial support - returns retainUntilDate (from bucket policy) and legalHold (from object holds)</li>
-     *   <li>OSS: Not supported - throws UnSupportedOperationException</li>
-     * </ul>
      *
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
@@ -291,13 +284,6 @@ public interface BlobStore extends SdkService, Provider {
 
     /**
      * Updates object retention date.
-     * 
-     * <p>Supported providers:
-     * <ul>
-     *   <li>AWS S3: Supported only if object is in GOVERNANCE mode. COMPLIANCE mode objects cannot be updated.</li>
-     *   <li>GCP GCS: Supported. GOVERNANCE (UNLOCKED) mode can be updated with bypass header. COMPLIANCE (LOCKED) mode can only be increased.</li>
-     *   <li>OSS: Not supported - throws UnSupportedOperationException</li>
-     * </ul>
      *
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.
@@ -309,13 +295,6 @@ public interface BlobStore extends SdkService, Provider {
 
     /**
      * Updates legal hold status on an object.
-     * 
-     * <p>Supported providers:
-     * <ul>
-     *   <li>AWS S3: Full support - updates objectLockLegalHoldStatus</li>
-     *   <li>GCP GCS: Partial support - updates temporaryHold or eventBasedHold based on existing configuration</li>
-     *   <li>OSS: Not supported - throws UnSupportedOperationException</li>
-     * </ul>
      *
      * @param key Object key
      * @param versionId Optional version ID. For versioned buckets, null means latest version.

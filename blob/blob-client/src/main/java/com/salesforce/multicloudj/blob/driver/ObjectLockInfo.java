@@ -22,32 +22,18 @@ public class ObjectLockInfo {
 
     /**
      * Retention mode: GOVERNANCE or COMPLIANCE.
-     * 
-     * <p>For AWS S3: The actual mode set on the object.
-     * <p>For GCP GCS: Maps from UNLOCKED (GOVERNANCE) or LOCKED (COMPLIANCE) retention mode.
      */
     private final RetentionMode mode;
 
     /**
      * Date until which the object is retained.
-     * 
-     * <p>For AWS S3: The objectLockRetainUntilDate.
-     * <p>For GCP GCS: The retain-until time from object retention configuration.
      */
     private final Instant retainUntilDate;
 
     /**
      * Whether legal hold is currently applied.
-     * 
-     * <p>For AWS S3: objectLockLegalHoldStatus == ON.
-     * <p>For GCP GCS: temporaryHold or eventBasedHold is true.
      */
     private final boolean legalHold;
 
-    /**
-     * For GCP GCS only: Whether eventBasedHold is used (true) or temporaryHold (false).
-     * 
-     * <p>For AWS S3: Always null.
-     */
     private final Boolean useEventBasedHold;
 }
