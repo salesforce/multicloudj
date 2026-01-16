@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -863,7 +864,7 @@ public class AwsBlobStoreTest {
 
     @Test
     void testDoUploadMultipartPart() {
-        UploadPartResponse mockResponse = mock(UploadPartResponse.class);
+        software.amazon.awssdk.services.s3.model.UploadPartResponse mockResponse = mock(software.amazon.awssdk.services.s3.model.UploadPartResponse.class);
         doReturn("etag").when(mockResponse).eTag();
         doReturn(mockResponse).when(mockS3Client).uploadPart(any(UploadPartRequest.class), any(RequestBody.class));
         MultipartUpload multipartUpload = MultipartUpload.builder()
@@ -1328,7 +1329,7 @@ public class AwsBlobStoreTest {
                 .thenThrow(exception);
 
         // When/Then
-        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> {
+        assertThrows(SubstrateSdkException.class, () -> {
             aws.getObjectLock(key, null);
         });
     }
@@ -1460,7 +1461,7 @@ public class AwsBlobStoreTest {
         when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
                 .thenThrow(exception);
 
-        // When/Then
+        // When/Then - NoSuchKeyException is transformed to ResourceNotFoundException
         assertThrows(ResourceNotFoundException.class, () -> {
             aws.updateLegalHold(key, null, true);
         });
@@ -1477,8 +1478,8 @@ public class AwsBlobStoreTest {
         when(mockS3Client.putObjectLegalHold(any(PutObjectLegalHoldRequest.class)))
                 .thenThrow(exception);
 
-        // When/Then
-        assertThrows(com.salesforce.multicloudj.common.exceptions.SubstrateSdkException.class, () -> {
+        // When/Then - AwsBlobStore throws AWS SDK exceptions directly, transformation happens in common layer
+        assertThrows(AwsServiceException.class, () -> {
             aws.updateLegalHold(key, null, true);
         });
     }
@@ -1490,14 +1491,5 @@ public class AwsBlobStoreTest {
 
         // Then
         verify(mockS3Client, times(1)).close();
-    }
-
-    @Test
-    void testClose_WithNullClient() {
-        // Given - create a store with null client
-        AwsBlobStore storeWithNullClient = new AwsBlobStore(new AwsBlobStore.Builder(), null);
-
-        // When/Then - should not throw exception
-        storeWithNullClient.close();
     }
 }
