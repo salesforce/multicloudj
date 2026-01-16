@@ -22,14 +22,11 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 public class AwsPubsubIT extends AbstractPubsubIT {
 
     private static final String SQS_ENDPOINT = "https://sqs.us-west-2.amazonaws.com";
-    private static final String ACCOUNT_ID = "654654370895";
     private static final String BASE_QUEUE_NAME = "test-queue";
 
     private HarnessImpl harnessImpl;
@@ -111,7 +108,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
 
         @Override
-        public AbstractTopic createTopicDriver() {
+        public AbstractTopic<?> createTopicDriver() {
             sqsClient = createSqsClient();
             ensureQueueExists();
 
@@ -134,7 +131,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
 
         @Override
-        public AbstractSubscription createSubscriptionDriver() {
+        public AbstractSubscription<?> createSubscriptionDriver() {
             sqsClient = createSqsClient();
             ensureQueueExists();
 
@@ -205,9 +202,9 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
     }
 
-    @Override
-    @Test
-    @Disabled
-    public void testSendReceiveTwo() throws Exception {
-    }
+    // TODO: Implement testSendReceiveTwo() when WireMock supports multiple upstream endpoints
+    // Currently disabled because WireMock only supports a single upstream endpoint per recording session.
+    // SNS workflows require both SNS and SQS APIs, which can't be fully tested in one WireMock setup.
+    // Routing SQS requests through a WireMock proxy configured with an SNS target results in
+    // SQS APIs being forwarded to the SNS endpoint, which fails with UnknownOperationException.
 }

@@ -24,21 +24,20 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
         String urlPattern = stub.getRequest().getUrlPattern();
         String urlPath = stub.getRequest().getUrlPath();
 
-        boolean isAck = (url != null && url.contains(":acknowledge")) ||
-                (urlPattern != null && urlPattern.contains(":acknowledge")) ||
-                (urlPath != null && urlPath.contains(":acknowledge"));
-        boolean isMod = (url != null && url.contains(":modifyAckDeadline")) ||
-                (urlPattern != null && urlPattern.contains(":modifyAckDeadline")) ||
-                (urlPath != null && urlPath.contains(":modifyAckDeadline"));
-        boolean isPull = (url != null && url.contains(":pull")) ||
-                (urlPattern != null && urlPattern.contains(":pull")) ||
-                (urlPath != null && urlPath.contains(":pull"));
-        boolean isPublish = (url != null && url.contains(":publish")) ||
-                (urlPattern != null && urlPattern.contains(":publish")) ||
-                (urlPath != null && urlPath.contains(":publish"));
-
-        boolean isSubscriptionPut = Stream.of(url, urlPattern, urlPath)
-                .filter(Objects::nonNull) 
+        boolean isAck = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull)
+                .anyMatch(s -> s.contains(":acknowledge"));
+        boolean isMod = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull)
+                .anyMatch(s -> s.contains(":modifyAckDeadline"));
+        boolean isPull = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull)
+                .anyMatch(s -> s.contains(":pull"));
+        boolean isPublish = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull)
+                .anyMatch(s -> s.contains(":publish"));
+        boolean isSubscriptionUrl = Stream.of(url, urlPattern, urlPath)
+                .filter(Objects::nonNull)
                 .anyMatch(s -> s.contains("/subscriptions/") && !s.contains(":"));
         boolean isPutMethod = stub.getRequest().getMethod() == RequestMethod.PUT;
 
@@ -72,7 +71,7 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
                 bodyPatterns.add(new MatchesJsonPathPattern("$.messages"));
                 bodyPatterns.add(new MatchesJsonPathPattern("$.messages[*]"));
             }
-        } else if (isSubscriptionPut && isPutMethod) {
+        } else if (isSubscriptionUrl && isPutMethod) {
             // For push subscription create/update, relax the matching to accept any pushEndpoint
             // This allows replay mode to use localhost while record mode typically uses ngrok URL
             // (pushEndpoint is a user configuration that appears in the request body, unlike service endpoints)
