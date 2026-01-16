@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
@@ -64,8 +65,10 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
 import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockMode;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
@@ -379,11 +382,13 @@ public class AwsTransformer {
 
         // Extract object lock info if present
         ObjectLockInfo objectLockInfo = null;
-        if (response.objectLockMode() != null || response.objectLockRetainUntilDate() != null) {
+        boolean hasRetention = response.objectLockMode() != null || response.objectLockRetainUntilDate() != null;
+        boolean hasLegalHold = response.objectLockLegalHoldStatus() == ObjectLockLegalHoldStatus.ON;
+        if (hasRetention || hasLegalHold) {
             objectLockInfo = ObjectLockInfo.builder()
                 .mode(toDriverRetentionMode(response.objectLockMode()))
                 .retainUntilDate(response.objectLockRetainUntilDate())
-                .legalHold(response.objectLockLegalHoldStatus() == ObjectLockLegalHoldStatus.ON)
+                .legalHold(hasLegalHold)
                 .build();
         }
 
@@ -684,7 +689,7 @@ public class AwsTransformer {
                 throw new InvalidArgumentException("RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getMaxDelayMillis());
             }
             strategyBuilder.backoffStrategy(
-                    software.amazon.awssdk.retries.api.BackoffStrategy.exponentialDelay(
+                    BackoffStrategy.exponentialDelay(
                             Duration.ofMillis(retryConfig.getInitialDelayMillis()),
                             Duration.ofMillis(retryConfig.getMaxDelayMillis())
                     )
@@ -699,7 +704,7 @@ public class AwsTransformer {
             throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
         }
         strategyBuilder.backoffStrategy(
-                software.amazon.awssdk.retries.api.BackoffStrategy.fixedDelay(
+                BackoffStrategy.fixedDelay(
                         Duration.ofMillis(retryConfig.getFixedDelayMillis())
                 )
         );
@@ -738,7 +743,7 @@ public class AwsTransformer {
                 .bucket(getBucket())
                 .key(key)
                 .versionId(versionId)
-                .retention(software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                .retention(ObjectLockRetention.builder()
                         .mode(mode)
                         .retainUntilDate(retainUntilDate)
                         .build())
@@ -753,7 +758,7 @@ public class AwsTransformer {
                 .bucket(getBucket())
                 .key(key)
                 .versionId(versionId)
-                .legalHold(software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
+                .legalHold(ObjectLockLegalHold.builder()
                         .status(legalHold ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF)
                         .build())
                 .build();
