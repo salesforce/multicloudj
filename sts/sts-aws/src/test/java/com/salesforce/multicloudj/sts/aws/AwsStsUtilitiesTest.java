@@ -31,7 +31,7 @@ class AwsStsUtilitiesTest {
     }
 
     @Test
-    public void TestAwsStsInitialization() {
+    public void testAwsStsInitialization() {
         AwsStsUtilities utilities = new AwsStsUtilities();
         Assertions.assertEquals("aws", utilities.getProviderId());
     }
