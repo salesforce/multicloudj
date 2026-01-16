@@ -111,7 +111,8 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     public static class HarnessImpl implements Harness {
         private static final Logger logger = LoggerFactory.getLogger(HarnessImpl.class);
-        private AwsTopic topic;
+        @SuppressWarnings("rawtypes")
+        private AbstractTopic topic;
         private AwsSubscription subscription;
         private SnsClient snsClient;
         private SqsClient sqsClient;
@@ -258,9 +259,8 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                     cachedTopicArn = response.topicArn();
                 }
 
-                AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
+                AwsSnsTopic.Builder topicBuilder = new AwsSnsTopic.Builder();
                 logger.debug("createTopicDriver (SNS) using topicName: {}, topicArn: {}", topicName, cachedTopicArn);
-                topicBuilder.withServiceType(AwsTopic.MessagePublisherType.SNS);
                 topicBuilder.withTopicName(cachedTopicArn);
                 topicBuilder.withSnsClient(snsClient);
                 topic = topicBuilder.build();
@@ -276,11 +276,10 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                     cachedQueueUrl = response.queueUrl();
                 }
 
-                AwsTopic.Builder topicBuilder = new AwsTopic.Builder();
+                AwsSqsTopic.Builder topicBuilder = new AwsSqsTopic.Builder();
                 logger.debug("createTopicDriver (SQS) using queueName: {}", queueName);
-                topicBuilder.withTopicName(queueName);
+                topicBuilder.withTopicName(cachedQueueUrl); // Use full URL to avoid GetQueueUrl call
                 topicBuilder.withSqsClient(sqsClient);
-                topicBuilder.withTopicUrl(cachedQueueUrl);
                 topic = topicBuilder.build();
             }
 

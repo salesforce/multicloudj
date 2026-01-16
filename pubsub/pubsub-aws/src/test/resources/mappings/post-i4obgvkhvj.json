@@ -1,0 +1,24 @@
+{
+  "id" : "b3ce2faa-95e1-401e-920e-e73dff193e96",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PublishBatch&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-west-2%3A654654370895%3Atest-sns-topic-testSnsSendBatchMessages&PublishBatchRequestEntries.member.1.Id=0&PublishBatchRequestEntries.member.1.Message=Message+2&PublishBatchRequestEntries.member.1.MessageAttributes.entry.1.Name=batch-id&PublishBatchRequestEntries.member.1.MessageAttributes.entry.1.Value.DataType=String&PublishBatchRequestEntries.member.1.MessageAttributes.entry.1.Value.StringValue=2",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<PublishBatchResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <PublishBatchResult>\n    <Failed/>\n    <Successful>\n      <member>\n        <MessageId>3e16d455-2246-53b0-a72a-b5b6b7c9dc5c</MessageId>\n        <Id>0</Id>\n      </member>\n    </Successful>\n  </PublishBatchResult>\n  <ResponseMetadata>\n    <RequestId>b1037c34-b8ea-5374-8263-1dd72d65ec98</RequestId>\n  </ResponseMetadata>\n</PublishBatchResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "b1037c34-b8ea-5374-8263-1dd72d65ec98",
+      "Date" : "Fri, 16 Jan 2026 01:24:31 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "b3ce2faa-95e1-401e-920e-e73dff193e96",
+  "persistent" : true,
+  "insertionIndex" : 53
+}
