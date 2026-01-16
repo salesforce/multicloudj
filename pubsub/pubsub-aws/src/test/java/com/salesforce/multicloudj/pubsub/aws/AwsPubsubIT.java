@@ -202,9 +202,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
         }
     }
 
-    // TODO: Implement testSendReceiveTwo() when WireMock supports multiple upstream endpoints
-    // Currently disabled because WireMock only supports a single upstream endpoint per recording session.
-    // SNS workflows require both SNS and SQS APIs, which can't be fully tested in one WireMock setup.
-    // Routing SQS requests through a WireMock proxy configured with an SNS target results in
-    // SQS APIs being forwarded to the SNS endpoint, which fails with UnknownOperationException.
+   // TODO: Implement testSendReceiveTwo() when WireMock adds support for multiple upstream endpoints.
+   // The behavior has been validated through manual testing for now.
+
 }
