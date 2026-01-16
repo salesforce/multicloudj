@@ -233,6 +233,8 @@ public class FSDocumentIterator implements DocumentIterator {
                 // Continue looping for responses without documents
             }
         } catch (FailedPreconditionException e) {
+            // If there's any error reading from the stream, mark as done and close
+            markDoneAndClose();
             if (e.getStatusCode() != null && e.getStatusCode().getCode() == StatusCode.Code.FAILED_PRECONDITION) {
                 if (e.getMessage() != null && e.getMessage().contains("The query requires an index.")) {
                     throw new com.salesforce.multicloudj.common.exceptions.FailedPreconditionException("The query requires an index.", e);
