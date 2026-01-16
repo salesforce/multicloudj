@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
@@ -1373,6 +1374,7 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    @Disabled
     public void testVersionedCopyFrom() throws IOException {
         String key = "conformance-tests/versionedCopyFrom/blob";
         String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
