@@ -32,9 +32,9 @@ import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
-
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
+import software.amazon.awssdk.services.iam.model.ListRolePoliciesRequest;
+import software.amazon.awssdk.services.iam.model.ListRolePoliciesResponse;
+import software.amazon.awssdk.services.iam.model.DeleteRolePolicyRequest;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -366,14 +366,69 @@ public class AwsIam extends AbstractIam {
         return URLDecoder.decode(response.policyDocument(), StandardCharsets.UTF_8);
     }
 
+    /**
+     * Lists all inline policies attached to an IAM role.
+     *
+     * @param identityName the IAM role name.
+     * @param tenantId the AWS Account ID.
+     * @param region the AWS region for the IAM client.
+     * @return a list of inline policy names attached to the role.
+     *
+     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role does not exist
+     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
+     */
     @Override
     protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
-        throw new UnsupportedOperationException();
+        List<String> policyNames = new ArrayList<>();
+        String marker = null;
+
+        do {
+            ListRolePoliciesRequest.Builder requestBuilder = ListRolePoliciesRequest.builder()
+                    .roleName(identityName);
+            
+            if (marker != null) {
+                requestBuilder.marker(marker);
+            }
+
+            ListRolePoliciesResponse response = this.iamClient.listRolePolicies(requestBuilder.build());
+            
+            if (response.policyNames() != null) {
+                policyNames.addAll(response.policyNames());
+            }
+            
+            marker = response.marker();
+        } while (marker != null && !marker.isEmpty());
+
+        return policyNames;
     }
 
+    /**
+     * Removes an inline policy from an IAM role.
+     *
+     * @param identityName the IAM role name.
+     * @param policyName the name of the inline policy to remove.
+     * @param tenantId the AWS Account ID.
+     * @param region the AWS region for the IAM client.
+     *
+     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role or policy does not exist
+     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
+     */
     @Override
     protected void doRemovePolicy(String identityName, String policyName, String tenantId, String region) {
-        throw new UnsupportedOperationException();
+        if (StringUtils.isBlank(identityName)) {
+            throw new InvalidArgumentException("identityName is required for AWS IAM");
+        }
+
+        if (StringUtils.isBlank(policyName)) {
+            throw new InvalidArgumentException("policyName is required for AWS IAM");
+        }
+
+        DeleteRolePolicyRequest request = DeleteRolePolicyRequest.builder()
+                .roleName(identityName)
+                .policyName(policyName)
+                .build();
+        
+        this.iamClient.deleteRolePolicy(request);
     }
 
 
