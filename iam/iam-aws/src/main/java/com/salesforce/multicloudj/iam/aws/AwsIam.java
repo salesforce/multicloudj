@@ -27,6 +27,8 @@ import software.amazon.awssdk.services.iam.model.DeleteRoleRequest;
 import software.amazon.awssdk.services.iam.model.EntityAlreadyExistsException;
 import software.amazon.awssdk.services.iam.model.GetRoleRequest;
 import software.amazon.awssdk.services.iam.model.GetRoleResponse;
+import software.amazon.awssdk.services.iam.model.GetRolePolicyRequest;
+import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
@@ -34,6 +36,8 @@ import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -329,9 +333,37 @@ public class AwsIam extends AbstractIam {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Get inline policy document attached to an IAM role.
+     *
+     * @param identityName the IAM role name
+     * @param policyName the name of the inline policy to retrieve.
+     * @param roleName the IAM role name that has the inline policy attached.
+     * @param tenantId the AWS Account ID.
+     * @param region the AWS region for the IAM client.
+     *
+     * @return the inline policy document as a JSON string
+     *
+     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role or policy does not exist
+     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
+     */
     @Override
     protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
-        throw new UnsupportedOperationException();
+        if (StringUtils.isBlank(identityName)) {
+            throw new InvalidArgumentException("identityName is required for AWS IAM");
+        }
+
+        if (StringUtils.isBlank(policyName)) {
+            throw new InvalidArgumentException("policyName is required for AWS IAM");
+        }
+
+        IamClient client = this.iamClient;
+        GetRolePolicyRequest request = GetRolePolicyRequest.builder()
+                .roleName(identityName)
+                .policyName(policyName)
+                .build();
+        GetRolePolicyResponse response = client.getRolePolicy(request);
+        return URLDecoder.decode(response.policyDocument(), StandardCharsets.UTF_8);
     }
 
     @Override
