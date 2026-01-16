@@ -11,7 +11,6 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
@@ -36,7 +35,6 @@ import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
-import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -288,7 +286,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
-    protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
+    protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(ListBlobsRequest request) {
         List<Storage.BlobListOption> listOptions = new ArrayList<>();
         listOptions.add(Storage.BlobListOption.includeFolders(false));
         if(request.getPrefix() != null) {
@@ -309,9 +307,9 @@ public class GcpBlobStore extends AbstractBlobStore {
             }
 
             @Override
-            public BlobInfo next() {
+            public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
                 Blob blob = blobIterator.next();
-                return BlobInfo.builder()
+                return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
                         .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
@@ -331,9 +329,9 @@ public class GcpBlobStore extends AbstractBlobStore {
         // Use the Page API to get proper pagination support
         Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
 
-        List<BlobInfo> blobs = new ArrayList<>();
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = new ArrayList<>();
         for (Blob blob : page.getValues()) {
-            blobs.add(BlobInfo.builder()
+            blobs.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                     .withKey(blob.getName())
                     .withObjectSize(blob.getSize())
                     .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
@@ -683,9 +681,9 @@ public class GcpBlobStore extends AbstractBlobStore {
             }
 
             // Convert provider Blob objects to DriverBlobInfo objects for partitioning
-            var blobInfos = new ArrayList<BlobInfo>();
+            var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
             for (Blob blob : blobs) {
-                blobInfos.add(BlobInfo.builder()
+                blobInfos.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
                         .build());
