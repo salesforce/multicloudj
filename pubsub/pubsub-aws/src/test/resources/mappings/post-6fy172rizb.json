@@ -1,0 +1,30 @@
+{
+  "id" : "e1f77e2f-afac-4a5c-a79f-87ec3c9b02e2",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-sqs-testBatchAck\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testBatchAck\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "97af5cc7-1e6d-5cbe-bb30-3d221c72b107",
+      "Date" : "Sat, 17 Jan 2026 03:19:59 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "e1f77e2f-afac-4a5c-a79f-87ec3c9b02e2",
+  "persistent" : true,
+  "insertionIndex" : 11
+}
