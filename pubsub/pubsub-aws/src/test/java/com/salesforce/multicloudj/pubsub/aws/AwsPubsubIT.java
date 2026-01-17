@@ -32,17 +32,27 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * This class supports two modes:
  * 1. SQS mode: Direct SQS send/receive/ack/nack
  * 2. SNS mode: SNS send, SQS receive (SNS publishes to subscribed SQS queue)
  * 
- * Use setMode() to switch between modes. Default is SQS mode.
+ * Use @TestMode annotation on test methods to specify the mode.
+ * Default is SQS mode if annotation is not present.
  */
 public class AwsPubsubIT extends AbstractPubsubIT {
+    
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface TestMode {
+        Mode value();
+    }
 
     private static final String SNS_ENDPOINT = "https://sns.us-west-2.amazonaws.com";
     private static final String SQS_ENDPOINT = "https://sqs.us-west-2.amazonaws.com";
@@ -68,7 +78,7 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     /**
      * Sets the test mode (SQS or SNS) for the current test.
-     * This should be called at the beginning of each test method.
+     * This is called automatically from setupTestResources based on @TestMode annotation.
      */
     private void setMode(Mode mode) {
         this.currentMode = mode;
@@ -79,23 +89,27 @@ public class AwsPubsubIT extends AbstractPubsubIT {
 
     /**
      * Generate unique queue/topic names for each test.
-     * Auto-detect mode from test method name (SNS if method name contains "sns", otherwise SQS).
+     * Sets the test mode based on @TestMode annotation on the test method.
+     * Default mode is SQS if annotation is not present.
      */
     @BeforeEach
     public void setupTestResources(TestInfo testInfo) {
         String testMethodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknown");
         
-        // Auto-detect mode from test method name
-        if (testMethodName.toLowerCase().contains("sns")) {
-            setMode(Mode.SNS);
-        } else {
-            setMode(Mode.SQS);
-        }
+        Mode testMode = testInfo.getTestMethod()
+            .map(method -> {
+                TestMode annotation = method.getAnnotation(TestMode.class);
+                return annotation != null ? annotation.value() : Mode.SQS;
+            })
+            .orElse(Mode.SQS);
         
         queueName = BASE_QUEUE_NAME + "-" + testMethodName;
+        
+        setMode(testMode);
+        
         if (harnessImpl != null) {
             harnessImpl.setQueueName(queueName);
-            if (currentMode == Mode.SNS) {
+            if (testMode == Mode.SNS) {
                 topicName = BASE_TOPIC_NAME + "-" + testMethodName;
                 harnessImpl.setTopicName(topicName);
             }
@@ -110,8 +124,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
     }
 
     public static class HarnessImpl implements Harness {
-        private static final Logger logger = LoggerFactory.getLogger(HarnessImpl.class);
-        @SuppressWarnings("rawtypes")
         private AbstractTopic topic;
         private AwsSubscription subscription;
         private SnsClient snsClient;
@@ -190,7 +202,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                         .queueName(queueName)
                         .build());
                 } catch (Exception e) {
-                    logger.warn("Failed to create queue: {}", e.getMessage());
                 }
 
                 if (cachedQueueUrl == null) {
@@ -260,7 +271,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 }
 
                 AwsSnsTopic.Builder topicBuilder = new AwsSnsTopic.Builder();
-                logger.debug("createTopicDriver (SNS) using topicName: {}, topicArn: {}", topicName, cachedTopicArn);
                 topicBuilder.withTopicName(cachedTopicArn);
                 topicBuilder.withSnsClient(snsClient);
                 topic = topicBuilder.build();
@@ -277,7 +287,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
                 }
 
                 AwsSqsTopic.Builder topicBuilder = new AwsSqsTopic.Builder();
-                logger.debug("createTopicDriver (SQS) using queueName: {}", queueName);
                 topicBuilder.withTopicName(cachedQueueUrl); // Use full URL to avoid GetQueueUrl call
                 topicBuilder.withSqsClient(sqsClient);
                 topic = topicBuilder.build();
@@ -303,7 +312,6 @@ public class AwsPubsubIT extends AbstractPubsubIT {
             }
 
             AwsSubscription.Builder subscriptionBuilder = new AwsSubscription.Builder();
-            logger.debug("createSubscriptionDriver ({}) using queueName: {}, queueUrl: {}", mode, queueName, cachedQueueUrl);
             subscriptionBuilder.withSubscriptionName(queueName);
             subscriptionBuilder.withWaitTimeSeconds(1);
             subscriptionBuilder.withSqsClient(sqsClient);
@@ -368,8 +376,8 @@ public class AwsPubsubIT extends AbstractPubsubIT {
      * Test SNS send batch messages.
      */
     @Test
+    @TestMode(Mode.SNS)
     public void testSnsSendBatchMessages() throws Exception {
-        setMode(Mode.SNS);
         super.testSendBatchMessages();
     }
 }

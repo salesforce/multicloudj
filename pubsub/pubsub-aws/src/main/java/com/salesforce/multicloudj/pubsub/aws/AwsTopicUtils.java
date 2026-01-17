@@ -20,6 +20,9 @@ public final class AwsTopicUtils {
     
     private AwsTopicUtils() {} // Prevent instantiation
 
+    public static final String PROVIDER_ID_SQS = "awssqs";
+    public static final String PROVIDER_ID_SNS = "awssns";
+
     // Batch processing constants (shared by SQS and SNS)
     public static final int MAX_BATCH_HANDLERS = 100;
     public static final int MIN_BATCH_SIZE = 1;

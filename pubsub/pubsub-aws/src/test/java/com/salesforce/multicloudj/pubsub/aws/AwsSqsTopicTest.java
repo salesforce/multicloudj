@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
-import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -73,7 +72,7 @@ public class AwsSqsTopicTest {
 
     @Test
     void testProviderId() {
-        assertEquals(AwsConstants.PROVIDER_ID_SQS, topic.getProviderId());
+        assertEquals(AwsTopicUtils.PROVIDER_ID_SQS, topic.getProviderId());
     }
 
     @Test

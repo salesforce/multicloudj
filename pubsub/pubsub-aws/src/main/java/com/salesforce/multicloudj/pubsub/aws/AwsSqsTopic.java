@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
 import com.google.auto.service.AutoService;
-import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -46,7 +45,7 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
 
     @Override
     public String getProviderId() {
-        return AwsConstants.PROVIDER_ID_SQS;
+        return AwsTopicUtils.PROVIDER_ID_SQS;
     }
 
     /**
@@ -210,7 +209,7 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
         private AwsTopicUtils.TopicOptions topicOptions;
         
         public Builder() {
-            this.providerId = AwsConstants.PROVIDER_ID_SQS;
+            this.providerId = AwsTopicUtils.PROVIDER_ID_SQS;
         }
         
         /**
