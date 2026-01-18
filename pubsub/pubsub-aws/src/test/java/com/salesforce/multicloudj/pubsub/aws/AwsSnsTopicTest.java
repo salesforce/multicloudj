@@ -1,9 +1,6 @@
 package com.salesforce.multicloudj.pubsub.aws;
 
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,9 +10,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesResponse;
@@ -27,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,30 +68,9 @@ public class AwsSnsTopicTest {
 
     @Test
     void testProviderId() {
-        assertEquals(AwsTopicUtils.PROVIDER_ID_SNS, topic.getProviderId());
+        assertEquals(AwsSnsTopic.PROVIDER_ID, topic.getProviderId());
     }
 
-    @Test
-    void testExceptionHandling() {
-        // Test AwsServiceException with error code
-        AwsServiceException awsException = AwsServiceException.builder()
-            .awsErrorDetails(AwsErrorDetails.builder()
-                .errorCode("AuthorizationError")
-                .build())
-            .build();
-        Class<? extends SubstrateSdkException> exceptionClass = topic.getException(awsException);
-        assertEquals(UnAuthorizedException.class, exceptionClass);
-
-        // Test SdkClientException
-        SdkClientException sdkException = SdkClientException.builder().build();
-        exceptionClass = topic.getException(sdkException);
-        assertEquals(InvalidArgumentException.class, exceptionClass);
-
-        // Test UnknownException
-        RuntimeException runtimeException = new RuntimeException("Unknown error");
-        exceptionClass = topic.getException(runtimeException);
-        assertEquals(UnknownException.class, exceptionClass);
-    }
 
     @Test
     void testSend() {
@@ -123,9 +98,9 @@ public class AwsSnsTopicTest {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("key1", "value1");
         metadata.put("key2", "value2");
-        metadata.put(AwsTopicUtils.MetadataKeys.SUBJECT, "Test Subject");
-        metadata.put(AwsTopicUtils.MetadataKeys.DEDUPLICATION_ID, "dedup-123");
-        metadata.put(AwsTopicUtils.MetadataKeys.MESSAGE_GROUP_ID, "group-456");
+        metadata.put(AwsBaseTopic.MetadataKeys.SUBJECT, "Test Subject");
+        metadata.put(AwsBaseTopic.MetadataKeys.DEDUPLICATION_ID, "dedup-123");
+        metadata.put(AwsBaseTopic.MetadataKeys.MESSAGE_GROUP_ID, "group-456");
 
         Message message = Message.builder()
             .withBody("test message".getBytes(StandardCharsets.UTF_8))
@@ -140,11 +115,22 @@ public class AwsSnsTopicTest {
         when(mockSnsClient.publishBatch(any(PublishBatchRequest.class)))
             .thenReturn(mockResponse);
 
-        assertDoesNotThrow(() -> {
-            topic.send(message);
-        });
+        topic.send(message);
 
-        verify(mockSnsClient).publishBatch(any(PublishBatchRequest.class));
+        // Verify request content
+        ArgumentCaptor<PublishBatchRequest> requestCaptor = ArgumentCaptor.forClass(PublishBatchRequest.class);
+        verify(mockSnsClient).publishBatch(requestCaptor.capture());
+        
+        PublishBatchRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TOPIC_ARN, capturedRequest.topicArn());
+        assertEquals(1, capturedRequest.publishBatchRequestEntries().size());
+        
+        var entry = capturedRequest.publishBatchRequestEntries().get(0);
+        assertEquals("test message", entry.message());
+        assertEquals("Test Subject", entry.subject());
+        assertEquals("dedup-123", entry.messageDeduplicationId());
+        assertEquals("group-456", entry.messageGroupId());
+        assertNotNull(entry.messageAttributes());
     }
 
     @Test

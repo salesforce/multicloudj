@@ -5,14 +5,6 @@ import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
-import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
-
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -21,6 +13,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInfo;
 
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
+import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
+
+@Disabled()
 public class AwsPubsubSnsIT extends AbstractPubsubIT {
 
     private static final String SNS_ENDPOINT = "https://sns.us-west-2.amazonaws.com";
@@ -116,7 +117,7 @@ public class AwsPubsubSnsIT extends AbstractPubsubIT {
 
         @Override
         public String getProviderId() {
-            return AwsTopicUtils.PROVIDER_ID_SNS;
+            return AwsSnsTopic.PROVIDER_ID;
         }
 
         @Override

@@ -6,7 +6,6 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,9 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
  * Handles sending messages to SQS queues.
  */
 @AutoService(AbstractTopic.class)
-public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
+public class AwsSqsTopic extends AwsBaseTopic<AwsSqsTopic> {
+
+    public static final String PROVIDER_ID = "awssqs";
 
     private static final String SQS_QUEUE_URL_PREFIX = "https://sqs.";
 
@@ -34,31 +35,18 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
 
     private final SqsClient sqsClient;
     private final String queueUrl;
-    private final AwsTopicUtils.TopicOptions topicOptions;
 
     public AwsSqsTopic(Builder builder) {
         super(builder);
         this.sqsClient = builder.sqsClient;
         this.queueUrl = builder.queueUrl;
-        this.topicOptions = builder.topicOptions != null ? builder.topicOptions : new AwsTopicUtils.TopicOptions();
     }
 
     @Override
     public String getProviderId() {
-        return AwsTopicUtils.PROVIDER_ID_SQS;
+        return PROVIDER_ID;
     }
 
-    /**
-     * Override batcher options to align with AWS SQS limits.
-     */
-    @Override
-    protected com.salesforce.multicloudj.pubsub.batcher.Batcher.Options createBatcherOptions() {
-        return new com.salesforce.multicloudj.pubsub.batcher.Batcher.Options()
-            .setMaxHandlers(AwsTopicUtils.MAX_BATCH_HANDLERS)
-            .setMinBatchSize(AwsTopicUtils.MIN_BATCH_SIZE)
-            .setMaxBatchSize(AwsTopicUtils.MAX_BATCH_SIZE)
-            .setMaxBatchByteSize(AwsTopicUtils.MAX_BATCH_BYTE_SIZE);
-    }
 
     @Override
     protected void doSendBatch(List<Message> messages) {
@@ -82,19 +70,15 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
                 convertMetadataToSqsAttributes(message.getMetadata());
             
             // Handle base64 encoding based on topic options
-            String rawBody = new String(message.getBody(), StandardCharsets.UTF_8);
-            String messageBody;
-            boolean didEncode = AwsTopicUtils.maybeEncodeBody(message.getBody(), topicOptions.getBodyBase64Encoding());
-            if (didEncode) {
-                messageBody = java.util.Base64.getEncoder().encodeToString(message.getBody());
+            BodyEncodingResult encodingResult = encodeMessageBody(message);
+            String messageBody = encodingResult.getBody();
+            if (encodingResult.isBase64Encoded()) {
                 // Add base64 encoding flag
-                attributes.put(AwsTopicUtils.MetadataKeys.BASE64_ENCODED, 
+                attributes.put(MetadataKeys.BASE64_ENCODED, 
                     MessageAttributeValue.builder()
                         .dataType("String")
                         .stringValue("true")
                         .build());
-            } else {
-                messageBody = rawBody;
             }
             
             SendMessageBatchRequestEntry.Builder entryBuilder = SendMessageBatchRequestEntry.builder()
@@ -131,11 +115,11 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
     private void reviseSqsEntryAttributes(Message message, SendMessageBatchRequestEntry.Builder entryBuilder) {
         Map<String, String> metadata = message.getMetadata();
         if (metadata != null) {
-            String dedupId = metadata.get(AwsTopicUtils.MetadataKeys.DEDUPLICATION_ID);
+            String dedupId = metadata.get(MetadataKeys.DEDUPLICATION_ID);
             if (dedupId != null) {
                 entryBuilder.messageDeduplicationId(dedupId);
             }
-            String groupId = metadata.get(AwsTopicUtils.MetadataKeys.MESSAGE_GROUP_ID);
+            String groupId = metadata.get(MetadataKeys.MESSAGE_GROUP_ID);
             if (groupId != null) {
                 entryBuilder.messageGroupId(groupId);
             }
@@ -151,7 +135,7 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
         if (metadata != null && !metadata.isEmpty()) {
             for (Map.Entry<String, String> entry : metadata.entrySet()) {
                 String key = entry.getKey();
-                if (AwsTopicUtils.MetadataKeys.DEDUPLICATION_ID.equals(key) || AwsTopicUtils.MetadataKeys.MESSAGE_GROUP_ID.equals(key)) {
+                if (MetadataKeys.DEDUPLICATION_ID.equals(key) || MetadataKeys.MESSAGE_GROUP_ID.equals(key)) {
                     continue;
                 }
                 
@@ -159,8 +143,8 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
                     break;
                 }
                 
-                String encodedKey = AwsTopicUtils.encodeMetadataKey(key);
-                String encodedValue = AwsTopicUtils.encodeMetadataValue(entry.getValue());
+                String encodedKey = encodeMetadataKey(key);
+                String encodedValue = encodeMetadataValue(entry.getValue());
                 
                 attributes.put(encodedKey, 
                     MessageAttributeValue.builder()
@@ -170,11 +154,6 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
             }
         }
         return attributes;
-    }
-
-    @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        return AwsTopicUtils.getException(t);
     }
 
     @Override
@@ -203,13 +182,17 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
         return response.queueUrl();
     }
 
-    public static class Builder extends AbstractTopic.Builder<AwsSqsTopic> {
+    public static class Builder extends AwsBaseTopic.Builder<Builder, AwsSqsTopic> {
         private SqsClient sqsClient;
         private String queueUrl;
-        private AwsTopicUtils.TopicOptions topicOptions;
         
         public Builder() {
-            this.providerId = AwsTopicUtils.PROVIDER_ID_SQS;
+            this.providerId = PROVIDER_ID;
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
         }
         
         /**
@@ -241,11 +224,6 @@ public class AwsSqsTopic extends AbstractTopic<AwsSqsTopic> {
          */
         Builder withTopicUrl(String topicUrl) {
             this.queueUrl = topicUrl;
-            return this;
-        }
-        
-        public Builder withTopicOptions(AwsTopicUtils.TopicOptions topicOptions) {
-            this.topicOptions = topicOptions;
             return this;
         }
         

@@ -143,7 +143,7 @@ public class AwsPubsubSqsIT extends AbstractPubsubIT {
 
         @Override
         public String getProviderId() {
-            return AwsTopicUtils.PROVIDER_ID_SQS;
+            return AwsSqsTopic.PROVIDER_ID;
         }
 
         @Override
