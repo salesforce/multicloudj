@@ -36,20 +36,11 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
     @Override
     public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
-        // Only process requests to AWS services
-        String url = request.getAbsoluteUrl();
-        if (url == null || (!url.contains("amazonaws.com") && !url.contains("sns") && !url.contains("sqs"))) {
-            return RequestFilterAction.continueWith(request);
-        }
-        
         String authHeader;
         try {
             authHeader = computeAuthHeader(request);
         } catch (URISyntaxException e) {
-            throw new RuntimeException("Failed to compute auth header for: " + url, e);
-        } catch (Exception e) {
-            // If signing fails, continue with original request
-            return RequestFilterAction.continueWith(request);
+            throw new RuntimeException(e);
         }
         Request wrappedRequest = RequestWrapper.create()
                 .transformHeader("Authorization", (input) -> Collections.singletonList(authHeader))
@@ -74,20 +65,6 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
         // Copy X-Amz-Security-Token if present (required for temporary credentials)
         if (request.containsHeader("X-Amz-Security-Token")) {
             requestToSign.putHeader("X-Amz-Security-Token", request.header("X-Amz-Security-Token").values());
-        }
-        
-        // Copy SDK headers that are included in the signature
-        if (request.containsHeader("amz-sdk-invocation-id")) {
-            requestToSign.putHeader("amz-sdk-invocation-id", request.header("amz-sdk-invocation-id").values());
-        }
-        
-        if (request.containsHeader("amz-sdk-request")) {
-            requestToSign.putHeader("amz-sdk-request", request.header("amz-sdk-request").values());
-        }
-        
-        // Copy x-amz-content-sha256 if present
-        if (request.containsHeader("x-amz-content-sha256")) {
-            requestToSign.putHeader("x-amz-content-sha256", request.header("x-amz-content-sha256").values());
         }
 
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();

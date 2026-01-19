@@ -21,7 +21,6 @@ import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
 import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
 
-@Disabled()
 public class AwsPubsubSnsIT extends AbstractPubsubIT {
 
     private static final String SNS_ENDPOINT = "https://sns.us-west-2.amazonaws.com";
