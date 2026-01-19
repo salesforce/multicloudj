@@ -36,6 +36,13 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
     @Override
     public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
+        // Only re-sign requests in record mode (when proxying to AWS)
+        // In replay mode, WireMock returns recorded responses without proxying
+        boolean isRecordingEnabled = System.getProperty("record") != null;
+        if (!isRecordingEnabled) {
+            return RequestFilterAction.continueWith(request);
+        }
+        
         String authHeader;
         try {
             authHeader = computeAuthHeader(request);
@@ -66,31 +73,25 @@ public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
         if (request.containsHeader("X-Amz-Security-Token")) {
             requestToSign.putHeader("X-Amz-Security-Token", request.header("X-Amz-Security-Token").values());
         }
+        
 
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 
-        // Detect service and region from the hostname
-        String hostname = requestToSign.host();
-        String serviceName;
+        // Get the region from the hostname
+        String regex = "sns\\.(.*?)\\.amazonaws\\.com";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(requestToSign.host());
         String region;
-        
-        // Match patterns like: sns.us-west-2.amazonaws.com or sqs.us-west-2.amazonaws.com
-        Pattern pattern = Pattern.compile("(sns|sqs)\\.([^.]+)\\.amazonaws\\.com");
-        Matcher matcher = pattern.matcher(hostname);
         if (matcher.find()) {
-            serviceName = matcher.group(1);
-            region = matcher.group(2);
+            region = matcher.group(1);
         } else {
-            // Fallback: default to us-west-2 
             region = "us-west-2";
-            // Default to sns if we can't determine from hostname
-            serviceName = hostname.contains("sns") ? "sns" : "sqs";
         }
 
         final SignedRequest signerOutput = signer.sign(r -> r.identity(DefaultCredentialsProvider.create().resolveCredentials())
                 .request(requestToSign.build())
                 .payload(requestToSign.contentStreamProvider())
-                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, serviceName)
+                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "sns")
                 .putProperty(AwsV4HttpSigner.REGION_NAME, region));
         return signerOutput.request().headers().get("Authorization").get(0);
     }
