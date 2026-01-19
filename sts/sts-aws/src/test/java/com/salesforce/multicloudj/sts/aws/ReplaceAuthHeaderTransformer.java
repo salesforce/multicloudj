@@ -27,6 +27,13 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
     @Override
     public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
+        // Only re-sign requests in record mode (when proxying to AWS)
+        // In replay mode, WireMock returns recorded responses without proxying
+        boolean isRecordingEnabled = System.getProperty("record") != null;
+        if (!isRecordingEnabled) {
+            return RequestFilterAction.continueWith(request);
+        }
+        
         String authHeader;
         try {
             authHeader = computeAuthHeader(request);
