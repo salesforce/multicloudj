@@ -13,9 +13,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
@@ -488,21 +488,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
     @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
-            return (Class<? extends SubstrateSdkException>) t.getClass();
-        }
-        if (t instanceof AwsServiceException) {
-            AwsServiceException serviceException = (AwsServiceException) t;
-            if (serviceException.awsErrorDetails() != null) {
-                String errorCode = serviceException.awsErrorDetails().errorCode();
-                return ErrorCodeMapping.getException(errorCode);
-            }
-            return UnknownException.class;
-        }
-        if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-            return InvalidArgumentException.class;
-        }
-        return UnknownException.class;
+        return CommonErrorCodeMapping.mapException(t, ErrorCodeMapping::getException);
     }
 
     @Override

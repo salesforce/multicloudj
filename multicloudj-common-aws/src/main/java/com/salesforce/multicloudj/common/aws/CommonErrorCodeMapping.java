@@ -1,12 +1,16 @@
 package com.salesforce.multicloudj.common.aws;
 
 import java.util.Map;
+import java.util.function.Function;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 
 /**
  * Provides the mapping of various error codes to SDK's exceptions.
@@ -50,5 +54,26 @@ public class CommonErrorCodeMapping {
 
     public static Map<String, Class<? extends SubstrateSdkException>> get() {
         return ERROR_MAPPING;
+    }
+
+    public static Class<? extends SubstrateSdkException> mapException(
+            Throwable t,
+            Function<String, Class<? extends SubstrateSdkException>> errorCodeMapper) {
+
+        if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
+            return (Class<? extends SubstrateSdkException>) t.getClass();
+        }
+        if (t instanceof AwsServiceException) {
+            AwsServiceException serviceException = (AwsServiceException) t;
+            if (serviceException.awsErrorDetails() != null) {
+                String errorCode = serviceException.awsErrorDetails().errorCode();
+                return errorCodeMapper.apply(errorCode);
+            }
+            return UnknownException.class;
+        }
+        if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
+            return InvalidArgumentException.class;
+        }
+        return UnknownException.class;
     }
 }

@@ -54,7 +54,10 @@ public class AwsIamTest {
     private static final String TEST_ROLE_ARN = "arn:aws:iam::123456789012:role/TestRole";
     private static final String TEST_POLICY_NAME = "TestPolicy";
     private static final String TEST_POLICY_DOCUMENT = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:GetObject\",\"Resource\":\"*\"}]}";
-    public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String DEFAULT_ASSUME_ROLE_POLICY_TEMPLATE = 
+        "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\"," +
+        "\"Action\":\"sts:AssumeRole\",\"Principal\":{\"AWS\":\"arn:aws:iam::%s:root\"}}]}";
 
     @Mock
     private IamClient mockIamClient;
@@ -71,9 +74,7 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityWithTrustConfigAddsConditionsToPolicy() throws Exception {
-        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenReturn(CreateRoleResponse.builder().role(role).build());
+        setupCreateRoleSuccess();
 
         TrustConfiguration trustConfiguration = TrustConfiguration.builder()
                 .addTrustedPrincipal("arn:aws:iam::999999999999:root")
@@ -103,9 +104,7 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityWithServicePrincipalInTrustConfig() throws Exception {
-        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenReturn(CreateRoleResponse.builder().role(role).build());
+        setupCreateRoleSuccess();
 
         TrustConfiguration trustConfiguration = TrustConfiguration.builder()
                 .addTrustedPrincipal("ec2.amazonaws.com")
@@ -134,9 +133,7 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityWithoutTrustConfigDefaultsToSameAccountRoot() throws Exception {
-        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenReturn(CreateRoleResponse.builder().role(role).build());
+        setupCreateRoleSuccess();
 
         String result = awsIam.createIdentity(
                 TEST_ROLE_NAME,
@@ -170,9 +167,7 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityWithTrustConfigUsesTrustedPrincipals() throws Exception {
-        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenReturn(CreateRoleResponse.builder().role(role).build());
+        setupCreateRoleSuccess();
 
         TrustConfiguration trustConfiguration = TrustConfiguration.builder()
                 .addTrustedPrincipal("arn:aws:iam::999999999999:root")
@@ -203,9 +198,7 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityWithCreateOptionsSetsFields() {
-        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenReturn(CreateRoleResponse.builder().role(role).build());
+        setupCreateRoleSuccess();
 
         CreateOptions options = CreateOptions.builder()
                 .path("/service-roles/")
@@ -234,12 +227,8 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsReturnsExistingArn() {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(role).build());
+        setupEntityAlreadyExists(role);
 
         String result = awsIam.createIdentity(
                 TEST_ROLE_NAME,
@@ -329,24 +318,11 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsUpdatesDescriptionWhenDifferent() throws Exception {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         String existingDescription = "Old description";
         String newDescription = "New description";
         String assumeRolePolicy = buildDefaultAssumeRolePolicy();
-        String encodedPolicy = URLEncoder.encode(assumeRolePolicy, StandardCharsets.UTF_8);
-
-        Role existingRole = Role.builder()
-                .arn(TEST_ROLE_ARN)
-                .roleName(TEST_ROLE_NAME)
-                .description(existingDescription)
-                .assumeRolePolicyDocument(encodedPolicy)
-                .maxSessionDuration(3600)
-                .build();
-
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
+        Role existingRole = buildTestRole(existingDescription, assumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
         when(mockIamClient.updateRole(any(UpdateRoleRequest.class)))
                 .thenReturn(UpdateRoleResponse.builder().build());
 
@@ -368,22 +344,9 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsUpdatesMaxSessionDurationWhenDifferent() {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         String assumeRolePolicy = buildDefaultAssumeRolePolicy();
-        String encodedPolicy = URLEncoder.encode(assumeRolePolicy, StandardCharsets.UTF_8);
-
-        Role existingRole = Role.builder()
-                .arn(TEST_ROLE_ARN)
-                .roleName(TEST_ROLE_NAME)
-                .description(TEST_DESCRIPTION)
-                .assumeRolePolicyDocument(encodedPolicy)
-                .maxSessionDuration(3600)
-                .build();
-
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
+        Role existingRole = buildTestRole(TEST_DESCRIPTION, assumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
         when(mockIamClient.updateRole(any(UpdateRoleRequest.class)))
                 .thenReturn(UpdateRoleResponse.builder().build());
 
@@ -409,22 +372,9 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsUpdatesTrustPolicyWhenDifferent() throws Exception {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         String oldAssumeRolePolicy = buildDefaultAssumeRolePolicy();
-        String encodedOldPolicy = URLEncoder.encode(oldAssumeRolePolicy, StandardCharsets.UTF_8);
-
-        Role existingRole = Role.builder()
-                .arn(TEST_ROLE_ARN)
-                .roleName(TEST_ROLE_NAME)
-                .description(TEST_DESCRIPTION)
-                .assumeRolePolicyDocument(encodedOldPolicy)
-                .maxSessionDuration(3600)
-                .build();
-
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
+        Role existingRole = buildTestRole(TEST_DESCRIPTION, oldAssumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
         when(mockIamClient.updateAssumeRolePolicy(any(UpdateAssumeRolePolicyRequest.class)))
                 .thenReturn(UpdateAssumeRolePolicyResponse.builder().build());
 
@@ -455,22 +405,9 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsDoesNotUpdateWhenAttributesAreSame() {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         String assumeRolePolicy = buildDefaultAssumeRolePolicy();
-        String encodedPolicy = URLEncoder.encode(assumeRolePolicy, StandardCharsets.UTF_8);
-
-        Role existingRole = Role.builder()
-                .arn(TEST_ROLE_ARN)
-                .roleName(TEST_ROLE_NAME)
-                .description(TEST_DESCRIPTION)
-                .assumeRolePolicyDocument(encodedPolicy)
-                .maxSessionDuration(3600)
-                .build();
-
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
+        Role existingRole = buildTestRole(TEST_DESCRIPTION, assumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
 
         String result = awsIam.createIdentity(
                 TEST_ROLE_NAME,
@@ -488,24 +425,11 @@ public class AwsIamTest {
 
     @Test
     void testCreateIdentityAlreadyExistsUpdatesMultipleAttributesWhenDifferent() throws Exception {
-        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
-                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
-
         String oldDescription = "Old description";
         String newDescription = "New description";
         String oldAssumeRolePolicy = buildDefaultAssumeRolePolicy();
-        String encodedOldPolicy = URLEncoder.encode(oldAssumeRolePolicy, StandardCharsets.UTF_8);
-
-        Role existingRole = Role.builder()
-                .arn(TEST_ROLE_ARN)
-                .roleName(TEST_ROLE_NAME)
-                .description(oldDescription)
-                .assumeRolePolicyDocument(encodedOldPolicy)
-                .maxSessionDuration(3600)
-                .build();
-
-        when(mockIamClient.getRole(any(GetRoleRequest.class)))
-                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
+        Role existingRole = buildTestRole(oldDescription, oldAssumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
         when(mockIamClient.updateRole(any(UpdateRoleRequest.class)))
                 .thenReturn(UpdateRoleResponse.builder().build());
         when(mockIamClient.updateAssumeRolePolicy(any(UpdateAssumeRolePolicyRequest.class)))
@@ -541,9 +465,32 @@ public class AwsIamTest {
     }
 
     private String buildDefaultAssumeRolePolicy() {
-        return "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\"," +
-                "\"Action\":\"sts:AssumeRole\",\"Principal\":{\"AWS\":\"arn:aws:iam::" +
-                TEST_TENANT_ID + ":root\"}}]}";
+        return String.format(DEFAULT_ASSUME_ROLE_POLICY_TEMPLATE, TEST_TENANT_ID);
+    }
+
+    private Role buildTestRole(String description, String assumeRolePolicy, Integer maxSessionDuration) {
+        String encodedPolicy = assumeRolePolicy != null ? 
+            URLEncoder.encode(assumeRolePolicy, StandardCharsets.UTF_8) : null;
+        return Role.builder()
+                .arn(TEST_ROLE_ARN)
+                .roleName(TEST_ROLE_NAME)
+                .description(description)
+                .assumeRolePolicyDocument(encodedPolicy)
+                .maxSessionDuration(maxSessionDuration)
+                .build();
+    }
+
+    private void setupCreateRoleSuccess() {
+        Role role = Role.builder().arn(TEST_ROLE_ARN).roleName(TEST_ROLE_NAME).build();
+        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
+                .thenReturn(CreateRoleResponse.builder().role(role).build());
+    }
+
+    private void setupEntityAlreadyExists(Role existingRole) {
+        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
+                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
+        when(mockIamClient.getRole(any(GetRoleRequest.class)))
+                .thenReturn(GetRoleResponse.builder().role(existingRole).build());
     }
 
     @Test
@@ -629,5 +576,399 @@ public class AwsIamTest {
         );
 
         assertEquals(genericException, exception);
+    }
+
+    @Test
+    void testGetExceptionWithSubstrateSdkException() {
+        com.salesforce.multicloudj.common.exceptions.InvalidArgumentException testException = 
+            new com.salesforce.multicloudj.common.exceptions.InvalidArgumentException("test");
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(testException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithAwsServiceException() {
+        software.amazon.awssdk.awscore.exception.AwsErrorDetails errorDetails = 
+            software.amazon.awssdk.awscore.exception.AwsErrorDetails.builder()
+                .errorCode("NoSuchEntity")
+                .errorMessage("Not found")
+                .build();
+        
+        software.amazon.awssdk.services.iam.model.NoSuchEntityException awsException = 
+            (NoSuchEntityException) NoSuchEntityException.builder()
+                .message("Not found")
+                .awsErrorDetails(errorDetails)
+                .build();
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(awsException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithAwsServiceExceptionNoErrorDetails() {
+        software.amazon.awssdk.awscore.exception.AwsServiceException awsException = 
+            software.amazon.awssdk.awscore.exception.AwsServiceException.builder()
+                .message("Service error")
+                .build();
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(awsException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.UnknownException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithSdkClientException() {
+        software.amazon.awssdk.core.exception.SdkClientException sdkException = 
+            software.amazon.awssdk.core.exception.SdkClientException.builder()
+                .message("Client error")
+                .build();
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(sdkException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithIllegalArgumentException() {
+        IllegalArgumentException illegalArgException = new IllegalArgumentException("Invalid arg");
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(illegalArgException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class, result);
+    }
+
+    @Test
+    void testGetExceptionWithUnknownException() {
+        RuntimeException unknownException = new RuntimeException("Unknown error");
+        
+        Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException> result = 
+            awsIam.getException(unknownException);
+        
+        assertEquals(com.salesforce.multicloudj.common.exceptions.UnknownException.class, result);
+    }
+
+    @Test
+    void testCloseClosesIamClient() throws Exception {
+        awsIam.close();
+        verify(mockIamClient, times(1)).close();
+    }
+
+    @Test
+    void testBuilderReturnsNewBuilder() {
+        com.salesforce.multicloudj.common.provider.Provider.Builder builder = awsIam.builder();
+        assertNotNull(builder);
+        assertTrue(builder instanceof AwsIam.Builder);
+    }
+
+    @Test
+    void testBuilderSelfReturnsThis() {
+        AwsIam.Builder builder = new AwsIam.Builder();
+        assertEquals(builder, builder.self());
+    }
+
+    @Test
+    void testBuilderBuildCreatesAwsIam() {
+        AwsIam.Builder builder = new AwsIam.Builder()
+                .withIamClient(mockIamClient)
+                .withRegion(TEST_REGION);
+        AwsIam result = builder.build();
+        assertNotNull(result);
+    }
+
+    @Test
+    void testBuilderBuildWithoutIamClientCreatesDefault() {
+        AwsIam.Builder builder = new AwsIam.Builder()
+                .withRegion(TEST_REGION);
+        AwsIam result = builder.build();
+        assertNotNull(result);
+    }
+
+    @Test
+    void testDefaultConstructorCreatesAwsIam() {
+        AwsIam result = new AwsIam();
+        assertNotNull(result);
+    }
+
+    @Test
+    void testDoAttachInlinePolicyThrowsUnsupportedOperation() {
+        assertThrows(UnsupportedOperationException.class, () ->
+            awsIam.attachInlinePolicy(null, TEST_TENANT_ID, TEST_REGION, TEST_ROLE_NAME)
+        );
+    }
+
+    @Test
+    void testDoGetAttachedPoliciesThrowsUnsupportedOperation() {
+        assertThrows(UnsupportedOperationException.class, () ->
+            awsIam.getAttachedPolicies(TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION)
+        );
+    }
+
+    @Test
+    void testDoRemovePolicyThrowsUnsupportedOperation() {
+        assertThrows(UnsupportedOperationException.class, () ->
+            awsIam.removePolicy(TEST_ROLE_NAME, TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION)
+        );
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsWithBlankIdentityNameThrowsException() {
+        assertThrows(com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class, () ->
+            awsIam.getInlinePolicyDetails("", TEST_POLICY_NAME, TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION)
+        );
+    }
+
+    @Test
+    void testGetInlinePolicyDetailsWithBlankPolicyNameThrowsException() {
+        assertThrows(com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class, () ->
+            awsIam.getInlinePolicyDetails(TEST_ROLE_NAME, "", TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION)
+        );
+    }
+
+    @Test
+    void testCreateIdentityWithBlankTrustedPrincipalSkipsIt() throws Exception {
+        setupCreateRoleSuccess();
+
+        TrustConfiguration trustConfiguration = TrustConfiguration.builder()
+                .addTrustedPrincipal("")
+                .addTrustedPrincipal("arn:aws:iam::999999999999:root")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.of(trustConfiguration),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+
+        JsonNode doc = OBJECT_MAPPER.readTree(captor.getValue().assumeRolePolicyDocument());
+        JsonNode principals = doc.at("/Statement/0/Principal/AWS");
+        assertEquals("arn:aws:iam::999999999999:root", principals.asText());
+    }
+
+    @Test
+    void testCreateIdentityWithAccountIdConvertsToArn() throws Exception {
+        setupCreateRoleSuccess();
+
+        TrustConfiguration trustConfiguration = TrustConfiguration.builder()
+                .addTrustedPrincipal("999999999999")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.of(trustConfiguration),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+
+        JsonNode doc = OBJECT_MAPPER.readTree(captor.getValue().assumeRolePolicyDocument());
+        JsonNode principals = doc.at("/Statement/0/Principal/AWS");
+        assertEquals("arn:aws:iam::999999999999:root", principals.asText());
+    }
+
+    @Test
+    void testCreateIdentityWithMixedAwsAndServicePrincipals() throws Exception {
+        setupCreateRoleSuccess();
+
+        TrustConfiguration trustConfiguration = TrustConfiguration.builder()
+                .addTrustedPrincipal("arn:aws:iam::999999999999:root")
+                .addTrustedPrincipal("ec2.amazonaws.com")
+                .addTrustedPrincipal("lambda.amazonaws.com")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.of(trustConfiguration),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+
+        JsonNode doc = OBJECT_MAPPER.readTree(captor.getValue().assumeRolePolicyDocument());
+        JsonNode awsPrincipals = doc.at("/Statement/0/Principal/AWS");
+        assertEquals("arn:aws:iam::999999999999:root", awsPrincipals.asText());
+        
+        JsonNode servicePrincipals = doc.at("/Statement/0/Principal/Service");
+        assertTrue(servicePrincipals.isArray());
+        assertEquals(2, servicePrincipals.size());
+    }
+
+    @Test
+    void testCreateIdentityWithNonMatchingPrincipalTreatedAsAws() throws Exception {
+        setupCreateRoleSuccess();
+
+        TrustConfiguration trustConfiguration = TrustConfiguration.builder()
+                .addTrustedPrincipal("some-custom-principal")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.of(trustConfiguration),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+
+        JsonNode doc = OBJECT_MAPPER.readTree(captor.getValue().assumeRolePolicyDocument());
+        JsonNode principals = doc.at("/Statement/0/Principal/AWS");
+        assertEquals("some-custom-principal", principals.asText());
+    }
+
+    @Test
+    void testCreateIdentityWithNullDescriptionUsesEmpty() {
+        setupCreateRoleSuccess();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                null,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+        assertEquals("", captor.getValue().description());
+    }
+
+    @Test
+    void testCreateIdentityWithBlankPathNotSet() {
+        setupCreateRoleSuccess();
+
+        CreateOptions options = CreateOptions.builder()
+                .path("")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.of(options));
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+        assertEquals(null, captor.getValue().path());
+    }
+
+    @Test
+    void testCreateIdentityWithBlankPermissionBoundaryNotSet() {
+        setupCreateRoleSuccess();
+
+        CreateOptions options = CreateOptions.builder()
+                .permissionBoundary("")
+                .build();
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.of(options));
+
+        assertEquals(TEST_ROLE_ARN, result);
+
+        ArgumentCaptor<CreateRoleRequest> captor = ArgumentCaptor.forClass(CreateRoleRequest.class);
+        verify(mockIamClient, times(1)).createRole(captor.capture());
+        assertEquals(null, captor.getValue().permissionsBoundary());
+    }
+
+    @Test
+    void testCreateIdentityAlreadyExistsWithNullDescription() {
+        String assumeRolePolicy = buildDefaultAssumeRolePolicy();
+        Role existingRole = buildTestRole(null, assumeRolePolicy, 3600);
+        setupEntityAlreadyExists(existingRole);
+        when(mockIamClient.updateRole(any(UpdateRoleRequest.class)))
+                .thenReturn(UpdateRoleResponse.builder().build());
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.empty());
+
+        assertEquals(TEST_ROLE_ARN, result);
+        verify(mockIamClient, times(1)).updateRole(any(UpdateRoleRequest.class));
+    }
+
+    @Test
+    void testGetIdentityReturnsNullWhenRoleIsNull() {
+        when(mockIamClient.getRole(any(GetRoleRequest.class)))
+                .thenReturn(GetRoleResponse.builder().build());
+
+        String result = awsIam.getIdentity(TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION);
+
+        assertEquals(null, result);
+    }
+
+    @Test
+    void testCreateIdentityReturnsNullWhenRoleIsNull() {
+        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
+                .thenReturn(CreateRoleResponse.builder().build());
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.empty());
+
+        assertEquals(null, result);
+    }
+
+    @Test
+    void testCreateIdentityAlreadyExistsReturnsNullWhenRoleIsNull() {
+        when(mockIamClient.createRole(any(CreateRoleRequest.class)))
+                .thenThrow(EntityAlreadyExistsException.builder().message("exists").build());
+        when(mockIamClient.getRole(any(GetRoleRequest.class)))
+                .thenReturn(GetRoleResponse.builder().build());
+
+        String result = awsIam.createIdentity(
+                TEST_ROLE_NAME,
+                TEST_DESCRIPTION,
+                TEST_TENANT_ID,
+                TEST_REGION,
+                Optional.empty(),
+                Optional.empty());
+
+        assertEquals(null, result);
     }
 }

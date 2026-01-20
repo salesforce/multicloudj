@@ -5,10 +5,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
@@ -16,8 +16,6 @@ import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.iam.IamClientBuilder;
@@ -32,9 +30,6 @@ import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
-
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -124,21 +119,7 @@ public class AwsIam extends AbstractIam {
 
     @Override
     public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof SubstrateSdkException && !t.getClass().equals(SubstrateSdkException.class)) {
-            return (Class<? extends SubstrateSdkException>) t.getClass();
-        }
-        if (t instanceof AwsServiceException) {
-            AwsServiceException serviceException = (AwsServiceException) t;
-            if (serviceException.awsErrorDetails() != null) {
-                String errorCode = serviceException.awsErrorDetails().errorCode();
-                return ErrorCodeMapping.getException(errorCode);
-            }
-            return UnknownException.class;
-        }
-        if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-            return InvalidArgumentException.class;
-        }
-        return UnknownException.class;
+        return CommonErrorCodeMapping.mapException(t, ErrorCodeMapping::getException);
     }
 
     @Override
