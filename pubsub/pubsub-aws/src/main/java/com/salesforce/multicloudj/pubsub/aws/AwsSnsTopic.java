@@ -47,7 +47,6 @@ public class AwsSnsTopic extends AwsBaseTopic<AwsSnsTopic> {
         if (messages == null || messages.isEmpty()) {
             return;
         }
-
         sendToSns(messages);
     }
 
@@ -64,7 +63,7 @@ public class AwsSnsTopic extends AwsBaseTopic<AwsSnsTopic> {
                 convertMetadataToSnsAttributes(message.getMetadata());
             
             // Handle base64 encoding based on topic options
-            BodyEncodingResult encodingResult = encodeMessageBody(message);
+            EncodingResult encodingResult = encodeMessageBody(message);
             String messageBody = encodingResult.getBody();
             if (encodingResult.isBase64Encoded()) {
                 // Add base64 encoding flag

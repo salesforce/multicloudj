@@ -53,7 +53,6 @@ public class AwsSqsTopic extends AwsBaseTopic<AwsSqsTopic> {
         if (messages == null || messages.isEmpty()) {
             return;
         }
-
         sendToSqs(messages);
     }
 
@@ -70,7 +69,7 @@ public class AwsSqsTopic extends AwsBaseTopic<AwsSqsTopic> {
                 convertMetadataToSqsAttributes(message.getMetadata());
             
             // Handle base64 encoding based on topic options
-            BodyEncodingResult encodingResult = encodeMessageBody(message);
+            EncodingResult encodingResult = encodeMessageBody(message);
             String messageBody = encodingResult.getBody();
             if (encodingResult.isBase64Encoded()) {
                 // Add base64 encoding flag

@@ -82,20 +82,20 @@ public abstract class AwsBaseTopic<T extends AwsBaseTopic<T>> extends AbstractTo
      * Encodes message body based on topic options and returns the encoded body
      * along with a flag indicating whether base64 encoding was applied.
      */
-    protected BodyEncodingResult encodeMessageBody(Message message) {
+    protected EncodingResult encodeMessageBody(Message message) {
         byte[] body = message.getBody();
         String rawBody = new String(body, StandardCharsets.UTF_8);
         
-        boolean didEncode = maybeEncodeBody(body, topicOptions.getBodyBase64Encoding());
+        boolean isEncodingRequired = shouldEncodeBody(body, topicOptions.getBodyBase64Encoding());
         String messageBody;
         
-        if (didEncode) {
+        if (isEncodingRequired) {
             messageBody = java.util.Base64.getEncoder().encodeToString(body);
         } else {
             messageBody = rawBody;
         }
         
-        return new BodyEncodingResult(messageBody, didEncode);
+        return new EncodingResult(messageBody, isEncodingRequired);
     }
 
     /**
@@ -169,10 +169,11 @@ public abstract class AwsBaseTopic<T extends AwsBaseTopic<T>> extends AbstractTo
     }
 
     /**
-     * Decides whether body should be base64-encoded based on encoding option.
-     * Returns true if encoding occurred, false otherwise.
+     * Decides whether the body should be base64-encoded based on the encoding option.
+     *
+     * @return true if encoding is required, false otherwise.
      */
-    protected boolean maybeEncodeBody(byte[] body, BodyBase64Encoding encoding) {
+    protected boolean shouldEncodeBody(byte[] body, Base64EncodingStrategy encoding) {
         if (body == null) return false;
         
         switch (encoding) {
@@ -208,17 +209,17 @@ public abstract class AwsBaseTopic<T extends AwsBaseTopic<T>> extends AbstractTo
     /**
      * Result of message body encoding operation.
      */
-    protected static class BodyEncodingResult {
-        private final String body;
+    protected static class EncodingResult {
+        private final String messageBody;
         private final boolean base64Encoded;
 
-        public BodyEncodingResult(String body, boolean base64Encoded) {
-            this.body = body;
+        public EncodingResult(String messageBody, boolean base64Encoded) {
+            this.messageBody = messageBody;
             this.base64Encoded = base64Encoded;
         }
 
         public String getBody() {
-            return body;
+            return messageBody;
         }
 
         public boolean isBase64Encoded() {
@@ -227,9 +228,9 @@ public abstract class AwsBaseTopic<T extends AwsBaseTopic<T>> extends AbstractTo
     }
 
     /**
-     * BodyBase64Encoding is an enum of strategies for when to base64 message bodies.
+     * Base64EncodingStrategy is an enum of strategies for when to base64 message bodies.
      */
-    public enum BodyBase64Encoding {
+    public enum Base64EncodingStrategy {
         /**
          * Automatically determines if encoding is required.
          * Valid UTF-8 text is sent as-is; invalid sequences are base64 encoded,
@@ -252,13 +253,13 @@ public abstract class AwsBaseTopic<T extends AwsBaseTopic<T>> extends AbstractTo
      * TopicOptions contains configuration options for topics.
      */
     public static class TopicOptions {
-        private BodyBase64Encoding bodyBase64Encoding = BodyBase64Encoding.AUTO;
+        private Base64EncodingStrategy bodyBase64Encoding = Base64EncodingStrategy.AUTO;
         
-        public BodyBase64Encoding getBodyBase64Encoding() {
+        public Base64EncodingStrategy getBodyBase64Encoding() {
             return bodyBase64Encoding;
         }
         
-        public TopicOptions withBodyBase64Encoding(BodyBase64Encoding encoding) {
+        public TopicOptions withBodyBase64Encoding(Base64EncodingStrategy encoding) {
             this.bodyBase64Encoding = encoding;
             return this;
         }

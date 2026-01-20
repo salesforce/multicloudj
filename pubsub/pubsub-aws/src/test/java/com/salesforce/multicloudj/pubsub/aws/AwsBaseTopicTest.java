@@ -74,15 +74,15 @@ public class AwsBaseTopicTest {
     }
 
     @Test
-    void testMaybeEncodeBody() {
+    void testShouldEncodeBody() {
         byte[] validUtf8 = "test".getBytes(StandardCharsets.UTF_8);
         byte[] invalidUtf8 = {(byte) 0xFF, (byte) 0xFE};
         
-        assertTrue(topic.maybeEncodeBody(validUtf8, AwsBaseTopic.BodyBase64Encoding.ALWAYS));
-        assertFalse(topic.maybeEncodeBody(validUtf8, AwsBaseTopic.BodyBase64Encoding.NEVER));
-        assertFalse(topic.maybeEncodeBody(validUtf8, AwsBaseTopic.BodyBase64Encoding.AUTO));
-        assertTrue(topic.maybeEncodeBody(invalidUtf8, AwsBaseTopic.BodyBase64Encoding.AUTO));
-        assertFalse(topic.maybeEncodeBody(null, AwsBaseTopic.BodyBase64Encoding.AUTO));
+        assertTrue(topic.shouldEncodeBody(validUtf8, AwsBaseTopic.Base64EncodingStrategy.ALWAYS));
+        assertFalse(topic.shouldEncodeBody(validUtf8, AwsBaseTopic.Base64EncodingStrategy.NEVER));
+        assertFalse(topic.shouldEncodeBody(validUtf8, AwsBaseTopic.Base64EncodingStrategy.AUTO));
+        assertTrue(topic.shouldEncodeBody(invalidUtf8, AwsBaseTopic.Base64EncodingStrategy.AUTO));
+        assertFalse(topic.shouldEncodeBody(null, AwsBaseTopic.Base64EncodingStrategy.AUTO));
     }
 
     @Test
@@ -91,7 +91,7 @@ public class AwsBaseTopicTest {
         Message validMessage = Message.builder()
             .withBody("test message".getBytes(StandardCharsets.UTF_8))
             .build();
-        AwsBaseTopic.BodyEncodingResult result = topic.encodeMessageBody(validMessage);
+        AwsBaseTopic.EncodingResult result = topic.encodeMessageBody(validMessage);
         assertEquals("test message", result.getBody());
         assertFalse(result.isBase64Encoded());
         
@@ -102,7 +102,7 @@ public class AwsBaseTopicTest {
         assertTrue(result.isBase64Encoded());
         
         // ALWAYS encoding
-        topic.setBodyBase64Encoding(AwsBaseTopic.BodyBase64Encoding.ALWAYS);
+        topic.setBodyBase64Encoding(AwsBaseTopic.Base64EncodingStrategy.ALWAYS);
         result = topic.encodeMessageBody(validMessage);
         assertEquals("dGVzdCBtZXNzYWdl", result.getBody());
         assertTrue(result.isBase64Encoded());
@@ -156,7 +156,7 @@ public class AwsBaseTopicTest {
             super(builder);
         }
 
-        public void setBodyBase64Encoding(AwsBaseTopic.BodyBase64Encoding encoding) {
+        public void setBodyBase64Encoding(AwsBaseTopic.Base64EncodingStrategy encoding) {
             // Create new TopicOptions with the desired encoding
             AwsBaseTopic.TopicOptions newOptions = new AwsBaseTopic.TopicOptions()
                 .withBodyBase64Encoding(encoding);
@@ -183,11 +183,11 @@ public class AwsBaseTopicTest {
             return super.isValidUtf8(bytes);
         }
 
-        public boolean maybeEncodeBody(byte[] body, AwsBaseTopic.BodyBase64Encoding encoding) {
-            return super.maybeEncodeBody(body, encoding);
+        public boolean shouldEncodeBody(byte[] body, AwsBaseTopic.Base64EncodingStrategy encoding) {
+            return super.shouldEncodeBody(body, encoding);
         }
 
-        public AwsBaseTopic.BodyEncodingResult encodeMessageBody(Message message) {
+        public AwsBaseTopic.EncodingResult encodeMessageBody(Message message) {
             return super.encodeMessageBody(message);
         }
 
