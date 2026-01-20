@@ -1,4 +1,4 @@
-package com.salesforce.multicloudj.sts.aws;
+package com.salesforce.multicloudj.pubsub.aws.util;
 
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction;
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
@@ -19,13 +19,22 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
+/**
+ * WireMock transformer that replaces the Authorization header with a newly computed one
+ * 
+ * This is needed because when WireMock proxies requests to AWS services, the original
+ * signature becomes invalid. This transformer re-signs the request using the actual
+ * AWS credentials before forwarding to the real AWS service.
+ * 
+ * Supports both SNS and SQS services by detecting the service from the hostname.
+ */
+public class PubsubReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
-    private static final Pattern STS_REGION_PATTERN = Pattern.compile("sts\\.(.*?)\\.amazonaws\\.com");
+    private static final Pattern SNS_REGION_PATTERN = Pattern.compile("sns\\.(.*?)\\.amazonaws\\.com");
 
     @Override
     public String getName() {
-        return "replace-auth-header-transformer";
+        return "pubsub-replace-auth-header-transformer";
     }
 
     @Override
@@ -44,7 +53,7 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
             throw new RuntimeException(e);
         }
         Request wrappedRequest = RequestWrapper.create()
-                .transformHeader( "Authorization", (input) -> Collections.singletonList(authHeader))
+                .transformHeader("Authorization", (input) -> Collections.singletonList(authHeader))
                 .wrap(request);
         return RequestFilterAction.continueWith(wrappedRequest);
     }
@@ -57,10 +66,22 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
                         .uri(new URI(request.getAbsoluteUrl()));
 
         requestToSign.putHeader("Content-Length", String.valueOf(request.getBody().length));
+        
+        // Copy Content-Type (required for SNS form-urlencoded)
+        if (request.containsHeader("Content-Type")) {
+            requestToSign.putHeader("Content-Type", request.header("Content-Type").values());
+        }
+        
+        // Copy X-Amz-Security-Token if present (required for temporary credentials)
+        if (request.containsHeader("X-Amz-Security-Token")) {
+            requestToSign.putHeader("X-Amz-Security-Token", request.header("X-Amz-Security-Token").values());
+        }
+        
+
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 
         // Get the region from the hostname
-        Matcher matcher = STS_REGION_PATTERN.matcher(requestToSign.host());
+        Matcher matcher = SNS_REGION_PATTERN.matcher(requestToSign.host());
         String region;
         if (matcher.find()) {
             region = matcher.group(1);
@@ -68,11 +89,10 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
             region = "us-west-2";
         }
 
-
         final SignedRequest signerOutput = signer.sign(r -> r.identity(DefaultCredentialsProvider.create().resolveCredentials())
                 .request(requestToSign.build())
                 .payload(requestToSign.contentStreamProvider())
-                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "sts")
+                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "sns")
                 .putProperty(AwsV4HttpSigner.REGION_NAME, region));
         
         List<String> authHeaders = signerOutput.request().headers().get("Authorization");
@@ -82,3 +102,4 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
         return authHeaders.get(0);
     }
 }
+

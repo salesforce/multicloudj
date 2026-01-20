@@ -1,0 +1,30 @@
+{
+  "id" : "acdfd496-f2a6-4aa9-9f1d-8ccd433f7367",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.SendMessageBatch"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testBatchNack\",\"Entries\":[{\"Id\":\"0\",\"MessageBody\":\"batch-nack-1\",\"MessageAttributes\":{\"batch\":{\"StringValue\":\"nack\",\"DataType\":\"String\"}}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Successful\":[{\"Id\":\"0\",\"MD5OfMessageAttributes\":\"da9dcd84a1f376f38b79991b79a9d636\",\"MD5OfMessageBody\":\"4368994397a230f28e6fc94d80cccbb5\",\"MessageId\":\"4b600017-5f5e-4bb6-8f4c-77ba71e2393e\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "f9d658ee-a309-57bd-aacb-390931037b8a",
+      "Date" : "Mon, 19 Jan 2026 01:58:34 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "acdfd496-f2a6-4aa9-9f1d-8ccd433f7367",
+  "persistent" : true,
+  "insertionIndex" : 21
+}
