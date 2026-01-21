@@ -16,9 +16,13 @@ import java.util.List;
  * Follows the Docker image tar format specification.
  */
 class DockerTarBuilder {
-    private final Path destination;
+    private final Path destination;  // May be null if using OutputStream
     private final TarArchiveOutputStream tarOut;
+    private final boolean closeOnClose;  // Whether to close the underlying stream
 
+    /**
+     * Creates a DockerTarBuilder that writes to a Path (file).
+     */
     DockerTarBuilder(Path destination) throws IOException {
         this.destination = destination;
         // Docker images are typically saved as .tar files (not .tar.gz)
@@ -32,6 +36,22 @@ class DockerTarBuilder {
         }
         
         tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+        this.closeOnClose = true;
+    }
+
+    /**
+     * Creates a DockerTarBuilder that writes to an OutputStream.
+     * The caller is responsible for closing the OutputStream.
+     */
+    DockerTarBuilder(OutputStream outputStream, boolean gzip) throws IOException {
+        this.destination = null;
+        if (gzip) {
+            this.tarOut = new TarArchiveOutputStream(new GzipCompressorOutputStream(outputStream));
+        } else {
+            this.tarOut = new TarArchiveOutputStream(outputStream);
+        }
+        tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+        this.closeOnClose = false;  // Don't close user's stream
     }
 
     /**
@@ -98,5 +118,14 @@ class DockerTarBuilder {
 
     void close() throws IOException {
         tarOut.close();
+        // Note: If using OutputStream constructor, we don't close the underlying stream
+        // The caller is responsible for closing it
+    }
+
+    /**
+     * Gets the underlying TarArchiveOutputStream for advanced usage.
+     */
+    TarArchiveOutputStream getTarOutputStream() {
+        return tarOut;
     }
 }

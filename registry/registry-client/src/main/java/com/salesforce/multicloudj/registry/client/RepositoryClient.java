@@ -45,6 +45,58 @@ public class RepositoryClient implements AutoCloseable {
     }
 
     /**
+     * Pulls a Docker image from the registry and writes it to an OutputStream as a tar file.
+     *
+     * @param imageRef Image reference in the format "name:tag" or "name@digest"
+     * @param outputStream OutputStream where the image tar file will be written
+     * @return Result with image metadata
+     */
+    public PullResult pullImage(String imageRef, java.io.OutputStream outputStream) {
+        try {
+            return registry.pullImage(imageRef, outputStream);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = registry.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Pulls a Docker image from the registry and saves it to a File as a tar file.
+     *
+     * @param imageRef Image reference in the format "name:tag" or "name@digest"
+     * @param file File where the image tar file will be saved
+     * @return Result with image metadata
+     */
+    public PullResult pullImage(String imageRef, java.io.File file) {
+        try {
+            return registry.pullImage(imageRef, file);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = registry.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Pulls a Docker image from the registry and returns an InputStream for reading the tar file.
+     * This provides lazy loading similar to go-containerregistry - data is streamed on-demand.
+     * The caller is responsible for closing the InputStream.
+     *
+     * @param imageRef Image reference in the format "name:tag" or "name@digest"
+     * @return Result with image metadata and InputStream for reading the tar file
+     */
+    public PullResult pullImage(String imageRef) {
+        try {
+            return registry.pullImage(imageRef);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = registry.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
      * Closes the underlying registry and releases any resources.
      */
     @Override

@@ -57,11 +57,16 @@ public class ImageReference {
         
         if (namePart.contains("/")) {
             String[] nameParts = namePart.split("/", 2);
-            // If first part contains . or :, it's likely a registry
-            if (nameParts[0].contains(".") || nameParts[0].contains(":")) {
+            // Registry is only valid if it looks like a host (contains . or :, or is localhost)
+            boolean looksLikeRegistry = nameParts[0].contains(".") 
+                || nameParts[0].contains(":") 
+                || nameParts[0].equals("localhost");
+            
+            if (looksLikeRegistry) {
                 registry = nameParts[0];
                 repository = nameParts[1];
             }
+            // Otherwise, treat the whole thing as repository (e.g., "my-repo/image" -> repository="my-repo/image")
         }
         
         return new ImageReference(registry, repository, reference, isDigest);
