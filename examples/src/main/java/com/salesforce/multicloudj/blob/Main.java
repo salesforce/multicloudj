@@ -601,6 +601,7 @@ public class Main {
         System.out.println("Provider: " + getProvider());
         
         try {
+            upload();
             // Create test directory first
             System.out.println("=== Creating Test Directory ===");
             //createTestDirectory();

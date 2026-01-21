@@ -274,9 +274,6 @@ public class BlobStoreValidator {
         if(requirePort && endpoint.getPort() < 0) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_PORT_MSG, endpoint.getPort()));
         }
-        if(endpoint.getPath() != null && !endpoint.getPath().isBlank()) {
-            throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_NO_PATH_ALLOWED_MSG, endpoint.getPath()));
-        }
         if(endpoint.getQuery() != null) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_NO_QUERY_PARAMS_ALLOWED_MSG, endpoint.getQuery()));
         }
