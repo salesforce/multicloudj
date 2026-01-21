@@ -61,8 +61,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     }
 
     /**
-     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.
-     *
+     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.     
+     * 
      * @param builder  the builder used to configure this client.
      */
     public AwsBlobClient(Builder builder) {
@@ -70,8 +70,8 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
     }
 
     /**
-     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.
-     *
+     * Constructs an instance of {@link AwsBlobClient} using the provided builder and S3 client.      
+     * 
      * @param builder  the builder used to configure this client.
      * @param s3Client the S3 client used to communicate with the S3 service.
      */

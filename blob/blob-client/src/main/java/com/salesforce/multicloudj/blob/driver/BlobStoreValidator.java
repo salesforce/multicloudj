@@ -268,13 +268,13 @@ public class BlobStoreValidator {
         if (!isProtocolValid) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_PROTOCOL_MSG, protocol));
         }
-        if(endpoint.getHost() == null || endpoint.getHost().isBlank()) {
+        if(StringUtils.isBlank(endpoint.getHost())) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_HOSTNAME_MSG, endpoint.getHost()));
         }
         if(requirePort && endpoint.getPort() < 0) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_PORT_MSG, endpoint.getPort()));
         }
-        if(endpoint.getPath() != null && !endpoint.getPath().isBlank()) {
+        if(!StringUtils.isBlank(endpoint.getPath()) && !endpoint.getPath().equals("/")) {
             throw new IllegalArgumentException(String.format(INVALID_ENDPOINT_NO_PATH_ALLOWED_MSG, endpoint.getPath()));
         }
         if(endpoint.getQuery() != null) {

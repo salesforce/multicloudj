@@ -1,0 +1,23 @@
+{
+  "id" : "71b8cd63-aff0-434f-89f2-28b81d81518f",
+  "name" : "chameleon-jcloud_conformance-tests_checksum_upload-with-checksum",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-with-checksum",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "FC2C6TFBWNRMS0Q1",
+      "x-amz-id-2" : "UzhwpR/a7ffGG9qSb4QxhHvvaa2jr76p300b6IQAZ6mrmaaO4bk4OBaldHfWsYpYaRAeqLeI1dg=",
+      "Date" : "Tue, 13 Jan 2026 07:25:52 GMT"
+    }
+  },
+  "uuid" : "71b8cd63-aff0-434f-89f2-28b81d81518f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-checksum-upload-with-checksum",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-checksum-upload-with-checksum-2",
+  "insertionIndex" : 599
+}

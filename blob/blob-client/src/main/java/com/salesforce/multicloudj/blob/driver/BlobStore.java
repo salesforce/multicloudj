@@ -270,4 +270,32 @@ public interface BlobStore extends SdkService, Provider {
      * @param prefix the prefix to delete
      */
     void deleteDirectory(String prefix);
+
+
+    /**
+     * Gets object lock configuration for a blob.
+     *
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @return ObjectLockInfo containing lock configuration, or null if object lock is not configured
+     */
+    ObjectLockInfo getObjectLock(String key, String versionId);
+
+    /**
+     * Updates object retention date.
+     *
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param retainUntilDate New retention expiration date
+     */
+    void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate);
+
+    /**
+     * Updates legal hold status on an object.
+     *
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param legalHold true to apply hold, false to release hold
+     */
+    void updateLegalHold(String key, String versionId, boolean legalHold);
 }

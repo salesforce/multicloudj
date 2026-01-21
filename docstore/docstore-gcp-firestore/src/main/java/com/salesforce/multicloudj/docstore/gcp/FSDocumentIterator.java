@@ -1,10 +1,11 @@
 package com.salesforce.multicloudj.docstore.gcp;
 
+import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.StatusCode;
 import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.Value;
 import com.salesforce.multicloudj.docstore.client.Query;
-import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
@@ -231,9 +232,15 @@ public class FSDocumentIterator implements DocumentIterator {
                 }
                 // Continue looping for responses without documents
             }
-        } catch (Exception e) {
+        } catch (FailedPreconditionException e) {
             // If there's any error reading from the stream, mark as done and close
             markDoneAndClose();
+            if (e.getStatusCode() != null && e.getStatusCode().getCode() == StatusCode.Code.FAILED_PRECONDITION) {
+                if (e.getMessage() != null && e.getMessage().contains("The query requires an index.")) {
+                    throw new com.salesforce.multicloudj.common.exceptions.FailedPreconditionException("The query requires an index.", e);
+                }
+            }
+            throw e;
         }
         
         // Stream is exhausted

@@ -46,13 +46,13 @@ public class AliStsTest {
     }
 
     @Test
-    public void TestAliStsInitialization() {
+    public void testAliStsInitialization() {
         AliSts sts = new AliSts();
         Assertions.assertEquals("ali", sts.getProviderId());
     }
 
     @Test
-    public void TestAliStsClientProfileBadEndpoint() {
+    public void testAliStsClientProfileBadEndpoint() {
         URI badEndpoint = URI.create("https://a.bad.endpoint");
 
         // Expect InvalidArgumentException to be thrown
@@ -75,7 +75,7 @@ public class AliStsTest {
     }
 
     @Test
-    public void TestAliStsClientProfileGoodEndpoint() {
+    public void testAliStsClientProfileGoodEndpoint() {
         URI goodEndpoint = URI.create("https://a.good.endpoint.com");
 
         IClientProfile profile = AliSts.getClientProfile(goodEndpoint);
@@ -88,7 +88,7 @@ public class AliStsTest {
     }
 
     @Test
-    public void TestAssumedRoleSts() {
+    public void testAssumedRoleSts() {
         AliSts sts = new AliSts().builder().build(mockStsClient);
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder().withRole("testRole").withSessionName("testSession").build();
         StsCredentials credentials = sts.assumeRole(request);
@@ -98,7 +98,7 @@ public class AliStsTest {
     }
 
     @Test
-    public void TestGetCallerIdentitySts() {
+    public void testGetCallerIdentitySts() {
         AliSts sts = new AliSts().builder().build(mockStsClient);
         CallerIdentity identity = sts.getCallerIdentity(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest.builder().build());
         Assertions.assertEquals("testAccountId", identity.getAccountId());
@@ -107,7 +107,7 @@ public class AliStsTest {
     }
 
     @Test
-    public void TestRuntimeExceptionType() {
+    public void testRuntimeExceptionType() {
         AliSts sts = new AliSts().builder().build(mockStsClient);
         Assertions.assertEquals(UnknownException.class, sts.getException(new RuntimeException()));
     }
