@@ -1,0 +1,30 @@
+{
+  "id" : "881ba0cc-5ae0-43c1-9b14-7e6309c5197c",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_sub-testackafterreceiveacknowledge",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testAckAfterReceive:acknowledge?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.ackIds"
+    }, {
+      "matchesJsonPath" : "$.ackIds[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 12 Jan 2026 03:46:43 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "881ba0cc-5ae0-43c1-9b14-7e6309c5197c",
+  "persistent" : true,
+  "insertionIndex" : 84
+}
