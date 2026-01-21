@@ -511,7 +511,7 @@ public class Main {
         if (region != null && !region.trim().isEmpty()) {
             builder.withRegion(region);
         }
-        
+
         if (endpoint != null && !endpoint.trim().isEmpty()) {
             builder.withEndpoint(URI.create(endpoint));
         }
@@ -601,22 +601,23 @@ public class Main {
         System.out.println("Provider: " + getProvider());
         
         try {
+            // single operation upload
             upload();
             // Create test directory first
             System.out.println("=== Creating Test Directory ===");
-            //createTestDirectory();
+            createTestDirectory();
             
             // Test directory upload only
             System.out.println("=== Testing Directory Upload ===");
-            //uploadDirectory();
+            uploadDirectory();
 
             // Test directory download
             getLogger().info("=== Testing Directory Download ===");
-            //downloadDirectory();
+            downloadDirectory();
                        
             // Test directory delete
             getLogger().info("=== Testing Directory Delete ===");
-            //deleteDirectory();
+            deleteDirectory();
             
             System.out.println("Directory operations test completed!");
 
