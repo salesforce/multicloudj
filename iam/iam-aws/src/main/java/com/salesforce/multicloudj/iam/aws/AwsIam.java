@@ -12,6 +12,8 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.apache.commons.lang3.StringUtils;
@@ -32,8 +34,6 @@ import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
-import software.amazon.awssdk.services.iam.model.ListRolePoliciesRequest;
-import software.amazon.awssdk.services.iam.model.ListRolePoliciesResponse;
 import software.amazon.awssdk.services.iam.model.DeleteRolePolicyRequest;
 
 import java.net.URLDecoder;
@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @AutoService(AbstractIam.class)
 public class AwsIam extends AbstractIam {
@@ -337,15 +338,11 @@ public class AwsIam extends AbstractIam {
      * Get inline policy document attached to an IAM role.
      *
      * @param identityName the IAM role name
-     * @param policyName the name of the inline policy to retrieve.
-     * @param roleName the IAM role name that has the inline policy attached.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
-     *
+     * @param policyName the policy name
+     * @param roleName the role name (not used in AWS)
+     * @param tenantId the AWS Account ID (not used in AWS)
+     * @param region the AWS region (not used in AWS)
      * @return the inline policy document as a JSON string
-     *
-     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role or policy does not exist
-     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
      */
     @Override
     protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
@@ -358,48 +355,28 @@ public class AwsIam extends AbstractIam {
         }
 
         IamClient client = this.iamClient;
-        GetRolePolicyRequest request = GetRolePolicyRequest.builder()
+        GetRolePolicyRequest awsRequest = GetRolePolicyRequest.builder()
                 .roleName(identityName)
                 .policyName(policyName)
                 .build();
-        GetRolePolicyResponse response = client.getRolePolicy(request);
+        GetRolePolicyResponse response = client.getRolePolicy(awsRequest);
         return URLDecoder.decode(response.policyDocument(), StandardCharsets.UTF_8);
     }
 
     /**
      * Lists all inline policies attached to an IAM role.
      *
-     * @param identityName the IAM role name.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
+     * @param identityName the IAM role name
+     * @param tenantId the AWS Account ID (not used in AWS)
+     * @param region the AWS region (not used in AWS)
      * @return a list of inline policy names attached to the role.
-     *
-     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role does not exist
-     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
      */
     @Override
     protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
-        List<String> policyNames = new ArrayList<>();
-        String marker = null;
-
-        do {
-            ListRolePoliciesRequest.Builder requestBuilder = ListRolePoliciesRequest.builder()
-                    .roleName(identityName);
-            
-            if (marker != null) {
-                requestBuilder.marker(marker);
-            }
-
-            ListRolePoliciesResponse response = this.iamClient.listRolePolicies(requestBuilder.build());
-            
-            if (response.policyNames() != null) {
-                policyNames.addAll(response.policyNames());
-            }
-            
-            marker = response.marker();
-        } while (marker != null && !marker.isEmpty());
-
-        return policyNames;
+        return iamClient.listRolePoliciesPaginator(req -> req.roleName(identityName))
+                .policyNames()
+                .stream()
+                .collect(Collectors.toList());
     }
 
     /**
@@ -409,20 +386,9 @@ public class AwsIam extends AbstractIam {
      * @param policyName the name of the inline policy to remove.
      * @param tenantId the AWS Account ID.
      * @param region the AWS region for the IAM client.
-     *
-     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role or policy does not exist
-     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
      */
     @Override
     protected void doRemovePolicy(String identityName, String policyName, String tenantId, String region) {
-        if (StringUtils.isBlank(identityName)) {
-            throw new InvalidArgumentException("identityName is required for AWS IAM");
-        }
-
-        if (StringUtils.isBlank(policyName)) {
-            throw new InvalidArgumentException("policyName is required for AWS IAM");
-        }
-
         DeleteRolePolicyRequest request = DeleteRolePolicyRequest.builder()
                 .roleName(identityName)
                 .policyName(policyName)
@@ -438,10 +404,6 @@ public class AwsIam extends AbstractIam {
      * @param identityName the IAM role name.
      * @param tenantId the AWS Account ID.
      * @param region the AWS region for the IAM client.
-     *
-     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role does not exist
-     * @throws software.amazon.awssdk.services.iam.model.DeleteConflictException if the role has attached policies
-     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
      */
     @Override
     protected void doDeleteIdentity(String identityName, String tenantId, String region) {
@@ -458,9 +420,6 @@ public class AwsIam extends AbstractIam {
      * @param tenantId the AWS Account ID.
      * @param region the AWS region for the IAM client.
      * @return the IAM role ARN.
-     *
-     * @throws software.amazon.awssdk.services.iam.model.NoSuchEntityException if the role does not exist
-     * @throws software.amazon.awssdk.services.iam.model.IamException for other IAM service errors
      */
     @Override
     protected String doGetIdentity(String identityName, String tenantId, String region) {

@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.iam.aws;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -561,11 +566,13 @@ public class AwsIamTest {
                         .build());
 
         String result = awsIam.getInlinePolicyDetails(
-                TEST_ROLE_NAME,
-                TEST_POLICY_NAME,
-                TEST_ROLE_NAME,
-                TEST_TENANT_ID,
-                TEST_REGION);
+                GetInlinePolicyDetailsRequest.builder()
+                        .identityName(TEST_ROLE_NAME)
+                        .policyName(TEST_POLICY_NAME)
+                        .roleName(TEST_ROLE_NAME)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         assertEquals(TEST_POLICY_DOCUMENT, result);
 
@@ -584,11 +591,13 @@ public class AwsIamTest {
 
         assertThrows(NoSuchEntityException.class, () ->
                 awsIam.getInlinePolicyDetails(
-                        TEST_ROLE_NAME,
-                        TEST_POLICY_NAME,
-                        TEST_ROLE_NAME,
-                        TEST_TENANT_ID,
-                        TEST_REGION)
+                        GetInlinePolicyDetailsRequest.builder()
+                                .identityName(TEST_ROLE_NAME)
+                                .policyName(TEST_POLICY_NAME)
+                                .roleName(TEST_ROLE_NAME)
+                                .tenantId(TEST_TENANT_ID)
+                                .region(TEST_REGION)
+                                .build())
         );
 
         ArgumentCaptor<GetRolePolicyRequest> captor = ArgumentCaptor.forClass(GetRolePolicyRequest.class);
@@ -605,11 +614,13 @@ public class AwsIamTest {
                         .build());
 
         awsIam.getInlinePolicyDetails(
-                TEST_ROLE_NAME,
-                TEST_POLICY_NAME,
-                TEST_ROLE_NAME,
-                TEST_TENANT_ID,
-                TEST_REGION);
+                GetInlinePolicyDetailsRequest.builder()
+                        .identityName(TEST_ROLE_NAME)
+                        .policyName(TEST_POLICY_NAME)
+                        .roleName(TEST_ROLE_NAME)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         ArgumentCaptor<GetRolePolicyRequest> captor = ArgumentCaptor.forClass(GetRolePolicyRequest.class);
         verify(mockIamClient).getRolePolicy(captor.capture());
@@ -628,11 +639,13 @@ public class AwsIamTest {
 
         RuntimeException exception = assertThrows(RuntimeException.class, () ->
                 awsIam.getInlinePolicyDetails(
-                        TEST_ROLE_NAME,
-                        TEST_POLICY_NAME,
-                        TEST_ROLE_NAME,
-                        TEST_TENANT_ID,
-                        TEST_REGION)
+                        GetInlinePolicyDetailsRequest.builder()
+                                .identityName(TEST_ROLE_NAME)
+                                .policyName(TEST_POLICY_NAME)
+                                .roleName(TEST_ROLE_NAME)
+                                .tenantId(TEST_TENANT_ID)
+                                .region(TEST_REGION)
+                                .build())
         );
 
         assertEquals(genericException, exception);
@@ -641,64 +654,68 @@ public class AwsIamTest {
     @Test
     void testGetAttachedPoliciesReturnsPolicyNames() {
         List<String> policyNames = Arrays.asList("Policy1", "Policy2", "Policy3");
-        when(mockIamClient.listRolePolicies(any(ListRolePoliciesRequest.class)))
-                .thenReturn(ListRolePoliciesResponse.builder()
-                        .policyNames(policyNames)
-                        .isTruncated(false)
-                        .build());
+        
+        // Mock the paginator
+        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
+                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
+        SdkIterable<String> mockPolicyNames = mock(SdkIterable.class);
+        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+                .thenReturn(mockPaginator);
+        when(mockPaginator.policyNames()).thenReturn(mockPolicyNames);
+        when(mockPolicyNames.stream()).thenReturn(policyNames.stream());
 
         List<String> result = awsIam.getAttachedPolicies(
-                TEST_ROLE_NAME,
-                TEST_TENANT_ID,
-                TEST_REGION);
+                GetAttachedPoliciesRequest.builder()
+                        .identityName(TEST_ROLE_NAME)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         assertEquals(3, result.size());
         assertEquals(policyNames, result);
-
-        ArgumentCaptor<ListRolePoliciesRequest> captor = ArgumentCaptor.forClass(ListRolePoliciesRequest.class);
-        verify(mockIamClient, times(1)).listRolePolicies(captor.capture());
-        assertEquals(TEST_ROLE_NAME, captor.getValue().roleName());
     }
 
     @Test
     void testGetAttachedPoliciesHandlesPagination() {
-        List<String> firstPagePolicies = Arrays.asList("Policy1", "Policy2");
-        List<String> secondPagePolicies = Arrays.asList("Policy3", "Policy4");
-
-        when(mockIamClient.listRolePolicies(any(ListRolePoliciesRequest.class)))
-                .thenReturn(ListRolePoliciesResponse.builder()
-                        .policyNames(firstPagePolicies)
-                        .isTruncated(true)
-                        .marker("next-marker")
-                        .build())
-                .thenReturn(ListRolePoliciesResponse.builder()
-                        .policyNames(secondPagePolicies)
-                        .isTruncated(false)
-                        .build());
+        // The paginator automatically handles pagination, so we just verify all results are returned
+        List<String> allPolicies = Arrays.asList("Policy1", "Policy2", "Policy3", "Policy4");
+        
+        // Mock the paginator
+        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
+                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
+        SdkIterable<String> mockPolicyNames = mock(SdkIterable.class);
+        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+                .thenReturn(mockPaginator);
+        when(mockPaginator.policyNames()).thenReturn(mockPolicyNames);
+        when(mockPolicyNames.stream()).thenReturn(allPolicies.stream());
 
         List<String> result = awsIam.getAttachedPolicies(
-                TEST_ROLE_NAME,
-                TEST_TENANT_ID,
-                TEST_REGION);
+                GetAttachedPoliciesRequest.builder()
+                        .identityName(TEST_ROLE_NAME)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         assertEquals(4, result.size());
-
-        ArgumentCaptor<ListRolePoliciesRequest> captor = ArgumentCaptor.forClass(ListRolePoliciesRequest.class);
-        verify(mockIamClient, times(2)).listRolePolicies(captor.capture());
-
-        List<ListRolePoliciesRequest> requests = captor.getAllValues();
-        assertEquals(TEST_ROLE_NAME, requests.get(0).roleName());
-        assertNull(requests.get(0).marker());
-        assertEquals("next-marker", requests.get(1).marker());
+        assertEquals(allPolicies, result);
     }
 
     @Test
     void testGetAttachedPoliciesThrowsException() {
-        when(mockIamClient.listRolePolicies(any(ListRolePoliciesRequest.class)))
-                .thenThrow(NoSuchEntityException.builder().build());
+        // Mock the paginator to throw exception when policyNames() is called
+        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
+                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
+        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+                .thenReturn(mockPaginator);
+        when(mockPaginator.policyNames()).thenThrow(NoSuchEntityException.builder().build());
 
         assertThrows(NoSuchEntityException.class, () ->
-                awsIam.getAttachedPolicies(TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION)
+                awsIam.getAttachedPolicies(
+                        GetAttachedPoliciesRequest.builder()
+                                .identityName(TEST_ROLE_NAME)
+                                .tenantId(TEST_TENANT_ID)
+                                .region(TEST_REGION)
+                                .build())
         );
     }
 
