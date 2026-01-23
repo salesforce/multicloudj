@@ -16,6 +16,8 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -45,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -583,5 +586,87 @@ public class BucketClientTest {
 
         verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
         assertNotNull(testClient);
+    }
+
+    @Test
+    void testClose() throws Exception {
+        // Test that close() calls blobStore.close()
+        client.close();
+        verify(mockBlobStore, times(1)).close();
+    }
+
+    @Test
+    void testClose_WithNullBlobStore() throws Exception {
+        // Test that close() handles null blobStore gracefully
+        BucketClient clientWithNullStore = new BucketClient(null);
+        // Should not throw exception
+        clientWithNullStore.close();
+    }
+
+    @Test
+    void testClose_ThrowsException() throws Exception {
+        // Test that close() propagates exceptions from blobStore.close()
+        doThrow(new IOException("Close failed")).when(mockBlobStore).close();
+        assertThrows(IOException.class, () -> {
+            client.close();
+        });
+        verify(mockBlobStore, times(1)).close();
+    }
+
+    @Test
+    void testGetObjectLock() {
+        // Given
+        ObjectLockInfo expectedLockInfo = 
+            ObjectLockInfo.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .legalHold(true)
+                .build();
+        doReturn(expectedLockInfo).when(mockBlobStore).getObjectLock("key1", null);
+
+        // When
+        ObjectLockInfo result = client.getObjectLock("key1", null);
+
+        // Then
+        assertEquals(expectedLockInfo, result);
+        verify(mockBlobStore, times(1)).getObjectLock("key1", null);
+    }
+
+    @Test
+    void testGetObjectLock_ThrowsException() {
+        doThrow(RuntimeException.class).when(mockBlobStore).getObjectLock(anyString(), any());
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.getObjectLock("key1", null);
+        });
+        verify(mockBlobStore, times(1)).getObjectLock("key1", null);
+    }
+
+    @Test
+    void testUpdateObjectRetention() {
+        Instant retainUntil = Instant.now().plusSeconds(3600);
+        client.updateObjectRetention("key1", null, retainUntil);
+        verify(mockBlobStore, times(1)).updateObjectRetention("key1", null, retainUntil);
+    }
+
+    @Test
+    void testUpdateObjectRetention_ThrowsException() {
+        Instant retainUntil = Instant.now().plusSeconds(3600);
+        doThrow(RuntimeException.class).when(mockBlobStore).updateObjectRetention(anyString(), any(), any());
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.updateObjectRetention("key1", null, retainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateLegalHold() {
+        client.updateLegalHold("key1", null, true);
+        verify(mockBlobStore, times(1)).updateLegalHold("key1", null, true);
+    }
+
+    @Test
+    void testUpdateLegalHold_ThrowsException() {
+        doThrow(RuntimeException.class).when(mockBlobStore).updateLegalHold(anyString(), any(), anyBoolean());
+        assertThrows(UnAuthorizedException.class, () -> {
+            client.updateLegalHold("key1", null, true);
+        });
     }
 }

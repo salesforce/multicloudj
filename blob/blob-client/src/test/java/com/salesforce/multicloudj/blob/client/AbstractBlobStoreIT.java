@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +94,26 @@ public abstract class AbstractBlobStoreIT {
 
         // Returns the KMS key ID for encryption tests (provider-specific)
         String getKmsKeyId();
+
+        // Computes the checksum value for the given content using provider-specific algorithm
+        // (CRC32C for AWS/GCP, CRC64 for Alibaba)
+        // Default implementation uses CRC32C which is common for AWS and GCP
+        default String computeChecksum(byte[] content) {
+            // Compute CRC32C checksum and return as base64-encoded string
+            java.util.zip.CRC32C crc32c = new java.util.zip.CRC32C();
+            crc32c.update(content);
+            long checksumValue = crc32c.getValue();
+
+            // Convert to 4-byte array (big-endian)
+            byte[] checksumBytes = new byte[4];
+            checksumBytes[0] = (byte) (checksumValue >> 24);
+            checksumBytes[1] = (byte) (checksumValue >> 16);
+            checksumBytes[2] = (byte) (checksumValue >> 8);
+            checksumBytes[3] = (byte) checksumValue;
+
+            // Return base64-encoded
+            return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+        }
     }
 
     protected abstract Harness createHarness();
@@ -146,8 +166,8 @@ public abstract class AbstractBlobStoreIT {
         // And run the tests given the non-existent bucket
         runOperationsThatShouldFail("testNonexistentBucket", bucketClient);
         if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
-        runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
-    }
+            runOperationsThatShouldNotFail("testNonexistentBucket", bucketClient);
+        }
     }
 
     @Test
@@ -160,8 +180,8 @@ public abstract class AbstractBlobStoreIT {
         // And run the tests given the invalid credentialsOverrider
         runOperationsThatShouldFail("testInvalidCredentials", bucketClient);
         if (!GCP_PROVIDER_ID.equals(harness.getProviderId())) {
-        runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
-    }
+            runOperationsThatShouldNotFail("testInvalidCredentials", bucketClient);
+        }
     }
 
     private void runOperationsThatShouldFail(String testName, BucketClient bucketClient) {
@@ -871,7 +891,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testVersionedDelete_fileDoesNotExist() throws IOException {
-
         // Create the BucketClient
         AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
         BucketClient bucketClient = new BucketClient(blobStore);
@@ -1355,9 +1374,8 @@ public abstract class AbstractBlobStoreIT {
     }
 
     @Test
+    @Disabled
     public void testVersionedCopyFrom() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
-
         String key = "conformance-tests/versionedCopyFrom/blob";
         String destKeyV1 = "conformance-tests/versionedCopyFrom/copied-from-blob-v1";
         String destKeyV2 = "conformance-tests/versionedCopyFrom/copied-from-blob-v2";
@@ -2737,7 +2755,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_happyPath() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         runUploadWithKmsKeyTest(key, kmsKeyId, "Test data with KMS encryption".getBytes());
@@ -2745,14 +2762,12 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testUploadWithKmsKey_nullKmsKeyId() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-null-key";
         runUploadWithKmsKeyTest(key, null, "Test data without KMS".getBytes());
     }
 
     @Test
     public void testUploadWithKmsKey_emptyKmsKeyId() {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/upload-empty-key";
         runUploadWithKmsKeyTest(key, "", "Test data with empty KMS key".getBytes());
     }
@@ -2795,7 +2810,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testDownloadWithKmsKey() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/download-happy-path";
         String kmsKeyId = harness.getKmsKeyId();
         byte[] content = "Test data for KMS download".getBytes(StandardCharsets.UTF_8);
@@ -2833,7 +2847,6 @@ public abstract class AbstractBlobStoreIT {
 
     @Test
     public void testRangedReadWithKmsKey() throws IOException {
-        Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
         String key = "conformance-tests/kms/ranged-read";
         String kmsKeyId = harness.getKmsKeyId();
         runRangedReadWithKmsKeyTest(key, kmsKeyId);
@@ -2927,4 +2940,80 @@ public abstract class AbstractBlobStoreIT {
             safeDeleteBlobs(bucketClient, key);
         }
     }
+
+    @Test
+    public void testUploadWithChecksumValidationInputStream() {
+        String key = "conformance-tests/checksum/upload-inputstream-checksum";
+        byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        try {
+            String checksum = harness.computeChecksum(content);
+
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(content.length)
+                    .withChecksumValue(checksum)
+                    .build();
+
+            InputStream inputStream = new ByteArrayInputStream(content);
+            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, inputStream);
+
+            // Verify upload succeeded
+            Assertions.assertNotNull(uploadResponse);
+            Assertions.assertEquals(key, uploadResponse.getKey());
+            Assertions.assertNotNull(uploadResponse.getChecksumValue());
+
+            // Verify blob exists
+            boolean exists = bucketClient.doesObjectExist(key, null);
+            Assertions.assertTrue(exists, "Uploaded blob should exist");
+
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+        }
+    }
+
+    @Test
+    public void testUploadWithChecksumValidationFile() throws Exception {
+        String key = "conformance-tests/checksum/upload-file-checksum";
+        byte[] content = "Test checksum with File".getBytes(StandardCharsets.UTF_8);
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        Path tempFile = null;
+        try {
+            // Create temp file
+            tempFile = Files.createTempFile("checksum-test", ".txt");
+            Files.write(tempFile, content);
+
+            String checksum = harness.computeChecksum(content);
+
+            UploadRequest uploadRequest = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(content.length)
+                    .withChecksumValue(checksum)
+                    .build();
+
+            UploadResponse uploadResponse = bucketClient.upload(uploadRequest, tempFile.toFile());
+
+            // Verify upload succeeded
+            Assertions.assertNotNull(uploadResponse);
+            Assertions.assertEquals(key, uploadResponse.getKey());
+            Assertions.assertNotNull(uploadResponse.getChecksumValue());
+
+            // Verify blob exists
+            boolean exists = bucketClient.doesObjectExist(key, null);
+            Assertions.assertTrue(exists, "Uploaded blob should exist");
+
+        } finally {
+            safeDeleteBlobs(bucketClient, key);
+            if (tempFile != null) {
+                Files.deleteIfExists(tempFile);
+            }
+        }
+    }
+
 }

@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
@@ -33,6 +34,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -496,6 +498,57 @@ public class BucketClient implements AutoCloseable {
             Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
             return false;
+        }
+    }
+
+    /**
+     * Gets object lock configuration for a blob.
+     *
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @return ObjectLockInfo containing lock configuration, or null if object lock is not configured
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        try {
+            return blobStore.getObjectLock(key, versionId);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+        }
+    }
+
+    /**
+     * Updates object retention date.
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param retainUntilDate New retention expiration date
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+        try {
+            blobStore.updateObjectRetention(key, versionId, retainUntilDate);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+        }
+    }
+
+    /**
+     * Updates legal hold status on an object.
+     *
+     * @param key Object key
+     * @param versionId Optional version ID. For versioned buckets, null means latest version.
+     * @param legalHold true to apply hold, false to release hold
+     * @throws SubstrateSdkException Thrown if the operation fails
+     */
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        try {
+            blobStore.updateLegalHold(key, versionId, legalHold);
+        } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
         }
     }
 

@@ -2,7 +2,7 @@
   "id" : "90d18175-4f86-4190-9f40-5583fb96ea8c",
   "name" : "",
   "request" : {
-    "urlPattern": "/\\?Action=AssumeRole&Timestamp=.*&RoleArn=acs%3Aram%3A%3A1936276257662232%3Arole%2Fchameleon-test-role&SecurityToken=.*&SignatureVersion=1.0&Format=JSON&RoleSessionName=any-session&SignatureNonce=.*&Version=2015-04-01&AccessKeyId=.*&Signature=.*%3D&SignatureMethod=HMAC-SHA1&RegionId=cn-shanghai",
+    "urlPattern": "/\\?Action=AssumeRole&DurationSeconds=3600&Timestamp=.*&RoleArn=acs%3Aram%3A%3A1936276257662232%3Arole%2Fchameleon-test-role&SecurityToken=.*&SignatureVersion=1.0&Format=JSON&RoleSessionName=any-session&SignatureNonce=.*&Version=2015-04-01&AccessKeyId=.*&Signature=.*%3D&SignatureMethod=HMAC-SHA1&RegionId=cn-shanghai",
     "method" : "POST"
   },
   "response" : {

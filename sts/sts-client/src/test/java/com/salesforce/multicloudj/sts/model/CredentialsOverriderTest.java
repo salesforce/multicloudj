@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 public class CredentialsOverriderTest {
     @Test
-    public void TestCredentialsOverriderBuilderWithProvidedValues() {
+    public void testCredentialsOverriderBuilderWithProvidedValues() {
         StsCredentials stsCredentials = new StsCredentials("key", "secret", "token");
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION)
                 .withSessionCredentials(stsCredentials)
@@ -22,7 +22,7 @@ public class CredentialsOverriderTest {
     }
 
     @Test
-    public void TestCredentialsOverriderBuilderWithNoValues() {
+    public void testCredentialsOverriderBuilderWithNoValues() {
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.SESSION).build();
         Assertions.assertNull(credentialsOverrider.getSessionCredentials());
         Assertions.assertNull(credentialsOverrider.getRole());
@@ -30,7 +30,7 @@ public class CredentialsOverriderTest {
     }
 
     @Test
-    public void TestCredentialsOverriderWithSessionName() {
+    public void testCredentialsOverriderWithSessionName() {
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
                 .withRole("test-role")
                 .withSessionName("testSession")
@@ -40,7 +40,7 @@ public class CredentialsOverriderTest {
     }
 
     @Test
-    public void TestCredentialsOverriderWithWebIdentityTokenSupplier() {
+    public void testCredentialsOverriderWithWebIdentityTokenSupplier() {
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
                 .withRole("test-role")
                 .withWebIdentityTokenSupplier(() -> "test-token")
@@ -51,7 +51,7 @@ public class CredentialsOverriderTest {
     }
 
     @Test
-    public void TestCredentialsOverriderWithWebIdentityTokenSupplierAndSessionName() {
+    public void testCredentialsOverriderWithWebIdentityTokenSupplierAndSessionName() {
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
                 .withRole("test-role")
                 .withWebIdentityTokenSupplier(() -> "test-token")
