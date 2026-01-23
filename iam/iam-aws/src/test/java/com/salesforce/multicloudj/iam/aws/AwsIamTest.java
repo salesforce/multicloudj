@@ -28,10 +28,9 @@ import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleResponse;
-import software.amazon.awssdk.services.iam.model.ListRolePoliciesRequest;
-import software.amazon.awssdk.services.iam.model.ListRolePoliciesResponse;
 import software.amazon.awssdk.services.iam.model.DeleteRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.DeleteRolePolicyResponse;
+import software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -39,14 +38,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -652,14 +650,14 @@ public class AwsIamTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testGetAttachedPoliciesReturnsPolicyNames() {
         List<String> policyNames = Arrays.asList("Policy1", "Policy2", "Policy3");
         
         // Mock the paginator
-        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
-                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
+        ListRolePoliciesIterable mockPaginator = mock(ListRolePoliciesIterable.class);
         SdkIterable<String> mockPolicyNames = mock(SdkIterable.class);
-        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+        when(mockIamClient.listRolePoliciesPaginator(any(Consumer.class)))
                 .thenReturn(mockPaginator);
         when(mockPaginator.policyNames()).thenReturn(mockPolicyNames);
         when(mockPolicyNames.stream()).thenReturn(policyNames.stream());
@@ -676,15 +674,15 @@ public class AwsIamTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testGetAttachedPoliciesHandlesPagination() {
         // The paginator automatically handles pagination, so we just verify all results are returned
         List<String> allPolicies = Arrays.asList("Policy1", "Policy2", "Policy3", "Policy4");
         
         // Mock the paginator
-        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
-                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
+        ListRolePoliciesIterable mockPaginator = mock(ListRolePoliciesIterable.class);
         SdkIterable<String> mockPolicyNames = mock(SdkIterable.class);
-        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+        when(mockIamClient.listRolePoliciesPaginator(any(Consumer.class)))
                 .thenReturn(mockPaginator);
         when(mockPaginator.policyNames()).thenReturn(mockPolicyNames);
         when(mockPolicyNames.stream()).thenReturn(allPolicies.stream());
@@ -701,11 +699,11 @@ public class AwsIamTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testGetAttachedPoliciesThrowsException() {
         // Mock the paginator to throw exception when policyNames() is called
-        software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable mockPaginator = 
-                mock(software.amazon.awssdk.services.iam.paginators.ListRolePoliciesIterable.class);
-        when(mockIamClient.listRolePoliciesPaginator(any(java.util.function.Consumer.class)))
+        ListRolePoliciesIterable mockPaginator = mock(ListRolePoliciesIterable.class);
+        when(mockIamClient.listRolePoliciesPaginator(any(Consumer.class)))
                 .thenReturn(mockPaginator);
         when(mockPaginator.policyNames()).thenThrow(NoSuchEntityException.builder().build());
 
