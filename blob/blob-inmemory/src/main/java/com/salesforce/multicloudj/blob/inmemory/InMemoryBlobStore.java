@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -848,6 +849,21 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                         .build())
                 .inputStream(inputStream)
                 .build();
+    }
+
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        return null;
+    }
+
+    @Override
+    public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+
+    }
+
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+
     }
 
     // Inner classes for storage

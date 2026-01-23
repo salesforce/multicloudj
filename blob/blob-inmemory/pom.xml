@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>blob</artifactId>
-        <version>0.2.22-SNAPSHOT</version>
+        <version>0.2.24-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -34,12 +34,6 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
-            <artifactId>multicloudj-common</artifactId>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>blob-client</artifactId>
         </dependency>
         <dependency>
@@ -51,6 +45,12 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>blob-client</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
