@@ -15,6 +15,7 @@
         <module>blob-aws</module>
         <module>blob-ali</module>
         <module>blob-gcp</module>
+        <module>blob-inmemory</module>
         <module>blob-client</module>
     </modules>
 
