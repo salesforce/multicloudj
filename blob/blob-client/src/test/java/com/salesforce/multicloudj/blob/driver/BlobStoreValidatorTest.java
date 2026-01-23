@@ -259,7 +259,7 @@ public class BlobStoreValidatorTest {
                         boolean portValid = !requirePort || port >= 0;
 
                         for (String path : Arrays.asList(null, "  ", "/", "/path")) {
-                            boolean pathValid = path==null;
+                            boolean pathValid = path==null || path.equals("/");
 
                             for (String query : Arrays.asList(null, "?", "?key=value")) {
                                 boolean queryValid = query==null;

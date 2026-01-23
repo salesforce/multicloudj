@@ -1,0 +1,32 @@
+{
+  "id" : "8b9eac74-cfe6-43f6-a4a2-cb7def4097d4",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_sub-testbatchackpull",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testBatchAck:pull?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.returnImmediately"
+    }, {
+      "matchesJsonPath" : "$.maxMessages"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"receivedMessages\": [\n    {\n      \"ackId\": \"U0RQBhYsXUZIUTcZCGhRDk9eIz81IChFFwgIFAV8fXFZT3VaXRoHUQ0ZcnxoJzhaF1dXQFp5VVsRDXptXG2ivKziRF9AdG1dEAMCQVp8XFodCG5ZVHUv_bmwhaGAt0RAKDmnqPKFaXvF6e5-ZiA9XxJLLD5-Ny1FQV5AEkw8GERJUytDCypYEU4EISE-MD5F\",\n      \"message\": {\n        \"data\": \"YmF0Y2gtYWNrLTE=\",\n        \"attributes\": {\n          \"batch\": \"ack\"\n        },\n        \"messageId\": \"17732049231656580\",\n        \"publishTime\": \"2026-01-12T03:46:24.799Z\"\n      }\n    },\n    {\n      \"ackId\": \"U0RQBhYsXUZIUTcZCGhRDk9eIz81IChFFwgIFAV8fXFZT3VaXRoHUQ0ZcnxoJzhaF1dXQFp5VVoRDXptXG2ivKziRF9AdG1dEAAARVt_XlwaBW5dVXQv_bmwhaGAt0RAKDmnqPKFaXvF6e5-ZiA9XxJLLD5-Ny1FQV5AEkw8GERJUytDCypYEU4EISE-MD5F\",\n      \"message\": {\n        \"data\": \"YmF0Y2gtYWNrLTI=\",\n        \"attributes\": {\n          \"batch\": \"ack\"\n        },\n        \"messageId\": \"17731208117186191\",\n        \"publishTime\": \"2026-01-12T03:46:25.060Z\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 12 Jan 2026 03:46:29 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8b9eac74-cfe6-43f6-a4a2-cb7def4097d4",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchAck:pull",
+  "requiredScenarioState" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchAck:pull-2",
+  "insertionIndex" : 57
+}

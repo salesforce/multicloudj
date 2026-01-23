@@ -85,6 +85,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -940,21 +941,42 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
 
         /**
+         * Normalizes endpoint to ensure it ends with "/"
+         */
+        private static String normalizeEndpoint(URI endpoint) {
+            if (endpoint == null) {
+                return null;
+            }
+            String endpointStr = endpoint.toString();
+            if (!endpointStr.endsWith("/")) {
+                endpointStr = endpointStr + "/";
+            }
+            return endpointStr;
+        }
+
+        /**
+         * Creates HttpTransportOptions with ApacheHttpTransport
+         */
+        private static HttpTransportOptions buildTransportOptions(Builder builder) {
+            CloseableHttpClient httpClient = buildHttpClient(builder);
+            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+            return HttpTransportOptions.newBuilder()
+                    .setHttpTransportFactory(() -> transport)
+                    .build();
+        }
+
+        /**
          * Helper function for generating the Storage client
          */
         private static Storage buildStorage(Builder builder) {
-            CloseableHttpClient httpClient = buildHttpClient(builder);
-
-            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
-            HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()
-                    .setHttpTransportFactory(() -> transport)
-                    .build();
+            HttpTransportOptions transportOptions = buildTransportOptions(builder);
 
             StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
             storageOptionsBuilder.setTransportOptions(transportOptions);
 
-            if (builder.getEndpoint() != null) {
-                storageOptionsBuilder.setHost(builder.getEndpoint().toString());
+            String endpoint = normalizeEndpoint(builder.getEndpoint());
+            if (endpoint != null) {
+                storageOptionsBuilder.setHost(endpoint);
             }
 
             if (builder.getCredentialsOverrider() != null) {
@@ -969,17 +991,13 @@ public class GcpBlobStore extends AbstractBlobStore {
          * Helper function for generating the MultipartUpload client
          */
         private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
-            CloseableHttpClient httpClient = buildHttpClient(builder);
-
-            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
-            HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()
-                    .setHttpTransportFactory(() -> transport)
-                    .build();
+            HttpTransportOptions transportOptions = buildTransportOptions(builder);
 
             HttpStorageOptions.Builder storageOptionsBuilder  = HttpStorageOptions.http().setTransportOptions(transportOptions);
 
-            if (builder.getEndpoint() != null) {
-                storageOptionsBuilder.setHost(builder.getEndpoint().toString());
+            String endpoint = normalizeEndpoint(builder.getEndpoint());
+            if (endpoint != null) {
+                storageOptionsBuilder.setHost(endpoint);
             }
 
             if (builder.getCredentialsOverrider() != null) {
