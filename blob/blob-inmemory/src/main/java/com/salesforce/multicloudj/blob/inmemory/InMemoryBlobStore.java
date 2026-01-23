@@ -65,6 +65,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Tags are per version - key is "bucket:key:versionId"
     private static final Map<String, Map<String, String>> TAGS = new ConcurrentHashMap<>();
     private static final Map<String, MultipartUploadState> MULTIPART_UPLOADS = new ConcurrentHashMap<>();
+    // Track bucket metadata - key is bucket name
+    static final Map<String, BucketMetadata> BUCKETS = new ConcurrentHashMap<>();
 
     public InMemoryBlobStore() {
         this(new Builder());
@@ -334,7 +336,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     protected CopyResponse doCopy(CopyRequest request) {
         validateBucketExists();
         // Also validate destination bucket exists
-        if (!InMemoryBlobClient.BUCKETS.containsKey(request.getDestBucket())) {
+        if (!BUCKETS.containsKey(request.getDestBucket())) {
             throw new ResourceNotFoundException("Destination bucket not found: " + request.getDestBucket());
         }
 
@@ -749,7 +751,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
     @Override
     protected boolean doDoesBucketExist() {
-        return InMemoryBlobClient.BUCKETS.containsKey(bucket);
+        return BUCKETS.containsKey(bucket);
     }
 
     @Override
@@ -760,8 +762,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Helper methods
 
     private void validateBucketExists() {
-        // Use the shared bucket registry from InMemoryBlobClient
-        if (!InMemoryBlobClient.BUCKETS.containsKey(bucket)) {
+        if (!BUCKETS.containsKey(bucket)) {
             throw new ResourceNotFoundException("Bucket not found: " + bucket);
         }
     }
@@ -870,6 +871,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Inner classes for storage
 
     @Getter
+    static class BucketMetadata {
+        private final Instant creationDate;
+
+        public BucketMetadata(Instant creationDate) {
+            this.creationDate = creationDate;
+        }
+    }
+
+    @Getter
     private static class StoredBlob {
         private final byte[] data;
         private final String etag;
@@ -938,12 +948,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         }
     }
 
-    // Public method to clear storage for testing
+    // Public methods for testing
+
+    /**
+     * Creates a bucket for testing purposes.
+     *
+     * @param bucketName the name of the bucket to create
+     */
+    public static void createBucket(String bucketName) {
+        BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now()));
+    }
+
+    /**
+     * Clears all in-memory storage including buckets, blobs, tags, and multipart uploads.
+     */
     public static void clearStorage() {
         STORAGE.clear();
         LATEST_VERSIONS.clear();
         TAGS.clear();
         MULTIPART_UPLOADS.clear();
-        // Note: Buckets are cleared via InMemoryBlobClient.clearBuckets()
+        BUCKETS.clear();
     }
 }

@@ -15,9 +15,8 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
     @AfterEach
     public void cleanup() {
-        // Clear the in-memory storage after each test
+        // Clear the in-memory storage after each test (includes buckets)
         InMemoryBlobStore.clearStorage();
-        InMemoryBlobClient.clearBuckets();
     }
 
     @Test
@@ -41,10 +40,7 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
             // Create the bucket if it should exist
             if (useValidBucket) {
-                InMemoryBlobClient client = new InMemoryBlobClient.Builder()
-                        .withRegion(region)
-                        .build();
-                client.createBucket(bucketNameToUse);
+                InMemoryBlobStore.createBucket(bucketNameToUse);
             }
 
             return new InMemoryBlobStore.Builder()
