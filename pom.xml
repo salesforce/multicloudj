@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.21-SNAPSHOT</version>
+    <version>0.2.24</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -477,7 +477,7 @@
                             <report>aggregate</report>
                         </reports>
                         <configuration>
-                            <sourcepath>blob/blob-client/target/generated-sources/delombok:blob/blob-aws/target/generated-sources/delombok:blob/blob-gcp/target/generated-sources/delombok:blob/blob-ali/target/generated-sources/delombok:sts/sts-client/target/generated-sources/delombok:iam/iam-client/target/generated-sources/delombok:docstore/docstore-client/target/generated-sources/delombok:docstore/docstore-aws/target/generated-sources/delombok:docstore/docstore-gcp-firestore/target/generated-sources/delombok:docstore/docstore-gcp-spanner/target/generated-sources/delombok:docstore/docstore-ali/target/generated-sources/delombok:pubsub/pubsub-client/target/generated-sources/delombok:multicloudj-common/target/generated-sources/delombok:examples/target/generated-sources/delombok</sourcepath>
+                            <sourcepath>blob/blob-client/target/generated-sources/delombok:blob/blob-aws/target/generated-sources/delombok:blob/blob-gcp/target/generated-sources/delombok:blob/blob-ali/target/generated-sources/delombok:sts/sts-client/target/generated-sources/delombok:iam/iam-client/target/generated-sources/delombok:iam/iam-gcp/target/generated-sources/delombok:iam/iam-aws/target/generated-sources/delombok:docstore/docstore-client/target/generated-sources/delombok:docstore/docstore-aws/target/generated-sources/delombok:docstore/docstore-gcp-firestore/target/generated-sources/delombok:docstore/docstore-gcp-spanner/target/generated-sources/delombok:docstore/docstore-ali/target/generated-sources/delombok:pubsub/pubsub-client/target/generated-sources/delombok:multicloudj-common/target/generated-sources/delombok:examples/target/generated-sources/delombok</sourcepath>
                         </configuration>
                     </reportSet>
                 </reportSets>

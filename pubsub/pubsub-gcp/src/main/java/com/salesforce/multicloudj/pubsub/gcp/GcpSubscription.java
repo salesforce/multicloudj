@@ -159,18 +159,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
     
     @Override
-    protected void validateAckIDType(AckID ackID) {
-        // For GCP, we validate that the AckID is not null and is a GcpAckID
-        if (ackID == null) {
-            throw new InvalidArgumentException("AckID cannot be null");
-        }
-        
-        if (!(ackID instanceof GcpAckID)) {
-            throw new InvalidArgumentException("Expected GcpAckID, got: " + ackID.getClass().getSimpleName());
-        }
-    }
-    
-    @Override
     public boolean canNack() {
         return true;
     }

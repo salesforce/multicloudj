@@ -11,15 +11,30 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
+import com.google.cloud.storage.HttpStorageOptions;
+import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.MultipartUploadSettings;
+import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.CompletedMultipartUpload;
+import com.google.cloud.storage.multipartupload.model.CompletedPart;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
+import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
+import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
-import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -28,11 +43,14 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
@@ -42,9 +60,9 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -67,7 +85,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,11 +95,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -90,16 +110,18 @@ import java.util.stream.Collectors;
 public class GcpBlobStore extends AbstractBlobStore {
 
     private final Storage storage;
+    private final MultipartUploadClient multipartUploadClient;
     private final GcpTransformer transformer;
     private static final String TAG_PREFIX = "gcp-tag-";
 
     public GcpBlobStore() {
-        this(new Builder(), null);
+        this(new Builder(), null, null);
     }
 
-    public GcpBlobStore(Builder builder, Storage storage) {
+    public GcpBlobStore(Builder builder, Storage storage, MultipartUploadClient mpuClient) {
         super(builder);
         this.storage = storage;
+        this.multipartUploadClient = mpuClient;
         this.transformer = builder.transformerSupplier.get(bucket);
     }
 
@@ -265,7 +287,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
-    protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
+    protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doList(ListBlobsRequest request) {
         List<Storage.BlobListOption> listOptions = new ArrayList<>();
         listOptions.add(Storage.BlobListOption.includeFolders(false));
         if(request.getPrefix() != null) {
@@ -286,9 +308,9 @@ public class GcpBlobStore extends AbstractBlobStore {
             }
 
             @Override
-            public BlobInfo next() {
+            public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
                 Blob blob = blobIterator.next();
-                return BlobInfo.builder()
+                return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
                         .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
@@ -308,9 +330,9 @@ public class GcpBlobStore extends AbstractBlobStore {
         // Use the Page API to get proper pagination support
         Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
 
-        List<BlobInfo> blobs = new ArrayList<>();
+        List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = new ArrayList<>();
         for (Blob blob : page.getValues()) {
-            blobs.add(BlobInfo.builder()
+            blobs.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                     .withKey(blob.getName())
                     .withObjectSize(blob.getSize())
                     .withLastModified(blob.getUpdateTimeOffsetDateTime() != null ? blob.getUpdateTimeOffsetDateTime().toInstant() : null)
@@ -328,12 +350,24 @@ public class GcpBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
         validateBucketExists();
 
-        String uploadId = UUID.randomUUID().toString();
+        CreateMultipartUploadRequest.Builder createRequestBuilder = CreateMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(request.getKey());
+        if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+            createRequestBuilder.kmsKeyName(request.getKmsKeyId());
+        }
+
+        if (request.getMetadata() != null) {
+            createRequestBuilder.metadata(request.getMetadata());
+        }
+
+        CreateMultipartUploadResponse gcpMultipartUpload =
+            multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
         return MultipartUpload.builder()
                 .bucket(getBucket())
                 .key(request.getKey())
-                .id(uploadId)
+                .id(gcpMultipartUpload.uploadId())
                 .metadata(request.getMetadata())
                 .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
@@ -341,42 +375,80 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     @Override
-    protected UploadPartResponse doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
-        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
-        UploadResponse uploadResponse = doUpload(uploadRequest, mpp.getInputStream());
-        return new UploadPartResponse(mpp.getPartNumber(), uploadResponse.getETag(), mpp.getContentLength());
+    protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
+        try {
+            // Read the InputStream into a byte array, then wrap in ByteBuffer
+            byte[] data = ByteStreams.toByteArray(mpp.getInputStream());
+            ByteBuffer buffer = ByteBuffer.wrap(data);
+
+            UploadPartRequest uploadPartRequest = UploadPartRequest.builder().bucket(getBucket())
+                    .key(mpu.getKey()).partNumber(mpp.getPartNumber())
+                .uploadId(mpu.getId())
+                .build();
+
+            UploadPartResponse gcpResponse =
+                multipartUploadClient.uploadPart(uploadPartRequest, RequestBody.of(buffer));
+
+            return new com.salesforce.multicloudj.blob.driver.UploadPartResponse(mpp.getPartNumber(), gcpResponse.eTag(), -1);
+        } catch (IOException e) {
+            throw new SubstrateSdkException("Failed to upload multipart part", e);
+        }
     }
 
     @Override
-    protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<UploadPartResponse> parts) {
-        List<BlobId> sourceBlobs = parts.stream()
-                .map(part -> BlobId.of(getBucket(), transformer.toPartName(mpu, part.getPartNumber())))
+    protected MultipartUploadResponse doCompleteMultipartUpload(MultipartUpload mpu, List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts) {
+        List<CompletedPart> completedParts = parts.stream()
+                // Google cloud rejects the multipart upload if the parts are not in order,
+                // we need to bring it to parity with other cloud providers.
+                .sorted(Comparator.comparingInt(com.salesforce.multicloudj.blob.driver.UploadPartResponse::getPartNumber))
+                .map(part -> CompletedPart.builder()
+                    .partNumber(part.getPartNumber())
+                    .eTag(part.getEtag())
+                    .build())
                 .collect(Collectors.toList());
-        List<String> blobPartKeys = sourceBlobs.stream()
-                .map(part -> part.getName())
-                .collect(Collectors.toList());
 
-        Blob composedBlob = storage.compose(Storage.ComposeRequest.newBuilder()
-                .setTarget(transformer.toBlobInfo(mpu))
-                .addSource(blobPartKeys)
-                .build());
+        CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder()
+            .parts(completedParts)
+            .build();
 
-        // Clean up the temporary part objects
-        storage.delete(sourceBlobs);
+        CompleteMultipartUploadRequest completeRequest = CompleteMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .multipartUpload(completedMultipartUpload)
+            .build();
 
-        return new MultipartUploadResponse(composedBlob.getEtag());
+        CompleteMultipartUploadResponse response = multipartUploadClient.completeMultipartUpload(completeRequest);
+
+        return new MultipartUploadResponse(response.etag());
     }
 
     @Override
-    protected List<UploadPartResponse> doListMultipartUpload(MultipartUpload mpu) {
-        return transformer.toUploadPartResponseList(listMultipartParts(mpu));
+    protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(MultipartUpload mpu) {
+        ListPartsRequest listPartsRequest = ListPartsRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .build();
+        ListPartsResponse response = multipartUploadClient.listParts(listPartsRequest);
+
+        return response.getParts().stream()
+                .map(part -> new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
+                    part.partNumber(),
+                    part.eTag(),
+                    part.size()
+                ))
+                .collect(Collectors.toList());
     }
 
     @Override
     protected void doAbortMultipartUpload(MultipartUpload mpu) {
-        Page<Blob> blobs = listMultipartParts(mpu);
-        List<BlobId> blobIds = transformer.toBlobIdList(blobs);
-        storage.delete(blobIds);
+        AbortMultipartUploadRequest abortRequest = AbortMultipartUploadRequest.builder()
+            .bucket(getBucket())
+            .key(mpu.getKey())
+            .uploadId(mpu.getId())
+            .build();
+        multipartUploadClient.abortMultipartUpload(abortRequest);
     }
 
     /**
@@ -393,10 +465,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         } catch (StorageException e) {
             throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
         }
-    }
-
-    private Page<Blob> listMultipartParts(MultipartUpload mpu) {
-        return storage.list(getBucket(), Storage.BlobListOption.prefix(mpu.getKey() + "/" + mpu.getId() + "/part-"));
     }
 
     @Override
@@ -458,11 +526,17 @@ public class GcpBlobStore extends AbstractBlobStore {
                 httpMethod = HttpMethod.GET;
                 break;
         }
+        List<Storage.SignUrlOption> options = new ArrayList<>();
+        options.add(Storage.SignUrlOption.httpMethod(httpMethod));
+        options.add(Storage.SignUrlOption.withV4Signature());
+        if (request.getMetadata() != null) {
+            options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+        }
+
         return storage.signUrl(blobInfo,
                 request.getDuration().toMillis(),
                 TimeUnit.MILLISECONDS,
-                Storage.SignUrlOption.httpMethod(httpMethod),
-                Storage.SignUrlOption.withV4Signature());
+                options.toArray(new Storage.SignUrlOption[0]));
     }
 
     @Override
@@ -617,9 +691,9 @@ public class GcpBlobStore extends AbstractBlobStore {
             }
 
             // Convert GCP Blob objects to DriverBlobInfo objects for partitioning
-            var blobInfos = new ArrayList<BlobInfo>();
+            var blobInfos = new ArrayList<com.salesforce.multicloudj.blob.driver.BlobInfo>();
             for (Blob blob : blobs) {
-                blobInfos.add(BlobInfo.builder()
+                blobInfos.add(com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
                         .withKey(blob.getName())
                         .withObjectSize(blob.getSize())
                         .build());
@@ -640,6 +714,137 @@ public class GcpBlobStore extends AbstractBlobStore {
         } catch (Exception e) {
             throw new SubstrateSdkException("Failed to delete directory", e);
         }
+    }
+
+    /**
+     * Gets object lock configuration for a blob.
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
+        }
+
+        // Check for object retention
+        Retention retention = blob.getRetention();
+        boolean hasRetention = retention != null;
+        
+        // Check for object holds
+        Boolean tempHold = blob.getTemporaryHold();
+        Boolean eventHold = blob.getEventBasedHold();
+        boolean hasHold = (tempHold != null && tempHold) || (eventHold != null && eventHold);
+
+        if (!hasRetention && !hasHold) {
+            return null;
+        }
+
+        RetentionMode mode = null;
+        java.time.Instant retainUntilDate = null;
+        
+        if (hasRetention) {
+            // Map provider retention mode to SDK retention mode
+            mode = retention.getMode() == Retention.Mode.LOCKED
+                    ? RetentionMode.COMPLIANCE
+                    : RetentionMode.GOVERNANCE;
+            retainUntilDate = retention.getRetainUntilTime() != null
+                    ? retention.getRetainUntilTime().toInstant()
+                    : null;
+        }
+
+        return ObjectLockInfo.builder()
+                .mode(mode)
+                .retainUntilDate(retainUntilDate)
+                .legalHold(hasHold)
+                .useEventBasedHold(eventHold != null && eventHold)
+                .build();
+    }
+
+    /**
+     * Updates object retention date.
+     * 
+     * <p>For provider:
+     * <ul>
+     *   <li>GOVERNANCE mode (UNLOCKED): Can be updated with bypass header if user has permission</li>
+     *   <li>COMPLIANCE mode (LOCKED): Cannot be shortened or removed, only increased</li>
+     * </ul>
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
+        }
+
+        Retention currentRetention = blob.getRetention();
+        if (currentRetention == null) {
+            throw new FailedPreconditionException(
+                    "Object does not have retention configured. Cannot update retention.");
+        }
+
+        Retention.Mode currentMode = currentRetention.getMode();
+        
+        // Check if trying to shorten retention (not allowed for LOCKED/COMPLIANCE mode)
+        if (currentMode == Retention.Mode.LOCKED) {
+            java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
+                    ? currentRetention.getRetainUntilTime().toInstant()
+                    : null;
+            if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
+                throw new FailedPreconditionException(
+                        "Cannot reduce retention for objects in COMPLIANCE (LOCKED) mode. " +
+                        "Only GOVERNANCE (UNLOCKED) mode objects can have their retention reduced, " +
+                        "and COMPLIANCE mode retention can only be increased.");
+            }
+        }
+
+        // Build updated retention with same mode but new retain-until time
+        Retention updatedRetention = currentRetention.toBuilder()
+                .setRetainUntilTime(java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
+                .build();
+
+        com.google.cloud.storage.BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
+        
+        // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
+        if (currentMode == Retention.Mode.UNLOCKED) {
+            java.time.Instant currentRetainUntil = currentRetention.getRetainUntilTime() != null
+                    ? currentRetention.getRetainUntilTime().toInstant()
+                    : null;
+            if (currentRetainUntil != null && retainUntilDate.isBefore(currentRetainUntil)) {
+                // Shortening retention requires bypass header
+                storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+            } else {
+                // Increasing retention doesn't need bypass header
+                storage.update(updatedBlobInfo);
+            }
+        } else {
+            // COMPLIANCE (LOCKED) mode - only allow increasing
+            storage.update(updatedBlobInfo);
+        }
+    }
+
+    /**
+     * Updates legal hold status on an object.
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
+        if (blob == null) {
+            throw new ResourceNotFoundException("Object not found: " + key);
+        }
+
+        // Determine which hold type to use based on existing configuration
+        // If object has eventBasedHold, use that; otherwise use temporaryHold
+        Boolean existingEventHold = blob.getEventBasedHold();
+        boolean useEventBased = existingEventHold != null && existingEventHold;
+
+        com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+        if (useEventBased) {
+            builder.setEventBasedHold(legalHold);
+        } else {
+            builder.setTemporaryHold(legalHold);
+        }
+
+        storage.update(builder.build());
     }
 
     @Override
@@ -668,7 +873,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 storage.close();
             }
         } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to close GCP Storage client", e);
+            throw new SubstrateSdkException("Failed to close storage client", e);
         }
     }
 
@@ -676,6 +881,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
 
         private Storage storage;
+        private MultipartUploadClient mpuClient;
         private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
 
         public Builder() {
@@ -689,6 +895,11 @@ public class GcpBlobStore extends AbstractBlobStore {
 
         public Builder withStorage(Storage storage) {
             this.storage = storage;
+            return this;
+        }
+
+        public Builder withMultipartUploadClient(MultipartUploadClient mpuClient) {
+            this.mpuClient = mpuClient;
             return this;
         }
 
@@ -739,21 +950,42 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
 
         /**
+         * Normalizes endpoint to ensure it ends with "/"
+         */
+        private static String normalizeEndpoint(URI endpoint) {
+            if (endpoint == null) {
+                return null;
+            }
+            String endpointStr = endpoint.toString();
+            if (!endpointStr.endsWith("/")) {
+                endpointStr = endpointStr + "/";
+            }
+            return endpointStr;
+        }
+
+        /**
+         * Creates HttpTransportOptions with ApacheHttpTransport
+         */
+        private static HttpTransportOptions buildTransportOptions(Builder builder) {
+            CloseableHttpClient httpClient = buildHttpClient(builder);
+            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+            return HttpTransportOptions.newBuilder()
+                    .setHttpTransportFactory(() -> transport)
+                    .build();
+        }
+
+        /**
          * Helper function for generating the Storage client
          */
         private static Storage buildStorage(Builder builder) {
-            CloseableHttpClient httpClient = buildHttpClient(builder);
-
-            ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
-            HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()
-                    .setHttpTransportFactory(() -> transport)
-                    .build();
+            HttpTransportOptions transportOptions = buildTransportOptions(builder);
 
             StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
             storageOptionsBuilder.setTransportOptions(transportOptions);
 
-            if (builder.getEndpoint() != null) {
-                storageOptionsBuilder.setHost(builder.getEndpoint().toString());
+            String endpoint = normalizeEndpoint(builder.getEndpoint());
+            if (endpoint != null) {
+                storageOptionsBuilder.setHost(endpoint);
             }
 
             if (builder.getCredentialsOverrider() != null) {
@@ -762,6 +994,27 @@ public class GcpBlobStore extends AbstractBlobStore {
             }
 
             return storageOptionsBuilder.build().getService();
+        }
+
+        /**
+         * Helper function for generating the MultipartUpload client
+         */
+        private static MultipartUploadClient buildMultipartUploadClient(Builder builder) {
+            HttpTransportOptions transportOptions = buildTransportOptions(builder);
+
+            HttpStorageOptions.Builder storageOptionsBuilder  = HttpStorageOptions.http().setTransportOptions(transportOptions);
+
+            String endpoint = normalizeEndpoint(builder.getEndpoint());
+            if (endpoint != null) {
+                storageOptionsBuilder.setHost(endpoint);
+            }
+
+            if (builder.getCredentialsOverrider() != null) {
+                Credentials credentials = GcpCredentialsProvider.getCredentials(builder.getCredentialsOverrider());
+                storageOptionsBuilder.setCredentials(credentials);
+            }
+
+            return MultipartUploadClient.create(MultipartUploadSettings.of(storageOptionsBuilder.build()));
         }
 
         private static CloseableHttpClient buildHttpClient(Builder builder) {
@@ -800,10 +1053,14 @@ public class GcpBlobStore extends AbstractBlobStore {
         @Override
         public GcpBlobStore build() {
             Storage storage = this.storage;
+            MultipartUploadClient mpuClient = this.mpuClient;
             if(storage == null) {
                 storage = buildStorage(this);
             }
-            return new GcpBlobStore(this, storage);
+            if(mpuClient == null) {
+                mpuClient = buildMultipartUploadClient(this);
+            }
+            return new GcpBlobStore(this, storage, mpuClient);
         }
     }
 }

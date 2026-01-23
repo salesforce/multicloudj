@@ -1,0 +1,30 @@
+{
+  "id" : "cda3cb6b-c7f2-4865-bc7c-c36a951d71f4",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_topics_topic-testackafterreceivepublish",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/topics/topic-testAckAfterReceive:publish?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.messages"
+    }, {
+      "matchesJsonPath" : "$.messages[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"messageIds\": [\n    \"17731217847764286\"\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 12 Jan 2026 03:46:41 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "cda3cb6b-c7f2-4865-bc7c-c36a951d71f4",
+  "persistent" : true,
+  "insertionIndex" : 86
+}

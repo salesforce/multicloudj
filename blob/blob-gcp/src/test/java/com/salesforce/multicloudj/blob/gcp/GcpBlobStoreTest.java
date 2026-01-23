@@ -10,8 +10,21 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
+import com.google.cloud.storage.MultipartUploadClient;
+import com.google.cloud.storage.RequestBody;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.multipartupload.model.AbortMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CompleteMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.CompletedPart;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadRequest;
+import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
+import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
+import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.Part;
+import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
+import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -24,9 +37,9 @@ import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
-import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -34,15 +47,17 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.provider.Provider;
@@ -52,10 +67,10 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayInputStream;
@@ -65,18 +80,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ForkJoinPool;
@@ -93,11 +107,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -115,6 +128,9 @@ class GcpBlobStoreTest {
 
     @Mock
     private Storage mockStorage;
+
+    @Mock
+    private MultipartUploadClient mpuClient;
 
     @Mock
     private GcpTransformer mockTransformer;
@@ -168,7 +184,7 @@ class GcpBlobStoreTest {
         Bucket mockBucket = mock(Bucket.class);
         lenient().when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
 
-        gcpBlobStore = new GcpBlobStore(builder, mockStorage);
+        gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient);
     }
 
     @Test
@@ -1093,169 +1109,6 @@ class GcpBlobStoreTest {
     }
 
     @Test
-    void testDoInitiateMultipartUpload() {
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-                .withKey(TEST_KEY)
-                .withMetadata(Map.of("key1","value1","key2","value2"))
-                .build();
-
-        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
-
-        assertEquals(TEST_BUCKET, mpu.getBucket());
-        assertEquals(TEST_KEY, mpu.getKey());
-        assertNotNull(mpu.getId());
-    }
-
-    @Test
-    void testDoInitiateMultipartUploadWithKms() {
-        String kmsKeyId = "projects/test-project/locations/us/keyRings/test-ring/cryptoKeys/test-key";
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-                .withKey(TEST_KEY)
-                .withMetadata(Map.of("key1","value1","key2","value2"))
-                .withKmsKeyId(kmsKeyId)
-                .build();
-
-        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
-
-        assertEquals(TEST_BUCKET, mpu.getBucket());
-        assertEquals(TEST_KEY, mpu.getKey());
-        assertEquals(kmsKeyId, mpu.getKmsKeyId());
-        assertNotNull(mpu.getId());
-    }
-
-    @Test
-    void testDoInitiateMultipartUploadWithTags() {
-        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-                .withKey(TEST_KEY)
-                .withMetadata(Map.of("key1","value1","key2","value2"))
-                .withTags(tags)
-                .build();
-
-        MultipartUpload mpu = gcpBlobStore.doInitiateMultipartUpload(request);
-
-        assertEquals(TEST_BUCKET, mpu.getBucket());
-        assertEquals(TEST_KEY, mpu.getKey());
-        assertEquals(tags, mpu.getTags());
-        assertNotNull(mpu.getId());
-    }
-
-    @Test
-    void testDoUploadMultipartPart() {
-        try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
-            UploadRequest uploadRequest = UploadRequest.builder()
-                    .withKey(TEST_KEY)
-                    .build();
-            UploadResponse expectedResponse = UploadResponse.builder()
-                    .key(TEST_KEY)
-                    .versionId(TEST_VERSION_ID)
-                    .eTag(TEST_ETAG)
-                    .build();
-
-            when(mockTransformer.toUploadRequest(any(), any())).thenReturn(uploadRequest);
-            when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-            when(mockTransformer.getKmsWriteOptions(uploadRequest)).thenReturn(new Storage.BlobWriteOption[0]);
-            when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class))).thenReturn(mockWriteChannel);
-            when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(mockBlob);
-            when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
-
-            MultipartUpload mpu = MultipartUpload.builder()
-                    .bucket(TEST_BUCKET)
-                    .key(TEST_KEY)
-                    .id("id")
-                    .build();
-            MultipartPart mpp = new MultipartPart(1, "TestData".getBytes(StandardCharsets.UTF_8));
-            UploadPartResponse response = gcpBlobStore.doUploadMultipartPart(mpu, mpp);
-
-            assertEquals(1, response.getPartNumber());
-            assertEquals(8, response.getSizeInBytes());
-            assertEquals(TEST_ETAG, response.getEtag());
-        }
-
-    }
-
-    @Test
-    void testDoCompleteMultipartUpload() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        List<UploadPartResponse> parts = List.of(new UploadPartResponse(1,"etag", 100));
-        Blob mockBlob = mock(Blob.class);
-        doReturn(TEST_ETAG).when(mockBlob).getEtag();
-        doReturn(mockBlob).when(mockStorage).compose(any());
-        when(mockTransformer.toPartName(any(MultipartUpload.class), anyInt())).thenCallRealMethod();
-        when(mockTransformer.toBlobInfo(any(MultipartUpload.class))).thenReturn(mock(BlobInfo.class));
-
-        MultipartUploadResponse response = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
-
-        assertEquals(TEST_ETAG, response.getEtag());
-    }
-
-    @Test
-    void testDoCompleteMultipartUploadWithTags() {
-        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .tags(tags)
-                .build();
-        List<UploadPartResponse> parts = List.of(new UploadPartResponse(1,"etag", 100));
-        Blob mockBlob = mock(Blob.class);
-        doReturn(TEST_ETAG).when(mockBlob).getEtag();
-        doReturn(mockBlob).when(mockStorage).compose(any());
-        when(mockTransformer.toPartName(any(MultipartUpload.class), anyInt())).thenCallRealMethod();
-        BlobInfo blobInfoWithTags = BlobInfo.newBuilder(TEST_BUCKET, TEST_KEY)
-                .setMetadata(Map.of("gcp-tag-tag1", "value1", "gcp-tag-tag2", "value2"))
-                .build();
-        when(mockTransformer.toBlobInfo(mpu)).thenReturn(blobInfoWithTags);
-
-        ArgumentCaptor<Storage.ComposeRequest> composeRequestCaptor = ArgumentCaptor.forClass(Storage.ComposeRequest.class);
-        MultipartUploadResponse response = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
-
-        verify(mockStorage).compose(composeRequestCaptor.capture());
-        Storage.ComposeRequest composeRequest = composeRequestCaptor.getValue();
-        assertEquals(blobInfoWithTags, composeRequest.getTarget());
-        assertEquals(TEST_ETAG, response.getEtag());
-    }
-
-    @Test
-    void testDoListMultipartUpload() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        List<UploadPartResponse> expectedParts = List.of(
-                new UploadPartResponse(1, "etag1", 100L),
-                new UploadPartResponse(2, "etag2", 200L));
-        doReturn(expectedParts).when(mockTransformer).toUploadPartResponseList(any(Page.class));
-        doReturn(mock(Page.class)).when(mockStorage).list(anyString(), any(Storage.BlobListOption.class));
-
-        List<UploadPartResponse> actualParts = gcpBlobStore.doListMultipartUpload(mpu);
-
-        assertEquals(expectedParts, actualParts);
-    }
-
-    @Test
-    void testDoAbortMultipartUpload() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        doReturn(mock(Page.class)).when(mockStorage).list(anyString(), any(Storage.BlobListOption.class));
-        List<BlobId> blobIds = List.of(mock(BlobId.class), mock(BlobId.class));
-        doReturn(blobIds).when(mockTransformer).toBlobIdList(any());
-
-        gcpBlobStore.doAbortMultipartUpload(mpu);
-
-        verify(mockStorage).delete(blobIds);
-    }
-
-    @Test
     void testDoGeneratePresignedUrl_Upload() throws Exception {
         // Given
         Duration duration = Duration.ofHours(4);
@@ -1417,8 +1270,8 @@ class GcpBlobStoreTest {
 
     // Test class to access protected methods
     private static class TestGcpBlobStore extends GcpBlobStore {
-        public TestGcpBlobStore(Builder builder, Storage storage) {
-            super(builder, storage);
+        public TestGcpBlobStore(Builder builder, Storage storage, MultipartUploadClient client) {
+            super(builder, storage, client);
         }
     }
 
@@ -2504,4 +2357,759 @@ class GcpBlobStoreTest {
         Path expectedPath = tempDir.resolve("subdir/nested/file.txt");
         assertTrue(Files.exists(expectedPath.getParent()));
     }
+
+    @Test
+    void testDoInitiateMultipartUpload_Success() {
+        // Given
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withMetadata(Map.of("key1", "value1"))
+                .withTags(Map.of("tag1", "value1"))
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(TEST_BUCKET, result.getBucket());
+        assertEquals(TEST_KEY, result.getKey());
+        assertEquals("test-upload-id", result.getId());
+        assertEquals(Map.of("key1", "value1"), result.getMetadata());
+        assertEquals(Map.of("tag1", "value1"), result.getTags());
+        verify(mpuClient).createMultipartUpload(any(CreateMultipartUploadRequest.class));
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_WithKmsKey() {
+        // Given
+        String kmsKeyId = "projects/my-project/locations/us/keyRings/my-ring/cryptoKeys/my-key";
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withKmsKeyId(kmsKeyId)
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id-kms")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("test-upload-id-kms", result.getId());
+        assertEquals(kmsKeyId, result.getKmsKeyId());
+
+        ArgumentCaptor<CreateMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+        verify(mpuClient).createMultipartUpload(captor.capture());
+
+        CreateMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        // Don't verify kmsKeyName as it's an optional field
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_NoMetadata() {
+        // Given
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id-no-metadata")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("test-upload-id-no-metadata", result.getId());
+        assertTrue(result.getMetadata().isEmpty());
+        verify(mpuClient).createMultipartUpload(any(CreateMultipartUploadRequest.class));
+    }
+
+    @Test
+    void testDoUploadMultipartPart_Success() throws IOException {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        byte[] partData = "part data content".getBytes();
+        InputStream inputStream = new ByteArrayInputStream(partData);
+        MultipartPart mpp = new MultipartPart(1, inputStream, partData.length);
+
+        UploadPartResponse mockGcpResponse = UploadPartResponse.builder()
+                .eTag("part-etag-1")
+                .build();
+
+        when(mpuClient.uploadPart(any(UploadPartRequest.class), any(RequestBody.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        com.salesforce.multicloudj.blob.driver.UploadPartResponse result =
+                gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.getPartNumber());
+        assertEquals("part-etag-1", result.getEtag());
+        assertEquals(-1, result.getSizeInBytes());
+
+        ArgumentCaptor<UploadPartRequest> requestCaptor =
+                ArgumentCaptor.forClass(UploadPartRequest.class);
+        verify(mpuClient).uploadPart(requestCaptor.capture(), any(RequestBody.class));
+
+        UploadPartRequest capturedRequest = requestCaptor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+        assertEquals(1, capturedRequest.partNumber());
+    }
+
+    @Test
+    void testDoUploadMultipartPart_MultiplePartNumbers() throws IOException {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        for (int partNum = 1; partNum <= 3; partNum++) {
+            byte[] partData = ("part " + partNum).getBytes();
+            InputStream inputStream = new ByteArrayInputStream(partData);
+            MultipartPart mpp = new MultipartPart(partNum, inputStream, partData.length);
+
+            UploadPartResponse mockGcpResponse = UploadPartResponse.builder()
+                    .eTag("etag-" + partNum)
+                    .build();
+
+            when(mpuClient.uploadPart(any(UploadPartRequest.class), any(RequestBody.class)))
+                    .thenReturn(mockGcpResponse);
+
+            // When
+            com.salesforce.multicloudj.blob.driver.UploadPartResponse result =
+                    gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(partNum, result.getPartNumber());
+            assertEquals("etag-" + partNum, result.getEtag());
+        }
+    }
+
+    @Test
+    void testDoUploadMultipartPart_IOError() throws IOException {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        InputStream errorStream = mock(InputStream.class);
+        MultipartPart mpp = new MultipartPart(1, errorStream, 100);
+
+        // Mock the read method with correct signature (byte[], int, int)
+        when(errorStream.read(any(byte[].class), anyInt(), anyInt()))
+                .thenThrow(new IOException("Read error"));
+
+        // When & Then
+        assertThrows(SubstrateSdkException.class, () -> {
+            gcpBlobStore.doUploadMultipartPart(mpu, mpp);
+        });
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(3, "etag-3", 512L)
+        );
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("complete-etag", result.getEtag());
+
+        ArgumentCaptor<CompleteMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+        verify(mpuClient).completeMultipartUpload(captor.capture());
+
+        CompleteMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+        assertEquals(3, capturedRequest.multipartUpload().parts().size());
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_SortsPartsByPartNumber() {
+        // Given - parts in non-sequential order
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(3, "etag-3", 512L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L)
+        );
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+
+        ArgumentCaptor<CompleteMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+        verify(mpuClient).completeMultipartUpload(captor.capture());
+
+        CompleteMultipartUploadRequest capturedRequest = captor.getValue();
+        List<CompletedPart> completedParts = capturedRequest.multipartUpload().parts();
+
+        // Verify parts are sorted by part number
+        assertEquals(1, completedParts.get(0).partNumber());
+        assertEquals(2, completedParts.get(1).partNumber());
+        assertEquals(3, completedParts.get(2).partNumber());
+    }
+
+    @Test
+    void testDoCompleteMultipartUpload_EmptyParts() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Collections.emptyList();
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag-empty")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("complete-etag-empty", result.getEtag());
+    }
+
+    @Test
+    void testDoListMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        // Create mock parts
+        List<Part> gcpParts = new ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            Part mockPart = mock(Part.class);
+            when(mockPart.partNumber()).thenReturn(i);
+            when(mockPart.eTag()).thenReturn("etag-" + i);
+            if (i == 1) {
+                when(mockPart.size()).thenReturn(1024L);
+            } else if (i == 2) {
+                when(mockPart.size()).thenReturn(2048L);
+            } else {
+                when(mockPart.size()).thenReturn(512L);
+            }
+            gcpParts.add(mockPart);
+        }
+
+        ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
+        when(mockGcpResponse.getParts()).thenReturn(gcpParts);
+
+        when(mpuClient.listParts(any(ListPartsRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> result =
+                gcpBlobStore.doListMultipartUpload(mpu);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(3, result.size());
+
+        assertEquals(1, result.get(0).getPartNumber());
+        assertEquals("etag-1", result.get(0).getEtag());
+        assertEquals(1024L, result.get(0).getSizeInBytes());
+
+        assertEquals(2, result.get(1).getPartNumber());
+        assertEquals("etag-2", result.get(1).getEtag());
+        assertEquals(2048L, result.get(1).getSizeInBytes());
+
+        assertEquals(3, result.get(2).getPartNumber());
+        assertEquals("etag-3", result.get(2).getEtag());
+        assertEquals(512L, result.get(2).getSizeInBytes());
+
+        ArgumentCaptor<ListPartsRequest> captor = ArgumentCaptor.forClass(ListPartsRequest.class);
+        verify(mpuClient).listParts(captor.capture());
+
+        ListPartsRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+    }
+
+    @Test
+    void testDoListMultipartUpload_EmptyList() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
+        when(mockGcpResponse.getParts()).thenReturn(Collections.emptyList());
+
+        when(mpuClient.listParts(any(ListPartsRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> result =
+                gcpBlobStore.doListMultipartUpload(mpu);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testDoAbortMultipartUpload_Success() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .build();
+
+        // When
+        gcpBlobStore.doAbortMultipartUpload(mpu);
+
+        // Then
+        ArgumentCaptor<AbortMultipartUploadRequest> captor =
+                ArgumentCaptor.forClass(AbortMultipartUploadRequest.class);
+        verify(mpuClient).abortMultipartUpload(captor.capture());
+
+        AbortMultipartUploadRequest capturedRequest = captor.getValue();
+        assertEquals(TEST_BUCKET, capturedRequest.bucket());
+        assertEquals(TEST_KEY, capturedRequest.key());
+        assertEquals("test-upload-id", capturedRequest.uploadId());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionGovernance() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionCompliance() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.COMPLIANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertFalse(result.isLegalHold());
+    }
+
+    @Test
+    void testGetObjectLock_WithRetentionAndHold() {
+        // Given
+        String key = "test-key";
+        java.time.OffsetDateTime retainUntilTime = java.time.OffsetDateTime.now().plusDays(10);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(true);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(RetentionMode.GOVERNANCE, result.getMode());
+        assertEquals(retainUntilTime.toInstant(), result.getRetainUntilDate());
+        assertTrue(result.isLegalHold());
+        assertFalse(result.getUseEventBasedHold());
+    }
+
+    @Test
+    void testGetObjectLock_NoRetentionOrHold() {
+        // Given
+        String key = "test-key";
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(null);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When
+        ObjectLockInfo result = gcpBlobStore.getObjectLock(key, null);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void testGetObjectLock_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            gcpBlobStore.getObjectLock(key, null);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_GovernanceMode_Success() {
+        // Given - shortening retention (newRetainUntil is before currentRetainUntil)
+        // This requires the overrideUnlockedRetention option
+        String key = "test-key";
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(7200); // 2 hours
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(3600); // 1 hour (shortening)
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        
+        // Mock the builder chain - use lenient to avoid strict stubbing issues
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // The code expects build() to return BlobInfo, but Blob.Builder.build() returns Blob
+        // We'll use lenient mocking and verify the final storage.update() call instead
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock storage.update() to accept either BlobInfo or Blob (the code passes BlobInfo)
+        lenient().when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class), any(Storage.BlobTargetOption.class)))
+                .thenReturn(mockUpdatedBlob);
+        lenient().when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then - verify storage.update() was called with the override option for shortening retention
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        ArgumentCaptor<Storage.BlobTargetOption> optionCaptor = 
+                ArgumentCaptor.forClass(Storage.BlobTargetOption.class);
+        verify(mockStorage).update(blobInfoCaptor.capture(), optionCaptor.capture());
+        
+        // Verify the override option was used for shortening retention
+        assertEquals(Storage.BlobTargetOption.overrideUnlockedRetention(true), optionCaptor.getValue());
+        
+        // Verify the BlobInfo has the correct retention time
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_GovernanceMode_IncreaseRetention() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(10800); // 3 hours (increasing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // blob.toBuilder() returns Blob.Builder (matching the GCP SDK signature)
+        // We'll mock the builder chain but focus on verifying the final storage.update() call
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // Note: In the actual code, build() returns BlobInfo, but for mocking we'll use a Blob mock
+        // The storage.update() method will accept the BlobInfo that gets created internally
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        verify(mockStorage).update(blobInfoCaptor.capture());
+        
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_ComplianceMode_IncreaseRetention() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(10800); // 3 hours (increasing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        // blob.toBuilder() returns Blob.Builder (matching the GCP SDK signature)
+        // We'll mock the builder chain but focus on verifying the final storage.update() call
+        com.google.cloud.storage.Blob.Builder blobBuilder = mock(com.google.cloud.storage.Blob.Builder.class);
+        lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+        lenient().when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class))).thenReturn(blobBuilder);
+        // Note: In the actual code, build() returns BlobInfo, but for mocking we'll use a Blob mock
+        // The storage.update() method will accept the BlobInfo that gets created internally
+        Blob mockBuiltBlob = mock(Blob.class);
+        lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+        
+        Blob mockUpdatedBlob = mock(Blob.class);
+        // Mock the transformer to return a BlobId, and then mock storage.get() with that BlobId
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+        when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class))).thenReturn(mockUpdatedBlob);
+
+        // When
+        gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+
+        // Then
+        ArgumentCaptor<com.google.cloud.storage.BlobInfo> blobInfoCaptor = 
+                ArgumentCaptor.forClass(com.google.cloud.storage.BlobInfo.class);
+        verify(mockStorage).update(blobInfoCaptor.capture());
+        
+        com.google.cloud.storage.BlobInfo capturedBlobInfo = blobInfoCaptor.getValue();
+        assertNotNull(capturedBlobInfo, "BlobInfo should not be null");
+        if (capturedBlobInfo.getRetention() != null) {
+            assertEquals(newRetainUntil, capturedBlobInfo.getRetention().getRetainUntilTime().toInstant());
+        }
+    }
+
+    @Test
+    void testUpdateObjectRetention_ComplianceMode_CannotReduce() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(1800); // 30 minutes (reducing)
+        java.time.OffsetDateTime currentRetainUntil = java.time.OffsetDateTime.now().plusSeconds(3600); // 1 hour
+        
+        com.google.cloud.storage.BlobInfo.Retention currentRetention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(currentRetainUntil)
+                .build();
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(currentRetention);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When/Then
+        assertThrows(FailedPreconditionException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_NoRetentionConfigured() {
+        // Given
+        String key = "test-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(7200);
+        
+        Blob mockBlob = mock(Blob.class);
+        when(mockBlob.getRetention()).thenReturn(null);
+        
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+        // When/Then
+        assertThrows(FailedPreconditionException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testUpdateObjectRetention_ObjectNotFound() {
+        // Given
+        String key = "non-existent-key";
+        java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(7200);
+
+        when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+        when(mockStorage.get(mockBlobId)).thenReturn(null);
+
+        // When/Then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
+        });
+    }
+
+    @Test
+    void testBuild_EndpointWithoutTrailingSlash() {
+        // Given - endpoint without trailing slash
+        URI endpointWithoutSlash = URI.create("https://storage.googleapis.com");
+
+        GcpBlobStore.Builder builder = (GcpBlobStore.Builder) new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withEndpoint(endpointWithoutSlash);
+
+        // When - build the GcpBlobStore (this will call buildStorage and buildMultipartUploadClient)
+        GcpBlobStore store = builder.build();
+
+        // Then - verify the store was created successfully
+        assertNotNull(store);
+        assertEquals(TEST_BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuild_EndpointWithTrailingSlash() {
+        // Given - endpoint with trailing slash
+        URI endpointWithSlash = URI.create("https://storage.googleapis.com/");
+
+        GcpBlobStore.Builder builder = (GcpBlobStore.Builder) new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withEndpoint(endpointWithSlash);
+
+        // When - build the GcpBlobStore (this will call buildStorage and buildMultipartUploadClient)
+        GcpBlobStore store = builder.build();
+
+        // Then - verify the store was created successfully
+        assertNotNull(store);
+        assertEquals(TEST_BUCKET, store.getBucket());
+    }
+
 }

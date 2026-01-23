@@ -302,8 +302,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             throw error;
         }
         
-        validateAckIDType(ackID);
-        
         ackBatcher.addNoWait(new AckInfo(ackID, true));
     }
 
@@ -331,7 +329,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 permanentError.set(error);
                 throw error;
             }
-            validateAckIDType(ackID);
         }
         
         for (AckID ackID : ackIDs) {
@@ -359,7 +356,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
             throw error;
         }
         
-        validateAckIDType(ackID);
         ackBatcher.addNoWait(new AckInfo(ackID, false));
     }
     
@@ -392,7 +388,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 permanentError.set(error);
                 throw error;
             }
-            validateAckIDType(ackID);
         }
         
         for (AckID ackID : ackIDs) {
@@ -408,7 +403,6 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     
     protected abstract void doSendAcks(List<AckID> ackIDs);
     protected abstract void doSendNacks(List<AckID> ackIDs);
-    protected void validateAckIDType(AckID ackID) {}
     protected abstract Batcher.Options createAckBatcherOptions();
     
     /**

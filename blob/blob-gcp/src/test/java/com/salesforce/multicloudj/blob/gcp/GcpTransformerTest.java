@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.blob.gcp;
 
-import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -12,13 +11,15 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
-import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
-import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,12 +36,13 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,9 +50,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.function.Executable;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +73,74 @@ class GcpTransformerTest {
     @BeforeEach
     void setUp() {
         transformer = new GcpTransformer(TEST_BUCKET);
+    }
+
+    /**
+     * Helper method to get temporaryHold value from BlobInfo using reflection.
+     * GCP's BlobInfo doesn't expose getTemporaryHold() method, so we use reflection
+     * to access the builder's internal state.
+     */
+    private Boolean getTemporaryHold(BlobInfo blobInfo) {
+        try {
+            // Try direct method first
+            Method method = blobInfo.getClass().getMethod("getTemporaryHold");
+            return (Boolean) method.invoke(blobInfo);
+        } catch (NoSuchMethodException e) {
+            // Method doesn't exist, try to get from toBuilder() and access builder's state
+            try {
+                Method toBuilderMethod = blobInfo.getClass().getMethod("toBuilder");
+                Object builder = toBuilderMethod.invoke(blobInfo);
+                // Try to get the field directly from builder using reflection
+                java.lang.reflect.Field field = builder.getClass().getDeclaredField("temporaryHold");
+                field.setAccessible(true);
+                return (Boolean) field.get(builder);
+            } catch (Exception ex) {
+                // If all else fails, return null (holds not set)
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to get eventBasedHold value from BlobInfo using reflection.
+     * GCP's BlobInfo doesn't expose getEventBasedHold() method, so we use reflection
+     * to access the builder's internal state.
+     */
+    private Boolean getEventBasedHold(BlobInfo blobInfo) {
+        try {
+            // Try direct method first
+            Method method = blobInfo.getClass().getMethod("getEventBasedHold");
+            return (Boolean) method.invoke(blobInfo);
+        } catch (NoSuchMethodException e) {
+            // Method doesn't exist, try to get from toBuilder() and access builder's state
+            try {
+                Method toBuilderMethod = blobInfo.getClass().getMethod("toBuilder");
+                Object builder = toBuilderMethod.invoke(blobInfo);
+                // Try to get the field directly from builder using reflection
+                java.lang.reflect.Field field = builder.getClass().getDeclaredField("eventBasedHold");
+                field.setAccessible(true);
+                return (Boolean) field.get(builder);
+            } catch (Exception ex) {
+                // If all else fails, return null (holds not set)
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to get retention from BlobInfo.
+     */
+    private com.google.cloud.storage.BlobInfo.Retention getRetention(BlobInfo blobInfo) {
+        try {
+            Method method = blobInfo.getClass().getMethod("getRetention");
+            return (com.google.cloud.storage.BlobInfo.Retention) method.invoke(blobInfo);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Test
@@ -774,37 +843,6 @@ class GcpTransformerTest {
     }
 
     @Test
-    public void testToPartName() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        assertEquals(TEST_KEY+"/id/part-1", transformer.toPartName(mpu, 1));
-        assertEquals(TEST_KEY+"/id/part-8", transformer.toPartName(mpu, 8));
-        mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY+"_test")
-                .id("id2")
-                .build();
-        assertEquals(TEST_KEY+"_test/id2/part-4", transformer.toPartName(mpu, 4));
-    }
-
-    @Test
-    public void testToUploadRequest() {
-        MultipartUpload mpu = MultipartUpload.builder()
-                .bucket(TEST_BUCKET)
-                .key(TEST_KEY)
-                .id("id")
-                .build();
-        MultipartPart mpp = new MultipartPart(1, "Test Data".getBytes());
-
-        UploadRequest uploadRequest = transformer.toUploadRequest(mpu, mpp);
-        assertEquals(TEST_KEY+"/id/part-1", uploadRequest.getKey());
-        assertEquals(9, uploadRequest.getContentLength());
-    }
-
-    @Test
     public void testToBlobInfo_multipartUpload() {
         MultipartUpload mpu = MultipartUpload.builder()
                 .bucket(TEST_BUCKET)
@@ -835,41 +873,69 @@ class GcpTransformerTest {
     }
 
     @Test
-    public void testToBlobIdList() {
-        Page<Blob> page = mock(Page.class);
-        Blob mockBlob1 = mock(Blob.class);
-        BlobId mockBlobId1 = mock(BlobId.class);
-        doReturn(mockBlobId1).when(mockBlob1).getBlobId();
-        Blob mockBlob2 = mock(Blob.class);
-        BlobId mockBlobId2 = mock(BlobId.class);
-        doReturn(mockBlobId2).when(mockBlob2).getBlobId();
-        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
-        doReturn(stream).when(page).streamAll();
-        transformer.toBlobIdList(page);
+    public void testToBlobInfo_multipartUploadRequest() {
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .build();
+        BlobInfo blobInfo = transformer.toBlobInfo(request);
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+        assertTrue(blobInfo.getMetadata().isEmpty());
     }
 
     @Test
-    public void testToUploadPartResponseList() {
-        Page<Blob> page = mock(Page.class);
-        Blob mockBlob1 = mock(Blob.class);
-        doReturn(TEST_KEY+"/123456/part-1").when(mockBlob1).getName();
-        doReturn("part-1-etag").when(mockBlob1).getEtag();
-        doReturn(100L).when(mockBlob1).getSize();
-        Blob mockBlob2 = mock(Blob.class);
-        doReturn(TEST_KEY+"/123456/part-2").when(mockBlob2).getName();
-        doReturn("part-2-etag").when(mockBlob2).getEtag();
-        doReturn(200L).when(mockBlob2).getSize();
-        Stream<Blob> stream = Stream.of(mockBlob1, mockBlob2);
-        doReturn(stream).when(page).streamAll();
+    public void testToBlobInfo_multipartUploadRequestWithMetadataAndTags() {
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        metadata.put("custom-header", "custom-value");
 
-        List<UploadPartResponse> response = transformer.toUploadPartResponseList(page);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("environment", "production");
+        tags.put("owner", "team-a");
 
-        assertEquals(1, response.get(0).getPartNumber());
-        assertEquals(100L, response.get(0).getSizeInBytes());
-        assertEquals("part-1-etag", response.get(0).getEtag());
-        assertEquals(2, response.get(1).getPartNumber());
-        assertEquals(200L, response.get(1).getSizeInBytes());
-        assertEquals("part-2-etag", response.get(1).getEtag());
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withMetadata(metadata)
+                .withTags(tags)
+                .build();
+
+        BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+
+        // Verify original metadata is preserved
+        assertEquals("application/json", blobInfo.getMetadata().get("content-type"));
+        assertEquals("custom-value", blobInfo.getMetadata().get("custom-header"));
+
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
+    }
+
+    @Test
+    public void testToBlobInfo_multipartUploadRequestWithTagsOnly() {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("environment", "production");
+        tags.put("owner", "team-a");
+
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withTags(tags)
+                .build();
+
+        BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNotNull(blobInfo.getMetadata());
+
+        // Verify tags are added with TAG_PREFIX
+        assertEquals("production", blobInfo.getMetadata().get("gcp-tag-environment"));
+        assertEquals("team-a", blobInfo.getMetadata().get("gcp-tag-owner"));
+        assertEquals(2, blobInfo.getMetadata().size());
     }
 
     @Test
@@ -1309,5 +1375,434 @@ class GcpTransformerTest {
         assertEquals(key, result.getName());
         assertEquals(metadata, result.getMetadata());
         assertNull(result.getStorageClass());
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockTemporaryHold() {
+        // Given
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .legalHold(true)
+                .useEventBasedHold(false)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        Boolean eventHold = getEventBasedHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
+        assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
+        // No retention should be set when retainUntilDate is not provided
+        assertNull(getRetention(blobInfo), "Retention should be null when retainUntilDate is not provided");
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockEventBasedHold() {
+        // Given
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .legalHold(true)
+                .useEventBasedHold(true)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        Boolean eventHold = getEventBasedHold(blobInfo);
+        assertTrue(tempHold == null || !tempHold, "Temporary hold should be false or null");
+        assertTrue(eventHold != null && eventHold, "Event-based hold should be set to true");
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockTemporaryHoldDefault() {
+        // Given - useEventBasedHold is null, should default to temporary hold
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .legalHold(true)
+                .useEventBasedHold(null)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        Boolean eventHold = getEventBasedHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true (default when useEventBasedHold is null)");
+        assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockNoLegalHold() {
+        // Given - legalHold is false, no holds should be set
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .legalHold(false)
+                .useEventBasedHold(true)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        Boolean eventHold = getEventBasedHold(blobInfo);
+        assertTrue(tempHold == null || !tempHold, "Temporary hold should be false or null when legalHold is false");
+        assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null when legalHold is false");
+    }
+
+    @Test
+    public void testToBlobInfo_WithoutObjectLock() {
+        // Given
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        assertNull(getTemporaryHold(blobInfo));
+        assertNull(getEventBasedHold(blobInfo));
+        assertNull(getRetention(blobInfo));
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockRetentionGovernance() {
+        // Given
+        java.time.Instant retainUntil = java.time.Instant.now().plusSeconds(86400); // 1 day from now
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .mode(RetentionMode.GOVERNANCE)
+                .retainUntilDate(retainUntil)
+                .legalHold(true)
+                .useEventBasedHold(false)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        com.google.cloud.storage.BlobInfo.Retention retention = getRetention(blobInfo);
+        assertNotNull(retention, "Retention should be set");
+        assertEquals(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, retention.getMode());
+        assertEquals(retainUntil, retention.getRetainUntilTime().toInstant());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
+    }
+
+    @Test
+    public void testToBlobInfo_WithObjectLockRetentionCompliance() {
+        // Given
+        java.time.Instant retainUntil = java.time.Instant.now().plusSeconds(86400); // 1 day from now
+        ObjectLockConfiguration lockConfig = ObjectLockConfiguration.builder()
+                .mode(RetentionMode.COMPLIANCE)
+                .retainUntilDate(retainUntil)
+                .legalHold(true)
+                .useEventBasedHold(false)
+                .build();
+
+        UploadRequest uploadRequest = UploadRequest.builder()
+                .withKey(TEST_KEY)
+                .withObjectLock(lockConfig)
+                .build();
+
+        // When
+        BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+        // Then
+        assertEquals(TEST_BUCKET, blobInfo.getBucket());
+        assertEquals(TEST_KEY, blobInfo.getName());
+        com.google.cloud.storage.BlobInfo.Retention retention = getRetention(blobInfo);
+        assertNotNull(retention, "Retention should be set");
+        assertEquals(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED, retention.getMode());
+        assertEquals(retainUntil, retention.getRetainUntilTime().toInstant());
+        Boolean tempHold = getTemporaryHold(blobInfo);
+        assertTrue(tempHold != null && tempHold, "Temporary hold should be set to true");
+    }
+
+    @Test
+    public void testToBlobMetadata_WithTemporaryHold() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(true);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertTrue(blobMetadata.getObjectLockInfo().isLegalHold());
+        assertFalse(blobMetadata.getObjectLockInfo().getUseEventBasedHold());
+        // No retention mode when only holds are present
+        assertNull(blobMetadata.getObjectLockInfo().getMode());
+        assertNull(blobMetadata.getObjectLockInfo().getRetainUntilDate());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithEventBasedHold() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(true);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertTrue(blobMetadata.getObjectLockInfo().isLegalHold());
+        assertTrue(blobMetadata.getObjectLockInfo().getUseEventBasedHold());
+        // No retention mode when only holds are present
+        assertNull(blobMetadata.getObjectLockInfo().getMode());
+        assertNull(blobMetadata.getObjectLockInfo().getRetainUntilDate());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithBothHolds() {
+        // Given - both holds are true (edge case)
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(true);
+        when(mockBlob.getEventBasedHold()).thenReturn(true);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertTrue(blobMetadata.getObjectLockInfo().isLegalHold());
+        assertTrue(blobMetadata.getObjectLockInfo().getUseEventBasedHold());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithoutHolds() {
+        // Given - no holds
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNull(blobMetadata.getObjectLockInfo());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithRetentionGovernance() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime retainUntilTime = OffsetDateTime.of(2024, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertEquals(RetentionMode.GOVERNANCE, blobMetadata.getObjectLockInfo().getMode());
+        assertEquals(retainUntilTime.toInstant(), blobMetadata.getObjectLockInfo().getRetainUntilDate());
+        assertFalse(blobMetadata.getObjectLockInfo().isLegalHold());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithRetentionCompliance() {
+        // Given
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime retainUntilTime = OffsetDateTime.of(2024, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        com.google.cloud.storage.BlobInfo.Retention retention = com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+                .setMode(com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED)
+                .setRetainUntilTime(retainUntilTime)
+                .build();
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getRetention()).thenReturn(retention);
+        when(mockBlob.getTemporaryHold()).thenReturn(false);
+        when(mockBlob.getEventBasedHold()).thenReturn(false);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNotNull(blobMetadata.getObjectLockInfo());
+        assertEquals(RetentionMode.COMPLIANCE, blobMetadata.getObjectLockInfo().getMode());
+        assertEquals(retainUntilTime.toInstant(), blobMetadata.getObjectLockInfo().getRetainUntilDate());
+        assertFalse(blobMetadata.getObjectLockInfo().isLegalHold());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithNullHolds() {
+        // Given - holds are null
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        OffsetDateTime updateTime = OffsetDateTime.of(2023, 1, 1, 12, 0, 0, 0, ZoneOffset.UTC);
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(null);
+        when(mockBlob.getEventBasedHold()).thenReturn(null);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNull(blobMetadata.getObjectLockInfo());
+    }
+
+    @Test
+    public void testToBlobMetadata_WithNullUpdateTime() {
+        // Given - updateTime is null
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("content-type", "application/json");
+        
+        when(mockBlob.getName()).thenReturn(TEST_KEY);
+        when(mockBlob.getGeneration()).thenReturn(TEST_GENERATION);
+        when(mockBlob.getEtag()).thenReturn(TEST_ETAG);
+        when(mockBlob.getSize()).thenReturn(TEST_SIZE);
+        when(mockBlob.getMetadata()).thenReturn(metadata);
+        when(mockBlob.getUpdateTimeOffsetDateTime()).thenReturn(null);
+        when(mockBlob.getMd5()).thenReturn("5d41402abc4b2a76b9719d911017c592");
+        when(mockBlob.getTemporaryHold()).thenReturn(null);
+        when(mockBlob.getEventBasedHold()).thenReturn(null);
+
+        // When
+        BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+        // Then
+        assertEquals(TEST_KEY, blobMetadata.getKey());
+        assertNull(blobMetadata.getLastModified());
+    }
+
+    @Test
+    public void testToGenerationId_WithInvalidFormat() {
+        // Given
+        String invalidVersionId = "not-a-number";
+
+        // When/Then
+        assertThrows(NumberFormatException.class, () -> {
+            transformer.toGenerationId(invalidVersionId);
+        });
     }
 } 

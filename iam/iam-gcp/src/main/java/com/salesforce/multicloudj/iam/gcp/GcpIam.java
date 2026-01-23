@@ -14,6 +14,7 @@ import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
 import com.google.iam.v1.SetIamPolicyRequest;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
@@ -24,6 +25,7 @@ import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 public class GcpIam extends AbstractIam {
 
 	private static final String EFFECT_ALLOW = "Allow";
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private ProjectsClient projectsClient;
     private IAMClient iamClient;
@@ -51,7 +54,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Creates a new GCP service account with optional trust configuration.
-     * 
+     *
      * <p>This method creates a service account in the specified GCP project. If trust configuration
      * is provided, it also grants the roles/iam.serviceAccountTokenCreator role to the specified
      * trusted principals, enabling them to impersonate this service account.
@@ -262,12 +265,24 @@ public class GcpIam extends AbstractIam {
 	}
 
 	/**
-	 * Retrieves the details of a specific inline policy (role) attached to an IAM member.
+	 * Retrieves the details of a specific inline policy attached to an IAM member.
 	 * In GCP, this retrieves the role binding information and converts it back to a PolicyDocument format.
+	 * 
+	 * <p><strong>GCP-specific behavior:</strong>
+	 * <ul>
+	 *   <li><strong>policyName:</strong> Not used. GCP IAM does not support named policies. This parameter
+	 *       is ignored but kept for interface compatibility.</li>
+	 *   <li><strong>roleName:</strong> Required. Must be a valid GCP IAM role name (e.g., "roles/iam.serviceAccountUser",
+	 *       "roles/storage.objectViewer"). This is used to identify the role binding to retrieve.</li>
+	 * </ul>
 	 *
 	 * @param identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
 	 *		 "user:user@example.com", "group:group@example.com")
-	 * @param policyName the role name (e.g., "roles/iam.serviceAccountUser")
+	 * @param policyName the name of the policy. This parameter is optional and subject to cloud semantics.
+	 *		 In GCP, named policies are not supported, so this parameter is not used but kept for interface compatibility.
+	 * @param roleName the role name. This parameter is optional and subject to cloud semantics.
+	 *		 In GCP, this parameter is required and must be a valid GCP IAM role name (e.g., "roles/iam.serviceAccountUser").
+	 *		 Must not be null or empty.
 	 * @param tenantId the resource name that owns the IAM policy. Examples include:
 	 *		 "organizations/123456789012",
 	 *		 "folders/987654321098",
@@ -276,9 +291,14 @@ public class GcpIam extends AbstractIam {
 	 *		 Can be any GCP resource that supports IAM policies.
 	 * @param region the region (optional for GCP)
 	 * @return the policy document as a JSON string, or null if the policy doesn't exist
+	 * @throws InvalidArgumentException if roleName is null or empty
 	 */
 	@Override
-	protected String doGetInlinePolicyDetails(String identityName, String policyName, String tenantId, String region) {
+	protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
+		if (roleName == null || roleName.trim().isEmpty()) {
+			throw new InvalidArgumentException("roleName is required for GCP IAM");
+		}
+
 		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(tenantId)
@@ -291,7 +311,7 @@ public class GcpIam extends AbstractIam {
 
 		// Find the binding for the specified role
 		Optional<Binding> binding = policy.getBindingsList().stream()
-			.filter(b -> b.getRole().equals(policyName))
+			.filter(b -> b.getRole().equals(roleName))
 			.findFirst();
 
 		// Check if the service account is a member of this binding
@@ -305,7 +325,7 @@ public class GcpIam extends AbstractIam {
 			.version("")
 			.statement(Statement.builder()
 				.effect(EFFECT_ALLOW)
-				.action(policyName)
+				.action(roleName)
 				.build())
 			.build();
 
@@ -322,8 +342,8 @@ public class GcpIam extends AbstractIam {
 	 */
 	private String toJsonString(PolicyDocument policyDocument) {
 		try {
-			return new ObjectMapper().writeValueAsString(policyDocument);
-		} catch (Exception e) {
+			return OBJECT_MAPPER.writeValueAsString(policyDocument);
+		} catch (JsonProcessingException e) {
 			throw new SubstrateSdkException("Failed to serialize policy document to JSON", e);
 		}
 	}
@@ -398,8 +418,15 @@ public class GcpIam extends AbstractIam {
 			return;
 		}
 
-		// Remove the binding - we know a change will occur because of the check above
+		// Remove the binding
 		Policy updatedPolicy = removeBinding(policy, policyName, identityName);
+
+		// Only make the remote call if the policy actually changed
+		if (policy.getBindingsCount() == updatedPolicy.getBindingsCount() 
+				&& policy.getBindingsList().equals(updatedPolicy.getBindingsList())) {
+			// Policy didn't change, skip the remote call
+			return;
+		}
 
 		// Set the updated policy back to the resource
 		SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
@@ -469,7 +496,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Deletes a service account from the specified GCP project.
-     * 
+     *
      * <p>This method permanently removes a service account and all its associated IAM bindings.
      * The operation cannot be undone. The method accepts either a service account ID or full
      * email address as input and constructs the appropriate resource name for the API call.
@@ -499,7 +526,7 @@ public class GcpIam extends AbstractIam {
 
     /**
      * Retrieves service account metadata from the specified GCP project.
-     * 
+     *
      * <p>This method fetches details of an existing service account and returns its email address
      * as the unique identifier. The method accepts either a service account ID or full email address
      * as input and constructs the appropriate resource name for the API call.
