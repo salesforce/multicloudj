@@ -134,6 +134,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .key(uploadRequest.getKey())
                 .versionId(versionId)
                 .eTag(etag)
+                .checksumValue(uploadRequest.getChecksumValue())
                 .build();
     }
 

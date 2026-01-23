@@ -153,7 +153,7 @@ public abstract class AbstractBlobStoreIT {
      */
     @AfterEach
     public void cleanupTestEnvironment() {
-        //TestsUtil.stopWireMockRecording();
+        TestsUtil.stopWireMockRecording();
     }
 
     @Test
