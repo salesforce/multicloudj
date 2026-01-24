@@ -235,7 +235,6 @@ public abstract class AbstractPubsubIT {
         }
     }
 
-    @Disabled
     @Test
     @Timeout(120) // Integration test with batch operations - allow time for message delivery
     public void testBatchNack() throws Exception {
