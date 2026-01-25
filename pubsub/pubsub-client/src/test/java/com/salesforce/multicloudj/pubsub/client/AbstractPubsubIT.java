@@ -235,7 +235,6 @@ public abstract class AbstractPubsubIT {
         }
     }
     
-    @Disabled
     @Test
     @Timeout(120) // Integration test with batch operations - allow time for message delivery
     public void testBatchNack() throws Exception {
@@ -251,23 +250,10 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = subscription.receive();
-                    if (r != null && r.getAckID() != null) {
-                        ackIDs.add(r.getAckID());
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
+            List<Message> received = receiveMessages(subscription, toSend.size());
+            List<AckID> ackIDs = received.stream()
+                    .map(Message::getAckID)
+                    .collect(java.util.stream.Collectors.toList());
 
             Assertions.assertEquals(toSend.size(), ackIDs.size(),
                     "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
