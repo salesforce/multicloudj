@@ -6,23 +6,20 @@ import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
-import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
-import com.github.tomakehurst.wiremock.matching.EqualToPattern;
-import com.github.tomakehurst.wiremock.matching.MatchesJsonPathPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.recordSpec;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUST_BODY_OVER;
@@ -142,5 +139,48 @@ public class TestsUtil {
         if (isRecordingEnabled) {
             wireMockServer.stopRecording();
         }
+    }
+    
+    public static String getWireMockUnmatchedRequestsError() {
+        if (wireMockServer == null) {
+            return "WireMock server is not initialized";
+        }
+
+        List<ServeEvent> serveEvents = wireMockServer.getAllServeEvents();
+        List<ServeEvent> unmatchedEvents = serveEvents.stream()
+                .filter(event -> event.getWasMatched() == false)
+                .collect(Collectors.toList());
+
+        if (unmatchedEvents.isEmpty()) {
+            return "No unmatched requests found in WireMock";
+        }
+
+        StringBuilder errorMsg = new StringBuilder();
+        errorMsg.append("WireMock unmatched requests (").append(unmatchedEvents.size()).append("):\n");
+        
+        for (int i = 0; i < unmatchedEvents.size(); i++) {
+            ServeEvent event = unmatchedEvents.get(i);
+            errorMsg.append("\n--- Unmatched Request #").append(i + 1).append(" ---\n");
+            errorMsg.append("Method: ").append(event.getRequest().getMethod()).append("\n");
+            errorMsg.append("URL: ").append(event.getRequest().getUrl()).append("\n");
+            
+            if (event.getRequest().getHeaders() != null && event.getRequest().getHeaders().size() > 0) {
+                errorMsg.append("Headers: ").append(event.getRequest().getHeaders()).append("\n");
+            }
+            
+            if (event.getRequest().getBody() != null && event.getRequest().getBody().length > 0) {
+                String bodyPreview = event.getRequest().getBodyAsString();
+                if (bodyPreview.length() > 500) {
+                    bodyPreview = bodyPreview.substring(0, 500) + "... (truncated)";
+                }
+                errorMsg.append("Body: ").append(bodyPreview).append("\n");
+            }
+            
+            if (event.getResponseDefinition() != null) {
+                errorMsg.append("Response Status: ").append(event.getResponseDefinition().getStatus()).append("\n");
+            }
+        }
+        
+        return errorMsg.toString();
     }
 }
