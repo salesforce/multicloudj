@@ -446,17 +446,43 @@ public abstract class AbstractPubsubIT {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
+        int consecutiveNullCount = 0;
+        final int MAX_CONSECUTIVE_NULL = 2; // After 2 consecutive nulls (200ms), fail fast
+        
         while (received.size() < expectedCount && System.nanoTime() < deadline) {
             try {
                 Message r = subscription.receive();
                 if (r != null && r.getAckID() != null) {
                     received.add(r);
+                    consecutiveNullCount = 0; // Reset counter on successful receive
                 } else {
+                    consecutiveNullCount++;
+                    // If mapping cannot be matched, WireMock returns 404/empty immediately
+                    // So consecutive nulls indicate mapping mismatch - fail immediately
+                    if (consecutiveNullCount >= MAX_CONSECUTIVE_NULL) {
+                        String errorMsg = String.format(
+                            "Failed to receive messages: Got %d consecutive null responses (received %d/%d messages so far). " +
+                            "This indicates a WireMock mapping mismatch (mapping cannot be matched). " +
+                            "Expected to receive %d messages. Failing immediately instead of waiting for timeout.",
+                            consecutiveNullCount, received.size(), expectedCount, expectedCount);
+                        throw new AssertionError(errorMsg);
+                    }
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             } catch (Exception e) {
-                TimeUnit.MILLISECONDS.sleep(100);
+                String errorMsg = String.format(
+                    "Failed to receive messages: Got exception after receiving %d/%d messages.",
+                    received.size(), expectedCount);
+                throw new AssertionError(errorMsg, e);
             }
+        }
+        
+        // If we exit the loop without getting all messages, provide useful error message
+        if (received.size() < expectedCount) {
+            String errorMsg = String.format(
+                "Timeout waiting for messages: Received %d/%d messages.",
+                received.size(), expectedCount);
+            throw new AssertionError(errorMsg);
         }
         return received;
     }
