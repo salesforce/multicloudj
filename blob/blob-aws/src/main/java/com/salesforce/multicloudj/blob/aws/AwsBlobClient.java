@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -136,7 +137,13 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
         if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
         } else if (t instanceof AwsServiceException) {
-            String errorCode = ((AwsServiceException) t).awsErrorDetails().errorCode();
+            AwsServiceException awsServiceException = (AwsServiceException) t;
+            String requestId = awsServiceException.requestId();
+            if (awsServiceException.statusCode() == 403 && (requestId == null || requestId.isEmpty())) {
+                return NetworkConnectivityException.class;
+            }
+
+            String errorCode = awsServiceException.awsErrorDetails().errorCode();
             return ErrorCodeMapping.getException(errorCode);
         } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
             return InvalidArgumentException.class;
