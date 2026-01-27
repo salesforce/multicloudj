@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.service.SdkService;
@@ -13,6 +14,11 @@ public interface AwsSdkService extends SdkService {
     default Class<? extends SubstrateSdkException> getException(Throwable t) {
         if (t instanceof AwsServiceException) {
             AwsServiceException awsException = (AwsServiceException) t;
+            String requestId = awsException.requestId();
+            if (awsException.statusCode() == 403 && (requestId == null || requestId.isEmpty())) {
+                return NetworkConnectivityException.class;
+            }
+
             String errorCode = awsException.awsErrorDetails().errorCode();
             return ErrorCodeMapping.getException(errorCode);
         } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {

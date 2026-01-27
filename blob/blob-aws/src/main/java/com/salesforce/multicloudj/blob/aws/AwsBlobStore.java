@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -125,7 +126,13 @@ public class AwsBlobStore extends AbstractBlobStore {
         if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
         } else if (t instanceof AwsServiceException) {
-            String errorCode = ((AwsServiceException) t).awsErrorDetails().errorCode();
+            AwsServiceException awsException = (AwsServiceException) t;
+            String requestId = awsException.requestId();
+            if (awsException.statusCode() == 403 && (requestId == null || requestId.isEmpty())) {
+                return NetworkConnectivityException.class;
+            }
+
+            String errorCode = awsException.awsErrorDetails().errorCode();
             return ErrorCodeMapping.getException(errorCode);
         } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
             return InvalidArgumentException.class;
