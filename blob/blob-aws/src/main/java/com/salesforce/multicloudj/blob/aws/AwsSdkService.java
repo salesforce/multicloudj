@@ -15,7 +15,7 @@ public interface AwsSdkService extends SdkService {
         if (t instanceof AwsServiceException) {
             AwsServiceException awsServiceException = (AwsServiceException) t;
             String requestId = awsServiceException.requestId();
-            if (awsServiceException.statusCode() == 403 && (requestId == null || requestId.isEmpty())) {
+            if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
                 return NetworkConnectivityException.class;
             }
 
