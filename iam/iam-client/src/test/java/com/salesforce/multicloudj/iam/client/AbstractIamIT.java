@@ -2,9 +2,11 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
-import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -143,11 +145,13 @@ public abstract class AbstractIamIT {
 		);
 
 		String policyDetails = iamClient.getInlinePolicyDetails(
-				harness.getIdentityName(),
-				null,
-				harness.getTestPolicyName(),
-				harness.getTenantId(),
-				harness.getRegion()
+				GetInlinePolicyDetailsRequest.builder()
+						.identityName(harness.getIdentityName())
+						.policyName(null)
+						.roleName(harness.getTestPolicyName())
+						.tenantId(harness.getTenantId())
+						.region(harness.getRegion())
+						.build()
 		);
 		Assertions.assertNotNull(policyDetails, "Policy details shouldn't be null");
 		Assertions.assertFalse(policyDetails.trim().isEmpty(), "Policy details shouldn't be empty");
@@ -175,9 +179,11 @@ public abstract class AbstractIamIT {
 		);
 
 		List<String> attachedPolicies = iamClient.getAttachedPolicies(
-				harness.getIdentityName(),
-				harness.getTenantId(),
-				harness.getRegion()
+				GetAttachedPoliciesRequest.builder()
+						.identityName(harness.getIdentityName())
+						.tenantId(harness.getTenantId())
+						.region(harness.getRegion())
+						.build()
 		);
 		Assertions.assertNotNull(attachedPolicies, "Attached policies list shouldn't be null");
 		Assertions.assertFalse(attachedPolicies.isEmpty(), "Attached policies list shouldn't be empty");
