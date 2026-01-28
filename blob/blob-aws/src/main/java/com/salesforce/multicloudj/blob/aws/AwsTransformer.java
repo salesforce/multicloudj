@@ -86,7 +86,10 @@ import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -96,6 +99,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
 
@@ -578,6 +582,57 @@ public class AwsTransformer {
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
                 .s3Prefix(request.getPrefix())
                 .build();
+    }
+
+    /**
+     * Converts a DirectoryUploadRequest to a list of file paths to upload.
+     * This method handles directory traversal and filtering based on the request parameters.
+     *
+     * @param request the directory upload request
+     * @return list of file paths to upload
+     */
+    public List<Path> toFilePaths(DirectoryUploadRequest request) {
+        Path sourceDir = Paths.get(request.getLocalSourceDirectory());
+        List<Path> filePaths = new ArrayList<>();
+
+        try (Stream<Path> paths = Files.walk(sourceDir)) {
+            filePaths = paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        // If includeSubFolders is false, only include files in the root directory
+                        if (!request.isIncludeSubFolders()) {
+                            Path relativePath = sourceDir.relativize(path);
+                            return relativePath.getParent() == null;
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to traverse directory: " + sourceDir, e);
+        }
+
+        return filePaths;
+    }
+
+    /**
+     * Converts a file path to a blob key by applying the prefix and maintaining directory structure.
+     *
+     * @param sourceDir the source directory path
+     * @param filePath the file path to convert
+     * @param prefix the S3 prefix to apply
+     * @return the blob key
+     */
+    public String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+        Path relativePath = sourceDir.relativize(filePath);
+        String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
+
+        if (prefix != null && !prefix.isEmpty()) {
+            // Ensure prefix ends with "/" if it doesn't already
+            String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
+            key = normalizedPrefix + key;
+        }
+
+        return key;
     }
 
     public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
