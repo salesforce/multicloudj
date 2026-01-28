@@ -40,8 +40,7 @@ public class TestIam extends AbstractIam {
     }
 
     @Override
-    protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName,
-                                             String tenantId, String region) {
+    protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
         return "mock-policy-details";
     }
 
