@@ -41,7 +41,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -300,9 +299,7 @@ public class AwsIamTest {
         when(mockIamClient.deleteRole(any(DeleteRoleRequest.class)))
                 .thenReturn(DeleteRoleResponse.builder().build());
 
-        assertDoesNotThrow(() ->
-                awsIam.deleteIdentity(TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION)
-        );
+        awsIam.deleteIdentity(TEST_ROLE_NAME, TEST_TENANT_ID, TEST_REGION);
 
         ArgumentCaptor<DeleteRoleRequest> captor = ArgumentCaptor.forClass(DeleteRoleRequest.class);
         verify(mockIamClient, times(1)).deleteRole(captor.capture());
@@ -722,9 +719,7 @@ public class AwsIamTest {
         when(mockIamClient.deleteRolePolicy(any(DeleteRolePolicyRequest.class)))
                 .thenReturn(DeleteRolePolicyResponse.builder().build());
 
-        assertDoesNotThrow(() ->
-                awsIam.removePolicy(TEST_ROLE_NAME, TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION)
-        );
+        awsIam.removePolicy(TEST_ROLE_NAME, TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION);
 
         ArgumentCaptor<DeleteRolePolicyRequest> captor = ArgumentCaptor.forClass(DeleteRolePolicyRequest.class);
         verify(mockIamClient, times(1)).deleteRolePolicy(captor.capture());
