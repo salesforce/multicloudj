@@ -234,8 +234,7 @@ public abstract class AbstractPubsubIT {
             subscription.sendAcks(ackIDs).join();
         }
     }
-
-    @Disabled
+    
     @Test
     @Timeout(120) // Integration test with batch operations - allow time for message delivery
     public void testBatchNack() throws Exception {
@@ -251,23 +250,10 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = subscription.receive();
-                    if (r != null && r.getAckID() != null) {
-                        ackIDs.add(r.getAckID());
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
+            List<Message> received = receiveMessages(subscription, toSend.size());
+            List<AckID> ackIDs = received.stream()
+                    .map(Message::getAckID)
+                    .collect(java.util.stream.Collectors.toList());
 
             Assertions.assertEquals(toSend.size(), ackIDs.size(),
                     "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
@@ -448,16 +434,40 @@ public abstract class AbstractPubsubIT {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
-        while (received.size() < expectedCount && System.nanoTime() < deadline) {
-            try {
+        
+        try {
+            while (received.size() < expectedCount && System.nanoTime() < deadline) {
                 Message r = subscription.receive();
-                if (r != null && r.getAckID() != null) {
-                    received.add(r);
-                } else {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            } catch (Exception e) {
-                TimeUnit.MILLISECONDS.sleep(100);
+                // receive() either returns a Message or throws an exception
+                received.add(r);
+            }
+        } catch (Exception e) {
+            if (!isRecording) {
+                String wireMockError = TestsUtil.getWireMockUnmatchedRequestsError();
+                String errorMsg = String.format(
+                    "Failed to receive messages: Got exception after receiving %d/%d messages.%n%n" +
+                    "WireMock Error Details:%n%s",
+                    received.size(), expectedCount, wireMockError);
+                throw new AssertionError(errorMsg, e);
+            }
+            throw e;
+        }
+        
+        if (received.size() < expectedCount) {
+            if (isRecording) {
+                // In record mode, timeout means real server didn't return messages in time
+                String errorMsg = String.format(
+                    "Timeout waiting for messages: Received %d/%d messages.",
+                    received.size(), expectedCount);
+                throw new AssertionError(errorMsg);
+            } else {
+                // In replay mode, timeout might indicate mapping mismatch
+                String wireMockError = TestsUtil.getWireMockUnmatchedRequestsError();
+                String errorMsg = String.format(
+                    "Timeout waiting for messages: Received %d/%d messages.%n%n" +
+                    "WireMock Error Details:%n%s",
+                    received.size(), expectedCount, wireMockError);
+                throw new AssertionError(errorMsg);
             }
         }
         return received;
