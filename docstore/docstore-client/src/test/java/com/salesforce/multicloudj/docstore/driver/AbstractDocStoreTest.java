@@ -69,6 +69,29 @@ public class AbstractDocStoreTest {
 
         }
 
+        @Override
+        public List<Backup> listBackups() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Backup getBackup(String backupId) {
+            return null;
+        }
+
+        @Override
+        public BackupStatus getBackupStatus(String backupId) {
+            return BackupStatus.UNKNOWN;
+        }
+
+        @Override
+        public void restoreBackup(RestoreRequest request) {
+        }
+
+        @Override
+        public void deleteBackup(String backupId) {
+        }
+
         public static class Builder extends AbstractDocStore.Builder<TestDocStore, Builder> {
 
             public Builder() {

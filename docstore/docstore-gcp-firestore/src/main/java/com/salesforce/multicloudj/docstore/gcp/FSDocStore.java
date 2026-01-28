@@ -8,6 +8,9 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.service.AutoService;
 import com.google.cloud.firestore.v1.FirestoreClient;
 import com.google.cloud.firestore.v1.FirestoreSettings;
+import com.google.cloud.firestore.v1.FirestoreAdminClient;
+import com.google.cloud.firestore.v1.FirestoreAdminSettings;
+import com.google.firestore.admin.v1.ListBackupsResponse;
 import com.google.firestore.v1.BatchGetDocumentsRequest;
 import com.google.firestore.v1.CommitRequest;
 import com.google.firestore.v1.CommitResponse;
@@ -28,10 +31,13 @@ import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
+import com.salesforce.multicloudj.docstore.driver.Backup;
+import com.salesforce.multicloudj.docstore.driver.BackupStatus;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.RestoreRequest;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -78,6 +84,8 @@ public class FSDocStore extends AbstractDocStore {
     private final int batchSize = 100;
     /** The low-level Firestore client used for operations */
     private FirestoreClient firestoreClient;
+    /** The Firestore Admin client for backup/restore operations */
+    private FirestoreAdminClient firestoreAdminClient;
 
     /**
      * Default constructor that initializes with a default builder.
@@ -95,6 +103,7 @@ public class FSDocStore extends AbstractDocStore {
     public FSDocStore(Builder builder) {
         super(builder);
         this.firestoreClient = builder.firestoreClient;
+        this.firestoreAdminClient = builder.firestoreAdminClient;
     }
 
     /**
@@ -998,6 +1007,152 @@ public class FSDocStore extends AbstractDocStore {
     public void close() {
         executorService.shutdown();
         firestoreClient.close();
+        if (firestoreAdminClient != null) {
+            firestoreAdminClient.close();
+        }
+    }
+
+    @Override
+    public List<Backup> listBackups() {
+        if (firestoreAdminClient == null) {
+            throw new SubstrateSdkException("FirestoreAdminClient not initialized. " +
+                    "Ensure credentials are configured in the builder.");
+        }
+
+        try {
+            // Firestore backups are at location level, not collection-specific
+            // Format: projects/{project}/locations/{location}
+            String locationName = extractLocationName();
+
+            ListBackupsResponse response =
+                    firestoreAdminClient.listBackups(locationName);
+
+            List<Backup> backups = new ArrayList<>();
+            for (com.google.firestore.admin.v1.Backup backup : response.getBackupsList()) {
+                backups.add(convertToBackup(backup));
+            }
+
+            return backups;
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to list Firestore backups", e);
+        }
+    }
+
+    @Override
+    public Backup getBackup(String backupId) {
+        if (firestoreAdminClient == null) {
+            throw new SubstrateSdkException("FirestoreAdminClient not initialized. " +
+                    "Ensure credentials are configured in the builder.");
+        }
+
+        try {
+            com.google.firestore.admin.v1.Backup backup = firestoreAdminClient.getBackup(backupId);
+            return convertToBackup(backup);
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to get Firestore backup: " + backupId, e);
+        }
+    }
+
+    @Override
+    public BackupStatus getBackupStatus(String backupId) {
+        Backup backup = getBackup(backupId);
+        return backup.getStatus();
+    }
+
+    @Override
+    public void restoreBackup(RestoreRequest request) {
+        if (firestoreAdminClient == null) {
+            throw new SubstrateSdkException("FirestoreAdminClient not initialized. " +
+                    "Ensure credentials are configured in the builder.");
+        }
+
+        try {
+            // Build restore request
+            String targetDatabaseId = request.getTargetCollectionName() != null
+                    && !request.getTargetCollectionName().isEmpty()
+                    ? request.getTargetCollectionName()
+                    : collectionOptions.getTableName() + "-restored";
+
+            // Extract parent from backup ID (format: projects/{project}/locations/{location}/backups/{backup})
+            String parent = request.getBackupId().substring(0, request.getBackupId().lastIndexOf("/backups/"));
+            parent = parent.replace("/locations/", "/");
+
+            com.google.firestore.admin.v1.RestoreDatabaseRequest.Builder restoreBuilder =
+                    com.google.firestore.admin.v1.RestoreDatabaseRequest.newBuilder()
+                            .setParent(parent)
+                            .setDatabaseId(targetDatabaseId)
+                            .setBackup(request.getBackupId());
+
+            // Restore is a long-running operation
+            firestoreAdminClient.restoreDatabaseAsync(restoreBuilder.build());
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to restore Firestore backup", e);
+        }
+    }
+
+    @Override
+    public void deleteBackup(String backupId) {
+        if (firestoreAdminClient == null) {
+            throw new SubstrateSdkException("FirestoreAdminClient not initialized. " +
+                    "Ensure credentials are configured in the builder.");
+        }
+
+        try {
+            firestoreAdminClient.deleteBackup(backupId);
+        } catch (Exception e) {
+            throw new SubstrateSdkException("Failed to delete Firestore backup: " + backupId, e);
+        }
+    }
+
+    /**
+     * Extracts location name from the collection path for backup operations.
+     * Format: projects/{project}/locations/{location}
+     */
+    private String extractLocationName() {
+        // Collection path format: projects/{project}/databases/{database}/documents/{collection}
+        String tableName = collectionOptions.getTableName();
+        String[] parts = tableName.split("/");
+        if (parts.length >= 2 && parts[0].equals("projects")) {
+            // Default to 'us-central1' if region not in path
+            return "projects/" + parts[1] + "/locations/nam5";
+        }
+        throw new SubstrateSdkException("Invalid table name format. Expected format: projects/{project}/... but got: " + tableName);
+    }
+
+    /**
+     * Converts Firestore Admin API Backup to MultiCloudJ Backup model.
+     */
+    private Backup convertToBackup(
+            com.google.firestore.admin.v1.Backup backup) {
+        return Backup.builder()
+                .backupId(backup.getName())
+                .collectionName(backup.getDatabase())
+                .status(convertBackupState(backup.getState()))
+                .creationTime(java.time.Instant.ofEpochSecond(
+                        backup.getSnapshotTime().getSeconds(),
+                        backup.getSnapshotTime().getNanos()))
+                .expiryTime(java.time.Instant.ofEpochSecond(
+                        backup.getExpireTime().getSeconds(),
+                        backup.getExpireTime().getNanos()))
+                .sizeInBytes(-1) // Size not available in Backup object
+                .build();
+    }
+
+    /**
+     * Converts Firestore Backup.State to MultiCloudJ BackupStatus.
+     */
+    private BackupStatus convertBackupState(
+            com.google.firestore.admin.v1.Backup.State state) {
+        switch (state) {
+            case CREATING:
+                return BackupStatus.CREATING;
+            case READY:
+                return BackupStatus.AVAILABLE;
+            case NOT_AVAILABLE:
+                return BackupStatus.FAILED;
+            default:
+                return BackupStatus.UNKNOWN;
+        }
     }
 
     /**
@@ -1013,6 +1168,9 @@ public class FSDocStore extends AbstractDocStore {
     public static class Builder extends AbstractDocStore.Builder<FSDocStore, Builder> {
         /** The Firestore client to use for operations */
         private FirestoreClient firestoreClient;
+
+        /** The Firestore Admin client for backup/restore operations */
+        private FirestoreAdminClient firestoreAdminClient;
 
         /** Google credentials for authentication */
         private GoogleCredentials credentials;
@@ -1032,6 +1190,17 @@ public class FSDocStore extends AbstractDocStore {
          */
         public Builder withFirestoreV1Client(FirestoreClient firestoreClient) {
             this.firestoreClient = firestoreClient;
+            return self();
+        }
+
+        /**
+         * Sets the Firestore Admin client for backup/restore operations.
+         *
+         * @param firestoreAdminClient The Firestore Admin client to use
+         * @return This builder for chaining
+         */
+        public Builder withFirestoreAdminClient(FirestoreAdminClient firestoreAdminClient) {
+            this.firestoreAdminClient = firestoreAdminClient;
             return self();
         }
 
@@ -1062,6 +1231,33 @@ public class FSDocStore extends AbstractDocStore {
             }
         }
 
+        /**
+         * Builds a Firestore Admin client from the current configuration.
+         *
+         * @return A configured FirestoreAdminClient
+         * @throws SubstrateSdkException If client creation fails
+         */
+        private FirestoreAdminClient buildFirestoreAdminClient() throws SubstrateSdkException {
+            try {
+                // Create FirestoreAdminSettings with credentials
+                FirestoreAdminSettings.Builder settingsBuilder = FirestoreAdminSettings.newBuilder();
+
+                if (credentials != null) {
+                    settingsBuilder.setCredentialsProvider(() -> credentials);
+                }
+                if (getEndpoint() != null) {
+                    settingsBuilder.setEndpoint(getEndpoint().toString());
+                }
+                Optional.ofNullable(System.getenv("FIRESTORE_EMULATOR_HOST"))
+                        .filter(h -> !h.isEmpty())
+                        .ifPresent(host -> settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create()));
+                // Build the admin client
+                return FirestoreAdminClient.create(settingsBuilder.build());
+            } catch (Exception e) {
+                throw new SubstrateSdkException("Failed to build Firestore Admin client", e);
+            }
+        }
+
         @Override
         public Builder self() {
             return this;
@@ -1077,6 +1273,11 @@ public class FSDocStore extends AbstractDocStore {
         public FSDocStore build() {
             if (this.firestoreClient == null) {
                 this.firestoreClient = buildFirestoreV1Client();
+            }
+
+            // Build admin client if not provided
+            if (this.firestoreAdminClient == null) {
+                this.firestoreAdminClient = buildFirestoreAdminClient();
             }
 
             return new FSDocStore(this);

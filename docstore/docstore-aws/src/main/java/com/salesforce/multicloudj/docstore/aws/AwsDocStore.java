@@ -11,10 +11,12 @@ import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
 import com.salesforce.multicloudj.docstore.driver.ActionKind;
+import com.salesforce.multicloudj.docstore.driver.Backup;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.Filter;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.RestoreRequest;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -49,6 +51,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import com.salesforce.multicloudj.docstore.driver.BackupStatus;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +77,8 @@ public class AwsDocStore extends AbstractDocStore {
 
     private DynamoDbClient ddb;
 
+    private software.amazon.awssdk.services.backup.BackupClient backupClient;
+
     private TableDescription tableDescription = null;
 
     public AwsDocStore() {
@@ -83,6 +88,7 @@ public class AwsDocStore extends AbstractDocStore {
     public AwsDocStore(Builder builder) {
         super(builder);
         this.ddb = builder.ddb;
+        this.backupClient = builder.backupClient;
     }
 
     @NoArgsConstructor
@@ -140,6 +146,10 @@ public class AwsDocStore extends AbstractDocStore {
         }
 
         return tableDescription;
+    }
+
+    private String getTableArn() {
+        return "arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1";
     }
 
     @Override
@@ -986,8 +996,176 @@ public class AwsDocStore extends AbstractDocStore {
         this.ddb.close();
     }
 
+    @Override
+    public List<Backup> listBackups() {
+        software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest request =
+            software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest.builder()
+                .resourceArn(getTableArn())
+                .build();
+
+        software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceResponse response =
+            backupClient.listRecoveryPointsByResource(request);
+
+        List<Backup> backups = new ArrayList<>();
+        for (software.amazon.awssdk.services.backup.model.RecoveryPointByResource recoveryPoint : response.recoveryPoints()) {
+            backups.add(convertToBackup(recoveryPoint));
+        }
+
+        return backups;
+    }
+
+    @Override
+    public Backup getBackup(String backupId) {
+        // First, get the vault name by listing recovery points for this resource
+        String vaultName = getVaultNameForRecoveryPoint(backupId);
+
+        software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest request =
+            software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest.builder()
+                .backupVaultName(vaultName)
+                .recoveryPointArn(backupId)
+                .build();
+
+        software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse response =
+            backupClient.describeRecoveryPoint(request);
+        return convertToBackup(response);
+    }
+
+    /**
+     * Gets the vault name for a recovery point by listing recovery points for this resource.
+     * AWS Backup requires both vault name and recovery point ARN, but the ARN alone doesn't contain vault info.
+     */
+    private String getVaultNameForRecoveryPoint(String recoveryPointArn) {
+        software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest request =
+            software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest.builder()
+                .resourceArn(getTableArn())
+                .build();
+
+        software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceResponse response =
+            backupClient.listRecoveryPointsByResource(request);
+
+        for (software.amazon.awssdk.services.backup.model.RecoveryPointByResource recoveryPoint : response.recoveryPoints()) {
+            if (recoveryPoint.recoveryPointArn().equals(recoveryPointArn)) {
+                return recoveryPoint.backupVaultName();
+            }
+        }
+
+        throw new ResourceNotFoundException("Recovery point not found: " + recoveryPointArn);
+    }
+
+    @Override
+    public BackupStatus getBackupStatus(String backupId) {
+        // First, get the vault name by listing recovery points for this resource
+        String vaultName = getVaultNameForRecoveryPoint(backupId);
+
+        software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest request =
+            software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest.builder()
+                .backupVaultName(vaultName)
+                .recoveryPointArn(backupId)
+                .build();
+
+        software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse response =
+            backupClient.describeRecoveryPoint(request);
+        return convertRecoveryPointStatus(response.status());
+    }
+
+    @Override
+    public void restoreBackup(RestoreRequest request) {
+        // AWS Backup requires an IAM role ARN for DynamoDB restore (required for Advanced DynamoDB and
+        // recommended for all DynamoDB restores). The role is assumed by AWS Backup to create the restored table.
+        String iamRoleArn = null;
+        if (request.getOptions() != null && request.getOptions().get("iamRoleArn") != null) {
+            iamRoleArn = request.getOptions().get("iamRoleArn").trim();
+        }
+        if (iamRoleArn == null || iamRoleArn.isEmpty()) {
+            throw new SubstrateSdkException(
+                    "IAM role ARN is required for AWS Backup DynamoDB restore. "
+                            + "Provide it via RestoreRequest.options with key \"iamRoleArn\" (e.g. "
+                            + "RestoreRequest.builder().backupId(...).options(Map.of(\"iamRoleArn\", "
+                            + "\"arn:aws:iam::123456789012:role/YourBackupRestoreRole\")).build()). "
+                            + "The IAM role must have permissions for dynamodb:RestoreTableFromAwsBackup and "
+                            + "trust policy allowing AWS Backup to assume it.");
+        }
+
+        String targetTableName = request.getTargetCollectionName() != null && !request.getTargetCollectionName().isEmpty()
+                ? request.getTargetCollectionName()
+                : collectionOptions.getTableName();
+
+        // Build restore metadata for DynamoDB table
+        java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        metadata.put("targetTableName", targetTableName);
+
+        software.amazon.awssdk.services.backup.model.StartRestoreJobRequest restoreJobRequest =
+            software.amazon.awssdk.services.backup.model.StartRestoreJobRequest.builder()
+                .recoveryPointArn(request.getBackupId())
+                .metadata(metadata)
+                .iamRoleArn(iamRoleArn)
+                .resourceType("DynamoDB")
+                .build();
+
+        backupClient.startRestoreJob(restoreJobRequest);
+    }
+
+    @Override
+    public void deleteBackup(String backupId) {
+        // First, get the vault name by listing recovery points for this resource
+        String vaultName = getVaultNameForRecoveryPoint(backupId);
+
+        software.amazon.awssdk.services.backup.model.DeleteRecoveryPointRequest request =
+            software.amazon.awssdk.services.backup.model.DeleteRecoveryPointRequest.builder()
+                .backupVaultName(vaultName)
+                .recoveryPointArn(backupId)
+                .build();
+
+        backupClient.deleteRecoveryPoint(request);
+    }
+
+    private Backup convertToBackup(software.amazon.awssdk.services.backup.model.RecoveryPointByResource recoveryPoint) {
+        java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        metadata.put("backupVaultName", recoveryPoint.backupVaultName());
+
+        return Backup.builder()
+                .backupId(recoveryPoint.recoveryPointArn())
+                .collectionName(collectionOptions.getTableName())
+                .status(convertRecoveryPointStatus(recoveryPoint.status()))
+                .creationTime(recoveryPoint.creationDate())
+                .expiryTime(null) // Not available in RecoveryPointByResource
+                .sizeInBytes(-1L) // Not available in RecoveryPointByResource
+                .metadata(metadata)
+                .build();
+    }
+
+    private Backup convertToBackup(software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse response) {
+        return Backup.builder()
+                .backupId(response.recoveryPointArn())
+                .collectionName(collectionOptions.getTableName())
+                .status(convertRecoveryPointStatus(response.status()))
+                .creationTime(response.creationDate())
+                .expiryTime(response.calculatedLifecycle() != null ? response.calculatedLifecycle().deleteAt() : null)
+                .sizeInBytes(response.backupSizeInBytes() != null ? response.backupSizeInBytes() : -1L)
+                .build();
+    }
+
+    private BackupStatus convertRecoveryPointStatus(software.amazon.awssdk.services.backup.model.RecoveryPointStatus status) {
+        if (status == null) {
+            return BackupStatus.UNKNOWN;
+        }
+        switch (status) {
+            case PARTIAL:
+                return BackupStatus.CREATING;
+            case COMPLETED:
+                return BackupStatus.AVAILABLE;
+            case DELETING:
+                return BackupStatus.DELETING;
+            case EXPIRED:
+                return BackupStatus.DELETED;
+            default:
+                return BackupStatus.UNKNOWN;
+        }
+    }
+
     public static class Builder extends AbstractDocStore.Builder<AwsDocStore, Builder> {
         private DynamoDbClient ddb;
+        private software.amazon.awssdk.services.backup.BackupClient backupClient;
 
         public Builder() {
             providerId("aws");
@@ -997,6 +1175,24 @@ public class AwsDocStore extends AbstractDocStore {
             DynamoDbClientBuilder clientBuilder = DynamoDbClient.builder().region(Region.of(builder.getRegion()));
 
             AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), Region.of(builder.getRegion()));
+            if (credentialsProvider != null) {
+                clientBuilder.credentialsProvider(credentialsProvider);
+            }
+
+            if (builder.getEndpoint() != null) {
+                clientBuilder.endpointOverride(builder.getEndpoint());
+            }
+
+            return clientBuilder.build();
+        }
+
+        private static software.amazon.awssdk.services.backup.BackupClient buildBackupClient(Builder builder) {
+            software.amazon.awssdk.services.backup.BackupClientBuilder clientBuilder =
+                software.amazon.awssdk.services.backup.BackupClient.builder()
+                    .region(Region.of(builder.getRegion()));
+
+            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
+                builder.getCredentialsOverrider(), Region.of(builder.getRegion()));
             if (credentialsProvider != null) {
                 clientBuilder.credentialsProvider(credentialsProvider);
             }
@@ -1018,10 +1214,18 @@ public class AwsDocStore extends AbstractDocStore {
             return this;
         }
 
+        public Builder withBackupClient(software.amazon.awssdk.services.backup.BackupClient backupClient) {
+            this.backupClient = backupClient;
+            return this;
+        }
+
         @Override
         public AwsDocStore build() {
             if (ddb == null) {
                 ddb = buildDDBClient(this);
+            }
+            if (backupClient == null) {
+                backupClient = buildBackupClient(this);
             }
             return new AwsDocStore(this);
         }
