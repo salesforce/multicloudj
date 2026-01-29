@@ -1,8 +1,8 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.service.SdkService;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -16,7 +16,7 @@ public interface AwsSdkService extends SdkService {
             AwsServiceException awsServiceException = (AwsServiceException) t;
             String requestId = awsServiceException.requestId();
             if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
-                return NetworkConnectivityException.class;
+                return UnAuthorizedException.class;
             }
 
             String errorCode = awsServiceException.awsErrorDetails().errorCode();

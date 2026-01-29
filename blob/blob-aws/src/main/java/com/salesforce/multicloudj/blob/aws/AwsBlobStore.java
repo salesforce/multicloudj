@@ -26,9 +26,9 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
-import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -126,7 +126,7 @@ public class AwsBlobStore extends AbstractBlobStore {
             AwsServiceException awsServiceException = (AwsServiceException) t;
             String requestId = awsServiceException.requestId();
             if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
-                return NetworkConnectivityException.class;
+                return UnAuthorizedException.class;
             }
 
             String errorCode = awsServiceException.awsErrorDetails().errorCode();

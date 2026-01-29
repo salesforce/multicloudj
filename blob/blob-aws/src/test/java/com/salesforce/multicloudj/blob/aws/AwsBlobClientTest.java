@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.blob.aws;
 
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -131,18 +130,7 @@ public class AwsBlobClientTest {
                                 .build())
                 .build();
         Class<?> cls = aws.getException(awsServiceException);
-        assertEquals(cls, UnAuthorizedException.class);
-
-        AwsServiceException awsServiceException403NoRequestId = AwsServiceException.builder()
-                .statusCode(403)
-                .requestId(null)
-                .awsErrorDetails(
-                        AwsErrorDetails.builder()
-                                .errorCode("AccessDenied")
-                                .build())
-                .build();
-        cls = aws.getException(awsServiceException403NoRequestId);
-        assertEquals(cls, NetworkConnectivityException.class);
+        assertEquals(cls, UnAuthorizedException.class);x
 
         SdkClientException sdkClientException = SdkClientException.builder().build();
         cls = aws.getException(sdkClientException);

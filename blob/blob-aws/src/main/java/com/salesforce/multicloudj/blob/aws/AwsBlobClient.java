@@ -6,8 +6,8 @@ import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.NetworkConnectivityException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -140,7 +140,7 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
             AwsServiceException awsServiceException = (AwsServiceException) t;
             String requestId = awsServiceException.requestId();
             if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
-                return NetworkConnectivityException.class;
+                return UnAuthorizedException.class;
             }
 
             String errorCode = awsServiceException.awsErrorDetails().errorCode();
