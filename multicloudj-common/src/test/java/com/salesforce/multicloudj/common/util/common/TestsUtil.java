@@ -154,22 +154,14 @@ public class TestsUtil {
 
         logger.error("WireMock found {} unmatched requests:", unmatchedEvents.size());
         
-        StringBuilder errorMsg = new StringBuilder();
-        errorMsg.append("WireMock unmatched requests (").append(unmatchedEvents.size()).append("):\n");
-        
         for (int i = 0; i < unmatchedEvents.size(); i++) {
             ServeEvent event = unmatchedEvents.get(i);
             logger.error("\n--- Unmatched Request #{} ---", i + 1);
             logger.error("Method: {}", event.getRequest().getMethod());
             logger.error("URL: {}", event.getRequest().getUrl());
             
-            errorMsg.append("\n--- Unmatched Request #").append(i + 1).append(" ---\n");
-            errorMsg.append("Method: ").append(event.getRequest().getMethod()).append("\n");
-            errorMsg.append("URL: ").append(event.getRequest().getUrl()).append("\n");
-            
             if (event.getRequest().getHeaders() != null && event.getRequest().getHeaders().size() > 0) {
                 logger.error("Headers: {}", event.getRequest().getHeaders());
-                errorMsg.append("Headers: ").append(event.getRequest().getHeaders()).append("\n");
             }
             
             if (event.getRequest().getBody() != null && event.getRequest().getBody().length > 0) {
@@ -178,15 +170,13 @@ public class TestsUtil {
                     bodyPreview = bodyPreview.substring(0, 500) + "... (truncated)";
                 }
                 logger.error("Body: {}", bodyPreview);
-                errorMsg.append("Body: ").append(bodyPreview).append("\n");
             }
             
             if (event.getResponseDefinition() != null) {
                 logger.error("Response Status: {}", event.getResponseDefinition().getStatus());
-                errorMsg.append("Response Status: ").append(event.getResponseDefinition().getStatus()).append("\n");
             }
         }
         
-        return errorMsg.toString();
+        return String.format("Found %d unmatched WireMock requests. See logs above for details.", unmatchedEvents.size());
     }
 }

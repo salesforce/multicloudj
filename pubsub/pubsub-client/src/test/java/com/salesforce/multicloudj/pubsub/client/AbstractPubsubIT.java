@@ -445,17 +445,18 @@ public abstract class AbstractPubsubIT {
             }
         } catch (Exception e) {
             if (!isRecording) {
+                // replay mode: An exception is thrown even when the timeout has not occurred.
                 String wireMockError = TestsUtil.getWireMockUnmatchedRequestsError();
                 String errorMsg = String.format(
                     "Failed to receive messages: Got exception after receiving %d/%d messages.%n%n" +
                     "WireMock Error Details:%n%s",
                     received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
-                logger.error(errorMsg);
                 throw new AssertionError(errorMsg, e);
             }
+            // record mode: throw the exception directly
             throw e;
         }
-        
+        // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             if (isRecording) {
                 String errorMsg = String.format(
@@ -469,7 +470,6 @@ public abstract class AbstractPubsubIT {
                     "Timeout waiting for messages: Received %d/%d messages.%n%n" +
                     "WireMock Error Details:%n%s",
                     received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
-                logger.error(errorMsg);
                 throw new AssertionError(errorMsg);
             }
         }
