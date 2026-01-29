@@ -40,6 +40,8 @@ public class ExceptionHandler {
             throw new FailedPreconditionException(t);
         } else if (TransactionFailedException.class.isAssignableFrom(exceptionClass)) {
             throw new TransactionFailedException(t);
+        } else if (NetworkConnectivityException.class.isAssignableFrom(exceptionClass)) {
+            throw new NetworkConnectivityException(t);
         } else if (UnknownException.class.isAssignableFrom(exceptionClass)) {
             throw new UnknownException(t);
         } else if (SubstrateSdkException.class.isAssignableFrom(exceptionClass)) {
