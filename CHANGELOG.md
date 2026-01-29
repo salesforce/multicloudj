@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.25](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.24...multicloudj-v0.2.25) (2026-01-29)
+
+
+### Blob Store
+
+* handle the cases for network timeouts, connection timeouts, dns resolution errors ([#273](https://github.com/salesforce/multicloudj/issues/273)) ([7a7e55b](https://github.com/salesforce/multicloudj/commit/7a7e55baa48bc64840c78395975c63d192c83866))
+* in memory blobstore for local testing ([#267](https://github.com/salesforce/multicloudj/issues/267)) ([0391e3a](https://github.com/salesforce/multicloudj/commit/0391e3a8c6c3e5d51fb4fe7be8bd96a55ac19398))
+
+
+### IAM
+
+* added iam conformance tests for AWS ([#234](https://github.com/salesforce/multicloudj/issues/234)) ([463c43b](https://github.com/salesforce/multicloudj/commit/463c43bb348ef6c30e9caa1ffac603092f3bd901))
+* implement AWS IAM policy APIs ([#259](https://github.com/salesforce/multicloudj/issues/259)) ([6a6b4f3](https://github.com/salesforce/multicloudj/commit/6a6b4f324cc67a09e36ce39b2f8aa68731a52f09))
+
 ## [0.2.24](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.23...multicloudj-v0.2.24) (2026-01-22)
 
 
