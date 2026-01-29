@@ -130,7 +130,7 @@ public class AwsBlobClientTest {
                                 .build())
                 .build();
         Class<?> cls = aws.getException(awsServiceException);
-        assertEquals(cls, UnAuthorizedException.class);x
+        assertEquals(cls, UnAuthorizedException.class);
 
         SdkClientException sdkClientException = SdkClientException.builder().build();
         cls = aws.getException(sdkClientException);

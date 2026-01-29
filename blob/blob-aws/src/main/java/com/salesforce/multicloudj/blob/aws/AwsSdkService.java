@@ -18,7 +18,6 @@ public interface AwsSdkService extends SdkService {
             if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
                 return UnAuthorizedException.class;
             }
-
             String errorCode = awsServiceException.awsErrorDetails().errorCode();
             return ErrorCodeMapping.getException(errorCode);
         } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
