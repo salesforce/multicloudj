@@ -14,12 +14,12 @@ public class ProviderSupplier {
     }
 
     /**
-     * Finds the Registry provider (resource-level)
+     * Finds the provider
      *
      * @param providerId Id of the provider to be found
      * @return Builder object for the provider
      */
-    static AbstractRegistry.Builder<?, ?> findRegistryProviderBuilder(String providerId) {
+    static AbstractRegistry.Builder<?, ?> findProviderBuilder(String providerId) {
         ServiceLoader<AbstractRegistry> services = ServiceLoader.load(AbstractRegistry.class);
         Iterable<AbstractRegistry> all = ImmutableSet.<AbstractRegistry>builder().addAll(services).build();
 

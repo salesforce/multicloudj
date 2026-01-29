@@ -13,42 +13,29 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
-import java.net.URLEncoder;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
- * Handles Bearer Token exchange for OCI Registry authentication.
- * Similar to go-containerregistry's transport.bearerTransport.
- * 
- * Flow:
- * 1. Ping registry to get Challenge
- * 2. Exchange Basic credentials for Bearer Token
- * 3. Use Bearer Token in subsequent requests
- * 4. Refresh token on 401
+ * Handles Bearer Token exchange for OAuth2-based authentication (e.g., GCP).
+ * Similar to go-containerregistry's transport package.
  */
 class BearerTokenExchange {
     private final String registryEndpoint;
+    private final OciRegistryClient.AuthProvider authProvider;
     private final CloseableHttpClient httpClient;
-    private final AuthProvider authProvider;
-    private String cachedToken;
-    private long tokenExpiry;
-    
-    interface AuthProvider {
-        String getBasicAuthHeader() throws IOException;
-        String getIdentityToken() throws IOException; // For OAuth flow
-    }
-    
-    BearerTokenExchange(String registryEndpoint, AuthProvider authProvider) {
+
+    BearerTokenExchange(String registryEndpoint, OciRegistryClient.AuthProvider authProvider) {
         this.registryEndpoint = registryEndpoint;
         this.authProvider = authProvider;
         this.httpClient = HttpClients.createDefault();
     }
-    
+
     /**
      * Pings the registry to discover authentication requirements.
-     * Returns Challenge with scheme and parameters.
+     * Returns the WWW-Authenticate challenge.
      */
     AuthChallenge ping() throws IOException {
         String url = registryEndpoint + "/v2/";
@@ -57,169 +44,62 @@ class BearerTokenExchange {
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             int statusCode = response.getStatusLine().getStatusCode();
             
-            if (statusCode == HttpStatus.SC_OK) {
-                // No authentication required
-                return AuthChallenge.builder()
-                    .scheme("")
-                    .parameters(new java.util.HashMap<>())
-                    .insecure(false)
-                    .build();
-            }
-            
             if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
                 // Parse WWW-Authenticate header
-                String wwwAuth = response.getFirstHeader(HttpHeaders.WWW_AUTHENTICATE) != null
-                    ? response.getFirstHeader(HttpHeaders.WWW_AUTHENTICATE).getValue()
-                    : null;
-                
-                if (wwwAuth != null) {
-                    return AuthChallenge.parse(wwwAuth);
-                }
+                String wwwAuth = response.getFirstHeader(HttpHeaders.WWW_AUTHENTICATE) != null ?
+                    response.getFirstHeader(HttpHeaders.WWW_AUTHENTICATE).getValue() : null;
+                return AuthChallenge.parse(wwwAuth);
             }
             
-            throw new IOException("Unexpected response from registry ping: " + statusCode);
+            // No auth required
+            return AuthChallenge.basic();
         }
     }
-    
+
     /**
-     * Exchanges credentials for a Bearer Token.
-     * Supports both Basic Auth and OAuth2 flows.
-     */
-    BearerToken exchange(AuthChallenge challenge, List<String> scopes) throws IOException {
-        String realm = challenge.getRealm();
-        if (realm.isEmpty()) {
-            throw new IOException("Challenge missing realm parameter");
-        }
-        
-        // Build token URL with parameters
-        StringBuilder tokenUrl = new StringBuilder(realm);
-        tokenUrl.append("?service=").append(URLEncoder.encode(challenge.getService(), StandardCharsets.UTF_8));
-        
-        if (!scopes.isEmpty()) {
-            tokenUrl.append("&scope=").append(URLEncoder.encode(String.join(" ", scopes), StandardCharsets.UTF_8));
-        }
-        
-        // Try OAuth2 flow first (if IdentityToken is available)
-        String identityToken = authProvider.getIdentityToken();
-        if (identityToken != null && !identityToken.isEmpty()) {
-            try {
-                return exchangeOAuth2(tokenUrl.toString(), identityToken);
-            } catch (IOException e) {
-                // Fall back to Basic Auth if OAuth2 fails
-            }
-        }
-        
-        // Use Basic Auth flow
-        return exchangeBasic(tokenUrl.toString());
-    }
-    
-    /**
-     * Exchanges Basic credentials for Bearer Token.
-     */
-    private BearerToken exchangeBasic(String tokenUrl) throws IOException {
-        HttpGet request = new HttpGet(tokenUrl);
-        request.setHeader(HttpHeaders.AUTHORIZATION, authProvider.getBasicAuthHeader());
-        
-        try (CloseableHttpResponse response = httpClient.execute(request)) {
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode != HttpStatus.SC_OK) {
-                throw new IOException("Token exchange failed: " + statusCode + " " +
-                    EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
-            }
-            
-            String json = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-            return parseTokenResponse(json);
-        }
-    }
-    
-    /**
-     * Exchanges OAuth2 Identity Token for Bearer Token.
-     */
-    private BearerToken exchangeOAuth2(String tokenUrl, String identityToken) throws IOException {
-        HttpPost request = new HttpPost(tokenUrl);
-        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-        
-        // OAuth2 grant_type=refresh_token or grant_type=access_token
-        String body = "grant_type=refresh_token&refresh_token=" + 
-            URLEncoder.encode(identityToken, StandardCharsets.UTF_8);
-        request.setEntity(new StringEntity(body, StandardCharsets.UTF_8));
-        
-        try (CloseableHttpResponse response = httpClient.execute(request)) {
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode == HttpStatus.SC_NOT_FOUND) {
-                // OAuth2 endpoint not available, fall back to Basic
-                throw new IOException("OAuth2 endpoint not found");
-            }
-            if (statusCode != HttpStatus.SC_OK) {
-                throw new IOException("OAuth2 token exchange failed: " + statusCode);
-            }
-            
-            String json = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-            return parseTokenResponse(json);
-        }
-    }
-    
-    /**
-     * Parses token response JSON.
-     * Handles both "token" and "access_token" fields.
-     */
-    private BearerToken parseTokenResponse(String json) throws IOException {
-        JsonObject tokenJson = JsonParser.parseString(json).getAsJsonObject();
-        
-        String token = null;
-        if (tokenJson.has("token")) {
-            token = tokenJson.get("token").getAsString();
-        } else if (tokenJson.has("access_token")) {
-            token = tokenJson.get("access_token").getAsString();
-        }
-        
-        if (token == null || token.isEmpty()) {
-            throw new IOException("No token in response: " + json);
-        }
-        
-        int expiresIn = tokenJson.has("expires_in") 
-            ? tokenJson.get("expires_in").getAsInt() 
-            : 3600; // Default 1 hour
-        
-        return new BearerToken(token, expiresIn);
-    }
-    
-    /**
-     * Gets a valid Bearer Token, refreshing if necessary.
+     * Exchanges Identity Token for Bearer Token.
      */
     String getBearerToken(AuthChallenge challenge, List<String> scopes) throws IOException {
-        // Check if cached token is still valid
-        if (cachedToken != null && System.currentTimeMillis() < tokenExpiry) {
-            return cachedToken;
+        if (challenge == null || !"Bearer".equalsIgnoreCase(challenge.getScheme())) {
+            throw new IOException("Not a Bearer challenge");
         }
-        
-        // Exchange for new token
-        BearerToken token = exchange(challenge, scopes);
-        cachedToken = token.getToken();
-        tokenExpiry = System.currentTimeMillis() + (token.getExpiresIn() * 1000L) - 60000; // Refresh 1 min early
-        
-        return cachedToken;
+
+        String identityToken = authProvider.getAuthToken();
+        if (identityToken == null || identityToken.isEmpty()) {
+            throw new IOException("Identity token not available");
+        }
+
+        // Build token exchange request
+        String tokenUrl = challenge.getRealm() + "?service=" + challenge.getService();
+        StringJoiner scopeJoiner = new StringJoiner(" ");
+        for (String scope : scopes) {
+            scopeJoiner.add(scope);
+        }
+        if (scopeJoiner.length() > 0) {
+            tokenUrl += "&scope=" + java.net.URLEncoder.encode(scopeJoiner.toString(), StandardCharsets.UTF_8);
+        }
+
+        HttpPost request = new HttpPost(tokenUrl);
+        request.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + 
+            java.util.Base64.getEncoder().encodeToString(
+                ("oauth2accesstoken:" + identityToken).getBytes(StandardCharsets.UTF_8)));
+        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        request.setEntity(new StringEntity("grant_type=refresh_token&service=" + 
+            challenge.getService() + "&scope=" + java.net.URLEncoder.encode(scopeJoiner.toString(), StandardCharsets.UTF_8)));
+
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+                String json = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                JsonObject tokenResponse = JsonParser.parseString(json).getAsJsonObject();
+                if (tokenResponse.has("token")) {
+                    return tokenResponse.get("token").getAsString();
+                }
+            }
+            throw new IOException("Failed to exchange token: " + response.getStatusLine().getStatusCode());
+        }
     }
-    
+
     void close() throws IOException {
         httpClient.close();
-    }
-    
-    static class BearerToken {
-        private final String token;
-        private final int expiresIn;
-        
-        BearerToken(String token, int expiresIn) {
-            this.token = token;
-            this.expiresIn = expiresIn;
-        }
-        
-        String getToken() {
-            return token;
-        }
-        
-        int getExpiresIn() {
-            return expiresIn;
-        }
     }
 }

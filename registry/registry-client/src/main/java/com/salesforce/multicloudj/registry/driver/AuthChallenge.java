@@ -1,80 +1,57 @@
 package com.salesforce.multicloudj.registry.driver;
 
-import lombok.Builder;
-import lombok.Getter;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Represents an authentication challenge from the registry.
- * Similar to go-containerregistry's transport.Challenge.
+ * Represents an HTTP WWW-Authenticate challenge.
+ * Example: "Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\""
  */
-@Builder
-@Getter
-public class AuthChallenge {
-    /**
-     * Authentication scheme: "Basic" or "Bearer"
-     */
+class AuthChallenge {
     private final String scheme;
-    
-    /**
-     * Challenge parameters (e.g., realm, service, scope)
-     */
-    private final Map<String, String> parameters;
-    
-    /**
-     * Whether the registry uses insecure (HTTP) connection
-     */
-    private final boolean insecure;
-    
-    /**
-     * Parses WWW-Authenticate header value.
-     * Format: "Bearer realm=\"https://auth.example.com/token\",service=\"registry.example.com\""
-     */
-    public static AuthChallenge parse(String wwwAuthenticate) {
-        if (wwwAuthenticate == null || wwwAuthenticate.trim().isEmpty()) {
-            return AuthChallenge.builder()
-                .scheme("")
-                .parameters(new HashMap<>())
-                .insecure(false)
-                .build();
+    private final String realm;
+    private final String service;
+
+    private AuthChallenge(String scheme, String realm, String service) {
+        this.scheme = scheme;
+        this.realm = realm;
+        this.service = service;
+    }
+
+    static AuthChallenge parse(String wwwAuthenticate) {
+        if (wwwAuthenticate == null || wwwAuthenticate.isEmpty()) {
+            return basic();
         }
-        
-        String[] parts = wwwAuthenticate.split(" ", 2);
-        String scheme = parts.length > 0 ? parts[0] : "";
-        Map<String, String> params = new HashMap<>();
-        
-        if (parts.length > 1) {
-            // Parse parameters: realm="...",service="..."
-            String paramString = parts[1];
-            String[] paramPairs = paramString.split(",");
-            for (String pair : paramPairs) {
-                String[] kv = pair.split("=", 2);
-                if (kv.length == 2) {
-                    String key = kv[0].trim();
-                    String value = kv[1].trim().replaceAll("^\"|\"$", ""); // Remove quotes
-                    params.put(key, value);
-                }
-            }
-        }
-        
-        return AuthChallenge.builder()
-            .scheme(scheme)
-            .parameters(params)
-            .insecure(false)
-            .build();
+
+        // Parse: "Bearer realm=\"...\",service=\"...\""
+        Pattern schemePattern = Pattern.compile("^(\\w+)\\s+");
+        Matcher schemeMatcher = schemePattern.matcher(wwwAuthenticate);
+        String scheme = schemeMatcher.find() ? schemeMatcher.group(1) : "Basic";
+
+        Pattern realmPattern = Pattern.compile("realm=\"([^\"]+)\"");
+        Matcher realmMatcher = realmPattern.matcher(wwwAuthenticate);
+        String realm = realmMatcher.find() ? realmMatcher.group(1) : null;
+
+        Pattern servicePattern = Pattern.compile("service=\"([^\"]+)\"");
+        Matcher serviceMatcher = servicePattern.matcher(wwwAuthenticate);
+        String service = serviceMatcher.find() ? serviceMatcher.group(1) : null;
+
+        return new AuthChallenge(scheme, realm, service);
     }
-    
-    public String getRealm() {
-        return parameters.getOrDefault("realm", "");
+
+    static AuthChallenge basic() {
+        return new AuthChallenge("Basic", null, null);
     }
-    
-    public String getService() {
-        return parameters.getOrDefault("service", "");
+
+    String getScheme() {
+        return scheme;
     }
-    
-    public String getScope() {
-        return parameters.getOrDefault("scope", "");
+
+    String getRealm() {
+        return realm;
+    }
+
+    String getService() {
+        return service;
     }
 }

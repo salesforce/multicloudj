@@ -22,63 +22,49 @@ import java.util.List;
 /**
  * HTTP client for OCI Registry API v2 operations.
  * Handles authentication and standard Docker Registry API calls.
- * 
- * This implementation follows go-containerregistry's approach:
- * 1. Ping registry to discover authentication requirements
- * 2. Exchange credentials for Bearer Token if needed (for GCP)
- * 3. Use appropriate authentication (Basic or Bearer) for requests
- * 4. Refresh tokens on 401 errors
  */
 class OciRegistryClient {
     private final String registryEndpoint;
-    private final String repository;
     private final CloseableHttpClient httpClient;
     private final AuthProvider authProvider;
-    private BearerTokenExchange tokenExchange;
+    private final BearerTokenExchange tokenExchange;
     private AuthChallenge challenge;
-    private final List<String> defaultScopes;
-
-    interface AuthProvider {
-        /**
-         * Gets Basic Auth header (username:password encoded as base64).
-         * Used for ECR/ACR or as initial credential for Bearer Token exchange.
-         */
-        String getBasicAuthHeader() throws IOException;
-        
-        /**
-         * Gets Identity Token (OAuth2 access token) for Bearer Token exchange.
-         * Used for GCP Artifact Registry.
-         * Returns null if not available (e.g., for ECR/ACR).
-         */
-        String getIdentityToken() throws IOException;
-    }
-
-    OciRegistryClient(String registryEndpoint, String repository, AuthProvider authProvider) {
-        this.registryEndpoint = registryEndpoint;
-        this.repository = repository;
-        this.authProvider = authProvider;
-        this.httpClient = HttpClients.createDefault();
-        // Create adapter to convert OciRegistryClient.AuthProvider to BearerTokenExchange.AuthProvider
-        this.tokenExchange = new BearerTokenExchange(registryEndpoint, new BearerTokenExchange.AuthProvider() {
-            @Override
-            public String getBasicAuthHeader() throws IOException {
-                return authProvider.getBasicAuthHeader();
-            }
-
-            @Override
-            public String getIdentityToken() throws IOException {
-                return authProvider.getIdentityToken();
-            }
-        });
-        // Default scopes for pulling images
-        this.defaultScopes = Arrays.asList("repository:" + repository + ":pull");
-    }
 
     /**
-     * Initializes authentication by pinging the registry.
-     * This discovers the authentication scheme (Basic or Bearer).
-     * Similar to go-containerregistry's transport.NewWithContext.
+     * Authentication provider interface for OciRegistryClient.
+     * Implemented by AbstractRegistry, which delegates to Provider layer.
      */
+    interface AuthProvider {
+        /**
+         * Returns the authentication username.
+         * Implemented by Provider layer (e.g., "AWS", "oauth2accesstoken", "Ali").
+         * 
+         * @return Username for authentication
+         * @throws IOException if username cannot be obtained
+         */
+        String getAuthUsername() throws IOException;
+        
+        /**
+         * Returns the authentication token.
+         * Implemented by Provider layer (e.g., ECR token, OAuth2 identity token).
+         * 
+         * @return Authentication token
+         * @throws IOException if token cannot be obtained
+         */
+        String getAuthToken() throws IOException;
+    }
+
+    OciRegistryClient(String registryEndpoint, AuthProvider authProvider) {
+        this(registryEndpoint, authProvider, null);
+    }
+
+    OciRegistryClient(String registryEndpoint, AuthProvider authProvider, CloseableHttpClient httpClient) {
+        this.registryEndpoint = registryEndpoint;
+        this.authProvider = authProvider;
+        this.httpClient = httpClient != null ? httpClient : HttpClients.createDefault();
+        this.tokenExchange = new BearerTokenExchange(registryEndpoint, authProvider);
+    }
+
     private void initializeAuth() throws IOException {
         if (challenge == null) {
             challenge = tokenExchange.ping();
@@ -86,73 +72,60 @@ class OciRegistryClient {
     }
 
     /**
-     * Gets the appropriate Authorization header for a request.
-     * Dynamically selects Basic Auth or Bearer Token based on registry challenge.
+     * Returns a formatted HTTP Authorization header string.
+     * Formats credentials as "Basic ..." or "Bearer ..." based on registry's auth scheme.
      */
-    private String getAuthHeader() throws IOException {
+    private String getHttpAuthHeader(String repository) throws IOException {
         if (challenge == null) {
             initializeAuth();
         }
 
-        // If no challenge or Basic scheme, use Basic Auth
+        String username = authProvider.getAuthUsername();
+        String token = authProvider.getAuthToken();
+
         if (challenge.getScheme() == null || 
             challenge.getScheme().isEmpty() ||
             challenge.getScheme().equalsIgnoreCase("Basic")) {
-            return authProvider.getBasicAuthHeader();
+            // Format as Basic Auth header
+            String credentialsStr = username + ":" + token;
+            String encoded = java.util.Base64.getEncoder()
+                .encodeToString(credentialsStr.getBytes(StandardCharsets.UTF_8));
+            return "Basic " + encoded;
         }
 
-        // For Bearer scheme, exchange for token
         if (challenge.getScheme().equalsIgnoreCase("Bearer")) {
-            String token = tokenExchange.getBearerToken(challenge, defaultScopes);
-            return "Bearer " + token;
+            // Exchange identity token for Bearer token
+            List<String> scopes = java.util.Arrays.asList("repository:" + repository + ":pull");
+            String bearerToken = tokenExchange.getBearerToken(challenge, scopes);
+            return "Bearer " + bearerToken;
         }
 
-        // Fallback to Basic
-        return authProvider.getBasicAuthHeader();
+        // Default to Basic Auth
+        String credentialsStr = username + ":" + token;
+        String encoded = java.util.Base64.getEncoder()
+            .encodeToString(credentialsStr.getBytes(StandardCharsets.UTF_8));
+        return "Basic " + encoded;
     }
 
     /**
      * Fetches the manifest for the given reference (tag or digest).
      */
-    Manifest fetchManifest(String reference) throws IOException {
+    Manifest fetchManifest(String repository, String reference) throws IOException {
         String url = String.format("%s/v2/%s/manifests/%s", registryEndpoint, repository, reference);
         HttpGet request = new HttpGet(url);
-        // Accept both image manifests and image indexes (multi-arch support)
         request.setHeader(HttpHeaders.ACCEPT, String.join(",",
             "application/vnd.oci.image.index.v1+json",
             "application/vnd.docker.distribution.manifest.list.v2+json",
             "application/vnd.oci.image.manifest.v1+json",
             "application/vnd.docker.distribution.manifest.v2+json"
         ));
-        
-        // Set auth header
-        request.setHeader(HttpHeaders.AUTHORIZATION, getAuthHeader());
+        request.setHeader(HttpHeaders.AUTHORIZATION, getHttpAuthHeader(repository));
         
         try (CloseableHttpResponse response = httpClient.execute(request)) {
-            int statusCode = response.getStatusLine().getStatusCode();
-            
-            // Handle 401 - token might be expired, refresh and retry
-            if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
-                // Clear cached token and retry
-                challenge = null; // Force re-initialization
-                request.setHeader(HttpHeaders.AUTHORIZATION, getAuthHeader());
-                
-                try (CloseableHttpResponse retryResponse = httpClient.execute(request)) {
-                    if (retryResponse.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-                        throw new IOException("Failed to fetch manifest after auth refresh: " + 
-                            retryResponse.getStatusLine().getStatusCode() + " " +
-                            EntityUtils.toString(retryResponse.getEntity(), StandardCharsets.UTF_8));
-                    }
-                    return parseManifestResponse(retryResponse);
-                }
-            }
-            
-            if (statusCode == HttpStatus.SC_OK) {
+            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
                 return parseManifestResponse(response);
             }
-            
-            throw new IOException("Failed to fetch manifest: " + statusCode + " " + 
-                EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
+            throw new IOException("Failed to fetch manifest: " + response.getStatusLine().getStatusCode());
         }
     }
 
@@ -160,7 +133,6 @@ class OciRegistryClient {
         String json = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
         JsonObject manifestJson = JsonParser.parseString(json).getAsJsonObject();
         
-        // Read mediaType from Content-Type header or JSON body
         String mediaType = null;
         if (response.getFirstHeader(HttpHeaders.CONTENT_TYPE) != null) {
             mediaType = response.getFirstHeader(HttpHeaders.CONTENT_TYPE).getValue();
@@ -169,22 +141,16 @@ class OciRegistryClient {
             mediaType = manifestJson.get("mediaType").getAsString();
         }
         
-        // Check if this is an image index (multi-arch)
         if (isImageIndex(mediaType, manifestJson)) {
-            // Return index manifest with manifests array
             JsonArray manifests = manifestJson.getAsJsonArray("manifests");
             return Manifest.index(manifests);
         } else {
-            // Regular image manifest
             String configDigest = manifestJson.getAsJsonObject("config").get("digest").getAsString();
             JsonArray layers = manifestJson.getAsJsonArray("layers");
-            
             List<String> layerDigests = new ArrayList<>();
             for (JsonElement layer : layers) {
-                String digest = layer.getAsJsonObject().get("digest").getAsString();
-                layerDigests.add(digest);
+                layerDigests.add(layer.getAsJsonObject().get("digest").getAsString());
             }
-            
             return Manifest.image(configDigest, layerDigests);
         }
     }
@@ -193,36 +159,23 @@ class OciRegistryClient {
         if (mediaType != null) {
             return mediaType.contains("image.index") || mediaType.contains("manifest.list");
         }
-        // Fallback: check if JSON has "manifests" array (index) vs "layers" array (image)
         return manifestJson.has("manifests") && !manifestJson.has("layers");
     }
 
     /**
      * Downloads a blob (layer or config) by digest.
      */
-    InputStream downloadBlob(String digest) throws IOException {
+    InputStream downloadBlob(String repository, String digest) throws IOException {
         String url = String.format("%s/v2/%s/blobs/%s", registryEndpoint, repository, digest);
         HttpGet request = new HttpGet(url);
-        request.setHeader(HttpHeaders.AUTHORIZATION, getAuthHeader());
+        request.setHeader(HttpHeaders.AUTHORIZATION, getHttpAuthHeader(repository));
         
         CloseableHttpResponse response = httpClient.execute(request);
-        int statusCode = response.getStatusLine().getStatusCode();
-        
-        // Handle 401 - refresh token and retry
-        if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
-            response.close();
-            challenge = null; // Force re-initialization
-            request.setHeader(HttpHeaders.AUTHORIZATION, getAuthHeader());
-            response = httpClient.execute(request);
-            statusCode = response.getStatusLine().getStatusCode();
+        if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+            return response.getEntity().getContent();
         }
-        
-        if (statusCode != HttpStatus.SC_OK) {
-            response.close();
-            throw new IOException("Failed to download blob " + digest + ": " + statusCode);
-        }
-        
-        return response.getEntity().getContent();
+        response.close();
+        throw new IOException("Failed to download blob " + digest);
     }
 
     void close() throws IOException {
@@ -235,10 +188,9 @@ class OciRegistryClient {
     static class Manifest {
         final String configDigest;
         final List<String> layerDigests;
-        final JsonArray manifests; // For image index (multi-arch)
+        final JsonArray manifests;
         final boolean isIndex;
 
-        // Constructor for regular image manifest
         Manifest(String configDigest, List<String> layerDigests) {
             this.configDigest = configDigest;
             this.layerDigests = layerDigests;
@@ -246,7 +198,6 @@ class OciRegistryClient {
             this.isIndex = false;
         }
 
-        // Constructor for image index (multi-arch)
         Manifest(JsonArray manifests) {
             this.configDigest = null;
             this.layerDigests = null;
