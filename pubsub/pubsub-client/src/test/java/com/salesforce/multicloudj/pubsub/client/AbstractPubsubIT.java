@@ -436,7 +436,6 @@ public abstract class AbstractPubsubIT {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
-        
         try {
             while (received.size() < expectedCount && System.nanoTime() < deadline) {
                 Message r = subscription.receive();
