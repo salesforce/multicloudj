@@ -143,29 +143,32 @@ public class TestsUtil {
     }
     
     public static String getWireMockUnmatchedRequestsError() {
-        if (wireMockServer == null) {
-            return "WireMock server is not initialized";
-        }
-
         List<ServeEvent> serveEvents = wireMockServer.getAllServeEvents();
         List<ServeEvent> unmatchedEvents = serveEvents.stream()
                 .filter(event -> event.getWasMatched() == false)
                 .collect(Collectors.toList());
 
         if (unmatchedEvents.isEmpty()) {
-            return "No unmatched requests found in WireMock";
+            return null;
         }
 
+        logger.error("WireMock found {} unmatched requests:", unmatchedEvents.size());
+        
         StringBuilder errorMsg = new StringBuilder();
         errorMsg.append("WireMock unmatched requests (").append(unmatchedEvents.size()).append("):\n");
         
         for (int i = 0; i < unmatchedEvents.size(); i++) {
             ServeEvent event = unmatchedEvents.get(i);
+            logger.error("\n--- Unmatched Request #{} ---", i + 1);
+            logger.error("Method: {}", event.getRequest().getMethod());
+            logger.error("URL: {}", event.getRequest().getUrl());
+            
             errorMsg.append("\n--- Unmatched Request #").append(i + 1).append(" ---\n");
             errorMsg.append("Method: ").append(event.getRequest().getMethod()).append("\n");
             errorMsg.append("URL: ").append(event.getRequest().getUrl()).append("\n");
             
             if (event.getRequest().getHeaders() != null && event.getRequest().getHeaders().size() > 0) {
+                logger.error("Headers: {}", event.getRequest().getHeaders());
                 errorMsg.append("Headers: ").append(event.getRequest().getHeaders()).append("\n");
             }
             
@@ -174,10 +177,12 @@ public class TestsUtil {
                 if (bodyPreview.length() > 500) {
                     bodyPreview = bodyPreview.substring(0, 500) + "... (truncated)";
                 }
+                logger.error("Body: {}", bodyPreview);
                 errorMsg.append("Body: ").append(bodyPreview).append("\n");
             }
             
             if (event.getResponseDefinition() != null) {
+                logger.error("Response Status: {}", event.getResponseDefinition().getStatus());
                 errorMsg.append("Response Status: ").append(event.getResponseDefinition().getStatus()).append("\n");
             }
         }

@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractPubsubIT.class);
 
     public interface Harness extends AutoCloseable {
 
@@ -382,7 +385,6 @@ public abstract class AbstractPubsubIT {
      */
     @Test
     @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
-    @Disabled
     public void testSendReceiveTwo() throws Exception {
         // Create two subscriptions to the same topic
         AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
@@ -447,7 +449,8 @@ public abstract class AbstractPubsubIT {
                 String errorMsg = String.format(
                     "Failed to receive messages: Got exception after receiving %d/%d messages.%n%n" +
                     "WireMock Error Details:%n%s",
-                    received.size(), expectedCount, wireMockError);
+                    received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
+                logger.error(errorMsg);
                 throw new AssertionError(errorMsg, e);
             }
             throw e;
@@ -455,7 +458,6 @@ public abstract class AbstractPubsubIT {
         
         if (received.size() < expectedCount) {
             if (isRecording) {
-                // In record mode, timeout means real server didn't return messages in time
                 String errorMsg = String.format(
                     "Timeout waiting for messages: Received %d/%d messages.",
                     received.size(), expectedCount);
@@ -466,7 +468,8 @@ public abstract class AbstractPubsubIT {
                 String errorMsg = String.format(
                     "Timeout waiting for messages: Received %d/%d messages.%n%n" +
                     "WireMock Error Details:%n%s",
-                    received.size(), expectedCount, wireMockError);
+                    received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
+                logger.error(errorMsg);
                 throw new AssertionError(errorMsg);
             }
         }
