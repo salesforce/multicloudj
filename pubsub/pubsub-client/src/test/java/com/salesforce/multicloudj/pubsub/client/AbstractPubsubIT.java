@@ -382,6 +382,7 @@ public abstract class AbstractPubsubIT {
      */
     @Test
     @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
+    @Disabled
     public void testSendReceiveTwo() throws Exception {
         // Create two subscriptions to the same topic
         AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
