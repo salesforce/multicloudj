@@ -1,7 +1,10 @@
 package com.salesforce.multicloudj.iam.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -137,6 +140,12 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
     public String createIdentity(String identityName, String description, String tenantId,
                                 String region, Optional<TrustConfiguration> trustConfig,
                                 Optional<CreateOptions> options) {
+        if (identityName == null || identityName.trim().isEmpty()) {
+            throw new InvalidArgumentException("identityName is required");
+        }
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            throw new InvalidArgumentException("tenantId is required");
+        }
         return doCreateIdentity(identityName, description, tenantId, region, trustConfig, options);
     }
 
@@ -153,17 +162,34 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * {@inheritDoc}
      */
     @Override
-    public String getInlinePolicyDetails(String identityName, String policyName, String roleName,
-                                        String tenantId, String region) {
-        return doGetInlinePolicyDetails(identityName, policyName, roleName, tenantId, region);
+    public String getInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
+        if (request == null) {
+            throw new InvalidArgumentException("request cannot be null");
+        }
+        return doGetInlinePolicyDetails(
+                request.getIdentityName(),
+                request.getPolicyName(),
+                request.getRoleName(),
+                request.getTenantId(),
+                request.getRegion()
+        );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
-        return doGetAttachedPolicies(identityName, tenantId, region);
+    public List<String> getAttachedPolicies(GetAttachedPoliciesRequest request) {
+        if (request == null) {
+            throw new InvalidArgumentException("request cannot be null");
+        }
+        if (request.getIdentityName() == null || request.getIdentityName().trim().isEmpty()) {
+            throw new InvalidArgumentException("identityName is required");
+        }
+        if (request.getTenantId() == null || request.getTenantId().trim().isEmpty()) {
+            throw new InvalidArgumentException("tenantId is required");
+        }
+        return doGetAttachedPolicies(request.getIdentityName(), request.getTenantId(), request.getRegion());
     }
 
     /**
@@ -171,6 +197,12 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      */
     @Override
     public void removePolicy(String identityName, String policyName, String tenantId, String region) {
+        if (identityName == null || identityName.trim().isEmpty()) {
+            throw new InvalidArgumentException("identityName is required");
+        }
+        if (policyName == null || policyName.trim().isEmpty()) {
+            throw new InvalidArgumentException("policyName is required");
+        }
         doRemovePolicy(identityName, policyName, tenantId, region);
     }
 
@@ -179,6 +211,9 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      */
     @Override
     public void deleteIdentity(String identityName, String tenantId, String region) {
+        if (identityName == null || identityName.trim().isEmpty()) {
+            throw new InvalidArgumentException("identityName is required");
+        }
         doDeleteIdentity(identityName, tenantId, region);
     }
 
@@ -187,6 +222,9 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      */
     @Override
     public String getIdentity(String identityName, String tenantId, String region) {
+        if (identityName == null || identityName.trim().isEmpty()) {
+            throw new InvalidArgumentException("identityName is required");
+        }
         return doGetIdentity(identityName, tenantId, region);
     }
 
@@ -224,23 +262,20 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * Retrieves the details of a specific inline policy attached to an identity.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity
-     * @param policyName the name of the policy. This parameter is optional and subject to cloud semantics.
-     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
-     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
-     *                 may require this parameter to identify the policy, while others may not use it.
+     * @param identityName the identity name
+     * @param policyName the policy name (optional and subject to cloud semantics)
+     * @param roleName the role name (optional and subject to cloud semantics)
      * @param tenantId the tenant ID
      * @param region the region
      * @return the policy document details as a string
      */
-    protected abstract String doGetInlinePolicyDetails(String identityName, String policyName, String roleName,
-                                                      String tenantId, String region);
+    protected abstract String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region);
 
     /**
      * Lists all inline policies attached to an identity.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity
+     * @param identityName the identity name
      * @param tenantId the tenant ID
      * @param region the region
      * @return a list of policy names

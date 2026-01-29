@@ -1,11 +1,11 @@
-package com.salesforce.multicloudj.sts.aws;
+package com.salesforce.multicloudj.iam.aws;
 
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction;
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
 import com.github.tomakehurst.wiremock.extension.requestfilter.StubRequestFilterV2;
 import com.github.tomakehurst.wiremock.http.Request;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.auth.aws.signer.AwsV4HttpSigner;
@@ -14,9 +14,6 @@ import software.amazon.awssdk.http.auth.spi.signer.SignedRequest;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
@@ -30,45 +27,62 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
         if (System.getProperty("record") == null) {
             return RequestFilterAction.continueWith(request);
         }
-        String authHeader;
+
+        SignedRequest signedRequest;
         try {
-            authHeader = computeAuthHeader(request);
+            signedRequest = computeSignedRequest(request);
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
-        Request wrappedRequest = RequestWrapper.create()
-                .transformHeader( "Authorization", (input) -> Collections.singletonList(authHeader))
-                .wrap(request);
+        
+        // Replace all AWS signature-related headers
+        RequestWrapper.Builder builder = RequestWrapper.create();
+        signedRequest.request().headers().forEach((headerName, headerValues) -> {
+            if (headerName.equalsIgnoreCase("Authorization") || 
+                headerName.startsWith("X-Amz-") ||
+                headerName.equalsIgnoreCase("Host")) {
+                builder.transformHeader(headerName, (input) -> headerValues);
+            }
+        });
+        
+        Request wrappedRequest = builder.wrap(request);
         return RequestFilterAction.continueWith(wrappedRequest);
     }
 
-    private String computeAuthHeader(Request request) throws URISyntaxException {
+    private SignedRequest computeSignedRequest(Request request) throws URISyntaxException {
         SdkHttpFullRequest.Builder requestToSign =
                 SdkHttpFullRequest.builder()
                         .method(SdkHttpMethod.valueOf(request.getMethod().toString()))
                         .contentStreamProvider(() -> new ByteArrayInputStream(request.getBody()))
                         .uri(new URI(request.getAbsoluteUrl()));
 
+        // Copy all headers from the original request except Authorization and AWS signature headers
+        request.getHeaders().all().forEach(header -> {
+            String headerKey = header.key();
+            // Exclude all AWS signature-related headers - they will be regenerated
+            if (headerKey != null &&
+                !headerKey.equalsIgnoreCase("Authorization") &&
+                !headerKey.equalsIgnoreCase("Host") &&
+                !headerKey.toLowerCase().startsWith("x-amz-")) {
+                requestToSign.putHeader(headerKey, header.values());
+            }
+        });
+        
+        // Ensure Host header is set correctly for IAM
+        requestToSign.putHeader("Host", "iam.amazonaws.com");
         requestToSign.putHeader("Content-Length", String.valueOf(request.getBody().length));
+        
         AwsV4HttpSigner signer = AwsV4HttpSigner.create();
 
-        // Get the region from the hostname
-        String regex = "sts\\.(.*?)\\.amazonaws\\.com";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(requestToSign.host());
-        String region;
-        if (matcher.find()) {
-            region = matcher.group(1);
-        } else {
-            region = "us-west-2";
-        }
+        // IAM is a global service, but AWS requires us-east-1 for credential scoping
+        String region = "us-east-1";
 
-
-        final SignedRequest signerOutput = signer.sign(r -> r.identity(DefaultCredentialsProvider.create().resolveCredentials())
+        final SignedRequest signerOutput = signer.sign(r -> r.identity(ProfileCredentialsProvider.create().resolveCredentials())
                 .request(requestToSign.build())
                 .payload(requestToSign.contentStreamProvider())
-                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "sts")
+                .putProperty(AwsV4HttpSigner.SERVICE_SIGNING_NAME, "iam")
                 .putProperty(AwsV4HttpSigner.REGION_NAME, region));
-        return signerOutput.request().headers().get("Authorization").get(0);
+
+        return signerOutput;
     }
 }
