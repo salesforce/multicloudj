@@ -89,10 +89,12 @@ public abstract class AbstractPubsubIT {
 
     /**
      * Cleans up the test environment after each test.
+     * Also logs unmatched WireMock requests for debugging purposes.
      */
     @AfterEach
     public void cleanupTestEnvironment() {
         TestsUtil.stopWireMockRecording();
+        TestsUtil.getUnmatchedWireMockRequests();
     }
 
     @Test
@@ -234,8 +236,7 @@ public abstract class AbstractPubsubIT {
             subscription.sendAcks(ackIDs).join();
         }
     }
-
-    @Disabled
+    
     @Test
     @Timeout(120) // Integration test with batch operations - allow time for message delivery
     public void testBatchNack() throws Exception {
@@ -251,23 +252,10 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = subscription.receive();
-                    if (r != null && r.getAckID() != null) {
-                        ackIDs.add(r.getAckID());
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
+            List<Message> received = receiveMessages(subscription, toSend.size());
+            List<AckID> ackIDs = received.stream()
+                    .map(Message::getAckID)
+                    .collect(java.util.stream.Collectors.toList());
 
             Assertions.assertEquals(toSend.size(), ackIDs.size(),
                     "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
@@ -396,7 +384,6 @@ public abstract class AbstractPubsubIT {
      */
     @Test
     @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
-    @Disabled
     public void testSendReceiveTwo() throws Exception {
         // Create two subscriptions to the same topic
         AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
@@ -443,22 +430,28 @@ public abstract class AbstractPubsubIT {
      * Helper function: Receives messages from a subscription until the expected count is reached.
      */
     private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount) throws InterruptedException {
-        boolean isRecording = System.getProperty("record") != null;
-        long timeoutSeconds = isRecording ? 120 : 60;
+        long timeoutSeconds = 60;
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
-        while (received.size() < expectedCount && System.nanoTime() < deadline) {
-            try {
+        try {
+            while (received.size() < expectedCount && System.nanoTime() < deadline) {
                 Message r = subscription.receive();
-                if (r != null && r.getAckID() != null) {
-                    received.add(r);
-                } else {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            } catch (Exception e) {
-                TimeUnit.MILLISECONDS.sleep(100);
+                // receive() either returns a Message or throws an exception
+                received.add(r);
             }
+        } catch (Exception e) {
+            String errorMsg = String.format(
+                "Failed to receive messages: Got exception after receiving %d/%d messages.",
+                received.size(), expectedCount);
+            throw new AssertionError(errorMsg, e);
+        }
+        // If the loop exits but received count is less than expected, it indicates a timeout occurred.
+        if (received.size() < expectedCount) {
+            String errorMsg = String.format(
+                "Timeout waiting for messages: Received %d/%d messages.",
+                received.size(), expectedCount);
+            throw new AssertionError(errorMsg);
         }
         return received;
     }
