@@ -1,12 +1,16 @@
 package com.salesforce.multicloudj.registry.provider;
 
 import com.google.auto.service.AutoService;
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import java.io.IOException;
+import java.util.Collections;
 
 /**
  * GCP Artifact Registry (GAR) implementation.
@@ -16,30 +20,24 @@ import java.io.IOException;
  */
 @AutoService(AbstractRegistry.class)
 public class GcpRegistry extends AbstractRegistry {
+    private final GoogleCredentials credentials;
 
     public GcpRegistry() {
-        this(new Builder(), null);
+        this(new Builder(), null, null);
     }
 
-    public GcpRegistry(Builder builder, OciRegistryClient ociClient) {
+    public GcpRegistry(Builder builder, OciRegistryClient ociClient, GoogleCredentials credentials) {
         super(builder);
         this.ociClient = ociClient;
+        this.credentials = credentials;
     }
 
     @Override
     public String getAuthToken() throws IOException {
-        // Get OAuth2 Identity Token from Google credentials
-        // This token is used for Bearer Token Exchange with GCP Artifact Registry
-        // 
-        // Example return: "ya29.a0AfH6SMBx..." (OAuth2 access token)
-        // 
-        // TODO: Implement actual Google OAuth2 token retrieval
-        // Should use:
-        // - Google Cloud SDK: GoogleCredentials.getAccessToken()
-        // - Application Default Credentials (ADC)
-        // - Service Account JSON key
-        throw new UnsupportedOperationException("Google OAuth2 token retrieval not yet implemented. " +
-            "Need to integrate with Google Cloud SDK to get access token.");
+        // Use the pre-initialized GoogleCredentials (created in Builder.build())
+        credentials.refreshIfExpired();
+        AccessToken accessToken = credentials.getAccessToken();
+        return accessToken.getTokenValue();
     }
 
     @Override
@@ -63,11 +61,12 @@ public class GcpRegistry extends AbstractRegistry {
 
     /**
      * Builder for GcpRegistry.
-     * Creates OciRegistryClient in build() method, following MultiCloudJ pattern.
+     * Creates GoogleCredentials and OciRegistryClient in build() method, following MultiCloudJ pattern.
      */
     public static class Builder extends AbstractRegistry.Builder<GcpRegistry, Builder> {
 
         private OciRegistryClient ociClient;
+        private GoogleCredentials credentials;
 
         public Builder() {
             providerId("gcp");
@@ -80,9 +79,39 @@ public class GcpRegistry extends AbstractRegistry {
 
         @Override
         public GcpRegistry build() {
+            if (credentials == null) {
+                try {
+                    GoogleCredentials creds;
+                    
+                    // Use credentialsOverrider if provided, otherwise use Application Default Credentials
+                    if (getCredentialsOverrider() != null) {
+                        com.google.auth.Credentials providedCreds = GcpCredentialsProvider.getCredentials(
+                            getCredentialsOverrider());
+                        if (providedCreds instanceof GoogleCredentials) {
+                            creds = (GoogleCredentials) providedCreds;
+                        } else {
+                            throw new IllegalStateException("GCP credentials must be GoogleCredentials");
+                        }
+                    } else {
+                        // Use Application Default Credentials (ADC)
+                        creds = GoogleCredentials.getApplicationDefault();
+                    }
+                    
+                    // Ensure credentials have necessary scopes for Artifact Registry
+                    if (creds.getScopes() == null || creds.getScopes().isEmpty()) {
+                        creds = creds.createScoped(
+                            Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
+                    }
+                    
+                    credentials = creds;
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to initialize Google credentials", e);
+                }
+            }
+
             if (ociClient == null) {
                 // Create GcpRegistry instance first (ociClient will be null initially)
-                GcpRegistry registry = new GcpRegistry(this, null);
+                GcpRegistry registry = new GcpRegistry(this, null, credentials);
                 
                 // Now create OciRegistryClient using the registry instance as AuthProvider
                 CloseableHttpClient httpClient = registry.getHttpClient();
@@ -93,7 +122,7 @@ public class GcpRegistry extends AbstractRegistry {
                 
                 return registry;
             }
-            return new GcpRegistry(this, ociClient);
+            return new GcpRegistry(this, ociClient, credentials);
         }
     }
 }

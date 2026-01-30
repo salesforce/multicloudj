@@ -36,6 +36,21 @@ class OciRegistryClient {
      */
     interface AuthProvider {
         /**
+         * Returns authentication credentials (username and token).
+         * This is the primary method for getting auth credentials.
+         * Provider implementations can optimize by fetching both in a single API call
+         * (e.g., Ali ACR returns both username and password from one API call).
+         * 
+         * Default implementation calls getAuthUsername() and getAuthToken() separately.
+         * 
+         * @return AuthCredentials containing username and token
+         * @throws IOException if credentials cannot be obtained
+         */
+        default AuthCredentials getAuthCredentials() throws IOException {
+            return new AuthCredentials(getAuthUsername(), getAuthToken());
+        }
+        
+        /**
          * Returns the authentication username.
          * Implemented by Provider layer (e.g., "AWS", "oauth2accesstoken", "Ali").
          * 
@@ -52,6 +67,27 @@ class OciRegistryClient {
          * @throws IOException if token cannot be obtained
          */
         String getAuthToken() throws IOException;
+    }
+    
+    /**
+     * Container for authentication credentials.
+     */
+    static class AuthCredentials {
+        private final String username;
+        private final String token;
+        
+        AuthCredentials(String username, String token) {
+            this.username = username;
+            this.token = token;
+        }
+        
+        String getUsername() {
+            return username;
+        }
+        
+        String getToken() {
+            return token;
+        }
     }
 
     OciRegistryClient(String registryEndpoint, AuthProvider authProvider) {
@@ -80,8 +116,10 @@ class OciRegistryClient {
             initializeAuth();
         }
 
-        String username = authProvider.getAuthUsername();
-        String token = authProvider.getAuthToken();
+        // Get credentials in one call (allows Provider to optimize, e.g., Ali ACR)
+        AuthCredentials credentials = authProvider.getAuthCredentials();
+        String username = credentials.getUsername();
+        String token = credentials.getToken();
 
         if (challenge.getScheme() == null || 
             challenge.getScheme().isEmpty() ||

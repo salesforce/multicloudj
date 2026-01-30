@@ -280,6 +280,22 @@ public abstract class AbstractRegistry implements SdkService, Provider, AutoClos
      * - ACR: Returns token from Azure Container Registry (for Bearer Token Exchange)
      */
     /**
+     * Gets authentication credentials (username and token).
+     * Default implementation calls getAuthUsername() and getAuthToken() separately.
+     * Provider implementations can override this to optimize (e.g., Ali ACR can fetch
+     * both username and token from a single API call).
+     * 
+     * @return AuthCredentials containing username and token
+     * @throws IOException if credentials cannot be obtained
+     */
+    @Override
+    public OciRegistryClient.AuthCredentials getAuthCredentials() throws IOException {
+        // Default implementation: call getAuthUsername() and getAuthToken() separately
+        // Provider implementations can override to optimize (e.g., single API call)
+        return new OciRegistryClient.AuthCredentials(getAuthUsername(), getAuthToken());
+    }
+    
+    /**
      * Gets the authentication token.
      * This method is part of OciRegistryClient.AuthProvider interface,
      * and must be implemented by Provider layer subclasses.

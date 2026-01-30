@@ -2,10 +2,17 @@ package com.salesforce.multicloudj.registry.provider;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
 import org.apache.http.impl.client.CloseableHttpClient;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ecr.EcrClient;
+import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenRequest;
+import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
 
 import java.io.IOException;
 
@@ -17,31 +24,35 @@ import java.io.IOException;
  */
 @AutoService(AbstractRegistry.class)
 public class AwsRegistry extends AbstractRegistry {
+    private final EcrClient ecrClient;
 
     public AwsRegistry() {
-        this(new Builder(), null);
+        this(new Builder(), null, null);
     }
 
-    public AwsRegistry(Builder builder, OciRegistryClient ociClient) {
+    public AwsRegistry(Builder builder, OciRegistryClient ociClient, EcrClient ecrClient) {
         super(builder);
         this.ociClient = ociClient;
+        this.ecrClient = ecrClient;
     }
 
     @Override
     public String getAuthToken() throws IOException {
-        // Call AWS ECR GetAuthorizationToken API to get the authorization token
-        // This token is used for Basic Auth (username="AWS", password=<token>)
-        //
-        // TODO: Implement actual ECR GetAuthorizationToken call using AWS SDK
-        // Example:
-        //   AmazonECRClient ecrClient = new AmazonECRClient(credentials);
-        //   GetAuthorizationTokenRequest request = new GetAuthorizationTokenRequest();
-        //   GetAuthorizationTokenResult result = ecrClient.getAuthorizationToken(request);
-        //   return result.getAuthorizationData().get(0).getAuthorizationToken();
-        //
-        // For now, placeholder
-        throw new UnsupportedOperationException("ECR GetAuthorizationToken not yet implemented. " +
-            "Need to integrate with AWS SDK to call GetAuthorizationToken API.");
+        // Use the pre-initialized EcrClient (created in Builder.build())
+        GetAuthorizationTokenResponse response = ecrClient.getAuthorizationToken(
+            GetAuthorizationTokenRequest.builder().build()
+        );
+        
+        // ECR returns base64-encoded "AWS:token", we need to extract the token part
+        String authToken = response.authorizationData().get(0).authorizationToken();
+        byte[] decodedBytes = java.util.Base64.getDecoder().decode(authToken);
+        String decodedAuth = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+        
+        // Remove "AWS:" prefix to get the actual token
+        if (decodedAuth.startsWith("AWS:")) {
+            return decodedAuth.substring(4);
+        }
+        return decodedAuth; // Should not happen for ECR
     }
 
     @Override
@@ -64,11 +75,12 @@ public class AwsRegistry extends AbstractRegistry {
 
     /**
      * Builder for AwsRegistry.
-     * Creates OciRegistryClient in build() method, following MultiCloudJ pattern.
+     * Creates EcrClient and OciRegistryClient in build() method, following MultiCloudJ pattern.
      */
     public static class Builder extends AbstractRegistry.Builder<AwsRegistry, Builder> {
 
         private OciRegistryClient ociClient;
+        private EcrClient ecrClient;
 
         public Builder() {
             providerId(AwsConstants.PROVIDER_ID);
@@ -79,11 +91,35 @@ public class AwsRegistry extends AbstractRegistry {
             return this;
         }
 
+        /**
+         * Helper method to build EcrClient using credentialsOverrider (if provided) or default credentials.
+         */
+        private static EcrClient buildEcrClient(Builder builder) {
+            Region regionObj = Region.of(builder.getRegion());
+            EcrClient.Builder ecrBuilder = EcrClient.builder().region(regionObj);
+
+            // Use credentialsOverrider if provided, otherwise use default credentials chain
+            AwsCredentialsProvider credentialsProvider = CredentialsProvider.getCredentialsProvider(
+                builder.getCredentialsOverrider(), regionObj);
+            if (credentialsProvider != null) {
+                ecrBuilder.credentialsProvider(credentialsProvider);
+            } else {
+                // Use default credentials chain
+                ecrBuilder.credentialsProvider(DefaultCredentialsProvider.create());
+            }
+
+            return ecrBuilder.build();
+        }
+
         @Override
         public AwsRegistry build() {
+            if (ecrClient == null) {
+                ecrClient = buildEcrClient(this);
+            }
+
             if (ociClient == null) {
                 // Create AwsRegistry instance first (ociClient will be null initially)
-                AwsRegistry registry = new AwsRegistry(this, null);
+                AwsRegistry registry = new AwsRegistry(this, null, ecrClient);
                 
                 // Now create OciRegistryClient using the registry instance as AuthProvider
                 CloseableHttpClient httpClient = registry.getHttpClient();
@@ -94,7 +130,7 @@ public class AwsRegistry extends AbstractRegistry {
                 
                 return registry;
             }
-            return new AwsRegistry(this, ociClient);
+            return new AwsRegistry(this, ociClient, ecrClient);
         }
     }
 }
