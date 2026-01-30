@@ -141,15 +141,19 @@ public class TestsUtil {
             wireMockServer.stopRecording();
         }
     }
-    
-    public static String getWireMockUnmatchedRequestsError() {
+
+    public static void getUnmatchedWireMockRequests() {
+        if (wireMockServer == null) {
+            return;
+        }
+
         List<ServeEvent> serveEvents = wireMockServer.getAllServeEvents();
         List<ServeEvent> unmatchedEvents = serveEvents.stream()
-                .filter(event -> event.getWasMatched() == false)
+                .filter(event -> !event.getWasMatched())
                 .collect(Collectors.toList());
 
         if (unmatchedEvents.isEmpty()) {
-            return null;
+            return;
         }
 
         logger.error("WireMock found {} unmatched requests:", unmatchedEvents.size());
@@ -176,7 +180,5 @@ public class TestsUtil {
                 logger.error("Response Status: {}", event.getResponseDefinition().getStatus());
             }
         }
-        
-        return String.format("Found %d unmatched WireMock requests. See logs above for details.", unmatchedEvents.size());
     }
 }

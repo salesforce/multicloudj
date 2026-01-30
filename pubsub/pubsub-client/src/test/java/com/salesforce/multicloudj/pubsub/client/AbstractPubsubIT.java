@@ -89,10 +89,12 @@ public abstract class AbstractPubsubIT {
 
     /**
      * Cleans up the test environment after each test.
+     * Also logs unmatched WireMock requests for debugging purposes.
      */
     @AfterEach
     public void cleanupTestEnvironment() {
         TestsUtil.stopWireMockRecording();
+        TestsUtil.getUnmatchedWireMockRequests();
     }
 
     @Test
@@ -428,8 +430,7 @@ public abstract class AbstractPubsubIT {
      * Helper function: Receives messages from a subscription until the expected count is reached.
      */
     private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount) throws InterruptedException {
-        boolean isRecording = System.getProperty("record") != null;
-        long timeoutSeconds = isRecording ? 120 : 60;
+        long timeoutSeconds = 60;
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
@@ -440,34 +441,17 @@ public abstract class AbstractPubsubIT {
                 received.add(r);
             }
         } catch (Exception e) {
-            if (!isRecording) {
-                // replay mode: An exception is thrown even when the timeout has not occurred.
-                String wireMockError = TestsUtil.getWireMockUnmatchedRequestsError();
-                String errorMsg = String.format(
-                    "Failed to receive messages: Got exception after receiving %d/%d messages.%n%n" +
-                    "WireMock Error Details:%n%s",
-                    received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
-                throw new AssertionError(errorMsg, e);
-            }
-            // record mode: throw the exception directly
-            throw e;
+            String errorMsg = String.format(
+                "Failed to receive messages: Got exception after receiving %d/%d messages.",
+                received.size(), expectedCount);
+            throw new AssertionError(errorMsg, e);
         }
         // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
-            if (isRecording) {
-                String errorMsg = String.format(
-                    "Timeout waiting for messages: Received %d/%d messages.",
-                    received.size(), expectedCount);
-                throw new AssertionError(errorMsg);
-            } else {
-                // In replay mode, timeout might indicate mapping mismatch
-                String wireMockError = TestsUtil.getWireMockUnmatchedRequestsError();
-                String errorMsg = String.format(
-                    "Timeout waiting for messages: Received %d/%d messages.%n%n" +
-                    "WireMock Error Details:%n%s",
-                    received.size(), expectedCount, wireMockError != null ? wireMockError : "No unmatched requests");
-                throw new AssertionError(errorMsg);
-            }
+            String errorMsg = String.format(
+                "Timeout waiting for messages: Received %d/%d messages.",
+                received.size(), expectedCount);
+            throw new AssertionError(errorMsg);
         }
         return received;
     }
