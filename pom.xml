@@ -34,6 +34,7 @@
     <modules>
         <module>iam</module>
         <module>blob</module>
+        <module>dbbackrestore</module>
         <module>docstore</module>
         <module>examples</module>
         <module>pubsub</module>
@@ -172,6 +173,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackrestore-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackrestore-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

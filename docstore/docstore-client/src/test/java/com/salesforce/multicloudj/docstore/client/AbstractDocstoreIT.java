@@ -9,12 +9,9 @@ import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
-import com.salesforce.multicloudj.docstore.driver.Backup;
-import com.salesforce.multicloudj.docstore.driver.BackupStatus;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
-import com.salesforce.multicloudj.docstore.driver.RestoreRequest;
 import com.salesforce.multicloudj.docstore.driver.Util;
 import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import lombok.AllArgsConstructor;
@@ -68,32 +65,6 @@ public abstract class AbstractDocstoreIT {
         // false if it requires an index or fallback mechanism
         default boolean supportOrderByInFullScan() {
             return false;
-        }
-
-        // Method to check if the provider supports backup operations
-        // Returns true if the provider supports creating backups programmatically
-        default boolean supportsBackupCreation() {
-            return false;
-        }
-
-        // Method to check if the provider supports listing backups
-        // Returns true if the provider supports listing existing backups
-        default boolean supportsBackupListing() {
-            return false;
-        }
-
-        // Method to check if the provider supports restore operations
-        // Returns true if the provider supports restoring from backups
-        default boolean supportsBackupRestore() {
-            return false;
-        }
-
-        /**
-         * Provider-specific options for restore (e.g. AWS requires "iamRoleArn").
-         * Default is empty. Override to supply options needed for restore tests.
-         */
-        default java.util.Map<String, String> getRestoreOptions() {
-            return java.util.Collections.emptyMap();
         }
     }
 
@@ -1091,170 +1062,6 @@ public abstract class AbstractDocstoreIT {
         Assertions.assertEquals("7", doc7.get("s")); // Should still be original value
 
         docStoreClient.close();
-    }
-
-    /**
-     * Test listing backups for a collection.
-     * This test verifies that the provider can list all available backups.
-     */
-    @Test
-    public void testListBackups() {
-        if (!harness.supportsBackupListing()) {
-            System.out.println("Provider does not support backup listing, skipping test");
-            return;
-        }
-
-        DocStoreClient docStoreClient = new DocStoreClient(
-                harness.createDocstoreDriver(CollectionKind.SINGLE_KEY));
-
-        try {
-            List<Backup> backups = docStoreClient.listBackups();
-            Assertions.assertNotNull(backups, "Backup list should not be null");
-            System.out.println("Found " + backups.size() + " backups");
-
-            // Verify backup structure
-            for (Backup backup : backups) {
-                Assertions.assertNotNull(backup.getBackupId(), "Backup ID should not be null");
-                Assertions.assertNotNull(backup.getStatus(), "Backup status should not be null");
-                System.out.println("Backup: " + backup.getBackupId() + ", Status: " + backup.getStatus());
-            }
-        } finally {
-            docStoreClient.close();
-        }
-    }
-
-    /**
-     * Test getting a specific backup by ID.
-     * This test verifies that the provider can retrieve backup details.
-     */
-    @Test
-    public void testGetBackup() {
-        if (!harness.supportsBackupListing()) {
-            System.out.println("Provider does not support backup listing, skipping test");
-            return;
-        }
-
-        DocStoreClient docStoreClient = new DocStoreClient(
-                harness.createDocstoreDriver(CollectionKind.SINGLE_KEY));
-
-        try {
-            List<Backup> backups = docStoreClient.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test getBackup, skipping");
-                return;
-            }
-
-            String backupId = backups.get(0).getBackupId();
-            Backup backup = docStoreClient.getBackup(backupId);
-
-            Assertions.assertNotNull(backup, "Backup should not be null");
-            Assertions.assertEquals(backupId, backup.getBackupId(), "Backup ID should match");
-            Assertions.assertNotNull(backup.getStatus(), "Backup status should not be null");
-            Assertions.assertNotNull(backup.getCreationTime(), "Creation time should not be null");
-
-            System.out.println("Retrieved backup: " + backup.getBackupId());
-            System.out.println("Status: " + backup.getStatus());
-            System.out.println("Created: " + backup.getCreationTime());
-        } finally {
-            docStoreClient.close();
-        }
-    }
-
-    /**
-     * Test getting backup status.
-     * This test verifies that the provider can retrieve the status of a specific backup.
-     */
-    @Test
-    public void testGetBackupStatus() {
-        if (!harness.supportsBackupListing()) {
-            System.out.println("Provider does not support backup listing, skipping test");
-            return;
-        }
-
-        DocStoreClient docStoreClient = new DocStoreClient(
-                harness.createDocstoreDriver(CollectionKind.SINGLE_KEY));
-
-        try {
-            List<Backup> backups = docStoreClient.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test getBackupStatus, skipping");
-                return;
-            }
-
-            String backupId = backups.get(0).getBackupId();
-            BackupStatus status = docStoreClient.getBackupStatus(backupId);
-
-            Assertions.assertNotNull(status, "Backup status should not be null");
-            System.out.println("Backup " + backupId + " status: " + status);
-
-            // Verify status is a valid enum value
-            Assertions.assertTrue(
-                    status == BackupStatus.CREATING ||
-                    status == BackupStatus.AVAILABLE ||
-                    status == BackupStatus.DELETING ||
-                    status == BackupStatus.DELETED ||
-                    status == BackupStatus.FAILED ||
-                    status == BackupStatus.UNKNOWN,
-                    "Status should be a valid BackupStatus enum value"
-            );
-        } finally {
-            docStoreClient.close();
-        }
-    }
-
-    /**
-     * Test restoring from a backup.
-     * This test verifies that the provider can restore data from a backup.
-     */
-    @Test
-    public void testRestoreBackup() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DocStoreClient docStoreClient = new DocStoreClient(
-                harness.createDocstoreDriver(CollectionKind.SINGLE_KEY));
-
-        try {
-            List<Backup> backups = docStoreClient.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test restore, skipping");
-                return;
-            }
-
-            // Find an available backup
-            Backup availableBackup = backups.stream()
-                    .filter(b -> b.getStatus() == BackupStatus.AVAILABLE)
-                    .findFirst()
-                    .orElse(null);
-
-            if (availableBackup == null) {
-                System.out.println("No AVAILABLE backups to test restore, skipping");
-                return;
-            }
-
-            // Create restore request (include provider-specific options e.g. AWS iamRoleArn)
-            RestoreRequest.RestoreRequestBuilder requestBuilder = RestoreRequest.builder()
-                    .backupId(availableBackup.getBackupId())
-                    .targetCollectionName("restored-collection-" + System.currentTimeMillis());
-            java.util.Map<String, String> restoreOptions = harness.getRestoreOptions();
-            if (restoreOptions != null && !restoreOptions.isEmpty()) {
-                requestBuilder.options(restoreOptions);
-            }
-            RestoreRequest request = requestBuilder.build();
-
-            // Perform restore
-            docStoreClient.restoreBackup(request);
-
-            System.out.println("Restore operation initiated from backup: " + availableBackup.getBackupId());
-            System.out.println("Target collection: " + request.getTargetCollectionName());
-
-            // Note: Restore is typically an async operation, so we don't verify completion here
-            // In a real test, you might want to poll for completion or verify the restored data
-        } finally {
-            docStoreClient.close();
-        }
     }
 
 }

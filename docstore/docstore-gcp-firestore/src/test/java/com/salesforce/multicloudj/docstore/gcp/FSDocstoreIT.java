@@ -92,21 +92,6 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
         }
 
         @Override
-        public boolean supportsBackupCreation() {
-            return true;
-        }
-
-        @Override
-        public boolean supportsBackupListing() {
-            return true;
-        }
-
-        @Override
-        public boolean supportsBackupRestore() {
-            return true;
-        }
-
-        @Override
         public void close() {
             if (firestoreClient != null) {
                 firestoreClient.close();

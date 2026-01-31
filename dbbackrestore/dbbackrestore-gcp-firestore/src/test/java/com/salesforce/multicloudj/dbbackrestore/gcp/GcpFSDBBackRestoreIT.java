@@ -1,0 +1,88 @@
+package com.salesforce.multicloudj.dbbackrestore.gcp;
+
+import com.google.api.gax.core.NoCredentialsProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.cloud.firestore.v1.FirestoreAdminClient;
+import com.google.cloud.firestore.v1.FirestoreAdminSettings;
+import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
+import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
+import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import org.junit.jupiter.api.Assertions;
+
+/**
+ * Integration tests for GCP Firestore DB Backup Restore implementation.
+ *
+ * @since 0.2.26
+ */
+public class GcpFSDBBackRestoreIT extends AbstractDBBackRestoreIT {
+
+  @Override
+  protected Harness createHarness() {
+    return new HarnessImpl();
+  }
+
+  public static class HarnessImpl implements Harness {
+    FirestoreAdminClient firestoreAdminClient;
+    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+
+    @Override
+    public AbstractDBBackRestore createDBBackRestoreDriver() {
+      boolean isRecordingEnabled = System.getProperty("record") != null;
+      // Create channel provider using transport
+      TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
+      // Create FirestoreAdminSettings with credentials
+      FirestoreAdminSettings.Builder settingsBuilder = FirestoreAdminSettings.newBuilder();
+      settingsBuilder.setTransportChannelProvider(channelProvider);
+      if (!isRecordingEnabled) {
+        settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create());
+      }
+
+      // Build the client
+      try {
+        firestoreAdminClient = FirestoreAdminClient.create(settingsBuilder.build());
+      } catch (IOException e) {
+        Assertions.fail("Failed to create the firestore admin client", e);
+      }
+
+      return new GcpFSDBBackRestore.Builder()
+          .withFirestoreAdminClient(firestoreAdminClient)
+          .withRegion("us-west2")
+          .withCollectionName("docstore-test-1")
+          .withProjectId("substrate-sdk-gcp-poc1")
+          .build();
+    }
+
+    @Override
+    public int getPort() {
+      return port;
+    }
+
+    @Override
+    public List<String> getWiremockExtensions() {
+      return List.of();
+    }
+
+    @Override
+    public boolean supportsBackupRestore() {
+      return true;
+    }
+
+    @Override
+    public Map<String, String> getRestoreOptions() {
+      // GCP Firestore doesn't require additional options for restore
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public void close() {
+      if (firestoreAdminClient != null) {
+        firestoreAdminClient.close();
+      }
+    }
+  }
+}

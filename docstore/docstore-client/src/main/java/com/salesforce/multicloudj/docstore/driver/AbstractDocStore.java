@@ -165,48 +165,6 @@ public abstract class AbstractDocStore implements Provider, Collection, AutoClos
         }
     }
 
-    /**
-     * Lists all available backups for the collection/table.
-     *
-     * @return a list of Backup objects representing available backups
-     * @since 0.2.26
-     */
-    public abstract List<Backup> listBackups();
-
-    /**
-     * Gets details of a specific backup by its ID.
-     *
-     * @param backupId the unique identifier of the backup
-     * @return the Backup object with full metadata
-     * @since 0.2.26
-     */
-    public abstract Backup getBackup(String backupId);
-
-    /**
-     * Gets the current status of a specific backup.
-     *
-     * @param backupId the unique identifier of the backup
-     * @return the current BackupStatus of the backup
-     * @since 0.2.26
-     */
-    public abstract BackupStatus getBackupStatus(String backupId);
-
-    /**
-     * Restores a collection/table from a backup.
-     *
-     * @param request the restore request containing restore configuration
-     * @since 0.2.26
-     */
-    public abstract void restoreBackup(RestoreRequest request);
-
-    /**
-     * Deletes a specific backup.
-     *
-     * @param backupId the unique identifier of the backup to delete
-     * @since 0.2.26
-     */
-    public abstract void deleteBackup(String backupId);
-
     public abstract static class Builder<A extends  AbstractDocStore, T extends Builder<A, T>> implements Provider.Builder {
 
         private String providerId;

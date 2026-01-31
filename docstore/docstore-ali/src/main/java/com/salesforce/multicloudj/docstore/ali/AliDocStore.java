@@ -29,13 +29,6 @@ import com.alicloud.openservices.tablestore.model.StartLocalTransactionRequest;
 import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
-import com.aliyuncs.DefaultAcsClient;
-import com.aliyuncs.IAcsClient;
-import com.aliyuncs.hbr.model.v20170908.CreateRestoreJobRequest;
-import com.aliyuncs.hbr.model.v20170908.CreateRestoreJobResponse;
-import com.aliyuncs.hbr.model.v20170908.DescribeRestoreJobs2Request;
-import com.aliyuncs.hbr.model.v20170908.DescribeRestoreJobs2Response;
-import com.aliyuncs.profile.DefaultProfile;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
@@ -81,14 +74,12 @@ import static com.salesforce.multicloudj.docstore.ali.ErrorCodeMapping.OTS_CONDI
 @AutoService(AbstractDocStore.class)
 public class AliDocStore extends AbstractDocStore {
     private SyncClient tableStoreClient;
-    private IAcsClient hbrClient;
     private final int batchSize = 50;
     DescribeTableResponse tableDescription;
 
     public AliDocStore(Builder builder) {
         super(builder);
         this.tableStoreClient = builder.tableStoreClient;
-        this.hbrClient = builder.hbrClient;
     }
 
     public AliDocStore() {
@@ -123,31 +114,12 @@ public class AliDocStore extends AbstractDocStore {
 
     public static class Builder extends AbstractDocStore.Builder<AliDocStore, Builder> {
         private SyncClient tableStoreClient;
-        private IAcsClient hbrClient;
 
         private static SyncClient buildSyncClient(Builder builder) {
             String endpoint = getTableStoreEndpoint(builder.getRegion(), builder.getInstanceId(), builder.getEndpointType());
 
             CredentialsProvider provider = TableStoreCredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), builder.getRegion());
             return new SyncClient(endpoint, provider, builder.getInstanceId(), null, new ResourceManager(null, null));
-        }
-
-        private static IAcsClient buildHbrClient(Builder builder) {
-            com.salesforce.multicloudj.sts.model.CredentialsOverrider credOverrider = builder.getCredentialsOverrider();
-            String accessKeyId = null;
-            String accessKeySecret = null;
-
-            if (credOverrider != null && credOverrider.getSessionCredentials() != null) {
-                accessKeyId = credOverrider.getSessionCredentials().getAccessKeyId();
-                accessKeySecret = credOverrider.getSessionCredentials().getAccessKeySecret();
-            } else {
-                // Fallback to environment variables
-                accessKeyId = System.getenv("TABLESTORE_ACCESS_KEY_ID");
-                accessKeySecret = System.getenv("TABLESTORE_ACCESS_KEY_SECRET");
-            }
-
-            DefaultProfile profile = DefaultProfile.getProfile(builder.getRegion(), accessKeyId, accessKeySecret);
-            return new DefaultAcsClient(profile);
         }
 
         public Builder() {
@@ -164,18 +136,10 @@ public class AliDocStore extends AbstractDocStore {
             return this;
         }
 
-        public Builder withHbrClient(IAcsClient hbrClient) {
-            this.hbrClient = hbrClient;
-            return this;
-        }
-
         @Override
         public AliDocStore build() {
             if (tableStoreClient == null) {
                 tableStoreClient = buildSyncClient(this);
-            }
-            if (hbrClient == null) {
-                hbrClient = buildHbrClient(this);
             }
             return new AliDocStore(this);
         }
@@ -873,75 +837,6 @@ public class AliDocStore extends AbstractDocStore {
     public void close() {
         this.executorService.shutdown();
         tableStoreClient.shutdown();
-    }
-
-    @Override
-    public java.util.List<com.salesforce.multicloudj.docstore.driver.Backup> listBackups() {
-        throw new com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException(
-                "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. " +
-                "Listing backups requires HBR vault configuration. " +
-                "Use Alibaba Cloud Console to view backups or configure HBR programmatically.");
-    }
-
-    @Override
-    public com.salesforce.multicloudj.docstore.driver.Backup getBackup(String backupId) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException(
-                "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. " +
-                "Getting backup details requires HBR vault configuration. " +
-                "Use Alibaba Cloud Console or configure HBR programmatically.");
-    }
-
-    @Override
-    public com.salesforce.multicloudj.docstore.driver.BackupStatus getBackupStatus(String backupId) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException(
-                "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. " +
-                "Getting backup status requires HBR vault configuration. " +
-                "Use Alibaba Cloud Console or configure HBR programmatically.");
-    }
-
-    @Override
-    public void restoreBackup(com.salesforce.multicloudj.docstore.driver.RestoreRequest request) {
-        if (hbrClient == null) {
-            throw new SubstrateSdkException("HBR client not initialized. " +
-                    "Ensure credentials are configured in the builder.");
-        }
-
-        try {
-            CreateRestoreJobRequest restoreRequest = new CreateRestoreJobRequest();
-            restoreRequest.setRestoreType("OTS_TABLE");
-            restoreRequest.setSnapshotId(request.getBackupId());
-
-            // Set the target table name
-            String targetTableName = request.getTargetCollectionName() != null
-                    && !request.getTargetCollectionName().isEmpty()
-                    ? request.getTargetCollectionName()
-                    : collectionOptions.getTableName() + "-restored";
-
-            // Note: Alibaba HBR restore for TableStore requires additional configuration
-            // such as vault ID and instance name. These would need to be provided
-            // through the RestoreRequest or collection options.
-            restoreRequest.setSourceType("OTS_TABLE");
-
-            CreateRestoreJobResponse response = hbrClient.getAcsResponse(restoreRequest);
-
-            if (!response.getSuccess()) {
-                throw new SubstrateSdkException("Failed to create restore job: " +
-                        response.getMessage() + " (Code: " + response.getCode() + ")");
-            }
-        } catch (Exception e) {
-            if (e instanceof SubstrateSdkException) {
-                throw (SubstrateSdkException) e;
-            }
-            throw new SubstrateSdkException("Failed to restore Alibaba TableStore backup", e);
-        }
-    }
-
-    @Override
-    public void deleteBackup(String backupId) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException(
-                "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. " +
-                "Deleting backups requires HBR vault configuration. " +
-                "Use Alibaba Cloud Console or configure HBR programmatically.");
     }
 
 }

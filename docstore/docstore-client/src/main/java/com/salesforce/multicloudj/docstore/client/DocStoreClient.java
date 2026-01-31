@@ -3,11 +3,8 @@ package com.salesforce.multicloudj.docstore.client;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
-import com.salesforce.multicloudj.docstore.driver.Backup;
-import com.salesforce.multicloudj.docstore.driver.BackupStatus;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
 import com.salesforce.multicloudj.docstore.driver.Document;
-import com.salesforce.multicloudj.docstore.driver.RestoreRequest;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
@@ -257,66 +254,5 @@ public class DocStoreClient {
      */
     public Query query() {
         return new Query(docStore);
-    }
-
-    /**
-     * Lists all available backups for the current collection/table.
-     *
-     * @return a list of Backup objects representing available backups
-     * @since 0.2.26
-     */
-    public List<Backup> listBackups() {
-        return docStore.listBackups();
-    }
-
-    /**
-     * Gets details of a specific backup by its ID.
-     *
-     * @param backupId the unique identifier of the backup
-     * @return the Backup object with full metadata
-     * @since 0.2.26
-     */
-    public Backup getBackup(String backupId) {
-        return docStore.getBackup(backupId);
-    }
-
-    /**
-     * Gets the current status of a specific backup.
-     * This is a convenience method that retrieves only the status without full backup metadata.
-     *
-     * @param backupId the unique identifier of the backup
-     * @return the current BackupStatus of the backup
-     * @since 0.2.26
-     */
-    public BackupStatus getBackupStatus(String backupId) {
-        return docStore.getBackupStatus(backupId);
-    }
-
-    /**
-     * Restores a collection/table from a backup.
-     * The restore operation may take time depending on the backup size.
-     *
-     * <p>For AWS DynamoDB: you must provide an IAM role ARN in {@code request.getOptions()} with
-     * key {@code "iamRoleArn"}. AWS Backup assumes this role to create the restored table (required
-     * for Advanced DynamoDB and recommended for all DynamoDB restores). Example:
-     * {@code RestoreRequest.builder().backupId(backupId).targetCollectionName("my-restored-table")
-     *     .options(Map.of("iamRoleArn", "arn:aws:iam::123456789012:role/YourBackupRestoreRole")).build()}
-     *
-     * @param request the restore request containing restore configuration
-     * @since 0.2.26
-     */
-    public void restoreBackup(RestoreRequest request) {
-        docStore.restoreBackup(request);
-    }
-
-    /**
-     * Deletes a specific backup.
-     * This operation is irreversible.
-     *
-     * @param backupId the unique identifier of the backup to delete
-     * @since 0.2.26
-     */
-    public void deleteBackup(String backupId) {
-        docStore.deleteBackup(backupId);
     }
 }

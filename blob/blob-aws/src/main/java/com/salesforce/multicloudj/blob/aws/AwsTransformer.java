@@ -577,11 +577,6 @@ public class AwsTransformer {
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
                 .s3Prefix(request.getPrefix())
-                .uploadFileRequestTransformer(r -> r.putObjectRequest(p -> p
-                        .tagging(Tagging.builder()
-                                .tagSet(Tag.builder().key("Project").value("Internal").build())
-                                .build())
-                ))
                 .build();
     }
 
