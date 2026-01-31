@@ -1216,9 +1216,12 @@ public class AwsAsyncBlobStoreTest {
             Files.write(file1, "content1".getBytes());
             Files.write(file2, "content2".getBytes());
 
-            // Mock putObject responses
-            doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
-                    .when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+            // Mock transfer manager directory upload
+            DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+            CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+            doReturn(mockDirectoryUpload).when(mockS3TransferManager).uploadDirectory(any(UploadDirectoryRequest.class));
+            doReturn(CompletableFuture.completedFuture(mockCompletedUpload)).when(mockDirectoryUpload).completionFuture();
+            doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
 
             DirectoryUploadRequest uploadRequest = DirectoryUploadRequest.builder()
                     .localSourceDirectory(tempDir.toString())
@@ -1233,18 +1236,14 @@ public class AwsAsyncBlobStoreTest {
             assertNotNull(response);
             assertTrue(response.getFailedTransfers().isEmpty());
 
-            // Verify that putObject was called for each file
-            ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(mockS3Client, times(2)).putObject(requestCaptor.capture(), any(AsyncRequestBody.class));
-
-            List<PutObjectRequest> capturedRequests = requestCaptor.getAllValues();
-            assertEquals(2, capturedRequests.size());
-
-            // Verify bucket and keys
-            for (PutObjectRequest putRequest : capturedRequests) {
-                assertEquals(BUCKET, putRequest.bucket());
-                assertTrue(putRequest.key().startsWith("files/"));
-            }
+            // Verify transfer manager uploadDirectory was called with correct request
+            ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+                    ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+            verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+            UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+            assertEquals(BUCKET, capturedRequest.bucket());
+            assertEquals(tempDir, capturedRequest.source());
+            assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
         } finally {
             // Clean up
             Files.walk(tempDir)
@@ -1273,9 +1272,12 @@ public class AwsAsyncBlobStoreTest {
 
             Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
 
-            // Mock putObject responses
-            doReturn(CompletableFuture.completedFuture(buildMockPutObjectResponse()))
-                    .when(mockS3Client).putObject(any(PutObjectRequest.class), any(AsyncRequestBody.class));
+            // Mock transfer manager directory upload
+            DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+            CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+            doReturn(mockDirectoryUpload).when(mockS3TransferManager).uploadDirectory(any(UploadDirectoryRequest.class));
+            doReturn(CompletableFuture.completedFuture(mockCompletedUpload)).when(mockDirectoryUpload).completionFuture();
+            doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
 
             DirectoryUploadRequest uploadRequest = DirectoryUploadRequest.builder()
                     .localSourceDirectory(tempDir.toString())
@@ -1291,21 +1293,15 @@ public class AwsAsyncBlobStoreTest {
             assertNotNull(response);
             assertTrue(response.getFailedTransfers().isEmpty());
 
-            // Verify that putObject was called for each file with tags
-            ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(mockS3Client, times(2)).putObject(requestCaptor.capture(), any(AsyncRequestBody.class));
-
-            List<PutObjectRequest> capturedRequests = requestCaptor.getAllValues();
-            assertEquals(2, capturedRequests.size());
-
-            // Verify tags are present in both requests
-            for (PutObjectRequest putRequest : capturedRequests) {
-                assertEquals(BUCKET, putRequest.bucket());
-                assertTrue(putRequest.key().startsWith("files/"));
-                assertNotNull(putRequest.tagging());
-                assertTrue(putRequest.tagging().contains("tag1=value1"));
-                assertTrue(putRequest.tagging().contains("tag2=value2"));
-            }
+            // Verify transfer manager uploadDirectory was called with correct request (including tags via transformer)
+            ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+                    ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+            verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+            UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+            assertEquals(BUCKET, capturedRequest.bucket());
+            assertEquals(tempDir, capturedRequest.source());
+            assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
+            assertNotNull(capturedRequest.uploadFileRequestTransformer());
         } finally {
             // Clean up
             Files.walk(tempDir)

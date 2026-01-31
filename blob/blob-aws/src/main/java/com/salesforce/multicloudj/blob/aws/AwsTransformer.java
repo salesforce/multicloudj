@@ -86,6 +86,7 @@ import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -173,12 +174,19 @@ public class AwsTransformer {
     }
 
     public PutObjectRequest toRequest(UploadRequest request) {
+        return toRequest(request, getBucket());
+    }
+
+    /**
+     * Builds PutObjectRequest using the given bucket (for cross-region / per-request bucket).
+     */
+    public PutObjectRequest toRequest(UploadRequest request, String bucket) {
         List<Tag> tags = request.getTags().entrySet().stream()
                 .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
                 .collect(Collectors.toList());
         PutObjectRequest.Builder builder = PutObjectRequest
                 .builder()
-                .bucket(getBucket())
+                .bucket(bucket)
                 .key(request.getKey())
                 .metadata(request.getMetadata())
                 .tagging(Tagging.builder().tagSet(tags).build());
@@ -576,12 +584,22 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        return UploadDirectoryRequest.builder()
+        UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
-                .s3Prefix(request.getPrefix())
-                .build();
+                .s3Prefix(request.getPrefix());
+
+        // Apply tags to every file in the directory via uploadFileRequestTransformer
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            List<Tag> tagSet = request.getTags().entrySet().stream()
+                    .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                    .collect(Collectors.toList());
+            builder.uploadFileRequestTransformer(r -> r.putObjectRequest(p -> p
+                    .tagging(Tagging.builder().tagSet(tagSet).build())));
+        }
+
+        return builder.build();
     }
 
     /**
@@ -592,26 +610,24 @@ public class AwsTransformer {
      * @return list of file paths to upload
      */
     public List<Path> toFilePaths(DirectoryUploadRequest request) {
-        Path sourceDir = Paths.get(request.getLocalSourceDirectory());
-        List<Path> filePaths = new ArrayList<>();
+        String localSourceDirectory = request.getLocalSourceDirectory();
+        if (localSourceDirectory == null) {
+            throw new IllegalArgumentException("Local source directory cannot be null");
+        }
+        Path sourceDir = Paths.get(localSourceDirectory);
 
-        try (Stream<Path> paths = Files.walk(sourceDir)) {
-            filePaths = paths
+        if (!Files.isDirectory(sourceDir)) {
+            throw new IllegalArgumentException("Source path is not a valid directory: " + sourceDir);
+        }
+
+        try (Stream<Path> stream =
+                request.isIncludeSubFolders() ? Files.walk(sourceDir) : Files.list(sourceDir)) {
+            return stream
                     .filter(Files::isRegularFile)
-                    .filter(path -> {
-                        // If includeSubFolders is false, only include files in the root directory
-                        if (!request.isIncludeSubFolders()) {
-                            Path relativePath = sourceDir.relativize(path);
-                            return relativePath.getParent() == null;
-                        }
-                        return true;
-                    })
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new RuntimeException("Failed to traverse directory: " + sourceDir, e);
         }
-
-        return filePaths;
     }
 
     /**
@@ -623,13 +639,25 @@ public class AwsTransformer {
      * @return the blob key
      */
     public String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+        if (sourceDir == null) {
+            throw new IllegalArgumentException("Source directory cannot be null");
+        }
+        if (filePath == null) {
+            throw new IllegalArgumentException("File path cannot be null");
+        }
         Path relativePath = sourceDir.relativize(filePath);
-        String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
+        String key = relativePath.toString().replace(File.separator, "/"); // Normalize path separators for S3
 
-        if (prefix != null && !prefix.isEmpty()) {
+        String trimmedPrefix = prefix != null ? prefix.trim() : null;
+        if (trimmedPrefix != null && !trimmedPrefix.isEmpty()) {
             // Ensure prefix ends with "/" if it doesn't already
-            String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
+            String normalizedPrefix = trimmedPrefix.endsWith("/") ? trimmedPrefix : trimmedPrefix + "/";
             key = normalizedPrefix + key;
+        }
+
+        // Remove any leading slash (e.g. from prefix like "/images") to avoid empty root segment in S3
+        while (key.startsWith("/")) {
+            key = key.substring(1);
         }
 
         return key;

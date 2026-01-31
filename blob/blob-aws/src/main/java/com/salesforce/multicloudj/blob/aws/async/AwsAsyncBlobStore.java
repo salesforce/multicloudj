@@ -355,50 +355,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
     @Override
     protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
-        try {
-            Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
-            List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
-            List<CompletableFuture<Void>> uploadFutures = new ArrayList<>();
-            List<FailedBlobUpload> failedUploads = Collections.synchronizedList(new ArrayList<>());
-
-            for (Path filePath : filePaths) {
-                CompletableFuture<Void> uploadFuture = CompletableFuture.runAsync(() -> {
-                    try {
-                        // Generate blob key
-                        String blobKey = transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
-
-                        // Create UploadRequest with tags if provided
-                        UploadRequest.Builder uploadRequestBuilder = UploadRequest.builder()
-                                .withKey(blobKey)
-                                .withContentLength(Files.size(filePath));
-
-                        if (directoryUploadRequest.getTags() != null && !directoryUploadRequest.getTags().isEmpty()) {
-                            uploadRequestBuilder.withTags(directoryUploadRequest.getTags());
-                        }
-
-                        UploadRequest uploadRequest = uploadRequestBuilder.build();
-
-                        // Upload file with tags
-                        doUpload(uploadRequest, filePath).get();
-                    } catch (Exception e) {
-                        failedUploads.add(FailedBlobUpload.builder()
-                                .source(filePath)
-                                .exception(e)
-                                .build());
-                    }
-                });
-
-                uploadFutures.add(uploadFuture);
-            }
-
-            // Wait for all uploads to complete
-            return CompletableFuture.allOf(uploadFutures.toArray(new CompletableFuture[0]))
-                    .thenApply(v -> DirectoryUploadResponse.builder()
-                            .failedTransfers(failedUploads)
-                            .build());
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(new SubstrateSdkException("Failed to upload directory", e));
-        }
+        return transferManager.uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
+                .completionFuture()
+                .thenApply(transformer::toDirectoryUploadResponse);
     }
 
     @Override
