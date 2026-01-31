@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Assertions;
  *
  * @since 0.2.26
  */
-public class GcpFSDBBackRestoreIT extends AbstractDBBackRestoreIT {
+public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
 
   @Override
   protected Harness createHarness() {
@@ -37,7 +37,7 @@ public class GcpFSDBBackRestoreIT extends AbstractDBBackRestoreIT {
       TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
       // Create FirestoreAdminSettings with credentials
       FirestoreAdminSettings.Builder settingsBuilder = FirestoreAdminSettings.newBuilder();
-      settingsBuilder.setTransportChannelProvider(channelProvider);
+      //settingsBuilder.setTransportChannelProvider(channelProvider);
       if (!isRecordingEnabled) {
         settingsBuilder.setCredentialsProvider(NoCredentialsProvider.create());
       }
@@ -49,10 +49,10 @@ public class GcpFSDBBackRestoreIT extends AbstractDBBackRestoreIT {
         Assertions.fail("Failed to create the firestore admin client", e);
       }
 
-      return new GcpFSDBBackRestore.Builder()
+      return new FSDBBackRestore.Builder()
           .withFirestoreAdminClient(firestoreAdminClient)
           .withRegion("us-west2")
-          .withCollectionName("docstore-test-1")
+          .withCollectionName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
           .withProjectId("substrate-sdk-gcp-poc1")
           .build();
     }

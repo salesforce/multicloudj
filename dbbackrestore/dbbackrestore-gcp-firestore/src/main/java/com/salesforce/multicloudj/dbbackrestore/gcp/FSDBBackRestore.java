@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.dbbackrestore.gcp;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.firestore.FirestoreOptions;
 import com.google.cloud.firestore.v1.FirestoreAdminClient;
 import com.google.cloud.firestore.v1.FirestoreAdminSettings;
 import com.google.firestore.admin.v1.ListBackupsResponse;
@@ -23,7 +22,7 @@ import java.util.List;
  * @since 0.2.26
  */
 @AutoService(AbstractDBBackRestore.class)
-public class GcpFSDBBackRestore extends AbstractDBBackRestore {
+public class FSDBBackRestore extends AbstractDBBackRestore {
 
   private final FirestoreAdminClient firestoreAdminClient;
   private final String projectId;
@@ -31,18 +30,18 @@ public class GcpFSDBBackRestore extends AbstractDBBackRestore {
   /**
    * Default constructor for ServiceLoader.
    */
-  public GcpFSDBBackRestore() {
+  public FSDBBackRestore() {
     super(new Builder());
     this.firestoreAdminClient = null;
     this.projectId = null;
   }
 
   /**
-   * Constructs a GcpFSDBBackRestore with the given builder.
+   * Constructs a FSDBBackRestore with the given builder.
    *
    * @param builder the builder containing configuration
    */
-  public GcpFSDBBackRestore(Builder builder) {
+  public FSDBBackRestore(Builder builder) {
     super(builder);
     this.firestoreAdminClient = builder.firestoreAdminClient;
     this.projectId = builder.projectId;
@@ -233,9 +232,9 @@ public class GcpFSDBBackRestore extends AbstractDBBackRestore {
   }
 
   /**
-   * Builder for GcpFSDBBackRestore.
+   * Builder for FSDBBackRestore.
    */
-  public static class Builder extends AbstractDBBackRestore.Builder<GcpFSDBBackRestore, Builder> {
+  public static class Builder extends AbstractDBBackRestore.Builder<FSDBBackRestore, Builder> {
     private FirestoreAdminClient firestoreAdminClient;
     private GoogleCredentials credentials;
     private String projectId;
@@ -286,7 +285,7 @@ public class GcpFSDBBackRestore extends AbstractDBBackRestore {
     }
 
     @Override
-    public GcpFSDBBackRestore build() {
+    public FSDBBackRestore build() {
       if (region == null || region.isEmpty()) {
         throw new IllegalArgumentException("Region is required");
       }
@@ -309,7 +308,7 @@ public class GcpFSDBBackRestore extends AbstractDBBackRestore {
         }
       }
 
-      return new GcpFSDBBackRestore(this);
+      return new FSDBBackRestore(this);
     }
   }
 }

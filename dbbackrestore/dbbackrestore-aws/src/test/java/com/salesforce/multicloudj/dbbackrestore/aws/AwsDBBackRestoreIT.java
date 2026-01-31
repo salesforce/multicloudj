@@ -35,7 +35,7 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     public AbstractDBBackRestore createDBBackRestoreDriver() {
       httpClient = TestsUtilAws.getProxyClient("https", port);
       BackupClientBuilder builder = BackupClient.builder()
-          .httpClient(httpClient)
+          //.httpClient(httpClient)
           .region(Region.US_WEST_2)
           .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
               System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
@@ -73,7 +73,7 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     public Map<String, String> getRestoreOptions() {
       // AWS requires IAM role ARN for restore operations
       return Map.of(
-          "iamRoleArn", "arn:aws:iam::654654370895:role/BackupRestoreRole"
+          "iamRoleArn", "arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs"
       );
     }
 

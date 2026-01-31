@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.dbbackrestore.driver;
 
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.util.List;
 import lombok.Getter;
