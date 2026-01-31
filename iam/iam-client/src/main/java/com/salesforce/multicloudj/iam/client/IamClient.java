@@ -5,6 +5,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -124,18 +126,13 @@ public class IamClient implements AutoCloseable {
     /**
      * Retrieves the details of a specific inline policy attached to an identity.
      *
-     * @param identityName the name of the identity
-     * @param policyName the name of the policy. This parameter is optional and subject to cloud semantics.
-     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
-     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
-     *                 may require this parameter to identify the policy, while others may not use it.
-     * @param tenantId the tenant ID
-     * @param region the region
+     * @param request the request containing identity name, policy name, role name, tenant ID, and region.
+     *                Policy name and role name are optional and subject to cloud semantics.
      * @return the policy document details as a string
      */
-    public String getInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
+    public String getInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
         try {
-            return this.iam.getInlinePolicyDetails(identityName, policyName, roleName, tenantId, region);
+            return this.iam.getInlinePolicyDetails(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
@@ -146,14 +143,12 @@ public class IamClient implements AutoCloseable {
     /**
      * Lists all inline policies attached to an identity.
      *
-     * @param identityName the name of the identity
-     * @param tenantId the tenant ID
-     * @param region the region
+     * @param request the request containing identity name, tenant ID, and region
      * @return a list of policy names
      */
-    public List<String> getAttachedPolicies(String identityName, String tenantId, String region) {
+    public List<String> getAttachedPolicies(GetAttachedPoliciesRequest request) {
         try {
-            return this.iam.getAttachedPolicies(identityName, tenantId, region);
+            return this.iam.getAttachedPolicies(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);
