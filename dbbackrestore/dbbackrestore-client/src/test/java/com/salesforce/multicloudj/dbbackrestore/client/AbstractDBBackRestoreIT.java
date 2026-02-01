@@ -54,41 +54,23 @@ public abstract class AbstractDBBackRestoreIT {
         int getPort();
 
         /**
-         * Gets wiremock extensions to use for proxying.
+         * Gets the IAM role for restore operations.*
          *
-         * @return list of fully qualified class names for wiremock extensions
+         * @return the IAM role ARN, or null if not applicable
          */
-        List<String> getWiremockExtensions();
+        default String getRoleId() {
+            return null;
+        }
 
-    /**
-     * Checks if the provider supports backup restore operations.
-     *
-     * @return true if backup restore is supported
-     */
-    default boolean supportsBackupRestore() {
-      return false;
+        /**
+         * Gets the vault ID for restore operations if applicable.
+         *
+         * @return the vault ID, or null if not applicable
+         */
+        default String getVaultId() {
+            return null;
+        }
     }
-
-    /**
-     * Gets the IAM role ARN for restore operations.
-     * Provider-specific - only applicable for providers requiring role-based authorization.
-     *
-     * @return the IAM role ARN, or null if not applicable
-     */
-    default String getIamRoleArn() {
-      return null;
-    }
-
-    /**
-     * Gets the vault ID for restore operations.
-     * Provider-specific - only applicable for vault-based backup systems.
-     *
-     * @return the vault ID, or null if not applicable
-     */
-    default String getVaultId() {
-      return null;
-    }
-  }
 
     protected abstract Harness createHarness();
 
@@ -139,35 +121,19 @@ public abstract class AbstractDBBackRestoreIT {
      */
     @Test
     public void testListBackups() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DBBackRestoreClient client = new DBBackRestoreClient(
-                harness.createDBBackRestoreDriver());
-
-        try {
+        try (DBBackRestoreClient client = new DBBackRestoreClient(
+                harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
             Assertions.assertNotNull(backups, "Backup list should not be null");
-
-            // If backups exist, verify their structure
-            if (!backups.isEmpty()) {
-                for (Backup backup : backups) {
-                    Assertions.assertNotNull(backup.getBackupId(), "Backup ID should not be null");
-                    Assertions.assertNotNull(backup.getStatus(), "Backup status should not be null");
-                    System.out.println("Found backup: " + backup.getBackupId()
-                            + " with status: " + backup.getStatus());
-                }
-            } else {
-                System.out.println("No backups found for the collection");
+            Assertions.assertFalse(backups.isEmpty(), "Backup list should not be empty");
+            for (Backup backup : backups) {
+                Assertions.assertNotNull(backup.getBackupId(), "Backup ID should not be null");
+                Assertions.assertNotNull(backup.getStatus(), "Backup status should not be null");
+                System.out.println("Found backup: " + backup.getBackupId()
+                        + " with status: " + backup.getStatus());
             }
-        } finally {
-            try {
-                client.close();
-            } catch (Exception e) {
-                System.err.println("Error closing client: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -177,20 +143,10 @@ public abstract class AbstractDBBackRestoreIT {
      */
     @Test
     public void testGetBackup() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DBBackRestoreClient client = new DBBackRestoreClient(
-                harness.createDBBackRestoreDriver());
-
-        try {
+        try (DBBackRestoreClient client = new DBBackRestoreClient(
+                harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test getBackup, skipping");
-                return;
-            }
+            Assertions.assertFalse(backups.isEmpty(), "Backup list should not be empty");
 
             // Get details for the first backup
             Backup backup = backups.get(0);
@@ -203,12 +159,8 @@ public abstract class AbstractDBBackRestoreIT {
 
             System.out.println("Retrieved backup: " + retrieved.getBackupId()
                     + " with status: " + retrieved.getStatus());
-        } finally {
-            try {
-                client.close();
-            } catch (Exception e) {
-                System.err.println("Error closing client: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -218,20 +170,10 @@ public abstract class AbstractDBBackRestoreIT {
      */
     @Test
     public void testGetBackupStatus() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DBBackRestoreClient client = new DBBackRestoreClient(
-                harness.createDBBackRestoreDriver());
-
-        try {
+        try (DBBackRestoreClient client = new DBBackRestoreClient(
+                harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test getBackupStatus, skipping");
-                return;
-            }
+            Assertions.assertFalse(backups.isEmpty(), "Backup list should not be empty");
 
             // Get status for the first backup
             Backup backup = backups.get(0);
@@ -239,12 +181,8 @@ public abstract class AbstractDBBackRestoreIT {
 
             Assertions.assertNotNull(status, "Backup status should not be null");
             System.out.println("Backup " + backup.getBackupId() + " has status: " + status);
-        } finally {
-            try {
-                client.close();
-            } catch (Exception e) {
-                System.err.println("Error closing client: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -255,15 +193,8 @@ public abstract class AbstractDBBackRestoreIT {
      */
     @Test
     public void testRestoreBackup() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DBBackRestoreClient client = new DBBackRestoreClient(
-                harness.createDBBackRestoreDriver());
-
-        try {
+        try (DBBackRestoreClient client = new DBBackRestoreClient(
+                harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
             if (backups.isEmpty()) {
                 System.out.println("No backups available to test restore, skipping");
@@ -284,16 +215,16 @@ public abstract class AbstractDBBackRestoreIT {
             // Create restore request (include provider-specific fields if needed)
             RestoreRequest.RestoreRequestBuilder requestBuilder = RestoreRequest.builder()
                     .backupId(availableBackup.getBackupId())
-                    .targetTable("restored-collection-" + UUID.uniqueString());
-            
+                    .targetResource("restored-collection-" + UUID.uniqueString());
+
             // Add provider-specific fields
-            if (harness.getIamRoleArn() != null) {
-                requestBuilder.roleId(harness.getIamRoleArn());
+            if (harness.getRoleId() != null) {
+                requestBuilder.roleId(harness.getRoleId());
             }
             if (harness.getVaultId() != null) {
                 requestBuilder.vaultId(harness.getVaultId());
             }
-            
+
             RestoreRequest request = requestBuilder.build();
 
             // Perform restore
@@ -301,16 +232,12 @@ public abstract class AbstractDBBackRestoreIT {
 
             System.out.println("Restore operation initiated from backup: "
                     + availableBackup.getBackupId());
-            System.out.println("Target collection: " + request.getTargetTable());
+            System.out.println("Target collection: " + request.getTargetResource());
 
             // Note: Restore is typically an async operation, so we don't verify completion here
             // In a real test, you might want to poll for completion or verify the restored data
-        } finally {
-            try {
-                client.close();
-            } catch (Exception e) {
-                System.err.println("Error closing client: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 }

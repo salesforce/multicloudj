@@ -51,8 +51,8 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
 
             return new FSDBBackRestore.Builder()
                     .withFirestoreAdminClient(firestoreAdminClient)
-                    .withRegion("us-west2")
-                    .withTableName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
+                    .withRegion("projects/substrate-sdk-gcp-poc1/nam5")
+                    .withResourceName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
                     .withProjectId("substrate-sdk-gcp-poc1")
                     .build();
         }
@@ -65,16 +65,6 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
         @Override
         public String getBackupEndpoint() {
             return "https://firestore.googleapis.com";
-        }
-
-        @Override
-        public List<String> getWiremockExtensions() {
-            return List.of();
-        }
-
-        @Override
-        public boolean supportsBackupRestore() {
-            return true;
         }
 
         @Override

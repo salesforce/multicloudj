@@ -126,7 +126,7 @@ public class DBBackRestoreClient implements AutoCloseable {
 
     /**
      * Restores a table from a backup.
-     * The restore operation may take time depending on the backup size.
+     * The restore operation may take time depending on the backup size and is async request.
      *
      * @param request the restore request containing restore configuration
      */
@@ -174,7 +174,7 @@ public class DBBackRestoreClient implements AutoCloseable {
          * @return this builder
          */
         public DBBackRestoreClientBuilder withTableName(String tableName) {
-            this.dbBackRestoreBuilder.withTableName(tableName);
+            this.dbBackRestoreBuilder.withResourceName(tableName);
             return this;
         }
 

@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.dbbackrestore.driver;
 
 import java.time.Instant;
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,7 +31,7 @@ public class Backup {
   /**
    * Name of the table that this backup represents.
    */
-  private String collectionName;
+  private String resourceName;
 
   /**
    * Current status of the backup.
@@ -62,5 +64,5 @@ public class Backup {
    * Provider-specific metadata as key-value pairs.
    * Can be used to store additional cloud-specific information.
    */
-  private java.util.Map<String, String> metadata;
+  private Map<String, String> metadata;
 }

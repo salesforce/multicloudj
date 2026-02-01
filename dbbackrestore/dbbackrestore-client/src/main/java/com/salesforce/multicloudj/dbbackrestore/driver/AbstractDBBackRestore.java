@@ -17,7 +17,7 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
   @Getter
   protected final String region;
   @Getter
-  protected final String collectionName;
+  protected final String resourceName;
 
   /**
    * Constructs an AbstractDBBackRestore instance using a Builder.
@@ -33,12 +33,12 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
    *
    * @param providerId the cloud provider identifier
    * @param region the region where the database is located
-   * @param collectionName the name of the table to backup/restore
+   * @param resourceName the name of the table to backup/restore
    */
-  protected AbstractDBBackRestore(String providerId, String region, String collectionName) {
+  protected AbstractDBBackRestore(String providerId, String region, String resourceName) {
     this.providerId = providerId;
     this.region = region;
-    this.collectionName = collectionName;
+    this.resourceName = resourceName;
   }
 
   @Override
@@ -111,7 +111,7 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
      * @param collectionName the table name
      * @return this builder
      */
-    public B withTableName(String collectionName) {
+    public B withResourceName(String collectionName) {
       this.collectionName = collectionName;
       return self();
     }

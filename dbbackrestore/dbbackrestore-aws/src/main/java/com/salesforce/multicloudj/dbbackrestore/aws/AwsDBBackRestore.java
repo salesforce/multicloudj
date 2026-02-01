@@ -19,7 +19,9 @@ import software.amazon.awssdk.services.backup.model.RecoveryPointStatus;
 import software.amazon.awssdk.services.backup.model.StartRestoreJobRequest;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * AWS implementation of database backup and restore operations using AWS Backup service.
@@ -92,14 +94,12 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
         // First, get the vault name by listing recovery points for this resource
         String vaultName = getVaultNameForRecoveryPoint(backupId);
 
-        DescribeRecoveryPointRequest request =
-                DescribeRecoveryPointRequest.builder()
-                        .backupVaultName(vaultName)
-                        .recoveryPointArn(backupId)
-                        .build();
+        DescribeRecoveryPointRequest request = DescribeRecoveryPointRequest.builder()
+                .backupVaultName(vaultName)
+                .recoveryPointArn(backupId)
+                .build();
 
-        DescribeRecoveryPointResponse response =
-                backupClient.describeRecoveryPoint(request);
+        DescribeRecoveryPointResponse response = backupClient.describeRecoveryPoint(request);
         return convertToBackup(response);
     }
 
@@ -129,23 +129,22 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
         }
         iamRoleArn = iamRoleArn.trim();
 
-        String targetTableName = request.getTargetTable() != null
-                && !request.getTargetTable().isEmpty()
-                ? request.getTargetTable()
-                : getCollectionName();
+        String targetTableName = request.getTargetResource() != null
+                && !request.getTargetResource().isEmpty()
+                ? request.getTargetResource()
+                : getResourceName();
 
         // Build restore metadata for DynamoDB table
-        java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("targetTableName", targetTableName);
 
-        StartRestoreJobRequest restoreJobRequest =
-                StartRestoreJobRequest.builder()
-                        .recoveryPointArn(request.getBackupId())
-                        .metadata(metadata)
-                        .idempotencyToken(UUID.uniqueString())
-                        .iamRoleArn(iamRoleArn)
-                        .resourceType("DynamoDB")
-                        .build();
+        StartRestoreJobRequest restoreJobRequest = StartRestoreJobRequest.builder()
+                .recoveryPointArn(request.getBackupId())
+                .metadata(metadata)
+                .idempotencyToken(UUID.uniqueString())
+                .iamRoleArn(iamRoleArn)
+                .resourceType("DynamoDB")
+                .build();
 
         backupClient.startRestoreJob(restoreJobRequest);
     }
@@ -182,12 +181,12 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     private Backup convertToBackup(
             RecoveryPointByResource recoveryPoint) {
-        java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("backupVaultName", recoveryPoint.backupVaultName());
 
         return Backup.builder()
                 .backupId(recoveryPoint.recoveryPointArn())
-                .collectionName(getCollectionName())
+                .resourceName(getResourceName())
                 .status(convertRecoveryPointStatus(recoveryPoint.status()))
                 .creationTime(recoveryPoint.creationDate())
                 .expiryTime(null) // Not available in RecoveryPointByResource
@@ -196,11 +195,10 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .build();
     }
 
-    private Backup convertToBackup(
-            DescribeRecoveryPointResponse response) {
+    private Backup convertToBackup(DescribeRecoveryPointResponse response) {
         return Backup.builder()
                 .backupId(response.recoveryPointArn())
-                .collectionName(getCollectionName())
+                .resourceName(getResourceName())
                 .status(convertRecoveryPointStatus(response.status()))
                 .creationTime(response.creationDate())
                 .expiryTime(response.calculatedLifecycle() != null
@@ -209,20 +207,23 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .build();
     }
 
-    private BackupStatus convertRecoveryPointStatus(
-            RecoveryPointStatus status) {
+    private BackupStatus convertRecoveryPointStatus(RecoveryPointStatus status) {
         if (status == null) {
             return BackupStatus.UNKNOWN;
         }
         switch (status) {
             case PARTIAL:
+            case CREATING:
                 return BackupStatus.CREATING;
             case COMPLETED:
+            case AVAILABLE:
                 return BackupStatus.AVAILABLE;
             case DELETING:
                 return BackupStatus.DELETING;
             case EXPIRED:
                 return BackupStatus.DELETED;
+            case STOPPED:
+                return BackupStatus.FAILED;
             default:
                 return BackupStatus.UNKNOWN;
         }

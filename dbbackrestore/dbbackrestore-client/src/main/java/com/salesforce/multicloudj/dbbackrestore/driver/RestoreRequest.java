@@ -27,7 +27,7 @@ public class RestoreRequest {
    * Name of the target table to restore to.
    * If null or empty, restores to the original table name.
    */
-  private String targetTable;
+  private String targetResource;
 
   /**
    * role id for restore operations requiring role-based authorization.

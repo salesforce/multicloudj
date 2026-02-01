@@ -46,7 +46,7 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
       return new AwsDBBackRestore.Builder()
           .withBackupClient(backupClient)
           .withRegion("us-west-2")
-          .withTableName("docstore-test-1")
+          .withResourceName("docstore-test-1")
           .withTableArn("arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1")
           .build();
     }
@@ -62,17 +62,7 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     }
 
     @Override
-    public List<String> getWiremockExtensions() {
-      return List.of();
-    }
-
-    @Override
-    public boolean supportsBackupRestore() {
-      return true;
-    }
-
-    @Override
-    public String getIamRoleArn() {
+    public String getRoleId() {
       return "arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs";
     }
 

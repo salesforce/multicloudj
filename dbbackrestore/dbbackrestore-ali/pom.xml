@@ -88,8 +88,13 @@
         </dependency>
         <dependency>
             <groupId>com.aliyun</groupId>
-            <artifactId>aliyun-java-sdk-hbr</artifactId>
-            <version>1.2.11</version>
+            <artifactId>hbr20170908</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-openapi</artifactId>
+            <version>0.3.11</version>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
