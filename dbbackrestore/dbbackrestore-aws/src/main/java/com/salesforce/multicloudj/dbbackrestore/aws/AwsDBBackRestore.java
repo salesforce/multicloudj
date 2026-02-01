@@ -19,9 +19,7 @@ import software.amazon.awssdk.services.backup.model.RecoveryPointStatus;
 import software.amazon.awssdk.services.backup.model.StartRestoreJobRequest;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * AWS implementation of database backup and restore operations using AWS Backup service.
@@ -135,7 +133,8 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 : getResourceName();
 
         // Build restore metadata for DynamoDB table
-        Map<String, String> metadata = new HashMap<>();
+        // Note: This is AWS API metadata, not the removed Backup.metadata field
+        java.util.Map<String, String> metadata = new java.util.HashMap<>();
         metadata.put("targetTableName", targetTableName);
 
         StartRestoreJobRequest restoreJobRequest = StartRestoreJobRequest.builder()
@@ -181,9 +180,6 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     private Backup convertToBackup(
             RecoveryPointByResource recoveryPoint) {
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("backupVaultName", recoveryPoint.backupVaultName());
-
         return Backup.builder()
                 .backupId(recoveryPoint.recoveryPointArn())
                 .resourceName(getResourceName())
@@ -191,7 +187,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .creationTime(recoveryPoint.creationDate())
                 .expiryTime(null) // Not available in RecoveryPointByResource
                 .sizeInBytes(-1L) // Not available in RecoveryPointByResource
-                .metadata(metadata)
+                .vaultId(recoveryPoint.backupVaultName())
                 .build();
     }
 
@@ -204,6 +200,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .expiryTime(response.calculatedLifecycle() != null
                         ? response.calculatedLifecycle().deleteAt() : null)
                 .sizeInBytes(response.backupSizeInBytes() != null ? response.backupSizeInBytes() : -1L)
+                .vaultId(response.backupVaultName())
                 .build();
     }
 

@@ -13,9 +13,7 @@ import com.salesforce.multicloudj.dbbackrestore.driver.RestoreRequest;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Alibaba Cloud implementation of database backup and restore operations.
@@ -196,21 +194,6 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
             }
         }
 
-        // Build metadata
-        Map<String, String> metadata = new HashMap<>();
-        if (snapshot.getVaultId() != null) {
-            metadata.put("vaultId", snapshot.getVaultId());
-        }
-        if (snapshot.getJobId() != null) {
-            metadata.put("jobId", snapshot.getJobId());
-        }
-        if (snapshot.getTableName() != null) {
-            metadata.put("tableName", snapshot.getTableName());
-        }
-        if (snapshot.getInstanceName() != null) {
-            metadata.put("instanceName", snapshot.getInstanceName());
-        }
-
         return Backup.builder()
                 .backupId(snapshot.getSnapshotId())
                 .resourceName(snapshot.getTableName() != null ? snapshot.getTableName() : getResourceName())
@@ -219,7 +202,7 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
                 .expiryTime(expiryTime)
                 .sizeInBytes(sizeInBytes)
                 .description(snapshot.getSnapshotId())
-                .metadata(metadata)
+                .vaultId(snapshot.getVaultId())
                 .build();
     }
 

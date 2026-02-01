@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.dbbackrestore.driver;
 
 import java.time.Instant;
-import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +23,7 @@ public class Backup {
 
   /**
    * Unique identifier for the backup.
-   * Format and content are provider-specific.
+   * Format and content are provider-specific (e.g., ARN for AWS, snapshot ID for Alibaba).
    */
   private String backupId;
 
@@ -56,13 +55,12 @@ public class Backup {
   private long sizeInBytes;
 
   /**
-   * Description or metadata about the backup.
+   * Description or human-readable name for the backup.
    */
   private String description;
 
   /**
-   * Provider-specific metadata as key-value pairs.
-   * Can be used to store additional cloud-specific information.
+   * Vault identifier where the backup is stored.
    */
-  private Map<String, String> metadata;
+  private String vaultId;
 }
