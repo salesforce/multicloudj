@@ -19,7 +19,7 @@ import java.util.List;
  * additional configuration such as vault ID and instance name. Some operations may
  * not be supported through the programmatic API and require the Alibaba Cloud Console.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @AutoService(AbstractDBBackRestore.class)
 public class AliDBBackRestore extends AbstractDBBackRestore {
@@ -57,34 +57,21 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
 
   @Override
   public List<Backup> listBackups() {
-    checkClosed();
-    throw new UnSupportedOperationException(
-        "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. "
-            + "Listing backups requires HBR vault configuration. "
-            + "Use Alibaba Cloud Console to view backups or configure HBR programmatically.");
+    throw new UnSupportedOperationException("Alibaba TableStore backups are not implemented yet.");
   }
 
   @Override
   public Backup getBackup(String backupId) {
-    checkClosed();
-    throw new UnSupportedOperationException(
-        "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. "
-            + "Getting backup details requires HBR vault configuration. "
-            + "Use Alibaba Cloud Console or configure HBR programmatically.");
+      throw new UnSupportedOperationException("Alibaba TableStore backups are not implemented yet.");
   }
 
   @Override
   public BackupStatus getBackupStatus(String backupId) {
-    checkClosed();
-    throw new UnSupportedOperationException(
-        "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. "
-            + "Getting backup status requires HBR vault configuration. "
-            + "Use Alibaba Cloud Console or configure HBR programmatically.");
+      throw new UnSupportedOperationException("Alibaba TableStore backups are not implemented yet.");
   }
 
   @Override
   public void restoreBackup(RestoreRequest request) {
-    checkClosed();
     if (hbrClient == null) {
       throw new SubstrateSdkException("HBR client not initialized. "
           + "Ensure credentials are configured in the builder.");
@@ -96,24 +83,15 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
       restoreRequest.setSnapshotId(request.getBackupId());
 
       // Set the target table name
-      String targetTableName = request.getTargetCollectionName() != null
-          && !request.getTargetCollectionName().isEmpty()
-              ? request.getTargetCollectionName()
+      String targetTableName = request.getTargetTable() != null
+          && !request.getTargetTable().isEmpty()
+              ? request.getTargetTable()
               : getCollectionName() + "-restored";
 
       // Note: Alibaba HBR restore for TableStore requires additional configuration
-      // such as vault ID and instance name. These would need to be provided
-      // through the RestoreRequest options.
-      restoreRequest.setSourceType("OTS_TABLE");
-
-      // Get additional options from request if provided
-      if (request.getOptions() != null) {
-        if (request.getOptions().containsKey("vaultId")) {
-          restoreRequest.setVaultId(request.getOptions().get("vaultId"));
-        }
-        if (request.getOptions().containsKey("instanceName")) {
-          // Additional HBR configuration can be added here
-        }
+      // such as vault ID and instance name.
+      if (request.getVaultId() != null && !request.getVaultId().isEmpty()) {
+        restoreRequest.setVaultId(request.getVaultId());
       }
 
       CreateRestoreJobResponse response = hbrClient.getAcsResponse(restoreRequest);
@@ -131,20 +109,8 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
   }
 
   @Override
-  public void deleteBackup(String backupId) {
-    checkClosed();
-    throw new UnSupportedOperationException(
-        "Alibaba TableStore backups are managed through HBR (Hybrid Backup Recovery) service. "
-            + "Deleting backups requires HBR vault configuration. "
-            + "Use Alibaba Cloud Console or configure HBR programmatically.");
-  }
-
-  @Override
   public void close() throws Exception {
-    if (!closed) {
-      closed = true;
-      // HBR client doesn't need explicit closing
-    }
+    // HBR client doesn't need explicit closing
   }
 
   /**

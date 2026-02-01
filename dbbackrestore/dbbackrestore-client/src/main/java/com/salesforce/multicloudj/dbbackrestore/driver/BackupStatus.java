@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.dbbackrestore.driver;
 /**
  * Represents the status of a backup operation.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 public enum BackupStatus {
   /**

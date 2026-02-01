@@ -7,9 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Request object for restoring a backup to a database collection/table.
+ * Request object for restoring a backup to a database table.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @Getter
 @Setter
@@ -24,18 +24,22 @@ public class RestoreRequest {
   private String backupId;
 
   /**
-   * Name of the target collection/table to restore to.
-   * If null or empty, restores to the original collection/table name.
+   * Name of the target table to restore to.
+   * If null or empty, restores to the original table name.
    */
-  private String targetCollectionName;
+  private String targetTable;
 
   /**
-   * Provider-specific options as key-value pairs.
-   * Can be used to pass additional cloud-specific parameters.
-   *
-   * <p>For AWS DBBackRestore restore: must include {@code "iamRoleArn"} — the ARN of the IAM role
-   * that AWS Backup assumes to perform the DynamoDB restore (e.g.
-   * {@code "arn:aws:iam::123456789012:role/YourBackupRestoreRole"}).
+   * role id for restore operations requiring role-based authorization.
+   * Some providers require an IAM role that the backup service assumes to perform
+   * the restore operation and create the restored resource.
    */
-  private java.util.Map<String, String> options;
+  private String roleId;
+
+  /**
+   * Vault identifier for backup vault-based restore operations.
+   * Some providers use vault-based backup systems where the vault ID
+   * is required to locate and restore from a backup.
+   */
+  private String vaultId;
 }

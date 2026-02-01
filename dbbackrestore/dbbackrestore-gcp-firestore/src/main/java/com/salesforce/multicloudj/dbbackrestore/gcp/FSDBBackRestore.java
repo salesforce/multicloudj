@@ -7,6 +7,7 @@ import com.google.cloud.firestore.v1.FirestoreAdminSettings;
 import com.google.firestore.admin.v1.ListBackupsResponse;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
@@ -19,7 +20,7 @@ import java.util.List;
  * GCP Firestore implementation of database backup and restore operations.
  * This implementation uses the Firestore Admin API for backup/restore operations.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @AutoService(AbstractDBBackRestore.class)
 public class FSDBBackRestore extends AbstractDBBackRestore {
@@ -75,7 +76,6 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
   @Override
   public List<Backup> listBackups() {
-    checkClosed();
     if (firestoreAdminClient == null) {
       throw new SubstrateSdkException("FirestoreAdminClient not initialized. " 
           + "Ensure credentials are configured in the builder.");
@@ -101,7 +101,6 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
   @Override
   public Backup getBackup(String backupId) {
-    checkClosed();
     if (firestoreAdminClient == null) {
       throw new SubstrateSdkException("FirestoreAdminClient not initialized. " 
           + "Ensure credentials are configured in the builder.");
@@ -117,14 +116,12 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
   @Override
   public BackupStatus getBackupStatus(String backupId) {
-    checkClosed();
     Backup backup = getBackup(backupId);
     return backup.getStatus();
   }
 
   @Override
   public void restoreBackup(RestoreRequest request) {
-    checkClosed();
     if (firestoreAdminClient == null) {
       throw new SubstrateSdkException("FirestoreAdminClient not initialized. " 
           + "Ensure credentials are configured in the builder.");
@@ -132,9 +129,9 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
     try {
       // Build restore request
-      String targetDatabaseId = request.getTargetCollectionName() != null
-          && !request.getTargetCollectionName().isEmpty()
-              ? request.getTargetCollectionName()
+      String targetDatabaseId = request.getTargetTable() != null
+          && !request.getTargetTable().isEmpty()
+              ? request.getTargetTable()
               : getCollectionName() + "-restored";
 
       // Extract parent from backup ID (format: projects/{project}/locations/{location}/backups/{backup})
@@ -156,27 +153,9 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
   }
 
   @Override
-  public void deleteBackup(String backupId) {
-    checkClosed();
-    if (firestoreAdminClient == null) {
-      throw new SubstrateSdkException("FirestoreAdminClient not initialized. " 
-          + "Ensure credentials are configured in the builder.");
-    }
-
-    try {
-      firestoreAdminClient.deleteBackup(backupId);
-    } catch (ApiException e) {
-      throw new SubstrateSdkException("Failed to delete Firestore backup: " + backupId, e);
-    }
-  }
-
-  @Override
   public void close() throws Exception {
-    if (!closed) {
-      closed = true;
-      if (firestoreAdminClient != null) {
-        firestoreAdminClient.close();
-      }
+    if (firestoreAdminClient != null) {
+      firestoreAdminClient.close();
     }
   }
 
@@ -304,7 +283,7 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
           
           firestoreAdminClient = FirestoreAdminClient.create(settingsBuilder.build());
         } catch (IOException e) {
-          throw new SubstrateSdkException("Failed to create FirestoreAdminClient", e);
+          throw new UnknownException("Failed to create FirestoreAdminClient", e);
         }
       }
 

@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Request object for creating a backup of a database collection/table.
+ * Request object for creating a backup of a database table.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @Getter
 @Setter
@@ -21,7 +21,7 @@ public class BackupRequest {
 
   /**
    * Name to assign to the backup.
-   * This should be unique within the scope of the collection/table.
+   * This should be unique within the scope of the table.
    */
   private String backupName;
 

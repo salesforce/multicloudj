@@ -5,7 +5,6 @@ import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -16,7 +15,7 @@ import software.amazon.awssdk.services.backup.BackupClient;
 /**
  * Integration tests for AWS DB Backup Restore implementation.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
 
@@ -47,7 +46,7 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
       return new AwsDBBackRestore.Builder()
           .withBackupClient(backupClient)
           .withRegion("us-west-2")
-          .withCollectionName("docstore-test-1")
+          .withTableName("docstore-test-1")
           .withTableArn("arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1")
           .build();
     }
@@ -73,11 +72,8 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     }
 
     @Override
-    public Map<String, String> getRestoreOptions() {
-      // AWS requires IAM role ARN for restore operations
-      return Map.of(
-          "iamRoleArn", "arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs"
-      );
+    public String getIamRoleArn() {
+      return "arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs";
     }
 
     @Override

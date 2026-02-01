@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Provides the mapping of various AWS Backup error codes to SDK's exceptions.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 public class ErrorCodeMapping {
 

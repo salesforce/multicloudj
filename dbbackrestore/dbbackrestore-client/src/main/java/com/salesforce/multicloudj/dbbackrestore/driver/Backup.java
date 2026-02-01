@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Represents a backup of a database collection/table.
+ * Represents a backup of a database table.
  * Contains metadata about the backup including its identifier, status, timestamps, and size.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @Getter
 @Setter
@@ -22,12 +22,12 @@ public class Backup {
 
   /**
    * Unique identifier for the backup.
-   * This is provider-specific (e.g., AWS backup ARN, GCP backup name).
+   * Format and content are provider-specific.
    */
   private String backupId;
 
   /**
-   * Name of the collection/table that this backup represents.
+   * Name of the table that this backup represents.
    */
   private String collectionName;
 

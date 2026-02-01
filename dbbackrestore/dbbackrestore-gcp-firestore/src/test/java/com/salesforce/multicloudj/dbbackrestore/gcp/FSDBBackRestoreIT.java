@@ -9,9 +9,7 @@ import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.Assertions;
@@ -19,7 +17,7 @@ import org.junit.jupiter.api.Assertions;
 /**
  * Integration tests for GCP Firestore DB Backup Restore implementation.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
 
@@ -54,7 +52,7 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
             return new FSDBBackRestore.Builder()
                     .withFirestoreAdminClient(firestoreAdminClient)
                     .withRegion("us-west2")
-                    .withCollectionName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
+                    .withTableName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
                     .withProjectId("substrate-sdk-gcp-poc1")
                     .build();
         }
@@ -77,12 +75,6 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
         @Override
         public boolean supportsBackupRestore() {
             return true;
-        }
-
-        @Override
-        public Map<String, String> getRestoreOptions() {
-            // GCP Firestore doesn't require additional options for restore
-            return Collections.emptyMap();
         }
 
         @Override

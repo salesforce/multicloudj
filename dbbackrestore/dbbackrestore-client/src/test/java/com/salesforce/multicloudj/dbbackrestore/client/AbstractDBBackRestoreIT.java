@@ -23,7 +23,7 @@ import org.junit.jupiter.api.TestInstance;
  * Provider-specific implementations should extend this class to ensure
  * compliance with the DBBackRestore API contract.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDBBackRestoreIT {
@@ -60,25 +60,35 @@ public abstract class AbstractDBBackRestoreIT {
          */
         List<String> getWiremockExtensions();
 
-        /**
-         * Checks if the provider supports backup restore operations.
-         *
-         * @return true if backup restore is supported
-         */
-        default boolean supportsBackupRestore() {
-            return false;
-        }
-
-        /**
-         * Provider-specific options for restore (e.g. AWS requires "iamRoleArn").
-         * Default is empty. Override to supply options needed for restore tests.
-         *
-         * @return map of provider-specific restore options
-         */
-        default java.util.Map<String, String> getRestoreOptions() {
-            return java.util.Collections.emptyMap();
-        }
+    /**
+     * Checks if the provider supports backup restore operations.
+     *
+     * @return true if backup restore is supported
+     */
+    default boolean supportsBackupRestore() {
+      return false;
     }
+
+    /**
+     * Gets the IAM role ARN for restore operations.
+     * Provider-specific - only applicable for providers requiring role-based authorization.
+     *
+     * @return the IAM role ARN, or null if not applicable
+     */
+    default String getIamRoleArn() {
+      return null;
+    }
+
+    /**
+     * Gets the vault ID for restore operations.
+     * Provider-specific - only applicable for vault-based backup systems.
+     *
+     * @return the vault ID, or null if not applicable
+     */
+    default String getVaultId() {
+      return null;
+    }
+  }
 
     protected abstract Harness createHarness();
 
@@ -123,7 +133,7 @@ public abstract class AbstractDBBackRestoreIT {
     }
 
     /**
-     * Tests listing backups for a collection/table.
+     * Tests listing backups for a table.
      * This test verifies that the listBackups operation returns a list
      * (which may be empty if no backups exist).
      */
@@ -240,7 +250,7 @@ public abstract class AbstractDBBackRestoreIT {
 
     /**
      * Tests restoring from a backup.
-     * This test verifies that a backup can be restored to a new collection/table.
+     * This test verifies that a backup can be restored to a new table.
      * Note: This test may take a long time to complete depending on backup size.
      */
     @Test
@@ -271,14 +281,19 @@ public abstract class AbstractDBBackRestoreIT {
                 return;
             }
 
-            // Create restore request (include provider-specific options e.g. AWS iamRoleArn)
+            // Create restore request (include provider-specific fields if needed)
             RestoreRequest.RestoreRequestBuilder requestBuilder = RestoreRequest.builder()
                     .backupId(availableBackup.getBackupId())
-                    .targetCollectionName("restored-collection-" + UUID.uniqueString());
-            java.util.Map<String, String> restoreOptions = harness.getRestoreOptions();
-            if (restoreOptions != null && !restoreOptions.isEmpty()) {
-                requestBuilder.options(restoreOptions);
+                    .targetTable("restored-collection-" + UUID.uniqueString());
+            
+            // Add provider-specific fields
+            if (harness.getIamRoleArn() != null) {
+                requestBuilder.roleId(harness.getIamRoleArn());
             }
+            if (harness.getVaultId() != null) {
+                requestBuilder.vaultId(harness.getVaultId());
+            }
+            
             RestoreRequest request = requestBuilder.build();
 
             // Perform restore
@@ -286,52 +301,10 @@ public abstract class AbstractDBBackRestoreIT {
 
             System.out.println("Restore operation initiated from backup: "
                     + availableBackup.getBackupId());
-            System.out.println("Target collection: " + request.getTargetCollectionName());
+            System.out.println("Target collection: " + request.getTargetTable());
 
             // Note: Restore is typically an async operation, so we don't verify completion here
             // In a real test, you might want to poll for completion or verify the restored data
-        } finally {
-            try {
-                client.close();
-            } catch (Exception e) {
-                System.err.println("Error closing client: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Tests deleting a backup.
-     * WARNING: This test will actually delete a backup if one exists.
-     * It should only be run in a test environment with disposable backups.
-     * <p>
-     * This test is commented out by default to prevent accidental deletion.
-     * Uncomment to enable in environments where backup deletion is safe.
-     */
-    // @Test
-    public void testDeleteBackup() {
-        if (!harness.supportsBackupRestore()) {
-            System.out.println("Provider does not support backup restore, skipping test");
-            return;
-        }
-
-        DBBackRestoreClient client = new DBBackRestoreClient(
-                harness.createDBBackRestoreDriver());
-
-        try {
-            List<Backup> backups = client.listBackups();
-            if (backups.isEmpty()) {
-                System.out.println("No backups available to test delete, skipping");
-                return;
-            }
-
-            // Find a backup that is safe to delete (you might want to create one specifically for this test)
-            // For now, we'll skip this test to avoid deleting production backups
-            System.out.println("Delete test skipped to prevent accidental data loss");
-
-            // Uncomment to enable:
-            // Backup backup = backups.get(0);
-            // client.deleteBackup(backup.getBackupId());
-            // System.out.println("Deleted backup: " + backup.getBackupId());
         } finally {
             try {
                 client.close();

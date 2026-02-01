@@ -5,9 +5,7 @@ import com.aliyuncs.IAcsClient;
 import com.aliyuncs.profile.DefaultProfile;
 import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
 
@@ -15,7 +13,7 @@ import org.junit.jupiter.api.Disabled;
  * Integration tests for Alibaba Cloud DB Backup Restore implementation.
  * Currently disabled as Alibaba Cloud backup operations have limited support.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @Disabled
 public class AliDBBackRestoreIT extends AbstractDBBackRestoreIT {
@@ -44,7 +42,7 @@ public class AliDBBackRestoreIT extends AbstractDBBackRestoreIT {
       return new AliDBBackRestore.Builder()
           .withHbrClient(hbrClient)
           .withRegion(region)
-          .withCollectionName("docstore-test-1")
+          .withTableName("docstore-test-1")
           .withAccessKeyId(accessKeyId)
           .withAccessKeySecret(accessKeySecret)
           .build();
@@ -70,11 +68,6 @@ public class AliDBBackRestoreIT extends AbstractDBBackRestoreIT {
       // Alibaba Cloud TableStore backup via HBR has limited support
       // Most operations throw UnSupportedOperationException
       return false;
-    }
-
-    @Override
-    public Map<String, String> getRestoreOptions() {
-      return Collections.emptyMap();
     }
 
     @Override

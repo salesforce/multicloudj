@@ -10,7 +10,6 @@ import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackrestore.driver.RestoreRequest;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.services.backup.model.DeleteRecoveryPointRequest;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse;
 import software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest;
@@ -26,7 +25,7 @@ import java.util.List;
  * AWS implementation of database backup and restore operations using AWS Backup service.
  * This implementation works with DynamoDB tables.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 @AutoService(AbstractDBBackRestore.class)
 public class AwsDBBackRestore extends AbstractDBBackRestore {
@@ -72,7 +71,6 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public List<Backup> listBackups() {
-        checkClosed();
         ListRecoveryPointsByResourceRequest request =
                 ListRecoveryPointsByResourceRequest.builder()
                         .resourceArn(tableArn)
@@ -91,7 +89,6 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public Backup getBackup(String backupId) {
-        checkClosed();
         // First, get the vault name by listing recovery points for this resource
         String vaultName = getVaultNameForRecoveryPoint(backupId);
 
@@ -108,7 +105,6 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public BackupStatus getBackupStatus(String backupId) {
-        checkClosed();
         // First, get the vault name by listing recovery points for this resource
         String vaultName = getVaultNameForRecoveryPoint(backupId);
 
@@ -125,26 +121,17 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public void restoreBackup(RestoreRequest request) {
-        checkClosed();
         // AWS Backup requires an IAM role ARN for DynamoDB restore (required for Advanced DynamoDB and
         // recommended for all DynamoDB restores). The role is assumed by AWS Backup to create the restored table.
-        String iamRoleArn = null;
-        if (request.getOptions() != null && request.getOptions().get("iamRoleArn") != null) {
-            iamRoleArn = request.getOptions().get("iamRoleArn").trim();
+        String iamRoleArn = request.getRoleId();
+        if (iamRoleArn == null || iamRoleArn.trim().isEmpty()) {
+            throw new IllegalArgumentException("Role ID cannot be null or empty for AWS");
         }
-        if (iamRoleArn == null || iamRoleArn.isEmpty()) {
-            throw new SubstrateSdkException(
-                    "IAM role ARN is required for AWS Backup DynamoDB restore. "
-                            + "Provide it via RestoreRequest.options with key \"iamRoleArn\" (e.g. "
-                            + "RestoreRequest.builder().backupId(...).options(Map.of(\"iamRoleArn\", "
-                            + "\"arn:aws:iam::123456789012:role/YourBackupRestoreRole\")).build()). "
-                            + "The IAM role must have permissions for dynamodb:RestoreTableFromAwsBackup and "
-                            + "trust policy allowing AWS Backup to assume it.");
-        }
+        iamRoleArn = iamRoleArn.trim();
 
-        String targetTableName = request.getTargetCollectionName() != null
-                && !request.getTargetCollectionName().isEmpty()
-                ? request.getTargetCollectionName()
+        String targetTableName = request.getTargetTable() != null
+                && !request.getTargetTable().isEmpty()
+                ? request.getTargetTable()
                 : getCollectionName();
 
         // Build restore metadata for DynamoDB table
@@ -164,26 +151,9 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
     }
 
     @Override
-    public void deleteBackup(String backupId) {
-        checkClosed();
-        // First, get the vault name by listing recovery points for this resource
-        String vaultName = getVaultNameForRecoveryPoint(backupId);
-
-        DeleteRecoveryPointRequest request = DeleteRecoveryPointRequest.builder()
-                .backupVaultName(vaultName)
-                .recoveryPointArn(backupId)
-                .build();
-
-        backupClient.deleteRecoveryPoint(request);
-    }
-
-    @Override
     public void close() {
-        if (!closed) {
-            closed = true;
-            if (backupClient != null) {
-                backupClient.close();
-            }
+        if (backupClient != null) {
+            backupClient.close();
         }
     }
 

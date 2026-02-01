@@ -9,7 +9,7 @@ import lombok.Getter;
  * This abstract class provides the contract for backup and restore operations
  * across different cloud providers.
  *
- * @since 0.2.26
+ * @since 0.2.25
  */
 public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
 
@@ -18,8 +18,6 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
   protected final String region;
   @Getter
   protected final String collectionName;
-
-  protected boolean closed = false;
 
   /**
    * Constructs an AbstractDBBackRestore instance using a Builder.
@@ -33,9 +31,9 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
   /**
    * Constructs an AbstractDBBackRestore instance.
    *
-   * @param providerId the cloud provider identifier (e.g., "aws", "gcp-firestore", "ali")
+   * @param providerId the cloud provider identifier
    * @param region the region where the database is located
-   * @param collectionName the name of the collection/table to backup/restore
+   * @param collectionName the name of the table to backup/restore
    */
   protected AbstractDBBackRestore(String providerId, String region, String collectionName) {
     this.providerId = providerId;
@@ -49,10 +47,10 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
   }
 
   /**
-   * Lists all available backups for the collection/table.
+   * Lists all available backups for the table.
    *
    * @return a list of Backup objects representing available backups
-   * @since 0.2.26
+   * @since 0.2.25
    */
   public abstract List<Backup> listBackups();
 
@@ -61,7 +59,7 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
    *
    * @param backupId the unique identifier of the backup
    * @return the Backup object with full metadata
-   * @since 0.2.26
+   * @since 0.2.25
    */
   public abstract Backup getBackup(String backupId);
 
@@ -70,46 +68,17 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
    *
    * @param backupId the unique identifier of the backup
    * @return the current BackupStatus of the backup
-   * @since 0.2.26
+   * @since 0.2.25
    */
   public abstract BackupStatus getBackupStatus(String backupId);
 
   /**
-   * Restores a collection/table from a backup.
+   * Restores a table from a backup.
    *
    * @param request the restore request containing restore configuration
-   * @since 0.2.26
+   * @since 0.2.25
    */
   public abstract void restoreBackup(RestoreRequest request);
-
-  /**
-   * Deletes a specific backup.
-   * WARNING: This operation is irreversible.
-   *
-   * @param backupId the unique identifier of the backup to delete
-   * @since 0.2.26
-   */
-  public abstract void deleteBackup(String backupId);
-
-  /**
-   * Checks if this client has been closed.
-   *
-   * @return true if the client has been closed, false otherwise
-   */
-  protected boolean isClosed() {
-    return closed;
-  }
-
-  /**
-   * Ensures that the client is not closed before executing operations.
-   *
-   * @throws IllegalStateException if the client has been closed
-   */
-  protected void checkClosed() {
-    if (closed) {
-      throw new IllegalStateException("DBBackRestore client has been closed");
-    }
-  }
 
   /**
    * Builder base class for AbstractDBBackRestore implementations.
@@ -137,12 +106,12 @@ public abstract class AbstractDBBackRestore implements Provider, AutoCloseable {
     }
 
     /**
-     * Sets the collection/table name.
+     * Sets the table name.
      *
-     * @param collectionName the collection/table name
+     * @param collectionName the table name
      * @return this builder
      */
-    public B withCollectionName(String collectionName) {
+    public B withTableName(String collectionName) {
       this.collectionName = collectionName;
       return self();
     }
