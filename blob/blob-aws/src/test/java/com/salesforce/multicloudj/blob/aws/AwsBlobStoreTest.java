@@ -246,6 +246,17 @@ public class AwsBlobStoreTest {
         Class<?> cls = aws.getException(awsServiceException);
         assertEquals(cls, UnAuthorizedException.class);
 
+        AwsServiceException awsServiceException403NoRequestId = AwsServiceException.builder()
+                .statusCode(403)
+                .requestId(null)
+                .awsErrorDetails(
+                        AwsErrorDetails.builder()
+                                .errorCode("AccessDenied")
+                                .build())
+                .build();
+        cls = aws.getException(awsServiceException403NoRequestId);
+        assertEquals(cls, UnAuthorizedException.class);
+
         SdkClientException sdkClientException = SdkClientException.builder().build();
         cls = aws.getException(sdkClientException);
         assertEquals(cls, InvalidArgumentException.class);
