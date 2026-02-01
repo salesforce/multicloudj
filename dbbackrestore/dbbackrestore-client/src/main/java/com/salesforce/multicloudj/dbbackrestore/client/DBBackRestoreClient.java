@@ -170,11 +170,11 @@ public class DBBackRestoreClient implements AutoCloseable {
         /**
          * Sets the table name for backup/restore operations.
          *
-         * @param tableName the name of the table
+         * @param resourceName the name of the table
          * @return this builder
          */
-        public DBBackRestoreClientBuilder withTableName(String tableName) {
-            this.dbBackRestoreBuilder.withResourceName(tableName);
+        public DBBackRestoreClientBuilder withResourceName(String resourceName) {
+            this.dbBackRestoreBuilder.withResourceName(resourceName);
             return this;
         }
 

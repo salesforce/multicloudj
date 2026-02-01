@@ -7,12 +7,10 @@ import com.google.cloud.firestore.v1.FirestoreAdminSettings;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-
-import org.junit.jupiter.api.Assertions;
 
 /**
  * Integration tests for GCP Firestore DB Backup Restore implementation.
@@ -35,6 +33,7 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
             boolean isRecordingEnabled = System.getProperty("record") != null;
             // Create channel provider using transport
             TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
+
             // Create FirestoreAdminSettings with credentials
             FirestoreAdminSettings.Builder settingsBuilder = FirestoreAdminSettings.newBuilder();
             settingsBuilder.setTransportChannelProvider(channelProvider);
@@ -51,9 +50,8 @@ public class FSDBBackRestoreIT extends AbstractDBBackRestoreIT {
 
             return new FSDBBackRestore.Builder()
                     .withFirestoreAdminClient(firestoreAdminClient)
-                    .withRegion("projects/substrate-sdk-gcp-poc1/nam5")
+                    .withRegion("projects/substrate-sdk-gcp-poc1/locations/nam5")
                     .withResourceName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
-                    .withProjectId("substrate-sdk-gcp-poc1")
                     .build();
         }
 

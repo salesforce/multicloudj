@@ -5,6 +5,8 @@ import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,9 +35,8 @@ public class ErrorCodeMapping {
   }
 
   static Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof software.amazon.awssdk.awscore.exception.AwsServiceException) {
-      software.amazon.awssdk.awscore.exception.AwsServiceException serviceException =
-          (software.amazon.awssdk.awscore.exception.AwsServiceException) t;
+    if (t instanceof AwsServiceException) {
+      AwsServiceException serviceException = (AwsServiceException) t;
       if (serviceException.awsErrorDetails() == null) {
         return UnknownException.class;
       }

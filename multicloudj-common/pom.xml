@@ -537,7 +537,7 @@
                 <executions>
                     <execution>
                         <id>delombok</id>
-                        <phase>none</phase>
+                        <phase>generate-sources</phase>
                         <goals>
                             <goal>delombok</goal>
                         </goals>

@@ -6,10 +6,6 @@ import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackrestore.driver.RestoreRequest;
-
-import java.util.List;
-import java.util.Random;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -17,6 +13,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+
+import java.util.List;
+import java.util.Random;
 
 /**
  * Abstract conformance test for database backup and restore operations.
@@ -120,7 +119,7 @@ public abstract class AbstractDBBackRestoreIT {
      * (which may be empty if no backups exist).
      */
     @Test
-    public void testListBackups() {
+    public void testListBackups() throws Exception {
         try (DBBackRestoreClient client = new DBBackRestoreClient(
                 harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
@@ -132,8 +131,6 @@ public abstract class AbstractDBBackRestoreIT {
                 System.out.println("Found backup: " + backup.getBackupId()
                         + " with status: " + backup.getStatus());
             }
-        } catch (Exception e) {
-            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -142,7 +139,7 @@ public abstract class AbstractDBBackRestoreIT {
      * This test verifies that backup metadata can be retrieved for an existing backup.
      */
     @Test
-    public void testGetBackup() {
+    public void testGetBackup() throws Exception {
         try (DBBackRestoreClient client = new DBBackRestoreClient(
                 harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
@@ -159,8 +156,6 @@ public abstract class AbstractDBBackRestoreIT {
 
             System.out.println("Retrieved backup: " + retrieved.getBackupId()
                     + " with status: " + retrieved.getStatus());
-        } catch (Exception e) {
-            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -169,7 +164,7 @@ public abstract class AbstractDBBackRestoreIT {
      * This test verifies that backup status can be retrieved for an existing backup.
      */
     @Test
-    public void testGetBackupStatus() {
+    public void testGetBackupStatus() throws Exception {
         try (DBBackRestoreClient client = new DBBackRestoreClient(
                 harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
@@ -181,8 +176,6 @@ public abstract class AbstractDBBackRestoreIT {
 
             Assertions.assertNotNull(status, "Backup status should not be null");
             System.out.println("Backup " + backup.getBackupId() + " has status: " + status);
-        } catch (Exception e) {
-            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 
@@ -192,7 +185,7 @@ public abstract class AbstractDBBackRestoreIT {
      * Note: This test may take a long time to complete depending on backup size.
      */
     @Test
-    public void testRestoreBackup() {
+    public void testRestoreBackup() throws Exception {
         try (DBBackRestoreClient client = new DBBackRestoreClient(
                 harness.createDBBackRestoreDriver())) {
             List<Backup> backups = client.listBackups();
@@ -236,8 +229,6 @@ public abstract class AbstractDBBackRestoreIT {
 
             // Note: Restore is typically an async operation, so we don't verify completion here
             // In a real test, you might want to poll for completion or verify the restored data
-        } catch (Exception e) {
-            System.err.println("Error closing client: " + e.getMessage());
         }
     }
 }

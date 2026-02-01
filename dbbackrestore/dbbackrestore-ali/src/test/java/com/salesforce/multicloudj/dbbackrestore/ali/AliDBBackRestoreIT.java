@@ -3,10 +3,15 @@ package com.salesforce.multicloudj.dbbackrestore.ali;
 import com.aliyun.hbr20170908.Client;
 import com.aliyun.teaopenapi.models.Config;
 import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
+import com.salesforce.multicloudj.dbbackrestore.client.DBBackRestoreClient;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Integration tests for Alibaba Cloud DB Backup Restore implementation.
@@ -57,8 +62,6 @@ public class AliDBBackRestoreIT extends AbstractDBBackRestoreIT {
           .withHbrClient(hbrClient)
           .withRegion(region)
           .withResourceName("docstore-test-1")
-          .withAccessKeyId(accessKeyId)
-          .withAccessKeySecret(accessKeySecret)
           .build();
     }
 

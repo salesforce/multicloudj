@@ -18,28 +18,28 @@ import lombok.Setter;
 @AllArgsConstructor
 public class RestoreRequest {
 
-  /**
-   * ID of the backup to restore from.
-   */
-  private String backupId;
+    /**
+     * ID of the backup to restore from.
+     */
+    private String backupId;
 
-  /**
-   * Name of the target table to restore to.
-   * If null or empty, restores to the original table name.
-   */
-  private String targetResource;
+    /**
+     * Name of the target table to restore to.
+     * If null or empty, restores to the original table name.
+     */
+    private String targetResource;
 
-  /**
-   * role id for restore operations requiring role-based authorization.
-   * Some providers require an IAM role that the backup service assumes to perform
-   * the restore operation and create the restored resource.
-   */
-  private String roleId;
+    /**
+     * role id for restore operations requiring role-based authorization.
+     * Some providers require an IAM role that the backup service assumes to perform
+     * the restore operation and create the restored resource.
+     */
+    private String roleId;
 
-  /**
-   * Vault identifier for backup vault-based restore operations.
-   * Some providers use vault-based backup systems where the vault ID
-   * is required to locate and restore from a backup.
-   */
-  private String vaultId;
+    /**
+     * Vault identifier for backup vault-based restore operations.
+     * Some providers use vault-based backup systems where the vault ID
+     * is required to locate and restore from a backup.
+     */
+    private String vaultId;
 }

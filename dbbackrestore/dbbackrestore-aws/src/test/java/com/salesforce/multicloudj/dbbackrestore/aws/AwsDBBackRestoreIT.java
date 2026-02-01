@@ -3,14 +3,14 @@ package com.salesforce.multicloudj.dbbackrestore.aws;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.dbbackrestore.client.AbstractDBBackRestoreIT;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
-import java.net.URI;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.backup.BackupClient;
+
+import java.net.URI;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Integration tests for AWS DB Backup Restore implementation.

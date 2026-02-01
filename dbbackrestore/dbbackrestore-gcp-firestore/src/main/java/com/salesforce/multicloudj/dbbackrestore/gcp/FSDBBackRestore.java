@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackrestore.driver.RestoreRequest;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -101,8 +102,7 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
     @Override
     public void restoreBackup(RestoreRequest request) {
         // Build restore request
-        String targetDatabaseId = request.getTargetResource() != null
-                && !request.getTargetResource().isEmpty()
+        String targetDatabaseId =  StringUtils.isNotBlank(request.getTargetResource())
                 ? request.getTargetResource()
                 : getResourceName() + "-restored";
 
@@ -167,7 +167,6 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
     public static class Builder extends AbstractDBBackRestore.Builder<FSDBBackRestore, Builder> {
         private FirestoreAdminClient firestoreAdminClient;
         private GoogleCredentials credentials;
-        private String projectId;
 
         /**
          * Default constructor.
@@ -187,28 +186,6 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
             return this;
         }
 
-        /**
-         * Sets the Google credentials for authentication.
-         *
-         * @param credentials the Google credentials
-         * @return this builder
-         */
-        public Builder withCredentials(GoogleCredentials credentials) {
-            this.credentials = credentials;
-            return this;
-        }
-
-        /**
-         * Sets the GCP project ID.
-         *
-         * @param projectId the project ID
-         * @return this builder
-         */
-        public Builder withProjectId(String projectId) {
-            this.projectId = projectId;
-            return this;
-        }
-
         @Override
         protected Builder self() {
             return this;
@@ -216,10 +193,10 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
         @Override
         public FSDBBackRestore build() {
-            if (region == null || region.isEmpty()) {
+            if (StringUtils.isBlank(region)) {
                 throw new IllegalArgumentException("Region is required");
             }
-            if (collectionName == null || collectionName.isEmpty()) {
+            if (StringUtils.isBlank(resourceName)) {
                 throw new IllegalArgumentException("Collection name is required");
             }
 

@@ -1,7 +1,7 @@
 package com.salesforce.multicloudj.dbbackrestore.aws;
 
 import com.google.auto.service.AutoService;
-import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.util.UUID;
@@ -9,7 +9,9 @@ import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackrestore.driver.RestoreRequest;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.backup.BackupClient;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse;
 import software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest;
@@ -19,7 +21,9 @@ import software.amazon.awssdk.services.backup.model.RecoveryPointStatus;
 import software.amazon.awssdk.services.backup.model.StartRestoreJobRequest;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * AWS implementation of database backup and restore operations using AWS Backup service.
@@ -30,7 +34,7 @@ import java.util.List;
 @AutoService(AbstractDBBackRestore.class)
 public class AwsDBBackRestore extends AbstractDBBackRestore {
 
-    private final software.amazon.awssdk.services.backup.BackupClient backupClient;
+    private final BackupClient backupClient;
     private final String tableArn;
 
     /**
@@ -56,7 +60,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
         // Since we don't have account ID readily available, we'll construct a partial ARN
         // that AWS Backup API can work with, or get it from the table description
         this.tableArn = builder.tableArn != null ? builder.tableArn
-                : String.format("arn:aws:dynamodb:%s:*:table/%s", builder.getRegion(), builder.getCollectionName());
+                : String.format("arn:aws:dynamodb:%s:*:table/%s", builder.getRegion(), builder.getResourceName());
     }
 
     @Override
@@ -119,22 +123,17 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public void restoreBackup(RestoreRequest request) {
-        // AWS Backup requires an IAM role ARN for DynamoDB restore (required for Advanced DynamoDB and
-        // recommended for all DynamoDB restores). The role is assumed by AWS Backup to create the restored table.
+        // The role is assumed by AWS Backup to create the restored table.
         String iamRoleArn = request.getRoleId();
-        if (iamRoleArn == null || iamRoleArn.trim().isEmpty()) {
+        if (StringUtils.isBlank(iamRoleArn)) {
             throw new IllegalArgumentException("Role ID cannot be null or empty for AWS");
         }
-        iamRoleArn = iamRoleArn.trim();
 
-        String targetTableName = request.getTargetResource() != null
-                && !request.getTargetResource().isEmpty()
+        String targetTableName = StringUtils.isNotBlank(request.getTargetResource())
                 ? request.getTargetResource()
-                : getResourceName();
+                : getResourceName() + "-restored";
 
-        // Build restore metadata for DynamoDB table
-        // Note: This is AWS API metadata, not the removed Backup.metadata field
-        java.util.Map<String, String> metadata = new java.util.HashMap<>();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("targetTableName", targetTableName);
 
         StartRestoreJobRequest restoreJobRequest = StartRestoreJobRequest.builder()
@@ -168,8 +167,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
         ListRecoveryPointsByResourceResponse response =
                 backupClient.listRecoveryPointsByResource(request);
 
-        for (RecoveryPointByResource recoveryPoint
-                : response.recoveryPoints()) {
+        for (RecoveryPointByResource recoveryPoint : response.recoveryPoints()) {
             if (recoveryPoint.recoveryPointArn().equals(recoveryPointArn)) {
                 return recoveryPoint.backupVaultName();
             }
@@ -185,8 +183,8 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .resourceName(getResourceName())
                 .status(convertRecoveryPointStatus(recoveryPoint.status()))
                 .creationTime(recoveryPoint.creationDate())
-                .expiryTime(null) // Not available in RecoveryPointByResource
-                .sizeInBytes(-1L) // Not available in RecoveryPointByResource
+                .expiryTime(null)
+                .sizeInBytes(recoveryPoint.backupSizeBytes())
                 .vaultId(recoveryPoint.backupVaultName())
                 .build();
     }
@@ -199,7 +197,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
                 .creationTime(response.creationDate())
                 .expiryTime(response.calculatedLifecycle() != null
                         ? response.calculatedLifecycle().deleteAt() : null)
-                .sizeInBytes(response.backupSizeInBytes() != null ? response.backupSizeInBytes() : -1L)
+                .sizeInBytes(response.backupSizeInBytes())
                 .vaultId(response.backupVaultName())
                 .build();
     }
@@ -237,7 +235,7 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
          * Default constructor.
          */
         public Builder() {
-            this.providerId = "aws";
+            this.providerId = AwsConstants.PROVIDER_ID;
         }
 
         /**
@@ -269,21 +267,16 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
 
         @Override
         public AwsDBBackRestore build() {
-            if (region == null || region.isEmpty()) {
+            if (StringUtils.isBlank(region)) {
                 throw new IllegalArgumentException("Region is required");
             }
-            if (collectionName == null || collectionName.isEmpty()) {
+            if (StringUtils.isBlank(resourceName)) {
                 throw new IllegalArgumentException("Collection name is required");
             }
 
             // Create backup client if not provided
             if (backupClient == null) {
-                AwsCredentialsProvider credentialsProvider =
-                        CredentialsProvider.getCredentialsProvider(null, software.amazon.awssdk.regions.Region.of(region));
-                backupClient = software.amazon.awssdk.services.backup.BackupClient.builder()
-                        .region(software.amazon.awssdk.regions.Region.of(region))
-                        .credentialsProvider(credentialsProvider)
-                        .build();
+                backupClient = BackupClient.builder().region(Region.of(region)).build();
             }
 
             return new AwsDBBackRestore(this);

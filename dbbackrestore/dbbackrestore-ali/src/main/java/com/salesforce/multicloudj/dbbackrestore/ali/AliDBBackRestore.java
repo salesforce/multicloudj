@@ -1,11 +1,16 @@
 package com.salesforce.multicloudj.dbbackrestore.ali;
 
 import com.aliyun.hbr20170908.Client;
-import com.aliyun.hbr20170908.models.*;
+import com.aliyun.hbr20170908.models.CreateRestoreJobRequest;
+import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsRequest;
+import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponse;
+import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponseBody;
+import com.aliyun.hbr20170908.models.OtsTableRestoreDetail;
 import com.aliyun.teaopenapi.models.Config;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackrestore.driver.AbstractDBBackRestore;
 import com.salesforce.multicloudj.dbbackrestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackrestore.driver.BackupStatus;
@@ -58,50 +63,44 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public List<Backup> listBackups() {
+
+        DescribeOtsTableSnapshotsRequest request = new DescribeOtsTableSnapshotsRequest();
+        DescribeOtsTableSnapshotsResponse response = null;
         try {
-            DescribeOtsTableSnapshotsRequest request = new DescribeOtsTableSnapshotsRequest();
-            DescribeOtsTableSnapshotsResponse response = hbrClient.describeOtsTableSnapshots(request);
-
-            if (response == null || response.getBody() == null
-                    || response.getBody().getSnapshots() == null) {
-                return new ArrayList<>();
-            }
-
-            List<Backup> backups = new ArrayList<>();
-            for (DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots snapshot :
-                    response.getBody().getSnapshots()) {
-                backups.add(convertToBackup(snapshot));
-            }
-
-            return backups;
+            response = hbrClient.describeOtsTableSnapshots(request);
         } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to list Alibaba TableStore backups", e);
+            throw new UnknownException("failed to describe OTS table snapshots", e);
         }
+
+        if (response == null || response.getBody() == null
+                || response.getBody().getSnapshots() == null) {
+            return new ArrayList<>();
+        }
+
+        List<Backup> backups = new ArrayList<>();
+        for (DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots snapshot :
+                response.getBody().getSnapshots()) {
+            backups.add(convertToBackup(snapshot));
+        }
+
+        return backups;
+
     }
 
     @Override
     public Backup getBackup(String backupId) {
-        if (hbrClient == null) {
-            throw new SubstrateSdkException("HBR client not initialized. "
-                    + "Ensure credentials are configured in the builder.");
-        }
 
-        try {
-            // List all snapshots and find the matching one
-            List<Backup> backups = listBackups();
+        // List all snapshots and find the matching one
+        List<Backup> backups = listBackups();
 
-            for (Backup backup : backups) {
-                if (backup.getBackupId().equals(backupId)) {
-                    return backup;
-                }
+        for (Backup backup : backups) {
+            if (backup.getBackupId().equals(backupId)) {
+                return backup;
             }
-
-            throw new ResourceNotFoundException("Backup not found: " + backupId);
-        } catch (SubstrateSdkException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new SubstrateSdkException("Failed to get Alibaba TableStore backup: " + backupId, e);
         }
+
+        throw new ResourceNotFoundException("Backup not found: " + backupId);
+
     }
 
     @Override
@@ -112,52 +111,29 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
 
     @Override
     public void restoreBackup(RestoreRequest request) {
-        if (hbrClient == null) {
-            throw new SubstrateSdkException("HBR client not initialized. "
-                    + "Ensure credentials are configured in the builder.");
+        CreateRestoreJobRequest restoreJobRequest = new CreateRestoreJobRequest();
+        restoreJobRequest.setRestoreType("OTS_TABLE");
+        restoreJobRequest.setSnapshotId(request.getBackupId());
+        
+        // Configure OTS restore details
+        OtsTableRestoreDetail otsDetail = new OtsTableRestoreDetail();
+        otsDetail.setOverwriteExisting(false);
+        restoreJobRequest.setOtsDetail(otsDetail);
+
+        // Set vault ID if provided (required for restore)
+        if (request.getVaultId() != null && !request.getVaultId().isEmpty()) {
+            restoreJobRequest.setVaultId(request.getVaultId());
         }
 
         try {
-            CreateRestoreJobRequest restoreJobRequest = new CreateRestoreJobRequest();
-            restoreJobRequest.setRestoreType("OTS_TABLE");
-            restoreJobRequest.setSnapshotId(request.getBackupId());
-
-            // Set the target table name
-            String targetTableName = request.getTargetResource() != null
-                    && !request.getTargetResource().isEmpty()
-                    ? request.getTargetResource()
-                    : getResourceName() + "-restored";
-
-            // Configure OTS restore details
-            OtsTableRestoreDetail otsDetail = new OtsTableRestoreDetail();
-            otsDetail.setOverwriteExisting(false); // Don't overwrite existing tables by default
-            restoreJobRequest.setOtsDetail(otsDetail);
-
-            // Set vault ID if provided (required for restore)
-            if (request.getVaultId() != null && !request.getVaultId().isEmpty()) {
-                restoreJobRequest.setVaultId(request.getVaultId());
-            }
-
-            CreateRestoreJobResponse response = hbrClient.createRestoreJob(restoreJobRequest);
-
-            if (response == null || response.getBody() == null || !response.getBody().getSuccess()) {
-                String errorMsg = response != null && response.getBody() != null
-                        ? response.getBody().getMessage() : "Unknown error";
-                String errorCode = response != null && response.getBody() != null
-                        ? response.getBody().getCode() : "UNKNOWN";
-                throw new SubstrateSdkException("Failed to create restore job: "
-                        + errorMsg + " (Code: " + errorCode + ")");
-            }
+            hbrClient.createRestoreJob(restoreJobRequest);
         } catch (Exception e) {
-            if (e instanceof SubstrateSdkException) {
-                throw (SubstrateSdkException) e;
-            }
-            throw new SubstrateSdkException("Failed to restore Alibaba TableStore backup", e);
+            throw new UnknownException("failed to create restore job", e);
         }
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         // HBR client doesn't need explicit closing in this SDK version
     }
 
@@ -187,11 +163,7 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
         // Get actual bytes - ActualBytes is likely a String
         long sizeInBytes = -1L;
         if (snapshot.getActualBytes() != null) {
-            try {
-                sizeInBytes = Long.parseLong(snapshot.getActualBytes());
-            } catch (NumberFormatException e) {
-                // Ignore invalid size
-            }
+            sizeInBytes = Long.parseLong(snapshot.getActualBytes());
         }
 
         return Backup.builder()
@@ -235,9 +207,6 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
      */
     public static class Builder extends AbstractDBBackRestore.Builder<AliDBBackRestore, Builder> {
         private Client hbrClient;
-        private String accessKeyId;
-        private String accessKeySecret;
-        private String endpoint;
 
         /**
          * Default constructor.
@@ -257,39 +226,6 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
             return this;
         }
 
-        /**
-         * Sets the Alibaba Cloud access key ID.
-         *
-         * @param accessKeyId the access key ID
-         * @return this builder
-         */
-        public Builder withAccessKeyId(String accessKeyId) {
-            this.accessKeyId = accessKeyId;
-            return this;
-        }
-
-        /**
-         * Sets the Alibaba Cloud access key secret.
-         *
-         * @param accessKeySecret the access key secret
-         * @return this builder
-         */
-        public Builder withAccessKeySecret(String accessKeySecret) {
-            this.accessKeySecret = accessKeySecret;
-            return this;
-        }
-
-        /**
-         * Sets the HBR service endpoint.
-         *
-         * @param endpoint the endpoint URL
-         * @return this builder
-         */
-        public Builder withEndpoint(String endpoint) {
-            this.endpoint = endpoint;
-            return this;
-        }
-
         @Override
         protected Builder self() {
             return this;
@@ -300,28 +236,18 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
             if (region == null || region.isEmpty()) {
                 throw new IllegalArgumentException("Region is required");
             }
-            if (collectionName == null || collectionName.isEmpty()) {
+            if (resourceName == null || resourceName.isEmpty()) {
                 throw new IllegalArgumentException("Collection name is required");
             }
 
             // Create HBR client if not provided
-            if (hbrClient == null && accessKeyId != null && accessKeySecret != null) {
+            if (hbrClient == null) {
                 try {
                     Config config = new Config();
-                    config.setAccessKeyId(accessKeyId);
-                    config.setAccessKeySecret(accessKeySecret);
-
-                    // Set endpoint based on region if not explicitly provided
-                    if (endpoint != null && !endpoint.isEmpty()) {
-                        config.setEndpoint(endpoint);
-                    } else {
-                        config.setEndpoint("hbr." + region + ".aliyuncs.com");
-                    }
-
                     config.setRegionId(region);
                     hbrClient = new Client(config);
                 } catch (Exception e) {
-                    throw new IllegalStateException("Failed to create HBR client", e);
+                    throw new UnknownException("Failed to create HBR client", e);
                 }
             }
 
