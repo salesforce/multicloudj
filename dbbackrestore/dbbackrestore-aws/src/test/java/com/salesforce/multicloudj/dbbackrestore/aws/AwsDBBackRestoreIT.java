@@ -12,7 +12,6 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.backup.BackupClient;
-import software.amazon.awssdk.services.backup.BackupClientBuilder;
 
 /**
  * Integration tests for AWS DB Backup Restore implementation.
@@ -34,17 +33,16 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     @Override
     public AbstractDBBackRestore createDBBackRestoreDriver() {
       httpClient = TestsUtilAws.getProxyClient("https", port);
-      BackupClientBuilder builder = BackupClient.builder()
-          //.httpClient(httpClient)
+      backupClient = BackupClient.builder()
+          .httpClient(httpClient)
           .region(Region.US_WEST_2)
           .credentialsProvider(StaticCredentialsProvider.create(AwsSessionCredentials.create(
               System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
               System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
               System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
           .endpointOverride(
-              URI.create("https://backup.us-west-2.amazonaws.com"));
-
-      backupClient = builder.build();
+              URI.create("https://backup.us-west-2.amazonaws.com"))
+          .build();
 
       return new AwsDBBackRestore.Builder()
           .withBackupClient(backupClient)
@@ -57,6 +55,11 @@ public class AwsDBBackRestoreIT extends AbstractDBBackRestoreIT {
     @Override
     public int getPort() {
       return port;
+    }
+
+    @Override
+    public String getBackupEndpoint() {
+      return "https://backup.us-west-2.amazonaws.com";
     }
 
     @Override

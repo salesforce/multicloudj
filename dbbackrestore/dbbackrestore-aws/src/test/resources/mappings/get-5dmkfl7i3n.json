@@ -1,0 +1,20 @@
+{
+  "id" : "782ca2ed-319b-4b90-939d-7f9f1fe9c073",
+  "name" : "backup-vaults_default_recovery-points_arnawsbackupus-west-2654654370895recovery-pointc5baed67-6777-4052-8afe-024d7f2e964a",
+  "request" : {
+    "url" : "/backup-vaults/Default/recovery-points/arn%3Aaws%3Abackup%3Aus-west-2%3A654654370895%3Arecovery-point%3Ac5baed67-6777-4052-8afe-024d7f2e964a",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"BackupSizeInBytes\":543,\"BackupType\":null,\"BackupVaultArn\":\"arn:aws:backup:us-west-2:654654370895:backup-vault:Default\",\"BackupVaultName\":\"Default\",\"CalculatedLifecycle\":{\"DeleteAt\":null,\"MoveToColdStorageAt\":null},\"CompletionDate\":1.769819512789E9,\"CompositeMemberIdentifier\":null,\"CreatedBy\":null,\"CreationDate\":1.7698191829E9,\"EncryptionKeyArn\":\"arn:aws:kms:us-west-2:654654370895:key/8e5adf52-3724-4f43-b33d-b78d3bd22127\",\"EncryptionKeyType\":null,\"IamRoleArn\":\"arn:aws:iam::654654370895:role/service-role/AWSBackupDefaultServiceRole\",\"IndexStatus\":null,\"IndexStatusMessage\":null,\"InitiationDate\":1.769819358388E9,\"IsEncrypted\":true,\"IsParent\":false,\"LastRestoreTime\":1.769905572575E9,\"Lifecycle\":{\"DeleteAfterDays\":null,\"DeleteAfterEvent\":null,\"MoveToColdStorageAfterDays\":null,\"OptInToArchiveForSupportedResources\":null},\"ParentRecoveryPointArn\":null,\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"ResourceArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"ResourceName\":\"docstore-test-1\",\"ResourceType\":\"DynamoDB\",\"ScanResults\":null,\"SourceBackupVaultArn\":null,\"Status\":\"COMPLETED\",\"StatusMessage\":null,\"StorageClass\":\"WARM\",\"VaultType\":\"BACKUP_VAULT\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "e3c02df0-baad-44b4-a62f-47b89ad0ad26",
+      "Date" : "Sun, 01 Feb 2026 00:29:25 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "782ca2ed-319b-4b90-939d-7f9f1fe9c073",
+  "persistent" : true,
+  "insertionIndex" : 10
+}

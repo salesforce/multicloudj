@@ -128,13 +128,6 @@ public class Util {
         }
     }
 
-    @Setter
-    private static Supplier<String> uuidSupplier = () -> UUID.randomUUID().toString();
-
-    public static String uniqueString() {
-        return uuidSupplier.get();
-    }
-
     public static void validateFieldPath(String fieldPath) {
         if (fieldPath == null || fieldPath.isEmpty()) {
             throw new IllegalArgumentException("fieldPath should not be null or empty");

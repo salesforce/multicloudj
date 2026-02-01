@@ -1,0 +1,25 @@
+{
+  "id" : "b3b4d287-4f49-4972-81b5-58f8c342db46",
+  "name" : "restore-jobs",
+  "request" : {
+    "url" : "/restore-jobs",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"Metadata\":{\"targetTableName\":\"restored-collection-a58668a8-4281-97d2-f38c-2dda3cc8eb78\"},\"IamRoleArn\":\"arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs\",\"IdempotencyToken\":\"db8aeaf5-5130-7f32-754e-c7218cba8893\",\"ResourceType\":\"DynamoDB\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"RestoreJobId\":\"dafbcd91-d297-44e0-8ad3-931e0889656a\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "de8866eb-d669-4b36-9116-b0f5e382aae4",
+      "Date" : "Sun, 01 Feb 2026 00:29:22 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b3b4d287-4f49-4972-81b5-58f8c342db46",
+  "persistent" : true,
+  "insertionIndex" : 3
+}

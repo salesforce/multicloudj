@@ -56,6 +56,11 @@ public class AliDBBackRestoreIT extends AbstractDBBackRestoreIT {
     }
 
     @Override
+    public String getBackupEndpoint() {
+      return "https://hbr.aliyuncs.com";
+    }
+
+    @Override
     public List<String> getWiremockExtensions() {
       return List.of();
     }

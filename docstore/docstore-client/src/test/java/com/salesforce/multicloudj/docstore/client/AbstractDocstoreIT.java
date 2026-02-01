@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
+import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.ActionList;
@@ -33,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -79,7 +79,7 @@ public abstract class AbstractDocstoreIT {
     @BeforeAll
     public void initializeWireMockServer() {
         Random random = new Random(12345L);
-        Util.setUuidSupplier(() -> new UUID(random.nextLong(), random.nextLong()).toString());
+        UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
         harness = createHarness();
         TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
     }
