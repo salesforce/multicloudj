@@ -27,5 +27,10 @@ public class BlobMetadata {
     @Singular("metadata")
     private final Map<String, String> metadata;
     private final Instant lastModified;
-    private final byte[] md5;
+    private final byte[] md5; 
+    /**
+     * Object lock information for this blob.
+     * null if object lock is not configured.
+     */
+    private final ObjectLockInfo objectLockInfo;
 }

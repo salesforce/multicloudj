@@ -21,11 +21,14 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -51,7 +54,6 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -60,6 +62,9 @@ import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
+import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -72,6 +77,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -117,7 +123,12 @@ public class AwsBlobStore extends AbstractBlobStore {
         if (t instanceof SubstrateSdkException) {
             return (Class<? extends SubstrateSdkException>) t.getClass();
         } else if (t instanceof AwsServiceException) {
-            String errorCode = ((AwsServiceException) t).awsErrorDetails().errorCode();
+            AwsServiceException awsServiceException = (AwsServiceException) t;
+            String requestId = awsServiceException.requestId();
+            if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
+                return UnAuthorizedException.class;
+            }
+            String errorCode = awsServiceException.awsErrorDetails().errorCode();
             return ErrorCodeMapping.getException(errorCode);
         } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
             return InvalidArgumentException.class;
@@ -503,6 +514,53 @@ public class AwsBlobStore extends AbstractBlobStore {
         }
     }
 
+    /**
+     * Gets object lock configuration for a blob.
+     */
+    @Override
+    public ObjectLockInfo getObjectLock(String key, String versionId) {
+        GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
+                transformer.toGetObjectRetentionRequest(key, versionId));
+        GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
+                transformer.toGetObjectLegalHoldRequest(key, versionId));
+        return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
+    }
+
+    /**
+     * Updates object retention date.
+     * Only works if object is in GOVERNANCE mode. COMPLIANCE mode objects cannot be updated.
+     */
+    @Override
+    public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+        // First get current retention to check mode
+        GetObjectRetentionResponse currentRetention = s3Client.getObjectRetention(
+                transformer.toGetObjectRetentionRequest(key, versionId));
+
+        if (currentRetention == null || currentRetention.retention() == null) {
+            throw new FailedPreconditionException(
+                    "Object does not have retention configured. Cannot update retention.");
+        }
+
+        ObjectLockRetentionMode currentMode = currentRetention.retention().mode();
+
+        if (currentMode == ObjectLockRetentionMode.COMPLIANCE) {
+            throw new FailedPreconditionException(
+                    "Cannot update retention for objects in COMPLIANCE mode. " +
+                    "Only GOVERNANCE mode objects can have their retention updated.");
+        }
+
+        s3Client.putObjectRetention(transformer.toPutObjectRetentionRequest(
+                key, versionId, currentMode, retainUntilDate));
+    }
+
+    /**
+     * Updates legal hold status on an object.
+     */
+    @Override
+    public void updateLegalHold(String key, String versionId, boolean legalHold) {
+        s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
+    }
+    
     /**
      * Closes the underlying S3 client and releases any resources.
      */

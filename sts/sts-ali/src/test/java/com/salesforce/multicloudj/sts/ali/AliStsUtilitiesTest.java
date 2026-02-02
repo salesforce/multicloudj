@@ -32,7 +32,7 @@ class AliStsUtilitiesTest {
     }
 
     @Test
-    public void TestAliStsInitialization() {
+    public void testAliStsInitialization() {
         AliStsUtilities utilities = new AliStsUtilities();
         Assertions.assertEquals("ali", utilities.getProviderId());
     }
