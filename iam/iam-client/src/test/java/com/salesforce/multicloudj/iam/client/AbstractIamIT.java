@@ -2,8 +2,10 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
@@ -53,6 +55,10 @@ public abstract class AbstractIamIT {
     List<String> getTestPolicyActions();
 
     String getTestPolicyName();
+
+    default String getTestAction() {
+      return "storage:GetObject";
+    }
 
     /**
      * Role name for getInlinePolicyDetails (and similar) when the API requires it. Unused for AWS
@@ -114,13 +120,12 @@ public abstract class AbstractIamIT {
 
   @Test
   public void testAttachInlinePolicy() {
-    Statement.StatementBuilder statementBuilder =
-        Statement.builder().effect(harness.getTestPolicyEffect());
+    Statement.StatementBuilder statementBuilder = Statement.builder().effect(Effect.ALLOW);
     if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
       statementBuilder.resource(harness.getTestPolicyResource());
     }
     for (String action : harness.getTestPolicyActions()) {
-      statementBuilder.action(action);
+      statementBuilder.action(Action.of(action));
     }
 
     PolicyDocument policyDocument =
@@ -141,19 +146,23 @@ public abstract class AbstractIamIT {
 
   @Test
   public void testGetInlinePolicyDetails() {
-    Statement.StatementBuilder statementBuilder =
-        Statement.builder().effect(harness.getTestPolicyEffect());
+    Statement.StatementBuilder statementBuilder = Statement.builder().effect(Effect.ALLOW);
     if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
       statementBuilder.resource(harness.getTestPolicyResource());
     }
     for (String action : harness.getTestPolicyActions()) {
-      statementBuilder.action(action);
+      statementBuilder.action(Action.of(action));
     }
     PolicyDocument policyDocument =
         PolicyDocument.builder()
             .name(harness.getTestPolicyName())
             .version(harness.getPolicyVersion())
-            .statement(statementBuilder.build())
+            .statement(
+                Statement.builder()
+                    .effect(Effect.ALLOW)
+                    .action(Action.of(harness.getTestAction()))
+                    .resource(harness.getTestPolicyResource())
+                    .build())
             .build();
 
     iamClient.attachInlinePolicy(
@@ -179,13 +188,12 @@ public abstract class AbstractIamIT {
 
   @Test
   public void testGetAttachedPolicies() {
-    Statement.StatementBuilder statementBuilder =
-        Statement.builder().effect(harness.getTestPolicyEffect());
+    Statement.StatementBuilder statementBuilder = Statement.builder().effect(Effect.ALLOW);
     if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
       statementBuilder.resource(harness.getTestPolicyResource());
     }
     for (String action : harness.getTestPolicyActions()) {
-      statementBuilder.action(action);
+      statementBuilder.action(Action.of(action));
     }
 
     PolicyDocument policyDocument =
@@ -217,19 +225,23 @@ public abstract class AbstractIamIT {
 
   @Test
   public void testRemovePolicy() {
-    Statement.StatementBuilder statementBuilder =
-        Statement.builder().effect(harness.getTestPolicyEffect());
+    Statement.StatementBuilder statementBuilder = Statement.builder().effect(Effect.ALLOW);
     if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
       statementBuilder.resource(harness.getTestPolicyResource());
     }
     for (String action : harness.getTestPolicyActions()) {
-      statementBuilder.action(action);
+      statementBuilder.action(Action.of(action));
     }
     PolicyDocument policyDocument =
         PolicyDocument.builder()
             .name(harness.getTestPolicyName())
             .version(harness.getPolicyVersion())
-            .statement(statementBuilder.build())
+            .statement(
+                Statement.builder()
+                    .effect(Effect.ALLOW)
+                    .action(Action.of(harness.getTestAction()))
+                    .resource(harness.getTestPolicyResource())
+                    .build())
             .build();
 
     iamClient.attachInlinePolicy(

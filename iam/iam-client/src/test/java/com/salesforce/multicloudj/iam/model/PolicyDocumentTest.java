@@ -24,12 +24,12 @@ public class PolicyDocumentTest {
             .statement(
                 Statement.builder()
                     .sid("StorageAccess")
-                    .effect("Allow")
-                    .action("storage:GetObject")
-                    .action("storage:PutObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
+                    .action(StorageActions.PUT_OBJECT)
                     .principal("arn:aws:iam::123456789012:user/ExampleUser")
                     .resource("storage://my-bucket/*")
-                    .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+                    .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
                     .build())
             .build();
 
@@ -38,15 +38,18 @@ public class PolicyDocumentTest {
 
     Statement statement = policy.getStatements().get(0);
     assertEquals("StorageAccess", statement.getSid());
-    assertEquals("Allow", statement.getEffect());
-    assertEquals(Arrays.asList("storage:GetObject", "storage:PutObject"), statement.getActions());
+    assertEquals(Effect.ALLOW, statement.getEffect());
+    assertEquals(2, statement.getActions().size());
+    assertEquals(StorageActions.GET_OBJECT, statement.getActions().get(0));
+    assertEquals(StorageActions.PUT_OBJECT, statement.getActions().get(1));
     assertEquals(
         Arrays.asList("arn:aws:iam::123456789012:user/ExampleUser"), statement.getPrincipals());
     assertEquals(Arrays.asList("storage://my-bucket/*"), statement.getResources());
 
-    assertTrue(statement.getConditions().containsKey("StringEquals"));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.STRING_EQUALS));
     assertEquals(
-        "us-west-2", statement.getConditions().get("StringEquals").get("aws:RequestedRegion"));
+        "us-west-2",
+        statement.getConditions().get(ConditionOperator.STRING_EQUALS).get("aws:RequestedRegion"));
   }
 
   @Test
@@ -58,15 +61,15 @@ public class PolicyDocumentTest {
             .statement(
                 Statement.builder()
                     .sid("ReadAccess")
-                    .effect("Allow")
-                    .action("storage:GetObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
                     .resource("storage://my-bucket/*")
                     .build())
             .statement(
                 Statement.builder()
                     .sid("WriteAccess")
-                    .effect("Allow")
-                    .action("storage:PutObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.PUT_OBJECT)
                     .resource("storage://my-bucket/*")
                     .build())
             .build();
@@ -93,8 +96,8 @@ public class PolicyDocumentTest {
             .statement(
                 Statement.builder()
                     .sid("TestStatement")
-                    .effect("Allow")
-                    .action("storage:GetObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
                     .resource("storage://test-bucket/*")
                     .build())
             .build();
@@ -111,7 +114,10 @@ public class PolicyDocumentTest {
               .name("TestPolicy")
               .version(TEST_VERSION)
               .statement(
-                  Statement.builder().sid("TestStatement").action("storage:GetObject").build())
+                  Statement.builder()
+                      .sid("TestStatement")
+                      .action(StorageActions.GET_OBJECT)
+                      .build())
               .build();
         });
   }
@@ -124,7 +130,7 @@ public class PolicyDocumentTest {
           PolicyDocument.builder()
               .name("TestPolicy")
               .version(TEST_VERSION)
-              .statement(Statement.builder().sid("TestStatement").effect("Allow").build())
+              .statement(Statement.builder().sid("TestStatement").effect(Effect.ALLOW).build())
               .build();
         });
   }
@@ -138,11 +144,11 @@ public class PolicyDocumentTest {
             .statement(
                 Statement.builder()
                     .sid("TestStatement")
-                    .effect("Allow")
-                    .action("storage:GetObject")
-                    .action("storage:PutObject")
-                    .action("storage:DeleteObject")
-                    .action("storage:ListObjects")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
+                    .action(StorageActions.PUT_OBJECT)
+                    .action(StorageActions.DELETE_OBJECT)
+                    .action(StorageActions.LIST_BUCKET)
                     .resource("storage://bucket1/*")
                     .resource("storage://bucket2/*")
                     .resource("storage://bucket3/*")
@@ -151,8 +157,11 @@ public class PolicyDocumentTest {
                     .principal("principal2")
                     .principal("principal3")
                     .principal("principal4")
-                    .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
-                    .condition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
+                    .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
+                    .condition(
+                        ConditionOperator.DATE_GREATER_THAN,
+                        "aws:CurrentTime",
+                        "2024-01-01T00:00:00Z")
                     .build())
             .build();
 
@@ -160,10 +169,10 @@ public class PolicyDocumentTest {
 
     // Test actions
     assertEquals(4, statement.getActions().size());
-    assertTrue(statement.getActions().contains("storage:GetObject"));
-    assertTrue(statement.getActions().contains("storage:PutObject"));
-    assertTrue(statement.getActions().contains("storage:DeleteObject"));
-    assertTrue(statement.getActions().contains("storage:ListObjects"));
+    assertTrue(statement.getActions().contains(StorageActions.GET_OBJECT));
+    assertTrue(statement.getActions().contains(StorageActions.PUT_OBJECT));
+    assertTrue(statement.getActions().contains(StorageActions.DELETE_OBJECT));
+    assertTrue(statement.getActions().contains(StorageActions.LIST_BUCKET));
 
     // Test resources
     assertEquals(4, statement.getResources().size());
@@ -180,8 +189,8 @@ public class PolicyDocumentTest {
     assertTrue(statement.getPrincipals().contains("principal4"));
 
     // Test conditions
-    assertTrue(statement.getConditions().containsKey("StringEquals"));
-    assertTrue(statement.getConditions().containsKey("DateGreaterThan"));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.STRING_EQUALS));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.DATE_GREATER_THAN));
   }
 
   @Test
@@ -194,8 +203,8 @@ public class PolicyDocumentTest {
             .statement(
                 Statement.builder()
                     .sid("ValidStatement")
-                    .effect("Allow")
-                    .action("storage:GetObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
                     .resource("storage://test-bucket/*")
                     .build())
             .build();

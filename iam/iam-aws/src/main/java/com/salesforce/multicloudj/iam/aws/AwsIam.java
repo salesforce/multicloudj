@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.iam.aws;
 
+import static com.salesforce.multicloudj.iam.aws.AwsIamPolicyTranslator.translateToAwsPolicy;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -355,7 +357,7 @@ public class AwsIam extends AbstractIam {
     }
 
     String roleName = request.getIdentityName();
-    String policyDocumentJson = buildInlinePolicyDocumentJson(request.getPolicyDocument());
+    String policyDocumentJson = translateToAwsPolicy(request.getPolicyDocument());
 
     PutRolePolicyRequest awsRequest =
         PutRolePolicyRequest.builder()
@@ -365,47 +367,6 @@ public class AwsIam extends AbstractIam {
             .build();
 
     this.iamClient.putRolePolicy(awsRequest);
-  }
-
-  private static String buildInlinePolicyDocumentJson(PolicyDocument policyDocument) {
-    String version = policyDocument.getVersion();
-    if (StringUtils.isBlank(version)) {
-      version = POLICY_VERSION;
-    }
-    Map<String, Object> doc = new LinkedHashMap<>();
-    doc.put("Version", version);
-
-    List<Map<String, Object>> awsStatements = new ArrayList<>();
-    for (Statement stmt : policyDocument.getStatements()) {
-      Map<String, Object> awsStmt = new LinkedHashMap<>();
-      awsStmt.put("Effect", stmt.getEffect());
-
-      List<String> actions = stmt.getActions();
-      if (actions != null && !actions.isEmpty()) {
-        awsStmt.put("Action", actions);
-      }
-      if (StringUtils.isNotBlank(stmt.getSid())) {
-        awsStmt.put("Sid", stmt.getSid());
-      }
-      if (stmt.getResources() != null && !stmt.getResources().isEmpty()) {
-        awsStmt.put("Resource", stmt.getResources());
-      }
-      if (stmt.getConditions() != null && !stmt.getConditions().isEmpty()) {
-        awsStmt.put("Condition", stmt.getConditions());
-      }
-      if (stmt.getPrincipals() != null && !stmt.getPrincipals().isEmpty()) {
-        awsStmt.put("Principal", stmt.getPrincipals());
-      }
-
-      awsStatements.add(awsStmt);
-    }
-    doc.put("Statement", awsStatements);
-
-    try {
-      return OBJECT_MAPPER.writeValueAsString(doc);
-    } catch (JsonProcessingException e) {
-      throw new InvalidArgumentException("Failed to serialize inline policy document", e);
-    }
   }
 
   /**
