@@ -126,14 +126,14 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
 		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
 
-		// Create policy document
+		// Create policy document with substrate-neutral action
 		PolicyDocument policyDocument = PolicyDocument.builder()
 				.name("TestPolicy")
 				.version("2024-01-01")
 				.statement(Statement.builder()
 						.sid("TestPolicy")
 						.effect("Allow")
-						.action(TEST_ROLE)
+						.action("iam:AssumeRole") // Translates to roles/iam.serviceAccountUser
 						.build())
 				.build();
 
@@ -156,10 +156,10 @@ public class GcpIamTest {
 		Policy updatedPolicy = setRequest.getPolicy();
 		Assertions.assertNotNull(updatedPolicy);
 
-		// Verify the new binding was added
+		// Verify the new binding was added (translated role)
 		boolean foundBinding = false;
 		for (Binding binding : updatedPolicy.getBindingsList()) {
-			if (binding.getRole().equals(TEST_ROLE)) {
+			if (binding.getRole().equals("roles/iam.serviceAccountUser")) {
 				assertTrue(binding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
 				foundBinding = true;
 			}
@@ -178,7 +178,7 @@ public class GcpIamTest {
 				.statement(Statement.builder()
 						.sid("TestPolicy")
 						.effect("Allow")
-						.action(TEST_ROLE)
+						.action("storage:GetObject") // Translates to roles/storage.objectViewer
 						.build())
 				.build();
 
@@ -198,7 +198,7 @@ public class GcpIamTest {
 		// Setup: Create a policy with existing binding for the same role
 		Policy existingPolicy = Policy.newBuilder()
 				.addBindings(Binding.newBuilder()
-						.setRole(TEST_ROLE)
+						.setRole("roles/iam.serviceAccountUser")
 						.addMembers("serviceAccount:existing@test-project.iam.gserviceaccount.com")
 						.build())
 				.build();
@@ -212,7 +212,7 @@ public class GcpIamTest {
 				.statement(Statement.builder()
 						.sid("TestPolicy")
 						.effect("Allow")
-						.action(TEST_ROLE)
+						.action("iam:AssumeRole") // Translates to roles/iam.serviceAccountUser
 						.build())
 				.build();
 
@@ -229,7 +229,7 @@ public class GcpIamTest {
 
 		Policy updatedPolicy = setRequestCaptor.getValue().getPolicy();
 		Binding updatedBinding = updatedPolicy.getBindingsList().stream()
-				.filter(b -> b.getRole().equals(TEST_ROLE))
+				.filter(b -> b.getRole().equals("roles/iam.serviceAccountUser"))
 				.findFirst()
 				.orElse(null);
 
@@ -243,6 +243,7 @@ public class GcpIamTest {
 	void testDoAttachInlinePolicySkipsDenyStatements() {
 		Policy existingPolicy = Policy.newBuilder().build();
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
 				.name("DenyPolicy")
@@ -250,10 +251,16 @@ public class GcpIamTest {
 				.statement(Statement.builder()
 						.sid("DenyPolicy")
 						.effect("Deny")
-						.action(TEST_ROLE)
+						.action("storage:GetObject")
+						.build())
+				.statement(Statement.builder()
+						.sid("AllowPolicy")
+						.effect("Allow")
+						.action("storage:PutObject")
 						.build())
 				.build();
 
+		// Verify: Deny statements are skipped, Allow statements are processed
 		AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
 				.policyDocument(policyDocument)
 				.tenantId(TEST_TENANT_ID)
@@ -262,8 +269,20 @@ public class GcpIamTest {
 				.build();
 		Assertions.assertDoesNotThrow(() -> gcpIam.doAttachInlinePolicy(request));
 
-		// Verify: setIamPolicy should not be called since Deny statements are skipped and nothing changes
-		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
+		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
+		verify(mockProjectsClient, times(1)).setIamPolicy(any(SetIamPolicyRequest.class));
+
+		// Verify the policy was updated with only the Allow statement's role
+		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
+
+		SetIamPolicyRequest setRequest = setRequestCaptor.getValue();
+		Policy updatedPolicy = setRequest.getPolicy();
+
+		// Should have only one binding for the Allow statement's role
+		assertEquals(1, updatedPolicy.getBindingsCount());
+		assertEquals("roles/storage.objectCreator", updatedPolicy.getBindings(0).getRole());
+		assertTrue(updatedPolicy.getBindings(0).getMembersList().contains(TEST_SERVICE_ACCOUNT));
 	}
 
 	@Test
@@ -1545,5 +1564,214 @@ public class GcpIamTest {
 
         // Assert - Verify the method was called
         verify(mockIamClient, times(1)).deleteServiceAccount(any(DeleteServiceAccountRequest.class));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithStorageActions() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+        when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .effect("Allow")
+                        .action("storage:GetObject")
+                        .action("storage:PutObject")
+                        .build())
+                .build();
+
+		// policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT
+        gcpIam.doAttachInlinePolicy(
+				AttachInlinePolicyRequest.builder()
+						.policyDocument(policyDocument)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.build()
+		);
+
+        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+        verify(mockProjectsClient, times(1)).setIamPolicy(captor.capture());
+
+        Policy updatedPolicy = captor.getValue().getPolicy();
+        List<String> roles = updatedPolicy.getBindingsList().stream()
+                .map(Binding::getRole)
+                .collect(java.util.stream.Collectors.toList());
+
+        assertTrue(roles.contains("roles/storage.objectViewer"));
+        assertTrue(roles.contains("roles/storage.objectCreator"));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithComputeActions() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+        when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .effect("Allow")
+                        .action("compute:CreateInstance")
+                        .action("compute:GetInstance")
+                        .build())
+                .build();
+
+        gcpIam.doAttachInlinePolicy(
+				AttachInlinePolicyRequest.builder()
+						.policyDocument(policyDocument)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.build()
+		);
+
+        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+        verify(mockProjectsClient, times(1)).setIamPolicy(captor.capture());
+
+        Policy updatedPolicy = captor.getValue().getPolicy();
+        List<String> roles = updatedPolicy.getBindingsList().stream()
+                .map(Binding::getRole)
+                .collect(java.util.stream.Collectors.toList());
+
+        assertTrue(roles.contains("roles/compute.instanceAdmin.v1"));
+        assertTrue(roles.contains("roles/compute.viewer"));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithIamActions() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+        when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .effect("Allow")
+                        .action("iam:AssumeRole")
+                        .build())
+                .build();
+
+		// policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT
+        gcpIam.doAttachInlinePolicy(
+				AttachInlinePolicyRequest.builder()
+						.policyDocument(policyDocument)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.build()
+		);
+
+        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+        verify(mockProjectsClient, times(1)).setIamPolicy(captor.capture());
+
+        Policy updatedPolicy = captor.getValue().getPolicy();
+        Binding binding = updatedPolicy.getBindings(0);
+        assertEquals("roles/iam.serviceAccountUser", binding.getRole());
+        assertTrue(binding.getMembersList().contains(TEST_SERVICE_ACCOUNT));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithConditionsThrowsException() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .effect("Allow")
+                        .action("storage:GetObject")
+                        .condition("stringEquals", "key", "value")
+                        .build())
+                .build();
+
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+			// policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT
+            gcpIam.doAttachInlinePolicy(
+					AttachInlinePolicyRequest.builder()
+							.policyDocument(policyDocument)
+							.tenantId(TEST_TENANT_ID)
+							.region(TEST_REGION)
+							.identityName(TEST_SERVICE_ACCOUNT)
+							.build()
+			);
+        });
+
+        assertTrue(exception.getMessage().contains("GCP IAM policy conditions are not yet supported"));
+        verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
+        verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithUnknownActionThrowsException() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .effect("Allow")
+                        .action("unknown:Action")
+                        .build())
+                .build();
+
+        SubstrateSdkException exception = assertThrows(SubstrateSdkException.class, () -> {
+			// policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT
+            gcpIam.doAttachInlinePolicy(
+					AttachInlinePolicyRequest.builder()
+							.policyDocument(policyDocument)
+							.tenantId(TEST_TENANT_ID)
+							.region(TEST_REGION)
+							.identityName(TEST_SERVICE_ACCOUNT)
+							.build()
+			);
+        });
+
+        assertTrue(exception.getMessage().contains("Unknown substrate-neutral action: unknown:Action"));
+        verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
+        verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
+    }
+
+    @Test
+    void testAttachInlinePolicyWithMultipleStatements() {
+        Policy existingPolicy = Policy.newBuilder().build();
+        when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
+        when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
+
+        PolicyDocument policyDocument = PolicyDocument.builder()
+                .version("2024-01-01")
+                .statement(Statement.builder()
+                        .sid("StorageAccess")
+                        .effect("Allow")
+                        .action("storage:GetObject")
+                        .build())
+                .statement(Statement.builder()
+                        .sid("ComputeAccess")
+                        .effect("Allow")
+                        .action("compute:CreateInstance")
+                        .build())
+                .build();
+
+		// policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT
+        gcpIam.doAttachInlinePolicy(
+				AttachInlinePolicyRequest.builder()
+						.policyDocument(policyDocument)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.build()
+		);
+
+        ArgumentCaptor<SetIamPolicyRequest> captor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
+        verify(mockProjectsClient, times(1)).setIamPolicy(captor.capture());
+
+        Policy updatedPolicy = captor.getValue().getPolicy();
+        List<String> roles = updatedPolicy.getBindingsList().stream()
+                .map(Binding::getRole)
+                .collect(java.util.stream.Collectors.toList());
+
+        assertTrue(roles.contains("roles/storage.objectViewer"));
+        assertTrue(roles.contains("roles/compute.instanceAdmin.v1"));
     }
 }

@@ -114,7 +114,7 @@ public class AwsIamIT extends AbstractIamIT {
 
         @Override
         public List<String> getTestPolicyActions() {
-            return List.of("s3:GetObject", "s3:PutObject");
+            return List.of("storage:GetObject", "storage:PutObject");
         }
 
         @Override
