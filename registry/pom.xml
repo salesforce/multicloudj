@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.2.24-SNAPSHOT</version>
+        <version>0.2.25-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>registry</artifactId>
@@ -15,7 +15,6 @@
         <module>registry-client</module>
         <module>registry-aws</module>
         <module>registry-gcp</module>
-        <module>registry-ali</module>
     </modules>
 
     <dependencies>

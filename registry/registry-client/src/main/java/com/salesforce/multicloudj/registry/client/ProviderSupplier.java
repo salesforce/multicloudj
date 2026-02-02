@@ -14,10 +14,11 @@ public class ProviderSupplier {
     }
 
     /**
-     * Finds the provider
+     * Finds a registry provider by provider ID.
      *
-     * @param providerId Id of the provider to be found
-     * @return Builder object for the provider
+     * @param providerId Id of the provider to be found (e.g., "aws", "gcp", "ali")
+     * @return Builder object for the registry provider
+     * @throws IllegalArgumentException if no provider is found for the given ID
      */
     static AbstractRegistry.Builder<?, ?> findProviderBuilder(String providerId) {
         ServiceLoader<AbstractRegistry> services = ServiceLoader.load(AbstractRegistry.class);
@@ -31,6 +32,13 @@ public class ProviderSupplier {
         throw new IllegalArgumentException("No Registry provider found for providerId: " + providerId);
     }
 
+    /**
+     * Creates a registry builder instance using reflection.
+     * 
+     * @param provider The registry provider instance
+     * @return A new builder instance for the provider
+     * @throws RuntimeException if the builder creation fails
+     */
     private static AbstractRegistry.Builder<?, ?> createBuilderInstance(AbstractRegistry provider) {
         try {
             return (AbstractRegistry.Builder<?, ?>) provider.getClass().getMethod("builder").invoke(provider);
