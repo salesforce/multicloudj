@@ -1,0 +1,33 @@
+{
+  "id" : "d27465e1-513f-46c2-9ff1-39a5738a18cb",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_subscriptions_sub-testbatchnackpull",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testBatchNack:pull?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.returnImmediately"
+    }, {
+      "matchesJsonPath" : "$.maxMessages"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"receivedMessages\": [\n    {\n      \"ackId\": \"W0g6HxknBUxeRS04NWg8BVFGUwcHKx1EHQxiDQp3JXtPW29_YhpqWhMBAkRaLA1bGAw6VFRwDVAHGWBMYW3Dt7L6NGdyf1hcGAxtXl1xBVALGHN1aHVC65XditmwvHFBIDXBsf2OMXGRwb13Zig9JxJLLD5-KTkORUZXWgEhHQwEUTsICjJSTl9HMWI2KjUaUBxRGQw7C0Q\",\n      \"message\": {\n        \"data\": \"YmF0Y2gtbmFjay0y\",\n        \"attributes\": {\n          \"batch\": \"nack\"\n        },\n        \"messageId\": \"17731521421611890\",\n        \"publishTime\": \"2026-01-12T03:46:30.466Z\"\n      }\n    }\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Mon, 12 Jan 2026 03:46:33 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "d27465e1-513f-46c2-9ff1-39a5738a18cb",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchNack:pull",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchNack:pull-2",
+  "insertionIndex" : 67
+}

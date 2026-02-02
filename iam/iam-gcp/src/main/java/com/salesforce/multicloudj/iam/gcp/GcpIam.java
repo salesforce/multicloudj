@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 public class GcpIam extends AbstractIam {
 
 	private static final String EFFECT_ALLOW = "Allow";
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private ProjectsClient projectsClient;
     private IAMClient iamClient;
@@ -341,7 +342,7 @@ public class GcpIam extends AbstractIam {
 	 */
 	private String toJsonString(PolicyDocument policyDocument) {
 		try {
-			return new ObjectMapper().writeValueAsString(policyDocument);
+			return OBJECT_MAPPER.writeValueAsString(policyDocument);
 		} catch (JsonProcessingException e) {
 			throw new SubstrateSdkException("Failed to serialize policy document to JSON", e);
 		}

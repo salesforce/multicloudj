@@ -27,6 +27,9 @@ public class ReplaceAuthHeaderTransformer implements StubRequestFilterV2 {
 
     @Override
     public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
+        if (System.getProperty("record") == null) {
+            return RequestFilterAction.continueWith(request);
+        }
         String authHeader;
         try {
             authHeader = computeAuthHeader(request);

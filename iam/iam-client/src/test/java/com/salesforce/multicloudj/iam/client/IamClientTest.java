@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -142,49 +144,67 @@ public class IamClientTest {
 
     @Test
     void testGetInlinePolicyDetails() {
-        when(mockIam.getInlinePolicyDetails(eq(TEST_ROLE), eq(TEST_POLICY_NAME), eq((String)null), 
-                eq(TEST_TENANT_ID), eq(TEST_REGION)))
+        when(mockIam.getInlinePolicyDetails(any(GetInlinePolicyDetailsRequest.class)))
                 .thenReturn(POLICY_RESPONSE);
 
-        String result = client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, null,
-                TEST_TENANT_ID, TEST_REGION);
+        String result = client.getInlinePolicyDetails(
+                GetInlinePolicyDetailsRequest.builder()
+                        .identityName(TEST_ROLE)
+                        .policyName(TEST_POLICY_NAME)
+                        .roleName(null)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         assertEquals(POLICY_RESPONSE, result);
-        verify(mockIam, times(1)).getInlinePolicyDetails(
-                eq(TEST_ROLE), eq(TEST_POLICY_NAME), eq((String)null), eq(TEST_TENANT_ID), eq(TEST_REGION));
+        verify(mockIam, times(1)).getInlinePolicyDetails(any(GetInlinePolicyDetailsRequest.class));
     }
 
     @Test
     void testGetInlinePolicyDetailsThrowsException() {
         doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
-        doThrow(RuntimeException.class).when(mockIam).getInlinePolicyDetails(
-                anyString(), anyString(), anyString(), anyString(), anyString());
+        doThrow(RuntimeException.class).when(mockIam).getInlinePolicyDetails(any(GetInlinePolicyDetailsRequest.class));
 
         assertThrows(UnAuthorizedException.class, () -> 
-                client.getInlinePolicyDetails(TEST_ROLE, TEST_POLICY_NAME, null, TEST_TENANT_ID, TEST_REGION));
+                client.getInlinePolicyDetails(
+                        GetInlinePolicyDetailsRequest.builder()
+                                .identityName(TEST_ROLE)
+                                .policyName(TEST_POLICY_NAME)
+                                .roleName(null)
+                                .tenantId(TEST_TENANT_ID)
+                                .region(TEST_REGION)
+                                .build()));
     }
 
     @Test
     void testGetAttachedPolicies() {
         List<String> expectedPolicies = Arrays.asList("policy1", "policy2");
-        when(mockIam.getAttachedPolicies(anyString(), anyString(), anyString()))
+        when(mockIam.getAttachedPolicies(any(GetAttachedPoliciesRequest.class)))
                 .thenReturn(expectedPolicies);
 
-        List<String> result = client.getAttachedPolicies(TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+        List<String> result = client.getAttachedPolicies(
+                GetAttachedPoliciesRequest.builder()
+                        .identityName(TEST_ROLE)
+                        .tenantId(TEST_TENANT_ID)
+                        .region(TEST_REGION)
+                        .build());
 
         assertEquals(expectedPolicies, result);
-        verify(mockIam, times(1)).getAttachedPolicies(
-                eq(TEST_ROLE), eq(TEST_TENANT_ID), eq(TEST_REGION));
+        verify(mockIam, times(1)).getAttachedPolicies(any(GetAttachedPoliciesRequest.class));
     }
 
     @Test
     void testGetAttachedPoliciesThrowsException() {
         doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
-        doThrow(RuntimeException.class).when(mockIam).getAttachedPolicies(
-                anyString(), anyString(), anyString());
+        doThrow(RuntimeException.class).when(mockIam).getAttachedPolicies(any(GetAttachedPoliciesRequest.class));
 
         assertThrows(UnAuthorizedException.class, () -> 
-                client.getAttachedPolicies(TEST_ROLE, TEST_TENANT_ID, TEST_REGION));
+                client.getAttachedPolicies(
+                        GetAttachedPoliciesRequest.builder()
+                                .identityName(TEST_ROLE)
+                                .tenantId(TEST_TENANT_ID)
+                                .region(TEST_REGION)
+                                .build()));
     }
 
     @Test

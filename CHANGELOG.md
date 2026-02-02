@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.24](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.23...multicloudj-v0.2.24) (2026-01-22)
+
+
+### Blob Store
+
+* handle the gcp blobstore endpoint with empty path / ([#263](https://github.com/salesforce/multicloudj/issues/263)) ([b1a69ec](https://github.com/salesforce/multicloudj/commit/b1a69ec60aa3a84dff42128db4d84b3044a080f8))
+
+
+### IAM
+
+* reuse single ObjectMapper instance to reduce overhead in GCP IAM ([#261](https://github.com/salesforce/multicloudj/issues/261)) ([c6ea753](https://github.com/salesforce/multicloudj/commit/c6ea753f0493eb8236200e9c640708589cb60f2c))
+
 ## [0.2.23](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.22...multicloudj-v0.2.23) (2026-01-16)
 
 

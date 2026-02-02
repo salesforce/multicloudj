@@ -47,17 +47,16 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
-import com.salesforce.multicloudj.blob.driver.RetentionMode;
-import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
-import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
@@ -112,13 +111,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -3025,7 +3020,7 @@ class GcpBlobStoreTest {
         // Given
         String key = "non-existent-key";
         java.time.Instant newRetainUntil = java.time.Instant.now().plusSeconds(7200);
-        
+
         when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
         when(mockStorage.get(mockBlobId)).thenReturn(null);
 
@@ -3033,6 +3028,40 @@ class GcpBlobStoreTest {
         assertThrows(ResourceNotFoundException.class, () -> {
             gcpBlobStore.updateObjectRetention(key, null, newRetainUntil);
         });
+    }
+
+    @Test
+    void testBuild_EndpointWithoutTrailingSlash() {
+        // Given - endpoint without trailing slash
+        URI endpointWithoutSlash = URI.create("https://storage.googleapis.com");
+
+        GcpBlobStore.Builder builder = (GcpBlobStore.Builder) new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withEndpoint(endpointWithoutSlash);
+
+        // When - build the GcpBlobStore (this will call buildStorage and buildMultipartUploadClient)
+        GcpBlobStore store = builder.build();
+
+        // Then - verify the store was created successfully
+        assertNotNull(store);
+        assertEquals(TEST_BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuild_EndpointWithTrailingSlash() {
+        // Given - endpoint with trailing slash
+        URI endpointWithSlash = URI.create("https://storage.googleapis.com/");
+
+        GcpBlobStore.Builder builder = (GcpBlobStore.Builder) new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withEndpoint(endpointWithSlash);
+
+        // When - build the GcpBlobStore (this will call buildStorage and buildMultipartUploadClient)
+        GcpBlobStore store = builder.build();
+
+        // Then - verify the store was created successfully
+        assertNotNull(store);
+        assertEquals(TEST_BUCKET, store.getBucket());
     }
 
 }
