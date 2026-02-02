@@ -85,6 +85,10 @@ public class TestsUtil {
                 Extension extension = (Extension) clazz.getDeclaredConstructor().newInstance();
                 extensions.add(extension);
                 logger.info("Loaded WireMock extension: {}", extensionClass);
+              
+                if (extension instanceof StubMappingTransformer) {
+                    loadedTransformers.add((StubMappingTransformer) extension);
+                }
             } catch (Exception e) {
                 logger.warn("Failed to load WireMock extension: {}", extensionClass, e);
             }
