@@ -12,13 +12,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * Integration tests for Alibaba Cloud DB Backup Restore implementation.
  * These tests use WireMock to record/replay HTTP interactions with Alibaba Cloud HBR service.
  *
- * <p>To run in record mode with actual Alibaba Cloud:
- * <pre>
- * mvn test -pl dbbackuprestore/dbbackuprestore-ali -Dtest=AliDBBackupRestoreIT -Drecord \
- *   -DTABLESTORE_ACCESS_KEY_ID=&lt;your-key&gt; \
- *   -DTABLESTORE_ACCESS_KEY_SECRET=&lt;your-secret&gt;
- * </pre>
- *
  * @since 0.2.25
  */
 @Disabled("Enable this test when you have Alibaba Cloud HBR credentials and want to record interactions")

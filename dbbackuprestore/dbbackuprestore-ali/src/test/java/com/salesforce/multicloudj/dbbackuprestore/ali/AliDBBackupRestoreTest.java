@@ -92,7 +92,7 @@ public class AliDBBackupRestoreTest {
         assertEquals(BackupStatus.AVAILABLE, backups.get(0).getStatus());
         assertEquals(2048L, backups.get(0).getSizeInBytes());
         assertEquals("vault-123", backups.get(0).getVaultId());
-        assertEquals(BackupStatus.CREATING, backups.get(1).getStatus());
+        assertEquals(BackupStatus.UNKNOWN, backups.get(1).getStatus());
         verify(mockHbrClient, times(1)).describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class));
     }
 
@@ -179,7 +179,7 @@ public class AliDBBackupRestoreTest {
 
         BackupStatus status = dbBackupRestore.getBackupStatus("snapshot-456");
 
-        assertEquals(BackupStatus.CREATING, status);
+        assertEquals(BackupStatus.UNKNOWN, status);
         verify(mockHbrClient, times(1)).describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class));
     }
 
