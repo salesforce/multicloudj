@@ -37,10 +37,4 @@ public class BackupRequest {
      * Not all providers support expiry times.
      */
     private Instant expiryTime;
-
-    /**
-     * Provider-specific options as key-value pairs.
-     * Can be used to pass additional cloud-specific parameters.
-     */
-    private java.util.Map<String, String> options;
 }
