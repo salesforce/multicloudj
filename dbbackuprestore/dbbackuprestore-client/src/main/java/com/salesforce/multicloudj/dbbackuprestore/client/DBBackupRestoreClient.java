@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.dbbackuprestore.client;
 
 import com.google.common.collect.ImmutableSet;
+import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
@@ -16,14 +17,14 @@ import java.util.ServiceLoader;
  */
 public class DBBackupRestoreClient implements AutoCloseable {
 
-    private final com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore dbBackupRestore;
+    private final AbstractDBBackupRestore dbBackupRestore;
 
     /**
      * Creates a new DBBackupRestoreClient wrapping the given driver.
      *
      * @param dbBackupRestore the database backup restore driver implementation
      */
-    public DBBackupRestoreClient(com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore dbBackupRestore) {
+    public DBBackupRestoreClient(AbstractDBBackupRestore dbBackupRestore) {
         this.dbBackupRestore = dbBackupRestore;
     }
 
@@ -42,10 +43,10 @@ public class DBBackupRestoreClient implements AutoCloseable {
      *
      * @return an Iterable of AbstractDBBackupRestore instances
      */
-    private static Iterable<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> all() {
-        ServiceLoader<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> services = ServiceLoader.load(com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.class);
-        ImmutableSet.Builder<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> builder = ImmutableSet.builder();
-        for (com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore service : services) {
+    private static Iterable<AbstractDBBackupRestore> all() {
+        ServiceLoader<AbstractDBBackupRestore> services = ServiceLoader.load(AbstractDBBackupRestore.class);
+        ImmutableSet.Builder<AbstractDBBackupRestore> builder = ImmutableSet.builder();
+        for (AbstractDBBackupRestore service : services) {
             builder.add(service);
         }
         return builder.build();
@@ -58,8 +59,8 @@ public class DBBackupRestoreClient implements AutoCloseable {
      * @return the AbstractDBBackupRestore.Builder for the specified provider
      * @throws IllegalArgumentException if no provider is found for the given ID
      */
-    private static com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<?, ?> findProviderBuilder(String providerId) {
-        for (com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore provider : all()) {
+    private static AbstractDBBackupRestore.Builder<?, ?> findProviderBuilder(String providerId) {
+        for (AbstractDBBackupRestore provider : all()) {
             if (provider.getProviderId().equals(providerId)) {
                 return createBuilderInstance(provider);
             }
@@ -75,14 +76,14 @@ public class DBBackupRestoreClient implements AutoCloseable {
      * @return the AbstractDBBackupRestore.Builder for the provider
      * @throws RuntimeException if the builder creation fails
      */
-    private static com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<?, ?> createBuilderInstance(
-            com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore provider) {
+    private static AbstractDBBackupRestore.Builder<?, ?> createBuilderInstance(
+            AbstractDBBackupRestore provider) {
         try {
-            Class<? extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> providerClass = provider.getClass();
+            Class<? extends AbstractDBBackupRestore> providerClass = provider.getClass();
             Class<?>[] innerClasses = providerClass.getDeclaredClasses();
             for (Class<?> innerClass : innerClasses) {
-                if (com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder.class.isAssignableFrom(innerClass)) {
-                    return (com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<?, ?>) innerClass.getDeclaredConstructor()
+                if (AbstractDBBackupRestore.Builder.class.isAssignableFrom(innerClass)) {
+                    return (AbstractDBBackupRestore.Builder<?, ?>) innerClass.getDeclaredConstructor()
                             .newInstance();
                 }
             }
@@ -144,7 +145,7 @@ public class DBBackupRestoreClient implements AutoCloseable {
      * Builder class for constructing DBBackupRestoreClient instances.
      */
     public static class DBBackupRestoreClientBuilder {
-        private final com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<?, ?> dbBackupRestoreBuilder;
+        private final AbstractDBBackupRestore.Builder<?, ?> dbBackupRestoreBuilder;
 
         /**
          * Creates a new ClientBuilder.
@@ -183,7 +184,7 @@ public class DBBackupRestoreClient implements AutoCloseable {
          * @return a new DBBackupRestoreClient
          */
         public DBBackupRestoreClient build() {
-            com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore dbBackupRestore = this.dbBackupRestoreBuilder.build();
+            AbstractDBBackupRestore dbBackupRestore = this.dbBackupRestoreBuilder.build();
             return new DBBackupRestoreClient(dbBackupRestore);
         }
     }

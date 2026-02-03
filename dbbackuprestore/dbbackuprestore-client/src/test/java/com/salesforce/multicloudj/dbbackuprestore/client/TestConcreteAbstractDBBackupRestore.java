@@ -1,13 +1,14 @@
 package com.salesforce.multicloudj.dbbackuprestore.client;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
 
 import java.util.List;
 
-public class TestConcreteAbstractDBBackupRestore extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore {
+public class TestConcreteAbstractDBBackupRestore extends AbstractDBBackupRestore {
 
     public TestConcreteAbstractDBBackupRestore(TestConcreteAbstractDBBackupRestore.Builder builder) {
         super(builder);
@@ -52,7 +53,7 @@ public class TestConcreteAbstractDBBackupRestore extends com.salesforce.multiclo
         // No-op for testing
     }
 
-    public static class Builder extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<TestConcreteAbstractDBBackupRestore, Builder> {
+    public static class Builder extends AbstractDBBackupRestore.Builder<TestConcreteAbstractDBBackupRestore, Builder> {
         protected Builder() {
             providerId("mockProviderId");
         }

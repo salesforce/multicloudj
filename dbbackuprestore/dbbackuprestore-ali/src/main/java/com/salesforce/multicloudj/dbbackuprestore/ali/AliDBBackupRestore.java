@@ -11,6 +11,7 @@ import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
@@ -28,8 +29,8 @@ import java.util.List;
  *
  * @since 0.2.25
  */
-@AutoService(com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.class)
-public class AliDBBackupRestore extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore {
+@AutoService(AbstractDBBackupRestore.class)
+public class AliDBBackupRestore extends AbstractDBBackupRestore {
 
     private Client hbrClient;
 
@@ -204,7 +205,7 @@ public class AliDBBackupRestore extends com.salesforce.multicloudj.dbbackupresto
     /**
      * Builder for AliDBBackupRestore.
      */
-    public static class Builder extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<com.salesforce.multicloudj.dbbackuprestore.ali.AliDBBackupRestore, Builder> {
+    public static class Builder extends AbstractDBBackupRestore.Builder<AliDBBackupRestore, Builder> {
         private Client hbrClient;
 
         /**

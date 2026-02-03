@@ -86,7 +86,7 @@ public abstract class AbstractDBBackupRestore implements Provider, AutoCloseable
    * @param <B> the builder type
    * @param <T> the type being built
    */
-  public abstract static class Builder<T extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore, B extends Builder<T, B>>
+  public abstract static class Builder<T extends AbstractDBBackupRestore, B extends Builder<T, B>>
       implements Provider.Builder {
     @Getter
     protected String region;

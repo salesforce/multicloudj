@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.dbbackuprestore.client;
 
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
+import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
@@ -35,7 +36,7 @@ public abstract class AbstractDBBackupRestoreIT {
          *
          * @return an AbstractDBBackupRestore implementation
          */
-        com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore createDBBackupRestoreDriver();
+        AbstractDBBackupRestore createDBBackupRestoreDriver();
 
         /**
          * Gets the backup service endpoint for the provider.

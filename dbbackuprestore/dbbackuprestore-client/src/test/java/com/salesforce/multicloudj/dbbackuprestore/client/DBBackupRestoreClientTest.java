@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.dbbackuprestore.client;
 
+import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
@@ -35,7 +36,7 @@ import static org.mockito.Mockito.when;
 public class DBBackupRestoreClientTest {
 
     @Mock
-    private com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore mockDriver;
+    private AbstractDBBackupRestore mockDriver;
 
     private DBBackupRestoreClient client;
 
@@ -49,13 +50,13 @@ public class DBBackupRestoreClientTest {
         TestConcreteAbstractDBBackupRestore provider = new TestConcreteAbstractDBBackupRestore();
 
         // Mock the ServiceLoader to return test provider
-        ServiceLoader<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> serviceLoader = mock(ServiceLoader.class);
-        Iterator<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore> providerIterator =
-                List.<com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore>of(provider).iterator();
+        ServiceLoader<AbstractDBBackupRestore> serviceLoader = mock(ServiceLoader.class);
+        Iterator<AbstractDBBackupRestore> providerIterator =
+                List.<AbstractDBBackupRestore>of(provider).iterator();
         when(serviceLoader.iterator()).thenReturn(providerIterator);
 
         try (MockedStatic<ServiceLoader> serviceLoaderStatic = Mockito.mockStatic(ServiceLoader.class)) {
-            serviceLoaderStatic.when(() -> ServiceLoader.load(com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.class))
+            serviceLoaderStatic.when(() -> ServiceLoader.load(AbstractDBBackupRestore.class))
                     .thenReturn(serviceLoader);
 
             // Test builder methods

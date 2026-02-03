@@ -29,7 +29,7 @@ import java.util.List;
  *
  * @since 0.2.25
  */
-@AutoService(com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.class)
+@AutoService(AbstractDBBackupRestore.class)
 public class FSDBBackupRestore extends AbstractDBBackupRestore {
 
     private FirestoreAdminClient firestoreAdminClient;
@@ -165,7 +165,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
     /**
      * Builder for FSDBBackupRestore.
      */
-    public static class Builder extends com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore.Builder<com.salesforce.multicloudj.dbbackuprestore.gcp.FSDBBackupRestore, Builder> {
+    public static class Builder extends AbstractDBBackupRestore.Builder<FSDBBackupRestore, Builder> {
         private FirestoreAdminClient firestoreAdminClient;
         private GoogleCredentials credentials;
 
