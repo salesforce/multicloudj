@@ -1,8 +1,13 @@
 package com.salesforce.multicloudj.registry.driver;
 
 /**
- * Parsed image reference (repository + tag or digest).
- * Examples: "my-image:latest", "my-image@sha256:abc123..."
+ * Parsed image reference for OCI Registry API v2.
+ * <p>
+ * User passes one string (e.g. "my-image:latest" or "my-image@sha256:abc..."); we split it
+ * because the API uses separate path segments: GET /v2/{repository}/manifests/{reference}
+ * and GET /v2/{repository}/blobs/{digest}. So pull() will call
+ * fetchManifest(ref.getRepository(), ref.getReference()) and
+ * downloadBlob(ref.getRepository(), layerDigest).
  */
 public final class ImageReference {
 
@@ -32,16 +37,14 @@ public final class ImageReference {
         return new ImageReference(ref, "latest", ref + ":latest");
     }
 
+    /** For /v2/{repository}/... (manifests and blobs). */
     public String getRepository() {
         return repository;
     }
 
+    /** Tag or digest for /v2/{repository}/manifests/{reference}. */
     public String getReference() {
         return reference;
-    }
-
-    public boolean isDigest() {
-        return reference.startsWith("sha256:");
     }
 
     @Override

@@ -33,8 +33,9 @@ public class OciRegistryClient implements AutoCloseable {
      * Framework uses Basic auth; Bearer/token exchange can be added later.
      */
     public String getHttpAuthHeader(String repository) throws IOException {
-        AuthCredentials creds = authProvider.getAuthCredentials();
-        String credentialsStr = creds.getUsername() + ":" + creds.getToken();
+        String username = authProvider.getAuthUsername();
+        String token = authProvider.getAuthToken();
+        String credentialsStr = username + ":" + token;
         String encoded = Base64.getEncoder().encodeToString(credentialsStr.getBytes(StandardCharsets.UTF_8));
         return "Basic " + encoded;
     }
@@ -44,6 +45,7 @@ public class OciRegistryClient implements AutoCloseable {
      * To be implemented with HTTP GET /v2/{repository}/manifests/{reference}.
      */
     public Manifest fetchManifest(String repository, String reference) throws IOException {
+        // TODO: need to be implemented
         throw new UnsupportedOperationException("fetchManifest() not yet implemented");
     }
 
@@ -52,6 +54,7 @@ public class OciRegistryClient implements AutoCloseable {
      * To be implemented with HTTP GET /v2/{repository}/blobs/{digest}.
      */
     public InputStream downloadBlob(String repository, String digest) throws IOException {
+        // TODO: need to be implemented
         throw new UnsupportedOperationException("downloadBlob() not yet implemented");
     }
 

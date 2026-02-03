@@ -13,7 +13,7 @@ import java.net.URI;
 
 /**
  * Abstract registry driver. Each cloud implements auth (getAuthUsername, getAuthToken)
- * and getOciClient(); pull and extract are unified here.
+ * and getOciClient(); pull and extract are unified.
  */
 public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
     protected final String providerId;
@@ -48,15 +48,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     // --- AuthProvider: each cloud implements getAuthUsername() and getAuthToken() ---
 
     @Override
-    public AuthCredentials getAuthCredentials() throws IOException {
-        return new AuthCredentials(getAuthUsername(), getAuthToken());
-    }
-
-    /** Implemented by each substrate */
-    @Override
     public abstract String getAuthUsername() throws IOException;
 
-    /** Implemented by each substrate */
     @Override
     public abstract String getAuthToken() throws IOException;
 
@@ -66,12 +59,13 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     protected abstract OciRegistryClient getOciClient();
 
     /**
-     * Pulls an image from the registry (unified OCI flow). Uses getOciClient() and auth from provider.
+     * Pulls an image from the registry (unified OCI flow).
      *
      * @param imageRef image reference (e.g. {@code repo:tag} or digest)
      * @return Image metadata and layer descriptors
      */
     public Image pull(String imageRef) throws Exception {
+        // TODO: need to be implemented
         throw new UnsupportedOperationException("pull() not yet implemented");
     }
 

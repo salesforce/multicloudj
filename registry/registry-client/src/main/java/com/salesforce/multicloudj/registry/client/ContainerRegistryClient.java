@@ -9,9 +9,9 @@ import com.salesforce.multicloudj.registry.model.Platform;
 import java.io.InputStream;
 
 /**
- * Entry point for Client code to interact with a container registry.
+ * Entry point for users to interact with a container registry.
  * 
- * <p>ContainerRegistryClient provides a high-level API for pulling Docker images
+ * <p>ContainerRegistryClient provides a high-level API for pulling images
  * and extracting filesystems in a substrate-agnostic way.
  */
 public class ContainerRegistryClient implements AutoCloseable {

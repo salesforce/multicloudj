@@ -3,9 +3,14 @@ package com.salesforce.multicloudj.registry.driver;
 import java.util.List;
 
 /**
- * Parsed OCI manifest: either an image manifest (config + layers) or an index (multi-platform).
- * Optional {@code digest} is the manifest blob digest from the registry (e.g. Docker-Content-Digest),
- * used as the image digest when building RemoteImage.
+ * Parsed OCI manifest returned by OciRegistryClient.fetchManifest().
+ * <p>
+ * Registry can return two shapes: (1) <b>image manifest</b> — one image with config + layer digests;
+ * (2) <b>index</b> — multi-platform list of manifests (each entry has platform + digest). Pull flow:
+ * if index, pick one entry by Platform then fetch that manifest; then use configDigest/layerDigests
+ * to download blobs and build RemoteImage.
+ * <p>
+ * For image manifest: configDigest is the OCI image ID (used by Image.getDigest()). 
  */
 public final class Manifest {
 
@@ -23,25 +28,14 @@ public final class Manifest {
         this.digest = digest;
     }
 
-    public static Manifest image(String configDigest, List<String> layerDigests) {
-        return new Manifest(configDigest, layerDigests, null, false, null);
-    }
-
     public static Manifest image(String configDigest, List<String> layerDigests, String digest) {
         return new Manifest(configDigest, layerDigests, null, false, digest);
-    }
-
-    public static Manifest index(List<IndexEntry> indexManifests) {
-        return new Manifest(null, null, indexManifests, true, null);
     }
 
     public static Manifest index(List<IndexEntry> indexManifests, String digest) {
         return new Manifest(null, null, indexManifests, true, digest);
     }
 
-    /**
-     * Digest of this manifest blob from registry (e.g. Docker-Content-Digest), or null.
-     */
     public String getDigest() {
         return digest;
     }

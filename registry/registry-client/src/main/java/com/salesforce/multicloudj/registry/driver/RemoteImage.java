@@ -9,8 +9,8 @@ import java.util.List;
 
 /**
  * Implementation of Image for images on a remote registry.
- * "Remote" means layer blobs are fetched via OciRegistryClient on demand (e.g. when
- * getLayers() is used and each layer's getUncompressed() is called).
+ * "Remote" means layer blobs are fetched via OciRegistryClient on demand.
+ * getDigest() returns config digest (OCI image ID).
  */
 final class RemoteImage implements Image {
 
@@ -25,7 +25,7 @@ final class RemoteImage implements Image {
         this.repository = repository;
         this.imageRef = imageRef;
         this.manifest = manifest;
-        this.digest = manifest.getDigest();
+        this.digest = manifest.getConfigDigest();
     }
 
     @Override
