@@ -129,9 +129,10 @@ public class AwsDBBackRestore extends AbstractDBBackRestore {
             throw new IllegalArgumentException("Role ID cannot be null or empty for AWS");
         }
 
-        String targetTableName = StringUtils.isNotBlank(request.getTargetResource())
-                ? request.getTargetResource()
-                : getResourceName() + "-restored";
+        String targetTableName =  request.getTargetResource();
+        if (StringUtils.isBlank(targetTableName)) {
+            throw new IllegalArgumentException("target resource cannot be null or empty");
+        }
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("targetTableName", targetTableName);

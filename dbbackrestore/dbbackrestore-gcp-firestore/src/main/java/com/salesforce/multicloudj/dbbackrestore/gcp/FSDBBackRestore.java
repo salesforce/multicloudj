@@ -102,9 +102,10 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
     @Override
     public void restoreBackup(RestoreRequest request) {
         // Build restore request
-        String targetDatabaseId =  StringUtils.isNotBlank(request.getTargetResource())
-                ? request.getTargetResource()
-                : getResourceName() + "-restored";
+        String targetDBID = request.getTargetResource();
+        if (StringUtils.isBlank(targetDBID)) {
+            throw new IllegalArgumentException("target database ID cannot be empty");
+        }
 
         // Extract parent from backup ID (format: projects/{project}/locations/{location}/backups/{backup})
         String parent = request.getBackupId().substring(
@@ -113,7 +114,7 @@ public class FSDBBackRestore extends AbstractDBBackRestore {
 
         RestoreDatabaseRequest.Builder restoreBuilder = RestoreDatabaseRequest.newBuilder()
                 .setParent(parent)
-                .setDatabaseId(targetDatabaseId)
+                .setDatabaseId(targetDBID)
                 .setBackup(request.getBackupId());
 
         // Restore is a long-running operation

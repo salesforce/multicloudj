@@ -237,7 +237,7 @@ public class AliDBBackRestore extends AbstractDBBackRestore {
                 throw new IllegalArgumentException("Region is required");
             }
             if (resourceName == null || resourceName.isEmpty()) {
-                throw new IllegalArgumentException("Collection name is required");
+                throw new IllegalArgumentException("table name is required");
             }
 
             // Create HBR client if not provided
