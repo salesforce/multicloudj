@@ -99,14 +99,8 @@ public class ContainerRegistryClient implements AutoCloseable {
             this.registryBuilder = ProviderSupplier.findProviderBuilder(providerId);
         }
 
-        public ContainerRegistryClientBuilder withRegion(String region) {
-            this.registryBuilder.withRegion(region);
-            return this;
-        }
-
         /**
-         * Sets the registry endpoint (e.g., "https://123456789.dkr.ecr.us-east-1.amazonaws.com").
-         * This is required and must be provided by the user.
+         * Sets the registry endpoint (e.g. "https://123456789.dkr.ecr.us-east-1.amazonaws.com"). Required.
          */
         public ContainerRegistryClientBuilder withRegistryEndpoint(String registryEndpoint) {
             this.registryBuilder.withRegistryEndpoint(registryEndpoint);
@@ -114,9 +108,7 @@ public class ContainerRegistryClient implements AutoCloseable {
         }
 
         /**
-         * Method to supply a proxy endpoint override
-         * @param proxyEndpoint The proxy endpoint override
-         * @return An instance of self
+         * Sets a proxy endpoint override for HTTP requests.
          */
         public ContainerRegistryClientBuilder withProxyEndpoint(java.net.URI proxyEndpoint) {
             this.registryBuilder.withProxyEndpoint(proxyEndpoint);

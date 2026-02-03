@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Interface for accessing the properties of a particular image layer.
- * Implementations are provided by registry driver.
+ * Interface for a single image layer.
+ * Implementations are provided by the registry driver (e.g. RemoteLayer).
  */
 public interface Layer {
     String getDigest() throws IOException;

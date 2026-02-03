@@ -2,19 +2,21 @@ package com.salesforce.multicloudj.registry.driver;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
-import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 
-public abstract class AbstractRegistry implements SdkService, Provider, AutoCloseable {
+/**
+ * Abstract registry driver. Each cloud implements auth (getAuthUsername, getAuthToken)
+ * and getOciClient(); pull and extract are unified here.
+ */
+public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
     protected final String providerId;
-    protected final String repository;
-    protected final String region;
     protected final String registryEndpoint;
     protected final URI proxyEndpoint;
     protected final CredentialsOverrider credentialsOverrider;
@@ -23,8 +25,6 @@ public abstract class AbstractRegistry implements SdkService, Provider, AutoClos
 
     protected AbstractRegistry(Builder<?, ?> builder) {
         this.providerId = builder.getProviderId();
-        this.repository = builder.getRepository();
-        this.region = builder.getRegion();
         this.registryEndpoint = builder.getRegistryEndpoint();
         this.proxyEndpoint = builder.getProxyEndpoint();
         this.credentialsOverrider = builder.getCredentialsOverrider();
@@ -45,44 +45,65 @@ public abstract class AbstractRegistry implements SdkService, Provider, AutoClos
      */
     public abstract Builder<?, ?> builder();
 
-    /**
-     * Pulls an image from the registry and returns an Image object.
-     */
-    public abstract Image pull(String imageRef) throws Exception;
+    // --- AuthProvider: each cloud implements getAuthUsername() and getAuthToken() ---
+
+    @Override
+    public AuthCredentials getAuthCredentials() throws IOException {
+        return new AuthCredentials(getAuthUsername(), getAuthToken());
+    }
+
+    /** Implemented by each substrate */
+    @Override
+    public abstract String getAuthUsername() throws IOException;
+
+    /** Implemented by each substrate */
+    @Override
+    public abstract String getAuthToken() throws IOException;
 
     /**
-     * Extracts the image filesystem as a tar stream.
+     * Returns the OCI client for this registry. Each provider creates and holds it 
      */
-    public abstract InputStream extract(Image image) throws Exception;
+    protected abstract OciRegistryClient getOciClient();
 
     /**
-     * Maps a throwable to a SubstrateSdkException type.
+     * Pulls an image from the registry (unified OCI flow). Uses getOciClient() and auth from provider.
+     *
+     * @param imageRef image reference (e.g. {@code repo:tag} or digest)
+     * @return Image metadata and layer descriptors
      */
+    public Image pull(String imageRef) throws Exception {
+        throw new UnsupportedOperationException("pull() not yet implemented");
+    }
+
+    /**
+     * Extracts the image filesystem as a tar stream (OCI layer flattening, reverse order, whiteout handling).
+     *
+     * @param image Image from pull(String)
+     * @return InputStream of the flattened filesystem tar
+     */
+    public InputStream extract(Image image) throws Exception {
+        // TODO: implement OCI layer flattening (reverse order, whiteout handling)
+        throw new UnsupportedOperationException("extract() not yet implemented");
+    }
+
+
     public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
 
     @Override
     public void close() throws Exception {
-        // Override in implementations to close resources
+        // Override in implementations to close OciRegistryClient and other resources
     }
 
     /**
-     * Abstract builder for registry implementations.
-     * Provider implementations extend this and implement build().
+     * Abstract builder for registry implementations. Provider implementations extend this and implement build().
      */
     @Getter
     public abstract static class Builder<A extends AbstractRegistry, T extends Builder<A, T>> implements Provider.Builder {
         protected String providerId;
-        protected String repository;
-        protected String region;
         protected String registryEndpoint;
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
         protected Platform platform;
-
-        public T withRegion(String region) {
-            this.region = region;
-            return self();
-        }
 
         public T withRegistryEndpoint(String registryEndpoint) {
             this.registryEndpoint = registryEndpoint;
@@ -110,16 +131,8 @@ public abstract class AbstractRegistry implements SdkService, Provider, AutoClos
             return self();
         }
 
-        public T withRepository(String repository) {
-            this.repository = repository;
-            return self();
-        }
-
         public abstract T self();
 
-        /**
-         * Builds and returns an instance of AbstractRegistry.
-         */
         public abstract A build();
     }
 }
