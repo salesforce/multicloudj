@@ -1,0 +1,20 @@
+{
+  "id" : "edcdb14a-fc29-4591-b52f-bfd44f88b37f",
+  "name" : "restore-jobs_13d06e13-24de-4d78-92d5-496eb0e5c622",
+  "request" : {
+    "url" : "/restore-jobs/13d06e13-24de-4d78-92d5-496eb0e5c622",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"AccountId\":\"654654370895\",\"BackupSizeInBytes\":543,\"BackupVaultArn\":null,\"CompletionDate\":null,\"CreatedBy\":{\"RestoreTestingPlanArn\":null},\"CreatedResourceArn\":null,\"CreationDate\":1.770199730387E9,\"DeletionCompletionDate\":null,\"DeletionStatus\":null,\"DeletionStatusMessage\":null,\"ExpectedCompletionTimeMinutes\":null,\"IamRoleArn\":\"arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs\",\"IsParent\":false,\"ParentJobId\":null,\"PercentDone\":\"0.00%\",\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"RecoveryPointCreationDate\":1.7698191829E9,\"ResourceType\":\"DynamoDB\",\"RestoreJobId\":\"13d06e13-24de-4d78-92d5-496eb0e5c622\",\"SourceResourceArn\":null,\"Status\":\"PENDING\",\"StatusMessage\":null,\"ValidationCompletionDate\":null,\"ValidationStatus\":null,\"ValidationStatusMessage\":null}",
+    "headers" : {
+      "x-amzn-RequestId" : "f1aa26c4-fce5-441f-8a2b-fe8983e9bd4b",
+      "Date" : "Wed, 04 Feb 2026 10:08:50 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "edcdb14a-fc29-4591-b52f-bfd44f88b37f",
+  "persistent" : true,
+  "insertionIndex" : 3
+}
