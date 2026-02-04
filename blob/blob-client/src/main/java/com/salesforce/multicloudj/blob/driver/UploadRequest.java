@@ -40,10 +40,9 @@ public class UploadRequest {
      */
     private final String kmsKeyId;
     /**
-     * (Optional, AWS) When true, request SSE with AWS managed key (aws/s3) by sending
-     * x-amz-server-side-encryption: aws:kms without a key ID. S3 then uses the default
-     * AWS managed key, and the uploader typically does not need kms:GenerateDataKey.
+     * Set the serviceSideEncryption Header but don't set the kmsKeyId.
      * When false and kmsKeyId is null, no SSE headers are sent (bucket default applies).
+     * This option will trigger the use of the cloud provider managed key
      */
     private final boolean useKmsManagedKey;
     /**
@@ -120,7 +119,6 @@ public class UploadRequest {
         }
 
         /**
-         * Request SSE with AWS managed key (aws/s3): send aws:kms without key ID.
          * See {@link UploadRequest#useKmsManagedKey}.
          */
         public Builder withUseKmsManagedKey(boolean useKmsManagedKey) {

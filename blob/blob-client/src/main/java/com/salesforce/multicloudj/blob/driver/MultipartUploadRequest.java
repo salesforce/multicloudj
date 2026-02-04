@@ -17,9 +17,6 @@ public class MultipartUploadRequest {
     private Map<String, String> metadata;
     private final Map<String, String> tags;
     private final String kmsKeyId;
-    /**
-     * (Optional, AWS) When true, request SSE with AWS managed key (aws/s3). See UploadRequest Javadoc for useKmsManagedKey.
-     */
     private final boolean useKmsManagedKey;
 
     private MultipartUploadRequest(final Builder builder){

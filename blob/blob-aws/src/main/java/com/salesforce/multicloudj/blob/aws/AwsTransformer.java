@@ -179,7 +179,6 @@ public class AwsTransformer {
                 .metadata(request.getMetadata())
                 .tagging(Tagging.builder().tagSet(tags).build());
 
-
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
