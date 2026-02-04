@@ -18,20 +18,22 @@ final class RemoteImage implements Image {
     private final String repository;
     private final String imageRef;
     private final Manifest manifest;
-    private final String digest;
 
     RemoteImage(OciRegistryClient client, String repository, String imageRef, Manifest manifest) {
         this.client = client;
         this.repository = repository;
         this.imageRef = imageRef;
         this.manifest = manifest;
-        this.digest = manifest.getConfigDigest();
     }
 
     @Override
     public List<Layer> getLayers() throws IOException {
+        List<String> layerDigests = manifest.getLayerDigests();
+        if (layerDigests == null) {
+            throw new IOException("Image manifest is missing layer digests");
+        }
         List<Layer> layers = new ArrayList<>();
-        for (String layerDigest : manifest.getLayerDigests()) {
+        for (String layerDigest : layerDigests) {
             layers.add(new RemoteLayer(client, repository, layerDigest));
         }
         return layers;
@@ -39,7 +41,11 @@ final class RemoteImage implements Image {
 
     @Override
     public String getDigest() throws IOException {
-        return digest;
+        String configDigest = manifest.getConfigDigest();
+        if (configDigest == null || configDigest.isEmpty()) {
+            throw new IOException("Image manifest is missing config digest");
+        }
+        return configDigest;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.registry.model.Platform;
 import java.util.List;
 
 /**
@@ -57,17 +58,15 @@ public final class Manifest {
     }
 
     /**
-     * Entry in an OCI image index (platform + digest). 
+     * Entry in an OCI image index (platform + digest).
      */
     public static final class IndexEntry {
         private final String digest;
-        private final String os;
-        private final String architecture;
+        private final Platform platform;
 
-        public IndexEntry(String digest, String os, String architecture) {
+        public IndexEntry(String digest, Platform platform) {
             this.digest = digest;
-            this.os = os;
-            this.architecture = architecture;
+            this.platform = platform;
         }
 
         public String getDigest() {
@@ -75,11 +74,11 @@ public final class Manifest {
         }
 
         public String getOs() {
-            return os;
+            return platform != null ? platform.getOperatingSystem() : null;
         }
 
         public String getArchitecture() {
-            return architecture;
+            return platform != null ? platform.getArchitecture() : null;
         }
     }
 }
