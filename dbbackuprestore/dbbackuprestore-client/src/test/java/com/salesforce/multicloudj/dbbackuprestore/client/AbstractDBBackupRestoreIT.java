@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -53,6 +54,13 @@ public abstract class AbstractDBBackupRestoreIT {
         int getPort();
 
         /**
+         * Gets the provider Id
+         *
+         * @return provider id
+         */
+        String getProviderId();
+
+        /**
          * Gets the IAM role for restore operations.*
          *
          * @return the IAM role ARN, or null if not applicable
@@ -80,7 +88,7 @@ public abstract class AbstractDBBackupRestoreIT {
      */
     @BeforeAll
     public void initializeWireMockServer() {
-        Random random = new Random(1234L);
+        Random random = new Random(9876L);
         UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
         harness = createHarness();
         TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
@@ -160,32 +168,12 @@ public abstract class AbstractDBBackupRestoreIT {
     }
 
     /**
-     * Tests getting backup status by ID.
-     * This test verifies that backup status can be retrieved for an existing backup.
-     */
-    @Test
-    public void testGetBackupStatus() throws Exception {
-        try (DBBackupRestoreClient client = new DBBackupRestoreClient(
-                harness.createDBBackupRestoreDriver())) {
-            List<Backup> backups = client.listBackups();
-            Assertions.assertFalse(backups.isEmpty(), "Backup list should not be empty");
-
-            // Get status for the first backup
-            Backup backup = backups.get(0);
-            BackupStatus status = client.getBackupStatus(backup.getBackupId());
-
-            Assertions.assertNotNull(status, "Backup status should not be null");
-            System.out.println("Backup " + backup.getBackupId() + " has status: " + status);
-        }
-    }
-
-    /**
      * Tests restoring from a backup.
      * This test verifies that a backup can be restored to a new table.
      * Note: This test may take a long time to complete depending on backup size.
      */
     @Test
-    public void testRestoreBackup() throws Exception {
+    public void testRestore() throws Exception {
         try (DBBackupRestoreClient client = new DBBackupRestoreClient(
                 harness.createDBBackupRestoreDriver())) {
             List<Backup> backups = client.listBackups();
@@ -221,14 +209,20 @@ public abstract class AbstractDBBackupRestoreIT {
             RestoreRequest request = requestBuilder.build();
 
             // Perform restore
-            client.restoreBackup(request);
+            String restoreId = client.restoreBackup(request);
+            Assertions.assertNotNull(restoreId, "Restore ID should not be null");
 
-            System.out.println("Restore operation initiated from backup: "
-                    + availableBackup.getBackupId());
-            System.out.println("Target collection: " + request.getTargetResource());
+            // Disabled for GCP because operations client is gRPC based.
+            // Will enable once we move firestore admin to gRPC
+            if (!harness.getProviderId().equals("gcp-firestore")) {
+                // Get restore details
+                Restore restore = client.getRestoreJob(restoreId);
 
-            // Note: Restore is typically an async operation, so we don't verify completion here
-            // In a real test, you might want to poll for completion or verify the restored data
+                Assertions.assertNotNull(restore, "Restore object should not be null");
+                Assertions.assertNotNull(restore.getRestoreId(), "Restore ID should not be null");
+                Assertions.assertNotNull(restore.getBackupId(), "Backup ID should not be null");
+                Assertions.assertNotNull(restore.getStatus(), "Restore status should not be null");
+            }
         }
     }
 }

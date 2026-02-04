@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.dbbackuprestore.client;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
-import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
 
 import java.util.List;
@@ -29,13 +29,14 @@ public class TestConcreteAbstractDBBackupRestore extends AbstractDBBackupRestore
     }
 
     @Override
-    public BackupStatus getBackupStatus(String backupId) {
+    public String restoreBackup(RestoreRequest request) {
+        // No-op for testing
         return null;
     }
 
     @Override
-    public void restoreBackup(RestoreRequest request) {
-        // No-op for testing
+    public Restore getRestoreJob(String restoreId) {
+        return null;
     }
 
     @Override
@@ -54,12 +55,12 @@ public class TestConcreteAbstractDBBackupRestore extends AbstractDBBackupRestore
     }
 
     public static class Builder extends AbstractDBBackupRestore.Builder<TestConcreteAbstractDBBackupRestore, Builder> {
-        protected Builder() {
+        public Builder() {
             providerId("mockProviderId");
         }
 
         @Override
-        protected Builder self() {
+        public Builder self() {
             return this;
         }
 

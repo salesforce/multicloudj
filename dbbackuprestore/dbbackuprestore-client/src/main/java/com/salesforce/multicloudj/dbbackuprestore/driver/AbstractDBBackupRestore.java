@@ -64,21 +64,22 @@ public abstract class AbstractDBBackupRestore implements Provider, AutoCloseable
   public abstract Backup getBackup(String backupId);
 
   /**
-   * Gets the current status of a specific backup.
-   *
-   * @param backupId the unique identifier of the backup
-   * @return the current BackupStatus of the backup
-   * @since 0.2.25
-   */
-  public abstract BackupStatus getBackupStatus(String backupId);
-
-  /**
    * Restores a table from a backup.
    *
    * @param request the restore request containing restore configuration
+   * @return the unique identifier of the restore operation for status tracking
    * @since 0.2.25
    */
-  public abstract void restoreBackup(RestoreRequest request);
+  public abstract String restoreBackup(RestoreRequest request);
+
+  /**
+   * Gets details of a specific restore operation by its ID.
+   *
+   * @param restoreId the unique identifier of the restore operation
+   * @return the Restore object with full metadata
+   * @since 0.2.25
+   */
+  public abstract Restore getRestoreJob(String restoreId);
 
   /**
    * Builder base class for AbstractDBBackupRestore implementations.

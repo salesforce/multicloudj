@@ -8,17 +8,23 @@ import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
+import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreStatus;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.backup.BackupClient;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointRequest;
 import software.amazon.awssdk.services.backup.model.DescribeRecoveryPointResponse;
+import software.amazon.awssdk.services.backup.model.DescribeRestoreJobRequest;
+import software.amazon.awssdk.services.backup.model.DescribeRestoreJobResponse;
 import software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceRequest;
 import software.amazon.awssdk.services.backup.model.ListRecoveryPointsByResourceResponse;
 import software.amazon.awssdk.services.backup.model.RecoveryPointByResource;
 import software.amazon.awssdk.services.backup.model.RecoveryPointStatus;
+import software.amazon.awssdk.services.backup.model.RestoreJobStatus;
 import software.amazon.awssdk.services.backup.model.StartRestoreJobRequest;
+import software.amazon.awssdk.services.backup.model.StartRestoreJobResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,12 +98,6 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
         return convertToBackup(response);
     }
 
-    @Override
-    public BackupStatus getBackupStatus(String backupId) {
-        DescribeRecoveryPointResponse response = describeRecoveryPoint(backupId);
-        return convertRecoveryPointStatus(response.status());
-    }
-
     private DescribeRecoveryPointResponse describeRecoveryPoint(String backupId) {
         // First, get the vault name by listing recovery points for this resource
         String vaultName = getVaultNameForRecoveryPoint(backupId);
@@ -108,7 +108,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
     }
 
     @Override
-    public void restoreBackup(RestoreRequest request) {
+    public String restoreBackup(RestoreRequest request) {
         // The role is assumed by AWS Backup to create the restored table.
         String iamRoleArn = request.getRoleId();
         if (StringUtils.isBlank(iamRoleArn)) {
@@ -125,7 +125,20 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
 
         StartRestoreJobRequest restoreJobRequest = StartRestoreJobRequest.builder().recoveryPointArn(request.getBackupId()).metadata(metadata).idempotencyToken(UUID.uniqueString()).iamRoleArn(iamRoleArn).resourceType("DynamoDB").build();
 
-        backupClient.startRestoreJob(restoreJobRequest);
+        StartRestoreJobResponse response = backupClient.startRestoreJob(restoreJobRequest);
+
+        // Return the restore job ARN as the restore ID
+        return response.restoreJobId();
+    }
+
+    @Override
+    public Restore getRestoreJob(String restoreId) {
+        DescribeRestoreJobRequest request = DescribeRestoreJobRequest.builder()
+                .restoreJobId(restoreId)
+                .build();
+
+        DescribeRestoreJobResponse response = backupClient.describeRestoreJob(request);
+        return convertToRestore(response);
     }
 
     @Override
@@ -183,6 +196,35 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
         }
     }
 
+    private Restore convertToRestore(DescribeRestoreJobResponse response) {
+        return Restore.builder()
+                .restoreId(response.restoreJobId())
+                .backupId(response.recoveryPointArn())
+                .targetResource(response.createdResourceArn())
+                .status(convertRestoreJobStatus(response.status()))
+                .startTime(response.creationDate())
+                .endTime(response.completionDate())
+                .build();
+    }
+
+    private RestoreStatus convertRestoreJobStatus(RestoreJobStatus status) {
+        if (status == null) {
+            return RestoreStatus.UNKNOWN;
+        }
+        switch (status) {
+            case PENDING:
+            case RUNNING:
+                return RestoreStatus.RESTORING;
+            case COMPLETED:
+                return RestoreStatus.COMPLETED;
+            case ABORTED:
+            case FAILED:
+                return RestoreStatus.FAILED;
+            default:
+                return RestoreStatus.UNKNOWN;
+        }
+    }
+
     /**
      * Builder for AwsDBBackupRestore.
      */
@@ -225,7 +267,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
         }
 
         @Override
-        public com.salesforce.multicloudj.dbbackuprestore.aws.AwsDBBackupRestore build() {
+        public AwsDBBackupRestore build() {
             if (StringUtils.isBlank(region)) {
                 throw new IllegalArgumentException("Region is required");
             }
@@ -238,7 +280,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
                 backupClient = BackupClient.builder().region(Region.of(region)).build();
             }
 
-            return new com.salesforce.multicloudj.dbbackuprestore.aws.AwsDBBackupRestore(this);
+            return new AwsDBBackupRestore(this);
         }
     }
 }

@@ -59,6 +59,11 @@ public class AliDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
         }
 
         @Override
+        public String getProviderId() {
+            return "ali";
+        }
+
+        @Override
         public String getBackupEndpoint() {
             return "https://hbr.cn-shanghai.aliyuncs.com";
         }

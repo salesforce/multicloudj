@@ -1,12 +1,17 @@
 package com.salesforce.multicloudj.dbbackuprestore.gcp;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.api.gax.rpc.ApiException;
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auto.service.AutoService;
 import com.google.cloud.firestore.v1.FirestoreAdminClient;
 import com.google.cloud.firestore.v1.FirestoreAdminSettings;
+import com.google.firestore.admin.v1.Database;
+import com.google.firestore.admin.v1.ListBackupsRequest;
 import com.google.firestore.admin.v1.ListBackupsResponse;
-import com.google.auto.service.AutoService;
+import com.google.firestore.admin.v1.RestoreDatabaseMetadata;
 import com.google.firestore.admin.v1.RestoreDatabaseRequest;
+import com.google.longrunning.Operation;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -15,13 +20,16 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
+import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreStatus;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * GCP Firestore implementation of database backup and restore operations.
@@ -94,13 +102,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
     }
 
     @Override
-    public BackupStatus getBackupStatus(String backupId) {
-        Backup backup = getBackup(backupId);
-        return backup.getStatus();
-    }
-
-    @Override
-    public void restoreBackup(RestoreRequest request) {
+    public String restoreBackup(RestoreRequest request) {
         // Build restore request
         String targetDBID = request.getTargetResource();
         if (StringUtils.isBlank(targetDBID)) {
@@ -109,8 +111,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
 
         // Extract parent from backup ID (format: projects/{project}/locations/{location}/backups/{backup})
         String parent = request.getBackupId().substring(
-                0, request.getBackupId().lastIndexOf("/backups/"));
-        parent = parent.replace("/locations/", "/");
+                0, request.getBackupId().lastIndexOf("/locations/"));
 
         RestoreDatabaseRequest.Builder restoreBuilder = RestoreDatabaseRequest.newBuilder()
                 .setParent(parent)
@@ -118,7 +119,27 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
                 .setBackup(request.getBackupId());
 
         // Restore is a long-running operation
-        firestoreAdminClient.restoreDatabaseAsync(restoreBuilder.build());
+        OperationFuture<Database, RestoreDatabaseMetadata> operation =
+                firestoreAdminClient.restoreDatabaseAsync(restoreBuilder.build());
+
+        // Return the operation name as the restore ID
+        try {
+            return operation.getName();
+        } catch (ExecutionException e) {
+            if (e.getCause() == null) {
+                throw new SubstrateSdkException(e);
+            }
+            throw (RuntimeException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SubstrateSdkException("Interrupted while waiting for restore to trigger.", e);
+        }
+    }
+
+    @Override
+    public Restore getRestoreJob(String restoreId) {
+        Operation operation = firestoreAdminClient.getOperationsClient().getOperation(restoreId);
+        return convertToRestore(operation);
     }
 
     @Override
@@ -163,11 +184,58 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
     }
 
     /**
+     * Converts GCP Operation to MultiCloudJ Restore model.
+     */
+    private Restore convertToRestore(Operation operation) {
+        RestoreStatus status;
+        Instant endTime = null;
+        Instant startTime = null;
+
+        if (operation.getDone()) {
+            if (operation.hasError()) {
+                status = RestoreStatus.FAILED;
+            } else {
+                status = RestoreStatus.COMPLETED;
+            }
+        } else {
+            status = RestoreStatus.RESTORING;
+        }
+
+        // Extract metadata
+        String backupId = "";
+        String targetResource = "";
+        if (operation.hasMetadata()) {
+            try {
+                RestoreDatabaseMetadata metadata = operation.getMetadata()
+                        .unpack(RestoreDatabaseMetadata.class);
+                backupId = metadata.getBackup();
+                if (metadata.hasEndTime()) {
+                    endTime = Instant.ofEpochSecond(metadata.getEndTime().getSeconds(), metadata.getEndTime().getNanos());
+                }
+                if (metadata.hasStartTime()) {
+                    startTime = Instant.ofEpochSecond(metadata.getStartTime().getSeconds(), metadata.getStartTime().getNanos());
+                }
+                targetResource = metadata.getDatabase();
+
+            } catch (InvalidProtocolBufferException e) {
+                throw new UnknownException("backup metadata is corrupted");
+            }
+        }
+        return Restore.builder()
+                .restoreId(operation.getName())
+                .backupId(backupId)
+                .targetResource(targetResource)
+                .status(status)
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
+    }
+
+    /**
      * Builder for FSDBBackupRestore.
      */
     public static class Builder extends AbstractDBBackupRestore.Builder<FSDBBackupRestore, Builder> {
         private FirestoreAdminClient firestoreAdminClient;
-        private GoogleCredentials credentials;
 
         /**
          * Default constructor.
@@ -193,7 +261,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
         }
 
         @Override
-        public com.salesforce.multicloudj.dbbackuprestore.gcp.FSDBBackupRestore build() {
+        public FSDBBackupRestore build() {
             if (StringUtils.isBlank(region)) {
                 throw new IllegalArgumentException("Region is required");
             }
@@ -205,18 +273,13 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
             if (firestoreAdminClient == null) {
                 try {
                     FirestoreAdminSettings.Builder settingsBuilder = FirestoreAdminSettings.newBuilder();
-
-                    if (credentials != null) {
-                        settingsBuilder.setCredentialsProvider(() -> credentials);
-                    }
-
                     firestoreAdminClient = FirestoreAdminClient.create(settingsBuilder.build());
                 } catch (IOException e) {
                     throw new UnknownException("Failed to create FirestoreAdminClient", e);
                 }
             }
 
-            return new com.salesforce.multicloudj.dbbackuprestore.gcp.FSDBBackupRestore(this);
+            return new FSDBBackupRestore(this);
         }
     }
 }

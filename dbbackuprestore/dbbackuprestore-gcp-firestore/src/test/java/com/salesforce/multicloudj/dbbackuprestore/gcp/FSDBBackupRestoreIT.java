@@ -48,16 +48,17 @@ public class FSDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
                 Assertions.fail("Failed to create the firestore admin client", e);
             }
 
-            return new FSDBBackupRestore.Builder()
-                    .withFirestoreAdminClient(firestoreAdminClient)
-                    .withRegion("projects/substrate-sdk-gcp-poc1/locations/nam5")
-                    .withResourceName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1")
-                    .build();
+            return new FSDBBackupRestore.Builder().withFirestoreAdminClient(firestoreAdminClient).withRegion("projects/substrate-sdk-gcp-poc1/locations/nam5").withResourceName("projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1").build();
         }
 
         @Override
         public int getPort() {
             return port;
+        }
+
+        @Override
+        public String getProviderId() {
+            return "gcp-firestore";
         }
 
         @Override

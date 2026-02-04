@@ -1,17 +1,26 @@
 package com.salesforce.multicloudj.dbbackuprestore.gcp;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.firestore.v1.FirestoreAdminClient;
 import com.google.firestore.admin.v1.Backup;
+import com.google.firestore.admin.v1.Database;
 import com.google.firestore.admin.v1.ListBackupsResponse;
+import com.google.firestore.admin.v1.RestoreDatabaseMetadata;
 import com.google.firestore.admin.v1.RestoreDatabaseRequest;
+import com.google.longrunning.Operation;
+import com.google.longrunning.OperationsClient;
+import com.google.protobuf.Any;
 import com.google.protobuf.Timestamp;
+import com.google.rpc.Status;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
+import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreStatus;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +52,9 @@ public class FSDBBackupRestoreTest {
 
     @Mock
     private FirestoreAdminClient mockFirestoreClient;
+
+    @Mock
+    private OperationsClient mockOperationsClient;
 
     private FSDBBackupRestore dbBackupRestore;
     private static final String DATABASE_ID = "(default)";
@@ -120,82 +132,108 @@ public class FSDBBackupRestoreTest {
     }
 
     @Test
-    void testGetBackupStatus() {
-        Backup backup = Backup.newBuilder()
-                .setName("projects/my-project/locations/us-central1/backups/backup-456")
-                .setDatabase("projects/my-project/databases/(default)")
-                .setState(Backup.State.CREATING)
-                .setSnapshotTime(Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
-                .setExpireTime(Timestamp.newBuilder().setSeconds(Instant.now().plusSeconds(86400).getEpochSecond()).build())
-                .build();
-
-        when(mockFirestoreClient.getBackup("projects/my-project/locations/us-central1/backups/backup-456"))
-                .thenReturn(backup);
-
-        BackupStatus status = dbBackupRestore.getBackupStatus("projects/my-project/locations/us-central1/backups/backup-456");
-
-        assertEquals(BackupStatus.CREATING, status);
-        verify(mockFirestoreClient, times(1)).getBackup("projects/my-project/locations/us-central1/backups/backup-456");
-    }
-
-    @Test
-    void testRestoreBackup() {
+    void testRestoreBackup() throws Exception {
         RestoreRequest request = RestoreRequest.builder()
                 .backupId("projects/my-project/locations/us-central1/backups/backup-789")
                 .targetResource("restored-db")
                 .build();
 
-        when(mockFirestoreClient.restoreDatabaseAsync(any(RestoreDatabaseRequest.class)))
-                .thenReturn(null);
+        // Mock OperationFuture
+        @SuppressWarnings("unchecked")
+        OperationFuture<Database, RestoreDatabaseMetadata> mockOperationFuture =
+                org.mockito.Mockito.mock(OperationFuture.class);
+        when(mockOperationFuture.getName()).thenReturn("operations/restore-job-123");
 
-        dbBackupRestore.restoreBackup(request);
+        when(mockFirestoreClient.restoreDatabaseAsync(any(RestoreDatabaseRequest.class)))
+                .thenReturn(mockOperationFuture);
+
+        String restoreId = dbBackupRestore.restoreBackup(request);
+
+        assertNotNull(restoreId);
+        assertEquals("operations/restore-job-123", restoreId);
 
         ArgumentCaptor<RestoreDatabaseRequest> captor = ArgumentCaptor.forClass(RestoreDatabaseRequest.class);
         verify(mockFirestoreClient, times(1)).restoreDatabaseAsync(captor.capture());
 
         RestoreDatabaseRequest capturedRequest = captor.getValue();
         assertEquals("projects/my-project/locations/us-central1/backups/backup-789", capturedRequest.getBackup());
-        assertTrue(capturedRequest.getDatabaseId().contains("restored-db"));
+        assertEquals("restored-db", capturedRequest.getDatabaseId());
+        assertEquals("projects/my-project", capturedRequest.getParent());
+    }
+
+    private Restore setupGetRestoreJobTest(String restoreId, boolean isDone, boolean hasError, boolean includeEndTime) {
+        Instant startTime = Instant.now().minusSeconds(300);
+        Instant endTime = Instant.now();
+
+        RestoreDatabaseMetadata.Builder metadataBuilder = RestoreDatabaseMetadata.newBuilder()
+                .setBackup("projects/my-project/locations/us-central1/backups/backup-789")
+                .setDatabase("projects/my-project/databases/restored-db")
+                .setStartTime(Timestamp.newBuilder()
+                        .setSeconds(startTime.getEpochSecond())
+                        .setNanos(startTime.getNano())
+                        .build());
+
+        if (includeEndTime) {
+            metadataBuilder.setEndTime(Timestamp.newBuilder()
+                    .setSeconds(endTime.getEpochSecond())
+                    .setNanos(endTime.getNano())
+                    .build());
+        }
+
+        Operation.Builder operationBuilder = Operation.newBuilder()
+                .setName(restoreId)
+                .setDone(isDone)
+                .setMetadata(Any.pack(metadataBuilder.build()));
+
+        if (hasError) {
+            operationBuilder.setError(Status.newBuilder()
+                    .setCode(13)
+                    .setMessage("Restore operation failed")
+                    .build());
+        }
+
+        when(mockFirestoreClient.getOperationsClient()).thenReturn(mockOperationsClient);
+        when(mockOperationsClient.getOperation(restoreId)).thenReturn(operationBuilder.build());
+
+        Restore restore = dbBackupRestore.getRestoreJob(restoreId);
+
+        assertNotNull(restore);
+        assertEquals(restoreId, restore.getRestoreId());
+        assertEquals("projects/my-project/locations/us-central1/backups/backup-789", restore.getBackupId());
+        assertEquals("projects/my-project/databases/restored-db", restore.getTargetResource());
+        verify(mockFirestoreClient, times(1)).getOperationsClient();
+        verify(mockOperationsClient, times(1)).getOperation(restoreId);
+
+        return restore;
     }
 
     @Test
-    void testConvertBackupState() {
-        // Test via getBackupStatus
-        Backup readyBackup = Backup.newBuilder()
-                .setName("backup-1")
-                .setDatabase("db")
-                .setState(Backup.State.READY)
-                .setSnapshotTime(Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
-                .setExpireTime(Timestamp.newBuilder().setSeconds(Instant.now().plusSeconds(86400).getEpochSecond()).build())
-                .build();
+    void testGetRestore_Job_Restoring() {
+        String restoreId = "projects/my-project/locations/us-central1/operations/operation-123";
+        Restore restore = setupGetRestoreJobTest(restoreId, false, false, false);
 
-        when(mockFirestoreClient.getBackup("backup-1"))
-                .thenReturn(readyBackup);
-        assertEquals(BackupStatus.AVAILABLE, dbBackupRestore.getBackupStatus("backup-1"));
+        assertEquals(RestoreStatus.RESTORING, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNull(restore.getEndTime());
+    }
 
-        Backup creatingBackup = Backup.newBuilder()
-                .setName("backup-2")
-                .setDatabase("db")
-                .setState(Backup.State.CREATING)
-                .setSnapshotTime(Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
-                .setExpireTime(Timestamp.newBuilder().setSeconds(Instant.now().plusSeconds(86400).getEpochSecond()).build())
-                .build();
+    @Test
+    void testGetRestore_Job_Completed() {
+        String restoreId = "projects/my-project/locations/us-central1/operations/operation-456";
+        Restore restore = setupGetRestoreJobTest(restoreId, true, false, true);
 
-        when(mockFirestoreClient.getBackup("backup-2"))
-                .thenReturn(creatingBackup);
-        assertEquals(BackupStatus.CREATING, dbBackupRestore.getBackupStatus("backup-2"));
+        assertEquals(RestoreStatus.COMPLETED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNotNull(restore.getEndTime());
+    }
 
-        Backup notAvailableBackup = Backup.newBuilder()
-                .setName("backup-3")
-                .setDatabase("db")
-                .setState(Backup.State.NOT_AVAILABLE)
-                .setSnapshotTime(Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()).build())
-                .setExpireTime(Timestamp.newBuilder().setSeconds(Instant.now().plusSeconds(86400).getEpochSecond()).build())
-                .build();
+    @Test
+    void testGetRestore_Job_Failed() {
+        String restoreId = "projects/my-project/locations/us-central1/operations/operation-789";
+        Restore restore = setupGetRestoreJobTest(restoreId, true, true, false);
 
-        when(mockFirestoreClient.getBackup("backup-3"))
-                .thenReturn(notAvailableBackup);
-        assertEquals(BackupStatus.FAILED, dbBackupRestore.getBackupStatus("backup-3"));
+        assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
     }
 
     @Test

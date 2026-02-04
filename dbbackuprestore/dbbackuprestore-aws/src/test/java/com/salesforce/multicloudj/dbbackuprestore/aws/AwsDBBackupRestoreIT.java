@@ -56,7 +56,12 @@ public class AwsDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
       return port;
     }
 
-    @Override
+      @Override
+      public String getProviderId() {
+          return "aws";
+      }
+
+      @Override
     public String getBackupEndpoint() {
       return "https://backup.us-west-2.amazonaws.com";
     }

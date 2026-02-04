@@ -2,9 +2,13 @@ package com.salesforce.multicloudj.dbbackuprestore.ali;
 
 import com.aliyun.hbr20170908.Client;
 import com.aliyun.hbr20170908.models.CreateRestoreJobRequest;
+import com.aliyun.hbr20170908.models.CreateRestoreJobResponse;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsRequest;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponse;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponseBody;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Request;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Response;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2ResponseBody;
 import com.aliyun.hbr20170908.models.OtsTableRestoreDetail;
 import com.aliyun.teaopenapi.models.Config;
 import com.google.auto.service.AutoService;
@@ -14,7 +18,9 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
+import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -104,17 +110,11 @@ public class AliDBBackupRestore extends AbstractDBBackupRestore {
     }
 
     @Override
-    public BackupStatus getBackupStatus(String backupId) {
-        Backup backup = getBackup(backupId);
-        return backup.getStatus();
-    }
-
-    @Override
-    public void restoreBackup(RestoreRequest request) {
+    public String restoreBackup(RestoreRequest request) {
         CreateRestoreJobRequest restoreJobRequest = new CreateRestoreJobRequest();
         restoreJobRequest.setRestoreType("OTS_TABLE");
         restoreJobRequest.setSnapshotId(request.getBackupId());
-        
+
         // Configure OTS restore details
         OtsTableRestoreDetail otsDetail = new OtsTableRestoreDetail();
         otsDetail.setOverwriteExisting(false);
@@ -126,9 +126,48 @@ public class AliDBBackupRestore extends AbstractDBBackupRestore {
         }
 
         try {
-            hbrClient.createRestoreJob(restoreJobRequest);
+            CreateRestoreJobResponse response = hbrClient.createRestoreJob(restoreJobRequest);
+            // Return the restore job ID
+            return response.getBody().getRestoreId();
         } catch (Exception e) {
             throw new UnknownException("failed to create restore job", e);
+        }
+    }
+
+    @Override
+    public Restore getRestoreJob(String restoreId) {
+        DescribeRestoreJobs2Request request = new DescribeRestoreJobs2Request();
+
+        // Use filters to query for the specific restore job
+        DescribeRestoreJobs2Request.DescribeRestoreJobs2RequestFilters filter =
+                new DescribeRestoreJobs2Request.DescribeRestoreJobs2RequestFilters();
+        filter.setKey("JobId");
+        filter.setOperator("EQUAL");
+        List<String> values = new ArrayList<>();
+        values.add(restoreId);
+        filter.setValues(values);
+
+        List<DescribeRestoreJobs2Request.DescribeRestoreJobs2RequestFilters> filters =
+                new java.util.ArrayList<>();
+        filters.add(filter);
+        request.setFilters(filters);
+
+        try {
+            DescribeRestoreJobs2Response response = hbrClient.describeRestoreJobs2(request);
+
+            if (response.getBody() == null || response.getBody().getRestoreJobs() == null
+                    || response.getBody().getRestoreJobs().getRestoreJob().isEmpty()) {
+                throw new ResourceNotFoundException("Restore job not found: " + restoreId);
+            }
+
+            DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobsRestoreJob restoreJob =
+                    response.getBody().getRestoreJobs().getRestoreJob().get(0);
+            return convertToRestore(restoreJob);
+        } catch (Exception e) {
+            if (e instanceof ResourceNotFoundException) {
+                throw (ResourceNotFoundException) e;
+            }
+            throw new UnknownException("failed to describe restore job", e);
         }
     }
 
@@ -199,6 +238,63 @@ public class AliDBBackupRestore extends AbstractDBBackupRestore {
                 return BackupStatus.FAILED;
             default:
                 return BackupStatus.UNKNOWN;
+        }
+    }
+
+    /**
+     * Converts Alibaba restore job to Restore model.
+     *
+     * @param restoreJob the Alibaba restore job
+     * @return the Restore object
+     */
+    private Restore convertToRestore(DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobsRestoreJob restoreJob) {
+
+        RestoreStatus status = convertRestoreJobStatus(restoreJob.getStatus());
+
+        // Parse timestamps - CreatedTime and CompleteTime are epoch timestamps in seconds (Long type)
+        Instant startTime = null;
+        if (restoreJob.getCreatedTime() != null) {
+            startTime = Instant.ofEpochSecond(restoreJob.getCreatedTime());
+        }
+
+        Instant endTime = null;
+        if (restoreJob.getCompleteTime() != null) {
+            endTime = Instant.ofEpochSecond(restoreJob.getCompleteTime());
+        }
+
+        return Restore.builder()
+                .restoreId(restoreJob.getRestoreId())
+                .backupId(restoreJob.getSnapshotId())
+                .targetResource(restoreJob.getTargetTableName())
+                .status(status)
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
+    }
+
+    /**
+     * Converts Alibaba restore job status to RestoreStatus.
+     *
+     * @param status the Alibaba restore job status
+     * @return the RestoreStatus
+     */
+    private RestoreStatus convertRestoreJobStatus(String status) {
+        if (status == null) {
+            return RestoreStatus.UNKNOWN;
+        }
+
+        switch (status.toUpperCase()) {
+            case "COMPLETE":
+                return RestoreStatus.COMPLETED;
+            case "RUNNING":
+            case "PARTIAL_COMPLETE":
+                return RestoreStatus.RESTORING;
+            case "FAILED":
+            case "EXPIRED":
+            case "CANCELED":
+                return RestoreStatus.FAILED;
+            default:
+                return RestoreStatus.UNKNOWN;
         }
     }
 

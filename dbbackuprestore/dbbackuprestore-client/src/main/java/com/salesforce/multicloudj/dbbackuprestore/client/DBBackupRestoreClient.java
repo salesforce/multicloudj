@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.dbbackuprestore.client;
 import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
-import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
 
 import java.util.List;
@@ -114,24 +114,24 @@ public class DBBackupRestoreClient implements AutoCloseable {
     }
 
     /**
-     * Gets the current status of a specific backup.
-     * This is a convenience method that retrieves only the status without full backup metadata.
-     *
-     * @param backupId the unique identifier of the backup
-     * @return the current BackupStatus of the backup
-     */
-    public BackupStatus getBackupStatus(String backupId) {
-        return dbBackupRestore.getBackupStatus(backupId);
-    }
-
-    /**
      * Restores a table from a backup.
      * The restore operation may take time depending on the backup size and is async request.
      *
      * @param request the restore request containing restore configuration
+     * @return the unique identifier of the restore operation for status tracking
      */
-    public void restoreBackup(RestoreRequest request) {
-        dbBackupRestore.restoreBackup(request);
+    public String restoreBackup(RestoreRequest request) {
+        return dbBackupRestore.restoreBackup(request);
+    }
+
+    /**
+     * Gets details of a specific restore operation by its ID.
+     *
+     * @param restoreId the unique identifier of the restore operation
+     * @return the Restore object with full metadata
+     */
+    public Restore getRestoreJob(String restoreId) {
+        return dbBackupRestore.getRestoreJob(restoreId);
     }
 
     @Override

@@ -7,11 +7,17 @@ import com.aliyun.hbr20170908.models.CreateRestoreJobResponseBody;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsRequest;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponse;
 import com.aliyun.hbr20170908.models.DescribeOtsTableSnapshotsResponseBody;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Request;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2Response;
+import com.aliyun.hbr20170908.models.DescribeRestoreJobs2ResponseBody;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
+import com.salesforce.multicloudj.dbbackuprestore.driver.Restore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreRequest;
+import com.salesforce.multicloudj.dbbackuprestore.driver.RestoreStatus;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +33,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -159,31 +166,6 @@ public class AliDBBackupRestoreTest {
     }
 
     @Test
-    void testGetBackupStatus() throws Exception {
-        DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots snapshot =
-                new DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots();
-        snapshot.setSnapshotId("snapshot-456");
-        snapshot.setTableName(TABLE_NAME);
-        snapshot.setStatus("RUNNING");
-        snapshot.setCreatedTime(Instant.now().getEpochSecond());
-        snapshot.setVaultId("vault-xyz");
-
-        DescribeOtsTableSnapshotsResponseBody responseBody = new DescribeOtsTableSnapshotsResponseBody();
-        responseBody.setSnapshots(Arrays.asList(snapshot));
-
-        DescribeOtsTableSnapshotsResponse response = new DescribeOtsTableSnapshotsResponse();
-        response.setBody(responseBody);
-
-        when(mockHbrClient.describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class)))
-                .thenReturn(response);
-
-        BackupStatus status = dbBackupRestore.getBackupStatus("snapshot-456");
-
-        assertEquals(BackupStatus.UNKNOWN, status);
-        verify(mockHbrClient, times(1)).describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class));
-    }
-
-    @Test
     void testRestoreBackup() throws Exception {
         RestoreRequest request = RestoreRequest.builder()
                 .backupId("snapshot-789")
@@ -226,41 +208,94 @@ public class AliDBBackupRestoreTest {
         });
     }
 
+    private Restore setupGetRestoreJobTest(String restoreJobId, String status, boolean includeCompletionTime) throws Exception {
+        Instant creationTime = Instant.now().minusSeconds(300);
+        Instant completionTime = Instant.now();
+
+        DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobsRestoreJob restoreJob =
+                new DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobsRestoreJob();
+        restoreJob.setRestoreId(restoreJobId);
+        restoreJob.setSnapshotId("snapshot-789");
+        restoreJob.setTargetTableName("restored-table");
+        restoreJob.setStatus(status);
+        restoreJob.setCreatedTime(creationTime.getEpochSecond());
+
+        if (includeCompletionTime) {
+            restoreJob.setCompleteTime(completionTime.getEpochSecond());
+        }
+
+        DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobs restoreJobs =
+                new DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobs();
+        restoreJobs.setRestoreJob(Arrays.asList(restoreJob));
+
+        DescribeRestoreJobs2ResponseBody responseBody = new DescribeRestoreJobs2ResponseBody();
+        responseBody.setRestoreJobs(restoreJobs);
+
+        DescribeRestoreJobs2Response response = new DescribeRestoreJobs2Response();
+        response.setBody(responseBody);
+
+        when(mockHbrClient.describeRestoreJobs2(any(DescribeRestoreJobs2Request.class)))
+                .thenReturn(response);
+
+        Restore restore = dbBackupRestore.getRestoreJob(restoreJobId);
+
+        assertNotNull(restore);
+        assertEquals(restoreJobId, restore.getRestoreId());
+        assertEquals("snapshot-789", restore.getBackupId());
+        assertEquals("restored-table", restore.getTargetResource());
+        verify(mockHbrClient, times(1)).describeRestoreJobs2(any(DescribeRestoreJobs2Request.class));
+
+        return restore;
+    }
+
     @Test
-    void testConvertSnapshotStatus() throws Exception {
-        // Test COMPLETE status
-        DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots completeSnapshot =
-                new DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots();
-        completeSnapshot.setSnapshotId("snap-1");
-        completeSnapshot.setTableName(TABLE_NAME);
-        completeSnapshot.setStatus("COMPLETE");
-        completeSnapshot.setCreatedTime(Instant.now().getEpochSecond());
+    void testGetRestore_Job_Running() throws Exception {
+        String restoreJobId = "restore-job-123";
+        Restore restore = setupGetRestoreJobTest(restoreJobId, "RUNNING", false);
+        assertEquals(RestoreStatus.RESTORING, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNull(restore.getEndTime());
+    }
 
-        DescribeOtsTableSnapshotsResponseBody body1 = new DescribeOtsTableSnapshotsResponseBody();
-        body1.setSnapshots(Arrays.asList(completeSnapshot));
-        DescribeOtsTableSnapshotsResponse response1 = new DescribeOtsTableSnapshotsResponse();
-        response1.setBody(body1);
+    @Test
+    void testGetRestore_Job_Completed() throws Exception {
+        String restoreJobId = "restore-job-456";
+        Restore restore = setupGetRestoreJobTest(restoreJobId, "COMPLETE", true);
+        assertEquals(RestoreStatus.COMPLETED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNotNull(restore.getEndTime());
+    }
 
-        when(mockHbrClient.describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class)))
-                .thenReturn(response1);
-        assertEquals(BackupStatus.AVAILABLE, dbBackupRestore.getBackupStatus("snap-1"));
+    @Test
+    void testGetRestore_Job_Failed() throws Exception {
+        String restoreJobId = "restore-job-789";
+        Restore restore = setupGetRestoreJobTest(restoreJobId, "FAILED", true);
+        assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNotNull(restore.getEndTime());
+    }
 
-        // Test FAILED status
-        DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots failedSnapshot =
-                new DescribeOtsTableSnapshotsResponseBody.DescribeOtsTableSnapshotsResponseBodySnapshots();
-        failedSnapshot.setSnapshotId("snap-2");
-        failedSnapshot.setTableName(TABLE_NAME);
-        failedSnapshot.setStatus("FAILED");
-        failedSnapshot.setCreatedTime(Instant.now().getEpochSecond());
+    @Test
+    void testGetRestore_Job_NotFound() throws Exception {
+        String restoreJobId = "non-existent-restore";
 
-        DescribeOtsTableSnapshotsResponseBody body2 = new DescribeOtsTableSnapshotsResponseBody();
-        body2.setSnapshots(Arrays.asList(failedSnapshot));
-        DescribeOtsTableSnapshotsResponse response2 = new DescribeOtsTableSnapshotsResponse();
-        response2.setBody(body2);
+        DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobs restoreJobs =
+                new DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobs();
+        restoreJobs.setRestoreJob(Arrays.asList());
 
-        when(mockHbrClient.describeOtsTableSnapshots(any(DescribeOtsTableSnapshotsRequest.class)))
-                .thenReturn(response2);
-        assertEquals(BackupStatus.FAILED, dbBackupRestore.getBackupStatus("snap-2"));
+        DescribeRestoreJobs2ResponseBody responseBody = new DescribeRestoreJobs2ResponseBody();
+        responseBody.setRestoreJobs(restoreJobs);
+
+        DescribeRestoreJobs2Response response = new DescribeRestoreJobs2Response();
+        response.setBody(responseBody);
+
+        when(mockHbrClient.describeRestoreJobs2(any(DescribeRestoreJobs2Request.class)))
+                .thenReturn(response);
+
+        assertThrows(ResourceNotFoundException.class, () -> {
+            dbBackupRestore.getRestoreJob(restoreJobId);
+        });
+        verify(mockHbrClient, times(1)).describeRestoreJobs2(any(DescribeRestoreJobs2Request.class));
     }
 
     @Test

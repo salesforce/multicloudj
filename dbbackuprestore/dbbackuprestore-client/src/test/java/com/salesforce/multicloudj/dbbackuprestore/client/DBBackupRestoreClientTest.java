@@ -22,6 +22,7 @@ import java.util.ServiceLoader;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -133,14 +134,6 @@ public class DBBackupRestoreClientTest {
     }
 
     @Test
-    void testGetBackupStatus() {
-        when(mockDriver.getBackupStatus("backup-456")).thenReturn(BackupStatus.CREATING);
-        BackupStatus status = client.getBackupStatus("backup-456");
-        assertEquals(BackupStatus.CREATING, status);
-        verify(mockDriver, times(1)).getBackupStatus("backup-456");
-    }
-
-    @Test
     void testRestoreBackup() {
         RestoreRequest request =
                 RestoreRequest.builder()
@@ -150,7 +143,7 @@ public class DBBackupRestoreClientTest {
                         .roleId("role-123")
                         .build();
 
-        doNothing().when(mockDriver).restoreBackup(request);
+        when(mockDriver.restoreBackup(any())).thenReturn("test");
         client.restoreBackup(request);
         verify(mockDriver, times(1)).restoreBackup(request);
     }
