@@ -40,6 +40,13 @@ public class UploadRequest {
      */
     private final String kmsKeyId;
     /**
+     * (Optional, AWS) When true, request SSE with AWS managed key (aws/s3) by sending
+     * x-amz-server-side-encryption: aws:kms without a key ID. S3 then uses the default
+     * AWS managed key, and the uploader typically does not need kms:GenerateDataKey.
+     * When false and kmsKeyId is null, no SSE headers are sent (bucket default applies).
+     */
+    private final boolean useKmsManagedKey;
+    /**
      * (Optional parameter) The base64-encoded checksum value for upload validation. crc32c is the most
      * common across most cloud providers. No other checksum is supported for now.
      *
@@ -58,6 +65,7 @@ public class UploadRequest {
         this.tags = builder.tags;
         this.storageClass = builder.storageClass;
         this.kmsKeyId = builder.kmsKeyId;
+        this.useKmsManagedKey = builder.useKmsManagedKey;
         this.objectLock = builder.objectLock;
         this.checksumValue = builder.checksumValue;
     }
@@ -77,6 +85,7 @@ public class UploadRequest {
         private Map<String, String> tags = Collections.emptyMap();
         private String storageClass;
         private String kmsKeyId;
+        private boolean useKmsManagedKey;
         private ObjectLockConfiguration objectLock;
         private String checksumValue;
 
@@ -107,6 +116,15 @@ public class UploadRequest {
 
         public Builder withKmsKeyId(String kmsKeyId) {
             this.kmsKeyId = kmsKeyId;
+            return this;
+        }
+
+        /**
+         * Request SSE with AWS managed key (aws/s3): send aws:kms without key ID.
+         * See {@link UploadRequest#useKmsManagedKey}.
+         */
+        public Builder withUseKmsManagedKey(boolean useKmsManagedKey) {
+            this.useKmsManagedKey = useKmsManagedKey;
             return this;
         }
 
