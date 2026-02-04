@@ -584,19 +584,24 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
+        String bucketForRequest = getBucket();
         UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
-                .bucket(getBucket())
+                .bucket(bucketForRequest)
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
                 .s3Prefix(request.getPrefix());
 
-        // Apply tags to every file in the directory via uploadFileRequestTransformer
+        // Merge tags into the existing PutObjectRequest per file; putObjectRequest(Consumer) would replace it and drop bucket/key.
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             List<Tag> tagSet = request.getTags().entrySet().stream()
                     .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
                     .collect(Collectors.toList());
-            builder.uploadFileRequestTransformer(r -> r.putObjectRequest(p -> p
-                    .tagging(Tagging.builder().tagSet(tagSet).build())));
+            builder.uploadFileRequestTransformer(fileRequestBuilder -> {
+                PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+                fileRequestBuilder.putObjectRequest(existing.toBuilder()
+                        .tagging(Tagging.builder().tagSet(tagSet).build())
+                        .build());
+            });
         }
 
         return builder.build();
