@@ -536,7 +536,8 @@
                 <artifactId>lombok-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>generate-sources</phase>
+                        <id>delombok</id>
+                        <phase>none</phase>
                         <goals>
                             <goal>delombok</goal>
                         </goals>

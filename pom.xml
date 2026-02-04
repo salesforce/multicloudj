@@ -34,6 +34,7 @@
     <modules>
         <module>iam</module>
         <module>blob</module>
+        <module>dbbackuprestore</module>
         <module>docstore</module>
         <module>examples</module>
         <module>pubsub</module>
@@ -57,6 +58,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
     </properties>
+    
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+    
     <!-- All module dependencies and versions -->
     <dependencyManagement>
         <dependencies>
@@ -172,6 +188,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackuprestore-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackuprestore-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
