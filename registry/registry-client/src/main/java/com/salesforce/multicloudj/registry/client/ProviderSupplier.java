@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.registry.client;
 import com.google.common.collect.ImmutableSet;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 
+import java.util.Objects;
 import java.util.ServiceLoader;
 
 /**
@@ -25,7 +26,7 @@ public class ProviderSupplier {
         Iterable<AbstractRegistry> all = ImmutableSet.<AbstractRegistry>builder().addAll(services).build();
 
         for (AbstractRegistry provider : all) {
-            if (provider.getProviderId().equals(providerId)) {
+            if (Objects.equals(provider.getProviderId(), providerId)) {
                 return createBuilderInstance(provider);
             }
         }

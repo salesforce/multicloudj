@@ -34,6 +34,7 @@ final class RemoteLayer implements Layer {
         return new GzipCompressorInputStream(compressed);
     }
 
+    /** Size not available; we only have digest from the manifest. Use -1 for unknown size. */
     @Override
     public long getSize() throws IOException {
         return -1;

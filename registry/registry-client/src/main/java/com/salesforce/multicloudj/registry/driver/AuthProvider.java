@@ -4,7 +4,6 @@ import java.io.IOException;
 
 /**
  * Authentication provider for registry requests.
- * Implemented by AbstractRegistry; each cloud implements getAuthUsername() and getAuthToken().
  */
 public interface AuthProvider {
 

@@ -57,29 +57,29 @@ public final class Manifest {
     }
 
     /**
-     * Entry in an OCI image index (platform + digest).
+     * Entry in an OCI image index (platform + digest). 
      */
     public static final class IndexEntry {
         private final String digest;
-        private final String platformOs;
-        private final String platformArch;
+        private final String os;
+        private final String architecture;
 
-        public IndexEntry(String digest, String platformOs, String platformArch) {
+        public IndexEntry(String digest, String os, String architecture) {
             this.digest = digest;
-            this.platformOs = platformOs;
-            this.platformArch = platformArch;
+            this.os = os;
+            this.architecture = architecture;
         }
 
         public String getDigest() {
             return digest;
         }
 
-        public String getPlatformOs() {
-            return platformOs;
+        public String getOs() {
+            return os;
         }
 
-        public String getPlatformArch() {
-            return platformArch;
+        public String getArchitecture() {
+            return architecture;
         }
     }
 }

@@ -10,21 +10,26 @@ import lombok.Getter;
 @Builder
 @Getter
 public class Platform {
+
+    public static final String DEFAULT_OS = "linux";
+    public static final String DEFAULT_ARCHITECTURE = "amd64";
+
     public static final Platform DEFAULT = Platform.builder()
-            .os("linux")
-            .architecture("amd64")
+            .operatingSystem(DEFAULT_OS)
+            .architecture(DEFAULT_ARCHITECTURE)
             .build();
 
     private final String architecture;
-    private final String os;
-    private final String osVersion;
+    private final String operatingSystem;
+    private final String operatingSystemVersion;
     private final String variant;
 
     public boolean matches(Platform target) {
         if (target == null) {
             return true;
         }
-        if (target.getOs() != null && !target.getOs().isEmpty() && !target.getOs().equals(this.os)) {
+        if (target.getOperatingSystem() != null && !target.getOperatingSystem().isEmpty()
+                && !target.getOperatingSystem().equals(this.operatingSystem)) {
             return false;
         }
         if (target.getArchitecture() != null && !target.getArchitecture().isEmpty()

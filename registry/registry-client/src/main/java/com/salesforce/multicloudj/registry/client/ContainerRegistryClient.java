@@ -28,24 +28,8 @@ public class ContainerRegistryClient implements AutoCloseable {
     /**
      * Pulls a Docker image from the registry and returns an Image object.
      * Uses the platform specified in the builder (or default linux/amd64).
-     * 
-     * <p>Platform selection happens during pull, as per OCI specification.
-     * To pull a different platform, create a new client with the desired platform:
-     * <pre>
-     * // Pull with default platform (linux/amd64)
-     * Image img1 = client.pull("my-image:tag");
+     * Platform selection happens during pull, as per OCI specification.
      *
-     * // Pull with different platform - create new client
-     * ContainerRegistryClient arm64Client = ContainerRegistryClient.builder("aws")
-     *     .withRegistryEndpoint("https://123456789.dkr.ecr.us-east-1.amazonaws.com")
-     *     .withPlatform(Platform.builder()
-     *         .os("linux")
-     *         .architecture("arm64")
-     *         .build())
-     *     .build();
-     * Image img2 = arm64Client.pull("my-image:tag");
-     * </pre>
-     * 
      * @param imageRef Image reference (e.g., "my-image:tag" or "my-image@sha256:...")
      * @return Image object representing the pulled image
      */
@@ -119,7 +103,7 @@ public class ContainerRegistryClient implements AutoCloseable {
          * Sets the target platform for multi-arch image selection.
          * If not specified, defaults to linux/amd64.
          * 
-         * @param platform Platform object (e.g., Platform.builder().os("linux").architecture("arm64").build())
+         * @param platform Platform object (e.g., Platform.builder().operatingSystem("linux").architecture("arm64").build())
          * @return this builder
          */
         public ContainerRegistryClientBuilder withPlatform(Platform platform) {

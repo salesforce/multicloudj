@@ -15,6 +15,7 @@ import java.io.IOException;
 public class GcpRegistry extends AbstractRegistry {
 
     public static final String PROVIDER_ID = "gcp";
+    private static final String GCP_AUTH_USERNAME = "oauth2accesstoken";
 
     private final OciRegistryClient ociClient;
 
@@ -35,7 +36,7 @@ public class GcpRegistry extends AbstractRegistry {
 
     @Override
     public String getAuthUsername() throws IOException {
-        return "oauth2accesstoken";
+        return GCP_AUTH_USERNAME;
     }
 
     @Override

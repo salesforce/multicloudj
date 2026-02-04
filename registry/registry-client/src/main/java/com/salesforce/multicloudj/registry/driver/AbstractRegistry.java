@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,8 +31,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         this.credentialsOverrider = builder.getCredentialsOverrider();
         this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
 
-        if (registryEndpoint == null || registryEndpoint.isEmpty()) {
-            throw new IllegalStateException("Registry endpoint must be provided via builder.withRegistryEndpoint()");
+        if (StringUtils.isBlank(registryEndpoint)) {
+            throw new IllegalStateException("Registry endpoint is not configured.");
         }
     }
 
@@ -84,9 +85,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
 
     @Override
-    public void close() throws Exception {
-        // Override in implementations to close OciRegistryClient and other resources
-    }
+    public abstract void close() throws Exception;
 
     /**
      * Abstract builder for registry implementations. Provider implementations extend this and implement build().
