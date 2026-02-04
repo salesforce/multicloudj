@@ -584,9 +584,8 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        String bucketForRequest = getBucket();
         UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
-                .bucket(bucketForRequest)
+                .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
                 .s3Prefix(request.getPrefix());
