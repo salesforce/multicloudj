@@ -174,19 +174,12 @@ public class AwsTransformer {
     }
 
     public PutObjectRequest toRequest(UploadRequest request) {
-        return toRequest(request, getBucket());
-    }
-
-    /**
-     * Builds PutObjectRequest using the given bucket (for cross-region / per-request bucket).
-     */
-    public PutObjectRequest toRequest(UploadRequest request, String bucket) {
         List<Tag> tags = request.getTags().entrySet().stream()
                 .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
                 .collect(Collectors.toList());
         PutObjectRequest.Builder builder = PutObjectRequest
                 .builder()
-                .bucket(bucket)
+                .bucket(getBucket())
                 .key(request.getKey())
                 .metadata(request.getMetadata())
                 .tagging(Tagging.builder().tagSet(tags).build());
