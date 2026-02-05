@@ -40,6 +40,12 @@ public class UploadRequest {
      */
     private final String kmsKeyId;
     /**
+     * Set the serviceSideEncryption Header but don't set the kmsKeyId.
+     * When false and kmsKeyId is null, no SSE headers are sent (bucket default applies).
+     * This option will trigger the use of the cloud provider managed key
+     */
+    private final boolean useKmsManagedKey;
+    /**
      * (Optional parameter) The base64-encoded checksum value for upload validation. crc32c is the most
      * common across most cloud providers. No other checksum is supported for now.
      *
@@ -58,6 +64,7 @@ public class UploadRequest {
         this.tags = builder.tags;
         this.storageClass = builder.storageClass;
         this.kmsKeyId = builder.kmsKeyId;
+        this.useKmsManagedKey = builder.useKmsManagedKey;
         this.objectLock = builder.objectLock;
         this.checksumValue = builder.checksumValue;
     }
@@ -77,6 +84,7 @@ public class UploadRequest {
         private Map<String, String> tags = Collections.emptyMap();
         private String storageClass;
         private String kmsKeyId;
+        private boolean useKmsManagedKey;
         private ObjectLockConfiguration objectLock;
         private String checksumValue;
 
@@ -107,6 +115,14 @@ public class UploadRequest {
 
         public Builder withKmsKeyId(String kmsKeyId) {
             this.kmsKeyId = kmsKeyId;
+            return this;
+        }
+
+        /**
+         * See {@link UploadRequest#useKmsManagedKey}.
+         */
+        public Builder withUseKmsManagedKey(boolean useKmsManagedKey) {
+            this.useKmsManagedKey = useKmsManagedKey;
             return this;
         }
 
