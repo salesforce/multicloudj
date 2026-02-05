@@ -163,6 +163,26 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testUploadWithUseKmsManagedKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withUseKmsManagedKey(true)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals("aws:kms", actual.serverSideEncryptionAsString());
+        assertNull(actual.ssekmsKeyId());
+    }
+
+    @Test
     void testListBlobsBatch() {
         var prefixes = Arrays.asList("some/prefix", "some/other/prefix");
         var awsPrefixes = prefixes

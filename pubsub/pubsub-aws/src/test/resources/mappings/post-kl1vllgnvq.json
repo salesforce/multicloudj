@@ -1,0 +1,30 @@
+{
+  "id" : "99f8f1a2-0e23-4834-a9b5-5b212085bba4",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-sqs-testSendBatchMessages\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testSendBatchMessages\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "7e37cf39-eab1-5fcf-bdd5-aede78beb3bc",
+      "Date" : "Mon, 19 Jan 2026 01:58:39 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "99f8f1a2-0e23-4834-a9b5-5b212085bba4",
+  "persistent" : true,
+  "insertionIndex" : 36
+}
