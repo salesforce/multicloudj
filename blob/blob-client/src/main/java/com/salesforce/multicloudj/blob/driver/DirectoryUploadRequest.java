@@ -5,10 +5,6 @@ import lombok.Getter;
 
 import java.util.Map;
 
-import static java.util.Collections.unmodifiableMap;
-
-import javax.imageio.IIOImage;
-
 /**
  * Wrapper object for directory upload data
  */
