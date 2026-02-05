@@ -67,13 +67,13 @@ public class CredentialsProvider {
                     // 2. Build the actual provider
                     return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
                             .stsClient(stsClient)
-                            .refreshRequest(r -> {
-                                r.roleArn(assumeRole)
+                            .refreshRequest(builder -> {
+                                builder.roleArn(assumeRole)
                                         .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())
                                         .roleSessionName(sessionName);
 
                                 if (overrider.getDurationSeconds() != null) {
-                                    r.durationSeconds(overrider.getDurationSeconds());
+                                    builder.durationSeconds(overrider.getDurationSeconds());
                                 }
                             })
                             .build();
