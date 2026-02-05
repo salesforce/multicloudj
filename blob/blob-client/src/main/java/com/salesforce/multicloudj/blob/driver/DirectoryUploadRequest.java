@@ -7,6 +7,8 @@ import java.util.Map;
 
 import static java.util.Collections.unmodifiableMap;
 
+import javax.imageio.IIOImage;
+
 /**
  * Wrapper object for directory upload data
  */
@@ -20,8 +22,4 @@ public class DirectoryUploadRequest {
      * (Optional parameter) The map of tagName to tagValue to be associated with all blobs in the directory
      */
     private final Map<String, String> tags;
-
-    public Map<String, String> getTags() {
-        return tags == null ? Map.of() : unmodifiableMap(tags);
-    }
 }
