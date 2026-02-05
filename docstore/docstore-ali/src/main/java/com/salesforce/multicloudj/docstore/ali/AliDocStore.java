@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -267,7 +268,7 @@ public class AliDocStore extends AbstractDocStore {
             throw new IllegalArgumentException("Missing key field: " + mf);
         }
 
-        String newPartitionKey = Util.uniqueString();
+        String newPartitionKey = UUID.uniqueString();
         if (collectionOptions.getSortKey() != null && mf.equals(collectionOptions.getSortKey())) {
             throw new IllegalArgumentException("Missing soft key: " + mf);
         }
@@ -288,7 +289,7 @@ public class AliDocStore extends AbstractDocStore {
 
         String rev = null;
         if (action.getDocument().hasField(getRevisionField())) {
-            rev = Util.uniqueString();
+            rev = UUID.uniqueString();
             rowChange.addColumn(getRevisionField(), AliCodec.encodeValue(rev));
         }
 
