@@ -1,5 +1,0 @@
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/substrate-sdk-gcp-poc1/multicloudj-examples:latest', '.']
-images:
-  - 'gcr.io/substrate-sdk-gcp-poc1/multicloudj-examples:latest'
