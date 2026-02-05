@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleWithWebIdentityCred
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 public class CredentialsProvider {
+
     public static AwsCredentialsProvider getCredentialsProvider(CredentialsOverrider overrider, Region region) {
         if (overrider == null || overrider.getType() == null) {
             return null;
@@ -39,10 +40,13 @@ public class CredentialsProvider {
                     assumeRoleRequestBuilder.durationSeconds(overrider.getDurationSeconds());
                 }
 
-                return StsAssumeRoleCredentialsProvider.builder()
+                StsAssumeRoleCredentialsProvider provider = StsAssumeRoleCredentialsProvider.builder()
                         .stsClient(stsClient)
                         .refreshRequest(assumeRoleRequestBuilder.build())
+                        .asyncCredentialUpdateEnabled(true)
                         .build();
+                preWarmSync(provider);
+                return provider;
             }
             case ASSUME_ROLE_WEB_IDENTITY: {
                 // AWS SDK has a bug which doesn't refresh the web identity token after the initialization.
@@ -65,22 +69,38 @@ public class CredentialsProvider {
                             .build();
 
                     // 2. Build the actual provider
-                    return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
-                            .stsClient(stsClient)
-                            .refreshRequest(builder -> {
-                                builder.roleArn(assumeRole)
-                                        .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())
-                                        .roleSessionName(sessionName);
+                    StsAssumeRoleWithWebIdentityCredentialsProvider provider =
+                            StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+                                    .stsClient(stsClient)
+                                    .refreshRequest(builder -> {
+                                        builder.roleArn(assumeRole)
+                                                .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())
+                                                .roleSessionName(sessionName);
 
-                                if (overrider.getDurationSeconds() != null) {
-                                    builder.durationSeconds(overrider.getDurationSeconds());
-                                }
-                            })
-                            .build();
+                                        if (overrider.getDurationSeconds() != null) {
+                                            builder.durationSeconds(overrider.getDurationSeconds());
+                                        }
+                                    })
+                                    .asyncCredentialUpdateEnabled(true)
+                                    .build();
+                    preWarmSync(provider);
+                    return provider;
                 });
             }
         }
         return null;
     }
 
+    /**
+     * Synchronously pre-fetches credentials so the cache is full before the provider is returned.
+     * The blocking runs on the initialization thread (rarely interrupted). This avoids
+     * "Interrupted waiting to refresh a cached value" on the first API call.
+     */
+    private static void preWarmSync(AwsCredentialsProvider provider) {
+        try {
+            provider.resolveCredentials();
+        } catch (Exception e) {
+            // First API call may still block; do not fail startup.
+        }
+    }
 }
