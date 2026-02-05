@@ -21,7 +21,6 @@ public final class ImageReference {
     private static final String DIGEST_DELIMITER = "@";
     private static final String SHA256_PREFIX = "sha256:";
     private static final int SHA256_HEX_LENGTH = 64;
-    // SHA256 hex must be exactly 64 lowercase hex characters [a-f0-9]{64}
     private static final Pattern SHA256_HEX_PATTERN = Pattern.compile("^[a-f0-9]{" + SHA256_HEX_LENGTH + "}$");
 
     private final String repository;
@@ -35,10 +34,7 @@ public final class ImageReference {
     }
 
     /**
-     * Parses an image reference string, following go-containerregistry's ParseReference logic.
-     * <p>
-     * If the reference contains "@", it's parsed as a digest. Otherwise, it's parsed as a tag.
-     * 
+     * Parses an image reference string. If it contains "@", treated as digest; otherwise as tag.
      * @param imageRef image reference string (e.g. "my-image:latest" or "my-image@sha256:abc...")
      * @return parsed ImageReference
      * @throws IllegalArgumentException if the reference format is invalid
@@ -48,20 +44,14 @@ public final class ImageReference {
             throw new IllegalArgumentException("Image reference cannot be null or empty");
         }
         String ref = imageRef.trim();
-        // OCI: "repo@alg:hex" is digest; "repo:tag" is tag. So we branch on presence of "@".
         if (ref.contains(DIGEST_DELIMITER)) {
             return parseDigest(ref);
         }
         return parseTag(ref);
     }
 
-    /**
-     * Parses a digest reference, following go-containerregistry's NewDigest logic.
-     * <p>
-     * Split on "@", validate algorithm prefix, and validate hex format.
-     */
+    /** Parses a digest reference: split on "@", validate sha256 prefix and hex format. */
     private static ImageReference parseDigest(String ref) {
-        // Split on "@" with limit 2 
         String[] parts = ref.split(DIGEST_DELIMITER, 2);
         if (parts.length != 2) {
             throw new IllegalArgumentException(
@@ -77,14 +67,10 @@ public final class ImageReference {
         if (StringUtils.isBlank(dig)) {
             throw new IllegalArgumentException("Digest cannot be empty: " + ref);
         }
-        
-        // Validate algorithm prefix (must be "sha256:")
         if (!dig.startsWith(SHA256_PREFIX)) {
             throw new IllegalArgumentException(
                 String.format("unsupported digest algorithm: %s (expected sha256)", dig));
         }
-        
-        // Extract hex portion and validate format
         String hex = dig.substring(SHA256_PREFIX.length());
         validateSha256Hex(hex, ref);
         
@@ -114,7 +100,6 @@ public final class ImageReference {
                 return new ImageReference(parts[0], parts[1], ref);
             }
         }
-        // Default to "latest" tag if no tag specified
         return new ImageReference(ref, "latest", ref + ":latest");
     }
 

@@ -4,14 +4,9 @@ import com.salesforce.multicloudj.registry.model.Platform;
 import java.util.List;
 
 /**
- * Parsed OCI manifest returned by OciRegistryClient.fetchManifest().
- * <p>
- * Registry can return two shapes: (1) <b>image manifest</b> — one image with config + layer digests;
- * (2) <b>index</b> — multi-platform list of manifests (each entry has platform + digest). Pull flow:
- * if index, pick one entry by Platform then fetch that manifest; then use configDigest/layerDigests
- * to download blobs and build RemoteImage.
- * <p>
- * For image manifest: configDigest is the OCI image ID (used by Image.getDigest()). 
+ * Parsed OCI manifest from the registry.
+ * Two shapes: (1) image manifest — config and layer digests; (2) index — multi-platform list.
+ * For image manifest, config digest is the OCI image ID (exposed as the image digest).
  */
 public final class Manifest {
 

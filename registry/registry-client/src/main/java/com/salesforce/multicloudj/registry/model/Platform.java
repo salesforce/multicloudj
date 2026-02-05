@@ -3,10 +3,7 @@ package com.salesforce.multicloudj.registry.model;
 import lombok.Builder;
 import lombok.Getter;
 
-/**
- * Target platform for multi-arch image selection (e.g. linux/amd64).
- * Used when pulling images per OCI specification.
- */
+/** Target platform for multi-arch image selection (e.g. linux/amd64), used when pulling images. */
 @Builder
 @Getter
 public class Platform {

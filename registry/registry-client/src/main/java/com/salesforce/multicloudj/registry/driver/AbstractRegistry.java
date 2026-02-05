@@ -13,8 +13,7 @@ import java.io.InputStream;
 import java.net.URI;
 
 /**
- * Abstract registry driver. Each cloud implements auth (getAuthUsername, getAuthToken)
- * and getOciClient(); pull and extract are unified.
+ * Abstract registry driver. Each cloud implements authentication and OCI client.
  */
 public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
     protected final String providerId;
@@ -46,23 +45,19 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
      */
     public abstract Builder<?, ?> builder();
 
-    // --- AuthProvider: each cloud implements getAuthUsername() and getAuthToken() ---
-
     @Override
     public abstract String getAuthUsername() throws IOException;
 
     @Override
     public abstract String getAuthToken() throws IOException;
 
-    /**
-     * Returns the OCI client for this registry. Each provider creates and holds it 
-     */
+    /** Returns the OCI client for this registry. */
     protected abstract OciRegistryClient getOciClient();
 
     /**
      * Pulls an image from the registry (unified OCI flow).
      *
-     * @param imageRef image reference (e.g. {@code repo:tag} or digest)
+     * @param imageRef image reference (e.g. repo:tag or digest)
      * @return Image metadata and layer descriptors
      */
     public Image pull(String imageRef) throws Exception {
@@ -73,7 +68,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     /**
      * Extracts the image filesystem as a tar stream (OCI layer flattening, reverse order, whiteout handling).
      *
-     * @param image Image from pull(String)
+     * @param image image from a previous pull
      * @return InputStream of the flattened filesystem tar
      */
     public InputStream extract(Image image) throws Exception {
@@ -87,9 +82,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     @Override
     public abstract void close() throws Exception;
 
-    /**
-     * Abstract builder for registry implementations. Provider implementations extend this and implement build().
-     */
+    /** Abstract builder for registry implementations. */
     @Getter
     public abstract static class Builder<A extends AbstractRegistry, T extends Builder<A, T>> implements Provider.Builder {
         protected String providerId;

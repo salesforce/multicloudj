@@ -8,9 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Implementation of Image for images on a remote registry.
- * "Remote" means layer blobs are fetched via OciRegistryClient on demand.
- * getDigest() returns config digest (OCI image ID).
+ * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on demand.
+ * Digest is the config digest (OCI image ID).
  */
 final class RemoteImage implements Image {
 

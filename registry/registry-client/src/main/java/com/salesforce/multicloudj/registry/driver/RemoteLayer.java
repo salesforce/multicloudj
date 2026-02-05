@@ -7,9 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Implementation of Layer for a layer on a remote registry.
- * "Remote" means the layer blob is fetched via OciRegistryClient.downloadBlob when
- * getUncompressed() is called, then decompressed (gzip). Used by RemoteImage.
+ * Layer for a remote registry; blob is fetched and decompressed (gzip) on demand.
  */
 final class RemoteLayer implements Layer {
 
@@ -34,7 +32,6 @@ final class RemoteLayer implements Layer {
         return new GzipCompressorInputStream(compressed);
     }
 
-    /** Size not available; we only have digest from the manifest. Use -1 for unknown size. */
     @Override
     public long getSize() throws IOException {
         return -1;

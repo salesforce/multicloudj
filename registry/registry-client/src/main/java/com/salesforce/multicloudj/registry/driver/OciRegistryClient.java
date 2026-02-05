@@ -8,10 +8,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-/**
- * OCI Registry API v2 HTTP client.
- * Handles auth (via AuthProvider) and registry operations (fetch manifest, download blob).
- */
+/** OCI Registry API v2 HTTP client; handles auth and registry operations. */
 public class OciRegistryClient implements AutoCloseable {
 
     private final String registryEndpoint;
@@ -28,11 +25,9 @@ public class OciRegistryClient implements AutoCloseable {
         this.httpClient = httpClient != null ? httpClient : HttpClients.createDefault();
     }
 
-    /**
-     * Builds HTTP Authorization header for the given repository.
-     * Framework uses Basic auth; Bearer/token exchange can be added later.
-     */
+    /** Builds the HTTP Authorization header for the given repository. */
     public String getHttpAuthHeader(String repository) throws IOException {
+        // TODO: Framework uses Basic auth; Bearer/token exchange needs to be implemented
         String username = authProvider.getAuthUsername();
         String token = authProvider.getAuthToken();
         String credentialsStr = username + ":" + token;
@@ -40,19 +35,13 @@ public class OciRegistryClient implements AutoCloseable {
         return "Basic " + encoded;
     }
 
-    /**
-     * Fetches the image manifest for the given repository and reference (tag or digest).
-     * To be implemented with HTTP GET /v2/{repository}/manifests/{reference}.
-     */
+    /** Fetches the image manifest for the given repository and reference (tag or digest). */
     public Manifest fetchManifest(String repository, String reference) throws IOException {
         // TODO: need to be implemented
         throw new UnsupportedOperationException("fetchManifest() not yet implemented");
     }
 
-    /**
-     * Downloads a blob (layer or config) by digest.
-     * To be implemented with HTTP GET /v2/{repository}/blobs/{digest}.
-     */
+    /** Downloads a blob (layer or config) by digest. */
     public InputStream downloadBlob(String repository, String digest) throws IOException {
         // TODO: need to be implemented
         throw new UnsupportedOperationException("downloadBlob() not yet implemented");
