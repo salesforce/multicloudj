@@ -86,10 +86,7 @@ import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -100,7 +97,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
 
@@ -597,67 +593,6 @@ public class AwsTransformer {
         }
 
         return builder.build();
-    }
-
-    /**
-     * Converts a DirectoryUploadRequest to a list of file paths to upload.
-     * This method handles directory traversal and filtering based on the request parameters.
-     *
-     * @param request the directory upload request
-     * @return list of file paths to upload
-     */
-    public List<Path> toFilePaths(DirectoryUploadRequest request) {
-        String localSourceDirectory = request.getLocalSourceDirectory();
-        if (localSourceDirectory == null) {
-            throw new IllegalArgumentException("Local source directory cannot be null");
-        }
-        Path sourceDir = Paths.get(localSourceDirectory);
-
-        if (!Files.isDirectory(sourceDir)) {
-            throw new IllegalArgumentException("Source path is not a valid directory: " + sourceDir);
-        }
-
-        try (Stream<Path> stream =
-                request.isIncludeSubFolders() ? Files.walk(sourceDir) : Files.list(sourceDir)) {
-            return stream
-                    .filter(Files::isRegularFile)
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to traverse directory: " + sourceDir, e);
-        }
-    }
-
-    /**
-     * Converts a file path to a blob key by applying the prefix and maintaining directory structure.
-     *
-     * @param sourceDir the source directory path
-     * @param filePath the file path to convert
-     * @param prefix the S3 prefix to apply
-     * @return the blob key
-     */
-    public String toBlobKey(Path sourceDir, Path filePath, String prefix) {
-        if (sourceDir == null) {
-            throw new IllegalArgumentException("Source directory cannot be null");
-        }
-        if (filePath == null) {
-            throw new IllegalArgumentException("File path cannot be null");
-        }
-        Path relativePath = sourceDir.relativize(filePath);
-        String key = relativePath.toString().replace(File.separator, "/"); // Normalize path separators for S3
-
-        String trimmedPrefix = prefix != null ? prefix.trim() : null;
-        if (trimmedPrefix != null && !trimmedPrefix.isEmpty()) {
-            // Ensure prefix ends with "/" if it doesn't already
-            String normalizedPrefix = trimmedPrefix.endsWith("/") ? trimmedPrefix : trimmedPrefix + "/";
-            key = normalizedPrefix + key;
-        }
-
-        // Remove any leading slash (e.g. from prefix like "/images") to avoid empty root segment in S3
-        while (key.startsWith("/")) {
-            key = key.substring(1);
-        }
-
-        return key;
     }
 
     public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {
