@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: multicloudj
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multicloudj-config
+  namespace: multicloudj
+data:
+  BUCKET_NAME: "palsfdc"
+  BUCKET_REGION: "us-west-2"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: multicloudj-blob-example
+  namespace: multicloudj
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up after 1 hour
+  template:
+    metadata:
+      labels:
+        app: multicloudj-examples
+    spec:
+      serviceAccountName: multicloudj-sa
+      restartPolicy: Never
+      containers:
+      - name: multicloudj
+        image: gcr.io/substrate-sdk-gcp-poc1/multicloudj-examples:latest
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: multicloudj-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: multicloudj-sa
+  namespace: multicloudj
+  annotations:
+    iam.gke.io/gcp-service-account: chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com

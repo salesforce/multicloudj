@@ -45,29 +45,42 @@ public class CredentialsProvider {
                         .build();
             }
             case ASSUME_ROLE_WEB_IDENTITY: {
-                String assumeRole = overrider.getRole();
-                String sessionName = overrider.getSessionName() != null
-                        ? overrider.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis();
-                StsClient stsClient = StsClient.builder().credentialsProvider(AnonymousCredentialsProvider.create()).region(region).build();
-
+                // AWS SDK has a bug which doesn't refresh the web identity token after the initialization.
+                // RefreshingWebIdentityProvider is a workaround for this which forces the token refresh.
+                // details: https://github.com/aws/aws-sdk-java-v2/issues/5709
                 if (overrider.getWebIdentityTokenSupplier() == null) {
-                    throw new IllegalArgumentException("webIdentityTokenSupplier must be provided for ASSUME_ROLE_WEB_IDENTITY credentials type");
+                    throw new IllegalArgumentException("webIdentityTokenSupplier must be provided for ASSUME_ROLE_WEB_IDENTITY");
                 }
 
-                return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
-                        .stsClient(stsClient)
-                        .refreshRequest(r -> {
-                            r.roleArn(assumeRole)
-                                    .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())  // called on each refresh
-                                    .roleSessionName(sessionName);
+                // We wrap the provider creation in a factory lambda
+                return new RefreshingWebIdentityProvider(() -> {
+                    String assumeRole = overrider.getRole();
+                    String sessionName = overrider.getSessionName() != null
+                            ? overrider.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis();
 
-                            if (overrider.getDurationSeconds() != null) {
-                                r.durationSeconds(overrider.getDurationSeconds());
-                            }
-                        })
-                        .build();
+                    // 1. Always use Anonymous for the STS client to avoid recursion
+                    StsClient stsClient = StsClient.builder()
+                            .credentialsProvider(AnonymousCredentialsProvider.create())
+                            .region(region)
+                            .build();
+
+                    // 2. Build the actual provider
+                    return StsAssumeRoleWithWebIdentityCredentialsProvider.builder()
+                            .stsClient(stsClient)
+                            .refreshRequest(r -> {
+                                r.roleArn(assumeRole)
+                                        .webIdentityToken(overrider.getWebIdentityTokenSupplier().get())
+                                        .roleSessionName(sessionName);
+
+                                if (overrider.getDurationSeconds() != null) {
+                                    r.durationSeconds(overrider.getDurationSeconds());
+                                }
+                            })
+                            .build();
+                });
             }
         }
         return null;
     }
+
 }

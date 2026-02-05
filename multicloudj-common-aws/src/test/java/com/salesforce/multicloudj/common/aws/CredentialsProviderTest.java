@@ -47,7 +47,7 @@ public class CredentialsProviderTest {
         AwsCredentialsProvider awsCredsProvider =
                 CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
         Assertions.assertNotNull(awsCredsProvider);
-        Assertions.assertInstanceOf(StsAssumeRoleWithWebIdentityCredentialsProvider.class, awsCredsProvider);
+        Assertions.assertInstanceOf(RefreshingWebIdentityProvider.class, awsCredsProvider);
     }
 
     @Test
@@ -61,7 +61,7 @@ public class CredentialsProviderTest {
         AwsCredentialsProvider awsCredsProvider =
                 CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
         Assertions.assertNotNull(awsCredsProvider);
-        Assertions.assertInstanceOf(StsAssumeRoleWithWebIdentityCredentialsProvider.class, awsCredsProvider);
+        Assertions.assertInstanceOf(RefreshingWebIdentityProvider.class, awsCredsProvider);
     }
 
     @Test

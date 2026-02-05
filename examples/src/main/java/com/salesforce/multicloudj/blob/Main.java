@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob;
 
+import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.salesforce.multicloudj.blob.client.BucketClient;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -14,20 +15,27 @@ import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.zip.CRC32;
 
 public class Main {
+    static BucketClient bucketClient;
 
     /**
      * Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete.
      */
     public static void fullMultipartUploadExample() {
-        BucketClient bucketClient = getBucketClient(getProvider());
+        if (bucketClient == null) {
+            System.out.println("Bucket Client is null");
+            bucketClient = getBucketClient(getProvider());
+        }
         String key = "multipart-example-" + System.currentTimeMillis();
 
         getLogger().info("Starting full multipart upload example for key: {}", key);
@@ -79,7 +87,7 @@ public class Main {
 
     private static BucketClient getBucketClient(String provider) {
         // Get configuration from environment variables or system properties
-        String bucketName = System.getProperty("bucket.name", "palsfdc");
+        String bucketName = System.getProperty("bucket.name", "chameleon-jcloud");
         String region = System.getProperty("bucket.region", System.getenv("BUCKET_REGION"));
         String endpoint = System.getProperty("bucket.endpoint", System.getenv("BUCKET_ENDPOINT"));
         String proxyEndpoint = System.getProperty("bucket.proxy.endpoint", System.getenv("BUCKET_PROXY_ENDPOINT"));
@@ -106,12 +114,32 @@ public class Main {
         Supplier<String> tokenSupplier = () -> {
             StsClient clientGcp = StsClient.builder("gcp").build();
             CallerIdentity identity = clientGcp.getCallerIdentity(GetCallerIdentityRequest.builder().aud("multicloudj").build());
+            CRC32 crc = new CRC32();
+            // Convert the string to bytes using a consistent character encoding (e.g., UTF-8)
+            crc.update(identity.getCloudResourceName().getBytes(StandardCharsets.UTF_8));
+            System.out.println("Checksum: " + crc.getValue());
+
+            JsonWebSignature jws = null;
+            try {
+                jws = JsonWebSignature.parse(com.google.api.client.json.gson.GsonFactory.getDefaultInstance(), identity.getCloudResourceName());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            Long expirationTimeInSeconds = jws.getPayload().getExpirationTimeSeconds();
+            System.out.println("Expiration: " + expirationTimeInSeconds);
+
+
             return identity.getCloudResourceName();
         };
+
+        tokenSupplier.get();
+        tokenSupplier.get();
+
 
         CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
                 .withRole("arn:aws:iam::654654370895:role/chameleon-web")
                 .withWebIdentityTokenSupplier(tokenSupplier)
+                .withDurationSeconds(900)
                 .build();
         builder.withCredentialsOverrider(overrider);
 
@@ -120,7 +148,7 @@ public class Main {
 
     private static String getProvider() {
         // Change this to test different providers
-        return "gcp";  // or "aws" or "ali"
+        return "aws";  // or "aws" or "ali"
     }
 
     private static Logger getLogger() {
@@ -133,15 +161,18 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("=== STARTING DIRECTORY OPERATIONS TEST ===");
         System.out.println("Provider: " + getProvider());
-
         try {
-            System.out.println("=== Testing Multipart Upload ===");
-            fullMultipartUploadExample();
-            System.out.println("Multipart upload test completed!");
-
+            while (true) {
+                System.out.println("=== Testing Multipart Upload ===");
+                fullMultipartUploadExample();
+                System.out.println("Multipart upload test completed!");
+                Thread.sleep(300000);
+            }
         } catch (Exception e) {
             System.out.println("Test failed: " + e.getMessage());
             e.printStackTrace();
         }
+
+
     }
 }
