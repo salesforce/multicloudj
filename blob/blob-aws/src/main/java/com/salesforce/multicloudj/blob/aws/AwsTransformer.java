@@ -182,7 +182,10 @@ public class AwsTransformer {
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
+        } else if (request.isUseKmsManagedKey()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
         }
+        // else: no SSE headers; S3 applies bucket default encryption
 
         // Set storage class if provided
         if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
@@ -432,7 +435,10 @@ public class AwsTransformer {
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
+        } else if (request.isUseKmsManagedKey()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
         }
+        // else: no SSE headers; S3 uses bucket default encryption
 
         return builder.build();
     }
