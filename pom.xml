@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.25-SNAPSHOT</version>
+    <version>0.2.26-SNAPSHOT</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
@@ -34,6 +34,7 @@
     <modules>
         <module>iam</module>
         <module>blob</module>
+        <module>dbbackuprestore</module>
         <module>docstore</module>
         <module>examples</module>
         <module>pubsub</module>
@@ -57,6 +58,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
     </properties>
+    
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+    
     <!-- All module dependencies and versions -->
     <dependencyManagement>
         <dependencies>
@@ -172,6 +188,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>docstore-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackuprestore-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>dbbackuprestore-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
@@ -477,8 +504,7 @@
                             <report>aggregate</report>
                         </reports>
                         <configuration>
-                            <sourcepath>blob/blob-client/target/generated-sources/delombok:blob/blob-aws/target/generated-sources/delombok:blob/blob-gcp/target/generated-sources/delombok:blob/blob-ali/target/generated-sources/delombok:sts/sts-client/target/generated-sources/delombok:iam/iam-client/target/generated-sources/delombok:iam/iam-gcp/target/generated-sources/delombok:iam/iam-aws/target/generated-sources/delombok:docstore/docstore-client/target/generated-sources/delombok:docstore/docstore-aws/target/generated-sources/delombok:docstore/docstore-gcp-firestore/target/generated-sources/delombok:docstore/docstore-gcp-spanner/target/generated-sources/delombok:docstore/docstore-ali/target/generated-sources/delombok:pubsub/pubsub-client/target/generated-sources/delombok:multicloudj-common/target/generated-sources/delombok:examples/target/generated-sources/delombok</sourcepath>
-                        </configuration>
+                            <sourcepath>dbbackuprestore/dbbackuprestore-client/target/generated-sources/delombok:dbbackuprestore/dbbackuprestore-aws/target/generated-sources/delombok:dbbackuprestore/dbbackuprestore-ali/target/generated-sources/delombok:dbbackuprestore/dbbackuprestore-gcp-firestore/target/generated-sources/delombok:blob/blob-client/target/generated-sources/delombok:blob/blob-aws/target/generated-sources/delombok:blob/blob-gcp/target/generated-sources/delombok:blob/blob-ali/target/generated-sources/delombok:sts/sts-client/target/generated-sources/delombok:iam/iam-client/target/generated-sources/delombok:iam/iam-gcp/target/generated-sources/delombok:iam/iam-aws/target/generated-sources/delombok:docstore/docstore-client/target/generated-sources/delombok:docstore/docstore-aws/target/generated-sources/delombok:docstore/docstore-gcp-firestore/target/generated-sources/delombok:docstore/docstore-gcp-spanner/target/generated-sources/delombok:docstore/docstore-ali/target/generated-sources/delombok:pubsub/pubsub-client/target/generated-sources/delombok:multicloudj-common/target/generated-sources/delombok:examples/target/generated-sources/delombok</sourcepath>                        </configuration>
                     </reportSet>
                 </reportSets>
             </plugin>
