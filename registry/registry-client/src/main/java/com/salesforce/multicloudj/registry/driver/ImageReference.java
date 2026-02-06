@@ -94,10 +94,12 @@ public final class ImageReference {
     }
 
     private static ImageReference parseTag(String ref) {
-        if (ref.contains(":")) {
-            String[] parts = ref.split(":", 2);
-            if (parts.length == 2 && !StringUtils.isBlank(parts[1])) {
-                return new ImageReference(parts[0], parts[1], ref);
+        int lastColon = ref.lastIndexOf(':');
+        if (lastColon >= 0) {
+            String repo = ref.substring(0, lastColon);
+            String tag = ref.substring(lastColon + 1);
+            if (!StringUtils.isBlank(tag)) {
+                return new ImageReference(repo, tag, ref);
             }
         }
         return new ImageReference(ref, "latest", ref + ":latest");
