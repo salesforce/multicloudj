@@ -516,24 +516,14 @@ public class AwsBlobStore extends AbstractBlobStore {
 
     /**
      * Gets object lock configuration for a blob.
-     * Returns null if the object has no object lock configuration (S3 returns 404).
      */
     @Override
     public ObjectLockInfo getObjectLock(String key, String versionId) {
-        try {
-            GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
-                    transformer.toGetObjectRetentionRequest(key, versionId));
-            GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
-                    transformer.toGetObjectLegalHoldRequest(key, versionId));
-            return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
-        } catch (S3Exception e) {
-            String message = e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : null;
-            // Object exists but has no object lock configuration -> return null
-            if (message != null && message.contains("ObjectLock")) {
-                return null;
-            }
-            throw e;
-        }
+        GetObjectRetentionResponse retentionResponse = s3Client.getObjectRetention(
+                transformer.toGetObjectRetentionRequest(key, versionId));
+        GetObjectLegalHoldResponse legalHoldResponse = s3Client.getObjectLegalHold(
+                transformer.toGetObjectLegalHoldRequest(key, versionId));
+        return transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
     }
 
     /**
