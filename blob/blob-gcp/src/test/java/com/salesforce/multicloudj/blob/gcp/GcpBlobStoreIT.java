@@ -19,9 +19,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.salesforce.multicloudj.common.util.common.TestsUtil.WIREMOCK_HOST;
+
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
     private static final String endpoint = "https://storage.googleapis.com";
+
     private static final String bucketName = "substrate-sdk-gcp-poc1-test-bucket";
     private static final String versionedBucketName = "substrate-sdk-gcp-poc1-test-bucket-versioned";
     private static final String nonExistentBucketName = "java-bucket-does-not-exist";
@@ -72,8 +75,9 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         }
 
         private AbstractBlobStore createBlobStore(final String bucketName, final Credentials credentials){
-
-            HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
+            // Connect directly to WireMock HTTPS so it can record/replay the full request (no CONNECT tunnel)
+            String host = "https://" + WIREMOCK_HOST + ":" + port;
+            HttpTransport httpTransport = TestsUtilGcp.getHttpTransportDirect(port);
             HttpTransportOptions transportOptions = HttpTransportOptions.newBuilder()
                     .setHttpTransportFactory(() -> httpTransport)
                     .build();
@@ -81,7 +85,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
             Storage storage = StorageOptions.newBuilder()
                     .setTransportOptions(transportOptions)
                     .setCredentials(credentials)
-                    .setHost(endpoint)
+                    .setHost(host)
                     .build().getService();
 
 
