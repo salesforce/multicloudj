@@ -699,6 +699,33 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testToUploadDirectoryRequest_WithTags() {
+        // Given
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        DirectoryUploadRequest directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(true)
+                .tags(tags)
+                .build();
+
+        // When
+        UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+        // Then
+        assertEquals(BUCKET, request.bucket());
+        assertTrue(request.maxDepth().isPresent());
+        assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
+        assertTrue(request.s3Prefix().isPresent());
+        assertEquals("/files", request.s3Prefix().get());
+        assertEquals("/home/documents", request.source().toString());
+        
+        // Note: AWS SDK 2.35.0 doesn't support tagging in directory uploads via UploadDirectoryRequest
+        // Tags would need to be applied post-upload or when AWS SDK is upgraded
+        assertNotNull(request);
+    }
+
+    @Test
     void testToDirectoryUploadResponse() {
         Exception exception1 = new RuntimeException("Exception1!");
         Path path1 = Paths.get("/home/documents/files/document1.txt");

@@ -56,7 +56,7 @@ public class UploadRequest {
      * (Optional parameter) Object lock configuration for WORM protection.
      */
     private final ObjectLockConfiguration objectLock;
-    
+
     private UploadRequest(Builder builder) {
         this.key = builder.key;
         this.contentLength = builder.contentLength;
