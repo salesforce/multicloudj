@@ -19,7 +19,6 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>registry-client</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- GCP Credentials -->
@@ -33,28 +32,24 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-gcp</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-gcp</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Other common MultiCloudJ dependencies -->
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Lombok for boilerplate code generation -->

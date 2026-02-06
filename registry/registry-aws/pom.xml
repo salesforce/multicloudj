@@ -19,7 +19,6 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>registry-client</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- AWS ECR SDK -->
@@ -33,40 +32,34 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-aws</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-aws</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Other common MultiCloudJ dependencies -->
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>sts-client</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>sts-client</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Lombok for boilerplate code generation -->
