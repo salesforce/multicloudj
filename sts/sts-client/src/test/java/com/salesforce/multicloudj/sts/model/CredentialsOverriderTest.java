@@ -51,6 +51,23 @@ public class CredentialsOverriderTest {
     }
 
     @Test
+    public void testCredentialsOverriderPrewarmEnabledDefault() {
+        CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
+                .withRole("test-role")
+                .build();
+        Assertions.assertFalse(overrider.isPrewarmEnabled(), "prewarmEnabled defaults to false");
+    }
+
+    @Test
+    public void testCredentialsOverriderWithPrewarmEnabledTrue() {
+        CredentialsOverrider overrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE)
+                .withRole("test-role")
+                .withPrewarmEnabled(true)
+                .build();
+        Assertions.assertTrue(overrider.isPrewarmEnabled());
+    }
+
+    @Test
     public void testCredentialsOverriderWithWebIdentityTokenSupplierAndSessionName() {
         CredentialsOverrider credentialsOverrider = new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE_WEB_IDENTITY)
                 .withRole("test-role")

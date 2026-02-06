@@ -23,6 +23,8 @@ public class CredentialsOverrider {
     protected Integer durationSeconds;
     protected String sessionName;
     protected Supplier<String> webIdentityTokenSupplier;
+    /** When true, credential provider is pre-warmed at init to avoid interrupt on first use. Optional; default false. */
+    protected boolean prewarmEnabled;
 
     public CredentialsOverrider(Builder builder) {
         this.type = builder.type;
@@ -31,6 +33,7 @@ public class CredentialsOverrider {
         this.durationSeconds = builder.durationSeconds;
         this.webIdentityTokenSupplier = builder.webIdentityTokenSupplier;
         this.sessionName = builder.sessionName;
+        this.prewarmEnabled = builder.prewarmEnabled;
     }
 
     public static class Builder {
@@ -40,9 +43,16 @@ public class CredentialsOverrider {
         private Integer durationSeconds;
         protected String sessionName;
         protected Supplier<String> webIdentityTokenSupplier;
+        private boolean prewarmEnabled = false;
 
         public Builder(CredentialsType type) {
             this.type = type;
+        }
+
+        /** When true, credential provider is pre-warmed at init. Optional; default false. */
+        public Builder withPrewarmEnabled(boolean prewarmEnabled) {
+            this.prewarmEnabled = prewarmEnabled;
+            return this;
         }
 
         public Builder withSessionCredentials(StsCredentials sessionCredentials) {

@@ -44,7 +44,9 @@ public class CredentialsProvider {
                         .stsClient(stsClient)
                         .refreshRequest(assumeRoleRequestBuilder.build())
                         .build();
-                preWarmSync(provider);
+                if (overrider.isPrewarmEnabled()) {
+                    preWarmSync(provider);
+                }
                 return provider;
             }
             case ASSUME_ROLE_WEB_IDENTITY: {
@@ -81,7 +83,9 @@ public class CredentialsProvider {
                                         }
                                     })
                                     .build();
-                    preWarmSync(provider);
+                    if (overrider.isPrewarmEnabled()) {
+                        preWarmSync(provider);
+                    }
                     return provider;
                 });
             }
