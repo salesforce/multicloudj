@@ -1,0 +1,22 @@
+{
+  "id" : "dd95a9a9-9e6d-4953-9adc-89e7a0185f43",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_objectlock_no-lock",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/no-lock?retention",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>7JHPTBAXJHCYX1R7</RequestId><HostId>nNGCN7quGVRkRpcCHDzMhZnUIqs60PXeC3IrbCDjfYuXtdV1YKseAxs4dSGEVSYzrDEIV8seTM8TjRP4XD5xUhjfvgdnOE7g</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "7JHPTBAXJHCYX1R7",
+      "x-amz-id-2" : "nNGCN7quGVRkRpcCHDzMhZnUIqs60PXeC3IrbCDjfYuXtdV1YKseAxs4dSGEVSYzrDEIV8seTM8TjRP4XD5xUhjfvgdnOE7g",
+      "Date" : "Fri, 06 Feb 2026 20:00:10 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "dd95a9a9-9e6d-4953-9adc-89e7a0185f43",
+  "persistent" : true,
+  "insertionIndex" : 609
+}
