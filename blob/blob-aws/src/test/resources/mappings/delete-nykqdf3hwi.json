@@ -1,0 +1,22 @@
+{
+  "id" : "41e03c0c-db97-4de0-9b3a-96016bcf4d47",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_objectlock_retention-compliance",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "M4NRFX3EP00KXR4D",
+      "x-amz-id-2" : "9IOvFsCIJ61tmFvFXZJHTzRSen3Higa0mzFwjZHEX63T4Ylxc8CrLum9UY2g1Umwjp1tv8PqxmfWHlOoZw7bBk3XHLSLBfsJZx+9oA6Ze3I=",
+      "x-amz-version-id" : "1rf6euS1tV5KFPBz1a6bvU9dqp0h4nRX",
+      "Date" : "Fri, 06 Feb 2026 06:05:37 GMT"
+    }
+  },
+  "uuid" : "41e03c0c-db97-4de0-9b3a-96016bcf4d47",
+  "persistent" : true,
+  "insertionIndex" : 614
+}
