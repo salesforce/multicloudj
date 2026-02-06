@@ -43,7 +43,6 @@ public class CredentialsProvider {
                 StsAssumeRoleCredentialsProvider provider = StsAssumeRoleCredentialsProvider.builder()
                         .stsClient(stsClient)
                         .refreshRequest(assumeRoleRequestBuilder.build())
-                        .asyncCredentialUpdateEnabled(true)
                         .build();
                 preWarmSync(provider);
                 return provider;
@@ -81,7 +80,6 @@ public class CredentialsProvider {
                                             builder.durationSeconds(overrider.getDurationSeconds());
                                         }
                                     })
-                                    .asyncCredentialUpdateEnabled(true)
                                     .build();
                     preWarmSync(provider);
                     return provider;
