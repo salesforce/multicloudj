@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.2.25-SNAPSHOT</version>
+        <version>0.2.26-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>registry</artifactId>
@@ -16,60 +16,6 @@
         <module>registry-aws</module>
         <module>registry-gcp</module>
     </modules>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common-aws</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common-aws</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common-gcp</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>multicloudj-common-gcp</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>sts-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>sts-client</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.salesforce.multicloudj</groupId>
-                <artifactId>registry-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>

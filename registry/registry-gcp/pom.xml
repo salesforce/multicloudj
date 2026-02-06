@@ -10,25 +10,20 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>registry</artifactId>
-        <version>0.2.25-SNAPSHOT</version>
+        <version>0.2.26-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <dependencies>
-        <!-- MultiCloudJ Registry Client -->
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>registry-client</artifactId>
         </dependency>
-
-        <!-- GCP Credentials -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
             <version>1.19.0</version>
         </dependency>
-
-        <!-- Common MultiCloudJ GCP utilities -->
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common-gcp</artifactId>
@@ -39,8 +34,6 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-
-        <!-- Other common MultiCloudJ dependencies -->
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>multicloudj-common</artifactId>
@@ -51,16 +44,12 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-
-        <!-- Lombok for boilerplate code generation -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.34</version>
             <scope>provided</scope>
         </dependency>
-
-        <!-- Auto Service for ServiceLoader -->
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service-annotations</artifactId>
@@ -73,8 +62,6 @@
             <version>1.0-rc7</version>
             <scope>provided</scope>
         </dependency>
-
-        <!-- HTTP Client for Docker Registry API -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
