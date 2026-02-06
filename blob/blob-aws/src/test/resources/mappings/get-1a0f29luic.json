@@ -1,0 +1,22 @@
+{
+  "id" : "36d0bfba-320f-4d4a-a2c9-c407d4b18f06",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_objectlock_nonexistent",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/nonexistent?retention",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/objectlock/nonexistent</Key><RequestId>Y6PJ58002XT4WDHM</RequestId><HostId>Cxinh+oLC9DUmWhBqt2DuACfO1+4/xbT9MuWb1dmqWPkxeO0V9++xqpbP7fpIVWiQqvL20sr21c=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "Y6PJ58002XT4WDHM",
+      "x-amz-id-2" : "Cxinh+oLC9DUmWhBqt2DuACfO1+4/xbT9MuWb1dmqWPkxeO0V9++xqpbP7fpIVWiQqvL20sr21c=",
+      "Date" : "Fri, 06 Feb 2026 16:43:22 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "36d0bfba-320f-4d4a-a2c9-c407d4b18f06",
+  "persistent" : true,
+  "insertionIndex" : 612
+}
