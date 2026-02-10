@@ -19,6 +19,8 @@ Learn how to get access credentials using roles/service accounts etc.
 
 - [STS](sts-guide.html)
 
+
+
 ## ☁️ Blob
 
 Learn how to manage object storage (uploading, downloading, listing blobs) in a cloud-neutral way.
@@ -31,15 +33,18 @@ Work with document-oriented databases using a consistent interface.
 
 - [Docstore](docstore-guide.html)
 
+
+---
+
 ## 📬 Pub/Sub
 
 Use publish/subscribe systems to send and receive messages.
 
 - [Pubsub](pubsub-guide.html)
 
-## 🔐 IAM
+## 📬 IAM
 
-Learn how to manage identities (roles, service accounts) and inline policies.
+Learn how to manage identities and policies in a cloud-neutral way.
 
 - [IAM](iam-guide.html)
 
