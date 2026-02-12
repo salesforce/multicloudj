@@ -37,13 +37,14 @@ This client enables creating and managing identities (roles, service accounts), 
 ### Provider-Specific Notes
 
 **AWS (IAM)**
-- Tenant ID is the AWS account ID (12-digit). IAM is global; region is used for the client only (defaults to `us-east-1`).
+- Tenant ID is the AWS account ID (12-digit). IAM is global per partition; region is used by the IAM client to resolve the partition and its endpoint.
 - Get inline policy details: `policyName` is required.
 
 **GCP (IAM)**
 - Tenant ID: for identity operations use project ID (or `projects/...`); for policy operations use the resource that owns the IAM policy (e.g. `projects/my-project`, `folders/123`).
-- Create identity uses service account ID; returns email `{id}@{project}.iam.gserviceaccount.com`. Create options are unused.
-- Attach policy: `resource` is the IAM member (e.g. `serviceAccount:...`); policy actions are GCP role names (e.g. `roles/storage.objectViewer`). Get inline policy details: `roleName` is required; `policyName` is not used. Remove policy: `policyName` is the role name to remove.
+- Create Identity creates a Service Account on GCP. You provide the service account ID; it returns email `{id}@{project}.iam.gserviceaccount.com`. Create options are unused.
+- Attach policy: `resource` is the IAM member (e.g. `serviceAccount:...`); policy actions are GCP role names (e.g. `roles/storage.objectViewer`). Get inline policy details: `roleName` is required; `policyName` is not used. 
+- Remove policy: `policyName` is the role name to remove.
 
 ---
 
@@ -132,25 +133,25 @@ iamClient.deleteIdentity("MyRole", "123456789012", "us-west-2");
 
 ### Building a Policy Document
 
+The example below uses AWS-style actions and resources (version `2012-10-17`, S3 actions, ARN resource).
+
 ```java
 PolicyDocument policy = PolicyDocument.builder()
     .version("2012-10-17")
     .statement("StorageAccess")
         .effect("Allow")
-        .addAction("storage:GetObject")
-        .addAction("storage:PutObject")
-        .addResource("storage://my-bucket/*")
+        .addAction("s3:GetObject")
+        .addAction("s3:PutObject")
+        .addResource("arn:aws:s3:::my-bucket/*")
         .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
     .endStatement()
     .build();
 ```
 
-For GCP, use role names as actions (e.g. `roles/storage.objectViewer`, `roles/iam.serviceAccountUser`).
-
 ### Attaching an Inline Policy
 
 ```java
-iamClient.attachInlinePolicy(policy, "123456789012", "us-west-2", "my-bucket");
+iamClient.attachInlinePolicy(policy, "123456789012", "us-west-2", "MyRole");
 ```
 
 ### Listing Attached Policies
