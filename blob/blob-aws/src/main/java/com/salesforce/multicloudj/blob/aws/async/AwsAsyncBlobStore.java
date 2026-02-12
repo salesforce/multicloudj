@@ -518,12 +518,20 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
                 // Configure proxy if specified
                 if (config.getProxyEndpoint() != null) {
-                    ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
+                    ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder()
                             .scheme(config.getProxyEndpoint().getScheme())
                             .host(config.getProxyEndpoint().getHost())
-                            .port(config.getProxyEndpoint().getPort())
-                            .build();
-                    httpClientBuilder.proxyConfiguration(proxyConfig);
+                            .port(config.getProxyEndpoint().getPort());
+                    if (config.getProxyUsername() != null) {
+                        proxyConfigBuilder.username(config.getProxyUsername());
+                    }
+                    if (config.getProxyPassword() != null) {
+                        proxyConfigBuilder.password(config.getProxyPassword());
+                    }
+                    if (config.getNonProxyHosts() != null) {
+                        proxyConfigBuilder.nonProxyHosts(config.getNonProxyHosts());
+                    }
+                    httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
                 }
 
                 // Configure max connections if specified
@@ -600,10 +608,18 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             // Configure proxy if specified
             if (config.getProxyEndpoint() != null) {
                 S3CrtHttpConfiguration httpConfig = S3CrtHttpConfiguration.builder()
-                        .proxyConfiguration(proxyBuilder -> proxyBuilder
+                        .proxyConfiguration(proxyBuilder -> {
+                            proxyBuilder
                                 .scheme(config.getProxyEndpoint().getScheme())
                                 .host(config.getProxyEndpoint().getHost())
-                                .port(config.getProxyEndpoint().getPort()))
+                                .port(config.getProxyEndpoint().getPort());
+                            if (config.getProxyUsername() != null) {
+                                proxyBuilder.username(config.getProxyUsername());
+                            }
+                            if (config.getProxyPassword() != null) {
+                                proxyBuilder.password(config.getProxyPassword());
+                            }
+                        })
                         .build();
                 builder.httpConfiguration(httpConfig);
             }

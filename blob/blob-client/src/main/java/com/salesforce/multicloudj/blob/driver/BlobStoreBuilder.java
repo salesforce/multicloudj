@@ -9,6 +9,7 @@ import lombok.Getter;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 @Getter
@@ -19,6 +20,9 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private String region;
     private URI endpoint;
     private URI proxyEndpoint;
+    private String proxyUsername;
+    private String proxyPassword;
+    private Set<String> nonProxyHosts;
     private Integer maxConnections;
     private Duration socketTimeout;
     private Duration idleConnectionTimeout;
@@ -82,6 +86,36 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     public BlobStoreBuilder<T> withProxyEndpoint(URI proxyEndpoint) {
         validator.validateEndpoint(proxyEndpoint, true);
         this.proxyEndpoint = proxyEndpoint;
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy username for authentication
+     * @param proxyUsername The username for proxy authentication
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withProxyUsername(String proxyUsername) {
+        this.proxyUsername = proxyUsername;
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy password for authentication
+     * @param proxyPassword The password for proxy authentication
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withProxyPassword(String proxyPassword) {
+        this.proxyPassword = proxyPassword;
+        return this;
+    }
+
+    /**
+     * Method to supply a set of hosts that should bypass the proxy
+     * @param nonProxyHosts The set of hosts that should not use the proxy
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withNonProxyHosts(Set<String> nonProxyHosts) {
+        this.nonProxyHosts = nonProxyHosts;
         return this;
     }
 

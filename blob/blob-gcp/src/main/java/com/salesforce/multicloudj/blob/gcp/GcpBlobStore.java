@@ -1015,6 +1015,26 @@ public class GcpBlobStore extends AbstractBlobStore {
             if(builder.getIdleConnectionTimeout() != null) {
                 httpClientBuilder.evictIdleConnections(builder.getIdleConnectionTimeout().toMillis(), TimeUnit.MILLISECONDS);
             }
+            // Configure proxy authentication if credentials are provided
+            if (builder.getProxyEndpoint() != null) {
+                org.apache.http.client.CredentialsProvider credentialsProvider = new org.apache.http.impl.client.BasicCredentialsProvider();
+                org.apache.http.auth.AuthScope authScope = new org.apache.http.auth.AuthScope(
+                        builder.getProxyEndpoint().getHost(), builder.getProxyEndpoint().getPort());
+                String username = null;
+                String password = null;
+                if (builder.getProxyUsername() != null) {
+                    username = builder.getProxyUsername();
+                }
+                if (builder.getProxyPassword() != null) {
+                    password = builder.getProxyPassword();
+                }
+                if (username != null) {
+                    org.apache.http.auth.Credentials proxyCredentials = new org.apache.http.auth.UsernamePasswordCredentials(
+                            username, password);
+                    credentialsProvider.setCredentials(authScope, proxyCredentials);
+                    httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+                }
+            }
             return httpClientBuilder.build();
         }
 

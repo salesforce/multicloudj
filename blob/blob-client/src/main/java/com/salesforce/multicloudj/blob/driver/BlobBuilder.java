@@ -8,6 +8,7 @@ import lombok.Getter;
 
 import java.net.URI;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Class used to build BlobClient service instances.
@@ -24,6 +25,9 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
     private String region;
     private URI endpoint;
     private URI proxyEndpoint;
+    private String proxyUsername;
+    private String proxyPassword;
+    private Set<String> nonProxyHosts;
     private CredentialsOverrider credentialsOverrider;
     private Properties properties = new Properties();
     private RetryConfig retryConfig;
@@ -60,6 +64,36 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
      */
     public BlobBuilder<T> withProxyEndpoint(URI proxyEndpoint) {
         this.proxyEndpoint = proxyEndpoint;
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy username for authentication
+     * @param proxyUsername The username for proxy authentication
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withProxyUsername(String proxyUsername) {
+        this.proxyUsername = proxyUsername;
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy password for authentication
+     * @param proxyPassword The password for proxy authentication
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withProxyPassword(String proxyPassword) {
+        this.proxyPassword = proxyPassword;
+        return this;
+    }
+
+    /**
+     * Method to supply a set of hosts that should bypass the proxy
+     * @param nonProxyHosts The set of hosts that should not use the proxy
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withNonProxyHosts(Set<String> nonProxyHosts) {
+        this.nonProxyHosts = nonProxyHosts;
         return this;
     }
 

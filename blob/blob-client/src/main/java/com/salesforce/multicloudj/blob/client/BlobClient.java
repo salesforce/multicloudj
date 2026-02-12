@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
 import java.net.URI;
+import java.util.Set;
 
 
 /**
@@ -106,6 +107,39 @@ public class BlobClient implements AutoCloseable {
          */
         public BlobClientBuilder withProxyEndpoint(URI proxyEndpoint) {
             this.blobClientBuilder.withProxyEndpoint(proxyEndpoint);
+            return this;
+        }
+
+        /**
+         * Method to supply a proxy username for authentication
+         *
+         * @param proxyUsername The username for proxy authentication
+         * @return An instance of self
+         */
+        public BlobClientBuilder withProxyUsername(String proxyUsername) {
+            this.blobClientBuilder.withProxyUsername(proxyUsername);
+            return this;
+        }
+
+        /**
+         * Method to supply a proxy password for authentication
+         *
+         * @param proxyPassword The password for proxy authentication
+         * @return An instance of self
+         */
+        public BlobClientBuilder withProxyPassword(String proxyPassword) {
+            this.blobClientBuilder.withProxyPassword(proxyPassword);
+            return this;
+        }
+
+        /**
+         * Method to supply a set of hosts that should bypass the proxy
+         *
+         * @param nonProxyHosts The set of hosts that should not use the proxy
+         * @return An instance of self
+         */
+        public BlobClientBuilder withNonProxyHosts(Set<String> nonProxyHosts) {
+            this.blobClientBuilder.withNonProxyHosts(nonProxyHosts);
             return this;
         }
 

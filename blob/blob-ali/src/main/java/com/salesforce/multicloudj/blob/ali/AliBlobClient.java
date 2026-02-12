@@ -47,6 +47,12 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
             clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
             clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
         }
+        if (builder.getProxyUsername() != null) {
+            clientBuilderConfiguration.setProxyUsername(builder.getProxyUsername());
+        }
+        if (builder.getProxyPassword() != null) {
+            clientBuilderConfiguration.setProxyPassword(builder.getProxyPassword());
+        }
         CredentialsProvider credentialsProvider = OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region);
         if (credentialsProvider != null) {
             ossClientBuilderImpl.credentialsProvider(credentialsProvider);

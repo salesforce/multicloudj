@@ -625,9 +625,18 @@ public class AwsBlobStore extends AbstractBlobStore {
         private static SdkHttpClient generateHttpClient(Builder builder) {
             ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
             if (builder.getProxyEndpoint() != null) {
-                httpClientBuilder.proxyConfiguration(ProxyConfiguration.builder()
-                        .endpoint(builder.getProxyEndpoint())
-                        .build());
+                ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder()
+                        .endpoint(builder.getProxyEndpoint());
+                if (builder.getProxyUsername() != null) {
+                    proxyConfigBuilder.username(builder.getProxyUsername());
+                }
+                if (builder.getProxyPassword() != null) {
+                    proxyConfigBuilder.password(builder.getProxyPassword());
+                }
+                if (builder.getNonProxyHosts() != null) {
+                    proxyConfigBuilder.nonProxyHosts(builder.getNonProxyHosts());
+                }
+                httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
             }
             if(builder.getMaxConnections() != null) {
                 httpClientBuilder.maxConnections(builder.getMaxConnections());
