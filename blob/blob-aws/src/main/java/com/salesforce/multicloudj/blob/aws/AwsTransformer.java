@@ -182,7 +182,10 @@ public class AwsTransformer {
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
+        } else if (request.isUseKmsManagedKey()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
         }
+        // else: no SSE headers; S3 applies bucket default encryption
 
         // Set storage class if provided
         if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
@@ -432,7 +435,10 @@ public class AwsTransformer {
         if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
             builder.serverSideEncryption(ServerSideEncryption.AWS_KMS)
                    .ssekmsKeyId(request.getKmsKeyId());
+        } else if (request.isUseKmsManagedKey()) {
+            builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
         }
+        // else: no SSE headers; S3 uses bucket default encryption
 
         return builder.build();
     }
@@ -572,12 +578,26 @@ public class AwsTransformer {
     }
 
     public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-        return UploadDirectoryRequest.builder()
+        UploadDirectoryRequest.Builder builder = UploadDirectoryRequest.builder()
                 .bucket(getBucket())
                 .source(Paths.get(request.getLocalSourceDirectory()))
                 .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
-                .s3Prefix(request.getPrefix())
-                .build();
+                .s3Prefix(request.getPrefix());
+
+        // Merge tags into the existing PutObjectRequest per file; putObjectRequest(Consumer) would replace it and drop bucket/key.
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            List<Tag> tagSet = request.getTags().entrySet().stream()
+                    .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                    .collect(Collectors.toList());
+            builder.uploadFileRequestTransformer(fileRequestBuilder -> {
+                PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+                fileRequestBuilder.putObjectRequest(existing.toBuilder()
+                        .tagging(Tagging.builder().tagSet(tagSet).build())
+                        .build());
+            });
+        }
+
+        return builder.build();
     }
 
     public DirectoryUploadResponse toDirectoryUploadResponse(CompletedDirectoryUpload completedDirectoryUpload) {

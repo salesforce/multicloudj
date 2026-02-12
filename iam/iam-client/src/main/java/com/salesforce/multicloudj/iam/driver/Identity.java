@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.iam.driver;
 
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
@@ -41,26 +43,19 @@ public interface Identity {
     /**
      * Retrieves the details of an inline policy attached to an identity.
      *
-     * @param identityName the name of the identity
-     * @param policyName the name of the policy to retrieve. This parameter is optional and subject to cloud semantics.
-     *                   Some cloud providers may not support named policies, in which case this parameter may be ignored.
-     * @param roleName the role name. This parameter is optional and subject to cloud semantics. Some cloud providers
-     *                 may require this parameter to identify the policy, while others may not use it.
-     * @param tenantId the tenant/project/account ID
-     * @param region the region where the identity exists
+     * @param request the request containing identity name, policy name, role name, tenant ID, and region.
+     *                Policy name and role name are optional and subject to cloud semantics.
      * @return the policy document as a JSON string
      */
-    String getInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region);
+    String getInlinePolicyDetails(GetInlinePolicyDetailsRequest request);
 
     /**
      * Lists all policies attached to an identity.
      *
-     * @param identityName the name of the identity
-     * @param tenantId the tenant/project/account ID
-     * @param region the region where the identity exists
+     * @param request the request containing identity name, tenant ID, and region
      * @return a list of policy names attached to the identity
      */
-    List<String> getAttachedPolicies(String identityName, String tenantId, String region);
+    List<String> getAttachedPolicies(GetAttachedPoliciesRequest request);
 
     /**
      * Removes a policy from an identity.
