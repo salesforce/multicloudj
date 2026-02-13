@@ -1,0 +1,21 @@
+{
+  "id" : "e00b9056-fecb-4ec4-9769-847cee9f9da3",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_objectlock_retention-compliance",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance?legal-hold",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPExlZ2FsSG9sZCB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48U3RhdHVzPk9GRjwvU3RhdHVzPjwvTGVnYWxIb2xkPg==",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "C23FABFN3SN6PG1B",
+      "x-amz-id-2" : "H4u8GFY0H5QZYjQl7FKqdV3EmLAnliaJAQDJ4/td8uC596pQ5wtszuVh48//gHrrM8PA/wrjy9eFcUeOJ6ORZAJ+61nf6KVt",
+      "Date" : "Fri, 06 Feb 2026 20:00:16 GMT"
+    }
+  },
+  "uuid" : "e00b9056-fecb-4ec4-9769-847cee9f9da3",
+  "persistent" : true,
+  "insertionIndex" : 615
+}
