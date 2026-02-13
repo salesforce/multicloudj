@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.client.IamClient;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
@@ -422,10 +423,12 @@ public class Main {
                     .build();
 
             iamClient.attachInlinePolicy(
-                    policyDocument,
-                    TENANT_ID,
-                    REGION,
-                    SERVICE_ACCOUNT
+                    AttachInlinePolicyRequest.builder()
+                            .policyDocument(policyDocument)
+                            .tenantId(TENANT_ID)
+                            .region(REGION)
+                            .identityName(SERVICE_ACCOUNT)
+                            .build()
             );
         }
     }

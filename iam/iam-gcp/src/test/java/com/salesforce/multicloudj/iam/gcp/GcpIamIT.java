@@ -213,6 +213,11 @@ public class GcpIamIT extends AbstractIamIT {
         }
 
         @Override
+        public String getTestRoleName() {
+            return "roles/storage.objectViewer";
+        }
+
+        @Override
         public void close() {
             if (iamClient != null) {
                 iamClient.close();

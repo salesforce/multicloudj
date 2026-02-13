@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +21,7 @@ public class PolicyDocumentTest {
     @Test
     public void testPolicyDocumentBuilder() {
         PolicyDocument policy = PolicyDocument.builder()
+            .name("StorageAccess")
             .version("2024-01-01")
             .statement(Statement.builder()
                 .sid("StorageAccess")
@@ -48,6 +51,7 @@ public class PolicyDocumentTest {
     @Test
     public void testMultipleStatements() {
         PolicyDocument policy = PolicyDocument.builder()
+            .name("TestPolicy")
             .version(TEST_VERSION)
             .statement(Statement.builder()
                 .sid("ReadAccess")
@@ -76,23 +80,25 @@ public class PolicyDocumentTest {
     }
 
     @Test
-    public void testMissingVersionThrowsException() {
-        assertThrows(InvalidArgumentException.class, () -> {
-            PolicyDocument.builder()
-                .statement(Statement.builder()
-                    .sid("TestStatement")
-                    .effect("Allow")
-                    .action("storage:GetObject")
-                    .resource("storage://test-bucket/*")
-                    .build())
-                .build();
-        });
+    public void testOptionalVersionBuildsSuccessfully() {
+        PolicyDocument policy = PolicyDocument.builder()
+            .name("TestPolicy")
+            .statement(Statement.builder()
+                .sid("TestStatement")
+                .effect("Allow")
+                .action("storage:GetObject")
+                .resource("storage://test-bucket/*")
+                .build())
+            .build();
+        assertNotNull(policy);
+        assertNull(policy.getVersion());
     }
 
     @Test
     public void testStatementWithoutEffectThrowsException() {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
+                .name("TestPolicy")
                 .version(TEST_VERSION)
                 .statement(Statement.builder()
                     .sid("TestStatement")
@@ -106,6 +112,7 @@ public class PolicyDocumentTest {
     public void testStatementWithoutActionsThrowsException() {
         assertThrows(InvalidArgumentException.class, () -> {
             PolicyDocument.builder()
+                .name("TestPolicy")
                 .version(TEST_VERSION)
                 .statement(Statement.builder()
                     .sid("TestStatement")
@@ -118,6 +125,7 @@ public class PolicyDocumentTest {
     @Test
     public void testBuilderMethodsWithMultipleValues() {
         PolicyDocument policy = PolicyDocument.builder()
+            .name("TestPolicy")
             .version(TEST_VERSION)
             .statement(Statement.builder()
                 .sid("TestStatement")
@@ -170,6 +178,7 @@ public class PolicyDocumentTest {
     @Test
     public void testAddNullStatement() {
         PolicyDocument policy = PolicyDocument.builder()
+            .name("TestPolicy")
             .version(TEST_VERSION)
             .statement((Statement) null)
             .statement(Statement.builder()

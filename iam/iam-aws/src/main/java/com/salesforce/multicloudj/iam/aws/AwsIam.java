@@ -11,10 +11,12 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -35,6 +37,7 @@ import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateRoleRequest;
 import software.amazon.awssdk.services.iam.model.DeleteRolePolicyRequest;
+import software.amazon.awssdk.services.iam.model.PutRolePolicyRequest;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -167,17 +170,17 @@ public class AwsIam extends AbstractIam {
         CreateRoleRequest.Builder requestBuilder = CreateRoleRequest.builder()
                 .roleName(identityName)
                 .assumeRolePolicyDocument(assumeRolePolicyDocument)
-                .description(description != null ? description : StringUtils.EMPTY);
+                .description(StringUtils.defaultString(description));
 
         if (options.isPresent()) {
             CreateOptions opts = options.get();
-            if (opts.getPath() != null && !opts.getPath().isBlank()) {
+            if (StringUtils.isNotBlank(opts.getPath())) {
                 requestBuilder.path(opts.getPath());
             }
             if (opts.getMaxSessionDuration() != null) {
                 requestBuilder.maxSessionDuration(opts.getMaxSessionDuration());
             }
-            if (opts.getPermissionBoundary() != null && !opts.getPermissionBoundary().isBlank()) {
+            if (StringUtils.isNotBlank(opts.getPermissionBoundary())) {
                 requestBuilder.permissionsBoundary(opts.getPermissionBoundary());
             }
         }
@@ -210,8 +213,8 @@ public class AwsIam extends AbstractIam {
                                      String newAssumeRolePolicyDocument, Optional<CreateOptions> options) {
         boolean needsUpdate = false;
         
-        String existingDescription = existingRole.description() != null ? existingRole.description() : StringUtils.EMPTY;
-        String targetDescription = newDescription != null ? newDescription : StringUtils.EMPTY;
+        String existingDescription = StringUtils.defaultString(existingRole.description());
+        String targetDescription = StringUtils.defaultString(newDescription);
         
         if (!existingDescription.equals(targetDescription)) {
             needsUpdate = true;
@@ -330,34 +333,87 @@ public class AwsIam extends AbstractIam {
     }
 
     @Override
-    protected void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
-        throw new UnsupportedOperationException();
+    protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
+        if (StringUtils.isBlank(request.getIdentityName())) {
+            throw new InvalidArgumentException("identityName is required for AWS IAM");
+        }
+        if (StringUtils.isBlank(request.getPolicyDocument().getName())) {
+            throw new InvalidArgumentException("policy name is required for AWS IAM");
+        }
+
+        String roleName = request.getIdentityName();
+        String policyDocumentJson = buildInlinePolicyDocumentJson(request.getPolicyDocument());
+
+        PutRolePolicyRequest awsRequest = PutRolePolicyRequest.builder()
+                .roleName(roleName)
+                .policyName(request.getPolicyDocument().getName())
+                .policyDocument(policyDocumentJson)
+                .build();
+
+        this.iamClient.putRolePolicy(awsRequest);
+    }
+
+    private static String buildInlinePolicyDocumentJson(PolicyDocument policyDocument) {
+        String version = policyDocument.getVersion();
+        if (StringUtils.isBlank(version)) {
+            throw new InvalidArgumentException("Version is required for AWS inline policy document");
+        }
+        Map<String, Object> doc = new LinkedHashMap<>();
+        doc.put("Version", version);
+
+        List<Map<String, Object>> awsStatements = new ArrayList<>();
+        for (Statement stmt : policyDocument.getStatements()) {
+            Map<String, Object> awsStmt = new LinkedHashMap<>();
+            awsStmt.put("Effect", stmt.getEffect());
+
+            List<String> actions = stmt.getActions();
+            if (actions != null && !actions.isEmpty()) {
+                awsStmt.put("Action", actions.size() == 1 ? actions.get(0) : actions);
+            }
+            if (StringUtils.isNotBlank(stmt.getSid())) {
+                awsStmt.put("Sid", stmt.getSid());
+            }
+            if (stmt.getResources() != null && !stmt.getResources().isEmpty()) {
+                awsStmt.put("Resource", stmt.getResources().size() == 1 ? stmt.getResources().get(0) : stmt.getResources());
+            } else {
+                awsStmt.put("Resource", "*");
+            }
+            if (stmt.getConditions() != null && !stmt.getConditions().isEmpty()) {
+                awsStmt.put("Condition", stmt.getConditions());
+            }
+            if (stmt.getPrincipals() != null && !stmt.getPrincipals().isEmpty()) {
+                awsStmt.put("Principal", stmt.getPrincipals().size() == 1 ? stmt.getPrincipals().get(0) : stmt.getPrincipals());
+            }
+
+            awsStatements.add(awsStmt);
+        }
+        doc.put("Statement", awsStatements);
+
+        try {
+            return OBJECT_MAPPER.writeValueAsString(doc);
+        } catch (JsonProcessingException e) {
+            throw new InvalidArgumentException("Failed to serialize inline policy document", e);
+        }
     }
 
     /**
      * Get inline policy document attached to an IAM role.
-     *
-     * @param identityName the IAM role name
-     * @param policyName the policy name
-     * @param roleName the role name (not used in AWS)
-     * @param tenantId the AWS Account ID (not used in AWS)
-     * @param region the AWS region (not used in AWS)
+     * @param request the request containing relevant fields from identity name, policy name, role name, tenant ID, and region
      * @return the inline policy document as a JSON string
      */
     @Override
-    protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
-        if (StringUtils.isBlank(identityName)) {
-            throw new InvalidArgumentException("identityName is required for AWS IAM");
+    protected String doGetInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
+        if (StringUtils.isBlank(request.getRoleName())) {
+            throw new InvalidArgumentException("roleName is required for AWS IAM");
         }
-
-        if (StringUtils.isBlank(policyName)) {
+        if (StringUtils.isBlank(request.getPolicyName())) {
             throw new InvalidArgumentException("policyName is required for AWS IAM");
         }
 
         IamClient client = this.iamClient;
         GetRolePolicyRequest awsRequest = GetRolePolicyRequest.builder()
-                .roleName(identityName)
-                .policyName(policyName)
+                .roleName(request.getRoleName())
+                .policyName(request.getPolicyName())
                 .build();
         GetRolePolicyResponse response = client.getRolePolicy(awsRequest);
         return URLDecoder.decode(response.policyDocument(), StandardCharsets.UTF_8);
@@ -366,14 +422,15 @@ public class AwsIam extends AbstractIam {
     /**
      * Lists all inline policies attached to an IAM role.
      *
-     * @param identityName the IAM role name
-     * @param tenantId the AWS Account ID (not used in AWS)
-     * @param region the AWS region (not used in AWS)
+     * @param request the request; AWS uses roleName only (IAM role to list policies for)
      * @return a list of inline policy names attached to the role.
      */
     @Override
-    protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
-        return iamClient.listRolePoliciesPaginator(req -> req.roleName(identityName))
+    protected List<String> doGetAttachedPolicies(GetAttachedPoliciesRequest request) {
+        if (StringUtils.isBlank(request.getRoleName())) {
+            throw new InvalidArgumentException("roleName is required for AWS IAM");
+        }
+        return iamClient.listRolePoliciesPaginator(req -> req.roleName(request.getRoleName()))
                 .policyNames()
                 .stream()
                 .collect(Collectors.toList());
