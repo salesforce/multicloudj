@@ -272,356 +272,412 @@
     
     "relUrl": "/design/flexibility.html"
   },"39": {
+    "doc": "How to IAM",
+    "title": "IAM",
+    "content": "The IamClient class in the multicloudj library provides a comprehensive, cloud-agnostic interface to interact with Identity and Access Management services like AWS IAM, GCP IAM, and AliCloud RAM. This client enables creating and managing identities (roles, service accounts), attaching and managing inline policies, and configuring trust relationships across multiple cloud providers with a consistent API. ",
+    "url": "/multicloudj/guides/iam-guide.html#iam",
+    
+    "relUrl": "/guides/iam-guide.html#iam"
+  },"40": {
+    "doc": "How to IAM",
+    "title": "Feature Support Across Providers",
+    "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Create Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Create roles/service accounts with optional trust and options | . | Get Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve identity metadata (ARN, email, or roleId) | . | Delete Identity | ✅ Supported | ✅ Supported | 📅 In Roadmap | Remove an identity from the cloud provider | . | Attach Inline Policy | ✅ Supported | ✅ Supported | 📅 In Roadmap | Attach a policy document; AWS use PutRolePolicy directly | . | Get Attached Policies | ✅ Supported | ✅ Supported | 📅 In Roadmap | List inline policies attached to an identity | . | Get Inline Policy Details | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve policy document details | . | Remove Policy | ✅ Supported | ✅ Supported | 📅 In Roadmap | Remove an inline policy from an identity | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Trust Configuration | ✅ Supported | ✅ Supported | 📅 In Roadmap | Principals and conditions for assume/impersonate | . Provider-Specific Notes . AWS (IAM) . | Tenant ID is the AWS account ID (12-digit). IAM is global per partition; region is used by the IAM client to resolve the partition and its endpoint. | Get inline policy details: policyName is required. | . GCP (IAM) . | Tenant ID: for identity operations use project ID (or projects/...); for policy operations use the resource that owns the IAM policy (e.g. projects/my-project, folders/123). | Create Identity creates a Service Account on GCP. You provide the service account ID; it returns email {id}@{project}.iam.gserviceaccount.com. Create options are unused. | Attach policy: resource is the IAM member (e.g. serviceAccount:...); policy actions are GCP role names (e.g. roles/storage.objectViewer). Get inline policy details: roleName is required; policyName is not used. | Remove policy: policyName is the role name to remove. | . ",
+    "url": "/multicloudj/guides/iam-guide.html#feature-support-across-providers",
+    
+    "relUrl": "/guides/iam-guide.html#feature-support-across-providers"
+  },"41": {
+    "doc": "How to IAM",
+    "title": "Creating the Client",
+    "content": "Basic Client . IamClient iamClient = IamClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Use the appropriate provider ID: \"aws\", \"gcp\", or \"ali\". The client implements AutoCloseable; use try-with-resources or call close() when done. ",
+    "url": "/multicloudj/guides/iam-guide.html#creating-the-client",
+    
+    "relUrl": "/guides/iam-guide.html#creating-the-client"
+  },"42": {
+    "doc": "How to IAM",
+    "title": "Identity Operations",
+    "content": "Creating an Identity . try (IamClient iamClient = IamClient.builder(\"aws\").withRegion(\"us-west-2\").build()) { String identityId = iamClient.createIdentity( \"MyRole\", \"Example role for storage access\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.empty() ); } . With trust configuration: . TrustConfiguration trustConfig = TrustConfiguration.builder() .addTrustedPrincipal(\"arn:aws:iam::123456789012:root\") .build(); String identityId = iamClient.createIdentity( \"CrossAccountRole\", \"Role assumable by account 123456789012\", \"123456789012\", \"us-west-2\", Optional.of(trustConfig), Optional.empty() ); . With creation options (path, max session duration, permission boundary): . CreateOptions options = CreateOptions.builder() .path(\"/service-roles/\") .maxSessionDuration(3600) .build(); String identityId = iamClient.createIdentity( \"ServiceRole\", \"Role for backend service\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.of(options) ); . Getting Identity Metadata . String identityInfo = iamClient.getIdentity(\"MyRole\", \"123456789012\", \"us-west-2\"); . Deleting an Identity . iamClient.deleteIdentity(\"MyRole\", \"123456789012\", \"us-west-2\"); . ",
+    "url": "/multicloudj/guides/iam-guide.html#identity-operations",
+    
+    "relUrl": "/guides/iam-guide.html#identity-operations"
+  },"43": {
+    "doc": "How to IAM",
+    "title": "Policy Operations",
+    "content": "Building a Policy Document . The example below uses AWS-style actions and resources (version 2012-10-17, S3 actions, ARN resource). PolicyDocument policy = PolicyDocument.builder() .version(\"2012-10-17\") .statement(\"StorageAccess\") .effect(\"Allow\") .addAction(\"s3:GetObject\") .addAction(\"s3:PutObject\") .addResource(\"arn:aws:s3:::my-bucket/*\") .condition(\"StringEquals\", \"aws:RequestedRegion\", \"us-west-2\") .endStatement() .build(); . Attaching an Inline Policy . iamClient.attachInlinePolicy(policy, \"123456789012\", \"us-west-2\", \"MyRole\"); . Listing Attached Policies . List&lt;String&gt; policyNames = iamClient.getAttachedPolicies(\"MyRole\", \"123456789012\", \"us-west-2\"); policyNames.forEach(name -&gt; System.out.println(\"Policy: \" + name)); . Getting Inline Policy Details . String policyJson = iamClient.getInlinePolicyDetails( \"MyRole\", \"StorageAccess\", \"MyRole\", \"123456789012\", \"us-west-2\" ); . Removing a Policy . iamClient.removePolicy(\"MyRole\", \"StorageAccess\", \"123456789012\", \"us-west-2\"); . Important: Parameter semantics (identityName, policyName, roleName, tenantId) differ by provider. See Provider-Specific Notes above. ",
+    "url": "/multicloudj/guides/iam-guide.html#policy-operations",
+    
+    "relUrl": "/guides/iam-guide.html#policy-operations"
+  },"44": {
+    "doc": "How to IAM",
+    "title": "Error Handling",
+    "content": "Exception Handling . All IAM operations may throw SubstrateSdkException: . try { String identityId = iamClient.createIdentity(\"MyRole\", \"Description\", \"123456789012\", \"us-west-2\", Optional.empty(), Optional.empty()); } catch (SubstrateSdkException e) { // Handle access denied, validation errors, etc. e.printStackTrace(); } . ",
+    "url": "/multicloudj/guides/iam-guide.html#error-handling",
+    
+    "relUrl": "/guides/iam-guide.html#error-handling"
+  },"45": {
+    "doc": "How to IAM",
+    "title": "How to IAM",
+    "content": " ",
+    "url": "/multicloudj/guides/iam-guide.html",
+    
+    "relUrl": "/guides/iam-guide.html"
+  },"46": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ",
     "content": " ",
     "url": "/multicloudj/#multicloudj",
     
     "relUrl": "/#multicloudj"
-  },"40": {
+  },"47": {
     "doc": "MultiCloudJ Overview",
     "title": "Write once, deploy in any cloud…",
     "content": "MultiCloudJ providing unified and vendor-neutral interfaces for commonly used cloud services such as Blob Storage, Document Store, Security Token Service (STS), and more. It enabbles the cloud developers to write applications that can developed once and be deployed to any of the cloud providers. The interfaces are designed in a way that it can support any of the major cloud providers. ",
     "url": "/multicloudj/#write-once-deploy-in-any-cloud",
     
     "relUrl": "/#write-once-deploy-in-any-cloud"
-  },"41": {
+  },"48": {
     "doc": "MultiCloudJ Overview",
     "title": "Key Features",
     "content": "Substrate-Neutral Write once, deploy anywhere. No vendor lock-in or provider-specific code. Currently Supported Cloud Providers Seamlessly work across AWS, Alibaba Cloud, and Google Cloud Platform with a single, consistent API. Additional cloud providers such as Azure can also be potentially supported. Uniform Semantics Common abstractions with unform semantics that work identically across cloud providers. Enterprise Ready Built with security, scalability, and maintainability in mind for production workloads. Extensiblity Built with extensible architecture design to support additional cloud providers in future. Flexiblity Providers flexibility to users to provider their own custom implementation and just have it in the run time. ",
     "url": "/multicloudj/#key-features",
     
     "relUrl": "/#key-features"
-  },"42": {
+  },"49": {
     "doc": "MultiCloudJ Overview",
     "title": "Supported Services",
     "content": "STS (Security Token Service) . Get access credentials using roles, service accounts, and more across all supported cloud providers. Blob Storage . Manage object storage with unified operations for uploading, downloading, listing, and managing blobs. Document Store . Work with document-oriented databases using consistent interfaces for CRUD operations and querying. Additional services such pubsub, secrets, compute are also in roadmap. Getting Started . ",
     "url": "/multicloudj/#supported-services",
     
     "relUrl": "/#supported-services"
-  },"43": {
+  },"50": {
     "doc": "MultiCloudJ Overview",
     "title": "Running Examples",
     "content": "MultiCloudJ includes comprehensive example programs demonstrating how to interact with supported services. Examples are located in the examples directory and cover: . | STS authentication flows | Blob storage operations | Document store CRUD operations | Cross-provider migration scenarios | . ",
     "url": "/multicloudj/#running-examples",
     
     "relUrl": "/#running-examples"
-  },"44": {
+  },"51": {
     "doc": "MultiCloudJ Overview",
     "title": "Where to Go from Here",
     "content": "Documentation and Guides: . | How-to Guides - Step-by-step guides for developers ready to use the SDK | Design Decisions - Architecture and design principles behind the SDK | . API Documentation: . | Java API Documentation (Javadoc) - Complete API reference | . Community and Support: . | GitHub Issues - Report bugs and request features | Discussion Forum - Get help from the community | Contribution Guidelines - Contribute to the project | . Additional Resources: . | MultiCloudJ Homepage - Source code and project information | Release Notes - Latest updates and changes | Examples Repository - Complete working examples | . MultiCloudJ is maintained by the Salesforce MultiCloudJ team and is open source under the Apache License 2.0. ",
     "url": "/multicloudj/#where-to-go-from-here",
     
     "relUrl": "/#where-to-go-from-here"
-  },"45": {
+  },"52": {
     "doc": "MultiCloudJ Overview",
     "title": "MultiCloudJ Overview",
     "content": " ",
     "url": "/multicloudj/",
     
     "relUrl": "/"
-  },"46": {
+  },"53": {
     "doc": "Design",
     "title": "Design Guides",
     "content": "Welcome to the MultiCloudJ Design Guides. This section provides concise, task-focused guides to help you understand the key design decisions behind the SDK. | Layers of the SDK - Understanding the layered architecture | Error Handling - How errors are handled across the SDK | Flexibility - How to extend and customize the SDK | . ",
     "url": "/multicloudj/design/#design-guides",
     
     "relUrl": "/design/#design-guides"
-  },"47": {
+  },"54": {
     "doc": "Design",
     "title": "Core Design Principles",
     "content": "MultiCloudJ is built on several key principles: . | Unified/Cloud Agnostic Interfaces/: Write once, interact across multiple cloud providers without changing your application code. | Extensibility: New cloud providers can be added without modifying existing code. | Flexibility: Easily override the default implementations and inject your own custom implementation in the env. | Simplicity: The API is designed to be intuitive and easy to use. | Uniform Semantics*: SDK provides the uniform semantics to the end user irrespective of the cloud provider. Examples: . | Object Deletion: AWS S3 returns HTTP 200 when deleting a non-existent object, while Google Cloud Storage returns HTTP 404. MultiCloudJ provides consistent semantics, returning either 200 (success) or 400 (error) regardless of the underlying provider. | Pagination: DynamoDB paginated queries return LastEvaluatedKey for continuation, while Google Cloud Firestore doesn’t provide this field and let the user figure that out using the last document in the page. MultiCloudJ abstracts this complexity and provides a uniform pagination API that works consistently across all providers. | . Note: While MultiCloudJ strives for uniform semantics, certain provider-specific server side features may not be available across all substrates. For example, global transactions are supported in Google Cloud Firestore, Azure Cosmos and AWS DynamoDB but not in Alibaba Cloud TableStore. In such cases, the SDK will throw appropriate exceptions when unsupported features are attempted on providers that don’t support them. However, these advanced features are rarely required for majority of the use cases. | Reliability: Robust error handling and retry mechanisms ensure reliable operation. | . ",
     "url": "/multicloudj/design/#core-design-principles",
     
     "relUrl": "/design/#core-design-principles"
-  },"48": {
+  },"55": {
     "doc": "Design",
     "title": "Contributing to Design",
     "content": "We welcome contributions to improve MultiCloudJ’s design. When contributing: . | Follow the established architectural patterns | Document your design decisions | Consider backward compatibility | Test your changes thoroughly | Update relevant documentation | . ",
     "url": "/multicloudj/design/#contributing-to-design",
     
     "relUrl": "/design/#contributing-to-design"
-  },"49": {
+  },"56": {
     "doc": "Design",
     "title": "Design Decisions",
     "content": "Key design decisions in MultiCloudJ include: . | Layered Architecture: Separating concerns between portable, driver, and provider layers | Builder Pattern: Using builders for flexible client configuration | Provider Loading: Dynamic loading of cloud provider implementations | Error Handling: Comprehensive error handling and recovery mechanisms | Extensibility: Support for custom providers and implementations | . ",
     "url": "/multicloudj/design/#design-decisions",
     
     "relUrl": "/design/#design-decisions"
-  },"50": {
+  },"57": {
     "doc": "Design",
     "title": "Best Practices",
     "content": "When working with MultiCloudJ’s design: . | Keep it Simple: Prefer simple solutions over complex ones | Be Consistent: Follow established patterns and conventions | Think Ahead: Consider future extensibility and maintenance | Document Everything: Clear documentation is essential | Test Thoroughly: Ensure your changes work across all supported providers | . ",
     "url": "/multicloudj/design/#best-practices",
     
     "relUrl": "/design/#best-practices"
-  },"51": {
+  },"58": {
     "doc": "Design",
     "title": "Related Resources",
     "content": ". | API Documentation | How-to Guides | Examples | Contribution Guidelines | . ",
     "url": "/multicloudj/design/#related-resources",
     
     "relUrl": "/design/#related-resources"
-  },"52": {
+  },"59": {
     "doc": "Design",
     "title": "Design",
     "content": " ",
     "url": "/multicloudj/design/",
     
     "relUrl": "/design/"
-  },"53": {
+  },"60": {
     "doc": "Getting Started",
     "title": "Quick Start",
     "content": "This tutorial provides a quick introduction to set up MultiCloudJ dependency and write a multi-cloud application with blobstore and docstore interface. 1. Add maven Dependencies . Each service have a $service-client such as blob-client artifact as well $service-$provider artifact such blob-aws. The $service-client is MUST HAVE at the build time and your application code uses this to write the code. The $service-$provider is required at the run time, and you can have dependencies for one or multiple providers at the same time. For example, you can have blob-aws, blob-gcp in your dependencies in your classpath at runtime and you can choose the provider during the client initialization. Add MultiCloudJ blob and docstore dependencies to your Maven project: . &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-client&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-aws&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; &lt;dependency&gt; &lt;groupId&gt;com.salesforce.multicloudj&lt;/groupId&gt; &lt;artifactId&gt;blob-gcp&lt;/artifactId&gt; &lt;version&gt;0.2.2&lt;/version&gt; &lt;/dependency&gt; . Or for Gradle: . implementation 'com.salesforce.multicloudj:blob-client:0.2.2' implementation 'com.salesforce.multicloudj:blob-aws:0.2.2' implementation 'com.salesforce.multicloudj:blob-gcp:0.2.2' . 2. Set Up AWS Credentials . First, you need to configure AWS credentials on your machine. You have several options: . Option A: AWS CLI Configuration (Recommended) . Follow https://docs.aws.amazon.com/cli/v1/userguide/cli-chap-configure.html To get started, You can have AWS credentials on environment variables or the ~/.aws/credentials file. 3. Create an S3 Bucket . You can create a bucket using the AWS Console, AWS CLI, or programmatically: . # Using AWS CLI aws s3 mb s3://my-multicloudj-bucket --region us-west-2 . 4. Your First MultiCloudJ Application . Now let’s create a simple application that connects to your bucket and performs basic operations: . import com.salesforce.multicloudj.blob.client.BucketClient; import com.salesforce.multicloudj.blob.driver.UploadRequest; import com.salesforce.multicloudj.blob.driver.DownloadRequest; public class MultiCloudJQuickStart { public static void main(String[] args) { // Initialize a session to your S3 bucket BucketClient bucketClient = BucketClient.builder(\"aws\") .withRegion(\"us-west-2\") // Replace with your region .withBucket(\"my-multicloudj-bucket\") // Replace with your bucket name .build(); try { // Upload a blob System.out.println(\"Uploading blob...\"); UploadRequest uploadRequest = new UploadRequest(\"hello.txt\"); bucketClient.upload(uploadRequest, \"Hello, MultiCloudJ!\".getBytes()); System.out.println(\"Upload successful!\"); // Download the blob System.out.println(\"Downloading blob...\"); DownloadRequest downloadRequest = new DownloadRequest(\"hello.txt\"); byte[] content = bucketClient.download(downloadRequest); System.out.println(\"Downloaded content: \" + new String(content)); // List all blobs in the bucket System.out.println(\"Listing blobs in bucket...\"); bucketClient.listBlobs().forEach(blob -&gt; System.out.println(\"Found blob: \" + blob.getKey() + \" (size: \" + blob.getSize() + \" bytes)\") ); } catch (Exception e) { System.err.println(\"Error: \" + e.getMessage()); e.printStackTrace(); } } } . 5. Run Your Application (If you have IDE that’s better) . # Compile and run javac -cp \".:multicloudj-blob-0.2.2.jar\" MultiCloudJQuickStart.java java -cp \".:multicloudj-blob-0.2.2.jar\" MultiCloudJQuickStart . 6. What Just Happened? . | BucketClient Creation: We created a BucketClient instance that connects to your S3 bucket | Upload: We uploaded a simple text file with the content “Hello, MultiCloudJ!” | Download: We downloaded the same file and displayed its content | List: We listed all objects in your bucket to see what’s there | . ",
     "url": "/multicloudj/getting-started/#quick-start",
     
     "relUrl": "/getting-started/#quick-start"
-  },"54": {
+  },"61": {
     "doc": "Getting Started",
     "title": "Next Steps",
     "content": ". | Explore Guides: Check out our detailed guides for specific use cases | API Reference: Browse the complete Java API documentation | Examples: See working examples in our examples repository | Design Decisions: Understand the architecture and design principles | . ",
     "url": "/multicloudj/getting-started/#next-steps",
     
     "relUrl": "/getting-started/#next-steps"
-  },"55": {
+  },"62": {
     "doc": "Getting Started",
     "title": "Getting Help",
     "content": ". | GitHub Issues: Report bugs and request features | Community: Join discussions | Contributing: Learn how to contribute | . MultiCloudJ is maintained by the Salesforce MultiCloudJ team and is open source under the Apache License 2.0. ",
     "url": "/multicloudj/getting-started/#getting-help",
     
     "relUrl": "/getting-started/#getting-help"
-  },"56": {
+  },"63": {
     "doc": "Getting Started",
     "title": "Getting Started",
     "content": " ",
     "url": "/multicloudj/getting-started/",
     
     "relUrl": "/getting-started/"
-  },"57": {
+  },"64": {
     "doc": "Usage Guides",
     "title": "How-To Guides",
     "content": "Welcome to the MultiCloudJ How-To Guides. This section provides concise, task-focused guides designed to help you accomplish common goals using MultiCloudJ’s cloud-agnostic interfaces. Each guide is grouped by API and includes practical examples and usage patterns. ",
     "url": "/multicloudj/guides/#how-to-guides",
     
     "relUrl": "/guides/#how-to-guides"
-  },"58": {
+  },"65": {
     "doc": "Usage Guides",
     "title": "🛡️ STS",
     "content": "Learn how to get access credentials using roles/service accounts etc. | STS | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-sts",
     
     "relUrl": "/guides/#️-sts"
-  },"59": {
+  },"66": {
     "doc": "Usage Guides",
     "title": "☁️ Blob",
     "content": "Learn how to manage object storage (uploading, downloading, listing blobs) in a cloud-neutral way. | Blob Store | . ",
     "url": "/multicloudj/guides/#%EF%B8%8F-blob",
     
     "relUrl": "/guides/#️-blob"
-  },"60": {
+  },"67": {
     "doc": "Usage Guides",
     "title": "📄 Docstore",
     "content": "Work with document-oriented databases using a consistent interface. | Docstore | . ",
     "url": "/multicloudj/guides/#-docstore",
     
     "relUrl": "/guides/#-docstore"
-  },"61": {
+  },"68": {
     "doc": "Usage Guides",
     "title": "📬 Pub/Sub",
     "content": "Use publish/subscribe systems to send and receive messages. | Pubsub | . ",
     "url": "/multicloudj/guides/#-pubsub",
     
     "relUrl": "/guides/#-pubsub"
-  },"62": {
+  },"69": {
+    "doc": "Usage Guides",
+    "title": "📬 IAM",
+    "content": "Learn how to manage identities and policies in a cloud-neutral way. | IAM | . ",
+    "url": "/multicloudj/guides/#-iam",
+    
+    "relUrl": "/guides/#-iam"
+  },"70": {
     "doc": "Usage Guides",
     "title": "🧪 Testing",
     "content": "Learn how to write and run conformance tests for multi-cloud applications. | Conformance Tests | . Explore these guides to master the MultiCloudJ SDK and build robust multi-cloud Java applications with ease. ",
     "url": "/multicloudj/guides/#-testing",
     
     "relUrl": "/guides/#-testing"
-  },"63": {
+  },"71": {
     "doc": "Usage Guides",
     "title": "Usage Guides",
     "content": " ",
     "url": "/multicloudj/guides/",
     
     "relUrl": "/guides/"
-  },"64": {
+  },"72": {
     "doc": "Layers",
     "title": "Layers",
     "content": " ",
     "url": "/multicloudj/design/layers.html",
     
     "relUrl": "/design/layers.html"
-  },"65": {
+  },"73": {
     "doc": "Layers",
     "title": "Introduction",
     "content": "The Substrate SDK uses a layered architecture to provide a clean separation between the public API, internal abstractions, and provider-specific implementations. This architecture enables: . | A consistent, substrate-agnostic experience for end users | Easy addition of new cloud providers | Clear separation of concerns | Maintainable and testable code | . ",
     "url": "/multicloudj/design/layers.html#introduction",
     
     "relUrl": "/design/layers.html#introduction"
-  },"66": {
+  },"74": {
     "doc": "Layers",
     "title": "Components",
     "content": ". The architecture consists of three main layers: . | Portable Layer (Top) - The public-facing API that users interact with | Driver Layer (Middle) - The abstraction layer that defines common interfaces | Provider Layer (Bottom) - The implementation layer for specific cloud providers | . ",
     "url": "/multicloudj/design/layers.html#components",
     
     "relUrl": "/design/layers.html#components"
-  },"67": {
+  },"75": {
     "doc": "Layers",
     "title": "Portable Layer",
     "content": "The portable layer is the most important and front-facing layer for end users. End users should mostly interact with the portable Layer to make cloud service calls. The portable Layer should expose all necessary functions/APIs for the end user. For example, for a blobstore service, it can expose methods like upload, download, delete, etc., through the portable Layer. Characteristics of an ideal portable Layer: . | The portable Layer should be substrate-agnostic, containing no substrate-specific logic. It should offer a substrate-agnostic experience for the end user. | The portable Layer should accept the substrate(provider) value from the end user and initiate the appropriate session on that substrate. (We might consider that empty provider will pick whatever provider it finds first in the classpath, if required). | The portable Layer should allow users to provide substrate-agnostic inputs such as region name, credentials through a credentials provider defined in Substrate SDK, bucket name (for blob services), etc. | The portable Layer should only expose functions that are supported across all substrates. It should not support or expose features that work on one substrate but not on others. | The portable Layer should strive to provide the best experience for the end user, requiring as little information as possible. | . Example usage of the portable Layer for blob storage and uploading the blob: . // hardcodes for illustration purposes values should be outside of the service code String substrate = \"aws\" String region = \"us-east-1\" // Setting up session credentials - // these are optional and ideally in prod, this is not required // since the k8s pods are set with default credentials and Substrate SDK // uses the default credentials in that case. StsCredentials credentials = new StsCredentials( \"accessKeyId\", \"accessKeySecret\", \"sessionToken\"); CredentialsOverrider credsOverrider = new CredentialsOverrider .Builder(CredentialsType.SESSION).withSessionCredentials(credentials).build(); // Initiate the substrate agnostic BucketClient BucketClient client = BucketClient.builder(substrate) .withBucket(\"chameleon-java\") .withRegion(region) .withCredentialsOverrider(credsOverrider).build(); // Prepare the substrate agnostic UploadRequest UploadRequest uploadRequest = new UploadRequest.Builder() .withKey(\"bucket-path/chameleon.jpg\") // Upload the content UploadResponse response = client.upload(uploadRequest, \"dummy-content\"); . The above example demonstrates that the end user wants to open the client for the blob storage in the AWS substrate to the bucket “chameleon-java” in the region “us-east-1”. The client is used to upload/write the blob in the bucket. In this example, the portable fulfills all the requirements as discussed above: . | There is no substrate specific logic exposed on the portable Layer. From the code block, there is no substrate specific exposure and this logic works in the same manner for other substrates by just providing a different substrate value. | portable Layer forces the client the provide a substrate value, it doesn’t assume or interpret the substrate based on the runtime. | It provides a way to supply inputs to open the session in a substrate agnostic manner. | It asks the minimum amount of information from the end user without knowing the internals of the SDK. | . ",
     "url": "/multicloudj/design/layers.html#portable-layer",
     
     "relUrl": "/design/layers.html#portable-layer"
-  },"68": {
+  },"76": {
     "doc": "Layers",
     "title": "Driver Layer",
     "content": "The driver layer is a layer behind the portable Layer which defines the abstract functions and implementations for each substrate/provider. The driver layer can also include wrapper logic on top of abstract functions to further simplify portable Layer. Structure . The basic structure of abstract Blob Store looks like this which defines some variables required for the provider implementation such as region and the provider id: . public abstract class AbstracBlobtore { protected final String providerId; protected final String region; protected final String bucket; // Abstract methods for substrate-specific implementations protected abstract UploadResponse doUpload(UploadRequest uploadRequest); protected abstract DownloadResponse doDownload(DownloadRequest downloadRequest); protected abstract void doDelete(String key); } . Why do need a separate driver layer? . While it’s possible to achieve the abstraction of service capabilities without this driver layer and instead make the portable layer an abstract class, there are numerous benefits to keeping the portable layer separate. These benefits include: . Separation of concerns: . Abstract classes deal with internal code of SDK and abstract methods for providers to implement where as portable Layer or client is all about external facing code. We can keep the portable Layer light weight and to the point. Driver abstraction consist of: . | Common methods for logic which applies to all providers | Abstract methods to be implemented by providers | . Prevention of leaky abstractions: . Having a separate portable Layer prevents the leaky abstractions because the client doesn’t have to deal with or access the driver layer which might expose some internals. Maintainability: . Changing the internal implementations are comparatively safe without breaking portable Layer contracts. Testing: . End users have simple portable layer for mocks and testing. Example: . For instance, the upload method in BucketClient have multiple methods in the backend, such as validateContent to validate if the content is in the right format which is common for all providers. This validateContent method should be internal and not exposed to end users, therefore it can be part of driver layer and keep the BucketClient purely public. Secondly, if we have a prepContent abstraction function in driver which should be implemented by all the provider implementations to prepareContent for specific substrate. Now, let’s say each substrate appends the content with some prefix bytes which are substrate specific. So the upload method is executed as follow behind the scenes: . public UploadResponse upload(UploadRequest uploadRequest) { validation(); &lt;- this is common validation for all substrates prepContent(); &lt;- this is provider specific prep content doUpload(); this is provider specific upload of the content } . Basically we might have several methods which the end user doesn’t care about and should be completely abstracted from the users. These functions should be placed in driver layer, keeping the portable layer purely public and sanitized. ",
     "url": "/multicloudj/design/layers.html#driver-layer",
     
     "relUrl": "/design/layers.html#driver-layer"
-  },"69": {
+  },"77": {
     "doc": "Layers",
     "title": "Provider Layer",
     "content": "Provider layer implements the driver layer for each substrate. Provider layer is for each provider or substrate which powers the API calls from the end users to make substrate specific calls. In the below code example: AWSBlobStore is the provider for blob/blobstore for AWS substrate and implements all the abstract functions in the AWS substrate. public class AWSBlobStore extends AbstractBlobStore { S3Client s3Client; public AWSBlobStore(Builder builder) { s3Client = ... // code logic to build the s3Client by information from builder } @Override protected void doUploadFile(String key, String filePath) { Map&lt;String, String&gt; metadata = new HashMap&lt;&gt;(); PutObjectRequest putOb = PutObjectRequest.builder() .bucket(this.bucketName) .key(key) .metadata(metadata) .build(); s3Client.putObject(putOb, RequestBody.fromFile(new File(filePath))); log.info(\"Successfully placed object\" + \" into bucket \" + bucketName); } @Override public Builder builder() { return new Builder(); } public static class Builder extends AbstractBlobStore.Builder&lt;AwsBlobStore&gt; { public Builder() { providerId(\"aws\"); } @Override public AwsBlobStore build() { return new AwsBlobStore(this); } ... } } . ",
     "url": "/multicloudj/design/layers.html#provider-layer",
     
     "relUrl": "/design/layers.html#provider-layer"
-  },"70": {
+  },"78": {
     "doc": "Layers",
     "title": "Best Practices",
     "content": ". | Keep the Portable Layer Clean . | Only expose substrate-agnostic APIs | Validate inputs before passing to driver layer | Handle common error cases | . | Driver Layer Design . | Define clear interfaces | Include common validation logic | Provide default implementations where possible | Document expected behavior | . | Provider Implementation . | Follow the driver layer contract strictly | Handle provider-specific edge cases | Implement proper error handling | Add provider-specific logging | . | . ",
     "url": "/multicloudj/design/layers.html#best-practices",
     
     "relUrl": "/design/layers.html#best-practices"
-  },"71": {
+  },"79": {
     "doc": "Layers",
     "title": "Common Pitfalls",
     "content": ". | Leaky Abstractions . | Avoid exposing provider-specific types in the portable layer | Don’t let provider-specific exceptions bubble up | Keep provider-specific configuration internal | . | Inconsistent Behavior . | Ensure all providers implement the same behavior | Handle edge cases consistently | Document any provider-specific limitations | . | Performance Issues . | Avoid unnecessary abstraction layers | Cache provider clients when possible | Use efficient data structures | . | . ",
     "url": "/multicloudj/design/layers.html#common-pitfalls",
     
     "relUrl": "/design/layers.html#common-pitfalls"
-  },"72": {
+  },"80": {
     "doc": "How to Pub/Sub",
     "title": "Pub/Sub",
     "content": "The TopicClient and SubscriptionClient classes in the multicloudj library provide a comprehensive, cloud-agnostic interface to interact with publish/subscribe messaging services like Google Cloud Pub/Sub, AWS SNS/SQS, and Alibaba Cloud Message Service. These clients enable sending messages to topics, receiving messages from subscriptions, and managing message acknowledgment across multiple cloud providers with a consistent API. ",
     "url": "/multicloudj/guides/pubsub-guide.html#pubsub",
     
     "relUrl": "/guides/pubsub-guide.html#pubsub"
-  },"73": {
+  },"81": {
     "doc": "How to Pub/Sub",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Send Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Send messages to topics | . | Receive Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Pull messages from subscriptions | . | Acknowledge Messages | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Confirm message processing | . | Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Acknowledge multiple messages at once | . | Negative Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Reject messages for redelivery | . Advanced Features . | Feature Name | GCP | AWS | ALI | Comments | . | Async Batch Acknowledgment | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | CompletableFuture-based async ack/nack | . | Double Acknowledgment Safety | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Safe to ack same message multiple times | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Endpoint Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom endpoint configuration | . | Proxy Support | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | HTTP proxy configuration | . | Credentials Override | ✅ Supported | End of Nov ‘25 | 📅 In Roadmap | Custom credential providers via STS | . Provider-Specific Notes . GCP (Google Cloud Pub/Sub) . | Topic names must use full resource format: projects/{projectId}/topics/{topicId} | Subscription names must use full resource format: projects/{projectId}/subscriptions/{subscriptionId} | . ",
     "url": "/multicloudj/guides/pubsub-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/pubsub-guide.html#feature-support-across-providers"
-  },"74": {
+  },"82": {
     "doc": "How to Pub/Sub",
     "title": "Creating Clients",
     "content": "Topic Client . TopicClient topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); topicClient = TopicClient.builder(\"gcp\") .withTopicName(\"projects/my-project/topics/my-topic\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . Subscription Client . SubscriptionClient subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .build(); . You can also configure advanced options: . URI endpoint = URI.create(\"https://custom-endpoint.com\"); URI proxy = URI.create(\"https://proxy.example.com\"); subscriptionClient = SubscriptionClient.builder(\"gcp\") .withSubscriptionName(\"projects/my-project/subscriptions/my-subscription\") .withEndpoint(endpoint) .withProxyEndpoint(proxy) .build(); . ",
     "url": "/multicloudj/guides/pubsub-guide.html#creating-clients",
     
     "relUrl": "/guides/pubsub-guide.html#creating-clients"
-  },"75": {
+  },"83": {
     "doc": "How to Pub/Sub",
     "title": "Sending Messages",
     "content": "Basic Message . try (TopicClient topic = topicClient) { Message message = Message.builder() .withBody(\"Hello, World!\".getBytes()) .build(); topic.send(message); } . Message with Metadata . Message message = Message.builder() .withBody(\"Order processed\".getBytes()) .withMetadata(Map.of( \"order-id\", \"12345\", \"priority\", \"high\", \"source\", \"api-service\" )) .build(); topic.send(message); . Sending Multiple Messages . List&lt;Message&gt; messages = List.of( Message.builder().withBody(\"Message 1\".getBytes()).withMetadata(Map.of(\"batch-id\", \"1\")).build(), Message.builder().withBody(\"Message 2\".getBytes()).withMetadata(Map.of(\"batch-id\", \"2\")).build(), Message.builder().withBody(\"Message 3\".getBytes()).withMetadata(Map.of(\"batch-id\", \"3\")).build() ); for (Message message : messages) { topic.send(message); } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#sending-messages",
     
     "relUrl": "/guides/pubsub-guide.html#sending-messages"
-  },"76": {
+  },"84": {
     "doc": "How to Pub/Sub",
     "title": "Receiving Messages",
     "content": "Single Message Receive . The receive() method blocks until a message is available: . try (SubscriptionClient subscription = subscriptionClient) { Message message = subscription.receive(); String data = new String(message.getBody()); System.out.println(\"Received: \" + data); // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Continuous Message Processing . try (SubscriptionClient subscription = subscriptionClient) { while (true) { Message message = subscription.receive(); try { String data = new String(message.getBody()); // Process the message processMessage(data); // Acknowledge on success subscription.sendAck(message.getAckID()); } catch (Exception e) { // Nack on failure for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } } } } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#receiving-messages",
     
     "relUrl": "/guides/pubsub-guide.html#receiving-messages"
-  },"77": {
+  },"85": {
     "doc": "How to Pub/Sub",
     "title": "Message Acknowledgment",
     "content": "Single Acknowledgment . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process the message... // Acknowledge successful processing subscription.sendAck(message.getAckID()); } . Batch Acknowledgment . Batch acknowledgment returns a CompletableFuture: . List&lt;AckID&gt; ackIDs = new ArrayList&lt;&gt;(); // Collect messages for (int i = 0; i &lt; 10; i++) { Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { // Process message... ackIDs.add(message.getAckID()); } } // Acknowledge all at once subscription.sendAcks(ackIDs).join(); . Negative Acknowledgment (Nack) . Use nack to reject a message and make it available for redelivery. Check if nacking is supported first: . Message message = subscription.receive(); if (message != null) { try { // Try to process processMessage(message); subscription.sendAck(message.getAckID()); } catch (Exception e) { // Failed to process, nack for redelivery (if supported) if (subscription.canNack()) { subscription.sendNack(message.getAckID()); } else { // Provider doesn't support nack System.err.println(\"Nack not supported\"); } } } . Batch Negative Acknowledgment . List&lt;AckID&gt; nackIDs = new ArrayList&lt;&gt;(); for (Message message : messages) { if (shouldReject(message)) { nackIDs.add(message.getAckID()); } } if (subscription.canNack()) { subscription.sendNacks(nackIDs).join(); } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#message-acknowledgment",
     
     "relUrl": "/guides/pubsub-guide.html#message-acknowledgment"
-  },"78": {
+  },"86": {
     "doc": "How to Pub/Sub",
     "title": "Subscription Information",
     "content": "Check Nack Support . Not all providers support negative acknowledgment. Check before using: . if (subscription.canNack()) { System.out.println(\"This subscription supports nacking\"); } else { System.out.println(\"This subscription does not support nacking\"); } . Get Subscription Attributes . Retrieve provider-specific subscription metadata: . Map&lt;String, String&gt; attributes = subscription.getAttributes(); for (Map.Entry&lt;String, String&gt; entry : attributes.entrySet()) { System.out.println(entry.getKey() + \": \" + entry.getValue()); } . Important GCP Format Requirements: . | Topic names: projects/{projectId}/topics/{topicId} | Subscription names: projects/{projectId}/subscriptions/{subscriptionId} | . ",
     "url": "/multicloudj/guides/pubsub-guide.html#subscription-information",
     
     "relUrl": "/guides/pubsub-guide.html#subscription-information"
-  },"79": {
+  },"87": {
     "doc": "How to Pub/Sub",
     "title": "Error Handling",
     "content": "Null Check for AckID . Always validate that an AckID is not null before acknowledging: . Message message = subscription.receive(); if (message != null &amp;&amp; message.getAckID() != null) { subscription.sendAck(message.getAckID()); } . Attempting to acknowledge with a null AckID will throw InvalidArgumentException: . try { subscription.sendAck(null); } catch (InvalidArgumentException e) { System.err.println(\"Cannot acknowledge null AckID\"); } . Exception Handling . All topic operations may throw SubstrateSdkException: . try { topic.send(message); } catch (SubstrateSdkException e) { // Handle access denied, quota exceeded, network errors, etc. e.printStackTrace(); } . All subscription operations may throw SubstrateSdkException: . try { Message message = subscription.receive(); subscription.sendAck(message.getAckID()); } catch (SubstrateSdkException e) { // Handle access denied, network errors, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/pubsub-guide.html#error-handling",
     
     "relUrl": "/guides/pubsub-guide.html#error-handling"
-  },"80": {
+  },"88": {
     "doc": "How to Pub/Sub",
     "title": "How to Pub/Sub",
     "content": " ",
     "url": "/multicloudj/guides/pubsub-guide.html",
     
     "relUrl": "/guides/pubsub-guide.html"
-  },"81": {
+  },"89": {
     "doc": "How to STS",
     "title": "STS (Security Token Service)",
     "content": "The StsClient class in the multicloudj library provides a portable interface for interacting with cloud provider security token services such as AWS STS, GCP IAM Credentials, or any other compatible implementation. It allows you to obtain temporary credentials, access tokens, and caller identity information in a cloud-neutral way. ",
     "url": "/multicloudj/guides/sts-guide.html#sts-security-token-service",
     
     "relUrl": "/guides/sts-guide.html#sts-security-token-service"
-  },"82": {
+  },"90": {
     "doc": "How to STS",
     "title": "Overview",
     "content": "The StsClient is built on top of provider-specific implementations of AbstractSts. Each provider registers its implementation and is selected dynamically at runtime. ",
     "url": "/multicloudj/guides/sts-guide.html#overview",
     
     "relUrl": "/guides/sts-guide.html#overview"
-  },"83": {
+  },"91": {
     "doc": "How to STS",
     "title": "Feature Support Across Providers",
     "content": "Core API Features . | Feature Name | GCP | AWS | ALI | Comments | . | Assume Role | ✅ Supported | ✅ Supported | ✅ Supported | Core feature for temporary credentials for role/service account | . | Get Caller Identity | ✅ Supported | ✅ Supported | ✅ Supported | Returns identity information of the current caller | . | Get Access Token | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs | . Configuration Options . | Configuration | GCP | AWS | ALI | Comments | . | Region Support | ✅ Supported | ✅ Supported | ✅ Supported | All providers support region-specific operations | . | Endpoint Override | ✅ Supported | ✅ Supported | ✅ Supported | Custom endpoint configuration | . Provider-Specific Notes . GCP (Google Cloud Platform) . | Uses Google’s OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity | . ",
     "url": "/multicloudj/guides/sts-guide.html#feature-support-across-providers",
     
     "relUrl": "/guides/sts-guide.html#feature-support-across-providers"
-  },"84": {
+  },"92": {
     "doc": "How to STS",
     "title": "Creating a Client",
     "content": "StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .build(); . Optionally, you can set a custom endpoint: . URI endpoint = URI.create(\"https://sts.custom-endpoint.com\"); StsClient stsClient = StsClient.builder(\"aws\") .withRegion(\"us-west-2\") .withEndpoint(endpoint) .build(); . ",
     "url": "/multicloudj/guides/sts-guide.html#creating-a-client",
     
     "relUrl": "/guides/sts-guide.html#creating-a-client"
-  },"85": {
+  },"93": {
     "doc": "How to STS",
     "title": "Getting Caller Identity",
     "content": "Retrieve the caller identity associated with the current credentials: . CallerIdentity identity = stsClient.getCallerIdentity(); System.out.println(\"Caller: \" + identity.getArn()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-caller-identity",
     
     "relUrl": "/guides/sts-guide.html#getting-caller-identity"
-  },"86": {
+  },"94": {
     "doc": "How to STS",
     "title": "Getting an Access Token",
     "content": "Use this when you need an OAuth2-style token (provider support may vary): . GetAccessTokenRequest request = new GetAccessTokenRequest(); StsCredentials token = stsClient.getAccessToken(request); System.out.println(\"Access Token: \" + token.getAccessToken()); . ",
     "url": "/multicloudj/guides/sts-guide.html#getting-an-access-token",
     
     "relUrl": "/guides/sts-guide.html#getting-an-access-token"
-  },"87": {
+  },"95": {
     "doc": "How to STS",
     "title": "Assuming a Role",
     "content": "To assume a different identity (e.g., for cross-account access): . AssumedRoleRequest request = new AssumedRoleRequest(); request.setRoleArn(\"arn:aws:iam::123456789012:role/example-role\"); request.setSessionName(\"example-session\"); StsCredentials credentials = stsClient.getAssumeRoleCredentials(request); System.out.println(\"Temporary Credentials: \" + credentials.getAccessKeyId()); . ",
     "url": "/multicloudj/guides/sts-guide.html#assuming-a-role",
     
     "relUrl": "/guides/sts-guide.html#assuming-a-role"
-  },"88": {
+  },"96": {
     "doc": "How to STS",
     "title": "Error Handling",
     "content": "All errors are translated to SubstrateSdkException subclasses by the underlying driver. The client will automatically map exceptions to meaningful runtime errors based on the provider: . try { CallerIdentity identity = stsClient.getCallerIdentity(); } catch (SubstrateSdkException e) { // Handle known errors: AccessDenied, Timeout, etc. e.printStackTrace(); } . ",
     "url": "/multicloudj/guides/sts-guide.html#error-handling",
     
     "relUrl": "/guides/sts-guide.html#error-handling"
-  },"89": {
+  },"97": {
     "doc": "How to STS",
     "title": "How to STS",
     "content": " ",
