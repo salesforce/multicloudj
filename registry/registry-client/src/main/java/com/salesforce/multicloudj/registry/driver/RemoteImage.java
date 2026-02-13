@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.registry.driver;
 
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
+import com.salesforce.multicloudj.registry.model.Manifest;
 
 import java.io.IOException;
 import java.util.ArrayList;
