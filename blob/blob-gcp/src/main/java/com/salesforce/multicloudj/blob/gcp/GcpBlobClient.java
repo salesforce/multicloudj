@@ -110,6 +110,24 @@ public class GcpBlobClient extends AbstractBlobClient<GcpBlobClient> {
             );
             org.apache.http.impl.client.HttpClientBuilder httpClientBuilder = org.apache.http.impl.client.HttpClientBuilder.create()
                     .setProxy(proxy);
+            // Configure proxy authentication if credentials are provided
+            org.apache.http.client.CredentialsProvider credentialsProvider = new org.apache.http.impl.client.BasicCredentialsProvider();
+            org.apache.http.auth.AuthScope authScope = new org.apache.http.auth.AuthScope(
+                    builder.getProxyEndpoint().getHost(), builder.getProxyEndpoint().getPort());
+            String username = null;
+            String password = null;
+            if (builder.getProxyUsername() != null) {
+                username = builder.getProxyUsername();
+            }
+            if (builder.getProxyPassword() != null) {
+                password = builder.getProxyPassword();
+            }
+            if (username != null) {
+                org.apache.http.auth.Credentials proxyCredentials = new org.apache.http.auth.UsernamePasswordCredentials(
+                        username, password);
+                credentialsProvider.setCredentials(authScope, proxyCredentials);
+                httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+            }
             storageBuilder.setTransportOptions(HttpTransportOptions.newBuilder()
                     .setHttpTransportFactory(() -> new ApacheHttpTransport(httpClientBuilder.build()))
                     .build());

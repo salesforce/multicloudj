@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Entry point for Client code to interact with the Blob storage.
@@ -607,6 +608,36 @@ public class BucketClient implements AutoCloseable {
          */
         public BlobBuilder withProxyEndpoint(URI proxyEndpoint) {
             this.blobStoreBuilder.withProxyEndpoint(proxyEndpoint);
+            return this;
+        }
+
+        /**
+         * Method to supply a proxy username for authentication
+         * @param proxyUsername The username for proxy authentication
+         * @return An instance of self
+         */
+        public BlobBuilder withProxyUsername(String proxyUsername) {
+            this.blobStoreBuilder.withProxyUsername(proxyUsername);
+            return this;
+        }
+
+        /**
+         * Method to supply a proxy password for authentication
+         * @param proxyPassword The password for proxy authentication
+         * @return An instance of self
+         */
+        public BlobBuilder withProxyPassword(String proxyPassword) {
+            this.blobStoreBuilder.withProxyPassword(proxyPassword);
+            return this;
+        }
+
+        /**
+         * Method to supply a set of hosts that should bypass the proxy
+         * @param nonProxyHosts The set of hosts that should not use the proxy
+         * @return An instance of self
+         */
+        public BlobBuilder withNonProxyHosts(Set<String> nonProxyHosts) {
+            this.blobStoreBuilder.withNonProxyHosts(nonProxyHosts);
             return this;
         }
 

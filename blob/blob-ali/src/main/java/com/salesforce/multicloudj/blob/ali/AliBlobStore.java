@@ -586,6 +586,12 @@ public class AliBlobStore extends AbstractBlobStore {
                 clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
                 clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
             }
+            if (builder.getProxyUsername() != null) {
+                clientBuilderConfiguration.setProxyUsername(builder.getProxyUsername());
+            }
+            if (builder.getProxyPassword() != null) {
+                clientBuilderConfiguration.setProxyPassword(builder.getProxyPassword());
+            }
             if(builder.getMaxConnections() != null) {
                 clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
             }

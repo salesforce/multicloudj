@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -71,6 +72,36 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
      */
     public BlobClientBuilder<C, S> withProxyEndpoint(URI proxyEndpoint) {
         this.storeBuilder.withProxyEndpoint(proxyEndpoint);
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy username for authentication
+     * @param proxyUsername The username for proxy authentication
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withProxyUsername(String proxyUsername) {
+        this.storeBuilder.withProxyUsername(proxyUsername);
+        return this;
+    }
+
+    /**
+     * Method to supply a proxy password for authentication
+     * @param proxyPassword The password for proxy authentication
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withProxyPassword(String proxyPassword) {
+        this.storeBuilder.withProxyPassword(proxyPassword);
+        return this;
+    }
+
+    /**
+     * Method to supply a set of hosts that should bypass the proxy
+     * @param nonProxyHosts The set of hosts that should not use the proxy
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withNonProxyHosts(Set<String> nonProxyHosts) {
+        this.storeBuilder.withNonProxyHosts(nonProxyHosts);
         return this;
     }
 
