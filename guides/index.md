@@ -42,6 +42,12 @@ Use publish/subscribe systems to send and receive messages.
 
 - [Pubsub](pubsub-guide.html)
 
+## 📬 IAM
+
+Learn how to manage identities and policies in a cloud-neutral way.
+
+- [IAM](iam-guide.html)
+
 ---
 
 ## 🧪 Testing
