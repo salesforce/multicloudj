@@ -75,8 +75,10 @@ public class TestsUtilGcp {
     }
 
     /**
-     * Gets an HttpTransport configured with a proxy to the WireMock server.
-     * This allows HTTP/HTTPS traffic to be intercepted for testing.
+     * Gets an HttpTransport configured with a proxy to the WireMock server (HTTP port).
+     * Note: Using an HTTP proxy causes HTTPS requests to use CONNECT tunneling, so WireMock
+     * never sees the actual request body. Prefer {@link #getHttpTransportDirect(int)} for
+     * record/replay so requests hit WireMock's HTTPS port directly.
      *
      * @param port The base port for WireMock (proxy will use port+1)
      * @return A configured HttpTransport
@@ -84,15 +86,30 @@ public class TestsUtilGcp {
      */
     public static HttpTransport getHttpTransport(int port) {
         try {
-            // Get SSL socket factory that trusts all certificates
             SSLSocketFactory sslSocketFactory = createTrustAllSSLContext().getSocketFactory();
-
-            // Define proxy to WireMock
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(WIREMOCK_HOST, port + 1));
-
-            // Set up HTTP transport with proxy and SSL settings
             return new NetHttpTransport.Builder()
                     .setProxy(proxy)
+                    .doNotValidateCertificate()
+                    .setSslSocketFactory(sslSocketFactory)
+                    .build();
+        } catch (GeneralSecurityException e) {
+            throw new SecurityConfigurationException("Failed to configure transport", e);
+        }
+    }
+
+    /**
+     * Gets an HttpTransport that connects directly to WireMock's HTTPS port (no proxy).
+     * Use with StorageOptions.setHost("https://localhost:" + port) so the client talks
+     * to WireMock directly. WireMock can then record/replay the full request in both modes.
+     *
+     * @param port WireMock HTTPS port (same as harness.getPort())
+     * @return A configured HttpTransport with trust-all certs, no proxy
+     */
+    public static HttpTransport getHttpTransportDirect(int port) {
+        try {
+            SSLSocketFactory sslSocketFactory = createTrustAllSSLContext().getSocketFactory();
+            return new NetHttpTransport.Builder()
                     .doNotValidateCertificate()
                     .setSslSocketFactory(sslSocketFactory)
                     .build();
