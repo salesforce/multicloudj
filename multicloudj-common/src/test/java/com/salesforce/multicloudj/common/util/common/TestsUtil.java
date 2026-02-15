@@ -11,6 +11,7 @@ import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.recordSpec;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUST_BODY_OVER;
@@ -141,6 +143,46 @@ public class TestsUtil {
         boolean isRecordingEnabled = System.getProperty("record") != null;
         if (isRecordingEnabled) {
             wireMockServer.stopRecording();
+        }
+    }
+
+    public static void getUnmatchedWireMockRequests() {
+        if (wireMockServer == null) {
+            return;
+        }
+
+        List<ServeEvent> serveEvents = wireMockServer.getAllServeEvents();
+        List<ServeEvent> unmatchedEvents = serveEvents.stream()
+                .filter(event -> !event.getWasMatched())
+                .collect(Collectors.toList());
+
+        if (unmatchedEvents.isEmpty()) {
+            return;
+        }
+
+        logger.error("WireMock found {} unmatched requests:", unmatchedEvents.size());
+        
+        for (int i = 0; i < unmatchedEvents.size(); i++) {
+            ServeEvent event = unmatchedEvents.get(i);
+            logger.error("\n--- Unmatched Request #{} ---", i + 1);
+            logger.error("Method: {}", event.getRequest().getMethod());
+            logger.error("URL: {}", event.getRequest().getUrl());
+            
+            if (event.getRequest().getHeaders() != null && event.getRequest().getHeaders().size() > 0) {
+                logger.error("Headers: {}", event.getRequest().getHeaders());
+            }
+            
+            if (event.getRequest().getBody() != null && event.getRequest().getBody().length > 0) {
+                String bodyPreview = event.getRequest().getBodyAsString();
+                if (bodyPreview.length() > 500) {
+                    bodyPreview = bodyPreview.substring(0, 500) + "... (truncated)";
+                }
+                logger.error("Body: {}", bodyPreview);
+            }
+            
+            if (event.getResponseDefinition() != null) {
+                logger.error("Response Status: {}", event.getResponseDefinition().getStatus());
+            }
         }
     }
 }
