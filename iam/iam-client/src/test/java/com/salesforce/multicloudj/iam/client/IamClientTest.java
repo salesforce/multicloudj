@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
@@ -110,6 +111,7 @@ public class IamClientTest {
     @Test
     void testAttachInlinePolicy() {
         PolicyDocument policy = PolicyDocument.builder()
+                .name("TestPolicy")
                 .version("2024-01-01")
                 .statement(Statement.builder()
                         .sid("TestPolicy")
@@ -117,17 +119,23 @@ public class IamClientTest {
                         .action("storage:GetObject")
                         .build())
                 .build();
-        
-        client.attachInlinePolicy(policy, TEST_TENANT_ID, TEST_REGION, TEST_RESOURCE);
+        AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+                .policyDocument(policy)
+                .tenantId(TEST_TENANT_ID)
+                .region(TEST_REGION)
+                .identityName(TEST_RESOURCE)
+                .build();
 
-        verify(mockIam, times(1)).attachInlinePolicy(
-                eq(policy), eq(TEST_TENANT_ID), eq(TEST_REGION), eq(TEST_RESOURCE));
+        client.attachInlinePolicy(request);
+
+        verify(mockIam, times(1)).attachInlinePolicy(eq(request));
     }
 
     @Test
     void testAttachInlinePolicyThrowsException() {
         doReturn(UnAuthorizedException.class).when(mockIam).getException(any());
         PolicyDocument policy = PolicyDocument.builder()
+                .name("TestPolicy")
                 .version("2024-01-01")
                 .statement(Statement.builder()
                         .sid("TestPolicy")
@@ -135,11 +143,15 @@ public class IamClientTest {
                         .action("storage:GetObject")
                         .build())
                 .build();
-        doThrow(RuntimeException.class).when(mockIam).attachInlinePolicy(
-                any(), anyString(), anyString(), anyString());
+        AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+                .policyDocument(policy)
+                .tenantId(TEST_TENANT_ID)
+                .region(TEST_REGION)
+                .identityName(TEST_RESOURCE)
+                .build();
+        doThrow(RuntimeException.class).when(mockIam).attachInlinePolicy(any(AttachInlinePolicyRequest.class));
 
-        assertThrows(UnAuthorizedException.class, () -> 
-                client.attachInlinePolicy(policy, TEST_TENANT_ID, TEST_REGION, TEST_RESOURCE));
+        assertThrows(UnAuthorizedException.class, () -> client.attachInlinePolicy(request));
     }
 
     @Test
@@ -184,6 +196,7 @@ public class IamClientTest {
 
         List<String> result = client.getAttachedPolicies(
                 GetAttachedPoliciesRequest.builder()
+                        .roleName(TEST_ROLE)
                         .identityName(TEST_ROLE)
                         .tenantId(TEST_TENANT_ID)
                         .region(TEST_REGION)
@@ -201,6 +214,7 @@ public class IamClientTest {
         assertThrows(UnAuthorizedException.class, () -> 
                 client.getAttachedPolicies(
                         GetAttachedPoliciesRequest.builder()
+                                .roleName(TEST_ROLE)
                                 .identityName(TEST_ROLE)
                                 .tenantId(TEST_TENANT_ID)
                                 .region(TEST_REGION)
