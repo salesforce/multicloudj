@@ -94,10 +94,18 @@ public final class ImageReference {
     }
 
     private static ImageReference parseTag(String ref) {
-        int lastColon = ref.lastIndexOf(':');
-        if (lastColon >= 0) {
-            String repo = ref.substring(0, lastColon);
-            String tag = ref.substring(lastColon + 1);
+        // Find last slash to separate registry+port from repository path
+        int lastSlash = ref.lastIndexOf('/');
+        
+        // Find colon AFTER last slash - that's the tag delimiter
+        // If no slash exists, find any colon (simple repo:tag case)
+        int tagColon = lastSlash >= 0
+                ? ref.indexOf(':', lastSlash + 1)  // Search after last slash
+                : ref.lastIndexOf(':');             // No slash, use any colon
+        
+        if (tagColon >= 0) {
+            String repo = ref.substring(0, tagColon);
+            String tag = ref.substring(tagColon + 1);
             if (!StringUtils.isBlank(tag)) {
                 return new ImageReference(repo, tag, ref);
             }
