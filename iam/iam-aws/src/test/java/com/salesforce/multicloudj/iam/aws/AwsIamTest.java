@@ -661,7 +661,7 @@ public class AwsIamTest {
 
         List<String> result = awsIam.getAttachedPolicies(
                 GetAttachedPoliciesRequest.builder()
-                        .identityName(TEST_ROLE_NAME)
+                        .roleName(TEST_ROLE_NAME)
                         .tenantId(TEST_TENANT_ID)
                         .region(TEST_REGION)
                         .build());
@@ -686,7 +686,7 @@ public class AwsIamTest {
 
         List<String> result = awsIam.getAttachedPolicies(
                 GetAttachedPoliciesRequest.builder()
-                        .identityName(TEST_ROLE_NAME)
+                        .roleName(TEST_ROLE_NAME)
                         .tenantId(TEST_TENANT_ID)
                         .region(TEST_REGION)
                         .build());
@@ -707,7 +707,7 @@ public class AwsIamTest {
         assertThrows(NoSuchEntityException.class, () ->
                 awsIam.getAttachedPolicies(
                         GetAttachedPoliciesRequest.builder()
-                                .identityName(TEST_ROLE_NAME)
+                                .roleName(TEST_ROLE_NAME)
                                 .tenantId(TEST_TENANT_ID)
                                 .region(TEST_REGION)
                                 .build())

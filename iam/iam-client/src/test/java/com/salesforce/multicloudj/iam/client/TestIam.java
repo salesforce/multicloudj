@@ -3,7 +3,9 @@ package com.salesforce.multicloudj.iam.client;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
-import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
 import java.util.Arrays;
@@ -34,18 +36,17 @@ public class TestIam extends AbstractIam {
     }
 
     @Override
-    protected void doAttachInlinePolicy(PolicyDocument policyDocument, String tenantId,
-                                       String region, String resource) {
+    protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
         // Mock implementation
     }
 
     @Override
-    protected String doGetInlinePolicyDetails(String identityName, String policyName, String roleName, String tenantId, String region) {
+    protected String doGetInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
         return "mock-policy-details";
     }
 
     @Override
-    protected List<String> doGetAttachedPolicies(String identityName, String tenantId, String region) {
+    protected List<String> doGetAttachedPolicies(GetAttachedPoliciesRequest request) {
         return Arrays.asList("policy1", "policy2");
     }
 

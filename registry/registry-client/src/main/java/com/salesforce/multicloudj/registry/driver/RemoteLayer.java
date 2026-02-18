@@ -29,11 +29,16 @@ final class RemoteLayer implements Layer {
     @Override
     public InputStream getUncompressed() throws IOException {
         InputStream compressed = client.downloadBlob(repository, digest);
-        return new GzipCompressorInputStream(compressed);
+        try {
+            return new GzipCompressorInputStream(compressed);
+        } catch (IOException e) {
+            compressed.close();
+            throw e;
+        }
     }
 
     @Override
-    public long getSize() throws IOException {
+    public long getSize() {
         return -1;
     }
 }

@@ -25,6 +25,9 @@ import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 
@@ -124,6 +127,7 @@ public class GcpIamTest {
 
 		// Create policy document
 		PolicyDocument policyDocument = PolicyDocument.builder()
+				.name("TestPolicy")
 				.version("2024-01-01")
 				.statement(Statement.builder()
 						.sid("TestPolicy")
@@ -133,9 +137,13 @@ public class GcpIamTest {
 				.build();
 
 		// Execute
-		Assertions.assertDoesNotThrow(() -> {
-			gcpIam.doAttachInlinePolicy(policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT);
-		});
+		AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+				.policyDocument(policyDocument)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.build();
+		Assertions.assertDoesNotThrow(() -> gcpIam.doAttachInlinePolicy(request));
 
 		// Verify
 		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
@@ -164,6 +172,7 @@ public class GcpIamTest {
 		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(Policy.newBuilder().build());
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
+				.name("TestPolicy")
 				.version("2024-01-01")
 				.statement(Statement.builder()
 						.sid("TestPolicy")
@@ -172,9 +181,13 @@ public class GcpIamTest {
 						.build())
 				.build();
 
-		Assertions.assertDoesNotThrow(() -> {
-			gcpIam.doAttachInlinePolicy(policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT);
-		});
+		AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+				.policyDocument(policyDocument)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.build();
+		Assertions.assertDoesNotThrow(() -> gcpIam.doAttachInlinePolicy(request));
 
 		verify(mockProjectsClient, times(1)).setIamPolicy(any(SetIamPolicyRequest.class));
 	}
@@ -193,6 +206,7 @@ public class GcpIamTest {
 		when(mockProjectsClient.setIamPolicy(any(SetIamPolicyRequest.class))).thenReturn(existingPolicy);
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
+				.name("TestPolicy")
 				.version("2024-01-01")
 				.statement(Statement.builder()
 						.sid("TestPolicy")
@@ -201,9 +215,13 @@ public class GcpIamTest {
 						.build())
 				.build();
 
-		Assertions.assertDoesNotThrow(() -> {
-			gcpIam.doAttachInlinePolicy(policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT);
-		});
+		AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+				.policyDocument(policyDocument)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.build();
+		Assertions.assertDoesNotThrow(() -> gcpIam.doAttachInlinePolicy(request));
 
 		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
 		verify(mockProjectsClient, times(1)).setIamPolicy(setRequestCaptor.capture());
@@ -226,6 +244,7 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(existingPolicy);
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
+				.name("DenyPolicy")
 				.version("2024-01-01")
 				.statement(Statement.builder()
 						.sid("DenyPolicy")
@@ -234,9 +253,13 @@ public class GcpIamTest {
 						.build())
 				.build();
 
-		Assertions.assertDoesNotThrow(() -> {
-			gcpIam.doAttachInlinePolicy(policyDocument, TEST_TENANT_ID, TEST_REGION, TEST_SERVICE_ACCOUNT);
-		});
+		AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+				.policyDocument(policyDocument)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.build();
+		Assertions.assertDoesNotThrow(() -> gcpIam.doAttachInlinePolicy(request));
 
 		// Verify: setIamPolicy should not be called since Deny statements are skipped and nothing changes
 		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
@@ -299,7 +322,11 @@ public class GcpIamTest {
 
 		// Execute
 		List<String> result = gcpIam.doGetAttachedPolicies(
-				TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+				GetAttachedPoliciesRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -327,7 +354,11 @@ public class GcpIamTest {
 
 		// Execute
 		List<String> result = gcpIam.doGetAttachedPolicies(
-				TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+				GetAttachedPoliciesRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -341,7 +372,11 @@ public class GcpIamTest {
 
 		// Execute
 		List<String> result = gcpIam.doGetAttachedPolicies(
-				TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+				GetAttachedPoliciesRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -358,7 +393,11 @@ public class GcpIamTest {
 
 		// Execute
 		List<String> result = gcpIam.doGetAttachedPolicies(
-				TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+				GetAttachedPoliciesRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -378,7 +417,11 @@ public class GcpIamTest {
 
 		// Execute
 		List<String> result = gcpIam.doGetAttachedPolicies(
-				TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+				GetAttachedPoliciesRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -410,7 +453,11 @@ public class GcpIamTest {
 
 		// Execute and verify exception is thrown
 		assertThrows(ApiException.class, () -> {
-			gcpIam.doGetAttachedPolicies(TEST_SERVICE_ACCOUNT, TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doGetAttachedPolicies(GetAttachedPoliciesRequest.builder()
+					.identityName(TEST_SERVICE_ACCOUNT)
+					.tenantId(TEST_TENANT_ID)
+					.region(TEST_REGION)
+					.build());
 		});
 
 		// Verify that the exception would be mapped correctly
@@ -613,7 +660,12 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				GetInlinePolicyDetailsRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.roleName(TEST_ROLE)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify
 		Assertions.assertNotNull(result);
@@ -643,7 +695,12 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				GetInlinePolicyDetailsRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.roleName(TEST_ROLE)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify: Should return null when binding doesn't exist
 		Assertions.assertNull(result);
@@ -663,7 +720,12 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				GetInlinePolicyDetailsRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.roleName(TEST_ROLE)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify: Should return null when service account is not in binding
 		Assertions.assertNull(result);
@@ -676,7 +738,12 @@ public class GcpIamTest {
 
 		// Execute
 		String result = gcpIam.doGetInlinePolicyDetails(
-				TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+				GetInlinePolicyDetailsRequest.builder()
+						.identityName(TEST_SERVICE_ACCOUNT)
+						.roleName(TEST_ROLE)
+						.tenantId(TEST_TENANT_ID)
+						.region(TEST_REGION)
+						.build());
 
 		// Verify: Should return null when policy is null
 		Assertions.assertNull(result);
@@ -690,7 +757,12 @@ public class GcpIamTest {
 
 		// Execute and verify exception is thrown
 		Assertions.assertThrows(ApiException.class, () -> {
-			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doGetInlinePolicyDetails(GetInlinePolicyDetailsRequest.builder()
+					.identityName(TEST_SERVICE_ACCOUNT)
+					.roleName(TEST_ROLE)
+					.tenantId(TEST_TENANT_ID)
+					.region(TEST_REGION)
+					.build());
 		});
 	}
 
@@ -698,7 +770,11 @@ public class GcpIamTest {
 	void testDoGetInlinePolicyDetailsWithNullRoleName() {
 		// Execute and verify InvalidArgumentException is thrown when roleName is null
 		Assertions.assertThrows(InvalidArgumentException.class, () -> {
-			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, null, TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doGetInlinePolicyDetails(GetInlinePolicyDetailsRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 		});
 	}
 
@@ -706,7 +782,12 @@ public class GcpIamTest {
 	void testDoGetInlinePolicyDetailsWithEmptyRoleName() {
 		// Execute and verify InvalidArgumentException is thrown when roleName is empty
 		Assertions.assertThrows(InvalidArgumentException.class, () -> {
-			gcpIam.doGetInlinePolicyDetails(TEST_SERVICE_ACCOUNT, null, "", TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doGetInlinePolicyDetails(GetInlinePolicyDetailsRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.roleName("")
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 		});
 	}
 
