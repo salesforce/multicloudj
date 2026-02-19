@@ -5,7 +5,7 @@
     <artifactId>multicloudj-parent</artifactId>
     <packaging>pom</packaging>
     <description>Salesforce Multi-substrate Java SDK</description>
-    <version>0.2.26-SNAPSHOT</version>
+    <version>0.2.26</version>
     <name>multicloudj</name>
     <url>https://github.com/salesforce/multicloudj</url>
 
