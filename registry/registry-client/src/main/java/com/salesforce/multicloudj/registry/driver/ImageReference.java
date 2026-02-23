@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.apache.commons.lang3.StringUtils;
 import java.util.regex.Pattern;
 
@@ -37,11 +38,11 @@ public final class ImageReference {
      * Parses an image reference string. If it contains "@", treated as digest; otherwise as tag.
      * @param imageRef image reference string (e.g. "my-image:latest" or "my-image@sha256:abc...")
      * @return parsed ImageReference
-     * @throws IllegalArgumentException if the reference format is invalid
+     * @throws InvalidArgumentException if the reference format is invalid
      */
     public static ImageReference parse(String imageRef) {
         if (StringUtils.isBlank(imageRef)) {
-            throw new IllegalArgumentException("Image reference cannot be null or empty");
+            throw new InvalidArgumentException("Image reference cannot be null or empty");
         }
         String ref = imageRef.trim();
         if (ref.contains(DIGEST_DELIMITER)) {
@@ -54,7 +55,7 @@ public final class ImageReference {
     private static ImageReference parseDigest(String ref) {
         String[] parts = ref.split(DIGEST_DELIMITER, 2);
         if (parts.length != 2) {
-            throw new IllegalArgumentException(
+            throw new InvalidArgumentException(
                 String.format("a digest must contain exactly one '@' separator (e.g. registry/repository@digest) saw: %s", ref));
         }
         
@@ -62,13 +63,13 @@ public final class ImageReference {
         String dig = parts[1].trim();
         
         if (StringUtils.isBlank(base)) {
-            throw new IllegalArgumentException("Repository cannot be empty: " + ref);
+            throw new InvalidArgumentException("Repository cannot be empty: " + ref);
         }
         if (StringUtils.isBlank(dig)) {
-            throw new IllegalArgumentException("Digest cannot be empty: " + ref);
+            throw new InvalidArgumentException("Digest cannot be empty: " + ref);
         }
         if (!dig.startsWith(SHA256_PREFIX)) {
-            throw new IllegalArgumentException(
+            throw new InvalidArgumentException(
                 String.format("unsupported digest algorithm: %s (expected sha256)", dig));
         }
         String hex = dig.substring(SHA256_PREFIX.length());
@@ -82,13 +83,13 @@ public final class ImageReference {
      */
     private static void validateSha256Hex(String hex, String originalRef) {
         if (hex.length() != SHA256_HEX_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new InvalidArgumentException(
                 String.format("invalid checksum digest length: expected %d characters, got %d: %s",
                     SHA256_HEX_LENGTH, hex.length(), originalRef));
         }
         
         if (!SHA256_HEX_PATTERN.matcher(hex).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidArgumentException(
                 String.format("invalid checksum digest format: must be 64 lowercase hex characters [a-f0-9]: %s", originalRef));
         }
     }

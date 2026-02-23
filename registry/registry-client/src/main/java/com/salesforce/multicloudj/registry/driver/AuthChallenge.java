@@ -1,5 +1,9 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -62,9 +66,10 @@ public final class AuthChallenge {
    * @param httpClient the HTTP client to use for the request
    * @param registryEndpoint the registry base URL
    * @return AuthChallenge describing the authentication requirements (including anonymous)
-   * @throws IOException if the request fails
+   * @throws UnAuthorizedException if registry returns 401 without WWW-Authenticate header
+   * @throws UnknownException if the request fails or registry returns an unexpected status
    */
-  public static AuthChallenge discover(CloseableHttpClient httpClient, String registryEndpoint) throws IOException {
+  public static AuthChallenge discover(CloseableHttpClient httpClient, String registryEndpoint) {
     String url = registryEndpoint + "/v2/";
     HttpGet request = new HttpGet(url);
 
@@ -82,9 +87,11 @@ public final class AuthChallenge {
           String authHeader = response.getFirstHeader(HttpHeaders.WWW_AUTHENTICATE).getValue();
           return parse(authHeader);
         }
-        throw new IOException("Registry returned 401 without WWW-Authenticate header");
+        throw new UnAuthorizedException("Registry returned 401 without WWW-Authenticate header");
       }
-      throw new IOException("Unexpected response from registry ping: HTTP " + statusCode);
+      throw new UnknownException("Unexpected response from registry ping: HTTP " + statusCode);
+    } catch (IOException e) {
+      throw new UnknownException("Registry ping request failed", e);
     }
   }
 
@@ -93,16 +100,17 @@ public final class AuthChallenge {
    *
    * @param header the WWW-Authenticate header value
    * @return parsed AuthChallenge
-   * @throws IllegalArgumentException if the header cannot be parsed
+   * @throws InvalidArgumentException if the header is empty or cannot be parsed
+   * @throws UnSupportedOperationException if the authentication scheme is not supported
    */
   public static AuthChallenge parse(String header) {
     if (StringUtils.isBlank(header)) {
-      throw new IllegalArgumentException("WWW-Authenticate header is empty");
+      throw new InvalidArgumentException("WWW-Authenticate header is empty");
     }
 
     Matcher schemeMatcher = SCHEME_PATTERN.matcher(header);
     if (!schemeMatcher.find()) {
-      throw new UnsupportedOperationException("Unsupported authentication scheme in: " + header);
+      throw new UnSupportedOperationException("Unsupported authentication scheme in: " + header);
     }
 
     String scheme = schemeMatcher.group(1);

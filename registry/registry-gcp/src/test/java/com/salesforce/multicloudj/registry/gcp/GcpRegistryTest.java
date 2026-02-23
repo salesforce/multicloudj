@@ -6,12 +6,12 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import java.io.IOException;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -94,7 +94,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: access token is null", 
                     exception.getMessage());
             registry.close();
@@ -117,7 +117,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: token value is null", 
                     exception.getMessage());
             registry.close();
@@ -155,7 +155,7 @@ class GcpRegistryTest {
     @Test
     void testGetException_WithUnknownException() throws Exception {
         withMockedRegistry(registry -> {
-            assertEquals(UnknownException.class, 
+            assertEquals(UnknownException.class,
                     registry.getException(new RuntimeException("Test")));
         });
     }
@@ -189,7 +189,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_MissingRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder().build();
         });
         assertEquals("Registry endpoint is required for GCP Artifact Registry", exception.getMessage());
@@ -197,7 +197,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_EmptyRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder()
                     .withRegistryEndpoint("")
                     .build();
@@ -207,7 +207,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_WhitespaceRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder()
                     .withRegistryEndpoint("   ")
                     .build();
@@ -290,7 +290,7 @@ class GcpRegistryTest {
                     .build();
 
             // Attempting to get auth token should fail when overrider produces no credentials
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
             assertEquals("Failed to obtain credentials from CredentialsOverrider", 
                     exception.getMessage());
 

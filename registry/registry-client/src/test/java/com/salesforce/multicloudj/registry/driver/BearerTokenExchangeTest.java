@@ -15,6 +15,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
+
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,7 +62,7 @@ public class BearerTokenExchangeTest {
 
     @Test
     void testGetBearerToken_ThrowsException_WhenChallengeIsNull() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(null, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Bearer challenge"));
@@ -68,7 +72,7 @@ public class BearerTokenExchangeTest {
     void testGetBearerToken_ThrowsException_WhenChallengeIsNotBearer() {
         AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(basicChallenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Bearer challenge"));
@@ -81,7 +85,7 @@ public class BearerTokenExchangeTest {
         when(challengeWithoutRealm.isBearer()).thenReturn(true);
         when(challengeWithoutRealm.getRealm()).thenReturn(null);
 
-        IOException exception = assertThrows(IOException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(challengeWithoutRealm, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing realm"));
@@ -133,7 +137,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(tokenResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing token field"));
@@ -151,7 +155,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_UNAUTHORIZED);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(errorResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnAuthorizedException exception = assertThrows(UnAuthorizedException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Token exchange failed"));
@@ -170,7 +174,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(invalidJson));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Invalid JSON"));
@@ -254,7 +258,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(tokenResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing token field"));

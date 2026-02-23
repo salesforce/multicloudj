@@ -3,6 +3,9 @@ package com.salesforce.multicloudj.registry.driver;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -43,19 +46,22 @@ public class BearerTokenExchange {
    * @param repository the repository to request access for
    * @param actions the actions to request (e.g., "pull", "push")
    * @return the bearer token for use in Authorization header
-   * @throws IOException if the token exchange fails
+   * @throws InvalidArgumentException if challenge is not Bearer or realm is missing
+   * @throws UnAuthorizedException if token exchange fails with non-200 status
+   * @throws UnknownException if the request fails or response is invalid
    */
   public String getBearerToken(AuthChallenge challenge, String identityToken,
-                               String repository, String... actions) throws IOException {
+                               String repository, String... actions) {
     if (challenge == null || !challenge.isBearer()) {
-      throw new IllegalArgumentException("Bearer token exchange requires a Bearer challenge");
+      throw new InvalidArgumentException("Bearer token exchange requires a Bearer challenge");
     }
 
     String realm = challenge.getRealm();
     if (StringUtils.isBlank(realm)) {
-      throw new IOException("Bearer challenge missing realm");
+      throw new InvalidArgumentException("Bearer challenge missing realm");
     }
 
+    try {
     // Build token request URL using URIBuilder for proper encoding
     URI tokenUri = buildTokenUri(realm, challenge, repository, actions);
 
@@ -67,7 +73,7 @@ public class BearerTokenExchange {
       int statusCode = response.getStatusLine().getStatusCode();
       if (statusCode != HttpStatus.SC_OK) {
         String errorBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-        throw new IOException("Token exchange failed: HTTP " + statusCode + " - " + errorBody);
+        throw new UnAuthorizedException("Token exchange failed: HTTP " + statusCode + " - " + errorBody);
       }
 
       String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
@@ -76,7 +82,7 @@ public class BearerTokenExchange {
       try {
         json = JsonParser.parseString(responseBody).getAsJsonObject();
       } catch (JsonSyntaxException e) {
-        throw new IOException("Invalid JSON response from token endpoint: " + responseBody, e);
+        throw new UnknownException("Invalid JSON response from token endpoint: " + responseBody, e);
       }
 
       // Token can be in "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry) field
@@ -86,12 +92,14 @@ public class BearerTokenExchange {
         return json.get("access_token").getAsString();
       }
 
-      throw new IOException("Token response missing token field");
+      throw new UnknownException("Token response missing token field");
+    }
+    } catch (IOException e) {
+      throw new UnknownException("Token exchange request failed", e);
     }
   }
 
-  private URI buildTokenUri(String realm, AuthChallenge challenge, String repository, String[] actions)
-          throws IOException {
+  private URI buildTokenUri(String realm, AuthChallenge challenge, String repository, String[] actions) {
     try {
       URIBuilder uriBuilder = new URIBuilder(realm);
       
@@ -110,7 +118,7 @@ public class BearerTokenExchange {
 
       return uriBuilder.build();
     } catch (URISyntaxException e) {
-      throw new IOException("Invalid token endpoint URL: " + realm, e);
+      throw new UnknownException("Invalid token endpoint URL: " + realm, e);
     }
   }
 }
