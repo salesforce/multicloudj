@@ -123,8 +123,8 @@ public class AwsIamIT extends AbstractIamIT {
         }
 
         @Override
-        public boolean supportsPolicyAPIs() {
-            return false;
+        public String getTestRoleName() {
+            return "testSa"; // IAM role name for attach/getInlinePolicyDetails.
         }
 
         @Override

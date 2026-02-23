@@ -38,6 +38,7 @@
         <module>docstore</module>
         <module>examples</module>
         <module>pubsub</module>
+        <module>registry</module>
         <module>sts</module>
         <module>multicloudj-common</module>
         <module>multicloudj-common-ali</module>
@@ -210,6 +211,17 @@
             <dependency>
                 <groupId>com.salesforce.multicloudj</groupId>
                 <artifactId>pubsub-client</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>registry-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.salesforce.multicloudj</groupId>
+                <artifactId>registry-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
