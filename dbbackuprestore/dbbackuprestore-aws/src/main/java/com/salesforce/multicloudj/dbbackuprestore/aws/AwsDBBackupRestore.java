@@ -60,12 +60,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
     public AwsDBBackupRestore(Builder builder) {
         super(builder);
         this.backupClient = builder.backupClient;
-
-        // Build the DynamoDB table ARN
-        // Format: arn:aws:dynamodb:{region}:{account-id}:table/{table-name}
-        // Since we don't have account ID readily available, we'll construct a partial ARN
-        // that AWS Backup API can work with, or get it from the table description
-        this.tableArn = builder.tableArn != null ? builder.tableArn : String.format("arn:aws:dynamodb:%s:*:table/%s", builder.getRegion(), builder.getResourceName());
+        this.tableArn = builder.getResourceName();
     }
 
     @Override
@@ -250,17 +245,6 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
             return this;
         }
 
-        /**
-         * Sets the DynamoDB table ARN.
-         *
-         * @param tableArn the table ARN
-         * @return this builder
-         */
-        public Builder withTableArn(String tableArn) {
-            this.tableArn = tableArn;
-            return this;
-        }
-
         @Override
         protected Builder self() {
             return this;
@@ -272,7 +256,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
                 throw new IllegalArgumentException("Region is required");
             }
             if (StringUtils.isBlank(resourceName)) {
-                throw new IllegalArgumentException("Collection name is required");
+                throw new IllegalArgumentException("Table ARN is required");
             }
 
             // Create backup client if not provided
