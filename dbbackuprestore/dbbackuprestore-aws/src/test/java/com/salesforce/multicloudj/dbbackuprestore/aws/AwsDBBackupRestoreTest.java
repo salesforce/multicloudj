@@ -59,8 +59,7 @@ public class AwsDBBackupRestoreTest {
         dbBackupRestore = new AwsDBBackupRestore.Builder()
                 .withBackupClient(mockBackupClient)
                 .withRegion("us-west-2")
-                .withResourceName("test-table")
-                .withTableArn(TABLE_ARN)
+                .withResourceName(TABLE_ARN)
                 .build();
     }
 
