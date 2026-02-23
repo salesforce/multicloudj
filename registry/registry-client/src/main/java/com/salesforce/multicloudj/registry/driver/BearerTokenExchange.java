@@ -118,7 +118,7 @@ public class BearerTokenExchange {
 
       return uriBuilder.build();
     } catch (URISyntaxException e) {
-      throw new UnknownException("Invalid token endpoint URL: " + realm, e);
+      throw new InvalidArgumentException("Invalid token endpoint URL: " + realm, e);
     }
   }
 }
