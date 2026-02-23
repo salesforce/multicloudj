@@ -40,6 +40,10 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>iam-client</artifactId>
         </dependency>
         <dependency>
@@ -75,6 +79,21 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-gcp-firestore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-ali</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

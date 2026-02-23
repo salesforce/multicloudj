@@ -75,7 +75,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Disabled delombok by setting phase to 'none' to avoid duplicate class issues
             <plugin>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok-maven-plugin</artifactId>
@@ -94,7 +93,6 @@
                     <addOutputDirectory>false</addOutputDirectory>
                 </configuration>
             </plugin>
-            -->
         </plugins>
     </build>
 </project>
