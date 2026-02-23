@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.registry.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -165,14 +164,14 @@ public class AuthChallengeTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "\t", "\n"})
     void testParse_ThrowsException_WhenHeaderIsBlank(String header) {
-        assertThrows(InvalidArgumentException.class, () -> AuthChallenge.parse(header));
+        assertThrows(UnknownException.class, () -> AuthChallenge.parse(header));
     }
 
     @Test
     void testParse_ThrowsException_WhenUnsupportedScheme() {
         String header = "Digest realm=\"test\"";
 
-        UnSupportedOperationException exception = assertThrows(UnSupportedOperationException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> AuthChallenge.parse(header));
 
         assertTrue(exception.getMessage().contains("Unsupported authentication scheme"));

@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.registry.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -100,17 +99,17 @@ public final class AuthChallenge {
    *
    * @param header the WWW-Authenticate header value
    * @return parsed AuthChallenge
-   * @throws InvalidArgumentException if the header is empty or cannot be parsed
-   * @throws UnSupportedOperationException if the authentication scheme is not supported
+   * @throws UnknownException if the header is empty
+   * @throws InvalidArgumentException if the header uses an unsupported authentication scheme
    */
   public static AuthChallenge parse(String header) {
     if (StringUtils.isBlank(header)) {
-      throw new InvalidArgumentException("WWW-Authenticate header is empty");
+      throw new UnknownException("WWW-Authenticate header is empty");
     }
 
     Matcher schemeMatcher = SCHEME_PATTERN.matcher(header);
     if (!schemeMatcher.find()) {
-      throw new UnSupportedOperationException("Unsupported authentication scheme in: " + header);
+      throw new InvalidArgumentException("Unsupported authentication scheme in: " + header);
     }
 
     String scheme = schemeMatcher.group(1);
