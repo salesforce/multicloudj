@@ -168,6 +168,37 @@ public class AwsDBBackupRestoreTest {
         assertEquals("DynamoDB", capturedRequest.resourceType());
         assertTrue(capturedRequest.metadata().containsKey("targetTableName"));
         assertEquals("restored-table", capturedRequest.metadata().get("targetTableName"));
+        Assertions.assertFalse(capturedRequest.metadata().containsKey("encryptionType"));
+        Assertions.assertFalse(capturedRequest.metadata().containsKey("kmsMasterKeyArn"));
+    }
+
+    @Test
+    void testRestoreBackupWithKmsEncryption() {
+        String kmsKeyArn = "arn:aws:kms:us-west-2:123456789012:key/abc-def-123";
+        RestoreRequest request = RestoreRequest.builder()
+                .backupId("arn:aws:backup:us-west-2:123456789012:recovery-point:789")
+                .targetResource("restored-table")
+                .roleId(IAM_ROLE_ARN)
+                .kmsEncryptionKeyId(kmsKeyArn)
+                .build();
+
+        StartRestoreJobResponse response = StartRestoreJobResponse.builder()
+                .restoreJobId("restore-job-456")
+                .build();
+
+        when(mockBackupClient.startRestoreJob(any(StartRestoreJobRequest.class)))
+                .thenReturn(response);
+
+        String restoreJobId = dbBackupRestore.restoreBackup(request);
+        assertEquals("restore-job-456", restoreJobId);
+
+        ArgumentCaptor<StartRestoreJobRequest> captor = ArgumentCaptor.forClass(StartRestoreJobRequest.class);
+        verify(mockBackupClient, times(1)).startRestoreJob(captor.capture());
+
+        StartRestoreJobRequest capturedRequest = captor.getValue();
+        assertEquals("restored-table", capturedRequest.metadata().get("targetTableName"));
+        assertEquals("KMS", capturedRequest.metadata().get("encryptionType"));
+        assertEquals(kmsKeyArn, capturedRequest.metadata().get("kmsMasterKeyArn"));
     }
 
     @Test
@@ -184,6 +215,10 @@ public class AwsDBBackupRestoreTest {
     }
 
     private Restore setupGetRestoreJobTest(String restoreJobId, RestoreJobStatus status, boolean includeCompletionDate) {
+        return setupGetRestoreJobTest(restoreJobId, status, includeCompletionDate, null);
+    }
+
+    private Restore setupGetRestoreJobTest(String restoreJobId, RestoreJobStatus status, boolean includeCompletionDate, String statusMessage) {
         Instant creationTime = Instant.now().minusSeconds(300);
         Instant completionTime = Instant.now();
 
@@ -196,6 +231,9 @@ public class AwsDBBackupRestoreTest {
 
         if (includeCompletionDate) {
             responseBuilder.completionDate(completionTime);
+        }
+        if (statusMessage != null) {
+            responseBuilder.statusMessage(statusMessage);
         }
 
         when(mockBackupClient.describeRestoreJob(any(DescribeRestoreJobRequest.class)))
@@ -238,6 +276,18 @@ public class AwsDBBackupRestoreTest {
         Restore restore = setupGetRestoreJobTest(restoreJobId, RestoreJobStatus.FAILED, true);
 
         assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNotNull(restore.getEndTime());
+    }
+
+    @Test
+    void testGetRestore_Job_Failed_WithStatusMessage() {
+        String restoreJobId = "restore-job-789";
+        String failureMessage = "Table already exists: temp-restore-table";
+        Restore restore = setupGetRestoreJobTest(restoreJobId, RestoreJobStatus.FAILED, true, failureMessage);
+
+        assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertEquals(failureMessage, restore.getStatusMessage());
         assertNotNull(restore.getStartTime());
         assertNotNull(restore.getEndTime());
     }

@@ -51,4 +51,10 @@ public class Restore {
      * Will be null if the restore is still in progress.
      */
     private Instant endTime;
+
+    /**
+     * Status or failure message from the restore job.
+     * For failed jobs, this typically contains the provider-specific restore error reason.
+     */
+    private String statusMessage;
 }

@@ -118,6 +118,11 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("targetTableName", targetTableName);
 
+        if (StringUtils.isNotBlank(request.getKmsEncryptionKeyId())) {
+            metadata.put("encryptionType", "KMS");
+            metadata.put("kmsMasterKeyArn", request.getKmsEncryptionKeyId());
+        }
+
         StartRestoreJobRequest restoreJobRequest = StartRestoreJobRequest.builder().recoveryPointArn(request.getBackupId()).metadata(metadata).idempotencyToken(UUID.uniqueString()).iamRoleArn(iamRoleArn).resourceType("DynamoDB").build();
 
         StartRestoreJobResponse response = backupClient.startRestoreJob(restoreJobRequest);
@@ -199,6 +204,7 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
                 .status(convertRestoreJobStatus(response.status()))
                 .startTime(response.creationDate())
                 .endTime(response.completionDate())
+                .statusMessage(response.statusMessage())
                 .build();
     }
 
