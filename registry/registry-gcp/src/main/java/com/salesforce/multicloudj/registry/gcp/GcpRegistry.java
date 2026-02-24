@@ -11,7 +11,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -36,24 +35,16 @@ public class GcpRegistry extends AbstractRegistry {
     /** Lock for thread-safe lazy initialization of credentials. */
     private final Object credentialsLock = new Object();
 
-    private final OciRegistryClient ociClient;
-
     /** Lazily initialized credentials with double-checked locking. */
     private volatile GoogleCredentials credentials;
 
     public GcpRegistry(Builder builder) {
         super(builder);
-        this.ociClient = new OciRegistryClient(registryEndpoint, this);
     }
 
     @Override
     public Builder builder() {
         return new Builder();
-    }
-
-    @Override
-    protected OciRegistryClient getOciClient() {
-        return ociClient;
     }
 
     @Override
@@ -127,9 +118,7 @@ public class GcpRegistry extends AbstractRegistry {
 
     @Override
     public void close() throws Exception {
-        if (ociClient != null) {
-            ociClient.close();
-        }
+        super.close();
     }
 
     public static final class Builder extends AbstractRegistry.Builder<GcpRegistry, Builder> {

@@ -55,7 +55,6 @@ class GcpRegistryTest {
             assertNotNull(registry);
             assertEquals("gcp", registry.getProviderId());
             assertEquals("oauth2accesstoken", registry.getAuthUsername());
-            assertNotNull(registry.getOciClient());
             assertNotNull(registry.builder());
         });
     }

@@ -22,13 +22,11 @@ import java.util.regex.Pattern;
 @Getter
 public final class AuthChallenge {
 
-  private static final String ANONYMOUS_SCHEME = "Anonymous";
-  private static final String BEARER_SCHEME = "Bearer";
   private static final Pattern SCHEME_PATTERN = Pattern.compile("^(Basic|Bearer)\\s*", Pattern.CASE_INSENSITIVE);
   private static final Pattern PARAM_PATTERN = Pattern.compile("(\\w+)=\"([^\"]*)\"");
 
   /** The authentication scheme (Basic, Bearer, or Anonymous). */
-  private final String scheme;
+  private final AuthScheme scheme;
 
   /** The realm URL for token exchange (Bearer auth). */
   private final String realm;
@@ -39,7 +37,7 @@ public final class AuthChallenge {
   /** The requested scope. */
   private final String scope;
 
-  private AuthChallenge(String scheme, String realm, String service, String scope) {
+  private AuthChallenge(AuthScheme scheme, String realm, String service, String scope) {
     this.scheme = scheme;
     this.realm = realm;
     this.service = service;
@@ -52,7 +50,7 @@ public final class AuthChallenge {
    * @return an anonymous AuthChallenge
    */
   public static AuthChallenge anonymous() {
-    return new AuthChallenge(ANONYMOUS_SCHEME, null, null, null);
+    return new AuthChallenge(AuthScheme.ANONYMOUS, null, null, null);
   }
 
   /**
@@ -115,7 +113,7 @@ public final class AuthChallenge {
     }
 
     return new AuthChallenge(
-        scheme,
+        AuthScheme.fromString(scheme),
         params.get("realm"),
         params.get("service"),
         params.get("scope")
@@ -126,6 +124,6 @@ public final class AuthChallenge {
    * Returns true if this is a Bearer authentication challenge.
    */
   public boolean isBearer() {
-    return BEARER_SCHEME.equalsIgnoreCase(scheme);
+    return scheme == AuthScheme.BEARER;
   }
 }

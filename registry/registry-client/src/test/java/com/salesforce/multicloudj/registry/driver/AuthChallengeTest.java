@@ -45,7 +45,6 @@ public class AuthChallengeTest {
     @Mock
     private StatusLine mockStatusLine;
 
-    // ==================== discover() tests ====================
 
     @Test
     void testDiscover_ReturnsAnonymous_WhenStatusOk() throws IOException {
@@ -56,7 +55,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT);
 
         assertNotNull(challenge);
-        assertEquals("Anonymous", challenge.getScheme());
+        assertEquals(AuthScheme.ANONYMOUS, challenge.getScheme());
     }
 
     @Test
@@ -73,7 +72,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT);
 
         assertNotNull(challenge);
-        assertEquals("Bearer", challenge.getScheme());
+        assertEquals(AuthScheme.BEARER, challenge.getScheme());
         assertEquals(TOKEN_ENDPOINT, challenge.getRealm());
         assertEquals(SERVICE, challenge.getService());
     }
@@ -104,21 +103,19 @@ public class AuthChallengeTest {
         assertTrue(exception.getMessage().contains("500"));
     }
 
-    // ==================== anonymous() tests ====================
 
     @Test
     void testAnonymous_ReturnsAnonymousChallenge() {
         AuthChallenge challenge = AuthChallenge.anonymous();
 
         assertNotNull(challenge);
-        assertEquals("Anonymous", challenge.getScheme());
+        assertEquals(AuthScheme.ANONYMOUS, challenge.getScheme());
         assertNull(challenge.getRealm());
         assertNull(challenge.getService());
         assertNull(challenge.getScope());
         assertFalse(challenge.isBearer());
     }
 
-    // ==================== parse() tests ====================
 
     @Test
     void testParse_BearerChallenge_WithAllParams() {
@@ -127,7 +124,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.parse(header);
 
         assertNotNull(challenge);
-        assertEquals("Bearer", challenge.getScheme());
+        assertEquals(AuthScheme.BEARER, challenge.getScheme());
         assertEquals("https://auth.example.com/token", challenge.getRealm());
         assertEquals("registry.example.com", challenge.getService());
         assertEquals("repository:test:pull", challenge.getScope());
@@ -141,7 +138,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.parse(header);
 
         assertNotNull(challenge);
-        assertEquals("Basic", challenge.getScheme());
+        assertEquals(AuthScheme.BASIC, challenge.getScheme());
         assertEquals("Registry Realm", challenge.getRealm());
         assertNull(challenge.getService());
         assertNull(challenge.getScope());
@@ -155,7 +152,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.parse(header);
 
         assertNotNull(challenge);
-        assertEquals("bearer", challenge.getScheme());
+        assertEquals(AuthScheme.BEARER, challenge.getScheme());
         assertTrue(challenge.isBearer());
     }
 
@@ -183,7 +180,7 @@ public class AuthChallengeTest {
         AuthChallenge challenge = AuthChallenge.parse(header);
 
         assertNotNull(challenge);
-        assertEquals("Bearer", challenge.getScheme());
+        assertEquals(AuthScheme.BEARER, challenge.getScheme());
         assertNull(challenge.getRealm());
         assertNull(challenge.getService());
         assertNull(challenge.getScope());

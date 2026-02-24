@@ -14,12 +14,12 @@ import java.util.List;
  */
 final class RemoteImage implements Image {
 
-    private final OciRegistryClient client;
+    private final OciHttpTransport client;
     private final String repository;
     private final String imageRef;
     private final Manifest manifest;
 
-    RemoteImage(OciRegistryClient client, String repository, String imageRef, Manifest manifest) {
+    RemoteImage(OciHttpTransport client, String repository, String imageRef, Manifest manifest) {
         this.client = client;
         this.repository = repository;
         this.imageRef = imageRef;

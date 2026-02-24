@@ -8,9 +8,13 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.http.HttpRequestInterceptor;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Abstract registry driver. Each cloud implements authentication and OCI client.
@@ -22,6 +26,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     protected final CredentialsOverrider credentialsOverrider;
     @Getter
     protected final Platform targetPlatform;
+    protected final OciHttpTransport ociTransport;
 
     protected AbstractRegistry(Builder<?, ?> builder) {
         this.providerId = builder.getProviderId();
@@ -33,6 +38,9 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         if (StringUtils.isBlank(registryEndpoint)) {
             throw new IllegalStateException("Registry endpoint is not configured.");
         }
+
+        // Create OciHttpTransport with interceptors from builder
+        this.ociTransport = new OciHttpTransport(registryEndpoint, this, builder.getHttpInterceptors());
     }
 
     @Override
@@ -51,8 +59,10 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     @Override
     public abstract String getAuthToken() throws IOException;
 
-    /** Returns the OCI client for this registry. */
-    protected abstract OciRegistryClient getOciClient();
+    /** Returns the OCI HTTP transport for this registry. */
+    protected OciHttpTransport getOciTransport() {
+        return ociTransport;
+    }
 
     /**
      * Pulls an image from the registry (unified OCI flow).
@@ -80,7 +90,11 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
 
     @Override
-    public abstract void close() throws Exception;
+    public void close() throws Exception {
+        if (ociTransport != null) {
+            ociTransport.close();
+        }
+    }
 
     /** Abstract builder for registry implementations. */
     @Getter
@@ -90,6 +104,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
         protected Platform platform;
+        protected List<HttpRequestInterceptor> httpInterceptors = new ArrayList<>();
 
         public T withRegistryEndpoint(String registryEndpoint) {
             this.registryEndpoint = registryEndpoint;
@@ -115,6 +130,19 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         public T providerId(String providerId) {
             this.providerId = providerId;
             return self();
+        }
+
+        /**
+         * Adds an HTTP request interceptor for the OCI transport.
+         * Used by providers to inject provider-specific HTTP behavior.
+         */
+        protected T withHttpInterceptor(HttpRequestInterceptor interceptor) {
+            this.httpInterceptors.add(interceptor);
+            return self();
+        }
+
+        public List<HttpRequestInterceptor> getHttpInterceptors() {
+            return httpInterceptors;
         }
 
         public abstract T self();

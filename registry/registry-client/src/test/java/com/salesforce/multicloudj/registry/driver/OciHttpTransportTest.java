@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
  * Unit tests for OciRegistryClient.
  * Tests authentication header generation for Basic, Bearer, and Anonymous auth schemes.
  */
-public class OciRegistryClientTest {
+public class OciHttpTransportTest {
 
     private static final String REGISTRY_ENDPOINT = "https://test-registry.example.com";
     private static final String REPOSITORY = "test-repo/test-image";
@@ -77,9 +77,9 @@ public class OciRegistryClientTest {
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
             mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-            String authHeader = client.getHttpAuthHeader(REPOSITORY);
+            String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
             assertNotNull(authHeader);
             assertTrue(authHeader.startsWith("Basic "));
@@ -90,7 +90,7 @@ public class OciRegistryClientTest {
                     expectedCredentials.getBytes(StandardCharsets.UTF_8));
             assertEquals("Basic " + expectedEncoded, authHeader);
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -112,14 +112,14 @@ public class OciRegistryClientTest {
                     .thenReturn(bearerChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-            String authHeader = client.getHttpAuthHeader(REPOSITORY);
+            String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
             assertNotNull(authHeader);
             assertEquals("Bearer bearer-token-123", authHeader);
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -133,49 +133,25 @@ public class OciRegistryClientTest {
                     .thenReturn(anonymousChallenge);
             mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-            String authHeader = client.getHttpAuthHeader(REPOSITORY);
+            String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
             assertNull(authHeader);
 
-            client.close();
+            transport.close();
         }
     }
 
     @Test
-    void testGetHttpAuthHeader_UnsupportedScheme() throws IOException {
-        AuthChallenge mockChallenge = mock(AuthChallenge.class);
-        when(mockChallenge.getScheme()).thenReturn("unsupported");
-
-        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
-            mockedAuthChallenge.when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
-                    .thenReturn(mockChallenge);
-
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
-
-            assertThrows(UnsupportedOperationException.class, () -> client.getHttpAuthHeader(REPOSITORY));
-
-            client.close();
-        }
+    void testAuthScheme_UnsupportedScheme() {
+        assertThrows(UnsupportedOperationException.class, () -> AuthScheme.fromString("unsupported"));
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    void testGetHttpAuthHeader_BlankOrNullScheme(String scheme) throws IOException {
-        AuthChallenge mockChallenge = mock(AuthChallenge.class);
-        when(mockChallenge.getScheme()).thenReturn(scheme);
-
-        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
-            mockedAuthChallenge.when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
-                    .thenReturn(mockChallenge);
-
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
-
-            assertThrows(IllegalArgumentException.class, () -> client.getHttpAuthHeader(REPOSITORY));
-
-            client.close();
-        }
+    void testAuthScheme_BlankOrNullScheme_ReturnsAnonymous(String scheme) {
+        assertEquals(AuthScheme.ANONYMOUS, AuthScheme.fromString(scheme));
     }
 
     @Test
@@ -190,22 +166,21 @@ public class OciRegistryClientTest {
                     .thenReturn(basicChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
             // Call twice
-            client.getHttpAuthHeader(REPOSITORY);
-            client.getHttpAuthHeader(REPOSITORY);
+            transport.getHttpAuthHeader(REPOSITORY);
+            transport.getHttpAuthHeader(REPOSITORY);
 
             // Verify discover was called only once (challenge is cached)
             mockedAuthChallenge.verify(
                     () -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()),
                     times(1));
 
-            client.close();
+            transport.close();
         }
     }
 
-    // ========== fetchManifest Tests ==========
 
     @Test
     void testFetchManifest_SingleImageManifest_WithDockerDigestHeader() throws IOException {
@@ -410,13 +385,13 @@ public class OciRegistryClientTest {
                     .thenReturn(basicChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, "latest"));
+                    () -> transport.fetchManifest(REPOSITORY, "latest"));
             assertTrue(exception.getMessage().contains("empty response body"));
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -518,13 +493,13 @@ public class OciRegistryClientTest {
                     .thenReturn(basicChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, "latest"));
+                    () -> transport.fetchManifest(REPOSITORY, "latest"));
             assertTrue(exception.getMessage().contains("exceeds maximum allowed size"));
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -560,15 +535,15 @@ public class OciRegistryClientTest {
                     .thenReturn(basicChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, requestedDigest));
+                    () -> transport.fetchManifest(REPOSITORY, requestedDigest));
             assertTrue(exception.getMessage().contains("Manifest digest mismatch"));
             assertTrue(exception.getMessage().contains(requestedDigest));
             assertTrue(exception.getMessage().contains(actualDigest));
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -599,13 +574,13 @@ public class OciRegistryClientTest {
                     .thenReturn(basicChallenge);
             mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, "latest"));
+                    () -> transport.fetchManifest(REPOSITORY, "latest"));
             assertTrue(exception.getMessage().contains("Invalid JSON response"));
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -630,7 +605,6 @@ public class OciRegistryClientTest {
         testFetchManifestWithErrorExpected(invalidManifestJson, "layer missing required 'digest' field");
     }
 
-    // ========== Helper Methods ==========
 
     private void testFetchManifestWithResponse(String responseBody, String digestHeader,
                                                 int statusCode, ManifestAssertion assertion) throws IOException {
@@ -638,13 +612,13 @@ public class OciRegistryClientTest {
                 responseBody, digestHeader, statusCode, 100L);
 
         try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
-            Manifest manifest = client.fetchManifest(REPOSITORY, "latest");
+            Manifest manifest = transport.fetchManifest(REPOSITORY, "latest");
             assertNotNull(manifest);
             assertion.assertManifest(manifest);
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -653,14 +627,14 @@ public class OciRegistryClientTest {
                 "error body", null, statusCode, 100L);
 
         try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, "latest"));
+                    () -> transport.fetchManifest(REPOSITORY, "latest"));
             assertTrue(exception.getMessage().contains(expectedMessageSubstring),
                     "Expected message containing '" + expectedMessageSubstring + "' but got: " + exception.getMessage());
 
-            client.close();
+            transport.close();
         }
     }
 
@@ -670,14 +644,14 @@ public class OciRegistryClientTest {
                 responseBody, null, HttpStatus.SC_OK, 100L);
 
         try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
             IOException exception = assertThrows(IOException.class,
-                    () -> client.fetchManifest(REPOSITORY, "latest"));
+                    () -> transport.fetchManifest(REPOSITORY, "latest"));
             assertTrue(exception.getMessage().contains(expectedErrorSubstring),
                     "Expected error containing '" + expectedErrorSubstring + "' but got: " + exception.getMessage());
 
-            client.close();
+            transport.close();
         }
     }
 

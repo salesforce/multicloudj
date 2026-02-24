@@ -54,7 +54,6 @@ public class BearerTokenExchangeTest {
         tokenExchange = new BearerTokenExchange(mockHttpClient);
     }
 
-    // ==================== getBearerToken() tests ====================
 
     @Test
     void testGetBearerToken_ThrowsException_WhenChallengeIsNull() {

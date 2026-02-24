@@ -11,15 +11,12 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
@@ -34,11 +31,8 @@ import java.util.List;
 import java.util.Map;
 
 /** OCI Registry API v2 HTTP client; handles auth and registry operations. */
-public class OciRegistryClient implements AutoCloseable {
+public class OciHttpTransport implements AutoCloseable {
 
-    private static final String AUTH_SCHEME_ANONYMOUS = "anonymous";
-    private static final String AUTH_SCHEME_BASIC = "basic";
-    private static final String AUTH_SCHEME_BEARER = "bearer";
     private static final String MANIFEST_ACCEPT_HEADER =
             OciManifestFields.MEDIA_TYPE_OCI_MANIFEST + ","
                     + OciManifestFields.MEDIA_TYPE_OCI_INDEX + ","
@@ -61,81 +55,54 @@ public class OciRegistryClient implements AutoCloseable {
     private volatile AuthChallenge cachedChallenge;
 
     /**
-     * Creates a new OciRegistryClient.
-     *
-     * <p>The HTTP client is configured with an AuthStrippingInterceptor that removes Authorization
-     * headers when following redirects to external hosts. This is required for registries like AWS ECR that redirect
-     * blob downloads to S3 pre-signed URLs.
+     * Creates a new OciHttpTransport with no interceptors.
      *
      * @param registryEndpoint the registry base URL
      * @param authProvider the authentication provider
      */
-    public OciRegistryClient(String registryEndpoint, AuthProvider authProvider) {
-        this(registryEndpoint, authProvider, null);
+    public OciHttpTransport(String registryEndpoint, AuthProvider authProvider) {
+        this(registryEndpoint, authProvider, (List<HttpRequestInterceptor>) null);
     }
 
     /**
-     * Creates OciRegistryClient with specified HttpClient.
+     * Creates OciHttpTransport with specified HTTP interceptors.
      *
      * @param registryEndpoint the registry base URL
      * @param authProvider the authentication provider
-     * @param httpClient the HTTP client to use (null to create default)
+     * @param interceptors list of HTTP request interceptors (null or empty for default client)
      */
-    public OciRegistryClient(String registryEndpoint, AuthProvider authProvider,
-                            CloseableHttpClient httpClient) {
+    public OciHttpTransport(String registryEndpoint, AuthProvider authProvider,
+                            List<HttpRequestInterceptor> interceptors) {
         this.registryEndpoint = registryEndpoint;
         this.authProvider = authProvider;
-        if (httpClient != null) {
-            this.httpClient = httpClient;
+        
+        if (interceptors == null || interceptors.isEmpty()) {
+            this.httpClient = HttpClients.createDefault();
         } else {
-            this.httpClient = HttpClients.custom()
-                    .addInterceptorLast(new AuthStrippingInterceptor(registryEndpoint))
-                    .build();
+            var builder = HttpClients.custom();
+            for (HttpRequestInterceptor interceptor : interceptors) {
+                builder.addInterceptorLast(interceptor);
+            }
+            this.httpClient = builder.build();
         }
         this.tokenExchange = new BearerTokenExchange(this.httpClient);
     }
 
     /**
-     * HTTP request interceptor that strips Authorization headers when the request target
-     * is not the registry host.
+     * Package-private constructor for testing with a mock HTTP client.
      *
-     * <p>This is necessary because registries like AWS ECR redirect blob downloads to S3 pre-signed URLs,
-     * which already contain authentication in query parameters. Sending an Authorization header to S3
-     * causes a 400 error ("Only one auth mechanism allowed").
+     * @param registryEndpoint the registry base URL
+     * @param authProvider the authentication provider
+     * @param httpClient the HTTP client to use
      */
-    private static class AuthStrippingInterceptor implements HttpRequestInterceptor {
-        private final String registryHost;
-
-        AuthStrippingInterceptor(String registryEndpoint) {
-            this.registryHost = extractHost(registryEndpoint);
-        }
-
-        @Override
-        public void process(HttpRequest request, HttpContext context) {
-            // Get the target host from the context (works for both initial requests and redirects)
-            var targetHost = (org.apache.http.HttpHost) context.getAttribute(HttpClientContext.HTTP_TARGET_HOST);
-            if (targetHost != null) {
-                String requestHost = targetHost.getHostName();
-                // Strip Authorization header if request is not to the registry host
-                if (!registryHost.equalsIgnoreCase(requestHost)) {
-                    request.removeHeaders(HttpHeaders.AUTHORIZATION);
-                }
-            }
-        }
-
-        private static String extractHost(String url) {
-            String host = url.replaceFirst("^https?://", "");
-            int slashIndex = host.indexOf('/');
-            if (slashIndex > 0) {
-                host = host.substring(0, slashIndex);
-            }
-            int colonIndex = host.indexOf(':');
-            if (colonIndex > 0) {
-                host = host.substring(0, colonIndex);
-            }
-            return host;
-        }
+    OciHttpTransport(String registryEndpoint, AuthProvider authProvider,
+                     CloseableHttpClient httpClient) {
+        this.registryEndpoint = registryEndpoint;
+        this.authProvider = authProvider;
+        this.httpClient = httpClient;
+        this.tokenExchange = new BearerTokenExchange(this.httpClient);
     }
+
 
     /**
      * Builds HTTP Authorization header for the given repository.
@@ -155,17 +122,14 @@ public class OciRegistryClient implements AutoCloseable {
             }
         }
 
-        final String scheme = cachedChallenge.getScheme();
-        if (StringUtils.isBlank(scheme)) {
-            throw new IllegalArgumentException("Authentication scheme is blank or missing");
-        }
+        final AuthScheme scheme = cachedChallenge.getScheme();
 
-        switch (scheme.toLowerCase()) {
-            case AUTH_SCHEME_ANONYMOUS:
+        switch (scheme) {
+            case ANONYMOUS:
                 return null;
-            case AUTH_SCHEME_BASIC:
+            case BASIC:
                 return buildBasicAuthHeader();
-            case AUTH_SCHEME_BEARER:
+            case BEARER:
                 return buildBearerAuthHeader(repository);
             default:
                 throw new UnsupportedOperationException(
@@ -277,7 +241,10 @@ public class OciRegistryClient implements AutoCloseable {
                     responseBody.substring(0, Math.min(200, responseBody.length())), e);
         }
         
-        String mediaType = json.has(OciManifestFields.MEDIA_TYPE) ? json.get(OciManifestFields.MEDIA_TYPE).getAsString() : "";
+        String mediaType = getStringOrNull(json, OciManifestFields.MEDIA_TYPE);
+        if (mediaType == null) {
+            mediaType = "";
+        }
 
         // Check if this is an image index (multi-arch)
         if (OciManifestFields.MEDIA_TYPE_OCI_INDEX.equals(mediaType) 
@@ -290,9 +257,14 @@ public class OciRegistryClient implements AutoCloseable {
         return parseImageManifest(json, digest);
     }
 
-    /**
-     * Parses annotations from a manifest or index JSON.
-     */
+    private static String getStringOrNull(JsonObject json, String field) {
+        return json.has(field) ? json.get(field).getAsString() : null;
+    }
+
+    private static Long getLongOrNull(JsonObject json, String field) {
+        return json.has(field) ? json.get(field).getAsLong() : null;
+    }
+
     private Map<String, String> parseAnnotations(JsonObject json) {
         if (!json.has(OciManifestFields.ANNOTATIONS)) {
             return null;
@@ -313,7 +285,7 @@ public class OciRegistryClient implements AutoCloseable {
             return null;
         }
         JsonObject subjectObj = json.getAsJsonObject(OciManifestFields.SUBJECT);
-        return subjectObj.has(OciManifestFields.DIGEST) ? subjectObj.get(OciManifestFields.DIGEST).getAsString() : null;
+        return getStringOrNull(subjectObj, OciManifestFields.DIGEST);
     }
 
 
@@ -330,10 +302,10 @@ public class OciRegistryClient implements AutoCloseable {
         }
 
         JsonObject platformObj = manifestDesc.getAsJsonObject(OciManifestFields.PLATFORM);
-        String operatingSystem = platformObj.has(OciManifestFields.OS) ? platformObj.get(OciManifestFields.OS).getAsString() : null;
-        String architecture = platformObj.has(OciManifestFields.ARCHITECTURE) ? platformObj.get(OciManifestFields.ARCHITECTURE).getAsString() : null;
-        String osVersion = platformObj.has(OciManifestFields.OS_VERSION) ? platformObj.get(OciManifestFields.OS_VERSION).getAsString() : null;
-        String variant = platformObj.has(OciManifestFields.VARIANT) ? platformObj.get(OciManifestFields.VARIANT).getAsString() : null;
+        String operatingSystem = getStringOrNull(platformObj, OciManifestFields.OS);
+        String architecture = getStringOrNull(platformObj, OciManifestFields.ARCHITECTURE);
+        String osVersion = getStringOrNull(platformObj, OciManifestFields.OS_VERSION);
+        String variant = getStringOrNull(platformObj, OciManifestFields.VARIANT);
 
         List<String> osFeatures = parseOsFeatures(platformObj);
 
@@ -387,7 +359,7 @@ public class OciRegistryClient implements AutoCloseable {
             if (!manifestDesc.has(OciManifestFields.DIGEST)) {
                 throw new IOException("Invalid image index: manifest entry missing required 'digest' field");
             }
-            String manifestDigest = manifestDesc.get(OciManifestFields.DIGEST).getAsString();
+            String manifestDigest = getStringOrNull(manifestDesc, OciManifestFields.DIGEST);
             Platform platform = parsePlatform(manifestDesc);
             entries.add(new Manifest.IndexEntry(manifestDigest, platform));
         }
@@ -403,8 +375,8 @@ public class OciRegistryClient implements AutoCloseable {
         String configDigest = null;
         if (json.has(OciManifestFields.CONFIG)) {
             JsonObject config = json.getAsJsonObject(OciManifestFields.CONFIG);
-            if (config != null && config.has(OciManifestFields.DIGEST)) {
-                configDigest = config.get(OciManifestFields.DIGEST).getAsString();
+            if (config != null) {
+                configDigest = getStringOrNull(config, OciManifestFields.DIGEST);
             }
         }
 
@@ -425,10 +397,10 @@ public class OciRegistryClient implements AutoCloseable {
                 if (!layer.has(OciManifestFields.DIGEST)) {
                     throw new IOException("Invalid image manifest: layer missing required 'digest' field");
                 }
-                String layerDigest = layer.get(OciManifestFields.DIGEST).getAsString();
-                String mediaType = layer.has(OciManifestFields.MEDIA_TYPE) ? layer.get(OciManifestFields.MEDIA_TYPE).getAsString() : null;
-                Long size = layer.has(OciManifestFields.SIZE) ? layer.get(OciManifestFields.SIZE).getAsLong() : null;
-                layerInfos.add(new Manifest.LayerInfo(layerDigest, mediaType, size));
+                String layerDigest = getStringOrNull(layer, OciManifestFields.DIGEST);
+                String layerMediaType = getStringOrNull(layer, OciManifestFields.MEDIA_TYPE);
+                Long size = getLongOrNull(layer, OciManifestFields.SIZE);
+                layerInfos.add(new Manifest.LayerInfo(layerDigest, layerMediaType, size));
             }
         }
         return layerInfos;

@@ -11,11 +11,11 @@ import java.io.InputStream;
  */
 final class RemoteLayer implements Layer {
 
-    private final OciRegistryClient client;
+    private final OciHttpTransport client;
     private final String repository;
     private final String digest;
 
-    RemoteLayer(OciRegistryClient client, String repository, String digest) {
+    RemoteLayer(OciHttpTransport client, String repository, String digest) {
         this.client = client;
         this.repository = repository;
         this.digest = digest;
