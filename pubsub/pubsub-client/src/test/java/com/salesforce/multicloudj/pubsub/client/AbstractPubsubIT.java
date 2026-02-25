@@ -444,14 +444,14 @@ public abstract class AbstractPubsubIT {
             String errorMsg = String.format(
                 "Failed to receive messages: Got exception after receiving %d/%d messages.",
                 received.size(), expectedCount);
-            throw new AssertionError(errorMsg, e);
+            Assertions.fail(errorMsg, e);
         }
         // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             String errorMsg = String.format(
                 "Timeout waiting for messages: Received %d/%d messages.",
                 received.size(), expectedCount);
-            throw new AssertionError(errorMsg);
+            Assertions.fail(errorMsg);
         }
         return received;
     }
