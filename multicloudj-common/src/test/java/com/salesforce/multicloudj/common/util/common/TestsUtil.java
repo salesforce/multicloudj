@@ -146,7 +146,6 @@ public class TestsUtil {
 
     /**
      * Resets all WireMock scenario states to their initial "Started" state.
-     * This is critical for replay mode tests that use scenario-based stubs,
      * ensuring each test starts with a clean scenario state.
      */
     public static void resetWireMockScenarios() {
