@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on demand.
- * Digest is the config digest (OCI image ID).
+ * Digest is the manifest digest (used to pull the image by digest reference).
  */
 final class RemoteImage implements Image {
 
@@ -41,11 +41,11 @@ final class RemoteImage implements Image {
 
     @Override
     public String getDigest() {
-        String configDigest = manifest.getConfigDigest();
-        if (configDigest == null || configDigest.isEmpty()) {
-            throw new InvalidArgumentException("Image manifest is missing config digest");
+        String manifestDigest = manifest.getDigest();
+        if (manifestDigest == null || manifestDigest.isEmpty()) {
+            throw new InvalidArgumentException("Image manifest is missing digest");
         }
-        return configDigest;
+        return manifestDigest;
     }
 
     @Override

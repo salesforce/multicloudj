@@ -7,7 +7,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
@@ -68,11 +67,11 @@ public class GcpRegistry extends AbstractRegistry {
 
         AccessToken accessToken = creds.getAccessToken();
         if (accessToken == null) {
-            throw new UnAuthorizedException("Failed to obtain GCP access token: access token is null");
+            throw new UnknownException("Failed to obtain GCP access token: access token is null");
         }
-        
+
         if (accessToken.getTokenValue() == null) {
-            throw new UnAuthorizedException("Failed to obtain GCP access token: token value is null");
+            throw new UnknownException("Failed to obtain GCP access token: token value is null");
         }
 
         return accessToken.getTokenValue();
@@ -83,19 +82,19 @@ public class GcpRegistry extends AbstractRegistry {
      * and refreshing if expired.
      */
     private GoogleCredentials getOrCreateCredentials() {
-        try {
-            if (credentials == null) {
-                synchronized (credentialsLock) {
-                    if (credentials == null) {
-                        credentials = createGoogleCredentials();
-                    }
+        if (credentials == null) {
+            synchronized (credentialsLock) {
+                if (credentials == null) {
+                    credentials = createGoogleCredentials();
                 }
             }
-            credentials.refreshIfExpired();
-            return credentials;
-        } catch (IOException e) {
-            throw new SubstrateSdkException("Failed to load GCP credentials", e);
         }
+        try {
+            credentials.refreshIfExpired();
+        } catch (IOException e) {
+            throw new UnknownException("Failed to refresh GCP credentials", e);
+        }
+        return credentials;
     }
 
     private GoogleCredentials createGoogleCredentials() {
@@ -105,18 +104,18 @@ public class GcpRegistry extends AbstractRegistry {
             if (credentialsOverrider != null) {
                 creds = (GoogleCredentials) GcpCredentialsProvider.getCredentials(credentialsOverrider);
                 if (creds == null) {
-                    throw new UnAuthorizedException("Failed to obtain credentials from CredentialsOverrider");
+                    throw new UnknownException("Failed to obtain credentials from CredentialsOverrider");
                 }
                 return creds.createScoped(Collections.singletonList(CLOUD_PLATFORM_SCOPE));
             }
 
             GoogleCredentials defaultCreds = GoogleCredentials.getApplicationDefault();
             if (defaultCreds == null) {
-                throw new UnAuthorizedException("Failed to load GCP credentials: application default credentials not available");
+                throw new UnknownException("Failed to load GCP credentials: application default credentials not available");
             }
             return defaultCreds.createScoped(Collections.singletonList(CLOUD_PLATFORM_SCOPE));
         } catch (IOException e) {
-            throw new SubstrateSdkException("Failed to create GCP credentials", e);
+            throw new UnknownException("Failed to load GCP credentials", e);
         }
     }
 
@@ -152,7 +151,6 @@ public class GcpRegistry extends AbstractRegistry {
         public GcpRegistry build() {
             providerId(PROVIDER_ID);
             
-            // Validate registry endpoint is set (fail fast)
             if (StringUtils.isBlank(registryEndpoint)) {
                 throw new InvalidArgumentException("Registry endpoint is required for GCP Artifact Registry");
             }
