@@ -11,7 +11,6 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import java.io.IOException;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,7 +80,7 @@ class GcpRegistryTest {
     }
 
     @Test
-    void testGetAuthToken_NullAccessToken_ThrowsIOException() throws Exception {
+    void testGetAuthToken_NullAccessToken_ThrowsUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
             GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -94,7 +93,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: access token is null", 
                     exception.getMessage());
             registry.close();
@@ -102,7 +101,7 @@ class GcpRegistryTest {
     }
 
     @Test
-    void testGetAuthToken_NullTokenValue_ThrowsIOException() throws Exception {
+    void testGetAuthToken_NullTokenValue_ThrowsUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
             GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -117,7 +116,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: token value is null", 
                     exception.getMessage());
             registry.close();
@@ -189,7 +188,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_MissingRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder().build();
         });
         assertEquals("Registry endpoint is required for GCP Artifact Registry", exception.getMessage());
@@ -197,7 +196,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_EmptyRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder()
                     .withRegistryEndpoint("")
                     .build();
@@ -207,7 +206,7 @@ class GcpRegistryTest {
 
     @Test
     void testBuilder_WhitespaceRegistryEndpoint_ThrowsException() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
             new GcpRegistry.Builder()
                     .withRegistryEndpoint("   ")
                     .build();
@@ -290,7 +289,7 @@ class GcpRegistryTest {
                     .build();
 
             // Attempting to get auth token should fail when overrider produces no credentials
-            IOException exception = assertThrows(IOException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain credentials from CredentialsOverrider", 
                     exception.getMessage());
 

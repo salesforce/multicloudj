@@ -714,12 +714,8 @@ public class OciRegistryClientTest {
 
     private MockedStatic<AuthChallenge> mockAuthChallenge() {
         AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-        try {
-            when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-            when(mockAuthProvider.getAuthToken()).thenReturn("token");
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to setup auth mocks", e);
-        }
+        when(mockAuthProvider.getAuthUsername()).thenReturn("user");
+        when(mockAuthProvider.getAuthToken()).thenReturn("token");
 
         MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class);
         mockedAuthChallenge.when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
