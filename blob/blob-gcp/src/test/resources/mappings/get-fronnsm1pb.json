@@ -1,0 +1,27 @@
+{
+  "id" : "0064dc1a-ec2c-4c4e-9548-fb4698380749",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_multipart-withkms",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-withKms?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-withKms/1771966728265671\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-withKms\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-withKms?generation=1771966728265671&alt=media\",\n  \"name\": \"conformance-tests/multipart-withKms\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1771966728265671\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/x-www-form-urlencoded\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"10485760\",\n  \"crc32c\": \"jaLPjA==\",\n  \"etag\": \"CMe/kbuC85IDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-02-24T20:58:48.365Z\",\n  \"updated\": \"2026-02-24T20:58:48.365Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:58:48.365Z\",\n  \"timeFinalized\": \"2026-02-24T20:58:48.365Z\",\n  \"metadata\": {\n    \"encryption\": \"kms\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CMe/kbuC85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWxR_eyVK7MD6IpeGTTzXlkNp_78a4b5aFVpth1RjcOLGzIrR8x_MLxy8E9rehYOlk5Y",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Tue, 24 Feb 2026 20:58:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "0064dc1a-ec2c-4c4e-9548-fb4698380749",
+  "persistent" : true,
+  "insertionIndex" : 402
+}

@@ -1,0 +1,26 @@
+{
+  "id" : "46d27484-2215-4501-9fc2-9be85e77f607",
+  "name" : "storage_v1_b_bucketthatdoesntexist_o_conformance-tests_blob-for-copyfrom_rewriteto_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_copied-from-blob",
+  "request" : {
+    "url" : "/storage/v1/b/bucketThatDoesntExist/o/conformance-tests%2Fblob-for-copyFrom/rewriteTo/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcopied-from-blob?projection=full",
+    "method" : "POST"
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Invalid bucket name: 'bucketThatDoesntExist'\",\n    \"errors\": [\n      {\n        \"message\": \"Invalid bucket name: 'bucketThatDoesntExist'\",\n        \"domain\": \"global\",\n        \"reason\": \"invalid\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWxK79RSNKO78fMnI_NLpTmuNy7st4YJbA3AZuDkDSMFty72ETiogCLIlRhZbdAFhyLvCxslj0E",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:59:22 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "46d27484-2215-4501-9fc2-9be85e77f607",
+  "persistent" : true,
+  "insertionIndex" : 536
+}

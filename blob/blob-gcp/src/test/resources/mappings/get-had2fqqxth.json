@@ -1,0 +1,29 @@
+{
+  "id" : "4987a2f2-dc30-409c-a03c-5fad21e1ec71",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_download_happy_unversioned",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/download_happy_unversioned/1771966738251235\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned?generation=1771966738251235&alt=media\",\n  \"name\": \"conformance-tests/download_happy_unversioned\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1771966738251235\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"COP78r+C85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:58:58.303Z\",\n  \"updated\": \"2026-02-24T20:58:58.303Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:58:58.303Z\",\n  \"timeFinalized\": \"2026-02-24T20:58:58.303Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COP78r+C85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWz0T2idhT9GCcyEcX3kHeCZMSVGOm7N5TxL2Wf9wAUc8LfHlGBORxtYkF2DfhOzPQk2",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 24 Feb 2026 20:58:58 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:58:58 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4987a2f2-dc30-409c-a03c-5fad21e1ec71",
+  "persistent" : true,
+  "scenarioName" : "scenario-7-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-download_happy_unversioned",
+  "requiredScenarioState" : "scenario-7-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-download_happy_unversioned-2",
+  "newScenarioState" : "scenario-7-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-download_happy_unversioned-3",
+  "insertionIndex" : 474
+}

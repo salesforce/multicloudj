@@ -1,0 +1,26 @@
+{
+  "id" : "d548b5b0-94e2-4587-9cb7-bec6f95494bb",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-duplicateparts",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-duplicateParts?uploads",
+    "method" : "POST"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><InitiateMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><UploadId>ABPnzm43F6Vowmp9wErCjRwaAZw9YbFSfcydm-t1olzhPvat2UcVXzeGXq9_ZxuV64b8ViQ</UploadId></InitiateMultipartUploadResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWyxLwzuwnj4r4DmyNMkd2JZ5sy3M4pq2H86Sn-CvxOscD_zwfWX-Afg_Cwj2BBnpitm",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Tue, 24 Feb 2026 21:00:06 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "d548b5b0-94e2-4587-9cb7-bec6f95494bb",
+  "persistent" : true,
+  "insertionIndex" : 670
+}

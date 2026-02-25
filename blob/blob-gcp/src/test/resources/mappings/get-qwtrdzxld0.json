@@ -1,0 +1,26 @@
+{
+  "id" : "75ecfd91-8b69-4c5e-ac73-7d63fbf9a81a",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_multipart-singlepart",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-singlePart?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-singlePart/1771966733944645\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-singlePart\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-singlePart?generation=1771966733944645&alt=media\",\n  \"name\": \"conformance-tests/multipart-singlePart\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1771966733944645\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/x-www-form-urlencoded\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"5242880\",\n  \"crc32c\": \"OGE8Qg==\",\n  \"etag\": \"CMWO7L2C85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:58:54.056Z\",\n  \"updated\": \"2026-02-24T20:58:54.056Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:58:54.056Z\",\n  \"timeFinalized\": \"2026-02-24T20:58:54.056Z\",\n  \"metadata\": {\n    \"123\": \"456\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CMWO7L2C85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWxkLEesTMM0B3Fw-r0lmseF8Zp_GU6EQhMIxEOWQnoHxQkjZYgtKgpDu2hvSuhWg_zO",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 24 Feb 2026 20:58:54 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:58:54 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "75ecfd91-8b69-4c5e-ac73-7d63fbf9a81a",
+  "persistent" : true,
+  "insertionIndex" : 421
+}
