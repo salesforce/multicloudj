@@ -91,12 +91,10 @@ public abstract class AbstractPubsubIT {
 
     /**
      * Cleans up the test environment after each test.
-     * Also logs unmatched WireMock requests for debugging purposes.
      */
     @AfterEach
     public void cleanupTestEnvironment() {
         TestsUtil.stopWireMockRecording();
-        TestsUtil.getUnmatchedWireMockRequests();
     }
 
     @Test
