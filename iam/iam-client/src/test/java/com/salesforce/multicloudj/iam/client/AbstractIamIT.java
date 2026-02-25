@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
@@ -11,7 +12,6 @@ import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,9 +53,11 @@ public abstract class AbstractIamIT {
 
         String getTestPolicyName();
 
-        default boolean supportsPolicyAPIs() {
-            return true;
-        }
+        /**
+         * Role name for getInlinePolicyDetails (and similar) when the API requires it.
+         * Unused for AWS (identity is used); required for GCP (e.g. "roles/storage.objectViewer").
+         */
+        String getTestRoleName();
     }
 
 	protected abstract Harness createHarness();
@@ -106,7 +108,6 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testAttachInlinePolicy() {
-        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
 		for (String action : harness.getTestPolicyActions()) {
@@ -114,41 +115,46 @@ public abstract class AbstractIamIT {
 		}
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
+                .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
 				.statement(statementBuilder.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
-				policyDocument,
-				harness.getTenantId(),
-				harness.getRegion(),
-				harness.getIdentityName()
-		);
+                AttachInlinePolicyRequest.builder()
+                        .policyDocument(policyDocument)
+                        .tenantId(harness.getTenantId())
+                        .region(harness.getRegion())
+                        .identityName(harness.getIdentityName())
+                        .build());
 	}
 
 	@Test
 	public void testGetInlinePolicyDetails() {
-        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
+        Statement.StatementBuilder statementBuilder = Statement.builder()
+                .effect(harness.getTestPolicyEffect());
+        for (String action : harness.getTestPolicyActions()) {
+            statementBuilder.action(action);
+        }
         PolicyDocument policyDocument = PolicyDocument.builder()
+                .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
-				.statement(Statement.builder()
-						.effect(harness.getTestPolicyEffect())
-						.action(harness.getTestPolicyName())
-						.build())
+                .statement(statementBuilder.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
-				policyDocument,
-				harness.getTenantId(),
-				harness.getRegion(),
-				harness.getIdentityName()
-		);
+                AttachInlinePolicyRequest.builder()
+                        .policyDocument(policyDocument)
+                        .tenantId(harness.getTenantId())
+                        .region(harness.getRegion())
+                        .identityName(harness.getIdentityName())
+                        .build());
 
 		String policyDetails = iamClient.getInlinePolicyDetails(
 				GetInlinePolicyDetailsRequest.builder()
 						.identityName(harness.getIdentityName())
-						.policyName(null)
-						.roleName(harness.getTestPolicyName())
+                .policyName(harness.getTestPolicyName())
+                .roleName(harness.getTestRoleName())
 						.tenantId(harness.getTenantId())
 						.region(harness.getRegion())
 						.build()
@@ -159,7 +165,6 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testGetAttachedPolicies() {
-        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
 		for (String action : harness.getTestPolicyActions()) {
@@ -167,19 +172,22 @@ public abstract class AbstractIamIT {
 		}
 
 		PolicyDocument policyDocument = PolicyDocument.builder()
+                .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
 				.statement(statementBuilder.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
-				policyDocument,
-				harness.getTenantId(),
-				harness.getRegion(),
-				harness.getIdentityName()
-		);
+                AttachInlinePolicyRequest.builder()
+                        .policyDocument(policyDocument)
+                        .tenantId(harness.getTenantId())
+                        .region(harness.getRegion())
+                        .identityName(harness.getIdentityName())
+                        .build());
 
 		List<String> attachedPolicies = iamClient.getAttachedPolicies(
 				GetAttachedPoliciesRequest.builder()
+                .roleName(harness.getTestRoleName())
 						.identityName(harness.getIdentityName())
 						.tenantId(harness.getTenantId())
 						.region(harness.getRegion())
@@ -191,21 +199,24 @@ public abstract class AbstractIamIT {
 
 	@Test
 	public void testRemovePolicy() {
-        Assumptions.assumeTrue(harness.supportsPolicyAPIs(), "Skipping test as harness does not support PolicyAPIs");
+        Statement.StatementBuilder statementBuilder = Statement.builder()
+                .effect(harness.getTestPolicyEffect());
+        for (String action : harness.getTestPolicyActions()) {
+            statementBuilder.action(action);
+        }
         PolicyDocument policyDocument = PolicyDocument.builder()
+                .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
-				.statement(Statement.builder()
-						.effect(harness.getTestPolicyEffect())
-						.action(harness.getTestPolicyName())
-						.build())
+                .statement(statementBuilder.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
-				policyDocument,
-				harness.getTenantId(),
-				harness.getRegion(),
-				harness.getIdentityName()
-		);
+                AttachInlinePolicyRequest.builder()
+                        .policyDocument(policyDocument)
+                        .tenantId(harness.getTenantId())
+                        .region(harness.getRegion())
+                        .identityName(harness.getIdentityName())
+                        .build());
 
         iamClient.removePolicy(
                 harness.getIdentityName(),

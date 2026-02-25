@@ -1,9 +1,11 @@
 package com.salesforce.multicloudj.iam.driver;
 
 import com.salesforce.multicloudj.iam.client.TestIam;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.Statement;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class AbstractIamTest {
 
@@ -35,7 +38,6 @@ public class AbstractIamTest {
     private static final String TEST_RESOURCE = "test-resource";
     private static final String TEST_IDENTITY_ID = "test-identity-id";
     private static final String TEST_IDENTITY_ARN = "test-identity-arn";
-    private static final String POLICY_RESPONSE = "policy-details";
     private static final URI TEST_ENDPOINT = URI.create("https://test.endpoint.com");
 
     private AbstractIam mockIam;
@@ -50,7 +52,7 @@ public class AbstractIamTest {
                 .build();
         mockIam = spy(iam);
         doCallRealMethod().when(mockIam).createIdentity(anyString(), anyString(), anyString(), anyString(), any(), any());
-        doCallRealMethod().when(mockIam).attachInlinePolicy(any(), anyString(), anyString(), anyString());
+        doCallRealMethod().when(mockIam).attachInlinePolicy(any(AttachInlinePolicyRequest.class));
         doCallRealMethod().when(mockIam).getInlinePolicyDetails(any(GetInlinePolicyDetailsRequest.class));
         doCallRealMethod().when(mockIam).getAttachedPolicies(any(GetAttachedPoliciesRequest.class));
         doCallRealMethod().when(mockIam).removePolicy(anyString(), anyString(), anyString(), anyString());
@@ -100,14 +102,16 @@ public class AbstractIamTest {
     @Test
     void testAttachInlinePolicy() {
         PolicyDocument policy = mock(PolicyDocument.class);
-        mockIam.attachInlinePolicy(policy, TEST_TENANT_ID, TEST_REGION, TEST_RESOURCE);
+        when(policy.getStatements()).thenReturn(Arrays.asList(mock(Statement.class)));
+        AttachInlinePolicyRequest request = AttachInlinePolicyRequest.builder()
+                .policyDocument(policy)
+                .tenantId(TEST_TENANT_ID)
+                .region(TEST_REGION)
+                .identityName(TEST_RESOURCE)
+                .build();
+        mockIam.attachInlinePolicy(request);
 
-        verify(mockIam, times(1)).attachInlinePolicy(
-                eq(policy),
-                eq(TEST_TENANT_ID),
-                eq(TEST_REGION),
-                eq(TEST_RESOURCE)
-        );
+        verify(mockIam, times(1)).attachInlinePolicy(eq(request));
     }
 
     @Test
@@ -135,6 +139,7 @@ public class AbstractIamTest {
 
         List<String> policies = mockIam.getAttachedPolicies(
                 GetAttachedPoliciesRequest.builder()
+                        .roleName(TEST_ROLE)
                         .identityName(TEST_ROLE)
                         .tenantId(TEST_TENANT_ID)
                         .region(TEST_REGION)
@@ -238,6 +243,7 @@ public class AbstractIamTest {
         // Test getAttachedPolicies delegation
         List<String> policies = testIam.getAttachedPolicies(
                 GetAttachedPoliciesRequest.builder()
+                        .roleName(TEST_ROLE)
                         .identityName(TEST_ROLE)
                         .tenantId(TEST_TENANT_ID)
                         .region(TEST_REGION)

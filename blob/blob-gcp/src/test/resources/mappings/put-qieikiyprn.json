@@ -1,0 +1,27 @@
+{
+  "id" : "374d4ed9-b84b-4cdb-a56e-a35ac10093f3",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucketmultipart2",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart2?partNumber=1&uploadId=multipart2",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "This is test data",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWz8Dli0m_QCVhLaeqX1rvChcI8t9hdtxIWJZg3HzmCTA5Oghc7eXyFn9Ycr-Vz1WJVG-mhdD58",
+      "Vary" : "Origin",
+      "Date" : "Tue, 24 Feb 2026 20:58:33 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "374d4ed9-b84b-4cdb-a56e-a35ac10093f3",
+  "persistent" : true,
+  "insertionIndex" : 356
+}

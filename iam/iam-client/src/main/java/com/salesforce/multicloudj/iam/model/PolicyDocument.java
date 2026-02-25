@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.iam.model;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+
 import java.util.List;
 import java.util.Objects;
 import lombok.Builder;
@@ -17,7 +18,6 @@ import lombok.Singular;
  * <p>Usage example:
  * <pre>
  * PolicyDocument policy = PolicyDocument.builder()
- *     .version("2012-10-17")
  *     .statement(Statement.builder()
  *         .sid("StorageAccess")
  *         .effect("Allow")
@@ -32,16 +32,12 @@ import lombok.Singular;
  */
 @Getter
 public class PolicyDocument {
+  private final String name;
   private final String version;
   private final List<Statement> statements;
 
   @Builder
-  private PolicyDocument(String version, @Singular List<Statement> statements) {
-    // Validate version is provided
-    if (version == null) {
-      throw new InvalidArgumentException("Version is required");
-    }
-
+  private PolicyDocument(String name, String version, @Singular List<Statement> statements) {
     // Filter out null statements and validate at least one exists
     List<Statement> filteredStatements = statements != null
         ? statements.stream().filter(Objects::nonNull)
@@ -52,6 +48,7 @@ public class PolicyDocument {
       throw new InvalidArgumentException("At least one statement is required");
     }
 
+    this.name = name;
     this.version = version;
     this.statements = filteredStatements;
   }

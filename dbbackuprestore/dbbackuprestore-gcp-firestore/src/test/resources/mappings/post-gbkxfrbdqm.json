@@ -1,0 +1,31 @@
+{
+  "id" : "769a1459-e05f-4fc5-aadb-90796338a007",
+  "name" : "v1_projects_substrate-sdk-gcp-poc1_databasesrestore",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/databases:restore?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"databaseId\":\"restored-collection-df3f73b9-4ff5-b432-d50b-942a804e06e6\",\"backup\":\"projects/substrate-sdk-gcp-poc1/locations/nam5/backups/274ba0dc-58c6-40d6-ad61-93216deefa4c\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/databases/restored-collection-df3f73b9-4ff5-b432-d50b-942a804e06e6/operations/wE6llDCIaIJHQxUzKvZ_eRAqNW1hbgQiChAaGg\",\n  \"metadata\": {\n    \"@type\": \"type.googleapis.com/google.firestore.admin.v1.RestoreDatabaseMetadata\",\n    \"startTime\": \"2026-02-04T10:08:05.964540Z\",\n    \"operationState\": 2,\n    \"database\": \"projects/substrate-sdk-gcp-poc1/databases/restored-collection-df3f73b9-4ff5-b432-d50b-942a804e06e6\",\n    \"backup\": \"projects/substrate-sdk-gcp-poc1/locations/nam5/backups/274ba0dc-58c6-40d6-ad61-93216deefa4c\",\n    \"progressPercentage\": {\n      \"estimatedWork\": \"100\",\n      \"completedWork\": \"20\"\n    }\n  },\n  \"response\": {\n    \"@type\": \"type.googleapis.com/google.firestore.admin.v1.Database\",\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/restored-collection-df3f73b9-4ff5-b432-d50b-942a804e06e6\",\n    \"uid\": \"797ff62a-3315-4347-8268-883094a54ec0\",\n    \"createTime\": \"2026-02-04T10:08:05.964540Z\",\n    \"updateTime\": \"2026-02-04T10:08:05.964540Z\",\n    \"locationId\": \"nam5\",\n    \"type\": 1,\n    \"concurrencyMode\": 2,\n    \"versionRetentionPeriod\": \"3600s\",\n    \"earliestVersionTime\": \"2026-02-04T10:08:06.024944Z\",\n    \"appEngineIntegrationMode\": 2,\n    \"pointInTimeRecoveryEnablement\": 2,\n    \"deleteProtectionState\": 1,\n    \"sourceInfo\": {\n      \"backup\": {\n        \"backup\": \"projects/substrate-sdk-gcp-poc1/locations/nam5/backups/274ba0dc-58c6-40d6-ad61-93216deefa4c\",\n        \"snapshotTime\": \"2026-01-31T02:24:50.797023Z\"\n      },\n      \"operation\": \"projects/substrate-sdk-gcp-poc1/databases/restored-collection-df3f73b9-4ff5-b432-d50b-942a804e06e6/operations/wE6llDCIaIJHQxUzKvZ_eRAqNW1hbgQiChAaGg\",\n      \"progress\": 1\n    },\n    \"databaseEdition\": 1,\n    \"freeTier\": false,\n    \"realtimeUpdatesMode\": 1,\n    \"etag\": \"IP/L3dvLv5IDMPzF2tvLv5ID\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "4867635226494067498;o=0",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Feb 2026 10:08:06 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "769a1459-e05f-4fc5-aadb-90796338a007",
+  "persistent" : true,
+  "insertionIndex" : 3
+}

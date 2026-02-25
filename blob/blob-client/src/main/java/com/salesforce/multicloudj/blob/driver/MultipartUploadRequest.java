@@ -17,12 +17,14 @@ public class MultipartUploadRequest {
     private Map<String, String> metadata;
     private final Map<String, String> tags;
     private final String kmsKeyId;
+    private final boolean useKmsManagedKey;
 
     private MultipartUploadRequest(final Builder builder){
         this.key = builder.key;
         this.metadata = builder.metadata;
         this.tags = builder.tags;
         this.kmsKeyId = builder.kmsKeyId;
+        this.useKmsManagedKey = builder.useKmsManagedKey;
     }
 
     public Map<String, String> getMetadata() {
@@ -38,6 +40,7 @@ public class MultipartUploadRequest {
         private Map<String, String> metadata = Collections.emptyMap();
         private Map<String, String> tags = Collections.emptyMap();
         private String kmsKeyId;
+        private boolean useKmsManagedKey;
 
         public Builder withKey(String key) {
             this.key = key;
@@ -56,6 +59,11 @@ public class MultipartUploadRequest {
 
         public Builder withKmsKeyId(String kmsKeyId) {
             this.kmsKeyId = kmsKeyId;
+            return this;
+        }
+
+        public Builder withUseKmsManagedKey(boolean useKmsManagedKey) {
+            this.useKmsManagedKey = useKmsManagedKey;
             return this;
         }
 

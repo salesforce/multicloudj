@@ -163,6 +163,26 @@ public class AwsTransformerTest {
     }
 
     @Test
+    void testUploadWithUseKmsManagedKey() {
+        var key = "some-key";
+        var metadata = Map.of("some-key", "some-value");
+
+        var request = UploadRequest
+                .builder()
+                .withKey(key)
+                .withMetadata(metadata)
+                .withUseKmsManagedKey(true)
+                .build();
+
+        var actual = transformer.toRequest(request);
+
+        assertEquals(BUCKET, actual.bucket());
+        assertEquals(key, actual.key());
+        assertEquals("aws:kms", actual.serverSideEncryptionAsString());
+        assertNull(actual.ssekmsKeyId());
+    }
+
+    @Test
     void testListBlobsBatch() {
         var prefixes = Arrays.asList("some/prefix", "some/other/prefix");
         var awsPrefixes = prefixes
@@ -676,6 +696,33 @@ public class AwsTransformerTest {
                 .build();
         request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
         assertTrue(request.maxDepth().isPresent());
+    }
+
+    @Test
+    void testToUploadDirectoryRequest_WithTags() {
+        // Given
+        Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+        DirectoryUploadRequest directoryUploadRequest = DirectoryUploadRequest.builder()
+                .localSourceDirectory("/home/documents")
+                .prefix("/files")
+                .includeSubFolders(true)
+                .tags(tags)
+                .build();
+
+        // When
+        UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+        // Then
+        assertEquals(BUCKET, request.bucket());
+        assertTrue(request.maxDepth().isPresent());
+        assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
+        assertTrue(request.s3Prefix().isPresent());
+        assertEquals("/files", request.s3Prefix().get());
+        assertEquals("/home/documents", request.source().toString());
+        
+        // Note: AWS SDK 2.35.0 doesn't support tagging in directory uploads via UploadDirectoryRequest
+        // Tags would need to be applied post-upload or when AWS SDK is upgraded
+        assertNotNull(request);
     }
 
     @Test

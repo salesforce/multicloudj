@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class GetAttachedPoliciesRequest {
+    private final String roleName;
     private final String identityName;
     private final String tenantId;
     private final String region;

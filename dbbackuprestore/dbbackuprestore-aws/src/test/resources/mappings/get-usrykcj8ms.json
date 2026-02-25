@@ -1,0 +1,22 @@
+{
+  "id" : "e8af69c1-4302-40db-b211-6623d290b66b",
+  "name" : "resources_arnawsdynamodbus-west-2654654370895table_docstore-test-1_recovery-points",
+  "request" : {
+    "url" : "/resources/arn%3Aaws%3Adynamodb%3Aus-west-2%3A654654370895%3Atable%2Fdocstore-test-1/recovery-points/",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"NextToken\":\"AAQA-EFRSURBSGhTeHlmNC9rTjNpZHFqdklnZlliUGVXLy9EMGV2YmpqbndpeE9JeW5NL1BRRUVWOEdVa1JPWWUwR01ySkU5djBpd0FBQUFmakI4QmdrcWhraUc5dzBCQndhZ2J6QnRBZ0VBTUdnR0NTcUdTSWIzRFFFSEFUQWVCZ2xnaGtnQlpRTUVBUzR3RVFRTXVWbmVhcFlaVEtIckpYMkpBZ0VRZ0R1QjRDbXphb0pIbzNaUTR3MzBScmM4Q2pva3RCQmlFTGxsU1RWaWpXWFFOOXZNM0wrRm9DNG1rNmhIeGVYTGpxUkxXd09BeDAzWVNGQzB6UT09VDXP23eKG6BR_4ssRfaZaH3lcW1F2fSbVBITckcPNVuV_uvkZU3plRzosccmyONEatvF2PyHYGiquTbv\",\"RecoveryPoints\":[{\"AggregatedScanResult\":null,\"BackupSizeBytes\":543,\"BackupVaultName\":\"Default\",\"CreationDate\":1.7698191829E9,\"EncryptionKeyArn\":\"arn:aws:kms:us-west-2:654654370895:key/8e5adf52-3724-4f43-b33d-b78d3bd22127\",\"EncryptionKeyType\":null,\"IndexStatus\":null,\"IndexStatusMessage\":null,\"IsParent\":false,\"ParentRecoveryPointArn\":null,\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"ResourceName\":\"docstore-test-1\",\"Status\":\"COMPLETED\",\"StatusMessage\":null,\"VaultType\":\"BACKUP_VAULT\"},{\"AggregatedScanResult\":null,\"BackupSizeBytes\":543,\"BackupVaultName\":\"Default\",\"CreationDate\":1.76981916897E9,\"EncryptionKeyArn\":\"arn:aws:kms:us-west-2:654654370895:key/8e5adf52-3724-4f43-b33d-b78d3bd22127\",\"EncryptionKeyType\":null,\"IndexStatus\":null,\"IndexStatusMessage\":null,\"IsParent\":false,\"ParentRecoveryPointArn\":null,\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:4b430598-8697-4f3f-96c0-6c6cb6271fb2\",\"ResourceName\":\"docstore-test-1\",\"Status\":\"COMPLETED\",\"StatusMessage\":null,\"VaultType\":\"BACKUP_VAULT\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "2d14eed5-7511-4e25-b1d0-c7dec13de738",
+      "Date" : "Wed, 04 Feb 2026 10:08:51 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "e8af69c1-4302-40db-b211-6623d290b66b",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-resources-arn:aws:dynamodb:us-west-2:654654370895:table-docstore-test-1-recovery-points",
+  "requiredScenarioState" : "scenario-1-resources-arn:aws:dynamodb:us-west-2:654654370895:table-docstore-test-1-recovery-points-2",
+  "insertionIndex" : 8
+}

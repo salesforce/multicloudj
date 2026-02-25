@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.iam.driver;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
-import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
 import java.util.List;
@@ -33,12 +33,9 @@ public interface Identity {
     /**
      * Attaches an inline policy to an identity.
      *
-     * @param policyDocument the policy document to attach
-     * @param tenantId the tenant/project/account ID
-     * @param region the region where the identity exists
-     * @param resource the identity resource identifier
+     * @param request the request containing policy document, tenant ID, region, and identity/role names
      */
-    void attachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource);
+    void attachInlinePolicy(AttachInlinePolicyRequest request);
 
     /**
      * Retrieves the details of an inline policy attached to an identity.

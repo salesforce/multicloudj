@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsExcepti
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.docstore.client.Query;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.Action;
@@ -343,7 +344,7 @@ public class AwsDocStore extends AbstractDocStore {
                 txWrites.add(op.getWriteItem());
             }
         }
-        TransactWriteItemsRequest request = TransactWriteItemsRequest.builder().transactItems(txWrites).clientRequestToken(Util.uniqueString()).build();
+        TransactWriteItemsRequest request = TransactWriteItemsRequest.builder().transactItems(txWrites).clientRequestToken(UUID.uniqueString()).build();
         ddb.transactWriteItems(request);
         updateRevision(writeOperations);
     }
@@ -382,7 +383,7 @@ public class AwsDocStore extends AbstractDocStore {
             throw new IllegalArgumentException("Missing key field: " + mf);
         }
 
-        String newPartitionKey = Util.uniqueString();
+        String newPartitionKey = UUID.uniqueString();
         if (mf.equals(collectionOptions.getPartitionKey())) {
             Map<String, AttributeValue> m = new HashMap<>();
             m.put(collectionOptions.getPartitionKey(), AttributeValue.builder().s(newPartitionKey).build());
@@ -394,7 +395,7 @@ public class AwsDocStore extends AbstractDocStore {
 
         String rev = null;
         if (action.getDocument().hasField(getRevisionField())) {
-            rev = Util.uniqueString();
+            rev = UUID.uniqueString();
             Map<String, AttributeValue> m = new HashMap<>(av.m());
             m.put(getRevisionField(), encodeValue(rev));
             av = av.toBuilder().m(m).build();

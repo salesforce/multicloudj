@@ -6,11 +6,10 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
-import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URI;
 import java.util.List;
@@ -36,16 +35,15 @@ import java.util.Optional;
  *
  * // Create policy
  * PolicyDocument policy = PolicyDocument.builder()
- *     .version("2012-10-17")  // Use provider-specific version (AWS example)
+ *     .version("2012-10-17")
  *     .statement("StorageAccess")
  *         .effect("Allow")
  *         .addAction("storage:GetObject")
  *         .addResource("storage://my-bucket/*")
  *     .endStatement()
  *     .build();
- *
- * // Attach policy
- * client.attachInlinePolicy(policy, "123456789012", "us-west-2", "my-bucket");
+ * client.attachInlinePolicy(AttachInlinePolicyRequest.builder()
+ *     .policyDocument(policy).tenantId("123456789012").region("us-west-2").identityName("MyRole").build());
  * </pre>
  */
 public class IamClient implements AutoCloseable {
@@ -76,7 +74,7 @@ public class IamClient implements AutoCloseable {
      *
      * @param identityName the name of the identity to create
      * @param description optional description for the identity (can be null)
-     * @param tenantId the tenant ID (AWS Account ID, GCP Project ID, or AliCloud Account ID)
+     * @param tenantId the tenant/project/account ID
      * @param region the region for IAM operations
      * @param trustConfig optional trust configuration
      * @param options optional creation options
@@ -94,29 +92,21 @@ public class IamClient implements AutoCloseable {
     }
 
     /**
-     * Attaches an inline policy to a resource.
+     * Attaches an inline policy to an identity.
      *
-     * @param policyDocument the policy document in substrate-neutral format
-     * @param tenantId the tenant ID
-     * @param region the region
-     * @param resource the resource to attach the policy to
+     * @param request the request (see AttachInlinePolicyRequest for required fields per provider)
      */
-    public void attachInlinePolicy(PolicyDocument policyDocument, String tenantId, String region, String resource) {
-        if (policyDocument == null || policyDocument.getStatements() == null
-                || policyDocument.getStatements().isEmpty()) {
+    public void attachInlinePolicy(AttachInlinePolicyRequest request) {
+        if (request == null) {
+            throw new InvalidArgumentException("Request cannot be null");
+        }
+        if (request.getPolicyDocument() == null || request.getPolicyDocument().getStatements() == null
+                || request.getPolicyDocument().getStatements().isEmpty()) {
             throw new InvalidArgumentException("Policy document must contain at least one statement");
         }
 
-        if (StringUtils.isBlank(tenantId)) {
-            throw new InvalidArgumentException("Tenant ID is required");
-        }
-
-        if (StringUtils.isBlank(resource)) {
-            throw new InvalidArgumentException("Resource is required");
-        }
-
         try {
-            this.iam.attachInlinePolicy(policyDocument, tenantId, region, resource);
+            this.iam.attachInlinePolicy(request);
         } catch (Throwable t) {
             Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
             ExceptionHandler.handleAndPropagate(exception, t);

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.salesforce.multicloudj</groupId>
+        <artifactId>multicloudj-parent</artifactId>
+        <version>0.2.26-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>registry</artifactId>
+    <packaging>pom</packaging>
+    <name>MultiCloudJ Registry</name>
+    <description>MultiCloudJ Container Registry for Docker images</description>
+    <modules>
+        <module>registry-client</module>
+        <module>registry-aws</module>
+        <module>registry-gcp</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.0-rc7</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>
