@@ -12,12 +12,16 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.io.IOException;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -295,6 +299,61 @@ class GcpRegistryTest {
                     exception.getMessage());
 
             registry.close();
+        }
+    }
+
+    @Test
+    void testCreateGoogleCredentials_WithCredentialsOverrider_Success() throws Exception {
+        try (MockedStatic<com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider> mp =
+                     mockStatic(com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.class)) {
+            GoogleCredentials creds = mock(GoogleCredentials.class);
+            GoogleCredentials scoped = mock(GoogleCredentials.class);
+            when(creds.createScoped(anyList())).thenReturn(scoped);
+            when(scoped.getAccessToken()).thenReturn(
+                    new AccessToken("overrider-token", new Date(System.currentTimeMillis() + 3600000)));
+            mp.when(() -> com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.getCredentials(any()))
+                    .thenReturn(creds);
+
+            GcpRegistry registry = new GcpRegistry.Builder()
+                    .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+                    .withCredentialsOverrider(mock(com.salesforce.multicloudj.sts.model.CredentialsOverrider.class))
+                    .build();
+            assertEquals("overrider-token", registry.getAuthToken());
+        }
+    }
+
+    @Test
+    void testCreateGoogleCredentials_ApplicationDefaultNull_ThrowsUnauthorized() throws Exception {
+        try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
+            m.when(GoogleCredentials::getApplicationDefault).thenReturn(null);
+            GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+            assertTrue(assertThrows(UnAuthorizedException.class, registry::getAuthToken)
+                    .getMessage().contains("application default credentials not available"));
+        }
+    }
+
+    @Test
+    void testCreateGoogleCredentials_IOExceptionWrappedInSubstrateSdkException() throws Exception {
+        try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
+            m.when(GoogleCredentials::getApplicationDefault).thenThrow(new IOException("fail"));
+            GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+            assertTrue(assertThrows(SubstrateSdkException.class, registry::getAuthToken)
+                    .getMessage().contains("Failed to create GCP credentials"));
+        }
+    }
+
+    @Test
+    void testGetOrCreateCredentials_RefreshIOExceptionWrappedInSubstrateSdkException() throws Exception {
+        try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
+            GoogleCredentials creds = mock(GoogleCredentials.class);
+            GoogleCredentials scoped = mock(GoogleCredentials.class);
+            when(creds.createScoped(anyList())).thenReturn(scoped);
+            doThrow(new IOException("refresh fail")).when(scoped).refreshIfExpired();
+            m.when(GoogleCredentials::getApplicationDefault).thenReturn(creds);
+
+            GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+            assertTrue(assertThrows(SubstrateSdkException.class, registry::getAuthToken)
+                    .getMessage().contains("Failed to load GCP credentials"));
         }
     }
 }

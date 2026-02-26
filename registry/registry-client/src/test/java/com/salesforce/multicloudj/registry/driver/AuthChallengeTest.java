@@ -18,6 +18,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 /**
@@ -103,6 +106,18 @@ public class AuthChallengeTest {
 
         assertTrue(exception.getMessage().contains("Unexpected response"));
         assertTrue(exception.getMessage().contains("500"));
+    }
+
+    @Test
+    void testDiscover_ThrowsUnknownException_WhenRequestFailsWithIOException() throws Exception {
+        doThrow(new IOException("Connection refused")).when(mockHttpClient).execute(any(HttpGet.class));
+
+        UnknownException exception = assertThrows(UnknownException.class,
+                () -> AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT));
+
+        assertTrue(exception.getMessage().contains("Registry ping request failed"));
+        assertNotNull(exception.getCause());
+        assertEquals(IOException.class, exception.getCause().getClass());
     }
 
     // ==================== anonymous() tests ====================

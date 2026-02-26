@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -262,6 +263,28 @@ public class BearerTokenExchangeTest {
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing token field"));
+    }
+
+    @Test
+    void testGetBearerToken_ThrowsUnknownException_WhenIOExceptionOccurs() throws Exception {
+        AuthChallenge challenge = AuthChallenge.parse(
+                "Bearer realm=\"" + TOKEN_ENDPOINT + "\",service=\"" + SERVICE + "\"");
+        doThrow(new IOException("connection refused")).when(mockHttpClient).execute(any(HttpGet.class));
+
+        assertTrue(assertThrows(UnknownException.class,
+                () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"))
+                .getMessage().contains("Token exchange request failed"));
+    }
+
+    @Test
+    void testGetBearerToken_ThrowsInvalidArgumentException_WhenRealmIsInvalidUri() {
+        AuthChallenge challenge = mock(AuthChallenge.class);
+        when(challenge.isBearer()).thenReturn(true);
+        when(challenge.getRealm()).thenReturn("://bad uri");
+
+        assertTrue(assertThrows(InvalidArgumentException.class,
+                () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"))
+                .getMessage().contains("Invalid token endpoint URL"));
     }
 
 }
