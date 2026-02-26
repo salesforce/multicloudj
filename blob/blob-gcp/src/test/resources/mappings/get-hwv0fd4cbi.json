@@ -1,0 +1,28 @@
+{
+  "id" : "cf2d20ba-7c7f-4431-851d-44136f54e27e",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_metadata_versioned-blob",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/metadata/versioned-blob/1771966755103460\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1771966755103460&alt=media\",\n  \"name\": \"conformance-tests/metadata/versioned-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1771966755103460\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"35\",\n  \"md5Hash\": \"vqAfhCbyBN/UwNavQn8G9g==\",\n  \"crc32c\": \"OPaQhA==\",\n  \"etag\": \"COTF98eC85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:59:15.190Z\",\n  \"updated\": \"2026-02-24T20:59:15.190Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:59:15.190Z\",\n  \"timeFinalized\": \"2026-02-24T20:59:15.190Z\",\n  \"metadata\": {\n    \"key3\": \"value3\",\n    \"key4\": \"value4\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COTF98eC85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWwWYeWpwgoXYb-tM2Nb-PdPsKC0i4A8Wm3X0wD-7-Qs5DvkFQCdwa9R74iQFwdF7ITo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 24 Feb 2026 20:59:15 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:59:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "cf2d20ba-7c7f-4431-851d-44136f54e27e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-metadata-versioned-blob",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-metadata-versioned-blob-2",
+  "insertionIndex" : 490
+}

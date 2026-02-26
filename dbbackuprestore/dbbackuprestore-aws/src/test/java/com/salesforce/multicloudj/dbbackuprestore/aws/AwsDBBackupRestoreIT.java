@@ -46,8 +46,7 @@ public class AwsDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
       return new AwsDBBackupRestore.Builder()
           .withBackupClient(backupClient)
           .withRegion("us-west-2")
-          .withResourceName("docstore-test-1")
-          .withTableArn("arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1")
+          .withResourceName("arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1")
           .build();
     }
 

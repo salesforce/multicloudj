@@ -1,0 +1,26 @@
+{
+  "id" : "f866aeed-a4ae-457e-85d9-2cf3f552f953",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucketmultipart3",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart3?uploadId=multipart3",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>etag</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchUpload</Code><Message>The requested upload was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWwY5KA7jeopB49tMOx-8_FKgr2KYxsodrj7cEolXjxxGs6r9j0QSz0AQ0LdvsU5y_WlEDuGlC0",
+      "Vary" : "Origin",
+      "Date" : "Tue, 24 Feb 2026 20:58:34 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "f866aeed-a4ae-457e-85d9-2cf3f552f953",
+  "persistent" : true,
+  "insertionIndex" : 355
+}

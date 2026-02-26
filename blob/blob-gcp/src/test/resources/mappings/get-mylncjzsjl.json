@@ -1,0 +1,25 @@
+{
+  "id" : "dbf19e2c-d20f-4261-8e1c-3389f0dfb1d8",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-duplicateparts",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-duplicateParts?uploadId=ABPnzm43F6Vowmp9wErCjRwaAZw9YbFSfcydm-t1olzhPvat2UcVXzeGXq9_ZxuV64b8ViQ",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><UploadId>ABPnzm43F6Vowmp9wErCjRwaAZw9YbFSfcydm-t1olzhPvat2UcVXzeGXq9_ZxuV64b8ViQ</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2026-02-24T21:00:08.848671Z</LastModified><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-02-24T21:00:08.196719Z</LastModified><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWyb-I34pk1UqRQwNcDgchaeeaKmx4iQ-Nvn-fL1ok_htnq60kbnSrV1EF1yZlRX45XU",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Tue, 24 Feb 2026 21:00:09 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "dbf19e2c-d20f-4261-8e1c-3389f0dfb1d8",
+  "persistent" : true,
+  "insertionIndex" : 666
+}

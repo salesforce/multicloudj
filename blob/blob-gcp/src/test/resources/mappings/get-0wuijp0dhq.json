@@ -1,0 +1,29 @@
+{
+  "id" : "fac13ba9-20f5-48ba-a963-682ce04cee53",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-metadata",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-metadata?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-metadata/1771966803618661\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-metadata\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-metadata?generation=1771966803618661&alt=media\",\n  \"name\": \"conformance-tests/blob-for-metadata\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1771966803618661\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"43\",\n  \"md5Hash\": \"cJNvqBbhpGaIyrO3jHSozA==\",\n  \"crc32c\": \"7+lREg==\",\n  \"etag\": \"COXWiN+C85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T21:00:03.668Z\",\n  \"updated\": \"2026-02-24T21:00:03.668Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T21:00:03.668Z\",\n  \"timeFinalized\": \"2026-02-24T21:00:03.668Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COXWiN+C85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWx-O4C2DAYZhbE1u1cAjGd3hpt9jXeJwiKWTQB0ehcsfLWAVXBCxZB3yTHviFD_aZ1s",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 24 Feb 2026 21:00:03 GMT",
+      "Date" : "Tue, 24 Feb 2026 21:00:03 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fac13ba9-20f5-48ba-a963-682ce04cee53",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-metadata",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-blob-for-metadata-2",
+  "insertionIndex" : 657
+}

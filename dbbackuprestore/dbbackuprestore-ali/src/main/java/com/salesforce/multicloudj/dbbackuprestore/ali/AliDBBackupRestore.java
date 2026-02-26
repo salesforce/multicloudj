@@ -269,6 +269,7 @@ public class AliDBBackupRestore extends AbstractDBBackupRestore {
                 .status(status)
                 .startTime(startTime)
                 .endTime(endTime)
+                .statusMessage(restoreJob.getErrorMessage())
                 .build();
     }
 

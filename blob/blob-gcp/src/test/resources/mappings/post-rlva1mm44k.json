@@ -1,0 +1,31 @@
+{
+  "id" : "3934f048-c91e-4371-b526-a45ebe168969",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/blob-for-tagging&uploadType=resumable",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{\"gcp-tag-tag1\":\"value1\"},\"name\":\"conformance-tests/blob-for-tagging\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzYyR6nvAeEWLXPnT0w7BXCeCP9WM8bOv_UjgOvV7OKKlB81gMIo6OXlWle0gu7UUsvWp8VllPMhZ9ccprTbd3aWg6JR-rGK9SIE1kUlA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:57:10 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/blob-for-tagging&uploadType=resumable&upload_id=AGQBYWzYyR6nvAeEWLXPnT0w7BXCeCP9WM8bOv_UjgOvV7OKKlB81gMIo6OXlWle0gu7UUsvWp8VllPMhZ9ccprTbd3aWg6JR-rGK9SIE1kUlA",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "3934f048-c91e-4371-b526-a45ebe168969",
+  "persistent" : true,
+  "insertionIndex" : 99
+}

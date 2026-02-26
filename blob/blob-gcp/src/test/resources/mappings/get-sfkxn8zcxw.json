@@ -1,0 +1,26 @@
+{
+  "id" : "705824c2-10ad-4a6d-a667-8b83567df113",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_metadata_versioned-blob",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1771966754130787&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/metadata/versioned-blob/1771966754130787\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1771966754130787&alt=media\",\n  \"name\": \"conformance-tests/metadata/versioned-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1771966754130787\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"23\",\n  \"md5Hash\": \"FXWwOrFipDUq+29KfYiQqQ==\",\n  \"crc32c\": \"yll5mw==\",\n  \"etag\": \"COOWvMeC85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:59:14.173Z\",\n  \"updated\": \"2026-02-24T20:59:14.173Z\",\n  \"timeDeleted\": \"2026-02-24T20:59:15.190Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:59:14.173Z\",\n  \"timeFinalized\": \"2026-02-24T20:59:14.173Z\",\n  \"metadata\": {\n    \"key1\": \"value1\",\n    \"key2\": \"value2\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COOWvMeC85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWxkpvxsDABFxXSKL-r_6jjlsc2Rm__ZVgbnOlftjzp9vvELPR-v3TKLdc81ZDu3Ue-w",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 24 Feb 2026 20:59:15 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:59:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "705824c2-10ad-4a6d-a667-8b83567df113",
+  "persistent" : true,
+  "insertionIndex" : 489
+}

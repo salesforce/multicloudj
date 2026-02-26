@@ -1,0 +1,33 @@
+{
+  "id" : "189dbd7a-77d4-48b9-a465-d8ae145bfee1",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-duplicateparts",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-duplicateParts?uploadId=ABPnzm43F6Vowmp9wErCjRwaAZw9YbFSfcydm-t1olzhPvat2UcVXzeGXq9_ZxuV64b8ViQ",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-duplicateParts</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><ETag>\"24b97d17bef4abbe4769ada99ebf91c9-2\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "10485760",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Tue, 24 Feb 2026 21:00:09 GMT",
+      "x-goog-hash" : "crc32c=Sqm7ZA==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWwAAWZnOHpjHvDMsuMX9FoWkLJYDNdf2YcCy8nsSByHCGPV27v_CmooOAvlkHy8HD1Q",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1771966809450979",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "189dbd7a-77d4-48b9-a465-d8ae145bfee1",
+  "persistent" : true,
+  "insertionIndex" : 665
+}

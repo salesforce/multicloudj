@@ -1,0 +1,31 @@
+{
+  "id" : "fb19c18b-8150-4686-8b76-67f8a5f92c04",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/metadata/versioned-blob&uploadType=resumable&upload_id=AGQBYWzMWHmfXmH4MeM1L0s18haylFNuNgmFKBEuacCv2cZ-FgkaTsd6fsCihyQlJ1g5ry_He53UTpXPOfv6vc-u82N1Q0Pm-G1MNGLPv1upAXU",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Versioned metadata blob",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/metadata/versioned-blob/1771966754130787\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fmetadata%2Fversioned-blob?generation=1771966754130787&alt=media\",\n  \"name\": \"conformance-tests/metadata/versioned-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1771966754130787\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"23\",\n  \"md5Hash\": \"FXWwOrFipDUq+29KfYiQqQ==\",\n  \"crc32c\": \"yll5mw==\",\n  \"etag\": \"COOWvMeC85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:59:14.173Z\",\n  \"updated\": \"2026-02-24T20:59:14.173Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:59:14.173Z\",\n  \"timeFinalized\": \"2026-02-24T20:59:14.173Z\",\n  \"metadata\": {\n    \"key1\": \"value1\",\n    \"key2\": \"value2\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "COOWvMeC85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWzMWHmfXmH4MeM1L0s18haylFNuNgmFKBEuacCv2cZ-FgkaTsd6fsCihyQlJ1g5ry_He53UTpXPOfv6vc-u82N1Q0Pm-G1MNGLPv1upAXU",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:59:14 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fb19c18b-8150-4686-8b76-67f8a5f92c04",
+  "persistent" : true,
+  "insertionIndex" : 494
+}
