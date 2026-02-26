@@ -54,11 +54,11 @@ public final class ImageReference {
     /** Parses a digest reference: split on "@", validate sha256 prefix and hex format. */
     private static ImageReference parseDigest(String ref) {
         String[] parts = ref.split(DIGEST_DELIMITER, 2);
-        if (parts.length != 2) {
+        if (parts.length != 2 || parts[1].contains(DIGEST_DELIMITER)) {
             throw new InvalidArgumentException(
                 String.format("a digest must contain exactly one '@' separator (e.g. registry/repository@digest) saw: %s", ref));
         }
-        
+
         String base = parts[0].trim();
         String dig = parts[1].trim();
         
@@ -107,9 +107,11 @@ public final class ImageReference {
         if (tagColon >= 0) {
             String repo = ref.substring(0, tagColon);
             String tag = ref.substring(tagColon + 1);
-            if (!StringUtils.isBlank(tag)) {
-                return new ImageReference(repo, tag, ref);
+            if (StringUtils.isBlank(tag)) {
+                throw new InvalidArgumentException(
+                    "invalid reference format: tag cannot be empty after ':' (e.g. repo:tag): " + ref);
             }
+            return new ImageReference(repo, tag, ref);
         }
         return new ImageReference(ref, "latest", ref + ":latest");
     }
