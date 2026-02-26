@@ -81,11 +81,9 @@ public abstract class AbstractPubsubIT {
 
     /**
      * Initialize the harness and start recording.
-     * Resets WireMock scenario states to prevent state pollution between tests.
      */
     @BeforeEach
     public void setupTestEnvironment() {
-        TestsUtil.resetWireMockScenarios();
         TestsUtil.startWireMockRecording(harness.getPubsubEndpoint());
     }
 
