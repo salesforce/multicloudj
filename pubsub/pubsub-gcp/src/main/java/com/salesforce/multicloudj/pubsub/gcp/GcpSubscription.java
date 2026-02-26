@@ -227,15 +227,35 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .setMaxMessages(Math.max(1, batchSize))
                 .setReturnImmediately(true)
                 .build();
-            
-        PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
-                    
-        List<Message> receivedMessages = new ArrayList<>();
-        for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
-            Message m = convertToMessage(rm);
-            receivedMessages.add(m);
+
+        try {
+            System.out.println("[DEBUG] GCP Pull Request: subscription=" + subscriptionName +
+                             ", maxMessages=" + Math.max(1, batchSize) +
+                             ", returnImmediately=true");
+
+            PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
+
+            System.out.println("[DEBUG] GCP Pull Response: receivedMessages.count=" +
+                             resp.getReceivedMessagesCount());
+
+            List<Message> receivedMessages = new ArrayList<>();
+            for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
+                Message m = convertToMessage(rm);
+                receivedMessages.add(m);
+                System.out.println("[DEBUG]   - Message: body=" + new String(m.getBody()) +
+                                 ", ackId=" + m.getAckID().toString().substring(0, Math.min(20, m.getAckID().toString().length())) + "...");
+            }
+            return receivedMessages;
+        } catch (Exception e) {
+            System.err.println("[ERROR] GCP Pull Request FAILED: subscription=" + subscriptionName +
+                             ", exception=" + e.getClass().getName() +
+                             ", message=" + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("[ERROR]   Caused by: " + e.getCause().getClass().getName() +
+                                 ": " + e.getCause().getMessage());
+            }
+            throw e;
         }
-        return receivedMessages;
     }
 
     /**

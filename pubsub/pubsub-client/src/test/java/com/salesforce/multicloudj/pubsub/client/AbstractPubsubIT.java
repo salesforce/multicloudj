@@ -432,25 +432,42 @@ public abstract class AbstractPubsubIT {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
+        int attemptCount = 0;
         try {
             while (received.size() < expectedCount && System.nanoTime() < deadline) {
+                attemptCount++;
+                System.out.println("[TEST] Receive attempt #" + attemptCount +
+                                 ", received so far: " + received.size() + "/" + expectedCount);
                 Message r = subscription.receive();
                 // receive() either returns a Message or throws an exception
                 received.add(r);
+                System.out.println("[TEST] Successfully received message #" + received.size() +
+                                 ": body=" + new String(r.getBody()));
             }
         } catch (Exception e) {
+            System.err.println("[TEST] Exception during receive attempt #" + attemptCount +
+                             " (after successfully receiving " + received.size() + "/" + expectedCount + " messages)");
+            System.err.println("[TEST] Exception type: " + e.getClass().getName());
+            System.err.println("[TEST] Exception message: " + e.getMessage());
+
+            // Print the full exception stack trace to understand the failure
+            System.err.println("[TEST] Full exception stack trace:");
+            e.printStackTrace(System.err);
+
             String errorMsg = String.format(
-                "Failed to receive messages: Got exception after receiving %d/%d messages.",
-                received.size(), expectedCount);
+                "Failed to receive messages: Got exception after receiving %d/%d messages. " +
+                "Exception: %s: %s",
+                received.size(), expectedCount, e.getClass().getSimpleName(), e.getMessage());
             Assertions.fail(errorMsg, e);
         }
         // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             String errorMsg = String.format(
-                "Timeout waiting for messages: Received %d/%d messages.",
-                received.size(), expectedCount);
+                "Timeout waiting for messages: Received %d/%d messages after %d attempts.",
+                received.size(), expectedCount, attemptCount);
             Assertions.fail(errorMsg);
         }
+        System.out.println("[TEST] Successfully received all " + expectedCount + " messages in " + attemptCount + " attempts");
         return received;
     }
 
