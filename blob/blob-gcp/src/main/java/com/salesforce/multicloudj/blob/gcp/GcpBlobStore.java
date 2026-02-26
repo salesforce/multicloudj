@@ -993,6 +993,11 @@ public class GcpBlobStore extends AbstractBlobStore {
                 storageOptionsBuilder.setCredentials(credentials);
             }
 
+            if (builder.getRetryConfig() != null) {
+                GcpTransformer transformer = builder.transformerSupplier.get(builder.getBucket());
+                storageOptionsBuilder.setRetrySettings(transformer.toGcpRetrySettings(builder.getRetryConfig()));
+            }
+
             return storageOptionsBuilder.build().getService();
         }
 
@@ -1012,6 +1017,11 @@ public class GcpBlobStore extends AbstractBlobStore {
             if (builder.getCredentialsOverrider() != null) {
                 Credentials credentials = GcpCredentialsProvider.getCredentials(builder.getCredentialsOverrider());
                 storageOptionsBuilder.setCredentials(credentials);
+            }
+
+            if (builder.getRetryConfig() != null) {
+                GcpTransformer transformer = builder.transformerSupplier.get(builder.getBucket());
+                storageOptionsBuilder.setRetrySettings(transformer.toGcpRetrySettings(builder.getRetryConfig()));
             }
 
             return MultipartUploadClient.create(MultipartUploadSettings.of(storageOptionsBuilder.build()));
