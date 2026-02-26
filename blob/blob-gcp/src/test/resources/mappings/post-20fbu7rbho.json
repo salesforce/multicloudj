@@ -1,0 +1,31 @@
+{
+  "id" : "9783cf99-6394-449d-822d-f3c7583fbe1d",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/download-happy-path&uploadType=resumable",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/kms/download-happy-path\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzs0OMTLBqplvCfOcgp84HFOYBd0BDJi711stez_BsTwQMusSUL5vjzVbd3-aY_ChzuvRtcz0dnTtkWnbdCXeBMMgNZZSa6BhjUjW9BeaY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:57:07 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/download-happy-path&uploadType=resumable&upload_id=AGQBYWzs0OMTLBqplvCfOcgp84HFOYBd0BDJi711stez_BsTwQMusSUL5vjzVbd3-aY_ChzuvRtcz0dnTtkWnbdCXeBMMgNZZSa6BhjUjW9BeaY",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "9783cf99-6394-449d-822d-f3c7583fbe1d",
+  "persistent" : true,
+  "insertionIndex" : 86
+}

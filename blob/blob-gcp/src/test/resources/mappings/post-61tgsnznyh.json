@@ -1,0 +1,33 @@
+{
+  "id" : "95bf7eb7-533e-4316-b80b-be81c8fc987a",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-multipleparts",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-multipleParts?uploadId=ABPnzm6eqghGBeKeuk7G-WhyWIjTsYzCjS1xbCdJCp1tQpCiQhqTBHNehYLrA0XYhIcufPI",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag></Part><Part><PartNumber>4</PartNumber><ETag>\"00ad619297ccd041956fe69be4251d30\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-multipleParts</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "20971520",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Tue, 24 Feb 2026 20:59:55 GMT",
+      "x-goog-hash" : "crc32c=SCLXLQ==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzs_7GFEFVRV988MqSARqMYt0BojRQjkfM-VnqpZvJaPe8lrXQPsRByNMLG3PrppOTq",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1771966795554749",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "95bf7eb7-533e-4316-b80b-be81c8fc987a",
+  "persistent" : true,
+  "insertionIndex" : 620
+}

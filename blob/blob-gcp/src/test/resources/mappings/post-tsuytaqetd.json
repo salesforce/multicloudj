@@ -1,0 +1,26 @@
+{
+  "id" : "d9b0c297-ce35-4560-bd0e-87e77a098ecb",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-copying_rewriteto_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_clobbered-blob",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-copying/rewriteTo/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fclobbered-blob?projection=full",
+    "method" : "POST"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#rewriteResponse\",\n  \"totalBytesRewritten\": \"22\",\n  \"objectSize\": \"22\",\n  \"done\": true,\n  \"resource\": {\n    \"kind\": \"storage#object\",\n    \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/clobbered-blob/1771966693030661\",\n    \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fclobbered-blob\",\n    \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fclobbered-blob?generation=1771966693030661&alt=media\",\n    \"name\": \"conformance-tests/clobbered-blob\",\n    \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n    \"generation\": \"1771966693030661\",\n    \"metageneration\": \"1\",\n    \"contentType\": \"application/octet-stream\",\n    \"storageClass\": \"STANDARD\",\n    \"size\": \"22\",\n    \"md5Hash\": \"cKK4lX0Hr2ZqrWCAxXanTQ==\",\n    \"crc32c\": \"A4WS2w==\",\n    \"etag\": \"CIX2qqqC85IDEAE=\",\n    \"timeCreated\": \"2026-02-24T20:58:13.136Z\",\n    \"updated\": \"2026-02-24T20:58:13.136Z\",\n    \"timeStorageClassUpdated\": \"2026-02-24T20:58:13.136Z\",\n    \"timeFinalized\": \"2026-02-24T20:58:13.136Z\",\n    \"metadata\": {\n      \"key1\": \"value1\",\n      \"key2\": \"value2\"\n    }\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWyiunUYhGdagK7dooO12owPXsJzMvAB1kApiQ8H9F8WdF33YN43eh3nABOzRMPgebe7",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:58:13 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "d9b0c297-ce35-4560-bd0e-87e77a098ecb",
+  "persistent" : true,
+  "insertionIndex" : 289
+}

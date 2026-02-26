@@ -1,0 +1,31 @@
+{
+  "id" : "90148427-de77-4af9-ac62-15e8c0f24b1e",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/clobbered-blob&uploadType=resumable&upload_id=AGQBYWzQzUdJ0-CoaUEN_qzuxRLWdbMalWuSG4U36juq16zIs-7M7GWP50Pj9-iP9DOsA2eatIlNhZuwXU5V_SwX2xx8JHF1e4kEQU8X0MgOmg",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Clobber this blob!",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/clobbered-blob/1771966692390031\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fclobbered-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fclobbered-blob?generation=1771966692390031&alt=media\",\n  \"name\": \"conformance-tests/clobbered-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1771966692390031\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"18\",\n  \"md5Hash\": \"PCXewWsCcXzBee6x/TaAZg==\",\n  \"crc32c\": \"MBnIog==\",\n  \"etag\": \"CI/pg6qC85IDEAE=\",\n  \"timeCreated\": \"2026-02-24T20:58:12.440Z\",\n  \"updated\": \"2026-02-24T20:58:12.440Z\",\n  \"timeStorageClassUpdated\": \"2026-02-24T20:58:12.440Z\",\n  \"timeFinalized\": \"2026-02-24T20:58:12.440Z\",\n  \"metadata\": {\n    \"key3\": \"value3\",\n    \"key4\": \"value4\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CI/pg6qC85IDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWzQzUdJ0-CoaUEN_qzuxRLWdbMalWuSG4U36juq16zIs-7M7GWP50Pj9-iP9DOsA2eatIlNhZuwXU5V_SwX2xx8JHF1e4kEQU8X0MgOmg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:58:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "90148427-de77-4af9-ac62-15e8c0f24b1e",
+  "persistent" : true,
+  "insertionIndex" : 291
+}

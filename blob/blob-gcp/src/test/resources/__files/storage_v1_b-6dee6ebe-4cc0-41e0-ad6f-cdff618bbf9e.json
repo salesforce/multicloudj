@@ -1,0 +1,550 @@
+{
+  "kind": "storage#buckets",
+  "items": [
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/chameleon-test-bucket-blob",
+      "id": "chameleon-test-bucket-blob",
+      "name": "chameleon-test-bucket-blob",
+      "projectNumber": "599653580068",
+      "generation": "1761553177018302045",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-10-27T08:19:37.246Z",
+      "updated": "2025-10-27T08:19:37.246Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-10-27T08:19:37.246Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-01-25T08:19:37.246Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-01-25T08:19:37.246Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/example-test-bucket-barry",
+      "id": "example-test-bucket-barry",
+      "name": "example-test-bucket-barry",
+      "projectNumber": "599653580068",
+      "generation": "1759813243850778417",
+      "metageneration": "2",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAI=",
+      "timeCreated": "2025-10-07T05:00:44.071Z",
+      "updated": "2026-01-16T00:28:55.628Z",
+      "objectRetention": {
+        "mode": "Enabled"
+      },
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-10-07T05:00:44.071Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-01-05T05:00:44.071Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-01-05T05:00:44.071Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/gcp-benchmark-test",
+      "id": "gcp-benchmark-test",
+      "name": "gcp-benchmark-test",
+      "projectNumber": "599653580068",
+      "generation": "1752505648693845166",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-07-14T15:07:28.855Z",
+      "updated": "2025-07-14T15:07:28.855Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-07-14T15:07:28.855Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-10-12T15:07:28.855Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-10-12T15:07:28.855Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/gcp-benchmark-test-mumbai",
+      "id": "gcp-benchmark-test-mumbai",
+      "name": "gcp-benchmark-test-mumbai",
+      "projectNumber": "599653580068",
+      "generation": "1769504348843057742",
+      "metageneration": "1",
+      "location": "ASIA-SOUTH1",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2026-01-27T08:59:09.632Z",
+      "updated": "2026-01-27T08:59:09.632Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2026-01-27T08:59:09.632Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-04-27T08:59:09.632Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-04-27T08:59:09.632Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "region",
+      "satisfiesPZS": true,
+      "satisfiesPZI": true,
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/mpu-substrate-sdk-gcp-poc1",
+      "id": "mpu-substrate-sdk-gcp-poc1",
+      "name": "mpu-substrate-sdk-gcp-poc1",
+      "projectNumber": "599653580068",
+      "generation": "1747804742975454120",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-05-21T05:19:03.265Z",
+      "updated": "2025-05-21T05:19:03.265Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-05-21T05:19:03.265Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-08-19T05:19:03.265Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-08-19T05:19:03.265Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/palsfdc",
+      "id": "palsfdc",
+      "name": "palsfdc",
+      "projectNumber": "599653580068",
+      "generation": "1741291936583083619",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-03-06T20:12:16.899Z",
+      "updated": "2025-03-06T20:12:16.899Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-03-06T20:12:16.899Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-06-04T20:12:16.899Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-06-04T20:12:16.899Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/plt_poc_bucker_test",
+      "id": "plt_poc_bucker_test",
+      "name": "plt_poc_bucker_test",
+      "projectNumber": "599653580068",
+      "generation": "1749772376738022333",
+      "metageneration": "5",
+      "location": "US-CENTRAL1",
+      "storageClass": "STANDARD",
+      "etag": "CAU=",
+      "timeCreated": "2025-06-12T23:52:56.953Z",
+      "updated": "2025-06-16T18:54:54.355Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-06-12T23:52:56.953Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-09-10T23:52:56.953Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-09-10T23:52:56.953Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "region",
+      "satisfiesPZS": true,
+      "satisfiesPZI": true,
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/sdk-blob-demo-bucket",
+      "id": "sdk-blob-demo-bucket",
+      "name": "sdk-blob-demo-bucket",
+      "projectNumber": "599653580068",
+      "generation": "1761660622430120139",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-10-28T14:10:22.846Z",
+      "updated": "2025-10-28T14:10:22.846Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-10-28T14:10:22.846Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-01-26T14:10:22.846Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-01-26T14:10:22.846Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/sfdc-pki-gcp-dev0-uswest1",
+      "id": "sfdc-pki-gcp-dev0-uswest1",
+      "name": "sfdc-pki-gcp-dev0-uswest1",
+      "projectNumber": "599653580068",
+      "generation": "1744124576403190601",
+      "metageneration": "5",
+      "location": "US-EAST1",
+      "storageClass": "STANDARD",
+      "etag": "CAU=",
+      "timeCreated": "2025-04-08T15:02:56.796Z",
+      "updated": "2025-04-08T19:53:07.257Z",
+      "versioning": {
+        "enabled": true
+      },
+      "labels": {
+        "environment": "poc1",
+        "purpose": "bootstrap-certificate-storage",
+        "goog-terraform-provisioned": "true"
+      },
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-04-08T15:02:56.796Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-07-07T15:02:56.796Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-07-07T15:02:56.796Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "region",
+      "satisfiesPZI": true
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/sfdc-pki-gcp-dev0-uswest1-v2",
+      "id": "sfdc-pki-gcp-dev0-uswest1-v2",
+      "name": "sfdc-pki-gcp-dev0-uswest1-v2",
+      "projectNumber": "599653580068",
+      "generation": "1743189999625040950",
+      "metageneration": "8",
+      "location": "US-EAST1",
+      "storageClass": "STANDARD",
+      "etag": "CAg=",
+      "timeCreated": "2025-03-28T19:26:39.915Z",
+      "updated": "2025-05-07T14:43:48.863Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-03-28T19:26:39.915Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-06-26T19:26:39.915Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-06-26T19:26:39.915Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "region",
+      "satisfiesPZI": true,
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket",
+      "id": "substrate-sdk-gcp-poc1-test-bucket",
+      "name": "substrate-sdk-gcp-poc1-test-bucket",
+      "projectNumber": "599653580068",
+      "generation": "1758831398412595155",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2025-09-25T20:16:38.678Z",
+      "updated": "2025-09-25T20:16:38.678Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-09-25T20:16:38.678Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-12-24T20:16:38.678Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-12-24T20:16:38.678Z"
+        },
+        "publicAccessPrevention": "inherited"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT"
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned",
+      "id": "substrate-sdk-gcp-poc1-test-bucket-versioned",
+      "name": "substrate-sdk-gcp-poc1-test-bucket-versioned",
+      "projectNumber": "599653580068",
+      "generation": "1758831414065126441",
+      "metageneration": "3",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAM=",
+      "timeCreated": "2025-09-25T20:16:54.302Z",
+      "updated": "2026-02-06T05:13:44.227Z",
+      "versioning": {
+        "enabled": true
+      },
+      "objectRetention": {
+        "mode": "Enabled"
+      },
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-09-25T20:16:54.302Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-12-24T20:16:54.302Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-12-24T20:16:54.302Z"
+        },
+        "publicAccessPrevention": "inherited"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT"
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1_cloudbuild",
+      "id": "substrate-sdk-gcp-poc1_cloudbuild",
+      "name": "substrate-sdk-gcp-poc1_cloudbuild",
+      "projectNumber": "599653580068",
+      "generation": "1770226824680328376",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2026-02-04T17:40:24.865Z",
+      "updated": "2026-02-04T17:40:24.865Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2026-02-04T17:40:24.865Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-05-05T17:40:24.865Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-05-05T17:40:24.865Z"
+        },
+        "publicAccessPrevention": "inherited"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT"
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/test-bucket-create-multicloudj",
+      "id": "test-bucket-create-multicloudj",
+      "name": "test-bucket-create-multicloudj",
+      "projectNumber": "599653580068",
+      "generation": "1771969782643127327",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2026-02-24T21:49:42.895Z",
+      "updated": "2026-02-24T21:49:42.895Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2026-02-24T21:49:42.895Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2026-05-25T21:49:42.895Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2026-05-25T21:49:42.895Z"
+        },
+        "publicAccessPrevention": "inherited"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT"
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/ura-bootstrap-cert-bucket",
+      "id": "ura-bootstrap-cert-bucket",
+      "name": "ura-bootstrap-cert-bucket",
+      "projectNumber": "599653580068",
+      "generation": "1742407514435190834",
+      "metageneration": "2",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAI=",
+      "timeCreated": "2025-03-19T18:05:14.726Z",
+      "updated": "2025-03-19T19:31:51.953Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-03-19T18:05:14.726Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-06-17T18:05:14.726Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-06-17T18:05:14.726Z"
+        },
+        "publicAccessPrevention": "enforced"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT",
+      "hierarchicalNamespace": {
+        "enabled": false
+      }
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/ykashyap",
+      "id": "ykashyap",
+      "name": "ykashyap",
+      "projectNumber": "599653580068",
+      "generation": "1749753086947923335",
+      "metageneration": "2",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAI=",
+      "timeCreated": "2025-06-12T18:31:27.275Z",
+      "updated": "2025-06-12T18:37:29.499Z",
+      "softDeletePolicy": {
+        "retentionDurationSeconds": "604800",
+        "effectiveTime": "2025-06-12T18:31:27.275Z"
+      },
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": true,
+          "lockedTime": "2025-09-10T18:31:27.275Z"
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": true,
+          "lockedTime": "2025-09-10T18:31:27.275Z"
+        },
+        "publicAccessPrevention": "inherited"
+      },
+      "locationType": "multi-region",
+      "rpo": "DEFAULT"
+    }
+  ]
+}

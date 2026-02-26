@@ -1,0 +1,26 @@
+{
+  "id" : "5f1fc375-a2e7-429a-99ff-134a4e77ca06",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_bulkdeletebyversion_happy3",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy3",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy3\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy3\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzy_Y5ebtxmEMIe_vq62ONzs51s7hL_MeaVqyJFtU05Lc6yWvtLW5OaX3bY_53vmPPY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:57:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "5f1fc375-a2e7-429a-99ff-134a4e77ca06",
+  "persistent" : true,
+  "insertionIndex" : 134
+}

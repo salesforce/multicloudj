@@ -1,0 +1,26 @@
+{
+  "id" : "fab729da-cb50-47fa-acff-bde7e4abb01a",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_blob-for-bulk-delete_happy1",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-bulk-delete_happy1",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy1\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-bulk-delete_happy1\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWx3sZb86fj-i60URsM4_9Qbi5YLGIP_9nsZyMoNO5bnMe5ZgbDwee6LlC2WtF-HDLTN",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 20:57:03 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fab729da-cb50-47fa-acff-bde7e4abb01a",
+  "persistent" : true,
+  "insertionIndex" : 34
+}

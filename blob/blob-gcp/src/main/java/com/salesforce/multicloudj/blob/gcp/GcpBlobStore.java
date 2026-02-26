@@ -50,7 +50,6 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
@@ -261,7 +260,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         List<BlobId> blobIds = objects.stream()
                 .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
                 .collect(Collectors.toList());
-        
         storage.delete(blobIds);
     }
 
@@ -453,17 +451,19 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     /**
      * Validates that the bucket exists, throwing ResourceNotFoundException if not found.
+     * Uses Objects.List with pageSize(1) instead of Buckets.Get so that only
+     * {@code storage.objects.list} is required on the bucket, not {@code storage.buckets.get}.
      *
      * @throws ResourceNotFoundException if the bucket does not exist
      */
     private void validateBucketExists() {
         try {
-            Bucket bucketObj = storage.get(bucket);
-            if (bucketObj == null) {
-                throw new ResourceNotFoundException("Bucket not found: " + bucket);
-            }
+            storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
         } catch (StorageException e) {
-            throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+            if (e.getCode() == 404) {
+                throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+            }
+            throw new UnknownException("Failed to check bucket existence", e);
         }
     }
 
