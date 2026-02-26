@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractPubsubIT.class);
 
     public interface Harness extends AutoCloseable {
 
@@ -436,23 +440,22 @@ public abstract class AbstractPubsubIT {
         try {
             while (received.size() < expectedCount && System.nanoTime() < deadline) {
                 attemptCount++;
-                System.out.println("[TEST] Receive attempt #" + attemptCount +
-                                 ", received so far: " + received.size() + "/" + expectedCount);
+                logger.info("[TEST] Receive attempt #{}, received so far: {}/{}",
+                        attemptCount, received.size(), expectedCount);
                 Message r = subscription.receive();
                 // receive() either returns a Message or throws an exception
                 received.add(r);
-                System.out.println("[TEST] Successfully received message #" + received.size() +
-                                 ": body=" + new String(r.getBody()));
+                logger.info("[TEST] Successfully received message #{}: body={}",
+                        received.size(), new String(r.getBody()));
             }
         } catch (Exception e) {
-            System.err.println("[TEST] Exception during receive attempt #" + attemptCount +
-                             " (after successfully receiving " + received.size() + "/" + expectedCount + " messages)");
-            System.err.println("[TEST] Exception type: " + e.getClass().getName());
-            System.err.println("[TEST] Exception message: " + e.getMessage());
+            logger.error("[TEST] Exception during receive attempt #{} (after successfully receiving {}/{} messages)",
+                    attemptCount, received.size(), expectedCount);
+            logger.error("[TEST] Exception type: {}", e.getClass().getName());
+            logger.error("[TEST] Exception message: {}", e.getMessage());
 
             // Print the full exception stack trace to understand the failure
-            System.err.println("[TEST] Full exception stack trace:");
-            e.printStackTrace(System.err);
+            logger.error("[TEST] Full exception stack trace:", e);
 
             String errorMsg = String.format(
                 "Failed to receive messages: Got exception after receiving %d/%d messages. " +
@@ -467,7 +470,7 @@ public abstract class AbstractPubsubIT {
                 received.size(), expectedCount, attemptCount);
             Assertions.fail(errorMsg);
         }
-        System.out.println("[TEST] Successfully received all " + expectedCount + " messages in " + attemptCount + " attempts");
+        logger.info("[TEST] Successfully received all {} messages in {} attempts", expectedCount, attemptCount);
         return received;
     }
 
