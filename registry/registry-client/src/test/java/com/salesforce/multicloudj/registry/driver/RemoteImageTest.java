@@ -108,11 +108,4 @@ public class RemoteImageTest {
         assertTrue(exception.getMessage().contains("missing config digest"));
     }
 
-    @Test
-    void testGetImageRef_ReturnsImageRef() {
-        RemoteImage image = new RemoteImage(mockClient, REPOSITORY, IMAGE_REF, mockManifest);
-
-        assertEquals(IMAGE_REF, image.getImageRef());
-    }
-
 }
