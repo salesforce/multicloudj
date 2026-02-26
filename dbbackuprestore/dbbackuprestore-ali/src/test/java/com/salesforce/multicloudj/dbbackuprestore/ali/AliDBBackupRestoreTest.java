@@ -208,7 +208,13 @@ public class AliDBBackupRestoreTest {
         });
     }
 
-    private Restore setupGetRestoreJobTest(String restoreJobId, String status, boolean includeCompletionTime) throws Exception {
+    private Restore setupGetRestoreJobTest(String restoreJobId, String status, boolean includeCompletionTime)
+            throws Exception {
+        return setupGetRestoreJobTest(restoreJobId, status, includeCompletionTime, null);
+    }
+
+    private Restore setupGetRestoreJobTest(
+            String restoreJobId, String status, boolean includeCompletionTime, String errorMessage) throws Exception {
         Instant creationTime = Instant.now().minusSeconds(300);
         Instant completionTime = Instant.now();
 
@@ -222,6 +228,9 @@ public class AliDBBackupRestoreTest {
 
         if (includeCompletionTime) {
             restoreJob.setCompleteTime(completionTime.getEpochSecond());
+        }
+        if (errorMessage != null) {
+            restoreJob.setErrorMessage(errorMessage);
         }
 
         DescribeRestoreJobs2ResponseBody.DescribeRestoreJobs2ResponseBodyRestoreJobs restoreJobs =
@@ -271,6 +280,17 @@ public class AliDBBackupRestoreTest {
         String restoreJobId = "restore-job-789";
         Restore restore = setupGetRestoreJobTest(restoreJobId, "FAILED", true);
         assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertNotNull(restore.getStartTime());
+        assertNotNull(restore.getEndTime());
+    }
+
+    @Test
+    void testGetRestore_Job_Failed_WithStatusMessage() throws Exception {
+        String restoreJobId = "restore-job-789";
+        String failureMessage = "Snapshot not found: snapshot-789";
+        Restore restore = setupGetRestoreJobTest(restoreJobId, "FAILED", true, failureMessage);
+        assertEquals(RestoreStatus.FAILED, restore.getStatus());
+        assertEquals(failureMessage, restore.getStatusMessage());
         assertNotNull(restore.getStartTime());
         assertNotNull(restore.getEndTime());
     }

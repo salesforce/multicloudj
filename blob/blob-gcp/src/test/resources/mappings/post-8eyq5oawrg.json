@@ -1,0 +1,32 @@
+{
+  "id" : "8b9d742d-9263-4741-a037-25bfb013c483",
+  "name" : "storage_v1_b",
+  "request" : {
+    "url" : "/storage/v1/b?project=substrate-sdk-gcp-poc1&projection=full",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"name\":\"test-bucket-create-multicloudj\",\"retentionPolicy\":null}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#bucket\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/test-bucket-create-multicloudj\",\n  \"id\": \"test-bucket-create-multicloudj\",\n  \"name\": \"test-bucket-create-multicloudj\",\n  \"projectNumber\": \"599653580068\",\n  \"generation\": \"1771969782643127327\",\n  \"metageneration\": \"1\",\n  \"location\": \"US\",\n  \"storageClass\": \"STANDARD\",\n  \"etag\": \"CAE=\",\n  \"timeCreated\": \"2026-02-24T21:49:42.895Z\",\n  \"updated\": \"2026-02-24T21:49:42.895Z\",\n  \"softDeletePolicy\": {\n    \"retentionDurationSeconds\": \"604800\",\n    \"effectiveTime\": \"2026-02-24T21:49:42.895Z\"\n  },\n  \"iamConfiguration\": {\n    \"bucketPolicyOnly\": {\n      \"enabled\": true,\n      \"lockedTime\": \"2026-05-25T21:49:42.895Z\"\n    },\n    \"uniformBucketLevelAccess\": {\n      \"enabled\": true,\n      \"lockedTime\": \"2026-05-25T21:49:42.895Z\"\n    },\n    \"publicAccessPrevention\": \"inherited\"\n  },\n  \"locationType\": \"multi-region\",\n  \"rpo\": \"DEFAULT\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CAE=",
+      "X-GUploader-UploadID" : "AGQBYWxOcitEsClWPXLzqCuoveavl3SUSyDPO6fIX2KTqebfUpdTZRQVhAk56ZNRsaQgJokP0S1G6KA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 24 Feb 2026 21:49:42 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8b9d742d-9263-4741-a037-25bfb013c483",
+  "persistent" : true,
+  "insertionIndex" : 912
+}

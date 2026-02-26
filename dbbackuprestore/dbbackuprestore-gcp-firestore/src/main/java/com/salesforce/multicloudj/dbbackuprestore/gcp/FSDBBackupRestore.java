@@ -118,6 +118,16 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
                 .setDatabaseId(targetDBID)
                 .setBackup(request.getBackupId());
 
+        if (StringUtils.isNotBlank(request.getKmsEncryptionKeyId())) {
+            restoreBuilder.setEncryptionConfig(
+                    Database.EncryptionConfig.newBuilder()
+                            .setCustomerManagedEncryption(
+                                    Database.EncryptionConfig.CustomerManagedEncryptionOptions.newBuilder()
+                                            .setKmsKeyName(request.getKmsEncryptionKeyId())
+                                            .build())
+                            .build());
+        }
+
         // Restore is a long-running operation
         OperationFuture<Database, RestoreDatabaseMetadata> operation =
                 firestoreAdminClient.restoreDatabaseAsync(restoreBuilder.build());
@@ -191,9 +201,11 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
         Instant endTime = null;
         Instant startTime = null;
 
+        String statusMessage = null;
         if (operation.getDone()) {
             if (operation.hasError()) {
                 status = RestoreStatus.FAILED;
+                statusMessage = operation.getError().getMessage();
             } else {
                 status = RestoreStatus.COMPLETED;
             }
@@ -228,6 +240,7 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
                 .status(status)
                 .startTime(startTime)
                 .endTime(endTime)
+                .statusMessage(statusMessage)
                 .build();
     }
 

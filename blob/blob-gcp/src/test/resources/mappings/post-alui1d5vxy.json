@@ -1,0 +1,26 @@
+{
+  "id" : "f05d4eda-2776-443f-a4eb-9ce869df1b52",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-completeanaborted",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-completeAnAborted?uploadId=ABPnzm59zmQ2eihyxXun5h6z5S3v69I7Ch4uIzfzcpxP744X2LkkK2M6Hj8rE5Su4Sa_FcM",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchUpload</Code><Message>The requested upload was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWwmmWskxVrE19I_i15jM8ZjCPs9TIHg-xbJ9afzEUQA00Tt60UftrEjY9CBKNI2A2Mu",
+      "Vary" : "Origin",
+      "Date" : "Tue, 24 Feb 2026 21:00:34 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "f05d4eda-2776-443f-a4eb-9ce869df1b52",
+  "persistent" : true,
+  "insertionIndex" : 748
+}

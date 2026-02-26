@@ -161,6 +161,37 @@ public class FSDBBackupRestoreTest {
         assertEquals("projects/my-project", capturedRequest.getParent());
     }
 
+    @Test
+    void testRestoreBackup_WithCmekEncryption() throws Exception {
+        String kmsKeyName = "projects/my-project/locations/us-central1/keyRings/my-ring/cryptoKeys/my-key";
+        RestoreRequest request = RestoreRequest.builder()
+                .backupId("projects/my-project/locations/us-central1/backups/backup-789")
+                .targetResource("restored-db")
+                .kmsEncryptionKeyId(kmsKeyName)
+                .build();
+
+        @SuppressWarnings("unchecked")
+        OperationFuture<Database, RestoreDatabaseMetadata> mockOperationFuture =
+                org.mockito.Mockito.mock(OperationFuture.class);
+        when(mockOperationFuture.getName()).thenReturn("operations/restore-job-456");
+
+        when(mockFirestoreClient.restoreDatabaseAsync(any(RestoreDatabaseRequest.class)))
+                .thenReturn(mockOperationFuture);
+
+        String restoreId = dbBackupRestore.restoreBackup(request);
+
+        assertEquals("operations/restore-job-456", restoreId);
+
+        ArgumentCaptor<RestoreDatabaseRequest> captor = ArgumentCaptor.forClass(RestoreDatabaseRequest.class);
+        verify(mockFirestoreClient, times(1)).restoreDatabaseAsync(captor.capture());
+
+        RestoreDatabaseRequest capturedRequest = captor.getValue();
+        assertTrue(capturedRequest.hasEncryptionConfig());
+        assertEquals(
+                kmsKeyName,
+                capturedRequest.getEncryptionConfig().getCustomerManagedEncryption().getKmsKeyName());
+    }
+
     private Restore setupGetRestoreJobTest(String restoreId, boolean isDone, boolean hasError, boolean includeEndTime) {
         Instant startTime = Instant.now().minusSeconds(300);
         Instant endTime = Instant.now();

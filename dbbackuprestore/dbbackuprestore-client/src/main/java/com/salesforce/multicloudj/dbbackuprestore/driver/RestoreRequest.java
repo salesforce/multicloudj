@@ -42,4 +42,9 @@ public class RestoreRequest {
      * is required to locate and restore from a backup.
      */
     private String vaultId;
+
+    /**
+     * KMS encryption key identifier for encrypting the restored resource.
+     */
+    private String kmsEncryptionKeyId;
 }
