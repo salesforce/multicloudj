@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,9 +151,17 @@ public class GcpPubsubIT extends AbstractPubsubIT {
                 // add index suffix only if index > 0
                 String subscriptionNameWithIndex = index > 0 ? subscriptionName + "-" + index : subscriptionName;
                 String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionNameWithIndex;
-                
+
+                // Use maxHandlers=1 for integration tests to avoid WireMock scenario state race conditions
+                Batcher.Options testBatcherOptions = new Batcher.Options()
+                        .setMaxHandlers(1)
+                        .setMinBatchSize(1)
+                        .setMaxBatchSize(1000)
+                        .setMaxBatchByteSize(0);
+
                 GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
-                        .withSubscriptionName(fullSubscriptionName);
+                        .withSubscriptionName(fullSubscriptionName)
+                        .withReceiveBatcherOptions(testBatcherOptions);
                 GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client);
                 
                 if (index == 0) {
