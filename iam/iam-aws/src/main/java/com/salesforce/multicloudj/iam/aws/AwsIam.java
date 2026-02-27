@@ -12,9 +12,13 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
+import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
@@ -155,25 +159,20 @@ public class AwsIam extends AbstractIam {
     /**
      * Create IAM Role with optional Trust Configuration and Create Options.
      *
-     * @param identityName the IAM role name (e.g., "MyApplicationRole").
-     * @param description optional description for the role.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
-     * @param trustConfig optional trust configuration.
-     * @param options optional creation options for the role.
+     * @param request the request containing identity name, description, tenant ID, region, trust config, and options.
      * @return the IAM role ARN.
      */
     @Override
-    protected String doCreateIdentity(String identityName, String description, String tenantId, String region, Optional<TrustConfiguration> trustConfig, Optional<CreateOptions> options) {
-        String assumeRolePolicyDocument = buildAssumeRolePolicyDocument(tenantId, trustConfig);
+    protected String doCreateIdentity(CreateIdentityRequest request) {
+        String assumeRolePolicyDocument = buildAssumeRolePolicyDocument(request.getTenantId(), request.getTrustConfig());
 
         CreateRoleRequest.Builder requestBuilder = CreateRoleRequest.builder()
-                .roleName(identityName)
+                .roleName(request.getIdentityName())
                 .assumeRolePolicyDocument(assumeRolePolicyDocument)
-                .description(StringUtils.defaultString(description));
+                .description(StringUtils.defaultString(request.getDescription()));
 
-        if (options.isPresent()) {
-            CreateOptions opts = options.get();
+        if (request.getOptions().isPresent()) {
+            CreateOptions opts = request.getOptions().get();
             if (StringUtils.isNotBlank(opts.getPath())) {
                 requestBuilder.path(opts.getPath());
             }
@@ -190,11 +189,11 @@ public class AwsIam extends AbstractIam {
             Role role = response.role();
             return role != null ? role.arn() : null;
         } catch (EntityAlreadyExistsException e) {
-            GetRoleResponse getRoleResponse = this.iamClient.getRole(GetRoleRequest.builder().roleName(identityName).build());
+            GetRoleResponse getRoleResponse = this.iamClient.getRole(GetRoleRequest.builder().roleName(request.getIdentityName()).build());
             Role existingRole = getRoleResponse.role();
             
             if (existingRole != null) {
-                updateRoleIfNeeded(existingRole, description, assumeRolePolicyDocument, options);
+                updateRoleIfNeeded(existingRole, request.getDescription(), assumeRolePolicyDocument, request.getOptions());
             }
             
             return existingRole != null ? existingRole.arn() : null;
@@ -313,10 +312,10 @@ public class AwsIam extends AbstractIam {
 
         Map<String, Object> principal = new LinkedHashMap<>();
         if (!awsPrincipals.isEmpty()) {
-            principal.put("AWS", awsPrincipals.size() == 1 ? awsPrincipals.get(0) : awsPrincipals);
+            principal.put("AWS", awsPrincipals);
         }
         if (!servicePrincipals.isEmpty()) {
-            principal.put("Service", servicePrincipals.size() == 1 ? servicePrincipals.get(0) : servicePrincipals);
+            principal.put("Service", servicePrincipals);
         }
         stmt.put("Principal", principal);
 
@@ -334,9 +333,6 @@ public class AwsIam extends AbstractIam {
 
     @Override
     protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
-        if (StringUtils.isBlank(request.getIdentityName())) {
-            throw new InvalidArgumentException("identityName is required for AWS IAM");
-        }
         if (StringUtils.isBlank(request.getPolicyDocument().getName())) {
             throw new InvalidArgumentException("policy name is required for AWS IAM");
         }
@@ -356,7 +352,7 @@ public class AwsIam extends AbstractIam {
     private static String buildInlinePolicyDocumentJson(PolicyDocument policyDocument) {
         String version = policyDocument.getVersion();
         if (StringUtils.isBlank(version)) {
-            throw new InvalidArgumentException("Version is required for AWS inline policy document");
+            version = POLICY_VERSION;
         }
         Map<String, Object> doc = new LinkedHashMap<>();
         doc.put("Version", version);
@@ -368,21 +364,19 @@ public class AwsIam extends AbstractIam {
 
             List<String> actions = stmt.getActions();
             if (actions != null && !actions.isEmpty()) {
-                awsStmt.put("Action", actions.size() == 1 ? actions.get(0) : actions);
+                awsStmt.put("Action", actions);
             }
             if (StringUtils.isNotBlank(stmt.getSid())) {
                 awsStmt.put("Sid", stmt.getSid());
             }
             if (stmt.getResources() != null && !stmt.getResources().isEmpty()) {
-                awsStmt.put("Resource", stmt.getResources().size() == 1 ? stmt.getResources().get(0) : stmt.getResources());
-            } else {
-                awsStmt.put("Resource", "*");
+                awsStmt.put("Resource", stmt.getResources());
             }
             if (stmt.getConditions() != null && !stmt.getConditions().isEmpty()) {
                 awsStmt.put("Condition", stmt.getConditions());
             }
             if (stmt.getPrincipals() != null && !stmt.getPrincipals().isEmpty()) {
-                awsStmt.put("Principal", stmt.getPrincipals().size() == 1 ? stmt.getPrincipals().get(0) : stmt.getPrincipals());
+                awsStmt.put("Principal", stmt.getPrincipals());
             }
 
             awsStatements.add(awsStmt);
@@ -439,51 +433,44 @@ public class AwsIam extends AbstractIam {
     /**
      * Removes an inline policy from an IAM role.
      *
-     * @param identityName the IAM role name.
-     * @param policyName the name of the inline policy to remove.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
+     * @param request the request containing identity name, policy name, tenant ID, and region.
      */
     @Override
-    protected void doRemovePolicy(String identityName, String policyName, String tenantId, String region) {
-        DeleteRolePolicyRequest request = DeleteRolePolicyRequest.builder()
-                .roleName(identityName)
-                .policyName(policyName)
+    protected void doRemovePolicy(RemovePolicyRequest request) {
+        DeleteRolePolicyRequest deleteRequest = DeleteRolePolicyRequest.builder()
+                .roleName(request.getIdentityName())
+                .policyName(request.getPolicyName())
                 .build();
         
-        this.iamClient.deleteRolePolicy(request);
+        this.iamClient.deleteRolePolicy(deleteRequest);
     }
 
 
     /**
      * Delete IAM Role.
      *
-     * @param identityName the IAM role name.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
+     * @param request the request containing identity name, tenant ID, and region.
      */
     @Override
-    protected void doDeleteIdentity(String identityName, String tenantId, String region) {
-        DeleteRoleRequest request = DeleteRoleRequest.builder()
-                .roleName(identityName)
+    protected void doDeleteIdentity(DeleteIdentityRequest request) {
+        DeleteRoleRequest deleteRoleRequest = DeleteRoleRequest.builder()
+                .roleName(request.getIdentityName())
                 .build();
-        this.iamClient.deleteRole(request);
+        this.iamClient.deleteRole(deleteRoleRequest);
     }
 
     /**
      * Get IAM Role.
      *
-     * @param identityName the IAM role name.
-     * @param tenantId the AWS Account ID.
-     * @param region the AWS region for the IAM client.
+     * @param request the request containing identity name, tenant ID, and region.
      * @return the IAM role ARN.
      */
     @Override
-    protected String doGetIdentity(String identityName, String tenantId, String region) {
-        GetRoleRequest request = GetRoleRequest.builder()
-                .roleName(identityName)
+    protected String doGetIdentity(GetIdentityRequest request) {
+        GetRoleRequest getRoleRequest = GetRoleRequest.builder()
+                .roleName(request.getIdentityName())
                 .build();
-        GetRoleResponse response = this.iamClient.getRole(request);
+        GetRoleResponse response = this.iamClient.getRole(getRoleRequest);
         Role role = response.role();
         return role != null ? role.arn() : null;
     }

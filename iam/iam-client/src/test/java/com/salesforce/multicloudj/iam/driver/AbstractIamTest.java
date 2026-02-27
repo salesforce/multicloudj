@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.iam.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.iam.client.TestIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -256,6 +258,44 @@ public class AbstractIamTest {
         // Test getIdentity delegation
         String identityResult = testIam.getIdentity(TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
         assertEquals("mock-identity-arn", identityResult);
+    }
+
+    @Test
+    void testValidationThrowsInvalidArgumentException() {
+        TestIam iam = new TestIam.Builder().providerId(TEST_PROVIDER_ID).withRegion(TEST_REGION).build();
+        PolicyDocument policy = PolicyDocument.builder().version("2012-10-17")
+                .statement(Statement.builder().effect("Allow").action("s3:GetObject").build())
+                .build();
+
+        // createIdentity
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.createIdentity("", TEST_ROLE_DESCRIPTION, TEST_TENANT_ID, TEST_REGION, Optional.empty(), Optional.empty()));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.createIdentity("  ", TEST_ROLE_DESCRIPTION, TEST_TENANT_ID, TEST_REGION, Optional.empty(), Optional.empty()));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.createIdentity(TEST_ROLE, TEST_ROLE_DESCRIPTION, "", TEST_REGION, Optional.empty(), Optional.empty()));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.createIdentity(TEST_ROLE, TEST_ROLE_DESCRIPTION, TEST_TENANT_ID, TEST_REGION, null, Optional.empty()));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.createIdentity(TEST_ROLE, TEST_ROLE_DESCRIPTION, TEST_TENANT_ID, TEST_REGION, Optional.empty(), null));
+
+        // attachInlinePolicy, getInlinePolicyDetails, getAttachedPolicies
+        assertThrows(InvalidArgumentException.class, () -> iam.attachInlinePolicy(null));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.attachInlinePolicy(AttachInlinePolicyRequest.builder().identityName("  ").policyDocument(policy).build()));
+        assertThrows(InvalidArgumentException.class,
+                () -> iam.attachInlinePolicy(AttachInlinePolicyRequest.builder().identityName(TEST_ROLE).policyDocument(null).build()));
+        assertThrows(InvalidArgumentException.class, () -> iam.getInlinePolicyDetails(null));
+        assertThrows(InvalidArgumentException.class, () -> iam.getAttachedPolicies(null));
+
+        // removePolicy, deleteIdentity, getIdentity
+        assertThrows(InvalidArgumentException.class, () -> iam.removePolicy("", TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.removePolicy(TEST_ROLE, "", TEST_TENANT_ID, TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.removePolicy(TEST_ROLE, TEST_POLICY_NAME, "", TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.deleteIdentity("", TEST_TENANT_ID, TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.deleteIdentity(TEST_ROLE, "", TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.getIdentity("", TEST_TENANT_ID, TEST_REGION));
+        assertThrows(InvalidArgumentException.class, () -> iam.getIdentity(TEST_ROLE, "", TEST_REGION));
     }
 }
 

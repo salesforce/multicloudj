@@ -1,0 +1,24 @@
+{
+  "id" : "0afc7b00-6ab2-4a17-a7da-43321184fdbb",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=DeleteRole&Version=2010-05-08&RoleName=MultiCloudJTestRoleOptions",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<DeleteRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>75b1a74f-55b0-4f3c-b68a-2c8d1f6b1daa</RequestId>\n  </ResponseMetadata>\n</DeleteRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "75b1a74f-55b0-4f3c-b68a-2c8d1f6b1daa",
+      "Date" : "Thu, 26 Feb 2026 22:33:41 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "0afc7b00-6ab2-4a17-a7da-43321184fdbb",
+  "persistent" : true,
+  "insertionIndex" : 13
+}
