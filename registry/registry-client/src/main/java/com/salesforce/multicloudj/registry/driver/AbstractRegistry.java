@@ -1,6 +1,8 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
@@ -8,7 +10,6 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 
@@ -31,7 +32,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
 
         if (StringUtils.isBlank(registryEndpoint)) {
-            throw new IllegalStateException("Registry endpoint is not configured.");
+            throw new InvalidArgumentException("Registry endpoint is not configured.");
         }
     }
 
@@ -46,10 +47,10 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     public abstract Builder<?, ?> builder();
 
     @Override
-    public abstract String getAuthUsername() throws IOException;
+    public abstract String getAuthUsername();
 
     @Override
-    public abstract String getAuthToken() throws IOException;
+    public abstract String getAuthToken();
 
     /** Returns the OCI client for this registry. */
     protected abstract OciRegistryClient getOciClient();
@@ -60,9 +61,9 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
      * @param imageRef image reference (e.g. repo:tag or digest)
      * @return Image metadata and layer descriptors
      */
-    public Image pull(String imageRef) throws Exception {
+    public Image pull(String imageRef) {
         // TODO: need to be implemented
-        throw new UnsupportedOperationException("pull() not yet implemented");
+        throw new UnSupportedOperationException("pull() not yet implemented");
     }
 
     /**
@@ -71,9 +72,9 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
      * @param image image from a previous pull
      * @return InputStream of the flattened filesystem tar
      */
-    public InputStream extract(Image image) throws Exception {
+    public InputStream extract(Image image) {
         // TODO: implement OCI layer flattening (reverse order, whiteout handling)
-        throw new UnsupportedOperationException("extract() not yet implemented");
+        throw new UnSupportedOperationException("extract() not yet implemented");
     }
 
 
