@@ -17,6 +17,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -32,7 +35,9 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
  * including flushing pending acknowledgments, closing connections, and stopping background threads.
  */
 public abstract class AbstractSubscription<T extends AbstractSubscription<T>> implements AutoCloseable, Provider {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractSubscription.class);
+
     protected final String providerId;
     protected final String subscriptionName;
     protected final String region;
@@ -217,43 +222,44 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     public Message receive() {
         lock.lock();
         try {
+            int loopCount = 0;
             while (true) {
-                // Check if subscription has been shut down
+                loopCount++;
                 if (isShutdown.get()) {
                     throw new FailedPreconditionException("Subscription has been shut down");
                 }
 
-                // Check for permanent error state
                 if (permanentError.get() != null) {
+                    logger.error("[receive] sub={}, permanent error: {}", subscriptionName, permanentError.get());
                     unreportedAckErr.set(null);
                     throw new SubstrateSdkException("Subscription in permanent error state", permanentError.get());
                 }
 
-                // Check if we need to prefetch
                 maybePrefetch();
 
-                // If we have messages in queue, return one
                 if (!queue.isEmpty()) {
                     Message m = queue.poll();
                     throughputCount++;
+                    logger.debug("[receive] sub={}, returning message (queueRemaining={})", subscriptionName, queue.size());
                     return m;
                 }
 
-                // No messages available, wait for prefetch to complete
+                if (loopCount % 10 == 1) {
+                    logger.debug("[receive] sub={}, queue empty, prefetchInFlight={}, loopCount={}",
+                            subscriptionName, prefetchInFlight.get(), loopCount);
+                }
+
                 if (prefetchInFlight.get()) {
                     try {
-                        // Wait indefinitely for messages to arrive
                         batchArrived.await();
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw new SubstrateSdkException("Interrupted while waiting for messages", ie);
                     }
                 } else {
-                    // No prefetch in flight and no messages available - wait briefly to prevent CPU spinning
-                    // This gives time for new messages to arrive or for conditions to change
                     try {
                         if (!batchArrived.await(100, TimeUnit.MILLISECONDS)) {
-                            // Timeout is normal - continue loop to check for new messages or prefetch opportunities
+                            // Timeout is normal
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -577,8 +583,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
     }
 
     private void doPrefetch(int batchSize) {
+        logger.debug("[doPrefetch] sub={}, requesting batchSize={}", subscriptionName, batchSize);
         try {
             List<Message> msgs = getNextBatch(batchSize);
+            logger.debug("[doPrefetch] sub={}, got {} messages from batch", subscriptionName, msgs.size());
             lock.lock();
             try {
                 queue.addAll(msgs);
@@ -587,9 +595,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
                 lock.unlock();
             }
         } catch (Throwable t) {
+            logger.error("[doPrefetch] sub={}, error: {} - {}", subscriptionName, t.getClass().getSimpleName(), t.getMessage());
             lock.lock();
             try {
-                // Set permanentError if the error is not retryable
                 if (!isRetryable(t)) {
                     permanentError.compareAndSet(null, t);
                 }

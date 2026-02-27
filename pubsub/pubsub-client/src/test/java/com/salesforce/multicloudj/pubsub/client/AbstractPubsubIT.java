@@ -431,26 +431,37 @@ public abstract class AbstractPubsubIT {
         long timeoutSeconds = 60;
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
+        System.out.printf("[%s] Starting to receive %d messages (timeout=%ds)%n", subscriptionId, expectedCount, timeoutSeconds);
+
         List<Message> received = new ArrayList<>();
         try {
             while (received.size() < expectedCount && System.nanoTime() < deadline) {
+                long remainingSec = TimeUnit.NANOSECONDS.toSeconds(deadline - System.nanoTime());
+                System.out.printf("[%s] Calling receive() - got %d/%d so far, %ds remaining%n",
+                        subscriptionId, received.size(), expectedCount, remainingSec);
                 Message r = subscription.receive();
-                // receive() either returns a Message or throws an exception
+                System.out.printf("[%s] receive() returned message: body=%s, ackID=%s%n",
+                        subscriptionId,
+                        r != null ? new String(r.getBody()) : "null",
+                        r != null ? r.getAckID() : "null");
                 received.add(r);
             }
         } catch (Exception e) {
             String errorMsg = String.format(
                 "[%s] Failed to receive messages: Got exception after receiving %d/%d messages. Exception: %s - %s",
                 subscriptionId, received.size(), expectedCount, e.getClass().getSimpleName(), e.getMessage());
+            System.out.println(errorMsg);
+            e.printStackTrace(System.out);
             Assertions.fail(errorMsg, e);
         }
-        // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             String errorMsg = String.format(
                 "[%s] Timeout waiting for messages: Received %d/%d messages.",
                 subscriptionId, received.size(), expectedCount);
+            System.out.println(errorMsg);
             Assertions.fail(errorMsg);
         }
+        System.out.printf("[%s] Successfully received all %d messages%n", subscriptionId, received.size());
         return received;
     }
 
