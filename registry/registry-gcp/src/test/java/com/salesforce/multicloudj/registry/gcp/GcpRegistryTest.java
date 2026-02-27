@@ -6,12 +6,12 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.io.IOException;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

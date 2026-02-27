@@ -29,7 +29,7 @@ public class RemoteImageTest {
 
     private static final String REPOSITORY = "test-repo/test-image";
     private static final String IMAGE_REF = "test-repo/test-image:latest";
-    private static final String CONFIG_DIGEST = "sha256:config123";
+    private static final String MANIFEST_DIGEST = "sha256:manifest123";
     private static final String LAYER_DIGEST_1 = "sha256:layer1";
     private static final String LAYER_DIGEST_2 = "sha256:layer2";
     private static final String LAYER_DIGEST_3 = "sha256:layer3";
@@ -86,26 +86,26 @@ public class RemoteImageTest {
     }
 
     @Test
-    void testGetDigest_ReturnsConfigDigest() {
-        when(mockManifest.getConfigDigest()).thenReturn(CONFIG_DIGEST);
+    void testGetDigest_ReturnsManifestDigest() {
+        when(mockManifest.getDigest()).thenReturn(MANIFEST_DIGEST);
 
         RemoteImage image = new RemoteImage(mockClient, REPOSITORY, IMAGE_REF, mockManifest);
 
-        assertEquals(CONFIG_DIGEST, image.getDigest());
+        assertEquals(MANIFEST_DIGEST, image.getDigest());
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {""})
-    void testGetDigest_ThrowsException_WhenConfigDigestIsNullOrEmpty(String configDigest) {
-        when(mockManifest.getConfigDigest()).thenReturn(configDigest);
+    void testGetDigest_ThrowsException_WhenManifestDigestIsNullOrEmpty(String digest) {
+        when(mockManifest.getDigest()).thenReturn(digest);
 
         RemoteImage image = new RemoteImage(mockClient, REPOSITORY, IMAGE_REF, mockManifest);
 
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> image.getDigest());
 
-        assertTrue(exception.getMessage().contains("missing config digest"));
+        assertTrue(exception.getMessage().contains("missing digest"));
     }
 
 }
