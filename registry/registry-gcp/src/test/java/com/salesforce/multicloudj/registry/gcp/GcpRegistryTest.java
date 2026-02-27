@@ -6,7 +6,6 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.junit.jupiter.api.Test;
@@ -85,7 +84,7 @@ class GcpRegistryTest {
     }
 
     @Test
-    void testGetAuthToken_NullAccessToken_ThrowsIOException() throws Exception {
+    void testGetAuthToken_NullAccessToken_ThrowsUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
             GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -98,7 +97,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: access token is null", 
                     exception.getMessage());
             registry.close();
@@ -106,7 +105,7 @@ class GcpRegistryTest {
     }
 
     @Test
-    void testGetAuthToken_NullTokenValue_ThrowsIOException() throws Exception {
+    void testGetAuthToken_NullTokenValue_ThrowsUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
             GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -121,7 +120,7 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain GCP access token: token value is null", 
                     exception.getMessage());
             registry.close();
@@ -253,7 +252,7 @@ class GcpRegistryTest {
                     .build();
 
             // Attempting to get auth token should fail when overrider produces no credentials
-            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class, registry::getAuthToken);
+            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
             assertEquals("Failed to obtain credentials from CredentialsOverrider", 
                     exception.getMessage());
 
@@ -282,27 +281,27 @@ class GcpRegistryTest {
     }
 
     @Test
-    void testCreateGoogleCredentials_ApplicationDefaultNull_ThrowsUnauthorized() throws Exception {
+    void testCreateGoogleCredentials_ApplicationDefaultNull_ThrowsUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
             m.when(GoogleCredentials::getApplicationDefault).thenReturn(null);
             GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
-            assertTrue(assertThrows(UnAuthorizedException.class, registry::getAuthToken)
+            assertTrue(assertThrows(UnknownException.class, registry::getAuthToken)
                     .getMessage().contains("application default credentials not available"));
         }
     }
 
     @Test
-    void testCreateGoogleCredentials_IOExceptionWrappedInSubstrateSdkException() throws Exception {
+    void testCreateGoogleCredentials_IOExceptionWrappedInUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
             m.when(GoogleCredentials::getApplicationDefault).thenThrow(new IOException("fail"));
             GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
-            assertTrue(assertThrows(SubstrateSdkException.class, registry::getAuthToken)
-                    .getMessage().contains("Failed to create GCP credentials"));
+            assertTrue(assertThrows(UnknownException.class, registry::getAuthToken)
+                    .getMessage().contains("Failed to load GCP credentials"));
         }
     }
 
     @Test
-    void testGetOrCreateCredentials_RefreshIOExceptionWrappedInSubstrateSdkException() throws Exception {
+    void testGetOrCreateCredentials_RefreshIOExceptionWrappedInUnknownException() throws Exception {
         try (MockedStatic<GoogleCredentials> m = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials creds = mock(GoogleCredentials.class);
             GoogleCredentials scoped = mock(GoogleCredentials.class);
@@ -311,8 +310,8 @@ class GcpRegistryTest {
             m.when(GoogleCredentials::getApplicationDefault).thenReturn(creds);
 
             GcpRegistry registry = new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
-            assertTrue(assertThrows(SubstrateSdkException.class, registry::getAuthToken)
-                    .getMessage().contains("Failed to load GCP credentials"));
+            assertTrue(assertThrows(UnknownException.class, registry::getAuthToken)
+                    .getMessage().contains("Failed to refresh GCP credentials"));
         }
     }
 }
