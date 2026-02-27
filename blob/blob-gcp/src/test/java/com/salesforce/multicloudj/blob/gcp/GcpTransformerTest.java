@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -20,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -1793,6 +1795,132 @@ class GcpTransformerTest {
         // Then
         assertEquals(TEST_KEY, blobMetadata.getKey());
         assertNull(blobMetadata.getLastModified());
+    }
+
+    @Test
+    public void testToGcpRetrySettings_Exponential() {
+        // Given
+        RetryConfig retryConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .multiplier(2.0)
+                .maxDelayMillis(5000L)
+                .totalTimeout(30000L)
+                .build();
+
+        // When
+        RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+        // Then
+        assertEquals(3, settings.getMaxAttempts());
+        assertEquals(Duration.ofMillis(100), settings.getInitialRetryDelayDuration());
+        assertEquals(2.0, settings.getRetryDelayMultiplier());
+        assertEquals(Duration.ofMillis(5000), settings.getMaxRetryDelayDuration());
+        assertEquals(Duration.ofMillis(30000), settings.getTotalTimeoutDuration());
+    }
+
+    @Test
+    public void testToGcpRetrySettings_Fixed() {
+        // Given
+        RetryConfig retryConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .maxAttempts(5)
+                .fixedDelayMillis(1000L)
+                .build();
+
+        // When
+        RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+        // Then
+        assertEquals(5, settings.getMaxAttempts());
+        assertEquals(Duration.ofMillis(1000), settings.getInitialRetryDelayDuration());
+        assertEquals(1.0, settings.getRetryDelayMultiplier());
+        assertEquals(Duration.ofMillis(1000), settings.getMaxRetryDelayDuration());
+    }
+
+    @Test
+    public void testToGcpRetrySettings_NullConfig() {
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(null);
+        });
+    }
+
+    @Test
+    public void testToGcpRetrySettings_InvalidMaxAttempts() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .maxAttempts(0)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig);
+        });
+    }
+
+    @Test
+    public void testToGcpRetrySettings_InvalidExponentialDelays() {
+        RetryConfig retryConfig1 = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .initialDelayMillis(0)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig1);
+        });
+
+        RetryConfig retryConfig2 = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .initialDelayMillis(100)
+                .maxDelayMillis(0)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig2);
+        });
+    }
+
+    @Test
+    public void testToGcpRetrySettings_InvalidFixedDelay() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.FIXED)
+                .fixedDelayMillis(0)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig);
+        });
+    }
+
+    @Test
+    public void testToGcpRetrySettings_InvalidTotalTimeout() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .totalTimeout(0L)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig);
+        });
+    }
+
+    @Test
+    public void testToGcpRetrySettings_AttemptTimeout() {
+        // Given
+        RetryConfig retryConfig = RetryConfig.builder()
+                .attemptTimeout(2000L)
+                .build();
+
+        // When
+        RetrySettings settings = transformer.toGcpRetrySettings(retryConfig);
+
+        // Then
+        assertEquals(Duration.ofMillis(2000), settings.getInitialRpcTimeoutDuration());
+        assertEquals(1.0, settings.getRpcTimeoutMultiplier());
+        assertEquals(Duration.ofMillis(2000), settings.getMaxRpcTimeoutDuration());
+    }
+
+    @Test
+    public void testToGcpRetrySettings_InvalidAttemptTimeout() {
+        RetryConfig retryConfig = RetryConfig.builder()
+                .attemptTimeout(0L)
+                .build();
+        assertThrows(InvalidArgumentException.class, () -> {
+            transformer.toGcpRetrySettings(retryConfig);
+        });
     }
 
     @Test

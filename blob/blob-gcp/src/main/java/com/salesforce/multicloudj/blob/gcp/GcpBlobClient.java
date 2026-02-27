@@ -115,6 +115,11 @@ public class GcpBlobClient extends AbstractBlobClient<GcpBlobClient> {
                     .build());
         }
 
+        if (builder.getRetryConfig() != null) {
+            GcpTransformer transformer = new GcpTransformer(null);
+            storageBuilder.setRetrySettings(transformer.toGcpRetrySettings(builder.getRetryConfig()));
+        }
+
         return storageBuilder.build().getService();
     }
 
