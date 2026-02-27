@@ -5,8 +5,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.model.Manifest;
 import com.salesforce.multicloudj.registry.model.Platform;
@@ -147,9 +149,10 @@ public class OciRegistryClient implements AutoCloseable {
      *
      * @param repository the repository name (used for Bearer token scope)
      * @return the Authorization header value, or null if anonymous access (no auth required)
-     * @throws IOException if authentication fails
+     * @throws InvalidArgumentException if authentication scheme is blank or missing
+     * @throws UnSupportedOperationException if authentication scheme is not supported
      */
-    public String getHttpAuthHeader(String repository) throws IOException {
+    public String getHttpAuthHeader(String repository) {
         // Double-checked locking for thread-safe lazy initialization
         if (cachedChallenge == null) {
             synchronized (challengeLock) {
@@ -161,7 +164,7 @@ public class OciRegistryClient implements AutoCloseable {
 
         final String scheme = cachedChallenge.getScheme();
         if (StringUtils.isBlank(scheme)) {
-            throw new IllegalArgumentException("Authentication scheme is blank or missing");
+            throw new InvalidArgumentException("Authentication scheme is blank or missing");
         }
 
         switch (scheme.toLowerCase()) {
@@ -172,12 +175,12 @@ public class OciRegistryClient implements AutoCloseable {
             case AUTH_SCHEME_BEARER:
                 return buildBearerAuthHeader(repository);
             default:
-                throw new UnsupportedOperationException(
+                throw new UnSupportedOperationException(
                         "Unsupported authentication scheme: " + scheme);
         }
     }
 
-    private String buildBasicAuthHeader() throws IOException {
+    private String buildBasicAuthHeader() {
         String username = authProvider.getAuthUsername();
         String token = authProvider.getAuthToken();
         String credentials = username + ":" + token;
@@ -186,7 +189,7 @@ public class OciRegistryClient implements AutoCloseable {
         return "Basic " + encoded;
     }
 
-    private String buildBearerAuthHeader(String repository) throws IOException {
+    private String buildBearerAuthHeader(String repository) {
         // Get identity token from provider (e.g., GCP OAuth2 access token)
         String identityToken = authProvider.getAuthToken();
 
@@ -204,9 +207,11 @@ public class OciRegistryClient implements AutoCloseable {
      * @param repository the repository name (e.g., "my-repo/my-image")
      * @param reference the tag or digest (e.g., "latest" or "sha256:...")
      * @return the parsed Manifest object
-     * @throws IOException if the request fails or manifest cannot be parsed
+     * @throws ResourceNotFoundException if manifest not found (404)
+     * @throws UnAuthorizedException if authentication fails (401)
+     * @throws UnknownException if the request fails or manifest cannot be parsed
      */
-    public Manifest fetchManifest(String repository, String reference) throws IOException {
+    public Manifest fetchManifest(String repository, String reference) {
         String url = String.format("%s/v2/%s/manifests/%s", registryEndpoint, repository, reference);
 
         HttpGet request = new HttpGet(url);
@@ -216,25 +221,36 @@ public class OciRegistryClient implements AutoCloseable {
             request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         }
 
+        try {
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode != HttpStatus.SC_OK) {
                 String errorBody = response.getEntity() != null
                         ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
                         : StringUtils.EMPTY;
-                throw new IOException(String.format(
+                if (statusCode == HttpStatus.SC_NOT_FOUND) {
+                    throw new ResourceNotFoundException(String.format(
+                            "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
+                            repository, reference, registryEndpoint, statusCode, errorBody));
+                }
+                if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
+                    throw new UnAuthorizedException(String.format(
+                            "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
+                            repository, reference, registryEndpoint, statusCode, errorBody));
+                }
+                throw new UnknownException(String.format(
                         "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
                         repository, reference, registryEndpoint, statusCode, errorBody));
             }
 
             if (response.getEntity() == null) {
-                throw new IOException("Failed to fetch manifest: empty response body");
+                throw new UnknownException("Failed to fetch manifest: empty response body");
             }
 
             // Check manifest size limit (100 MB)
             long contentLength = response.getEntity().getContentLength();
             if (contentLength > MAX_MANIFEST_SIZE_BYTES) {
-                throw new IOException(String.format(
+                throw new UnknownException(String.format(
                         "Manifest size (%d bytes) exceeds maximum allowed size (%d bytes)",
                         contentLength, MAX_MANIFEST_SIZE_BYTES));
             }
@@ -250,7 +266,7 @@ public class OciRegistryClient implements AutoCloseable {
                     byte[] hash = md.digest(responseBody.getBytes(StandardCharsets.UTF_8));
                     digestHeader = DIGEST_PREFIX + Hex.encodeHexString(hash);
                 } catch (NoSuchAlgorithmException e) {
-                    throw new IOException("Failed to calculate manifest digest: " + DIGEST_ALGORITHM
+                    throw new UnknownException("Failed to calculate manifest digest: " + DIGEST_ALGORITHM
                             + " SHA-256 algorithm not available", e);
                 }
             }
@@ -258,7 +274,7 @@ public class OciRegistryClient implements AutoCloseable {
             // Validate digest if fetching by digest
             if (reference.startsWith(DIGEST_PREFIX)) {
                 if (!reference.equals(digestHeader)) {
-                    throw new IOException(String.format(
+                    throw new UnknownException(String.format(
                             "Manifest digest mismatch: expected %s, got %s for %s:%s",
                             reference, digestHeader, repository, reference));
                 }
@@ -266,18 +282,21 @@ public class OciRegistryClient implements AutoCloseable {
 
             return parseManifestResponse(responseBody, digestHeader);
         }
+        } catch (IOException e) {
+            throw new UnknownException("Failed to fetch manifest", e);
+        }
     }
 
     /**
      * Parses the manifest JSON response into a Manifest object.
      * Handles both image manifests and image indexes (multi-arch).
      */
-    private Manifest parseManifestResponse(String responseBody, String digest) throws IOException {
+    private Manifest parseManifestResponse(String responseBody, String digest) {
         JsonObject json;
         try {
             json = JsonParser.parseString(responseBody).getAsJsonObject();
         } catch (JsonSyntaxException e) {
-            throw new IOException("Invalid JSON response from registry: " + 
+            throw new UnknownException("Invalid JSON response from registry: " + 
                     responseBody.substring(0, Math.min(200, responseBody.length())), e);
         }
         
@@ -377,7 +396,7 @@ public class OciRegistryClient implements AutoCloseable {
     /**
      * Parses an image index (multi-architecture manifest list).
      */
-    private Manifest parseImageIndex(JsonObject json, String digest) throws IOException {
+    private Manifest parseImageIndex(JsonObject json, String digest) {
         JsonArray manifestsArray = json.getAsJsonArray(OciManifestFields.MANIFESTS);
         int initialCapacity = manifestsArray != null ? manifestsArray.size() : 0;
         List<Manifest.IndexEntry> entries = new ArrayList<>(initialCapacity);
@@ -389,7 +408,7 @@ public class OciRegistryClient implements AutoCloseable {
         for (JsonElement element : manifestsArray) {
             JsonObject manifestDesc = element.getAsJsonObject();
             if (!manifestDesc.has(OciManifestFields.DIGEST)) {
-                throw new IOException("Invalid image index: manifest entry missing required 'digest' field");
+                throw new InvalidArgumentException("Invalid image index: manifest entry missing required 'digest' field");
             }
             String manifestDigest = manifestDesc.get(OciManifestFields.DIGEST).getAsString();
             Platform platform = parsePlatform(manifestDesc);
@@ -402,7 +421,7 @@ public class OciRegistryClient implements AutoCloseable {
     /**
      * Parses a single image manifest.
      */
-    private Manifest parseImageManifest(JsonObject json, String digest) throws IOException {
+    private Manifest parseImageManifest(JsonObject json, String digest) {
         // Get config digest
         String configDigest = null;
         if (json.has(OciManifestFields.CONFIG)) {
@@ -419,7 +438,7 @@ public class OciRegistryClient implements AutoCloseable {
     /**
      * Parses layer information from a manifest JSON object.
      */
-    private List<Manifest.LayerInfo> parseLayerInfos(JsonObject json) throws IOException {
+    private List<Manifest.LayerInfo> parseLayerInfos(JsonObject json) {
         JsonArray layers = json.has(OciManifestFields.LAYERS) ? json.getAsJsonArray(OciManifestFields.LAYERS) : null;
         int layerCapacity = layers != null ? layers.size() : 0;
         List<Manifest.LayerInfo> layerInfos = new ArrayList<>(layerCapacity);
@@ -427,7 +446,7 @@ public class OciRegistryClient implements AutoCloseable {
             for (JsonElement element : layers) {
                 JsonObject layer = element.getAsJsonObject();
                 if (!layer.has(OciManifestFields.DIGEST)) {
-                    throw new IOException("Invalid image manifest: layer missing required 'digest' field");
+                    throw new InvalidArgumentException("Invalid image manifest: layer missing required 'digest' field");
                 }
                 String layerDigest = layer.get(OciManifestFields.DIGEST).getAsString();
                 String mediaType = layer.has(OciManifestFields.MEDIA_TYPE) ? layer.get(OciManifestFields.MEDIA_TYPE).getAsString() : null;
@@ -448,9 +467,11 @@ public class OciRegistryClient implements AutoCloseable {
      * @param repository the repository name
      * @param digest the blob digest (e.g., "sha256:...")
      * @return InputStream of blob content (caller must close)
-     * @throws IOException if the download fails or blob is not found
+     * @throws ResourceNotFoundException if blob not found (404)
+     * @throws UnAuthorizedException if authentication fails (401/403)
+     * @throws UnknownException if the request fails
      */
-    public InputStream downloadBlob(String repository, String digest) throws IOException {
+    public InputStream downloadBlob(String repository, String digest) {
         String url = String.format("%s/v2/%s/blobs/%s", registryEndpoint, repository, digest);
 
         HttpGet request = new HttpGet(url);
@@ -459,37 +480,41 @@ public class OciRegistryClient implements AutoCloseable {
             request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         }
 
-        CloseableHttpResponse response = httpClient.execute(request);
-        int statusCode = response.getStatusLine().getStatusCode();
+        try {
+            CloseableHttpResponse response = httpClient.execute(request);
+            int statusCode = response.getStatusLine().getStatusCode();
 
-        if (statusCode != HttpStatus.SC_OK) {
-            String errorBody = response.getEntity() != null
-                    ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
-                    : StringUtils.EMPTY;
-            response.close();
-            String message = String.format(
-                    "Failed to download blob %s from %s - HTTP %d: %s",
-                    digest, repository, statusCode, errorBody);
+            if (statusCode != HttpStatus.SC_OK) {
+                String errorBody = response.getEntity() != null
+                        ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
+                        : StringUtils.EMPTY;
+                response.close();
+                String message = String.format(
+                        "Failed to download blob %s from %s - HTTP %d: %s",
+                        digest, repository, statusCode, errorBody);
 
-            throw mapHttpStatusToException(statusCode, message);
-        }
-
-        if (response.getEntity() == null) {
-            response.close();
-            throw new UnknownException("Failed to download blob: empty response body");
-        }
-
-        // Return InputStream wrapped to close HTTP response on close()
-        return new FilterInputStream(response.getEntity().getContent()) {
-            @Override
-            public void close() throws IOException {
-                try {
-                    super.close();
-                } finally {
-                    response.close();
-                }
+                throw mapHttpStatusToException(statusCode, message);
             }
-        };
+
+            if (response.getEntity() == null) {
+                response.close();
+                throw new UnknownException("Failed to download blob: empty response body");
+            }
+
+            // Return InputStream wrapped to close HTTP response on close()
+            return new FilterInputStream(response.getEntity().getContent()) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        response.close();
+                    }
+                }
+            };
+        } catch (IOException e) {
+            throw new UnknownException("Failed to download blob", e);
+        }
     }
 
     public String getRegistryEndpoint() {
@@ -512,7 +537,7 @@ public class OciRegistryClient implements AutoCloseable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws Exception {
         if (httpClient != null) {
             httpClient.close();
         }

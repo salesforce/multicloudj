@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
 import com.salesforce.multicloudj.iam.model.Statement;
 
 import org.junit.jupiter.api.Assertions;
@@ -483,7 +484,12 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(originalPolicy);
 
 		// Execute
-		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 
 		// Verify: getIamPolicy was called once
 		ArgumentCaptor<GetIamPolicyRequest> getRequestCaptor = ArgumentCaptor.forClass(GetIamPolicyRequest.class);
@@ -535,7 +541,12 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(originalPolicy);
 
 		// Execute
-		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 
 		// Verify: setIamPolicy was called
 		ArgumentCaptor<SetIamPolicyRequest> setRequestCaptor = ArgumentCaptor.forClass(SetIamPolicyRequest.class);
@@ -566,7 +577,12 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(originalPolicy);
 
 		// Execute
-		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 
 		// Verify: getIamPolicy was called
 		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
@@ -588,7 +604,12 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(originalPolicy);
 
 		// Execute
-		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 
 		// Verify: setIamPolicy should not be called since member is not in binding (nothing to remove)
 		verify(mockProjectsClient, times(0)).setIamPolicy(any(SetIamPolicyRequest.class));
@@ -600,7 +621,12 @@ public class GcpIamTest {
 		when(mockProjectsClient.getIamPolicy(any(GetIamPolicyRequest.class))).thenReturn(null);
 
 		// Execute
-		gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+		gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 
 		// Verify: getIamPolicy was called
 		verify(mockProjectsClient, times(1)).getIamPolicy(any(GetIamPolicyRequest.class));
@@ -617,7 +643,12 @@ public class GcpIamTest {
 
 		// Execute and verify exception is thrown
 		assertThrows(ApiException.class, () -> {
-			gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 		});
 
 		// Verify: setIamPolicy should not be called
@@ -641,7 +672,12 @@ public class GcpIamTest {
 
 		// Execute and verify exception is thrown
 		assertThrows(ApiException.class, () -> {
-			gcpIam.doRemovePolicy(TEST_SERVICE_ACCOUNT, TEST_ROLE, TEST_TENANT_ID, TEST_REGION);
+			gcpIam.doRemovePolicy(RemovePolicyRequest.builder()
+				.identityName(TEST_SERVICE_ACCOUNT)
+				.policyName(TEST_ROLE)
+				.tenantId(TEST_TENANT_ID)
+				.region(TEST_REGION)
+				.build());
 		});
 	}
 

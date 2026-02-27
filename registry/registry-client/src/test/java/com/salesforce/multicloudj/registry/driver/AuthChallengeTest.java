@@ -1,5 +1,8 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
@@ -24,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 /**
@@ -48,7 +52,7 @@ public class AuthChallengeTest {
     // ==================== discover() tests ====================
 
     @Test
-    void testDiscover_ReturnsAnonymous_WhenStatusOk() throws IOException {
+    void testDiscover_ReturnsAnonymous_WhenStatusOk() throws Exception {
         when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
         when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
@@ -60,7 +64,7 @@ public class AuthChallengeTest {
     }
 
     @Test
-    void testDiscover_ParsesWwwAuthenticate_WhenUnauthorized() throws IOException {
+    void testDiscover_ParsesWwwAuthenticate_WhenUnauthorized() throws Exception {
         String wwwAuthHeader = "Bearer realm=\"" + TOKEN_ENDPOINT + "\",service=\"" + SERVICE + "\"";
 
         when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
@@ -79,29 +83,41 @@ public class AuthChallengeTest {
     }
 
     @Test
-    void testDiscover_ThrowsException_WhenUnauthorizedWithoutHeader() throws IOException {
+    void testDiscover_ThrowsException_WhenUnauthorizedWithoutHeader() throws Exception {
         when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
         when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_UNAUTHORIZED);
         when(mockResponse.containsHeader(HttpHeaders.WWW_AUTHENTICATE)).thenReturn(false);
 
-        IOException exception = assertThrows(IOException.class,
+        UnAuthorizedException exception = assertThrows(UnAuthorizedException.class,
                 () -> AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT));
 
         assertTrue(exception.getMessage().contains("401 without WWW-Authenticate"));
     }
 
     @Test
-    void testDiscover_ThrowsException_WhenUnexpectedStatus() throws IOException {
+    void testDiscover_ThrowsException_WhenUnexpectedStatus() throws Exception {
         when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
         when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_INTERNAL_SERVER_ERROR);
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT));
 
         assertTrue(exception.getMessage().contains("Unexpected response"));
         assertTrue(exception.getMessage().contains("500"));
+    }
+
+    @Test
+    void testDiscover_ThrowsUnknownException_WhenRequestFailsWithIOException() throws Exception {
+        doThrow(new IOException("Connection refused")).when(mockHttpClient).execute(any(HttpGet.class));
+
+        UnknownException exception = assertThrows(UnknownException.class,
+                () -> AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT));
+
+        assertTrue(exception.getMessage().contains("Registry ping request failed"));
+        assertNotNull(exception.getCause());
+        assertEquals(IOException.class, exception.getCause().getClass());
     }
 
     // ==================== anonymous() tests ====================
@@ -163,14 +179,14 @@ public class AuthChallengeTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "\t", "\n"})
     void testParse_ThrowsException_WhenHeaderIsBlank(String header) {
-        assertThrows(IllegalArgumentException.class, () -> AuthChallenge.parse(header));
+        assertThrows(UnknownException.class, () -> AuthChallenge.parse(header));
     }
 
     @Test
     void testParse_ThrowsException_WhenUnsupportedScheme() {
         String header = "Digest realm=\"test\"";
 
-        UnsupportedOperationException exception = assertThrows(UnsupportedOperationException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> AuthChallenge.parse(header));
 
         assertTrue(exception.getMessage().contains("Unsupported authentication scheme"));
