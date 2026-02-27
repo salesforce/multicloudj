@@ -250,7 +250,7 @@ public abstract class AbstractPubsubIT {
 
             TimeUnit.MILLISECONDS.sleep(500);
 
-            List<Message> received = receiveMessages(subscription, toSend.size());
+            List<Message> received = receiveMessages(subscription, toSend.size(), "subscription");
             List<AckID> ackIDs = received.stream()
                     .map(Message::getAckID)
                     .collect(java.util.stream.Collectors.toList());
@@ -404,8 +404,8 @@ public abstract class AbstractPubsubIT {
             TimeUnit.MILLISECONDS.sleep(500);
 
             // Receive messages from both subscriptions
-            List<Message> received1 = receiveMessages(sub1, messagesToSend.size());
-            List<Message> received2 = receiveMessages(sub2, messagesToSend.size());
+            List<Message> received1 = receiveMessages(sub1, messagesToSend.size(), "sub1");
+            List<Message> received2 = receiveMessages(sub2, messagesToSend.size(), "sub2");
 
             // Verify both subscriptions received all messages
             Assertions.assertEquals(messagesToSend.size(), received1.size(),
@@ -426,7 +426,7 @@ public abstract class AbstractPubsubIT {
     /**
      * Helper function: Receives messages from a subscription until the expected count is reached.
      */
-    private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount) throws InterruptedException {
+    private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount, String subscriptionId) throws InterruptedException {
         long timeoutSeconds = 60;
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
@@ -439,15 +439,15 @@ public abstract class AbstractPubsubIT {
             }
         } catch (Exception e) {
             String errorMsg = String.format(
-                "Failed to receive messages: Got exception after receiving %d/%d messages.",
-                received.size(), expectedCount);
+                "[%s] Failed to receive messages: Got exception after receiving %d/%d messages. Exception: %s - %s",
+                subscriptionId, received.size(), expectedCount, e.getClass().getSimpleName(), e.getMessage());
             Assertions.fail(errorMsg, e);
         }
         // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             String errorMsg = String.format(
-                "Timeout waiting for messages: Received %d/%d messages.",
-                received.size(), expectedCount);
+                "[%s] Timeout waiting for messages: Received %d/%d messages.",
+                subscriptionId, received.size(), expectedCount);
             Assertions.fail(errorMsg);
         }
         return received;
