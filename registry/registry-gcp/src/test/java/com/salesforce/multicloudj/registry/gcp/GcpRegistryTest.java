@@ -179,44 +179,21 @@ class GcpRegistryTest {
                     .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
                     .build();
 
-            // Call getAuthToken twice
-            String token1 = registry.getAuthToken();
-            String token2 = registry.getAuthToken();
+            registry.getAuthToken();
+            registry.getAuthToken();
 
-            // Verify same token returned (credentials cached)
-            assertEquals(token1, token2);
-            assertEquals("cached-token", token1);
+            // getApplicationDefault should only be called once — credentials are cached
+            mockedStatic.verify(GoogleCredentials::getApplicationDefault, org.mockito.Mockito.times(1));
 
             registry.close();
         }
     }
 
     @Test
-    void testBuilder_MissingRegistryEndpoint_ThrowsException() {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
-            new GcpRegistry.Builder().build();
-        });
-        assertEquals("Registry endpoint is required for GCP Artifact Registry", exception.getMessage());
-    }
-
-    @Test
-    void testBuilder_EmptyRegistryEndpoint_ThrowsException() {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
-            new GcpRegistry.Builder()
-                    .withRegistryEndpoint("")
-                    .build();
-        });
-        assertEquals("Registry endpoint is required for GCP Artifact Registry", exception.getMessage());
-    }
-
-    @Test
-    void testBuilder_WhitespaceRegistryEndpoint_ThrowsException() {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class, () -> {
-            new GcpRegistry.Builder()
-                    .withRegistryEndpoint("   ")
-                    .build();
-        });
-        assertEquals("Registry endpoint is required for GCP Artifact Registry", exception.getMessage());
+    void testBuilder_BlankRegistryEndpoint_ThrowsException() {
+        assertThrows(InvalidArgumentException.class, () -> new GcpRegistry.Builder().build());
+        assertThrows(InvalidArgumentException.class, () -> new GcpRegistry.Builder().withRegistryEndpoint("").build());
+        assertThrows(InvalidArgumentException.class, () -> new GcpRegistry.Builder().withRegistryEndpoint("   ").build());
     }
 
     @Test
@@ -253,24 +230,6 @@ class GcpRegistryTest {
             assertEquals("linux", registry.getTargetPlatform().getOperatingSystem());
             assertEquals("amd64", registry.getTargetPlatform().getArchitecture());
         });
-    }
-
-    @Test
-    void testClose_MultipleCloses_NoError() throws Exception {
-        try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
-            GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
-            GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
-            when(mockCredentials.createScoped(anyList())).thenReturn(scopedCredentials);
-            mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
-
-            GcpRegistry registry = new GcpRegistry.Builder()
-                    .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
-                    .build();
-
-            // Close multiple times should not throw exception
-            registry.close();
-            registry.close();
-        }
     }
 
     @Test

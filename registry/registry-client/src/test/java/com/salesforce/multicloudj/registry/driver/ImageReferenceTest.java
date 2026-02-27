@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.registry.driver;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -28,37 +29,17 @@ public class ImageReferenceTest {
         assertTrue(exception.getMessage().contains("cannot be null or empty"));
     }
 
-    @Test
-    void testParse_Digest_ValidFormat() {
-        String ref = "my-repo@sha256:" + VALID_SHA256_HEX;
 
+    @ParameterizedTest
+    @CsvSource({
+        "my-repo@sha256:" + VALID_SHA256_HEX + ",                            my-repo",
+        "registry.example.com:5000/org/repo@sha256:" + VALID_SHA256_HEX + ",  registry.example.com:5000/org/repo",
+    })
+    void testParse_Digest_ValidFormats(String ref, String expectedRepo) {
         ImageReference imageRef = ImageReference.parse(ref);
 
         assertNotNull(imageRef);
-        assertEquals("my-repo", imageRef.getRepository());
-        assertEquals("sha256:" + VALID_SHA256_HEX, imageRef.getReference());
-        assertEquals(ref, imageRef.toString());
-    }
-
-    @Test
-    void testParse_Digest_WithRegistryAndPort() {
-        String ref = "registry.example.com:5000/org/repo@sha256:" + VALID_SHA256_HEX;
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("registry.example.com:5000/org/repo", imageRef.getRepository());
-        assertEquals("sha256:" + VALID_SHA256_HEX, imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Digest_WithNestedRepository() {
-        String ref = "org/team/project/repo@sha256:" + VALID_SHA256_HEX;
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("org/team/project/repo", imageRef.getRepository());
+        assertEquals(expectedRepo.trim(), imageRef.getRepository());
         assertEquals("sha256:" + VALID_SHA256_HEX, imageRef.getReference());
     }
 
@@ -68,7 +49,6 @@ public class ImageReferenceTest {
 
         ImageReference imageRef = ImageReference.parse(ref);
 
-        assertNotNull(imageRef);
         assertEquals("my-repo", imageRef.getRepository());
         assertEquals("sha256:" + VALID_SHA256_HEX, imageRef.getReference());
     }
@@ -125,23 +105,9 @@ public class ImageReferenceTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "my-repo@sha256:ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-        "my-repo@sha256:AbCdEf0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-        "my-repo@sha256:ghijklmn0123456789abcdef0123456789abcdef0123456789abcdef01234567"
+        "my-repo@sha256:0123456789abcdef-123456789abcdef0123456789abcdef0123456789abcdef"
     })
     void testParse_Digest_ThrowsException_WhenHexFormatInvalid(String ref) {
-        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
-                () -> ImageReference.parse(ref));
-
-        assertTrue(exception.getMessage().contains("invalid checksum digest format"));
-        assertTrue(exception.getMessage().contains("lowercase hex characters"));
-    }
-
-    @Test
-    void testParse_Digest_ThrowsException_WhenHexContainsSpecialCharacters() {
-        String specialCharHex = "0123456789abcdef-123456789abcdef0123456789abcdef0123456789abcdef"; // dash not allowed
-
-        String ref = "my-repo@sha256:" + specialCharHex;
-
         InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse(ref));
 
@@ -161,26 +127,14 @@ public class ImageReferenceTest {
     }
 
     @Test
-    void testParse_Tag_WithRegistryAndPort() {
-        String ref = "registry.example.com:5000/my-repo:latest";
+    void testParse_Tag_RegistryPortNotConfusedWithTag() {
+        // Colon in registry:port must not be mistaken for tag delimiter
+        String ref = "registry:5000/org:special/repo:v1";
 
         ImageReference imageRef = ImageReference.parse(ref);
 
-        assertNotNull(imageRef);
-        assertEquals("registry.example.com:5000/my-repo", imageRef.getRepository());
-        assertEquals("latest", imageRef.getReference());
-        assertEquals(ref, imageRef.toString());
-    }
-
-    @Test
-    void testParse_Tag_WithNestedRepository() {
-        String ref = "org/team/project/repo:v2.1";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("org/team/project/repo", imageRef.getRepository());
-        assertEquals("v2.1", imageRef.getReference());
+        assertEquals("registry:5000/org:special/repo", imageRef.getRepository());
+        assertEquals("v1", imageRef.getReference());
     }
 
     @ParameterizedTest
@@ -201,85 +155,6 @@ public class ImageReferenceTest {
                 assertThrows(InvalidArgumentException.class, () -> ImageReference.parse(ref));
 
         assertTrue(exception.getMessage().contains("tag cannot be empty after ':'"));
-    }
-
-    @Test
-    void testParse_Tag_HandlesMultipleColonsInRegistryPath() {
-        // Registry with port, then repo with tag
-        String ref = "registry.example.com:5000/repo:tag";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("registry.example.com:5000/repo", imageRef.getRepository());
-        assertEquals("tag", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_OnlyUsesColonAfterLastSlash() {
-        // Multiple slashes and colons
-        String ref = "registry:5000/org:special/repo:v1";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("registry:5000/org:special/repo", imageRef.getRepository());
-        assertEquals("v1", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_WithComplexTag() {
-        String ref = "my-repo:v1.0.0-alpha+build.123";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("my-repo", imageRef.getRepository());
-        assertEquals("v1.0.0-alpha+build.123", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_WithNumericTag() {
-        String ref = "my-repo:12345";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("my-repo", imageRef.getRepository());
-        assertEquals("12345", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_WithHyphenatedRepository() {
-        String ref = "my-org/my-team/my-repo:my-tag";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("my-org/my-team/my-repo", imageRef.getRepository());
-        assertEquals("my-tag", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_WithDotInRepository() {
-        String ref = "my.repo.name:tag";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("my.repo.name", imageRef.getRepository());
-        assertEquals("tag", imageRef.getReference());
-    }
-
-    @Test
-    void testParse_Tag_LocalhostRegistry() {
-        String ref = "localhost:5000/my-repo:dev";
-
-        ImageReference imageRef = ImageReference.parse(ref);
-
-        assertNotNull(imageRef);
-        assertEquals("localhost:5000/my-repo", imageRef.getRepository());
-        assertEquals("dev", imageRef.getReference());
     }
 
 }

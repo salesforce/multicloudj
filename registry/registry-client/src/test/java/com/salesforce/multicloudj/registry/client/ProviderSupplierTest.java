@@ -12,6 +12,7 @@ import java.util.ServiceLoader;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -59,7 +60,8 @@ public class ProviderSupplierTest {
     void testReflectionFailed() {
         when(mockRegistry.builder()).thenThrow(new RuntimeException("reflection error"));
 
-        assertThrows(RuntimeException.class,
+        RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> ProviderSupplier.findProviderBuilder("test"));
+        assertTrue(ex.getMessage().contains("Failed to create builder for provider"));
     }
 }

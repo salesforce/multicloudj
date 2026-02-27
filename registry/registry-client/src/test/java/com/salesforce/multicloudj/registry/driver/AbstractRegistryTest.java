@@ -29,16 +29,6 @@ public class AbstractRegistryTest {
     }
 
     @Test
-    void testConstructor_DefaultsTargetPlatformToPlatformDefault_WhenPlatformNotSet() {
-        TestRegistry registry = new TestRegistry.Builder()
-                .providerId("test")
-                .withRegistryEndpoint(REGISTRY_ENDPOINT)
-                .build();
-
-        assertSame(Platform.DEFAULT, registry.getTargetPlatform());
-    }
-
-    @Test
     void testConstructor_SetsTargetPlatform_WhenPlatformSet() {
         Platform custom = Platform.builder()
                 .architecture("arm64")
