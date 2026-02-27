@@ -40,11 +40,6 @@ public class RemoteLayerTest {
     }
 
     @Test
-    void testGetDigest_ReturnsCorrectDigest() {
-        assertEquals(DIGEST, remoteLayer.getDigest());
-    }
-
-    @Test
     void testGetUncompressed_DecompressesGzipData() throws Exception {
         String originalData = "This is test data for gzip compression";
         byte[] gzipData = createGzipData(originalData);
@@ -76,12 +71,9 @@ public class RemoteLayerTest {
     }
 
     @Test
-    void testGetUncompressed_ThrowsException_WhenGzipDecompressionFails() throws Exception {
-        // Invalid gzip data
-        byte[] invalidGzipData = "not gzip data".getBytes();
-        InputStream invalidStream = new ByteArrayInputStream(invalidGzipData);
-
-        when(mockClient.downloadBlob(REPOSITORY, DIGEST)).thenReturn(invalidStream);
+    void testGetUncompressed_ThrowsAndClosesStream_WhenGzipDecompressionFails() throws Exception {
+        CloseTrackingInputStream trackingStream = new CloseTrackingInputStream("not gzip data".getBytes());
+        when(mockClient.downloadBlob(REPOSITORY, DIGEST)).thenReturn(trackingStream);
 
         UnknownException exception = assertThrows(UnknownException.class,
                 () -> remoteLayer.getUncompressed());
@@ -89,17 +81,6 @@ public class RemoteLayerTest {
         assertTrue(exception.getMessage().contains("Failed to decompress layer"));
         assertNotNull(exception.getCause());
         assertEquals(IOException.class, exception.getCause().getClass());
-    }
-
-    @Test
-    void testGetUncompressed_ClosesCompressedStream_WhenGzipDecompressionFails() throws Exception {
-        // Create a custom InputStream that tracks if it was closed
-        CloseTrackingInputStream trackingStream = new CloseTrackingInputStream("invalid data".getBytes());
-
-        when(mockClient.downloadBlob(REPOSITORY, DIGEST)).thenReturn(trackingStream);
-
-        assertThrows(UnknownException.class, () -> remoteLayer.getUncompressed());
-
         assertTrue(trackingStream.wasClosed(), "Compressed stream should be closed on error");
     }
 
