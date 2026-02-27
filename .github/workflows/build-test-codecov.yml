@@ -41,3 +41,13 @@ jobs:
           flags: unittests
           verbose: true
           working-directory: .
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7

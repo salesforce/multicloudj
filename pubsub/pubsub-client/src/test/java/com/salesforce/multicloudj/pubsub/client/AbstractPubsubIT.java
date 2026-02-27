@@ -387,23 +387,23 @@ public abstract class AbstractPubsubIT {
         AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
         AbstractSubscription subscription2 = harness.createSubscriptionDriverWithIndex(2);
 
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription sub1 = subscription1;
-             AbstractSubscription sub2 = subscription2) {
+        // Send 3 messages to the topic
+        List<Message> messagesToSend = List.of(
+                Message.builder().withBody("fanout-msg1".getBytes()).withMetadata(Map.of("id", "1")).build(),
+                Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build(),
+                Message.builder().withBody("fanout-msg3".getBytes()).withMetadata(Map.of("id", "3")).build()
+        );
 
-            // Send 3 messages to the topic
-            List<Message> messagesToSend = List.of(
-                    Message.builder().withBody("fanout-msg1".getBytes()).withMetadata(Map.of("id", "1")).build(),
-                    Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build(),
-                    Message.builder().withBody("fanout-msg3".getBytes()).withMetadata(Map.of("id", "3")).build()
-            );
-
+        try (AbstractTopic topic = harness.createTopicDriver()) {
             for (Message message : messagesToSend) {
                 topic.send(message);
             }
+        } // Close topic here to flush pending messages
 
-            TimeUnit.MILLISECONDS.sleep(500);
+        TimeUnit.MILLISECONDS.sleep(500); // Wait for messages to be delivered
 
+        try (AbstractSubscription sub1 = subscription1;
+             AbstractSubscription sub2 = subscription2) {
             // Receive messages from both subscriptions
             List<Message> received1 = receiveMessages(sub1, messagesToSend.size(), "sub1");
             List<Message> received2 = receiveMessages(sub2, messagesToSend.size(), "sub2");
