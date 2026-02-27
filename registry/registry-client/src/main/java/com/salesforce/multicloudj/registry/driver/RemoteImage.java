@@ -1,7 +1,6 @@
 package com.salesforce.multicloudj.registry.driver;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
 import com.salesforce.multicloudj.registry.model.Manifest;
@@ -44,7 +43,7 @@ final class RemoteImage implements Image {
     public String getDigest() {
         String manifestDigest = manifest.getDigest();
         if (manifestDigest == null || manifestDigest.isEmpty()) {
-            throw new UnknownException("Image manifest is missing digest");
+            throw new InvalidArgumentException("Image manifest is missing digest");
         }
         return manifestDigest;
     }

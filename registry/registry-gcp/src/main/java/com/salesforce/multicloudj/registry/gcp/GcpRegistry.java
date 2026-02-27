@@ -151,7 +151,6 @@ public class GcpRegistry extends AbstractRegistry {
         public GcpRegistry build() {
             providerId(PROVIDER_ID);
             
-            // Validate registry endpoint is set (fail fast)
             if (StringUtils.isBlank(registryEndpoint)) {
                 throw new InvalidArgumentException("Registry endpoint is required for GCP Artifact Registry");
             }

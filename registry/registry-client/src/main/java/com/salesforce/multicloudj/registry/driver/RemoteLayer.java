@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.model.Layer;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
@@ -22,18 +23,25 @@ final class RemoteLayer implements Layer {
     }
 
     @Override
-    public String getDigest() throws IOException {
+    public String getDigest() {
         return digest;
     }
 
     @Override
-    public InputStream getUncompressed() throws IOException {
-        InputStream compressed = client.downloadBlob(repository, digest);
+    public InputStream getUncompressed() {
+        InputStream compressed = null;
         try {
+            compressed = client.downloadBlob(repository, digest);
             return new GzipCompressorInputStream(compressed);
         } catch (IOException e) {
-            compressed.close();
-            throw e;
+            if (compressed != null) {
+                try {
+                    compressed.close();
+                } catch (IOException suppressed) {
+                    e.addSuppressed(suppressed);
+                }
+            }
+            throw new UnknownException("Failed to decompress layer", e);
         }
     }
 

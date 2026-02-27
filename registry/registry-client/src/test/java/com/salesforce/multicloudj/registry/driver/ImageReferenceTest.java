@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -7,6 +8,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for ImageReference parsing.
@@ -42,7 +44,6 @@ class ImageReferenceTest {
 
     @Test
     void testParse_RegistryWithPort_NoTag() {
-        // Previously broken: would parse port as tag
         ImageReference ref = ImageReference.parse("registry.example.com:5000/myrepo");
         assertEquals("registry.example.com:5000/myrepo", ref.getRepository());
         assertEquals("latest", ref.getReference());
@@ -135,27 +136,24 @@ class ImageReferenceTest {
 
 
     @Test
-    void testParse_EmptyTag() {
-        // Trailing colon with empty tag - defaults to latest but keeps original format
-        ImageReference ref = ImageReference.parse("repo:");
-        assertEquals("repo:", ref.getRepository());  // Keeps trailing colon
-        assertEquals("latest", ref.getReference());
-        assertEquals("repo::latest", ref.toString());
+    void testParse_EmptyTag_ThrowsException() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
+                () -> ImageReference.parse("repo:"));
+        assertTrue(exception.getMessage().contains("tag cannot be empty after ':'"));
     }
 
     @Test
-    void testParse_RegistryWithPort_EmptyTag() {
-        ImageReference ref = ImageReference.parse("host:5000/repo:");
-        assertEquals("host:5000/repo:", ref.getRepository());  // Keeps trailing colon
-        assertEquals("latest", ref.getReference());
+    void testParse_RegistryWithPort_EmptyTag_ThrowsException() {
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
+                () -> ImageReference.parse("host:5000/repo:"));
+        assertTrue(exception.getMessage().contains("tag cannot be empty after ':'"));
     }
 
     @Test
     void testParse_MultipleColons_OnlyLastIsTag() {
-        // Registry with port AND repository with colon (finds first colon after last slash)
         ImageReference ref = ImageReference.parse("host:5000/special:repo:v1");
-        assertEquals("host:5000/special", ref.getRepository());  // First colon after slash
-        assertEquals("repo:v1", ref.getReference());  // Everything after first colon
+        assertEquals("host:5000/special", ref.getRepository());
+        assertEquals("repo:v1", ref.getReference());
     }
 
 
@@ -163,21 +161,21 @@ class ImageReferenceTest {
     @NullAndEmptySource
     @ValueSource(strings = {"  ", "\t", "\n"})
     void testParse_InvalidInput_ThrowsException(String input) {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse(input));
         assertEquals("Image reference cannot be null or empty", exception.getMessage());
     }
 
     @Test
     void testParse_InvalidDigest_NotSha256() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@md5:abc123"));
         assertEquals("unsupported digest algorithm: md5:abc123 (expected sha256)", exception.getMessage());
     }
 
     @Test
     void testParse_InvalidDigest_TooShort() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@sha256:abc123"));
         assertEquals("invalid checksum digest length: expected 64 characters, got 6: repo@sha256:abc123",
                 exception.getMessage());
@@ -186,7 +184,7 @@ class ImageReferenceTest {
     @Test
     void testParse_InvalidDigest_TooLong() {
         String digest = "sha256:" + "a".repeat(65);
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@" + digest));
         assertEquals("invalid checksum digest length: expected 64 characters, got 65: repo@" + digest,
                 exception.getMessage());
@@ -195,7 +193,7 @@ class ImageReferenceTest {
     @Test
     void testParse_InvalidDigest_UpperCase() {
         String digest = "sha256:" + "A".repeat(64);
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@" + digest));
         assertEquals("invalid checksum digest format: must be 64 lowercase hex characters [a-f0-9]: repo@" + digest,
                 exception.getMessage());
@@ -204,7 +202,7 @@ class ImageReferenceTest {
     @Test
     void testParse_InvalidDigest_InvalidHexChars() {
         String digest = "sha256:" + "xyz".repeat(21) + "x";  // 64 chars but invalid hex
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@" + digest));
         assertEquals("invalid checksum digest format: must be 64 lowercase hex characters [a-f0-9]: repo@" + digest,
                 exception.getMessage());
@@ -212,24 +210,21 @@ class ImageReferenceTest {
 
     @Test
     void testParse_MultipleAtSymbols() {
-        // Multiple @ gets split on first @, then digest validation fails
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@sha256:abc@def"));
-        // Error occurs during digest validation (length check), not @ count check
-        assertEquals("invalid checksum digest length: expected 64 characters, got 7: repo@sha256:abc@def",
-                exception.getMessage());
+        assertTrue(exception.getMessage().contains("exactly one '@' separator"));
     }
 
     @Test
     void testParse_EmptyRepository() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("@sha256:" + "a".repeat(64)));
         assertEquals("Repository cannot be empty: @sha256:" + "a".repeat(64), exception.getMessage());
     }
 
     @Test
     void testParse_EmptyDigest() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> ImageReference.parse("repo@"));
         assertEquals("Digest cannot be empty: repo@", exception.getMessage());
     }

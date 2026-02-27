@@ -95,21 +95,12 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         OciRegistryClient client = getOciClient();
 
         // Step 3: Fetch manifest
-        Manifest manifest;
-        try {
-            manifest = client.fetchManifest(repository, reference);
-        } catch (java.io.IOException e) {
-            throw new UnknownException("Failed to fetch manifest for " + imageRef, e);
-        }
+        Manifest manifest = client.fetchManifest(repository, reference);
 
         // Step 4: Handle multi-arch image index
         if (manifest.isIndex()) {
             String selectedDigest = selectPlatformFromIndex(manifest, targetPlatform);
-            try {
-                manifest = client.fetchManifest(repository, selectedDigest);
-            } catch (java.io.IOException e) {
-                throw new UnknownException("Failed to fetch platform manifest for " + selectedDigest, e);
-            }
+            manifest = client.fetchManifest(repository, selectedDigest);
         }
 
         // Step 5: Create and return RemoteImage (lazy-loading)

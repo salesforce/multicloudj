@@ -125,7 +125,7 @@ class AbstractRegistryTest {
 
         @Test
         void pull_fetchManifestFails_propagatesException() throws Exception {
-            when(mockOciClient.fetchManifest(anyString(), anyString())).thenThrow(new java.io.IOException("Network error"));
+            when(mockOciClient.fetchManifest(anyString(), anyString())).thenThrow(new UnknownException("Network error"));
             assertThrows(UnknownException.class, () -> registry.pull(IMAGE_REF));
         }
     }

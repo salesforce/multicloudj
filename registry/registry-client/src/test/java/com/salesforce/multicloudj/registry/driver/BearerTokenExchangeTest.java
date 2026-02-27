@@ -15,6 +15,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
+
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +63,7 @@ public class BearerTokenExchangeTest {
 
     @Test
     void testGetBearerToken_ThrowsException_WhenChallengeIsNull() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(null, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Bearer challenge"));
@@ -68,7 +73,7 @@ public class BearerTokenExchangeTest {
     void testGetBearerToken_ThrowsException_WhenChallengeIsNotBearer() {
         AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(basicChallenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Bearer challenge"));
@@ -81,7 +86,7 @@ public class BearerTokenExchangeTest {
         when(challengeWithoutRealm.isBearer()).thenReturn(true);
         when(challengeWithoutRealm.getRealm()).thenReturn(null);
 
-        IOException exception = assertThrows(IOException.class,
+        InvalidArgumentException exception = assertThrows(InvalidArgumentException.class,
                 () -> tokenExchange.getBearerToken(challengeWithoutRealm, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing realm"));
@@ -133,7 +138,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(tokenResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing token field"));
@@ -151,7 +156,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_UNAUTHORIZED);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(errorResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnAuthorizedException exception = assertThrows(UnAuthorizedException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Token exchange failed"));
@@ -170,7 +175,7 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(invalidJson));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("Invalid JSON"));
@@ -254,10 +259,32 @@ public class BearerTokenExchangeTest {
         when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
         when(mockResponse.getEntity()).thenReturn(new StringEntity(tokenResponse));
 
-        IOException exception = assertThrows(IOException.class,
+        UnknownException exception = assertThrows(UnknownException.class,
                 () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"));
 
         assertTrue(exception.getMessage().contains("missing token field"));
+    }
+
+    @Test
+    void testGetBearerToken_ThrowsUnknownException_WhenIOExceptionOccurs() throws Exception {
+        AuthChallenge challenge = AuthChallenge.parse(
+                "Bearer realm=\"" + TOKEN_ENDPOINT + "\",service=\"" + SERVICE + "\"");
+        doThrow(new IOException("connection refused")).when(mockHttpClient).execute(any(HttpGet.class));
+
+        assertTrue(assertThrows(UnknownException.class,
+                () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"))
+                .getMessage().contains("Token exchange request failed"));
+    }
+
+    @Test
+    void testGetBearerToken_ThrowsInvalidArgumentException_WhenRealmIsInvalidUri() {
+        AuthChallenge challenge = mock(AuthChallenge.class);
+        when(challenge.isBearer()).thenReturn(true);
+        when(challenge.getRealm()).thenReturn("://bad uri");
+
+        assertTrue(assertThrows(InvalidArgumentException.class,
+                () -> tokenExchange.getBearerToken(challenge, IDENTITY_TOKEN, REPOSITORY, "pull"))
+                .getMessage().contains("Invalid token endpoint URL"));
     }
 
 }
