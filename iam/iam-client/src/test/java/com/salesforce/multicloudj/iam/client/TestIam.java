@@ -2,10 +2,14 @@ package com.salesforce.multicloudj.iam.client;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
+import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 
 import java.util.Arrays;
@@ -29,9 +33,7 @@ public class TestIam extends AbstractIam {
     }
 
     @Override
-    protected String doCreateIdentity(String identityName, String description, String tenantId,
-                                     String region, Optional<TrustConfiguration> trustConfig,
-                                     Optional<CreateOptions> options) {
+    protected String doCreateIdentity(CreateIdentityRequest request) {
         return "mock-identity-id";
     }
 
@@ -51,18 +53,17 @@ public class TestIam extends AbstractIam {
     }
 
     @Override
-    protected void doRemovePolicy(String identityName, String policyName, String tenantId,
-                                 String region) {
+    protected void doRemovePolicy(RemovePolicyRequest request) {
         // Mock implementation
     }
 
     @Override
-    protected void doDeleteIdentity(String identityName, String tenantId, String region) {
+    protected void doDeleteIdentity(DeleteIdentityRequest request) {
         // Mock implementation
     }
 
     @Override
-    protected String doGetIdentity(String identityName, String tenantId, String region) {
+    protected String doGetIdentity(GetIdentityRequest request) {
         return "mock-identity-arn";
     }
 

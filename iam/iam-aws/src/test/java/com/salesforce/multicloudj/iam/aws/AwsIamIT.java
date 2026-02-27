@@ -127,6 +127,14 @@ public class AwsIamIT extends AbstractIamIT {
             return "testSa"; // IAM role name for attach/getInlinePolicyDetails.
         }
 
+        /** Dummy S3 resource ARN for the test inline policy (valid format; used in record/replay IT). */
+        private static final String TEST_POLICY_RESOURCE = "arn:aws:s3:::multicloudj-iam-it-test-bucket/*";
+
+        @Override
+        public String getTestPolicyResource() {
+            return TEST_POLICY_RESOURCE;
+        }
+
         @Override
         public void close() {
             if (client != null) {
