@@ -16,8 +16,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,8 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
-
-    private static final Logger logger = LoggerFactory.getLogger(AbstractPubsubIT.class);
 
     public interface Harness extends AutoCloseable {
 
@@ -435,41 +431,25 @@ public abstract class AbstractPubsubIT {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
         List<Message> received = new ArrayList<>();
-        int attemptCount = 0;
         try {
             while (received.size() < expectedCount && System.nanoTime() < deadline) {
-                attemptCount++;
-                logger.info("[TEST] Receive attempt #{}, received so far: {}/{}",
-                        attemptCount, received.size(), expectedCount);
                 Message r = subscription.receive();
                 // receive() either returns a Message or throws an exception
                 received.add(r);
-                logger.info("[TEST] Successfully received message #{}: body={}",
-                        received.size(), new String(r.getBody()));
             }
         } catch (Exception e) {
-            logger.error("[TEST] Exception during receive attempt #{} (after successfully receiving {}/{} messages)",
-                    attemptCount, received.size(), expectedCount);
-            logger.error("[TEST] Exception type: {}", e.getClass().getName());
-            logger.error("[TEST] Exception message: {}", e.getMessage());
-
-            // Print the full exception stack trace to understand the failure
-            logger.error("[TEST] Full exception stack trace:", e);
-
             String errorMsg = String.format(
-                "Failed to receive messages: Got exception after receiving %d/%d messages. " +
-                "Exception: %s: %s",
-                received.size(), expectedCount, e.getClass().getSimpleName(), e.getMessage());
+                "Failed to receive messages: Got exception after receiving %d/%d messages.",
+                received.size(), expectedCount);
             Assertions.fail(errorMsg, e);
         }
         // If the loop exits but received count is less than expected, it indicates a timeout occurred.
         if (received.size() < expectedCount) {
             String errorMsg = String.format(
-                "Timeout waiting for messages: Received %d/%d messages after %d attempts.",
-                received.size(), expectedCount, attemptCount);
+                "Timeout waiting for messages: Received %d/%d messages.",
+                received.size(), expectedCount);
             Assertions.fail(errorMsg);
         }
-        logger.info("[TEST] Successfully received all {} messages in {} attempts", expectedCount, attemptCount);
         return received;
     }
 

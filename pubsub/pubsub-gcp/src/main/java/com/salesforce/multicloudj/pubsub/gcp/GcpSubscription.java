@@ -30,8 +30,6 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.io.IOException;
@@ -52,7 +50,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 @AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
-    private static final Logger logger = LoggerFactory.getLogger(GcpSubscription.class);
     private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
     private Batcher.Options receiveBatcherOptions;
     private volatile SubscriptionAdminClient subscriptionAdminClient;
@@ -231,33 +228,15 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .setMaxMessages(Math.max(1, batchSize))
                 .setReturnImmediately(true)
                 .build();
-
-        try {
-            logger.info("[DEBUG] GCP Pull Request: subscription={}, maxMessages={}, returnImmediately=true",
-                    subscriptionName, Math.max(1, batchSize));
-
-            PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
-
-            logger.info("[DEBUG] GCP Pull Response: receivedMessages.count={}", resp.getReceivedMessagesCount());
-
-            List<Message> receivedMessages = new ArrayList<>();
-            for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
-                Message m = convertToMessage(rm);
-                receivedMessages.add(m);
-                String ackIdPreview = m.getAckID().toString().substring(0, Math.min(20, m.getAckID().toString().length()));
-                logger.info("[DEBUG]   - Message: body={}, ackId={}...",
-                        new String(m.getBody()), ackIdPreview);
-            }
-            return receivedMessages;
-        } catch (Exception e) {
-            logger.error("[ERROR] GCP Pull Request FAILED: subscription={}, exception={}, message={}",
-                    subscriptionName, e.getClass().getName(), e.getMessage());
-            if (e.getCause() != null) {
-                logger.error("[ERROR]   Caused by: {}: {}",
-                        e.getCause().getClass().getName(), e.getCause().getMessage());
-            }
-            throw e;
+            
+        PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
+                    
+        List<Message> receivedMessages = new ArrayList<>();
+        for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
+            Message m = convertToMessage(rm);
+            receivedMessages.add(m);
         }
+        return receivedMessages;
     }
 
     /**
