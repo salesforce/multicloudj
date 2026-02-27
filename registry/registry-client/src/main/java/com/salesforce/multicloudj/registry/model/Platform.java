@@ -2,7 +2,6 @@ package com.salesforce.multicloudj.registry.model;
 
 import lombok.Builder;
 import lombok.Getter;
-import software.amazon.awssdk.utils.CollectionUtils;
 
 import java.util.HashSet;
 import java.util.List;
