@@ -24,6 +24,7 @@ import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -634,7 +635,152 @@ public class OciRegistryClientTest {
         testFetchManifestWithErrorExpected(invalidManifestJson, "layer missing required 'digest' field");
     }
 
-    // ========== Helper Methods ==========
+    @Test
+    void testDownloadBlob_Success() throws Exception {
+        String blobContent = "test blob content";
+        String digest = "sha256:abc123";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob(blobContent, HttpStatus.SC_OK, true);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+                assertNotNull(stream);
+                byte[] content = stream.readAllBytes();
+                assertEquals(blobContent, new String(content, StandardCharsets.UTF_8));
+            }
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_HttpError_404_ThrowsResourceNotFoundException() throws Exception {
+        String digest = "sha256:notfound";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob("Not Found", HttpStatus.SC_NOT_FOUND, true);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+                    () -> client.downloadBlob(REPOSITORY, digest));
+            assertTrue(exception.getMessage().contains("HTTP 404"));
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_HttpError_401_ThrowsUnAuthorizedException() throws Exception {
+        String digest = "sha256:unauthorized";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob("Unauthorized", HttpStatus.SC_UNAUTHORIZED, true);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class,
+                    () -> client.downloadBlob(REPOSITORY, digest));
+            assertTrue(exception.getMessage().contains("HTTP 401"));
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_HttpError_403_ThrowsUnAuthorizedException() throws Exception {
+        String digest = "sha256:forbidden";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob("Forbidden", HttpStatus.SC_FORBIDDEN, true);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            UnAuthorizedException exception = assertThrows(UnAuthorizedException.class,
+                    () -> client.downloadBlob(REPOSITORY, digest));
+            assertTrue(exception.getMessage().contains("HTTP 403"));
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_HttpError_500_ThrowsUnknownException() throws Exception {
+        String digest = "sha256:servererror";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob("Internal Server Error", HttpStatus.SC_INTERNAL_SERVER_ERROR, true);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            UnknownException exception = assertThrows(UnknownException.class,
+                    () -> client.downloadBlob(REPOSITORY, digest));
+            assertTrue(exception.getMessage().contains("HTTP 500"));
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_EmptyResponseBody_ThrowsUnknownException() throws Exception {
+        String digest = "sha256:empty";
+
+        CloseableHttpClient mockHttpClient = createMockHttpClientForBlob(null, HttpStatus.SC_OK, false);
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+
+            UnknownException exception = assertThrows(UnknownException.class,
+                    () -> client.downloadBlob(REPOSITORY, digest));
+            assertTrue(exception.getMessage().contains("empty response body"));
+
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_SetsAuthorizationHeader() throws Exception {
+        String digest = "sha256:authtest";
+        CloseableHttpClient mockHttpClient = createMockHttpClientWithExecuteAnswer("auth test", invocation -> {
+            HttpGet request = invocation.getArgument(0);
+            Header authHeader = request.getFirstHeader("Authorization");
+            assertNotNull(authHeader, "Authorization header should be set");
+            assertEquals("Basic dXNlcjp0b2tlbg==", authHeader.getValue()); // Base64("user:token")
+        });
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+                assertNotNull(stream);
+            }
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_DoesNotSetAuthHeaderForAnonymous() throws Exception {
+        String digest = "sha256:noauthtest";
+        CloseableHttpClient mockHttpClient = createMockHttpClientWithExecuteAnswer("no auth test", invocation -> {
+            HttpGet request = invocation.getArgument(0);
+            Header authHeader = request.getFirstHeader("Authorization");
+            assertNull(authHeader, "Authorization header should not be set for anonymous auth");
+        });
+
+        AuthChallenge anonymousChallenge = AuthChallenge.anonymous();
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
+            mockedAuthChallenge.when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+                    .thenReturn(anonymousChallenge);
+            mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
+
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+                assertNotNull(stream);
+            }
+            client.close();
+        }
+    }
 
     private void testFetchManifestWithResponse(String responseBody, String digestHeader,
                                                 int statusCode, ManifestAssertion assertion) throws Exception {
@@ -727,6 +873,68 @@ public class OciRegistryClientTest {
                 .thenReturn(basicChallenge);
         mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
         return mockedAuthChallenge;
+    }
+
+    /**
+     * Creates a mock HttpClient that invokes a custom assertion on the outgoing request before returning a 200 response.
+     *
+     * @param blobContent the blob content to return
+     * @param requestAssertion assertion to run on the outgoing HttpGet (e.g. to check headers)
+     * @return mocked CloseableHttpClient
+     */
+    private CloseableHttpClient createMockHttpClientWithExecuteAnswer(String blobContent,
+            java.util.function.Consumer<org.mockito.invocation.InvocationOnMock> requestAssertion) {
+        CloseableHttpClient mockHttpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse mockResponse = mock(CloseableHttpResponse.class);
+        StatusLine mockStatusLine = mock(StatusLine.class);
+        HttpEntity mockEntity = mock(HttpEntity.class);
+        try {
+            when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
+            when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
+            when(mockResponse.getEntity()).thenReturn(mockEntity);
+            when(mockEntity.getContent()).thenReturn(
+                    new ByteArrayInputStream(blobContent.getBytes(StandardCharsets.UTF_8)));
+            when(mockHttpClient.execute(any(HttpGet.class))).thenAnswer(invocation -> {
+                requestAssertion.accept(invocation);
+                return mockResponse;
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to setup mock", e);
+        }
+        return mockHttpClient;
+    }
+
+    /**
+     * Creates a mock HttpClient for blob download tests.
+     *
+     * @param blobContent the blob content to return (null for no entity)
+     * @param statusCode the HTTP status code
+     * @param hasEntity whether the response has an entity
+     * @return mocked CloseableHttpClient
+     */
+    private CloseableHttpClient createMockHttpClientForBlob(String blobContent, int statusCode, boolean hasEntity) {
+        CloseableHttpClient mockHttpClient = mock(CloseableHttpClient.class);
+        CloseableHttpResponse mockResponse = mock(CloseableHttpResponse.class);
+        StatusLine mockStatusLine = mock(StatusLine.class);
+        HttpEntity mockEntity = hasEntity ? mock(HttpEntity.class) : null;
+
+        try {
+            when(mockStatusLine.getStatusCode()).thenReturn(statusCode);
+            when(mockResponse.getStatusLine()).thenReturn(mockStatusLine);
+            when(mockResponse.getEntity()).thenReturn(mockEntity);
+
+            if (hasEntity && blobContent != null) {
+                // Create a fresh InputStream each time getContent() is called
+                when(mockEntity.getContent()).thenAnswer(invocation ->
+                        new ByteArrayInputStream(blobContent.getBytes(StandardCharsets.UTF_8)));
+            }
+
+            when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to setup blob mocks", e);
+        }
+
+        return mockHttpClient;
     }
 
     @FunctionalInterface

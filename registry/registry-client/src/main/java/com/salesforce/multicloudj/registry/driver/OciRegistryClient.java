@@ -27,10 +27,11 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -456,14 +457,83 @@ public class OciRegistryClient implements AutoCloseable {
         return layerInfos;
     }
 
-    /** Downloads a blob (layer or config) by digest. */
+    /**
+     * Downloads a blob (layer or config) by digest.
+     * HTTP GET /v2/{repository}/blobs/{digest}.
+     *
+     * <p>The response body is returned as an InputStream for streaming consumption.
+     * Caller is responsible for closing the stream.
+     *
+     * @param repository the repository name
+     * @param digest the blob digest (e.g., "sha256:...")
+     * @return InputStream of blob content (caller must close)
+     * @throws ResourceNotFoundException if blob not found (404)
+     * @throws UnAuthorizedException if authentication fails (401/403)
+     * @throws UnknownException if the request fails
+     */
     public InputStream downloadBlob(String repository, String digest) {
-        // TODO: need to be implemented
-        throw new UnSupportedOperationException("downloadBlob() not yet implemented");
+        String url = String.format("%s/v2/%s/blobs/%s", registryEndpoint, repository, digest);
+
+        HttpGet request = new HttpGet(url);
+        String authHeader = getHttpAuthHeader(repository);
+        if (authHeader != null) {
+            request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
+        }
+
+        try {
+            CloseableHttpResponse response = httpClient.execute(request);
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            if (statusCode != HttpStatus.SC_OK) {
+                String errorBody = response.getEntity() != null
+                        ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
+                        : StringUtils.EMPTY;
+                response.close();
+                String message = String.format(
+                        "Failed to download blob %s from %s - HTTP %d: %s",
+                        digest, repository, statusCode, errorBody);
+
+                throw mapHttpStatusToException(statusCode, message);
+            }
+
+            if (response.getEntity() == null) {
+                response.close();
+                throw new UnknownException("Failed to download blob: empty response body");
+            }
+
+            // Return InputStream wrapped to close HTTP response on close()
+            return new FilterInputStream(response.getEntity().getContent()) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        response.close();
+                    }
+                }
+            };
+        } catch (IOException e) {
+            throw new UnknownException("Failed to download blob", e);
+        }
     }
 
     public String getRegistryEndpoint() {
         return registryEndpoint;
+    }
+
+    /**
+     * Maps HTTP status codes to SDK exceptions.
+     */
+    private RuntimeException mapHttpStatusToException(int statusCode, String message) {
+        switch (statusCode) {
+            case HttpStatus.SC_NOT_FOUND:
+                return new ResourceNotFoundException(message);
+            case HttpStatus.SC_UNAUTHORIZED:
+            case HttpStatus.SC_FORBIDDEN:
+                return new UnAuthorizedException(message);
+            default:
+                return new UnknownException(message);
+        }
     }
 
     @Override
