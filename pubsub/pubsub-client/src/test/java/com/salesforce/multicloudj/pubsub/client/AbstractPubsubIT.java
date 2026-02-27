@@ -391,10 +391,11 @@ public abstract class AbstractPubsubIT {
              AbstractSubscription sub1 = subscription1;
              AbstractSubscription sub2 = subscription2) {
 
-            // Send 2 messages to the topic
+            // Send 3 messages to the topic
             List<Message> messagesToSend = List.of(
                     Message.builder().withBody("fanout-msg1".getBytes()).withMetadata(Map.of("id", "1")).build(),
-                    Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build()
+                    Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build(),
+                    Message.builder().withBody("fanout-msg3".getBytes()).withMetadata(Map.of("id", "3")).build()
             );
 
             for (Message message : messagesToSend) {
