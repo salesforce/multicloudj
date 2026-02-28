@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
+import com.salesforce.multicloudj.common.aws.StsDiagnosticsInterceptor;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -17,6 +18,8 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -45,9 +48,13 @@ public class AwsSts extends AbstractSts {
         super(builder);
         Region region = Region.of(builder.getRegion());
         StsClientBuilder sb = StsClient.builder().region(region);
+        CloudWatchClientBuilder cwb = CloudWatchClient.builder().region(region);
         if (builder.getEndpoint() != null) {
             sb = sb.endpointOverride(builder.getEndpoint());
+            cwb = cwb.endpointOverride(builder.getEndpoint());
         }
+        CloudWatchClient cw = cwb.build();
+        sb.overrideConfiguration(cfg -> cfg .addExecutionInterceptor(new StsDiagnosticsInterceptor(cw)));
         this.stsClient = sb.build();
     }
 
