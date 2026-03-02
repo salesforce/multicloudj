@@ -23,14 +23,14 @@ import static com.salesforce.multicloudj.sts.curl.requestToCurl;
 
 public class Main {
 
-    static String provider = "gcp";
+    static String provider = "aws";
 
     public static void main(String[] args) {
         assumeRole();
-        assumeRoleWebIdentityCredentialsOverrider();
-        getCallerIdentity();
-        nativeAuthSignerUtilityWithStsCredentials();
-        nativeAuthSignerUtilityWithDefaultCredentials();
+        //assumeRoleWebIdentityCredentialsOverrider();
+        //getCallerIdentity();
+        //nativeAuthSignerUtilityWithStsCredentials();
+        //nativeAuthSignerUtilityWithDefaultCredentials();
     }
 
     public static void assumeRole() {
@@ -55,9 +55,9 @@ public class Main {
                 .build();
 
         AssumedRoleRequest request = AssumedRoleRequest.newBuilder()
-                .withRole("chameleon@substrate-sdk-gcp-poc1.iam.gserviceaccount.com")
+                .withRole("arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs")
                 .withSessionName("my-session")
-                .withCredentialScope(credentialScope)
+                //.withCredentialScope(credentialScope)
                 .build();
         StsCredentials stsCredentials = client.getAssumeRoleCredentials(request);
 
@@ -76,7 +76,7 @@ public class Main {
                 .withWebIdentityTokenSupplier(tokenSupplier)
                 .build();
         BucketClient bucketClient = BucketClient.builder(provider)
-                .withRegion("us-west-2").withBucket("chameleon-jclouds")
+                .withRegion("us-west-2").withBucket("chameleon-jcloud")
                 .withCredentialsOverrider(overrider)
                 .build();
         ListBlobsPageResponse r=bucketClient.listPage(ListBlobsPageRequest.builder().withMaxResults(1).build());
