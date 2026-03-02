@@ -32,7 +32,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
  * including flushing pending acknowledgments, closing connections, and stopping background threads.
  */
 public abstract class AbstractSubscription<T extends AbstractSubscription<T>> implements AutoCloseable, Provider {
-
+    
     protected final String providerId;
     protected final String subscriptionName;
     protected final String region;
@@ -218,34 +218,42 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         lock.lock();
         try {
             while (true) {
+                // Check if subscription has been shut down
                 if (isShutdown.get()) {
                     throw new FailedPreconditionException("Subscription has been shut down");
                 }
 
+                // Check for permanent error state
                 if (permanentError.get() != null) {
                     unreportedAckErr.set(null);
                     throw new SubstrateSdkException("Subscription in permanent error state", permanentError.get());
                 }
 
+                // Check if we need to prefetch
                 maybePrefetch();
 
+                // If we have messages in queue, return one
                 if (!queue.isEmpty()) {
                     Message m = queue.poll();
                     throughputCount++;
                     return m;
                 }
 
+                // No messages available, wait for prefetch to complete
                 if (prefetchInFlight.get()) {
                     try {
+                        // Wait indefinitely for messages to arrive
                         batchArrived.await();
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw new SubstrateSdkException("Interrupted while waiting for messages", ie);
                     }
                 } else {
+                    // No prefetch in flight and no messages available - wait briefly to prevent CPU spinning
+                    // This gives time for new messages to arrive or for conditions to change
                     try {
                         if (!batchArrived.await(100, TimeUnit.MILLISECONDS)) {
-                            // Timeout is normal
+                            // Timeout is normal - continue loop to check for new messages or prefetch opportunities
                         }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -581,6 +589,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>> im
         } catch (Throwable t) {
             lock.lock();
             try {
+                // Set permanentError if the error is not retryable
                 if (!isRetryable(t)) {
                     permanentError.compareAndSet(null, t);
                 }
