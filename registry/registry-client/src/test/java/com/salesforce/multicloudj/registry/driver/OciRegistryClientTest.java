@@ -747,7 +747,7 @@ public class OciRegistryClientTest {
             HttpGet request = invocation.getArgument(0);
             Header authHeader = request.getFirstHeader("Authorization");
             assertNotNull(authHeader, "Authorization header should be set");
-            assertEquals("Basic dXNlcjp0b2tlbg==", authHeader.getValue()); // Base64("user:token")
+            assertEquals("Basic " + Base64.getEncoder().encodeToString("user:token".getBytes(StandardCharsets.UTF_8)), authHeader.getValue());
         });
 
         try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {

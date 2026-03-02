@@ -27,6 +27,9 @@ import org.apache.http.client.utils.URIBuilder;
  */
 public class BearerTokenExchange {
 
+  private static final String TOKEN_FIELD = "token";
+  private static final String ACCESS_TOKEN_FIELD = "access_token";
+
   private final CloseableHttpClient httpClient;
 
   /**
@@ -61,14 +64,17 @@ public class BearerTokenExchange {
       throw new InvalidArgumentException("Bearer challenge missing realm");
     }
 
-    try {
-    // Build token request URL using URIBuilder for proper encoding
     URI tokenUri = buildTokenUri(realm, challenge, repository, actions);
-
     HttpGet request = new HttpGet(tokenUri);
-    // Use identity token as Bearer auth for the token endpoint
     request.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + identityToken);
+    try {
+      return executeTokenRequest(request);
+    } catch (IOException e) {
+      throw new UnknownException("Token exchange request failed", e);
+    }
+  }
 
+  private String executeTokenRequest(HttpGet request) throws IOException {
     try (CloseableHttpResponse response = httpClient.execute(request)) {
       int statusCode = response.getStatusLine().getStatusCode();
       if (statusCode != HttpStatus.SC_OK) {
@@ -77,7 +83,7 @@ public class BearerTokenExchange {
       }
 
       String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-      
+
       JsonObject json;
       try {
         json = JsonParser.parseString(responseBody).getAsJsonObject();
@@ -86,16 +92,13 @@ public class BearerTokenExchange {
       }
 
       // Token can be in "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry) field
-      if (json.has("token") && !json.get("token").isJsonNull()) {
-        return json.get("token").getAsString();
-      } else if (json.has("access_token") && !json.get("access_token").isJsonNull()) {
-        return json.get("access_token").getAsString();
+      if (json.has(TOKEN_FIELD) && !json.get(TOKEN_FIELD).isJsonNull()) {
+        return json.get(TOKEN_FIELD).getAsString();
+      } else if (json.has(ACCESS_TOKEN_FIELD) && !json.get(ACCESS_TOKEN_FIELD).isJsonNull()) {
+        return json.get(ACCESS_TOKEN_FIELD).getAsString();
       }
 
       throw new UnknownException("Token response missing token field");
-    }
-    } catch (IOException e) {
-      throw new UnknownException("Token exchange request failed", e);
     }
   }
 

@@ -53,12 +53,6 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
      */
     public abstract Builder<?, ?> builder();
 
-    @Override
-    public abstract String getAuthUsername();
-
-    @Override
-    public abstract String getAuthToken();
-
     /** Returns the OCI client for this registry. */
     protected abstract OciRegistryClient getOciClient();
 
