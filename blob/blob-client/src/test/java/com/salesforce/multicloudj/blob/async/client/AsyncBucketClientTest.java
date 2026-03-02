@@ -851,4 +851,73 @@ public class AsyncBucketClientTest {
         verify(mockBuilder2, times(1)).withRetryConfig(retryConfig);
         assertInstanceOf(AsyncBucketClient.class, testClient);
     }
+
+    @Test
+    void testAsyncBucketClientBuilderWithUseSystemPropertyProxyValues() {
+        AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseSystemPropertyProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder("test3"))
+                .thenReturn(mockBuilder2);
+
+        AsyncBucketClient testClient = AsyncBucketClient.builder("test3")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withUseSystemPropertyProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withUseSystemPropertyProxyValues(false);
+        assertInstanceOf(AsyncBucketClient.class, testClient);
+    }
+
+    @Test
+    void testAsyncBucketClientBuilderWithUseEnvironmentVariableProxyValues() {
+        AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseEnvironmentVariableProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder("test4"))
+                .thenReturn(mockBuilder2);
+
+        AsyncBucketClient testClient = AsyncBucketClient.builder("test4")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withUseEnvironmentVariableProxyValues(false);
+        assertInstanceOf(AsyncBucketClient.class, testClient);
+    }
+
+    @Test
+    void testAsyncBucketClientBuilderWithProxyEndpointAndOverrideFlags() {
+        AsyncBlobStoreProvider.Builder mockBuilder2 = mock(AsyncBlobStoreProvider.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withProxyEndpoint(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseSystemPropertyProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseEnvironmentVariableProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findAsyncBuilder("test5"))
+                .thenReturn(mockBuilder2);
+
+        AsyncBucketClient testClient = AsyncBucketClient.builder("test5")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                .withUseSystemPropertyProxyValues(true)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withProxyEndpoint(URI.create("https://proxy.example.com:443"));
+        verify(mockBuilder2, times(1)).withUseSystemPropertyProxyValues(true);
+        verify(mockBuilder2, times(1)).withUseEnvironmentVariableProxyValues(false);
+        assertInstanceOf(AsyncBucketClient.class, testClient);
+    }
 }

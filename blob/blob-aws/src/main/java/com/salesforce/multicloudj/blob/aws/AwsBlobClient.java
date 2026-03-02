@@ -93,12 +93,21 @@ public class AwsBlobClient extends AbstractBlobClient<AwsBlobClient> {
         if (builder.getEndpoint() != null) {
             b.endpointOverride(builder.getEndpoint());
         }
-        if (builder.getProxyEndpoint() != null) {
-            ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
-                    .endpoint(builder.getProxyEndpoint())
-                    .build();
+        if (builder.getProxyEndpoint() != null
+                || builder.getUseSystemPropertyProxyValues() != null
+                || builder.getUseEnvironmentVariableProxyValues() != null) {
+            ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
+            if (builder.getProxyEndpoint() != null) {
+                proxyConfigBuilder.endpoint(builder.getProxyEndpoint());
+            }
+            if (builder.getUseSystemPropertyProxyValues() != null) {
+                proxyConfigBuilder.useSystemPropertyValues(builder.getUseSystemPropertyProxyValues());
+            }
+            if (builder.getUseEnvironmentVariableProxyValues() != null) {
+                proxyConfigBuilder.useEnvironmentVariableValues(builder.getUseEnvironmentVariableProxyValues());
+            }
             b.httpClient(ApacheHttpClient.builder()
-                    .proxyConfiguration(proxyConfig)
+                    .proxyConfiguration(proxyConfigBuilder.build())
                     .build());
         }
         if (builder.getRetryConfig() != null) {
