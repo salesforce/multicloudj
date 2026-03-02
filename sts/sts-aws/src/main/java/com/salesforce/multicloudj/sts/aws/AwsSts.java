@@ -54,7 +54,7 @@ public class AwsSts extends AbstractSts {
             cwb = cwb.endpointOverride(builder.getEndpoint());
         }
         CloudWatchClient cw = cwb.build();
-        sb.overrideConfiguration(cfg -> cfg .addExecutionInterceptor(new StsDiagnosticsInterceptor(cw)));
+        sb.overrideConfiguration(cfg -> cfg .addExecutionInterceptor(new StsDiagnosticsInterceptor(cw, this.getClass().getName())));
         this.stsClient = sb.build();
     }
 

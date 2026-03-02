@@ -20,9 +20,11 @@ public class StsDiagnosticsInterceptor implements ExecutionInterceptor {
     private static final Logger log = LoggerFactory.getLogger(StsDiagnosticsInterceptor.class);
     private static final ExecutionAttribute<Instant> START_TIME = new ExecutionAttribute<>("StartTime");
     private final CloudWatchClient cwClient;
+    private final String namespace;
 
-    public StsDiagnosticsInterceptor(CloudWatchClient cwClient) {
+    public StsDiagnosticsInterceptor(CloudWatchClient cwClient, String namespace) {
         this.cwClient = cwClient;
+        this.namespace = namespace;
     }
 
     @Override
@@ -73,7 +75,7 @@ public class StsDiagnosticsInterceptor implements ExecutionInterceptor {
                     .value(1.0).unit(StandardUnit.COUNT).build();
 
             cwClient.putMetricData(PutMetricDataRequest.builder()
-                    .namespace("SalesforceIntegrations/STS")
+                    .namespace(this.namespace)
                     .metricData(count)
                     .build());
         } catch (Exception e) {
