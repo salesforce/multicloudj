@@ -152,17 +152,18 @@ public class GcpPubsubIT extends AbstractPubsubIT {
                 String subscriptionNameWithIndex = index > 0 ? subscriptionName + "-" + index : subscriptionName;
                 String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionNameWithIndex;
 
-                // Use maxHandlers=1 for integration tests to avoid WireMock scenario state race conditions
-                Batcher.Options testBatcherOptions = new Batcher.Options()
-                        .setMaxHandlers(1)
-                        .setMinBatchSize(1)
-                        .setMaxBatchSize(1)
-                        .setMaxBatchByteSize(0);
-
                 GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
-                        .withSubscriptionName(fullSubscriptionName)
-                        .withReceiveBatcherOptions(testBatcherOptions);
-                GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client);
+                        .withSubscriptionName(fullSubscriptionName);
+                GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client) {
+                    @Override
+                    protected Batcher.Options createReceiveBatcherOptions() {
+                        return new Batcher.Options()
+                            .setMaxHandlers(1)
+                            .setMinBatchSize(1)
+                            .setMaxBatchSize(1)
+                            .setMaxBatchByteSize(0);
+                    }
+                };
                 
                 if (index == 0) {
                     subscription = sub;

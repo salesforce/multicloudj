@@ -62,7 +62,6 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     public GcpSubscription(Builder builder) {
         super(builder);
         this.nackLazy = builder.nackLazy;
-        this.receiveBatcherOptions = builder.receiveBatcherOptions;
     }
     
     public GcpSubscription(Builder builder, SubscriptionAdminClient subscriptionAdminClient) {
@@ -228,9 +227,9 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
                 .setMaxMessages(Math.max(1, batchSize))
                 .setReturnImmediately(true)
                 .build();
-
+            
         PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
-
+                    
         List<Message> receivedMessages = new ArrayList<>();
         for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
             Message m = convertToMessage(rm);
@@ -311,8 +310,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
     public static class Builder extends AbstractSubscription.Builder<GcpSubscription> {
         private boolean nackLazy = false;
-        private Batcher.Options receiveBatcherOptions = null;
-
+        
         public Builder() {
             this.providerId = GcpConstants.PROVIDER_ID;
         }
@@ -358,24 +356,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
          *
          * This is useful when you don't want immediate retry but prefer to wait for
          * the natural timeout before reprocessing the message.
-         *
+         * 
          * @param nackLazy true to enable lazy NACK mode, false for immediate redelivery
          * @return this builder for method chaining
          */
         public GcpSubscription.Builder withNackLazy(boolean nackLazy) {
             this.nackLazy = nackLazy;
-            return this;
-        }
-
-        /**
-         * Sets custom receive batcher options.
-         * This is primarily used in tests to control prefetch behavior.
-         *
-         * @param options the batcher options to use
-         * @return this builder for method chaining
-         */
-        public GcpSubscription.Builder withReceiveBatcherOptions(Batcher.Options options) {
-            this.receiveBatcherOptions = options;
             return this;
         }
         
