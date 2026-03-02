@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,10 +151,19 @@ public class GcpPubsubIT extends AbstractPubsubIT {
                 // add index suffix only if index > 0
                 String subscriptionNameWithIndex = index > 0 ? subscriptionName + "-" + index : subscriptionName;
                 String fullSubscriptionName = "projects/" + GcpPubsubIT.PROJECT_ID + "/subscriptions/" + subscriptionNameWithIndex;
-                
+
                 GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()
                         .withSubscriptionName(fullSubscriptionName);
-                GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client);
+                GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client) {
+                    @Override
+                    protected Batcher.Options createReceiveBatcherOptions() {
+                        return new Batcher.Options()
+                            .setMaxHandlers(1)
+                            .setMinBatchSize(1)
+                            .setMaxBatchSize(1)
+                            .setMaxBatchByteSize(0);
+                    }
+                };
                 
                 if (index == 0) {
                     subscription = sub;
