@@ -31,9 +31,6 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 import java.io.IOException;
 
@@ -53,7 +50,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 @AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
-    private static final Logger logger = LoggerFactory.getLogger(GcpSubscription.class);
     private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
     private Batcher.Options receiveBatcherOptions;
     private volatile SubscriptionAdminClient subscriptionAdminClient;
@@ -227,28 +223,19 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
             
     @Override
     protected List<Message> doReceiveBatch(int batchSize) {
-        logger.debug("[doReceiveBatch] subscription={}, batchSize={}", subscriptionName, batchSize);
         PullRequest req = PullRequest.newBuilder()
                 .setSubscription(subscriptionName)
                 .setMaxMessages(Math.max(1, batchSize))
                 .setReturnImmediately(true)
                 .build();
 
-        PullResponse resp;
-        try {
-            resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
-        } catch (Exception e) {
-            logger.error("[doReceiveBatch] Pull failed for subscription={}: {} - {}",
-                    subscriptionName, e.getClass().getSimpleName(), e.getMessage());
-            throw e;
-        }
+        PullResponse resp = getOrCreateSubscriptionAdminClient().pullCallable().call(req);
 
         List<Message> receivedMessages = new ArrayList<>();
         for (ReceivedMessage rm : resp.getReceivedMessagesList()) {
             Message m = convertToMessage(rm);
             receivedMessages.add(m);
         }
-        logger.debug("[doReceiveBatch] subscription={}, received {} messages", subscriptionName, receivedMessages.size());
         return receivedMessages;
     }
 

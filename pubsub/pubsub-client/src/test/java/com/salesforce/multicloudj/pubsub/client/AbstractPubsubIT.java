@@ -395,12 +395,18 @@ public abstract class AbstractPubsubIT {
         );
 
         try (AbstractTopic topic = harness.createTopicDriver()) {
-            for (Message message : messagesToSend) {
+            for (int i = 0; i < messagesToSend.size(); i++) {
+                Message message = messagesToSend.get(i);
+                System.out.printf("[send] Sending message %d/%d: body=%s, metadata=%s%n",
+                        i + 1, messagesToSend.size(), new String(message.getBody()), message.getMetadata());
                 topic.send(message);
+                System.out.printf("[send] Message %d sent successfully%n", i + 1);
             }
         } // Close topic here to flush pending messages
 
-        TimeUnit.MILLISECONDS.sleep(500); // Wait for messages to be delivered
+        System.out.println("[wait] Sleeping 500ms for message delivery...");
+        TimeUnit.MILLISECONDS.sleep(500);
+        System.out.println("[wait] Sleep done, starting receive phase");
 
         try (AbstractSubscription sub1 = subscription1;
              AbstractSubscription sub2 = subscription2) {
@@ -409,18 +415,28 @@ public abstract class AbstractPubsubIT {
             List<Message> received2 = receiveMessages(sub2, messagesToSend.size(), "sub2");
 
             // Verify both subscriptions received all messages
+            System.out.printf("[verify] sub1 received %d messages, sub2 received %d messages%n",
+                    received1.size(), received2.size());
             Assertions.assertEquals(messagesToSend.size(), received1.size(),
                     "Subscription 1 should receive all " + messagesToSend.size() + " messages. Got: " + received1.size());
             Assertions.assertEquals(messagesToSend.size(), received2.size(),
                     "Subscription 2 should receive all " + messagesToSend.size() + " messages. Got: " + received2.size());
 
             // Verify messages match for both subscriptions
+            System.out.println("[verify] Verifying sub1 messages...");
             verifyMessages(received1, messagesToSend, "Subscription 1");
+            System.out.println("[verify] sub1 messages OK");
+            System.out.println("[verify] Verifying sub2 messages...");
             verifyMessages(received2, messagesToSend, "Subscription 2");
+            System.out.println("[verify] sub2 messages OK");
 
             // Ack all messages from both subscriptions
+            System.out.println("[ack] Acking sub1 messages...");
             ackMessages(sub1, received1);
+            System.out.println("[ack] sub1 ack done");
+            System.out.println("[ack] Acking sub2 messages...");
             ackMessages(sub2, received2);
+            System.out.println("[ack] sub2 ack done");
         }
     }
 

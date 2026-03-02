@@ -156,7 +156,7 @@ public class GcpPubsubIT extends AbstractPubsubIT {
                 Batcher.Options testBatcherOptions = new Batcher.Options()
                         .setMaxHandlers(1)
                         .setMinBatchSize(1)
-                        .setMaxBatchSize(1000)
+                        .setMaxBatchSize(1)
                         .setMaxBatchByteSize(0);
 
                 GcpSubscription.Builder subscriptionBuilder = new GcpSubscription.Builder()

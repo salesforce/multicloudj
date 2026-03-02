@@ -41,14 +41,6 @@ public class AckMatcherRelaxingTransformer extends StubMappingTransformer {
                 .anyMatch(s -> s.contains("/subscriptions/") && !s.contains(":"));
         boolean isPutMethod = stub.getRequest().getMethod() == RequestMethod.PUT;
 
-        // During recording, if the Recorder detects repeated calls to the same endpoint,
-        // it will usually auto-add `scenarioName`, `requiredScenarioState`, and `newScenarioState` to those stubs.
-        // The call sequence and count during recording often differ from replay
-        // (due to batching, retries, and timing differences).
-        stub.setScenarioName(null);
-        stub.setRequiredScenarioState(null);
-        stub.setNewScenarioState(null);
-
         if (isAck || isMod) {
             List<ContentPattern<?>> bodyPatterns = stub.getRequest().getBodyPatterns();
             if (bodyPatterns != null) {
