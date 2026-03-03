@@ -1,0 +1,24 @@
+{
+  "id" : "32adbab9-537f-4a9d-932e-77042386428d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%5B%22s3%3AGetObject%22%2C%22s3%3APutObject%22%5D%2C%22Resource%22%3A%5B%22arn%3Aaws%3As3%3A%3A%3Amulticloudj-iam-it-test-bucket%2F*%22%5D%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<PutRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>5d2b3b54-1b48-4b8f-be3f-c888b7ff62bc</RequestId>\n  </ResponseMetadata>\n</PutRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "5d2b3b54-1b48-4b8f-be3f-c888b7ff62bc",
+      "Date" : "Thu, 26 Feb 2026 22:33:45 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "32adbab9-537f-4a9d-932e-77042386428d",
+  "persistent" : true,
+  "insertionIndex" : 20
+}

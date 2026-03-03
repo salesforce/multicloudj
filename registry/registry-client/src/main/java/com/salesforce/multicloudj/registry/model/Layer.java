@@ -1,13 +1,12 @@
 package com.salesforce.multicloudj.registry.model;
 
-import java.io.IOException;
 import java.io.InputStream;
 
 /** Interface for a single image layer; implementations are provided by the registry driver. */
 public interface Layer {
-    String getDigest() throws IOException;
+    String getDigest();
 
-    InputStream getUncompressed() throws IOException;
+    InputStream getUncompressed();
 
-    long getSize() throws IOException;
+    long getSize();
 }

@@ -1,16 +1,16 @@
 package com.salesforce.multicloudj.registry.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
 import com.salesforce.multicloudj.registry.model.Manifest;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on demand.
- * Digest is the config digest (OCI image ID).
+ * Digest is the manifest digest (used to pull the image by digest reference).
  */
 final class RemoteImage implements Image {
 
@@ -27,10 +27,10 @@ final class RemoteImage implements Image {
     }
 
     @Override
-    public List<Layer> getLayers() throws IOException {
+    public List<Layer> getLayers() {
         List<String> layerDigests = manifest.getLayerDigests();
         if (layerDigests == null) {
-            throw new IOException("Image manifest is missing layer digests");
+            throw new InvalidArgumentException("Image manifest is missing layer digests");
         }
         List<Layer> layers = new ArrayList<>();
         for (String layerDigest : layerDigests) {
@@ -40,16 +40,16 @@ final class RemoteImage implements Image {
     }
 
     @Override
-    public String getDigest() throws IOException {
-        String configDigest = manifest.getConfigDigest();
-        if (configDigest == null || configDigest.isEmpty()) {
-            throw new IOException("Image manifest is missing config digest");
+    public String getDigest() {
+        String manifestDigest = manifest.getDigest();
+        if (manifestDigest == null || manifestDigest.isEmpty()) {
+            throw new InvalidArgumentException("Image manifest is missing digest");
         }
-        return configDigest;
+        return manifestDigest;
     }
 
     @Override
-    public String getImageRef() throws IOException {
+    public String getImageRef() {
         return imageRef;
     }
 }

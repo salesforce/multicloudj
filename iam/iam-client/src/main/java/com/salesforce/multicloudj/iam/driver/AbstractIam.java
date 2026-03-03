@@ -4,8 +4,12 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
+import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
+import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
@@ -147,7 +151,27 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
         if (StringUtils.isBlank(tenantId)) {
             throw new InvalidArgumentException("tenantId is required");
         }
-        return doCreateIdentity(identityName, description, tenantId, region, trustConfig, options);
+        if (trustConfig == null) {
+            throw new InvalidArgumentException("trustConfig cannot be null");
+        }
+        if (options == null) {
+            throw new InvalidArgumentException("options cannot be null");
+        }
+        CreateIdentityRequest request = CreateIdentityRequest.builder()
+                .identityName(identityName)
+                .description(description)
+                .tenantId(tenantId)
+                .region(region)
+                .trustConfig(trustConfig)
+                .options(options)
+                .build();
+        if (request.getTrustConfig() == null) {
+            throw new InvalidArgumentException("trustConfig cannot be null");
+        }
+        if (request.getOptions() == null) {
+            throw new InvalidArgumentException("options cannot be null");
+        }
+        return doCreateIdentity(request);
     }
 
     /**
@@ -155,6 +179,15 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      */
     @Override
     public void attachInlinePolicy(AttachInlinePolicyRequest request) {
+        if (request == null) {
+            throw new InvalidArgumentException("request cannot be null");
+        }
+        if (StringUtils.isBlank(request.getIdentityName())) {
+            throw new InvalidArgumentException("identityName is required");
+        }
+        if (request.getPolicyDocument() == null) {
+            throw new InvalidArgumentException("policyDocument cannot be null");
+        }
         doAttachInlinePolicy(request);
     }
 
@@ -191,7 +224,16 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
         if (StringUtils.isBlank(policyName)) {
             throw new InvalidArgumentException("policyName is required");
         }
-        doRemovePolicy(identityName, policyName, tenantId, region);
+        if (StringUtils.isBlank(tenantId)) {
+            throw new InvalidArgumentException("tenantId is required");
+        }
+        RemovePolicyRequest request = RemovePolicyRequest.builder()
+                .identityName(identityName)
+                .policyName(policyName)
+                .tenantId(tenantId)
+                .region(region)
+                .build();
+        doRemovePolicy(request);
     }
 
     /**
@@ -202,7 +244,15 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
         if (StringUtils.isBlank(identityName)) {
             throw new InvalidArgumentException("identityName is required");
         }
-        doDeleteIdentity(identityName, tenantId, region);
+        if (StringUtils.isBlank(tenantId)) {
+            throw new InvalidArgumentException("tenantId is required");
+        }
+        DeleteIdentityRequest request = DeleteIdentityRequest.builder()
+                .identityName(identityName)
+                .tenantId(tenantId)
+                .region(region)
+                .build();
+        doDeleteIdentity(request);
     }
 
     /**
@@ -213,7 +263,15 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
         if (StringUtils.isBlank(identityName)) {
             throw new InvalidArgumentException("identityName is required");
         }
-        return doGetIdentity(identityName, tenantId, region);
+        if (StringUtils.isBlank(tenantId)) {
+            throw new InvalidArgumentException("tenantId is required");
+        }
+        GetIdentityRequest request = GetIdentityRequest.builder()
+                .identityName(identityName)
+                .tenantId(tenantId)
+                .region(region)
+                .build();
+        return doGetIdentity(request);
     }
 
     // Protected abstract methods to be implemented by provider-specific classes
@@ -222,17 +280,10 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * Creates a new identity (role/service account) in the cloud provider.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity to create
-     * @param description optional description for the identity (can be null)
-     * @param tenantId the tenant ID (AWS Account ID, GCP Project ID, or AliCloud Account ID)
-     * @param region the region for IAM operations
-     * @param trustConfig optional trust configuration
-     * @param options optional creation options
+     * @param request the request containing identity name, description, tenant ID, region, trust config, and options
      * @return the unique identifier of the created identity
      */
-    protected abstract String doCreateIdentity(String identityName, String description, String tenantId,
-                                              String region, Optional<TrustConfiguration> trustConfig,
-                                              Optional<CreateOptions> options);
+    protected abstract String doCreateIdentity(CreateIdentityRequest request);
 
     /**
      * Attaches an inline policy to an identity.
@@ -262,31 +313,24 @@ public abstract class AbstractIam implements Provider, Identity, AutoCloseable {
      * Removes an inline policy from an identity.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity
-     * @param policyName the name of the policy to remove
-     * @param tenantId the tenant ID
-     * @param region the region
+     * @param request the request containing identity name, policy name, tenant ID, and region
      */
-    protected abstract void doRemovePolicy(String identityName, String policyName, String tenantId, String region);
+    protected abstract void doRemovePolicy(RemovePolicyRequest request);
 
     /**
      * Deletes an identity from the cloud provider.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity to delete
-     * @param tenantId the tenant ID
-     * @param region the region
+     * @param request the request containing identity name, tenant ID, and region
      */
-    protected abstract void doDeleteIdentity(String identityName, String tenantId, String region);
+    protected abstract void doDeleteIdentity(DeleteIdentityRequest request);
 
     /**
      * Retrieves metadata about an identity.
      * Provider-specific implementations should override this method.
      *
-     * @param identityName the name of the identity
-     * @param tenantId the tenant ID
-     * @param region the region
+     * @param request the request containing identity name, tenant ID, and region
      * @return the unique identity identifier (ARN, email, or roleId)
      */
-    protected abstract String doGetIdentity(String identityName, String tenantId, String region);
+    protected abstract String doGetIdentity(GetIdentityRequest request);
 }

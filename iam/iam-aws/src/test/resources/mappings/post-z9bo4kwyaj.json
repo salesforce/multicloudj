@@ -1,0 +1,24 @@
+{
+  "id" : "388e77f3-213f-41f4-9ed4-775df98cab8d",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=ListRolePolicies&Version=2010-05-08&RoleName=testSa",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<ListRolePoliciesResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ListRolePoliciesResult>\n    <IsTruncated>false</IsTruncated>\n    <PolicyNames>\n      <member>InlinePolicy</member>\n      <member>TestPolicy</member>\n    </PolicyNames>\n  </ListRolePoliciesResult>\n  <ResponseMetadata>\n    <RequestId>5f794cfa-e956-45ff-b3ee-f7afab9fc536</RequestId>\n  </ResponseMetadata>\n</ListRolePoliciesResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "5f794cfa-e956-45ff-b3ee-f7afab9fc536",
+      "Date" : "Thu, 26 Feb 2026 22:33:47 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "388e77f3-213f-41f4-9ed4-775df98cab8d",
+  "persistent" : true,
+  "insertionIndex" : 19
+}

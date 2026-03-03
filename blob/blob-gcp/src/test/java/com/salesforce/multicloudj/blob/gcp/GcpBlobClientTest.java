@@ -12,6 +12,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -206,6 +207,26 @@ public class GcpBlobClientTest {
                 .withEndpoint(URI.create("https://custom-endpoint.googleapis.com"))
                 .withProxyEndpoint(URI.create("https://proxy.example.com:8080"))
                 .withRegion("us-central1");
+        GcpBlobClient client = builder.build();
+
+        // Verify the client was created successfully
+        assertNotNull(client);
+        assertEquals("gcp", client.getProviderId());
+    }
+
+    @Test
+    void testBuildStorageWithRetryConfig() {
+        // Build with retry configuration
+        RetryConfig retryConfig = RetryConfig.builder()
+                .mode(RetryConfig.Mode.EXPONENTIAL)
+                .maxAttempts(3)
+                .initialDelayMillis(100L)
+                .maxDelayMillis(1000L)
+                .multiplier(2.0)
+                .build();
+
+        GcpBlobClient.Builder builder = new GcpBlobClient.Builder();
+        builder.withRetryConfig(retryConfig);
         GcpBlobClient client = builder.build();
 
         // Verify the client was created successfully

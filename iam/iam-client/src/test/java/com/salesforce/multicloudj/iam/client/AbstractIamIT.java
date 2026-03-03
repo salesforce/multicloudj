@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -58,6 +59,14 @@ public abstract class AbstractIamIT {
          * Unused for AWS (identity is used); required for GCP (e.g. "roles/storage.objectViewer").
          */
         String getTestRoleName();
+
+        /**
+         * Resource ARN for the test inline policy statement (e.g. S3 bucket ARN for AWS).
+         * Return null or blank if the provider does not require a resource in the statement.
+         */
+        default String getTestPolicyResource() {
+            return null;
+        }
     }
 
 	protected abstract Harness createHarness();
@@ -110,6 +119,9 @@ public abstract class AbstractIamIT {
 	public void testAttachInlinePolicy() {
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
+		if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
+			statementBuilder.resource(harness.getTestPolicyResource());
+		}
 		for (String action : harness.getTestPolicyActions()) {
 			statementBuilder.action(action);
 		}
@@ -133,6 +145,9 @@ public abstract class AbstractIamIT {
 	public void testGetInlinePolicyDetails() {
         Statement.StatementBuilder statementBuilder = Statement.builder()
                 .effect(harness.getTestPolicyEffect());
+        if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
+            statementBuilder.resource(harness.getTestPolicyResource());
+        }
         for (String action : harness.getTestPolicyActions()) {
             statementBuilder.action(action);
         }
@@ -167,6 +182,9 @@ public abstract class AbstractIamIT {
 	public void testGetAttachedPolicies() {
         Statement.StatementBuilder statementBuilder = Statement.builder()
 				.effect(harness.getTestPolicyEffect());
+		if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
+			statementBuilder.resource(harness.getTestPolicyResource());
+		}
 		for (String action : harness.getTestPolicyActions()) {
 			statementBuilder.action(action);
 		}
@@ -201,6 +219,9 @@ public abstract class AbstractIamIT {
 	public void testRemovePolicy() {
         Statement.StatementBuilder statementBuilder = Statement.builder()
                 .effect(harness.getTestPolicyEffect());
+        if (StringUtils.isNotBlank(harness.getTestPolicyResource())) {
+            statementBuilder.resource(harness.getTestPolicyResource());
+        }
         for (String action : harness.getTestPolicyActions()) {
             statementBuilder.action(action);
         }

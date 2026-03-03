@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -25,16 +26,17 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -437,6 +439,73 @@ public class GcpTransformer {
             partitionedList.add(new ArrayList<>(blobInfos.subList(i, endIndex)));
         }
         return partitionedList;
+    }
+
+    /**
+     * Converts MultiCloudJ RetryConfig to GCP RetrySettings
+     *
+     * @param retryConfig The retry configuration to convert
+     * @return GCP RetrySettings
+     * @throws InvalidArgumentException if retryConfig is null or has invalid values
+     */
+    public RetrySettings toGcpRetrySettings(RetryConfig retryConfig) {
+        if (retryConfig == null) {
+            throw new InvalidArgumentException("RetryConfig cannot be null");
+        }
+        if (retryConfig.getMaxAttempts() != null && retryConfig.getMaxAttempts() <= 0) {
+            throw new InvalidArgumentException("RetryConfig.maxAttempts must be greater than 0, got: " + retryConfig.getMaxAttempts());
+        }
+
+        RetrySettings.Builder settingsBuilder = RetrySettings.newBuilder();
+
+        // Only set maxAttempts if provided, otherwise use GCP SDK default
+        if (retryConfig.getMaxAttempts() != null) {
+            settingsBuilder.setMaxAttempts(retryConfig.getMaxAttempts());
+        }
+
+        // If mode is not set, use GCP SDK's default backoff strategy
+
+        // Configure backoff strategy based on mode
+        if (retryConfig.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+            if (retryConfig.getInitialDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getInitialDelayMillis());
+            }
+            if (retryConfig.getMaxDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: " + retryConfig.getMaxDelayMillis());
+            }
+            settingsBuilder.setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getInitialDelayMillis()))
+                    .setRetryDelayMultiplier(retryConfig.getMultiplier())
+                    .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getMaxDelayMillis()));
+        } else if (retryConfig.getMode() == RetryConfig.Mode.FIXED) {
+            if (retryConfig.getFixedDelayMillis() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: " + retryConfig.getFixedDelayMillis());
+            }
+            // FIXED mode is simulated by setting multiplier to 1.0 and both delays to the same value
+            settingsBuilder.setInitialRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()))
+                    .setRetryDelayMultiplier(1.0)
+                    .setMaxRetryDelayDuration(Duration.ofMillis(retryConfig.getFixedDelayMillis()));
+        }
+
+        // Set total timeout if provided
+        if (retryConfig.getTotalTimeout() != null) {
+            if (retryConfig.getTotalTimeout() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.totalTimeout must be greater than 0, got: " + retryConfig.getTotalTimeout());
+            }
+            settingsBuilder.setTotalTimeoutDuration(Duration.ofMillis(retryConfig.getTotalTimeout()));
+        }
+
+        // Set attempt timeout if provided
+        if (retryConfig.getAttemptTimeout() != null) {
+            if (retryConfig.getAttemptTimeout() <= 0) {
+                throw new InvalidArgumentException("RetryConfig.attemptTimeout must be greater than 0, got: " + retryConfig.getAttemptTimeout());
+            }
+            Duration attemptTimeout = Duration.ofMillis(retryConfig.getAttemptTimeout());
+            settingsBuilder.setInitialRpcTimeoutDuration(attemptTimeout)
+                    .setRpcTimeoutMultiplier(1.0)
+                    .setMaxRpcTimeoutDuration(attemptTimeout);
+        }
+
+        return settingsBuilder.build();
     }
 
     /**

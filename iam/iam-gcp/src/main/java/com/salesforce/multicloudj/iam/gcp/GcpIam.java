@@ -20,10 +20,14 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
+import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.RemovePolicyRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
@@ -76,26 +80,25 @@ public class GcpIam extends AbstractIam {
      *                    - Formatted member: "serviceAccount:sa@project.iam.gserviceaccount.com"
      *                    - User: "user:user@example.com"
      *                    - Group: "group:group@example.com"
-     * @param options optional creation options (currently unused for GCP)
+     * @param request the request containing identity name, description, tenant ID, region, trust config, and options
      * @return the service account email address (unique identifier) in the format:
      *         {identityName}@{project-id}.iam.gserviceaccount.com
      */
     @Override
-    protected String doCreateIdentity(String identityName, String description, String tenantId,
-                                      String region, Optional<TrustConfiguration> trustConfig,
-                                      Optional<CreateOptions> options) {
+    protected String doCreateIdentity(CreateIdentityRequest request) {
+        String tenantId = request.getTenantId();
         // Build the project resource name in the format "projects/{project-id}"
         String projectName = tenantId.startsWith("projects/") ? tenantId : "projects/" + tenantId;
 
         // Create the service account
         ServiceAccount serviceAccount = ServiceAccount.newBuilder()
-                .setDisplayName(identityName)
-                .setDescription(StringUtils.defaultString(description))
+                .setDisplayName(request.getIdentityName())
+                .setDescription(StringUtils.defaultString(request.getDescription()))
                 .build();
 
         CreateServiceAccountRequest createRequest = CreateServiceAccountRequest.newBuilder()
                 .setName(projectName)
-                .setAccountId(identityName)
+                .setAccountId(request.getIdentityName())
                 .setServiceAccount(serviceAccount)
                 .build();
 
@@ -105,13 +108,15 @@ public class GcpIam extends AbstractIam {
             createdServiceAccount = iamClient.createServiceAccount(createRequest);
         } catch (AlreadyExistsException e) {
             // do not fail if service account already exists
-            createdServiceAccount = this.getServiceAccount(identityName, tenantId);
+            createdServiceAccount = this.getServiceAccount(request.getIdentityName(), tenantId);
         }
 
         String serviceAccountEmail = createdServiceAccount.getEmail();
 
         // If trust configuration is provided, add IAM bindings for roles/iam.serviceAccountTokenCreator
-        if (trustConfig.isPresent() && !trustConfig.get().getTrustedPrincipals().isEmpty()) {
+        if (request.getTrustConfig().isPresent()
+                && request.getTrustConfig().get().getTrustedPrincipals() != null
+                && !request.getTrustConfig().get().getTrustedPrincipals().isEmpty()) {
             String serviceAccountResourceName = createdServiceAccount.getName();
 
             // Get current IAM policy for the service account
@@ -125,7 +130,7 @@ public class GcpIam extends AbstractIam {
             }
 
             // Add binding for each trusted principal
-            for (String principal : trustConfig.get().getTrustedPrincipals()) {
+            for (String principal : request.getTrustConfig().get().getTrustedPrincipals()) {
                 // Format principal as a GCP member (e.g., "serviceAccount:email@project.iam.gserviceaccount.com")
                 String member = formatPrincipalAsMember(principal);
                 policy = addBinding(policy, "roles/iam.serviceAccountTokenCreator", member);
@@ -179,13 +184,10 @@ public class GcpIam extends AbstractIam {
 	@Override
 	protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
 		String member = request.getIdentityName();
-		if (StringUtils.isBlank(member)) {
-			throw new InvalidArgumentException("identityName (member) is required for GCP IAM");
-		}
-		String resource = request.getTenantId();
-		if (StringUtils.isBlank(resource)) {
+		if (StringUtils.isBlank(request.getTenantId())) {
 			throw new InvalidArgumentException("tenantId is required for GCP IAM");
 		}
+		String resource = request.getTenantId();
 		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(resource)
@@ -307,6 +309,9 @@ public class GcpIam extends AbstractIam {
 		if (StringUtils.isBlank(request.getRoleName())) {
 			throw new InvalidArgumentException("roleName is required for GCP IAM");
 		}
+		if (StringUtils.isBlank(request.getTenantId())) {
+			throw new InvalidArgumentException("tenantId is required for GCP IAM");
+		}
 
 		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
@@ -379,6 +384,12 @@ public class GcpIam extends AbstractIam {
 	 */
 	@Override
 	protected List<String> doGetAttachedPolicies(GetAttachedPoliciesRequest request) {
+		if (StringUtils.isBlank(request.getTenantId())) {
+			throw new InvalidArgumentException("tenantId is required for GCP IAM");
+		}
+		if (StringUtils.isBlank(request.getIdentityName())) {
+			throw new InvalidArgumentException("identityName is required for GCP IAM");
+		}
 		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
 			.setResource(request.getTenantId())
@@ -406,13 +417,13 @@ public class GcpIam extends AbstractIam {
 	 *		 "projects/my-project",
 	 *		 "projects/my-project/topics/my-topic",,
 	 *		 Can be any GCP resource that supports IAM policies.
-	 * @param region the region (optional for GCP)
+	 * @param request the request containing identity name, policy name, tenant ID, and region
 	 */
 	@Override
-	protected void doRemovePolicy(String identityName, String policyName, String tenantId, String region) {
+	protected void doRemovePolicy(RemovePolicyRequest request) {
 		// Get the current IAM policy for the resource
 		GetIamPolicyRequest getRequest = GetIamPolicyRequest.newBuilder()
-			.setResource(tenantId)
+			.setResource(request.getTenantId())
 			.build();
 		Policy policy = projectsClient.getIamPolicy(getRequest);
 
@@ -423,16 +434,16 @@ public class GcpIam extends AbstractIam {
 
 		// Check if the member is actually in the binding before attempting removal
 		Optional<Binding> existingBinding = policy.getBindingsList().stream()
-			.filter(binding -> binding.getRole().equals(policyName))
+			.filter(binding -> binding.getRole().equals(request.getPolicyName()))
 			.findFirst();
 
-		if (!existingBinding.isPresent() || !existingBinding.get().getMembersList().contains(identityName)) {
+		if (!existingBinding.isPresent() || !existingBinding.get().getMembersList().contains(request.getIdentityName())) {
 			// Binding doesn't exist or member is not in the binding, nothing to remove
 			return;
 		}
 
 		// Remove the binding
-		Policy updatedPolicy = removeBinding(policy, policyName, identityName);
+		Policy updatedPolicy = removeBinding(policy, request.getPolicyName(), request.getIdentityName());
 
 		// Only make the remote call if the policy actually changed
 		if (policy.getBindingsCount() == updatedPolicy.getBindingsCount() 
@@ -443,7 +454,7 @@ public class GcpIam extends AbstractIam {
 
 		// Set the updated policy back to the resource
 		SetIamPolicyRequest setRequest = SetIamPolicyRequest.newBuilder()
-			.setResource(tenantId)
+			.setResource(request.getTenantId())
 			.setPolicy(updatedPolicy)
 			.build();
 		projectsClient.setIamPolicy(setRequest);
@@ -525,9 +536,9 @@ public class GcpIam extends AbstractIam {
      *                      (propagates to IamClient)
      */
     @Override
-    protected void doDeleteIdentity(String identityName, String tenantId, String region) {
+    protected void doDeleteIdentity(DeleteIdentityRequest request) {
         // Build the project resource name in the format "projects/{project-id}"
-        String serviceAccountResourceName = getServiceAccountResourceName(identityName, tenantId);
+        String serviceAccountResourceName = getServiceAccountResourceName(request.getIdentityName(), request.getTenantId());
 
         // Delete the service account
         DeleteServiceAccountRequest deleteRequest = DeleteServiceAccountRequest.newBuilder()
@@ -550,14 +561,14 @@ public class GcpIam extends AbstractIam {
      *                     Both formats are accepted and will be normalized to the full resource name.
      * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
      *                 (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
-     * @param region the region (not used in GCP IAM as service accounts are global resources)
+     * @param request the request containing identity name, tenant ID, and region
      * @return the service account email address (unique identifier) in the format:
      *         {account-id}@{project-id}.iam.gserviceaccount.com
      * @throws ApiException if the service account is not found or access is denied (propagates to IamClient)
      */
     @Override
-    protected String doGetIdentity(String identityName, String tenantId, String region) {
-        ServiceAccount serviceAccount = this.getServiceAccount(identityName, tenantId);
+    protected String doGetIdentity(GetIdentityRequest request) {
+        ServiceAccount serviceAccount = this.getServiceAccount(request.getIdentityName(), request.getTenantId());
         // Return the service account email as the unique identifier
         return serviceAccount.getEmail();
     }

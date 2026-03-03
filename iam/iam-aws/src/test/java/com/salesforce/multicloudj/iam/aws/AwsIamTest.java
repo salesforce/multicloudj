@@ -138,7 +138,7 @@ public class AwsIamTest {
 
         JsonNode service = doc.at("/Statement/0/Principal/Service");
         assertFalse(service.isMissingNode(), "Service principal should not be missing");
-        assertEquals("ec2.amazonaws.com", service.asText());
+        assertEquals("ec2.amazonaws.com", service.isArray() ? service.get(0).asText() : service.asText());
     }
 
     @Test
@@ -173,8 +173,9 @@ public class AwsIamTest {
         assertFalse(stmt.isMissingNode(), "Statement should not be missing");
         assertEquals("Allow", stmt.at("/Effect").asText());
         assertEquals("sts:AssumeRole", stmt.at("/Action").asText());
+        JsonNode awsPrincipal = stmt.at("/Principal/AWS");
         assertEquals("arn:aws:iam::" + TEST_TENANT_ID + ":root",
-                stmt.at("/Principal/AWS").asText());
+                awsPrincipal.isArray() ? awsPrincipal.get(0).asText() : awsPrincipal.asText());
     }
 
     @Test
@@ -457,7 +458,7 @@ public class AwsIamTest {
 
         JsonNode updatedPolicy = OBJECT_MAPPER.readTree(updatePolicyCaptor.getValue().policyDocument());
         JsonNode principal = updatedPolicy.at("/Statement/0/Principal/AWS");
-        assertEquals("arn:aws:iam::999999999999:root", principal.asText());
+        assertEquals("arn:aws:iam::999999999999:root", principal.isArray() ? principal.get(0).asText() : principal.asText());
     }
 
     @Test
@@ -549,8 +550,8 @@ public class AwsIamTest {
 
     private String buildDefaultAssumeRolePolicy() {
         return "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\"," +
-                "\"Action\":\"sts:AssumeRole\",\"Principal\":{\"AWS\":\"arn:aws:iam::" +
-                TEST_TENANT_ID + ":root\"}}]}";
+                "\"Action\":\"sts:AssumeRole\",\"Principal\":{\"AWS\":[\"arn:aws:iam::" +
+                TEST_TENANT_ID + ":root\"]}}]}";
     }
 
     @Test
