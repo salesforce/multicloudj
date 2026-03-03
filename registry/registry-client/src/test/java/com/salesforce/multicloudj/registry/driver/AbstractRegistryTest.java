@@ -330,6 +330,9 @@ class AbstractRegistryTest {
 
             @Override
             public TestRegistry build() {
+                if (registryEndpoint == null || registryEndpoint.isBlank()) {
+                    throw new InvalidArgumentException("Registry endpoint is required");
+                }
                 return new TestRegistry(this);
             }
         }
