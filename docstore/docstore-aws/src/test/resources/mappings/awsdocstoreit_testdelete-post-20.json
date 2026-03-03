@@ -1,0 +1,32 @@
+{
+  "id" : "e6a84377-cbe9-4a57-9e41-8e4bb6865788",
+  "name" : "AwsDocstoreIT_testDelete-POST-20",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":3,\"Items\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"DocstoreRevision\":{\"S\":\"9b8aa92d-b861-91bb-05c5-74c7e9ae6210\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}},{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnMap\"}}],\"ScannedCount\":3}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "356C7236EBTL1JGQJFM8124PMVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2884378359",
+      "Date" : "Tue, 03 Mar 2026 06:59:47 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "e6a84377-cbe9-4a57-9e41-8e4bb6865788",
+  "persistent" : true,
+  "insertionIndex" : 332
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "4304b9d8-a804-4b2d-8be3-b7e4b8a86ae5",
+  "name" : "AwsDocstoreIT_testGet-POST-13",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"PrincePlayer\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2\",\"ExpressionAttributeNames\":{\"#attr2\":\"pName\",\"#attr1\":\"f\",\"#attr0\":\"i\"}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"},\"pName\":{\"S\":\"PrincePlayer\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "BF4S3TA0803V1Q5U4LNLE02UF3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1137648159",
+      "Date" : "Tue, 03 Mar 2026 06:59:26 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4304b9d8-a804-4b2d-8be3-b7e4b8a86ae5",
+  "persistent" : true,
+  "insertionIndex" : 240
+}

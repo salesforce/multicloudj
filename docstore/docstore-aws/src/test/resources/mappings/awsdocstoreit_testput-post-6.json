@@ -1,0 +1,32 @@
+{
+  "id" : "9fc60c3e-4183-44a0-ac6b-01f4975f30e0",
+  "name" : "AwsDocstoreIT_testPut-POST-6",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"TaylorPut\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"ce07a24b-e938-5968-7bba-a47ed029bf4f\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "U4TRB9NLFFA0M0VB3DUPG7TH83VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Tue, 03 Mar 2026 06:59:33 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "9fc60c3e-4183-44a0-ac6b-01f4975f30e0",
+  "persistent" : true,
+  "insertionIndex" : 255
+}

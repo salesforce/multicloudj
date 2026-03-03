@@ -1,0 +1,32 @@
+{
+  "id" : "9cb49b8e-3b17-4131-83cd-f1b7a73cfd07",
+  "name" : "AwsDocstoreIT_testReplace-POST-14",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"pName\":{\"S\":\"JohnReplace\"},\"f\":{\"N\":\"34.560001373291016\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "0FFG4KL0N6GUL1R92G3OHTIO5JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Tue, 03 Mar 2026 06:59:37 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "9cb49b8e-3b17-4131-83cd-f1b7a73cfd07",
+  "persistent" : true,
+  "insertionIndex" : 287
+}

@@ -39,9 +39,9 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
         @Override
         public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket){
 
-            String accessKeyId = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
-            String secretAccessKey = System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-            String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+            String accessKeyId = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+            String secretAccessKey = System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+            String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
 
             if(!useValidCredentials) {
                 accessKeyId = "invalidAccessKey";

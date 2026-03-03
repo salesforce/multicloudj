@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 
@@ -83,8 +84,10 @@ public abstract class AbstractPubsubIT {
      * Initialize the harness and start recording
      */
     @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getPubsubEndpoint());
+    public void setupTestEnvironment(TestInfo testInfo) {
+        String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+        String testMethodName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+        TestsUtil.startWireMockRecording(harness.getPubsubEndpoint(), testClassName, testMethodName);
     }
 
     /**

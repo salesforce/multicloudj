@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
@@ -97,8 +98,10 @@ public abstract class AbstractDocstoreIT {
      * Initialize the harness and
      */
     @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getDocstoreEndpoint());
+    public void setupTestEnvironment(TestInfo testInfo) {
+        String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+        String testMethodName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+        TestsUtil.startWireMockRecording(harness.getDocstoreEndpoint(), testClassName, testMethodName);
         clearCollection(CollectionKind.SINGLE_KEY);
         //clearCollection(CollectionKind.TWO_KEYS);
     }

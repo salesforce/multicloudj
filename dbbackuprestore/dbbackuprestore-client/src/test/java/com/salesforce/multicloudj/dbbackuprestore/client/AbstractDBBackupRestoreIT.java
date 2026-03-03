@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
@@ -109,8 +110,10 @@ public abstract class AbstractDBBackupRestoreIT {
      * Starts WireMock recording before each test.
      */
     @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getBackupEndpoint());
+    public void setupTestEnvironment(TestInfo testInfo) {
+        String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+        String testMethodName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+        TestsUtil.startWireMockRecording(harness.getBackupEndpoint(), testClassName, testMethodName);
     }
 
     /**

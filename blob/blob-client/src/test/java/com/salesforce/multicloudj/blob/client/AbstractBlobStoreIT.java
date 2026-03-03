@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +145,10 @@ public abstract class AbstractBlobStoreIT {
      * Initialize the harness and
      */
     @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getEndpoint());
+    public void setupTestEnvironment(TestInfo testInfo) {
+        String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+        String testMethodName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+        TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
     }
 
     /**

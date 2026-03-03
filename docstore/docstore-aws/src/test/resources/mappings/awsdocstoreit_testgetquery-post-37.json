@@ -1,0 +1,32 @@
+{
+  "id" : "2aa7e31f-781b-4f56-9dfd-7d85c0eb1b28",
+  "name" : "AwsDocstoreIT_testGetQuery-POST-37",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":5,\"Items\":[{\"i\":{\"N\":\"7\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"7\"},\"DocstoreRevision\":{\"S\":\"abdd69af-3af0-9698-5dd6-4f91e7d2b77b\"},\"f\":{\"N\":\"7.699999809265137\"},\"pName\":{\"S\":\"testAtomicWritesFail7\"}},{\"i\":{\"N\":\"4\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"4\"},\"DocstoreRevision\":{\"S\":\"b32f3639-22ed-a89c-95e9-ad10f7c25a1e\"},\"f\":{\"N\":\"4.400000095367432\"},\"pName\":{\"S\":\"testAtomicWritesFail4\"}},{\"i\":{\"N\":\"5\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"5\"},\"DocstoreRevision\":{\"S\":\"8202acf1-c138-0366-58e8-092c7069bba7\"},\"f\":{\"N\":\"5.5\"},\"pName\":{\"S\":\"testAtomicWritesFail5\"}},{\"i\":{\"N\":\"3\"},\"b\":{\"BOOL\":false},\"s\":{\"S\":\"3\"},\"DocstoreRevision\":{\"S\":\"67289883-b6e8-85d3-48cd-5b7a7408581b\"},\"f\":{\"N\":\"3.299999952316284\"},\"pName\":{\"S\":\"testAtomicWritesFail3\"}},{\"i\":{\"N\":\"6\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"6\"},\"DocstoreRevision\":{\"S\":\"67be2852-6b38-c62f-161d-afbf27171931\"},\"f\":{\"N\":\"6.599999904632568\"},\"pName\":{\"S\":\"testAtomicWritesFail6\"}}],\"ScannedCount\":5}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "RIVKGSCIJ9U7LJ1EEP4BGD65N3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1097215130",
+      "Date" : "Tue, 03 Mar 2026 06:59:11 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "2aa7e31f-781b-4f56-9dfd-7d85c0eb1b28",
+  "persistent" : true,
+  "insertionIndex" : 224
+}

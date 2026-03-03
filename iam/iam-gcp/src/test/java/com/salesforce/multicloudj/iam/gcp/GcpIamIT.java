@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.salesforce.multicloudj.common.util.common.TestsUtil.getCurrentTestPrefix;
 import static com.salesforce.multicloudj.common.util.common.WiremockGrpcUtil.getGrpcTransportChannelWithRecordingInterceptor;
 import static com.salesforce.multicloudj.common.util.common.WiremockGrpcUtil.initializeWireMockGrpcService;
 import static com.salesforce.multicloudj.common.util.common.WiremockGrpcUtil.saveProtoDescriptor;
@@ -105,7 +106,7 @@ public class GcpIamIT extends AbstractIamIT {
                     
                     IAMStubSettings.Builder stubSettingsBuilder = IAMStubSettings.newBuilder();
                     stubSettingsBuilder.setTransportChannelProvider(
-                        getGrpcTransportChannelWithRecordingInterceptor(RECORDINGS_DIR)
+                        getGrpcTransportChannelWithRecordingInterceptor(RECORDINGS_DIR, getCurrentTestPrefix())
                     );
                     
                     iamClient = IAMClient.create(IAMSettings.create(stubSettingsBuilder.build()));

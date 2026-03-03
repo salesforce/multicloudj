@@ -1,0 +1,29 @@
+{
+  "id" : "c0be9038-cc0e-4a5e-8545-bb3ddccfbd53",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withKms-GET-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withKms",
+    "method" : "GET",
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "Um_T_eMoknMifa1SyFavuYajXCy6mPFqTh7YboBHHJGIRIHR35nz4gIx1G_djG.qaxTx30dLsBkjM8AgmyVnnZiZhJSVADI71kYlzi7asCt0ksETDicHo0Fd3M3kNcWgggV_98EdOtyChks8StAz31L2UoWWTh8awz_rqPWkH3_Db39Y92iZeEISON95ZKeDwA0L55cl_uAapWazHe1MnA--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withKms</Key><UploadId>Um_T_eMoknMifa1SyFavuYajXCy6mPFqTh7YboBHHJGIRIHR35nz4gIx1G_djG.qaxTx30dLsBkjM8AgmyVnnZiZhJSVADI71kYlzi7asCt0ksETDicHo0Fd3M3kNcWgggV_98EdOtyChks8StAz31L2UoWWTh8awz_rqPWkH3_Db39Y92iZeEISON95ZKeDwA0L55cl_uAapWazHe1MnA--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>2</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-03-03T18:50:03.000Z</LastModified><ETag>&quot;533b07d7872f873754f644e156da3a1a&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-03-03T18:50:05.000Z</LastModified><ETag>&quot;ab4449f6f633bfd5cc0a995e2bdb5517&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "D5WPVD1RAS3F02P9",
+      "x-amz-id-2" : "1YvmEFhu3zPI1PKlrQInOPA78mlRPfnuAQ2zom2oMt37zrbcZH9T3wqD2yaMuZoUEnnzXB4utyY=",
+      "Date" : "Tue, 03 Mar 2026 18:50:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c0be9038-cc0e-4a5e-8545-bb3ddccfbd53",
+  "persistent" : true,
+  "insertionIndex" : 5
+}
