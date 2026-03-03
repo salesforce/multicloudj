@@ -64,6 +64,13 @@ class GcpRegistryTest {
     }
 
     @Test
+    void testNoArgConstructor_ForServiceLoaderDiscovery() {
+        GcpRegistry registry = new GcpRegistry();
+        assertEquals("gcp", registry.getProviderId());
+        assertNotNull(registry.builder());
+    }
+
+    @Test
     void testGetAuthToken_Success() throws Exception {
         try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
             GoogleCredentials mockCredentials = mock(GoogleCredentials.class);

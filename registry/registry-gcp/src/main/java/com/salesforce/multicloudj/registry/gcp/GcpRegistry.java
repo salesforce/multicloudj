@@ -9,6 +9,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
+import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
@@ -29,7 +30,6 @@ import java.util.Collections;
 @AutoService(AbstractRegistry.class)
 public class GcpRegistry extends AbstractRegistry {
 
-    public static final String PROVIDER_ID = "gcp";
     private static final String GCP_AUTH_USERNAME = "oauth2accesstoken";
     private static final String CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
@@ -41,9 +41,13 @@ public class GcpRegistry extends AbstractRegistry {
     /** Lazily initialized credentials with double-checked locking. */
     private volatile GoogleCredentials credentials;
 
+    public GcpRegistry() {
+        this(new Builder());
+    }
+
     public GcpRegistry(Builder builder) {
         super(builder);
-        this.ociClient = new OciRegistryClient(registryEndpoint, this);
+        this.ociClient = registryEndpoint != null ? new OciRegistryClient(registryEndpoint, this) : null;
     }
 
     @Override
@@ -140,7 +144,11 @@ public class GcpRegistry extends AbstractRegistry {
         }
     }
 
-    public static final class Builder extends AbstractRegistry.Builder<GcpRegistry, Builder> {
+    public static class Builder extends AbstractRegistry.Builder<GcpRegistry, Builder> {
+
+        public Builder() {
+            providerId(GcpConstants.PROVIDER_ID);
+        }
 
         @Override
         public Builder self() {
@@ -149,8 +157,6 @@ public class GcpRegistry extends AbstractRegistry {
 
         @Override
         public GcpRegistry build() {
-            providerId(PROVIDER_ID);
-            
             if (StringUtils.isBlank(registryEndpoint)) {
                 throw new InvalidArgumentException("Registry endpoint is required for GCP Artifact Registry");
             }
