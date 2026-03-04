@@ -1,0 +1,31 @@
+{
+  "id" : "2b9ca96d-29e1-4c44-810a-53ec4c152ed3",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/upload-happy-path&uploadType=resumable",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/kms/upload-happy-path\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWxqgF_Pdmm4Jm0ZE-SEVaC_JJdb8w2rzJmSi_Mav-BUmnaZMtQs0tZnHAYVir76qGoyUmJEDpK2VmvUhlRcKlYaRRAL6-KD4naXF4EJ2g",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:40:41 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?kmsKeyName=projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test&name=conformance-tests/kms/upload-happy-path&uploadType=resumable&upload_id=AGQBYWxqgF_Pdmm4Jm0ZE-SEVaC_JJdb8w2rzJmSi_Mav-BUmnaZMtQs0tZnHAYVir76qGoyUmJEDpK2VmvUhlRcKlYaRRAL6-KD4naXF4EJ2g",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "2b9ca96d-29e1-4c44-810a-53ec4c152ed3",
+  "persistent" : true,
+  "insertionIndex" : 362
+}

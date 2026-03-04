@@ -1,0 +1,25 @@
+{
+  "id" : "454014ed-39e5-4e39-88a5-dc17de8f5235",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-singlepart",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-singlePart?uploadId=ABPnzm7ltePdc_GtNxIvBDOVvP1NsLqvXxnc3VY1ph2i5YzoM8xoFN2x5GbMFFGQ_phtckM",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-singlePart</Key><UploadId>ABPnzm7ltePdc_GtNxIvBDOVvP1NsLqvXxnc3VY1ph2i5YzoM8xoFN2x5GbMFFGQ_phtckM</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-03-04T20:41:08.753935Z</LastModified><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzBMqsbbUl3gV6JdBit0SGeudrqCtR5J_RnYlY88XAe1rUz5idwmZHTub89B-9fStFecOByl30",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 20:41:09 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "454014ed-39e5-4e39-88a5-dc17de8f5235",
+  "persistent" : true,
+  "insertionIndex" : 436
+}

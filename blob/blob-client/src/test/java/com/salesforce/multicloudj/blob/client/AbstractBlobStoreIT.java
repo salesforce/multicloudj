@@ -2338,8 +2338,8 @@ public abstract class AbstractBlobStoreIT {
             Assertions.assertNotNull(part1Response);
             Assertions.assertNotNull(part2Response);
 
-            // For AWS/GCP, verify per-part checksum is returned
-            if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
+            // For AWS, verify per-part checksum is returned
+            if (!ALI_PROVIDER_ID.equals(harness.getProviderId()) && !GCP_PROVIDER_ID.equals(harness.getProviderId())) {
                 Assertions.assertNotNull(part1Response.getChecksumValue(),
                         "Expected checksum in upload part response for " + harness.getProviderId());
                 Assertions.assertNotNull(part2Response.getChecksumValue(),

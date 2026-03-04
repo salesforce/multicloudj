@@ -1,0 +1,25 @@
+{
+  "id" : "99c921fa-ccd3-4c67-8eb4-d863bbc7d220",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o_conformance-tests_checksum_upload-file-checksum",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fchecksum%2Fupload-file-checksum",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWwBGwwFEk7zZ246cfeRCrT7z_5yEcnWe1VYfS995laZBhRK-sxLexRlU-T6uXlFVUoDGMoAv6Q",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:40:51 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "99c921fa-ccd3-4c67-8eb4-d863bbc7d220",
+  "persistent" : true,
+  "insertionIndex" : 378
+}

@@ -1,0 +1,26 @@
+{
+  "id" : "094e97bd-a535-45c7-9989-f20755a43ca4",
+  "name" : "substrate-sdk-gcp-poc1-test-bucket_conformance-tests_multipart-nonexistentparts",
+  "request" : {
+    "url" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-nonExistentParts?uploadId=ABPnzm4quoUFCOShJbQ2hXxkDM8M9H5YKMHP2Ho-CryIw3AfymwGX9Id2XbU-HHYrnJSr9Y",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>fakeEtag</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchPart</Code><Message>The requested upload part was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWyDuUUBnx2VRyPYdWbSQPmnexi5POelJ7IH5UN_95AHK34ylG-Nlac9WiWqP0KzsX0ktW1BW1g",
+      "Vary" : "Origin",
+      "Date" : "Wed, 04 Mar 2026 20:41:49 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "094e97bd-a535-45c7-9989-f20755a43ca4",
+  "persistent" : true,
+  "insertionIndex" : 565
+}

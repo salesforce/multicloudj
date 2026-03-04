@@ -1,0 +1,26 @@
+{
+  "id" : "e9c386b9-e4a8-4076-94e0-057f510dc754",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_download_happy_versioned",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdownload_happy_versioned?generation=1772656887648841&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/download_happy_versioned/1772656887648841\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdownload_happy_versioned\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdownload_happy_versioned?generation=1772656887648841&alt=media\",\n  \"name\": \"conformance-tests/download_happy_versioned\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1772656887648841\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CMmk48CNh5MDEAE=\",\n  \"timeCreated\": \"2026-03-04T20:41:27.694Z\",\n  \"updated\": \"2026-03-04T20:41:27.694Z\",\n  \"timeStorageClassUpdated\": \"2026-03-04T20:41:27.694Z\",\n  \"timeFinalized\": \"2026-03-04T20:41:27.694Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CMmk48CNh5MDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWy0kHUD03m-12W8LgwmczHAe9KAhlyZigAQ8cak_3TQilL-VyRcgjHTOHO3eE2xd6r9xnoeQ6I",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Mar 2026 20:41:28 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:41:28 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e9c386b9-e4a8-4076-94e0-057f510dc754",
+  "persistent" : true,
+  "insertionIndex" : 444
+}

@@ -1,0 +1,31 @@
+{
+  "id" : "347c4f45-69c8-42c9-b70c-7813f4bf47c3",
+  "name" : "upload_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/blob-for-bulk-delete_happy7&uploadType=resumable",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/blob-for-bulk-delete_happy7\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWy-bCwOStakANzrV2IIrCK1W8iv3tp6liErgNYs-9sO09KYPS_HgIHLYRvZa9-HVUJNwgKDYaYcB2wu7zuzNkCuUBLCn35GX7Mlylxe4Hg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:39:06 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/blob-for-bulk-delete_happy7&uploadType=resumable&upload_id=AGQBYWy-bCwOStakANzrV2IIrCK1W8iv3tp6liErgNYs-9sO09KYPS_HgIHLYRvZa9-HVUJNwgKDYaYcB2wu7zuzNkCuUBLCn35GX7Mlylxe4Hg",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "347c4f45-69c8-42c9-b70c-7813f4bf47c3",
+  "persistent" : true,
+  "insertionIndex" : 55
+}

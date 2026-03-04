@@ -1,0 +1,25 @@
+{
+  "id" : "7c4da5e2-194f-4f37-827c-4ccf8dcf223c",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket_o",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?maxResults=1&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"CiNjb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1tZXRhZGF0YQ==\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-metadata/1772656944227597\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-metadata\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-metadata?generation=1772656944227597&alt=media\",\n      \"name\": \"conformance-tests/blob-for-metadata\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1772656944227597\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"43\",\n      \"md5Hash\": \"cJNvqBbhpGaIyrO3jHSozA==\",\n      \"crc32c\": \"7+lREg==\",\n      \"etag\": \"CI3K4NuNh5MDEAE=\",\n      \"timeCreated\": \"2026-03-04T20:42:24.280Z\",\n      \"updated\": \"2026-03-04T20:42:24.280Z\",\n      \"timeStorageClassUpdated\": \"2026-03-04T20:42:24.280Z\",\n      \"timeFinalized\": \"2026-03-04T20:42:24.280Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AGQBYWzNYNzCIPKCXWr9Q223PaEWoighQffxZ9ZbsYxmjmyJaIvjquTj0rYWaRRsaYjy_CK0_yjjn3o",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Mar 2026 20:42:26 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:42:26 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "7c4da5e2-194f-4f37-827c-4ccf8dcf223c",
+  "persistent" : true,
+  "insertionIndex" : 661
+}

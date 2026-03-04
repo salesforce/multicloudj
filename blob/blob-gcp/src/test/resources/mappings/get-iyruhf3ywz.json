@@ -1,0 +1,39 @@
+{
+  "id" : "3e7c4634-35a1-4cc9-ad69-404f35dd69d6",
+  "name" : "download_storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_testrangedread_versioned",
+  "request" : {
+    "url" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FtestRangedRead_versioned?alt=media&generation=1772657010243904",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772657010243904",
+      "Content-Range" : "bytes 0-46/47",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:43:30 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Wed, 04 Mar 2026 20:43:33 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=YmH3dA==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CMDynfuNh5MDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWy5uJ4fjCwv77n9ZBZThxoKjaWvv9BPB3_S-9czGDdHRagPFvVvAA2gbESqphBE-kuTtBWq9Nc",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "3e7c4634-35a1-4cc9-ad69-404f35dd69d6",
+  "persistent" : true,
+  "scenarioName" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned",
+  "requiredScenarioState" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned-6",
+  "newScenarioState" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned-7",
+  "insertionIndex" : 809
+}

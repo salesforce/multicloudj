@@ -1,0 +1,29 @@
+{
+  "id" : "868686d4-9ffd-4b11-97e0-899a69e246b2",
+  "name" : "storage_v1_b_substrate-sdk-gcp-poc1-test-bucket-versioned_o_conformance-tests_versionedcopy_copied-blob-v2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopy%2Fcopied-blob-v2?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/versionedCopy/copied-blob-v2/1772656835070560\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopy%2Fcopied-blob-v2\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FversionedCopy%2Fcopied-blob-v2?generation=1772656835070560&alt=media\",\n  \"name\": \"conformance-tests/versionedCopy/copied-blob-v2\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1772656835070560\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"38\",\n  \"md5Hash\": \"2ksGazsjJF4qLp6jLPdSYw==\",\n  \"crc32c\": \"aDUimg==\",\n  \"etag\": \"COCU2qeNh5MDEAE=\",\n  \"timeCreated\": \"2026-03-04T20:40:35.115Z\",\n  \"updated\": \"2026-03-04T20:40:35.115Z\",\n  \"timeStorageClassUpdated\": \"2026-03-04T20:40:35.115Z\",\n  \"timeFinalized\": \"2026-03-04T20:40:35.115Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COCU2qeNh5MDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWxxWnwPfpAmFfUgcluen7dRwvG-NNoQgP1GdKPKoKwlUYggZcQuJ58KyPqoKKby8vhuqknN3Wg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Mar 2026 20:40:36 GMT",
+      "Date" : "Wed, 04 Mar 2026 20:40:36 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "868686d4-9ffd-4b11-97e0-899a69e246b2",
+  "persistent" : true,
+  "scenarioName" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versionedCopy-copied-blob-v2",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-5-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-versionedCopy-copied-blob-v2-2",
+  "insertionIndex" : 338
+}
