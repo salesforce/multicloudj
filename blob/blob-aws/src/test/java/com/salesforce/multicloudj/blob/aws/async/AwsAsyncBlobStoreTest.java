@@ -1478,6 +1478,61 @@ public class AwsAsyncBlobStoreTest {
     }
 
     @Test
+    void testBuildS3AsyncClientWithUseSystemPropertyProxyValues() {
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withUseSystemPropertyProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithUseEnvironmentVariableProxyValues() {
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithBothProxyOverrideFlags() {
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withUseSystemPropertyProxyValues(false)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
+    void testBuildS3AsyncClientWithProxyEndpointAndOverrideFlags() {
+        var store = new AwsAsyncBlobStore.Builder()
+                .withBucket(BUCKET)
+                .withRegion(REGION)
+                .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                .withUseSystemPropertyProxyValues(true)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertInstanceOf(AwsAsyncBlobStore.class, store);
+        assertEquals(BUCKET, store.getBucket());
+    }
+
+    @Test
     void testBuildS3CrtAsyncClientWithRetryConfig() {
         // Test CRT client with retry config
         RetryConfig config = RetryConfig.builder()

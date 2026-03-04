@@ -37,6 +37,8 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
     private Integer transferManagerThreadPoolSize;
     private Integer transferDirectoryMaxConcurrency;
     private RetryConfig retryConfig;
+    private Boolean useSystemPropertyProxyValues;
+    private Boolean useEnvironmentVariableProxyValues;
 
     public BlobStoreBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -262,6 +264,32 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
      */
     public BlobStoreBuilder<T> withRetryConfig(RetryConfig retryConfig) {
         this.retryConfig = retryConfig;
+        return this;
+    }
+
+    /**
+     * Method to control whether system property values (e.g., http.proxyHost, http.proxyPort,
+     * https.proxyHost, https.proxyPort) should be used for proxy configuration.
+     * When set to false, these system properties will be ignored.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+        this.useSystemPropertyProxyValues = useSystemPropertyProxyValues;
+        return this;
+    }
+
+    /**
+     * Method to control whether environment variable values (e.g., HTTP_PROXY, HTTPS_PROXY,
+     * NO_PROXY) should be used for proxy configuration.
+     * When set to false, these environment variables will be ignored.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobStoreBuilder<T> withUseEnvironmentVariableProxyValues(Boolean useEnvironmentVariableProxyValues) {
+        this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
         return this;
     }
 
