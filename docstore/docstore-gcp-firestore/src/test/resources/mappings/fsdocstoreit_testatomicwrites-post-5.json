@@ -1,0 +1,43 @@
+{
+  "id" : "9683f69a-63ee-429c-86db-6437c58e946f",
+  "name" : "FSDocstoreIT_testAtomicWrites-POST-5",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites3\",\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites4\",\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites5\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites3\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": false\n      },\n      \"s\": {\n        \"stringValue\": \"3\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites3\"\n      },\n      \"i\": {\n        \"integerValue\": \"3\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:10.335522Z\",\n    \"updateTime\": \"2026-03-04T21:20:10.335522Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:10.355538Z\"\n}\n,\r\n{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites4\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"4\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites4\"\n      },\n      \"i\": {\n        \"integerValue\": \"4\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:10.335522Z\",\n    \"updateTime\": \"2026-03-04T21:20:10.335522Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:10.355538Z\"\n}\n,\r\n{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites5\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": false\n      },\n      \"s\": {\n        \"stringValue\": \"5\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites5\"\n      },\n      \"i\": {\n        \"integerValue\": \"5\"\n      },\n      \"DocstoreRevision\": {\n        \"nullValue\": null\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:10.335522Z\",\n    \"updateTime\": \"2026-03-04T21:20:10.335522Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:10.355538Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13303103950408789462;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:20:10 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "9683f69a-63ee-429c-86db-6437c58e946f",
+  "persistent" : true,
+  "insertionIndex" : 133
+}

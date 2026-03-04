@@ -1,0 +1,22 @@
+{
+  "id" : "19b9e466-ce6f-4b29-9eb7-cd854801cc06",
+  "name" : "AwsBlobStoreIT_testVersionedDelete-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "ZB90CZSDQYBWC1AC",
+      "x-amz-id-2" : "9RRiiReWkMs5E/dXK/SE0qQNUeCfwtMbq0Obu9ncgv/80LVc63KL0EOyQPVcDnSSdccYip8hTubTEePZIJW/mBhx00MVXq27",
+      "x-amz-version-id" : "ybnrnA.83hXpG6fgTqOkPbmGQ6C6k3xY",
+      "Date" : "Wed, 04 Mar 2026 20:58:15 GMT"
+    }
+  },
+  "uuid" : "19b9e466-ce6f-4b29-9eb7-cd854801cc06",
+  "persistent" : true,
+  "insertionIndex" : 298
+}

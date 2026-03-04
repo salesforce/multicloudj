@@ -1,5 +1,5 @@
 {
-  "id" : "49a95928-8bac-44d1-89c5-014ef12c1a4f",
+  "id" : "77999d32-371b-4f4a-af5e-0cc4fbab7b21",
   "name" : "AwsDocstoreIT_testPut-POST-16",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"BishopPlayer\"}}}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"DavidMap\"}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "QB4QCLSNJQ1PGQMPDQJAP7C77VVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-RequestId" : "U3HPUUJ5RORTFP6MJICBD321V3VV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Tue, 03 Mar 2026 06:59:32 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:12:46 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "49a95928-8bac-44d1-89c5-014ef12c1a4f",
+  "uuid" : "77999d32-371b-4f4a-af5e-0cc4fbab7b21",
   "persistent" : true,
-  "insertionIndex" : 265
+  "insertionIndex" : 79
 }

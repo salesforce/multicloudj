@@ -89,7 +89,7 @@ public abstract class AbstractDBBackupRestoreIT {
      */
     @BeforeAll
     public void initializeWireMockServer() {
-        Random random = new Random(9876L);
+        Random random = new Random(98761L);
         UUID.setUuidSupplier(() -> new java.util.UUID(random.nextLong(), random.nextLong()).toString());
         harness = createHarness();
         TestsUtil.startWireMockServer("src/test/resources", harness.getPort());

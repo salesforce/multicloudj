@@ -1,5 +1,5 @@
 {
-  "id" : "a806a065-2766-4660-9d14-d73f3970b17f",
+  "id" : "d33e237e-6938-47ed-864e-e3a250d15247",
   "name" : "AwsDocstoreIT_testGetQuery-POST-17",
   "request" : {
     "url" : "/",
@@ -20,13 +20,13 @@
     "body" : "{\"Count\":1,\"Items\":[{\"Player\":{\"S\":\"pat\"},\"WithGlitch\":{\"BOOL\":false},\"Score\":{\"N\":\"49\"},\"Game\":{\"S\":\"Praise All Monsters\"},\"Time\":{\"S\":\"2024-03-13\"}}],\"ScannedCount\":2}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "E7CJUMSO744NMI3U1UNL4GQR7FVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-requestid" : "I1TCSHQPMUV488O6ABT6DQJJANVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "1414452915",
-      "Date" : "Tue, 03 Mar 2026 06:59:17 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:12:26 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "a806a065-2766-4660-9d14-d73f3970b17f",
+  "uuid" : "d33e237e-6938-47ed-864e-e3a250d15247",
   "persistent" : true,
-  "insertionIndex" : 204
+  "insertionIndex" : 18
 }

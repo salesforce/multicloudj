@@ -1,5 +1,5 @@
 {
-  "id" : "c368b9b2-4c50-4844-b3e3-112b2b32b034",
+  "id" : "b69a791c-b019-4a35-b03b-c1629d829d8d",
   "name" : "AwsDocstoreIT_testGet-POST-20",
   "request" : {
     "url" : "/",
@@ -20,13 +20,13 @@
     "body" : "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pName\",\"AttributeType\":\"S\"}],\"CreationDateTime\":1.739250359602E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":5,\"KeySchema\":[{\"AttributeName\":\"pName\",\"KeyType\":\"HASH\"}],\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":5,\"WriteCapacityUnits\":5},\"TableArn\":\"arn:aws:dynamodb:us-west-2:654654370895:table/docstore-test-1\",\"TableId\":\"a64f5fc6-5267-4059-b0bf-e10cc9fcf628\",\"TableName\":\"docstore-test-1\",\"TableSizeBytes\":543,\"TableStatus\":\"ACTIVE\",\"WarmThroughput\":{\"ReadUnitsPerSecond\":5,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":5}}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "44KBCDAH0BJN2PIK9137MR0NQBVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-RequestId" : "NCVFQ7F91KE9PH1RQ050B3UVVFVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2227032207",
-      "Date" : "Tue, 03 Mar 2026 06:59:23 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:12:35 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "c368b9b2-4c50-4844-b3e3-112b2b32b034",
+  "uuid" : "b69a791c-b019-4a35-b03b-c1629d829d8d",
   "persistent" : true,
-  "insertionIndex" : 247
+  "insertionIndex" : 61
 }

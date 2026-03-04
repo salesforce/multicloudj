@@ -1,22 +1,20 @@
 {
-  "id" : "86f165d0-1ba5-4e28-b3ad-e042bdfe8d7d",
+  "id" : "2531de4d-03b8-4808-9f77-f4cad2532633",
   "name" : "AwsBlobStoreIT_testGeneratePresignedDownloadUrl_negativeDuration-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/presignedDownloadUrls/negativeDuration2",
     "method" : "DELETE"
   },
   "response" : {
-    "status" : 400,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>ExpiredToken</Code><Message>The provided token has expired.</Message><Token-0>IQoJb3JpZ2luX2VjENr//////////wEaCXVzLWVhc3QtMSJHMEUCIH3DnpcoLfRm55fjxz9c3i1yFWQ9gK+t9ij9WOYBzddZAiEA2cr/UZOHJhiEaT3FqKof1I6xU1XcFQNH3cdaQKtqZUkqqwMIo///////////ARAAGgw2NTQ2NTQzNzA4OTUiDET9mR6gc35hugfLlSr/Aqiu26JrUHfWXUzwIYrMZjr3YLVLXaUPNR9HJuIv6xeZv0IthxhPkoqrc8p8w6rAKuReuXpx+RBGe4W9Sr0Tc8b0VZmnUS085DqZ/BDMnO5szKHtNqSGz4lm0gXmhebRNt2/FcqLgf7AwmozLx9F5zGw385waaA3llzmtrzZUt3ijd1YNhHrWI+MilGGfshgXmypRpdBo1tjTptGMje3trvm7RbJW4Dg7I3df/U+6KL2MOQRtirIWeXyJ6cDxcsTA8iL7O/O7R+JpoAm/DHLz1cYtBqQtJixPlDlSsLH4Wfj+pwmdZdQ4vaQ8hvGDQLUBuMX02eL9RzBv2zAu+LzX9hhG9sS4pBEARvAn65yiUGtR7i9jHiVL/oqR0uUx6VhbaRCYxy2VXtpqLgfdk3TALQZAQ4m96QGl0o0kXhpJrzYUV2SkdVb4yWaX393TLtyI8i7F9GmpVkh0OkyOLa5dW5BralCqh0+UX1XeQeb5JnXXiXNWMwRIwbW+FVYqC4mMIu9nM0GOt4B3CiOIryQMSRkPSt1UGP6us3YIn1VYT/D1Y4rYti5H47uAE2Gz0eJiJqpUS3ACWc45A9Wm6We6NMQk5DgwzO0xGYngNpPH9aIpOROfnjFCACFJRf5Sq6Y/Tq6RmuTNrNiCuSw02DG2J6OYYsZbuGBwTFHPIRZ/JEgUQu6M65eu0Q+NBT36vB1HPMIBv6OmodHtbzVmA3RKsv57Xvn1ziNU8l4w0A23k6Dk+lyT1BFwljYmk+8VdMINIK1JqFLjCDXiCEHJgMze4XQv9cOuGFiMl+LczFkVc8nfdhAjE/S</Token-0><RequestId>NT9MYXVP3VMARQM3</RequestId><HostId>LNj9pTWRESUTld36hkm0tVkiUPL2j3ZjnRgSpKpL/i6RWsF+b0EyfLlNFHOKQpFYkg+WkuNve4Q=</HostId></Error>",
+    "status" : 204,
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "NT9MYXVP3VMARQM3",
-      "x-amz-id-2" : "LNj9pTWRESUTld36hkm0tVkiUPL2j3ZjnRgSpKpL/i6RWsF+b0EyfLlNFHOKQpFYkg+WkuNve4Q=",
-      "Date" : "Wed, 04 Mar 2026 06:46:06 GMT",
-      "Content-Type" : "application/xml"
+      "x-amz-request-id" : "ZAB1W0TJ8G5SEY1W",
+      "x-amz-id-2" : "yKYWQzz4nlpcEvHt11Zffg9ndn3huQrccP/OvMPmjeff7chBlLXxeXr5E7HT6rYlK7Jn/5paKpPyhhMeDsc3r+yf930Ic+m/",
+      "Date" : "Wed, 04 Mar 2026 20:55:58 GMT"
     }
   },
-  "uuid" : "86f165d0-1ba5-4e28-b3ad-e042bdfe8d7d",
+  "uuid" : "2531de4d-03b8-4808-9f77-f4cad2532633",
   "persistent" : true,
   "insertionIndex" : 1
 }

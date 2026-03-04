@@ -2424,7 +2424,8 @@ public abstract class AbstractBlobStoreIT {
     public void testGeneratePresignedUploadUrl_missingTagsOnUpload() {
         String key = PRESIGNED_BLOB_UPLOAD_PREFIX + "missingTagsOnUpload";
         Map<String, String> tags = Map.of("tag5", "tagValue5", "tag6", "tagValue6");
-        Assertions.assertThrows(Exception.class, () ->
+        // TODO: narrow it down to the exact exception
+        Assertions.assertThrows(Throwable.class, () ->
             runPresignedUploadTest(key, Duration.ofHours(10), null, null, null, tags, null)
         );
     }

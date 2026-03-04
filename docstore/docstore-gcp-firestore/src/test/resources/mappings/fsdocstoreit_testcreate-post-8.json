@@ -1,0 +1,43 @@
+{
+  "id" : "57a9f591-aba2-4b54-9f99-a69ffaf3084c",
+  "name" : "FSDocstoreIT_testCreate-POST-8",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidReplace\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/EdwardReplace\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnReplace\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/KingReplace\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LeoReplace\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TaylorReplace\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {},\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-03-04T21:19:57.986877Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "15839724476238155708;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:57 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "57a9f591-aba2-4b54-9f99-a69ffaf3084c",
+  "persistent" : true,
+  "insertionIndex" : 105
+}

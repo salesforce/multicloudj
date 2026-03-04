@@ -1,0 +1,38 @@
+{
+  "id" : "82a07ed2-7553-428f-867b-8d8c403b507b",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_duplicateParts-POST-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "Z.r55DhsjYxF6KIEv0R3KOyPIo7xLa0GS7ump5GvZPzFW8419GD6W9J1lBjS_GFqt4nH_Q0.z23JdAwIhqYX0uxMiPrBL1j2FeETz2MDkelOvjlFxOtctOWtGI4uWbSJH4Fd.Nt4yMHYpUFDl61294eQ_JEFU3oncPumpx8wmA1yhgYNeC9j0crsgR0_1myB4B9e0SBdQ.x6ArZADwdejw--"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>3</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-duplicateParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><ETag>\"24b97d17bef4abbe4769ada99ebf91c9-2\"</ETag><ChecksumCRC64NVME>r1lraKgRakQ=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VETEXX6A2SAS4K5K",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "aTXAZVb2bknb9yfjEnmGFJhx9nTifIKw/xPXtQio5PzFjTMEvkCg/k1ag52jUFzn1is35LzZhszEwKTMllQoA74wnhkbAq3R",
+      "Date" : "Wed, 04 Mar 2026 20:59:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "82a07ed2-7553-428f-867b-8d8c403b507b",
+  "persistent" : true,
+  "insertionIndex" : 440
+}

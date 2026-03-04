@@ -1,25 +1,37 @@
 {
-  "id" : "a896062e-20ae-411e-9726-a6305f8e3531",
+  "id" : "670096cb-3c1d-4aba-a978-33ef5683477a",
   "name" : "AwsBlobStoreIT_testTagging-PUT-2",
   "request" : {
-    "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging",
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-tagging-fake",
     "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
-      "binaryEqualTo" : "VGhpcyBpcyB0YWdnaW5nIHRlc3QgZGF0YQ=="
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
     } ]
   },
   "response" : {
-    "status" : 400,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>ExpiredToken</Code><Message>The provided token has expired.</Message><Token-0>IQoJb3JpZ2luX2VjENr//////////wEaCXVzLWVhc3QtMSJHMEUCIH3DnpcoLfRm55fjxz9c3i1yFWQ9gK+t9ij9WOYBzddZAiEA2cr/UZOHJhiEaT3FqKof1I6xU1XcFQNH3cdaQKtqZUkqqwMIo///////////ARAAGgw2NTQ2NTQzNzA4OTUiDET9mR6gc35hugfLlSr/Aqiu26JrUHfWXUzwIYrMZjr3YLVLXaUPNR9HJuIv6xeZv0IthxhPkoqrc8p8w6rAKuReuXpx+RBGe4W9Sr0Tc8b0VZmnUS085DqZ/BDMnO5szKHtNqSGz4lm0gXmhebRNt2/FcqLgf7AwmozLx9F5zGw385waaA3llzmtrzZUt3ijd1YNhHrWI+MilGGfshgXmypRpdBo1tjTptGMje3trvm7RbJW4Dg7I3df/U+6KL2MOQRtirIWeXyJ6cDxcsTA8iL7O/O7R+JpoAm/DHLz1cYtBqQtJixPlDlSsLH4Wfj+pwmdZdQ4vaQ8hvGDQLUBuMX02eL9RzBv2zAu+LzX9hhG9sS4pBEARvAn65yiUGtR7i9jHiVL/oqR0uUx6VhbaRCYxy2VXtpqLgfdk3TALQZAQ4m96QGl0o0kXhpJrzYUV2SkdVb4yWaX393TLtyI8i7F9GmpVkh0OkyOLa5dW5BralCqh0+UX1XeQeb5JnXXiXNWMwRIwbW+FVYqC4mMIu9nM0GOt4B3CiOIryQMSRkPSt1UGP6us3YIn1VYT/D1Y4rYti5H47uAE2Gz0eJiJqpUS3ACWc45A9Wm6We6NMQk5DgwzO0xGYngNpPH9aIpOROfnjFCACFJRf5Sq6Y/Tq6RmuTNrNiCuSw02DG2J6OYYsZbuGBwTFHPIRZ/JEgUQu6M65eu0Q+NBT36vB1HPMIBv6OmodHtbzVmA3RKsv57Xvn1ziNU8l4w0A23k6Dk+lyT1BFwljYmk+8VdMINIK1JqFLjCDXiCEHJgMze4XQv9cOuGFiMl+LczFkVc8nfdhAjE/S</Token-0><RequestId>FENZ7DT869DB36BD</RequestId><HostId>/baWcDo+Yd8IoidW7wCXNIgWwvAUSGKdX+hdtfXiwzBwRhZEp1hPHWMJlSBUHI+NtkT0kpmtqxg=</HostId></Error>",
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-tagging-fake</Key><RequestId>9JZCRJEWSXBGP781</RequestId><HostId>8yNf+ZvoUPjNKcb+zwwecRg8LNV7vg3JticFCOKBG84WbjZwJeSFeU5GT9mK6g4gBI0T1g6KtGVmw2+OjJEieqDTmH4C5B/U</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "FENZ7DT869DB36BD",
-      "x-amz-id-2" : "/baWcDo+Yd8IoidW7wCXNIgWwvAUSGKdX+hdtfXiwzBwRhZEp1hPHWMJlSBUHI+NtkT0kpmtqxg=",
-      "Date" : "Wed, 04 Mar 2026 06:46:08 GMT",
+      "x-amz-request-id" : "9JZCRJEWSXBGP781",
+      "x-amz-id-2" : "8yNf+ZvoUPjNKcb+zwwecRg8LNV7vg3JticFCOKBG84WbjZwJeSFeU5GT9mK6g4gBI0T1g6KtGVmw2+OjJEieqDTmH4C5B/U",
+      "Date" : "Wed, 04 Mar 2026 20:56:22 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "a896062e-20ae-411e-9726-a6305f8e3531",
+  "uuid" : "670096cb-3c1d-4aba-a978-33ef5683477a",
   "persistent" : true,
-  "insertionIndex" : 15
+  "insertionIndex" : 52
 }

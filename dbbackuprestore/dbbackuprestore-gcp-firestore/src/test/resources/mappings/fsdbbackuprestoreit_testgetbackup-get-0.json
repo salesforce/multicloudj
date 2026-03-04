@@ -1,0 +1,38 @@
+{
+  "id" : "297eae3b-4db7-4386-a167-0005a9c30ce1",
+  "name" : "FSDBBackupRestoreIT_testGetBackup-GET-0",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/nam5/backups/0878cc5c-887c-4056-895f-6302ead00b83",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/locations/nam5/backups/0878cc5c-887c-4056-895f-6302ead00b83\",\n  \"database\": \"projects/substrate-sdk-gcp-poc1/databases/(default)\",\n  \"snapshotTime\": \"2026-02-19T07:19:53.823016Z\",\n  \"expireTime\": \"2026-05-28T07:19:53.823016Z\",\n  \"databaseUid\": \"0af88f60-4411-43f7-9023-6a46e9a2cdeb\",\n  \"state\": 2\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "14088413972433487533;o=0",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:24:07 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "297eae3b-4db7-4386-a167-0005a9c30ce1",
+  "persistent" : true,
+  "insertionIndex" : 6
+}

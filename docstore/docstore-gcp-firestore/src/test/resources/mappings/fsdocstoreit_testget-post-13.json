@@ -1,0 +1,43 @@
+{
+  "id" : "1196a172-0d01-4ed5-bc1a-e1156c8c4931",
+  "name" : "FSDocstoreIT_testGet-POST-13",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PrincePlayer\"],\"mask\":{\"fieldPaths\":[\"pName\",\"f\",\"i\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PrincePlayer\",\n    \"fields\": {\n      \"pName\": {\n        \"stringValue\": \"PrincePlayer\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:39.653178Z\",\n    \"updateTime\": \"2026-03-04T21:19:39.653178Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:39.653178Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11268858507148052655;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:40 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1196a172-0d01-4ed5-bc1a-e1156c8c4931",
+  "persistent" : true,
+  "insertionIndex" : 56
+}

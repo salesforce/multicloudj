@@ -1,0 +1,43 @@
+{
+  "id" : "b6e48ded-6196-40bb-beaa-9acb3aab42fd",
+  "name" : "FSDocstoreIT_testCreate-POST-5",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomStringMap\"},\"pName\":{\"stringValue\":\"JohnMap\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"111\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 409,
+    "body" : "{\n  \"error\": {\n    \"code\": 409,\n    \"message\": \"Document already exists: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\n    \"status\": \"ALREADY_EXISTS\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "17560234044148175570;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b6e48ded-6196-40bb-beaa-9acb3aab42fd",
+  "persistent" : true,
+  "insertionIndex" : 102
+}

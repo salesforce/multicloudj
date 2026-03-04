@@ -1,0 +1,54 @@
+{
+  "id" : "538da1cf-fa6b-473e-bf18-03761266ddfa",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-43",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FtestRangedRead_versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772658499289347"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772658499289347",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Wed, 04 Mar 2026 21:08:19 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Wed, 04 Mar 2026 21:08:24 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=YmH3dA==,md5=T+WNlSpPVYjzKzCl+bYs2g==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CIOCosGTh5MDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWwWlR2NlvyQOqW8jW8lXNhOGjtxdJHYdQOmVXGZVCBN69wZJsiWo9xCQcFZmjp9z2sb5MwUUpY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "538da1cf-fa6b-473e-bf18-03761266ddfa",
+  "persistent" : true,
+  "scenarioName" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned",
+  "requiredScenarioState" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned-7",
+  "insertionIndex" : 801
+}
