@@ -7,21 +7,30 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Extension;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
+import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction;
+import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
+import com.github.tomakehurst.wiremock.extension.requestfilter.StubRequestFilterV2;
+import com.github.tomakehurst.wiremock.http.Request;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.recordSpec;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUEST_BODY_OVER;
 
@@ -91,6 +100,73 @@ public class TestsUtil {
         }
     }
 
+    /**
+     * Adds an X-Query-Param-Count header matcher to each recorded stub so that
+     * during replay a stub only matches requests with exactly the same number
+     * of query parameters.
+     */
+    public static class QueryParamCountTransformer extends StubMappingTransformer {
+
+        @Override
+        public StubMapping transform(StubMapping stubMapping, FileSource files, Parameters parameters) {
+            Map<String, ?> queryParams = stubMapping.getRequest().getQueryParameters();
+            if (queryParams != null && !queryParams.isEmpty()) {
+                int count = queryParams.size();
+                RequestPatternBuilder builder = RequestPatternBuilder.like(stubMapping.getRequest());
+                builder.withHeader("X-Query-Param-Count", equalTo(String.valueOf(count)));
+                stubMapping.setRequest(builder.build());
+            }
+            return stubMapping;
+        }
+
+        @Override
+        public String getName() {
+            return "query-param-count-transformer";
+        }
+    }
+
+    /**
+     * Injects an X-Query-Param-Count header into every incoming request during
+     * replay mode so that WireMock can match it against the header matcher
+     * added by {@link QueryParamCountTransformer}.
+     */
+    public static class QueryParamCountFilter implements StubRequestFilterV2 {
+
+        @Override
+        public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
+            if (System.getProperty("record") != null) {
+                return RequestFilterAction.continueWith(request);
+            }
+            int count = countQueryParams(request);
+            Request wrappedRequest = RequestWrapper.create()
+                    .addHeader("X-Query-Param-Count", String.valueOf(count))
+                    .wrap(request);
+            return RequestFilterAction.continueWith(wrappedRequest);
+        }
+
+        private int countQueryParams(Request request) {
+            String url = request.getUrl();
+            int qIdx = url.indexOf('?');
+            if (qIdx < 0 || qIdx == url.length() - 1) {
+                return 0;
+            }
+            Set<String> paramNames = new LinkedHashSet<>();
+            for (String pair : url.substring(qIdx + 1).split("&")) {
+                int eqIdx = pair.indexOf('=');
+                String name = eqIdx > 0 ? pair.substring(0, eqIdx) : pair;
+                if (!name.isEmpty()) {
+                    paramNames.add(name);
+                }
+            }
+            return paramNames.size();
+        }
+
+        @Override
+        public String getName() {
+            return "query-param-count-filter";
+        }
+    }
+
     public static void startWireMockServer(String rootDir, int port, String... extensionInstances) {
         boolean isRecordingEnabled = System.getProperty("record") != null;
         logger.info("Recording enabled: {}", isRecordingEnabled);
@@ -98,7 +174,9 @@ public class TestsUtil {
         // Create extensions list with default transformers
         List<Extension> extensions = new ArrayList<>();
         extensions.add(new StubNamingTransformer());
-        extensions.add(new TruncateRequestBodyTransformer());
+        extensions.add(new QueryParamCountTransformer());
+        extensions.add(new QueryParamCountFilter());
+        //extensions.add(new TruncateRequestBodyTransformer());
 
         // Load additional extensions if provided
         for (String extensionClass : extensionInstances) {
@@ -152,6 +230,7 @@ public class TestsUtil {
         List<String> transformerNames = new ArrayList<>();
         transformerNames.add("stub-naming-transformer");
         transformerNames.add("truncate-request-body-transformer");
+        transformerNames.add("query-param-count-transformer");
         for (StubMappingTransformer t : loadedTransformers) {
             transformerNames.add(t.getName());
         }

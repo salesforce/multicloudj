@@ -1662,7 +1662,7 @@ public abstract class AbstractBlobStoreIT {
                 pageCount++;
                 
                 // Safety check to prevent infinite loops
-                Assertions.assertTrue(pageCount <= 10, 
+                Assertions.assertTrue(pageCount <= 10,
                     "testListPage: Pagination loop exceeded maximum expected pages");
                 
             } while (nextToken != null);
