@@ -48,6 +48,12 @@ Learn how to manage identities and policies in a cloud-neutral way.
 
 - [IAM](iam-guide.html)
 
+## 💾 DB Backup Restore
+
+Learn how to manage database backup and restore operations across cloud providers.
+
+- [DB Backup Restore](dbbackuprestore-guide.html)
+
 ---
 
 ## 🧪 Testing
