@@ -106,7 +106,7 @@ public abstract class AbstractBlobClientIT {
         BlobClient blobClient = new BlobClient(blob);
 
         // Generate a unique bucket name for testing
-        String bucketName = "test-bucket-create-multicloudj";
+        String bucketName = "test-bucket-create-multicloudj3";
 
         // Create the bucket
         blobClient.createBucket(bucketName);
