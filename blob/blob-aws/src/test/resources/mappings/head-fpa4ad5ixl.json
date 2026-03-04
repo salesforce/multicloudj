@@ -1,0 +1,21 @@
+{
+  "id" : "2c98c052-45c2-4e85-af13-d61e7ee57a03",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-failing_testinvalidcredentials",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-failing/testInvalidCredentials",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 403,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4KDBPHVKTVQWARW4",
+      "x-amz-id-2" : "ZNUYxci4cruMZwI2Sieng1CRSBPjz63pbikaEyXvTLgmJCHdDHs+0lyXSBusZ4tKIlfGo7WsPOc=",
+      "Date" : "Wed, 04 Mar 2026 20:17:47 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2c98c052-45c2-4e85-af13-d61e7ee57a03",
+  "persistent" : true,
+  "insertionIndex" : 643
+}

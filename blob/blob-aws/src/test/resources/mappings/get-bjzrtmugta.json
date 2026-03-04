@@ -1,0 +1,22 @@
+{
+  "id" : "538062f3-549d-42ed-ab73-fd95ed85c4a0",
+  "name" : "chameleon-jcloud_conformance-tests_multipart-singlepart",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-singlePart?uploadId=T0_ZN6mqCeI9NCJ1qJL.53TTMIY63Vtzz2wr1kQ_9L5rL.9U85EnfqG7cUZAX3MFGHuvlrBaGsnRYh_U56wuZ6BbIkQsCmxhNITqMJAqs3kSUDgpLa7QbZgLIghJ1RJOt100axy6HmOt_BRFPxXJQHQOI2XUxZWb0daEarffTAtBj3zqnKSDj5AjbvCPIgh4C4Y0f6R_.cqvrpdBYGMvkw--",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-singlePart</Key><UploadId>T0_ZN6mqCeI9NCJ1qJL.53TTMIY63Vtzz2wr1kQ_9L5rL.9U85EnfqG7cUZAX3MFGHuvlrBaGsnRYh_U56wuZ6BbIkQsCmxhNITqMJAqs3kSUDgpLa7QbZgLIghJ1RJOt100axy6HmOt_BRFPxXJQHQOI2XUxZWb0daEarffTAtBj3zqnKSDj5AjbvCPIgh4C4Y0f6R_.cqvrpdBYGMvkw--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>1</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-03-04T20:15:05.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "C3Y4V37HMRGKQD49",
+      "x-amz-id-2" : "YmlThlTZDDjaJeCdWcSnbpnv6S2Bgt/QYcjUWIER+d+39geL2EJp/CcWoqx9T1Brj5bsz+g4B/8=",
+      "Date" : "Wed, 04 Mar 2026 20:15:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "538062f3-549d-42ed-ab73-fd95ed85c4a0",
+  "persistent" : true,
+  "insertionIndex" : 269
+}

@@ -1,0 +1,25 @@
+{
+  "id" : "fd3440f1-2515-4e96-a94a-f53431822caf",
+  "name" : "chameleon-jcloud",
+  "request" : {
+    "url" : "/chameleon-jcloud?delete",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "QZWQAF0X5CYJ37XH",
+      "x-amz-id-2" : "0bO0gY2PuzCJsSwpdWGGNLC/HbzLWlROGxCBfmiMAnSUDnLqAhKnWkDvs//xa3C8IHAv1LJGO0I=",
+      "Date" : "Wed, 04 Mar 2026 20:13:20 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fd3440f1-2515-4e96-a94a-f53431822caf",
+  "persistent" : true,
+  "insertionIndex" : 51
+}

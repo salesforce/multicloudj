@@ -1,0 +1,20 @@
+{
+  "id" : "5314f3e7-0d2d-4270-b738-d09553bac9e9",
+  "name" : "chameleon-jcloud_conformance-tests_kms_ranged-read",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/ranged-read",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KVPXR724RJW8AF4J",
+      "x-amz-id-2" : "gUkdiwWuvR9w++EiIsquUkCldb4NtIbLm5pNZgB44/ORD+a4Okx60IIHhq3ooetHkyAFjLKi0pc=",
+      "Date" : "Wed, 04 Mar 2026 20:16:19 GMT"
+    }
+  },
+  "uuid" : "5314f3e7-0d2d-4270-b738-d09553bac9e9",
+  "persistent" : true,
+  "insertionIndex" : 426
+}

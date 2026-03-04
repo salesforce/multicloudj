@@ -1,0 +1,22 @@
+{
+  "id" : "19e74b12-5452-47d4-9612-fac5a50c74aa",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-deleting",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-deleting",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-deleting</Key><RequestId>EC8V5BHG7X745SNW</RequestId><HostId>pOM1440DBxgpZ1c3JeeStfBsAGXDt5ntYYyrCcDumnc9rJeS/ejJBbwIZIPfNYc0QRFRHSMhtWw=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "EC8V5BHG7X745SNW",
+      "x-amz-id-2" : "pOM1440DBxgpZ1c3JeeStfBsAGXDt5ntYYyrCcDumnc9rJeS/ejJBbwIZIPfNYc0QRFRHSMhtWw=",
+      "Date" : "Wed, 04 Mar 2026 20:16:38 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "19e74b12-5452-47d4-9612-fac5a50c74aa",
+  "persistent" : true,
+  "insertionIndex" : 476
+}

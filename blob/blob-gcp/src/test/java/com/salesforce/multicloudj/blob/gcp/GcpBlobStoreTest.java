@@ -2757,6 +2757,61 @@ class GcpBlobStoreTest {
     }
 
     @Test
+    void testDoCompleteMultipartUpload_WithChecksum() {
+        // Given
+        MultipartUpload mpu = MultipartUpload.builder()
+                .bucket(TEST_BUCKET)
+                .key(TEST_KEY)
+                .id("test-upload-id")
+                .checksumEnabled(true)
+                .build();
+
+        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+                new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L)
+        );
+
+        CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+                .etag("complete-etag")
+                .crc32c("composite-crc32c==")
+                .build();
+
+        when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("complete-etag", result.getEtag());
+        assertEquals("composite-crc32c==", result.getChecksumValue());
+    }
+
+    @Test
+    void testDoInitiateMultipartUpload_WithChecksumEnabled() {
+        // Given
+        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+                .withKey(TEST_KEY)
+                .withChecksumEnabled(true)
+                .build();
+
+        CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+                .uploadId("test-upload-id-checksum")
+                .build();
+
+        when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+                .thenReturn(mockGcpResponse);
+
+        // When
+        MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isChecksumEnabled());
+    }
+
+    @Test
     void testGetObjectLock_WithRetentionGovernance() {
         // Given
         String key = "test-key";

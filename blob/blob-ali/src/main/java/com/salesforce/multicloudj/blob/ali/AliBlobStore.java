@@ -377,7 +377,7 @@ public class AliBlobStore extends AbstractBlobStore {
     protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
         InitiateMultipartUploadRequest initiateMultipartUploadRequest = transformer.toInitiateMultipartUploadRequest(request);
         InitiateMultipartUploadResult initiateMultipartUploadResult = ossClient.initiateMultipartUpload(initiateMultipartUploadRequest);
-        return transformer.toMultipartUpload(initiateMultipartUploadResult, request.getMetadata(), request.getKmsKeyId());
+        return transformer.toMultipartUpload(initiateMultipartUploadResult, request.getMetadata(), request.getKmsKeyId(), request.isChecksumEnabled());
     }
 
     /**

@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
@@ -121,6 +122,7 @@ public abstract class AbstractBlobStoreIT {
     private Harness harness;
 
     private static final String GCP_PROVIDER_ID = "gcp";
+    private static final String ALI_PROVIDER_ID = "ali";
 
     /**
      * Initializes the WireMock server before all tests.
@@ -2303,6 +2305,66 @@ public abstract class AbstractBlobStoreIT {
                         new MultipartUploadPartResult(1, true),
                         new MultipartUploadPartResult(2, true)),
                 false, false, null, tags));
+    }
+
+    @Test
+    public void testMultipartUpload_withChecksum() {
+        String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withChecksum";
+
+        AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+        BucketClient bucketClient = new BucketClient(blobStore);
+
+        MultipartUpload mpu = null;
+        try {
+            // Initiate multipart upload with checksum enabled
+            MultipartUploadRequest multipartUploadRequest = new MultipartUploadRequest.Builder()
+                    .withKey(expectedKey)
+                    .withMetadata(Map.of("key1", "value1"))
+                    .withChecksumEnabled(true)
+                    .build();
+            mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+            Assertions.assertNotNull(mpu);
+
+            // Compute checksums for each part
+            String checksum1 = harness.computeChecksum(multipartBytes1);
+            String checksum2 = harness.computeChecksum(multipartBytes2);
+
+            // Upload parts with checksums
+            UploadPartResponse part1Response = bucketClient.uploadMultipartPart(mpu,
+                    new MultipartPart(1, multipartBytes1, checksum1));
+            UploadPartResponse part2Response = bucketClient.uploadMultipartPart(mpu,
+                    new MultipartPart(2, multipartBytes2, checksum2));
+
+            Assertions.assertNotNull(part1Response);
+            Assertions.assertNotNull(part2Response);
+
+            // For AWS/GCP, verify per-part checksum is returned
+            if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
+                Assertions.assertNotNull(part1Response.getChecksumValue(),
+                        "Expected checksum in upload part response for " + harness.getProviderId());
+                Assertions.assertNotNull(part2Response.getChecksumValue(),
+                        "Expected checksum in upload part response for " + harness.getProviderId());
+            }
+
+            // Complete multipart upload
+            List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+            MultipartUploadResponse completeResponse = bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+            Assertions.assertNotNull(completeResponse);
+            Assertions.assertNotNull(completeResponse.getEtag());
+
+            // For AWS/GCP, verify composite checksum is returned
+            if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
+                Assertions.assertNotNull(completeResponse.getChecksumValue(),
+                        "Expected composite checksum in complete response for " + harness.getProviderId());
+            }
+
+            // Verify the blob exists and content is correct
+            boolean exists = bucketClient.doesObjectExist(expectedKey, null);
+            Assertions.assertTrue(exists, "Uploaded multipart blob should exist");
+        } finally {
+            safeDeleteBlobs(bucketClient, expectedKey);
+        }
     }
 
     @Test

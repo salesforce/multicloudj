@@ -1,0 +1,22 @@
+{
+  "id" : "f8acc4fa-3192-4551-bf21-42b750335d32",
+  "name" : "bucketthatdoesntexist_conformance-tests_copied-blob",
+  "request" : {
+    "url" : "/bucketThatDoesntExist/conformance-tests/copied-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>bucketThatDoesntExist</BucketName><RequestId>K30PR5A5D9WV01WX</RequestId><HostId>Oz6pjCsEBaajJi3ql3aFvCQYnsl7/+zsYO0nGkD/ybQmQ8fw36hqWRtl1ppcp1Na4J5KMMcYl18=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "K30PR5A5D9WV01WX",
+      "x-amz-id-2" : "Oz6pjCsEBaajJi3ql3aFvCQYnsl7/+zsYO0nGkD/ybQmQ8fw36hqWRtl1ppcp1Na4J5KMMcYl18=",
+      "Date" : "Wed, 04 Mar 2026 20:14:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "f8acc4fa-3192-4551-bf21-42b750335d32",
+  "persistent" : true,
+  "insertionIndex" : 171
+}

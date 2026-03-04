@@ -1,0 +1,27 @@
+{
+  "id" : "30480c25-131e-4159-bbfa-0afee6220b8a",
+  "name" : "chameleon-jcloud_conformance-tests_kms_upload-empty-key",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/upload-empty-key",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGVzdCBkYXRhIHdpdGggZW1wdHkgS01TIGtleeEcuKGET4z+brmWbBI3fhs=",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"e11cb8a1844f8cfe6eb9966c12377e1b\"",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:14:56 GMT",
+      "x-amz-request-id" : "YP5HV9QTGQ11G9PV",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "AVvRkz0lIEw/mhE3crHxlqmupJHAxU5PblxM3zrzfdEJ8w5DifupdkP/cc1g/pDR5xM+GvzW1l0=",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Wed, 04 Mar 2026 20:14:56 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "30480c25-131e-4159-bbfa-0afee6220b8a",
+  "persistent" : true,
+  "insertionIndex" : 249
+}

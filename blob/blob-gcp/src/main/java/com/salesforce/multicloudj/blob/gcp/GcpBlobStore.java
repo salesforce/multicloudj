@@ -369,6 +369,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 .metadata(request.getMetadata())
                 .tags(request.getTags())
                 .kmsKeyId(request.getKmsKeyId())
+                .checksumEnabled(request.isChecksumEnabled())
                 .build();
     }
 
@@ -418,7 +419,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
         CompleteMultipartUploadResponse response = multipartUploadClient.completeMultipartUpload(completeRequest);
 
-        return new MultipartUploadResponse(response.etag());
+        return new MultipartUploadResponse(response.etag(), response.crc32c());
     }
 
     @Override

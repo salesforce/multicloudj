@@ -1,0 +1,22 @@
+{
+  "id" : "07a48e52-2158-452b-bf8e-351f30f2e302",
+  "name" : "chameleon-jcloud_conformance-tests_blob-for-bulk-delete_happy1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-bulk-delete_happy1",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-bulk-delete_happy1</Key><RequestId>RWTXK2AP1NW0VNQJ</RequestId><HostId>BbXK5t5L3MR9f9a/3aZ+g6E6tgp0bXhLfI6YYGzvRRVOFMzBsxHVDPraHgBwaCi3lhBDIGfyOiQ=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RWTXK2AP1NW0VNQJ",
+      "x-amz-id-2" : "BbXK5t5L3MR9f9a/3aZ+g6E6tgp0bXhLfI6YYGzvRRVOFMzBsxHVDPraHgBwaCi3lhBDIGfyOiQ=",
+      "Date" : "Wed, 04 Mar 2026 20:13:22 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "07a48e52-2158-452b-bf8e-351f30f2e302",
+  "persistent" : true,
+  "insertionIndex" : 45
+}

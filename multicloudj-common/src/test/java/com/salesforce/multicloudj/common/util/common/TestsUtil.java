@@ -104,7 +104,6 @@ public class TestsUtil {
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{request.method}}-{{randomValue length=10}}.json")
                 //.extensions(new TruncateRequestBodyTransformer()) // TODO: enable it after converting to plain text body in multipart uploads for tests
-                .extensions(extensions.toArray(new Extension[0]))
                 .enableBrowserProxying(true));
         wireMockServer.start();
     }

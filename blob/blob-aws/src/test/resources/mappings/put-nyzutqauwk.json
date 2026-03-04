@@ -1,0 +1,25 @@
+{
+  "id" : "d089f51a-23b7-49d5-83f8-b918df7d19e9",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_versionedcopy_copied-blob-latest",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/copied-blob-latest",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-03-04T20:14:36.000Z</LastModified><ETag>\"da4b066b3b23245e2a2e9ea32cf75263\"</ETag><ChecksumCRC64NVME>QJFaFb/w52U=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-copy-source-version-id" : "TlPpZxZXTYkSrTLwqGrCUePR0NfigI5C",
+      "x-amz-request-id" : "RTR7DPXDH3WGYZ71",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "yuT+19Y7OaGc1zanaLnmKJgv18JeyAIEF/eAQr23S6e58O1D5Q6U8nEMwYisHm7NZeWhGeh/3Ao=",
+      "x-amz-version-id" : "8qAHym7DWzU4Dhc2H3LuqjJ0TOMHzbzA",
+      "Date" : "Wed, 04 Mar 2026 20:14:36 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d089f51a-23b7-49d5-83f8-b918df7d19e9",
+  "persistent" : true,
+  "insertionIndex" : 195
+}

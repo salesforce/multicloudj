@@ -1,0 +1,22 @@
+{
+  "id" : "5118b81b-62dc-4048-8ea8-60ea82c04ef4",
+  "name" : "chameleon-jcloud-versioned_null_versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/null_versioned?versionId=IQOZz_jOhYqWKTLrQepJIs48aWZTyW7_",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchVersion</Code><Message>The specified version does not exist.</Message><Key>null_versioned</Key><VersionId>IQOZz_jOhYqWKTLrQepJIs48aWZTyW7_</VersionId><RequestId>NHFJ4QZKAQRMBFSD</RequestId><HostId>//WejwdqjJx6MUnOLoSWi4NsA9O+SQ64Hg+kCuQQc3IW76024WPyZFMmc7f/+U8tjXj44hZEtVc=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "NHFJ4QZKAQRMBFSD",
+      "x-amz-id-2" : "//WejwdqjJx6MUnOLoSWi4NsA9O+SQ64Hg+kCuQQc3IW76024WPyZFMmc7f/+U8tjXj44hZEtVc=",
+      "Date" : "Wed, 04 Mar 2026 20:14:05 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5118b81b-62dc-4048-8ea8-60ea82c04ef4",
+  "persistent" : true,
+  "insertionIndex" : 104
+}

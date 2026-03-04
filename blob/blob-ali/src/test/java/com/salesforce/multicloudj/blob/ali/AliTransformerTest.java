@@ -350,7 +350,7 @@ public class AliTransformerTest {
         doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
 
-        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, null);
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, null, false);
 
         assertEquals(BUCKET, actual.getBucket());
         assertEquals("key", actual.getKey());
@@ -367,7 +367,7 @@ public class AliTransformerTest {
         Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
         String kmsKeyId = "test-kms-key-id";
 
-        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, kmsKeyId);
+        var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, kmsKeyId, false);
 
         assertEquals(BUCKET, actual.getBucket());
         assertEquals("key", actual.getKey());

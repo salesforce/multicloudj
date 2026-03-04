@@ -1,0 +1,25 @@
+{
+  "id" : "fcbda659-d825-4212-a80b-52bc4a99dc95",
+  "name" : "chameleon-jcloud-versioned_conformance-tests_versioned_download_bad_versionid_versioned",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_bad_versionId_versioned?versionId=fakeVersionId",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Invalid version id specified</Message><ArgumentName>versionId</ArgumentName><ArgumentValue>fakeVersionId</ArgumentValue><RequestId>850JYYV6BCTD3DYF</RequestId><HostId>QK1bSHbLZO4iYjRZeUWHlK6pLue2CIgXf5JrkKVja29uG8nmaMFUkpPVWVnfwlurlWpkm8HV9dc=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "850JYYV6BCTD3DYF",
+      "x-amz-id-2" : "QK1bSHbLZO4iYjRZeUWHlK6pLue2CIgXf5JrkKVja29uG8nmaMFUkpPVWVnfwlurlWpkm8HV9dc=",
+      "Date" : "Wed, 04 Mar 2026 20:15:40 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fcbda659-d825-4212-a80b-52bc4a99dc95",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-2",
+  "insertionIndex" : 365
+}

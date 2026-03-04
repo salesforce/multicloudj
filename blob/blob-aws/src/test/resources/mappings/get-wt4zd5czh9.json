@@ -1,0 +1,27 @@
+{
+  "id" : "7d2be3da-0068-48ba-ae07-03683b99553b",
+  "name" : "chameleon-jcloud_conformance-tests_upload_happypath_file",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/upload/happyPath_File",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "This is test datap\u001B�K�\u001E�N;\u0005��9��",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:15:55 GMT",
+      "x-amz-request-id" : "H0DCN6HYREJCYWVT",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "w7OJxu0zk9JWge+QRthtvs2+6kbqAJ5fyDywtFltquGVB/Jh2Paepywal7oJfOICwmLARcmq5k4=",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Wed, 04 Mar 2026 20:15:56 GMT",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "7d2be3da-0068-48ba-ae07-03683b99553b",
+  "persistent" : true,
+  "insertionIndex" : 393
+}

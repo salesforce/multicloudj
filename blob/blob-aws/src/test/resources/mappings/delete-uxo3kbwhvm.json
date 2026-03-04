@@ -1,0 +1,22 @@
+{
+  "id" : "ffc692d4-64e8-44c5-a7a4-e034a065da36",
+  "name" : "java-bucket-does-not-exist_conformance-tests_blob-for-failing_testnonexistentbucket",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucket",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>P1SKNXPEZE1BT3R6</RequestId><HostId>0x2R93/wUg/RgvxCGI0PfOAcUX14xSrcSZnvqnKImCKIrtEfpZ+zcQA+3NW1KFQxeMbPnY90YsY=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "P1SKNXPEZE1BT3R6",
+      "x-amz-id-2" : "0x2R93/wUg/RgvxCGI0PfOAcUX14xSrcSZnvqnKImCKIrtEfpZ+zcQA+3NW1KFQxeMbPnY90YsY=",
+      "Date" : "Wed, 04 Mar 2026 20:14:41 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "ffc692d4-64e8-44c5-a7a4-e034a065da36",
+  "persistent" : true,
+  "insertionIndex" : 223
+}

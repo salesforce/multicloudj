@@ -1,0 +1,20 @@
+{
+  "id" : "bad2c6bc-4daf-48bf-9c1d-94cf22537a60",
+  "name" : "chameleon-jcloud_conformance-tests_presigneduploadurls_missingmetadataonupload",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presignedUploadUrls/missingMetadataOnUpload",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "WKG5S1QNKVTYZ550",
+      "x-amz-id-2" : "wQ1rc6SFyv4XNHlnoyleG4K98cZecChI81d69fW3nLg5J3lXre6T4U3jF++OoFx2ZSW+RonmvZE=",
+      "Date" : "Wed, 04 Mar 2026 20:16:41 GMT"
+    }
+  },
+  "uuid" : "bad2c6bc-4daf-48bf-9c1d-94cf22537a60",
+  "persistent" : true,
+  "insertionIndex" : 481
+}

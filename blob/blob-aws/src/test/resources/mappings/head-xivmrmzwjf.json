@@ -1,0 +1,21 @@
+{
+  "id" : "e3bcff44-c3c7-4874-b0b0-136c5e589be3",
+  "name" : "java-bucket-does-not-exist",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "R99M1EXEFE2PTRGP",
+      "x-amz-id-2" : "BSsgRtPXqOl9vF5/fWgzycg6RSeotWRvFw6CHe2x57ksl9U1mS5x76HjNu1AQ2YX32VBOPix0Hg=",
+      "Date" : "Wed, 04 Mar 2026 20:15:40 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e3bcff44-c3c7-4874-b0b0-136c5e589be3",
+  "persistent" : true,
+  "insertionIndex" : 353
+}
