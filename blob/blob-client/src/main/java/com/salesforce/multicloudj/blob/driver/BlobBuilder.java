@@ -27,6 +27,8 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
     private CredentialsOverrider credentialsOverrider;
     private Properties properties = new Properties();
     private RetryConfig retryConfig;
+    private Boolean useSystemPropertyProxyValues;
+    private Boolean useEnvironmentVariableProxyValues;
 
     public BlobBuilder<T> providerId(String providerId) {
         this.providerId = providerId;
@@ -85,6 +87,32 @@ public abstract class BlobBuilder<T extends SdkService> implements SdkProvider.B
      */
     public BlobBuilder<T> withRetryConfig(RetryConfig retryConfig) {
         this.retryConfig = retryConfig;
+        return this;
+    }
+
+    /**
+     * Method to control whether system property values (e.g., http.proxyHost, http.proxyPort,
+     * https.proxyHost, https.proxyPort) should be used for proxy configuration.
+     * When set to false, these system properties will be ignored.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+        this.useSystemPropertyProxyValues = useSystemPropertyProxyValues;
+        return this;
+    }
+
+    /**
+     * Method to control whether environment variable values (e.g., HTTP_PROXY, HTTPS_PROXY,
+     * NO_PROXY) should be used for proxy configuration.
+     * When set to false, these environment variables will be ignored.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobBuilder<T> withUseEnvironmentVariableProxyValues(Boolean useEnvironmentVariableProxyValues) {
+        this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
         return this;
     }
 

@@ -238,6 +238,30 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
     }
 
     /**
+     * Method to control whether system property values should be used for proxy configuration.
+     * When set to false, system properties like http.proxyHost, http.proxyPort will be ignored.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+        this.storeBuilder.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
+        return this;
+    }
+
+    /**
+     * Method to control whether environment variable values should be used for proxy configuration.
+     * When set to false, environment variables like HTTP_PROXY, HTTPS_PROXY will be ignored.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy configuration
+     * @return An instance of self
+     */
+    public BlobClientBuilder<C, S> withUseEnvironmentVariableProxyValues(Boolean useEnvironmentVariableProxyValues) {
+        this.storeBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+        return this;
+    }
+
+    /**
      * Builds and returns an instance of the target client implementation.
      * @return A fully constructed client implementation.
      */

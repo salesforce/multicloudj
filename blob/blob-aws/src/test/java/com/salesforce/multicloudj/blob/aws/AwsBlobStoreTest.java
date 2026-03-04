@@ -229,6 +229,18 @@ public class AwsBlobStoreTest {
                 .withIdleConnectionTimeout(Duration.ofSeconds(10));
         assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithIdleConnectionTimeout));
 
+        var builderWithUseSystemPropertyProxyValues = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withUseSystemPropertyProxyValues(false);
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithUseSystemPropertyProxyValues));
+
+        var builderWithUseEnvVarProxyValues = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1").withRegion("us-east-2")
+                .withUseEnvironmentVariableProxyValues(false);
+        assertTrue(AwsBlobStore.shouldConfigureHttpClient((AwsBlobStore.Builder)builderWithUseEnvVarProxyValues));
+
         var builderWithNoOverrides = new AwsBlobStore.Builder()
                 .withTransformerSupplier(transformerSupplier)
                 .withBucket("bucket-1").withRegion("us-east-2");
@@ -1237,6 +1249,61 @@ public class AwsBlobStoreTest {
                 .withTransformerSupplier(transformerSupplier)
                 .withBucket("bucket-1")
                 .withRegion("us-east-2")
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithUseSystemPropertyProxyValues() {
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withUseSystemPropertyProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithUseEnvironmentVariableProxyValues() {
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithBothProxyOverrideFlags() {
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withUseSystemPropertyProxyValues(false)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(store);
+        assertEquals("bucket-1", store.getBucket());
+    }
+
+    @Test
+    void testBuildS3ClientWithProxyEndpointAndOverrideFlags() {
+        var store = new AwsBlobStore.Builder()
+                .withTransformerSupplier(transformerSupplier)
+                .withBucket("bucket-1")
+                .withRegion("us-east-2")
+                .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
+                .withUseSystemPropertyProxyValues(true)
+                .withUseEnvironmentVariableProxyValues(false)
                 .build();
 
         assertNotNull(store);

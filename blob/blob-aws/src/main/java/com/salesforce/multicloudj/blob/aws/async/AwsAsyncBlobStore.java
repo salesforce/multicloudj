@@ -509,18 +509,28 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
             // Configure HTTP client if any settings are specified
             if (config.getProxyEndpoint() != null || config.getMaxConnections() != null ||
-                config.getSocketTimeout() != null || config.getIdleConnectionTimeout() != null) {
+                config.getSocketTimeout() != null || config.getIdleConnectionTimeout() != null ||
+                config.getUseSystemPropertyProxyValues() != null || config.getUseEnvironmentVariableProxyValues() != null) {
 
                 NettyNioAsyncHttpClient.Builder httpClientBuilder = NettyNioAsyncHttpClient.builder();
 
                 // Configure proxy if specified
-                if (config.getProxyEndpoint() != null) {
-                    ProxyConfiguration proxyConfig = ProxyConfiguration.builder()
-                            .scheme(config.getProxyEndpoint().getScheme())
-                            .host(config.getProxyEndpoint().getHost())
-                            .port(config.getProxyEndpoint().getPort())
-                            .build();
-                    httpClientBuilder.proxyConfiguration(proxyConfig);
+                if (config.getProxyEndpoint() != null
+                        || config.getUseSystemPropertyProxyValues() != null
+                        || config.getUseEnvironmentVariableProxyValues() != null) {
+                    ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
+                    if (config.getProxyEndpoint() != null) {
+                        proxyConfigBuilder.scheme(config.getProxyEndpoint().getScheme())
+                                .host(config.getProxyEndpoint().getHost())
+                                .port(config.getProxyEndpoint().getPort());
+                    }
+                    if (config.getUseSystemPropertyProxyValues() != null) {
+                        proxyConfigBuilder.useSystemPropertyValues(config.getUseSystemPropertyProxyValues());
+                    }
+                    if (config.getUseEnvironmentVariableProxyValues() != null) {
+                        proxyConfigBuilder.useEnvironmentVariableValues(config.getUseEnvironmentVariableProxyValues());
+                    }
+                    httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
                 }
 
                 // Configure max connections if specified

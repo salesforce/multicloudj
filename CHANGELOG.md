@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.27](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.26...multicloudj-v0.2.27) (2026-03-04)
+
+
+### Blob Store
+
+* extend retry strategy to GCP ([#298](https://github.com/salesforce/multicloudj/issues/298)) ([a22c4b0](https://github.com/salesforce/multicloudj/commit/a22c4b063c7fc84978891a1d89c4d670fb1123d5))
+* override proxy configs ([#318](https://github.com/salesforce/multicloudj/issues/318)) ([d148a85](https://github.com/salesforce/multicloudj/commit/d148a85922ce15356d40d7d537f57dfd5e87bf3c))
+
+
+### IAM
+
+* fix bugs in AWS IAM ([#311](https://github.com/salesforce/multicloudj/issues/311)) ([e741a87](https://github.com/salesforce/multicloudj/commit/e741a87378b1ff059633b5ad548a4004a5d7a781))
+
 ## [0.2.26](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.25...multicloudj-v0.2.26) (2026-02-25)
 
 
