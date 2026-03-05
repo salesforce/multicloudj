@@ -54,6 +54,10 @@ public abstract class AbstractIamIT {
 
         String getTestPolicyName();
 
+        default String getTestAction() {
+            return "storage:GetObject";
+        }
+
         /**
          * Role name for getInlinePolicyDetails (and similar) when the API requires it.
          * Unused for AWS (identity is used); required for GCP (e.g. "roles/storage.objectViewer").
@@ -154,7 +158,11 @@ public abstract class AbstractIamIT {
         PolicyDocument policyDocument = PolicyDocument.builder()
                 .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
-                .statement(statementBuilder.build())
+				.statement(Statement.builder()
+						.effect(harness.getTestPolicyEffect())
+						.action(harness.getTestAction())
+                        .resource(harness.getTestPolicyResource())
+						.build())
 				.build();
 
 		iamClient.attachInlinePolicy(
@@ -228,7 +236,11 @@ public abstract class AbstractIamIT {
         PolicyDocument policyDocument = PolicyDocument.builder()
                 .name(harness.getTestPolicyName())
 				.version(harness.getPolicyVersion())
-                .statement(statementBuilder.build())
+				.statement(Statement.builder()
+						.effect(harness.getTestPolicyEffect())
+						.action(harness.getTestAction())
+                        .resource(harness.getTestPolicyResource())
+						.build())
 				.build();
 
 		iamClient.attachInlinePolicy(

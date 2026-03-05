@@ -1,0 +1,24 @@
+{
+  "id" : "5a21bfa6-3a0d-45ba-9450-1756fd8af31b",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateRole&Version=2010-05-08&RoleName=MultiCloudJTestRoleTrusted&AssumeRolePolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%5B%22arn%3Aaws%3Aiam%3A%3A654654370895%3Arole%2Fchameleon-jcloud-test%22%5D%7D%7D%5D%7D&Description=Test+identity+with+trust+configuration",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<CreateRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreateRoleResult>\n    <Role>\n      <Path>/</Path>\n      <AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%5B%22arn%3Aaws%3Aiam%3A%3A654654370895%3Arole%2Fchameleon-jcloud-test%22%5D%7D%7D%5D%7D</AssumeRolePolicyDocument>\n      <RoleId>AROAZQ3DQ6RH6QYGF2MXW</RoleId>\n      <RoleName>MultiCloudJTestRoleTrusted</RoleName>\n      <Arn>arn:aws:iam::654654370895:role/MultiCloudJTestRoleTrusted</Arn>\n      <CreateDate>2026-03-05T04:40:38Z</CreateDate>\n    </Role>\n  </CreateRoleResult>\n  <ResponseMetadata>\n    <RequestId>b828ae88-51ad-4fce-bd58-690e4e926846</RequestId>\n  </ResponseMetadata>\n</CreateRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "b828ae88-51ad-4fce-bd58-690e4e926846",
+      "Date" : "Thu, 05 Mar 2026 04:40:38 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "5a21bfa6-3a0d-45ba-9450-1756fd8af31b",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

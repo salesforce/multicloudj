@@ -168,18 +168,32 @@ public class GcpIam extends AbstractIam {
 
 	/**
 	 * Attaches an inline policy to a resource.
-	 * This implementation treats each action in the PolicyDocument statement as a GCP IAM role name
-	 * and grants that role to the IAM member. The action values are used directly as role names
-	 * (e.g., "roles/iam.serviceAccountUser", "roles/storage.objectViewer").
+	 * This implementation translates substrate-neutral actions from the PolicyDocument to GCP IAM roles
+	 * and grants those roles to the IAM member via bindings.
+	 *
+	 * <p>Translation examples:
+	 * <ul>
+	 *   <li>storage:GetObject → roles/storage.objectViewer</li>
+	 *   <li>storage:PutObject → roles/storage.objectCreator</li>
+	 *   <li>compute:CreateInstance → roles/compute.instanceAdmin.v1</li>
+	 * </ul>
 	 *
 	 * <p>Note: GCP IAM is deny-by-default: access is denied unless explicitly allowed via bindings.
-	 * <p>Note: This implementation only processes "Allow" statements. "Deny" statements are skipped because
-	 * ProjectsClient only supports allow policies (bindings). Deny policies require the IAM v2 API
+	 * <p>Note: This implementation only processes "Allow" statements. "Deny" statements are not supported
+	 * because ProjectsClient only supports allow policies (bindings). Deny policies require the IAM v2 API
 	 * (PoliciesClient) and are managed separately from allow policies.
 	 *
-	 * @param request the request; GCP uses identityName as member, tenantId as resource name
-	 *     (e.g. organizations/123, folders/456, projects/my-project). Policy document actions
-	 *     are treated as GCP IAM role names.
+	 * @param policyDocument the substrate-neutral policy document
+	 * @param tenantId the resource name that owns the IAM policy. Examples include:
+	 *		 "organizations/123456789012",
+	 *		 "folders/987654321098",
+	 *		 "projects/my-project",
+	 *		 "projects/my-project/topics/my-topic",,
+	 *		 Can be any GCP resource that supports IAM policies.
+	 * @param region the region (optional for GCP)
+	 * @param resource the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
+	 *		 "user:user@example.com", "group:group@example.com")
+	 * @throws SubstrateSdkException if translation fails (unknown action, unsupported condition, etc.)
 	 */
 	@Override
 	protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
@@ -209,9 +223,12 @@ public class GcpIam extends AbstractIam {
 				continue;
 			}
 
-			// Treat each action as a GCP IAM role name
-			for (String action : statement.getActions()) {
-				policy = addBinding(policy, action, member);
+			// Translate substrate-neutral actions to GCP roles
+			List<String> roles = GcpIamPolicyTranslator.translateActionsToRoles(statement);
+
+			// Add binding for each translated role
+			for (String role : roles) {
+				policy = addBinding(policy, role, member);
 			}
 		}
 
@@ -283,9 +300,9 @@ public class GcpIam extends AbstractIam {
 	 *   <li><strong>roleName:</strong> Required. Must be a valid GCP IAM role name (e.g., "roles/iam.serviceAccountUser",
 	 *       "roles/storage.objectViewer"). This is used to identify the role binding to retrieve.</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param request the request containing relevant fields from identity name, policy name, role name, tenant ID, and region
-	 * 
+	 *
 	 * NOTE on param contents
 	 * identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
 	 *		 "user:user@example.com", "group:group@example.com")
@@ -367,9 +384,9 @@ public class GcpIam extends AbstractIam {
 	 * Retrieves all policies (roles) attached to an IAM member.
 	 * In GCP, "attached policies" are the IAM roles that have been granted to the IAM member
 	 * through bindings in the resource's IAM policy.
-	 * 
+	 *
 	 * @param request the request containing relevant fields from identity name, tenant ID, and region
-	 * 
+	 *
 	 * NOTE on param contents
 	 * identityName the IAM member (e.g., "serviceAccount:my-sa@project.iam.gserviceaccount.com",
 	 *		 "user:user@example.com", "group:group@example.com")

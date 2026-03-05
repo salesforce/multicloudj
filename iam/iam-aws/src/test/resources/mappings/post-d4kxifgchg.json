@@ -1,0 +1,24 @@
+{
+  "id" : "6c15d0f7-9d2b-459f-8b1f-bbea1849f34e",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=DeleteRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<DeleteRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>7342a658-10ec-4ffd-894d-7c7937eca0b2</RequestId>\n  </ResponseMetadata>\n</DeleteRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "7342a658-10ec-4ffd-894d-7c7937eca0b2",
+      "Date" : "Thu, 05 Mar 2026 04:40:31 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "6c15d0f7-9d2b-459f-8b1f-bbea1849f34e",
+  "persistent" : true,
+  "insertionIndex" : 39
+}

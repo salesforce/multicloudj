@@ -1,0 +1,32 @@
+{
+  "id" : "c7de3dd6-84fd-4df7-9ed6-6cf458927256",
+  "name" : "v3_projects_substrate-sdk-gcp-poc1getiampolicy",
+  "request" : {
+    "url" : "/v3/projects/substrate-sdk-gcp-poc1:getIamPolicy?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "v3_projects_substrate-sdk-gcp-poc1getiampolicy.json",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 05 Feb 2026 06:17:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c7de3dd6-84fd-4df7-9ed6-6cf458927256",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v3-projects-substrate-sdk-gcp-poc1:getIamPolicy",
+  "requiredScenarioState" : "scenario-1-v3-projects-substrate-sdk-gcp-poc1:getIamPolicy-2",
+  "insertionIndex" : 18
+}
