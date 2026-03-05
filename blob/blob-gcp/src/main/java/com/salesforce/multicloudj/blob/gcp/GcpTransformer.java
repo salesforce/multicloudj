@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -389,7 +390,10 @@ public class GcpTransformer {
     Path sourceDir = Paths.get(request.getLocalSourceDirectory());
     List<Path> filePaths = new ArrayList<>();
 
-    try (Stream<Path> paths = Files.walk(sourceDir)) {
+    try (Stream<Path> paths =
+        request.isFollowSymbolicLinks()
+            ? Files.walk(sourceDir, Integer.MAX_VALUE, FileVisitOption.FOLLOW_LINKS)
+            : Files.walk(sourceDir)) {
       filePaths =
           paths
               .filter(Files::isRegularFile)

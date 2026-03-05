@@ -966,6 +966,51 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToFilePaths_FollowSymbolicLinks() throws IOException {
+    Path tempDir = Files.createTempDirectory("test-upload-symlink");
+    Path realDir = Files.createTempDirectory("test-upload-target");
+    Path realFile = realDir.resolve("linked-file.txt");
+    Files.write(realFile, "linked-content".getBytes());
+    Path file1 = tempDir.resolve("file1.txt");
+    Files.write(file1, "content1".getBytes());
+    Path symlink = tempDir.resolve("link-dir");
+    Files.createSymbolicLink(symlink, realDir);
+
+    try {
+      DirectoryUploadRequest requestNoFollow =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(false)
+              .build();
+      List<Path> noFollowPaths = transformer.toFilePaths(requestNoFollow);
+      assertEquals(1, noFollowPaths.size());
+      assertTrue(noFollowPaths.contains(file1));
+
+      DirectoryUploadRequest requestFollow =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+      List<Path> followPaths = transformer.toFilePaths(requestFollow);
+      assertEquals(2, followPaths.size());
+      assertTrue(followPaths.contains(file1));
+    } finally {
+      Files.walk(realDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+      Files.walk(tempDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+    }
+  }
+
+  @Test
   public void testToBlobKey() {
     Path sourceDir = Paths.get("/source");
     Path filePath = Paths.get("/source/subdir/file.txt");
