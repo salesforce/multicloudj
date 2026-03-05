@@ -597,6 +597,28 @@ public class AsyncBucketClient implements AutoCloseable {
         }
 
         /**
+         * Method to control whether system property values should be used for proxy configuration.
+         * @param useSystemPropertyProxyValues Whether to use system property values for proxy configuration
+         * @return An instance of self
+         */
+        @Override
+        public Builder withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+            super.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
+            return this;
+        }
+
+        /**
+         * Method to control whether environment variable values should be used for proxy configuration.
+         * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy configuration
+         * @return An instance of self
+         */
+        @Override
+        public Builder withUseEnvironmentVariableProxyValues(Boolean useEnvironmentVariableProxyValues) {
+            super.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+            return this;
+        }
+
+        /**
          * {@inheritDoc}
          */
         @Override

@@ -589,6 +589,75 @@ public class BucketClientTest {
     }
 
     @Test
+    void testBucketClientBuilderWithUseSystemPropertyProxyValues() {
+        AbstractBlobStore.Builder mockBuilder2 = mock(AbstractBlobStore.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseSystemPropertyProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findProviderBuilder("test3"))
+                .thenReturn(mockBuilder2);
+
+        BucketClient testClient = BucketClient.builder("test3")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withUseSystemPropertyProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withUseSystemPropertyProxyValues(false);
+        assertNotNull(testClient);
+    }
+
+    @Test
+    void testBucketClientBuilderWithUseEnvironmentVariableProxyValues() {
+        AbstractBlobStore.Builder mockBuilder2 = mock(AbstractBlobStore.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseEnvironmentVariableProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findProviderBuilder("test4"))
+                .thenReturn(mockBuilder2);
+
+        BucketClient testClient = BucketClient.builder("test4")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withUseEnvironmentVariableProxyValues(false);
+        assertNotNull(testClient);
+    }
+
+    @Test
+    void testBucketClientBuilderWithProxyEndpointAndOverrideFlags() {
+        AbstractBlobStore.Builder mockBuilder2 = mock(AbstractBlobStore.Builder.class);
+        when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withProxyEndpoint(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseSystemPropertyProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.withUseEnvironmentVariableProxyValues(any())).thenReturn(mockBuilder2);
+        when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+        providerSupplier.when(() -> ProviderSupplier.findProviderBuilder("test5"))
+                .thenReturn(mockBuilder2);
+
+        BucketClient testClient = BucketClient.builder("test5")
+                .withBucket("test-bucket")
+                .withRegion("us-east-1")
+                .withProxyEndpoint(URI.create("https://proxy.example.com:443"))
+                .withUseSystemPropertyProxyValues(true)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        verify(mockBuilder2, times(1)).withProxyEndpoint(URI.create("https://proxy.example.com:443"));
+        verify(mockBuilder2, times(1)).withUseSystemPropertyProxyValues(true);
+        verify(mockBuilder2, times(1)).withUseEnvironmentVariableProxyValues(false);
+        assertNotNull(testClient);
+    }
+
+    @Test
     void testClose() throws Exception {
         // Test that close() calls blobStore.close()
         client.close();

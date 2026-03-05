@@ -234,6 +234,53 @@ public class AwsBlobClientTest {
     }
 
     @Test
+    void testBuildS3ClientWithUseSystemPropertyProxyValues() {
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withUseSystemPropertyProxyValues(false)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithUseEnvironmentVariableProxyValues() {
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithBothProxyOverrideFlags() {
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withUseSystemPropertyProxyValues(false)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
+    void testBuildS3ClientWithProxyEndpointAndOverrideFlags() {
+        var client = new AwsBlobClient.Builder()
+                .withRegion("us-east-2")
+                .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
+                .withUseSystemPropertyProxyValues(true)
+                .withUseEnvironmentVariableProxyValues(false)
+                .build();
+
+        assertNotNull(client);
+        assertEquals("aws", client.getProviderId());
+    }
+
+    @Test
     void testCreateBucket() {
         String bucketName = "test-bucket";
 

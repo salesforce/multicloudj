@@ -37,10 +37,6 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
         this.proxyEndpoint = builder.getProxyEndpoint();
         this.credentialsOverrider = builder.getCredentialsOverrider();
         this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
-
-        if (StringUtils.isBlank(registryEndpoint)) {
-            throw new InvalidArgumentException("Registry endpoint is required");
-        }
     }
 
     @Override

@@ -110,7 +110,9 @@ public class AwsBlobStore extends AbstractBlobStore {
         return builder.getProxyEndpoint() != null
                 || builder.getMaxConnections() != null
                 || builder.getSocketTimeout() != null
-                || builder.getIdleConnectionTimeout() != null;
+                || builder.getIdleConnectionTimeout() != null
+                || builder.getUseSystemPropertyProxyValues() != null
+                || builder.getUseEnvironmentVariableProxyValues() != null;
     }
 
     @Override
@@ -627,10 +629,20 @@ public class AwsBlobStore extends AbstractBlobStore {
          */
         private static SdkHttpClient generateHttpClient(Builder builder) {
             ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
-            if (builder.getProxyEndpoint() != null) {
-                httpClientBuilder.proxyConfiguration(ProxyConfiguration.builder()
-                        .endpoint(builder.getProxyEndpoint())
-                        .build());
+            if (builder.getProxyEndpoint() != null
+                    || builder.getUseSystemPropertyProxyValues() != null
+                    || builder.getUseEnvironmentVariableProxyValues() != null) {
+                ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
+                if (builder.getProxyEndpoint() != null) {
+                    proxyConfigBuilder.endpoint(builder.getProxyEndpoint());
+                }
+                if (builder.getUseSystemPropertyProxyValues() != null) {
+                    proxyConfigBuilder.useSystemPropertyValues(builder.getUseSystemPropertyProxyValues());
+                }
+                if (builder.getUseEnvironmentVariableProxyValues() != null) {
+                    proxyConfigBuilder.useEnvironmentVariableValues(builder.getUseEnvironmentVariableProxyValues());
+                }
+                httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
             }
             if(builder.getMaxConnections() != null) {
                 httpClientBuilder.maxConnections(builder.getMaxConnections());

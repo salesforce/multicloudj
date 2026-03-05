@@ -663,6 +663,26 @@ public class BucketClient implements AutoCloseable {
         }
 
         /**
+         * Method to control whether system property values should be used for proxy configuration.
+         * @param useSystemPropertyProxyValues Whether to use system property values for proxy configuration
+         * @return An instance of self
+         */
+        public BlobBuilder withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+            this.blobStoreBuilder.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
+            return this;
+        }
+
+        /**
+         * Method to control whether environment variable values should be used for proxy configuration.
+         * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy configuration
+         * @return An instance of self
+         */
+        public BlobBuilder withUseEnvironmentVariableProxyValues(Boolean useEnvironmentVariableProxyValues) {
+            this.blobStoreBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+            return this;
+        }
+
+        /**
          * Builds and returns an instance of BucketClient.
          * @return An instance of BucketClient.
          */
