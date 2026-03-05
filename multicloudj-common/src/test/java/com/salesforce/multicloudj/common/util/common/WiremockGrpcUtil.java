@@ -69,9 +69,10 @@ public final class WiremockGrpcUtil {
         return mockGrpcService;
     }
 
-    public static TransportChannelProvider getGrpcTransportChannelWithRecordingInterceptor(String recordingsDirectory) {
+    public static TransportChannelProvider getGrpcTransportChannelWithRecordingInterceptor(String recordingsDirectory, String testPrefix) {
         RecordingInterceptor recordingInterceptor = RecordingInterceptor.builder()
                 .recordingsDir(recordingsDirectory)
+                .testPrefix(testPrefix)
                 .build();
         return InstantiatingGrpcChannelProvider.newBuilder()
                 .setInterceptorProvider(() -> List.of(recordingInterceptor))
@@ -146,6 +147,8 @@ public final class WiremockGrpcUtil {
     @Builder
     static class RecordingInterceptor implements ClientInterceptor {
         private final String recordingsDir;
+        private final String testPrefix;
+        private int callIndex;
 
         @Override
         public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
@@ -212,7 +215,12 @@ public final class WiremockGrpcUtil {
                 // Serialize back to a JSON string
                 String requestResponseJson = OBJECT_MAPPER.writeValueAsString(root);
 
-                String filename = String.format("%s-%s.json", methodName, UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+                String filename;
+                if (testPrefix != null && !testPrefix.isEmpty()) {
+                    filename = String.format("%s-%s-%d.json", testPrefix, methodName, callIndex++);
+                } else {
+                    filename = String.format("%s-%s.json", methodName, UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+                }
                 Path filePath = Paths.get(recordingsDir, filename);
                 Files.write(filePath, requestResponseJson.getBytes());
             } catch (IOException e) {

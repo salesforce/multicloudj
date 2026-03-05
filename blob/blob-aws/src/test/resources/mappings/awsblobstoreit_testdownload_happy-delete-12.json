@@ -1,0 +1,22 @@
+{
+  "id" : "36ab17b1-e3f2-4249-a6a4-5b618ac143c1",
+  "name" : "AwsBlobStoreIT_testDownload_happy-DELETE-12",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_happy_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "GV99QSDEW4XA7YNS",
+      "x-amz-id-2" : "ORvhOA70lHJaTe+kZEJmL++/4M2vBqxqufgYIU7rwDCTt/ftx7UKM0CdBymhQRZ2CzSiDfc8RytXvbU9saKei/EswCINSAQd",
+      "Date" : "Wed, 04 Mar 2026 20:58:04 GMT"
+    }
+  },
+  "uuid" : "36ab17b1-e3f2-4249-a6a4-5b618ac143c1",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-download_happy_unversioned",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-download_happy_unversioned-4",
+  "insertionIndex" : 278
+}

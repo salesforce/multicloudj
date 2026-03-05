@@ -1,0 +1,43 @@
+{
+  "id" : "8eab0f8a-30d4-404c-8929-7a862aaffbaa",
+  "name" : "FSDocstoreIT_testPut-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LeoPut\",\"fields\":{\"b\":{\"booleanValue\":true},\"pName\":{\"stringValue\":\"LeoPut\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"},\"DocstoreRevision\":{\"bytesValue\":\"CHs=\"}}},\"currentDocument\":{\"updateTime\":\"1970-01-01T00:02:03Z\"}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"the stored version (0) does not match the required base version (123000000)\",\n    \"status\": \"FAILED_PRECONDITION\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "13221537545724302904;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:49 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8eab0f8a-30d4-404c-8929-7a862aaffbaa",
+  "persistent" : true,
+  "insertionIndex" : 66
+}

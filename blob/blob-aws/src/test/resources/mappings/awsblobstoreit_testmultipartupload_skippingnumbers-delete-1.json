@@ -1,0 +1,20 @@
+{
+  "id" : "81ed5001-79ca-40b8-9bac-d5b38a5e8013",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_skippingNumbers-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4JPVDYKRPMP076ZJ",
+      "x-amz-id-2" : "amqBTS6M/1rsnx9chuJaeaysawmKLdaGubhLkUgf5W/qudXQfRC6M0mGqhRY6BQhGQE1mwUlvoS4KDPZlTQIeathJHIUKrrw",
+      "Date" : "Wed, 04 Mar 2026 20:57:45 GMT"
+    }
+  },
+  "uuid" : "81ed5001-79ca-40b8-9bac-d5b38a5e8013",
+  "persistent" : true,
+  "insertionIndex" : 229
+}

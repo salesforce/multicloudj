@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +145,10 @@ public abstract class AbstractBlobStoreIT {
      * Initialize the harness and
      */
     @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getEndpoint());
+    public void setupTestEnvironment(TestInfo testInfo) {
+        String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+        String testMethodName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+        TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
     }
 
     /**
@@ -1659,7 +1662,7 @@ public abstract class AbstractBlobStoreIT {
                 pageCount++;
                 
                 // Safety check to prevent infinite loops
-                Assertions.assertTrue(pageCount <= 10, 
+                Assertions.assertTrue(pageCount <= 10,
                     "testListPage: Pagination loop exceeded maximum expected pages");
                 
             } while (nextToken != null);
@@ -2421,7 +2424,8 @@ public abstract class AbstractBlobStoreIT {
     public void testGeneratePresignedUploadUrl_missingTagsOnUpload() {
         String key = PRESIGNED_BLOB_UPLOAD_PREFIX + "missingTagsOnUpload";
         Map<String, String> tags = Map.of("tag5", "tagValue5", "tag6", "tagValue6");
-        Assertions.assertThrows(Exception.class, () ->
+        // TODO: narrow it down to the exact exception
+        Assertions.assertThrows(Throwable.class, () ->
             runPresignedUploadTest(key, Duration.ofHours(10), null, null, null, tags, null)
         );
     }

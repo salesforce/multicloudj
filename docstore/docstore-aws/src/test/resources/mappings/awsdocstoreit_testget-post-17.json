@@ -1,0 +1,32 @@
+{
+  "id" : "41b97774-a628-477d-9379-62bf1223cc50",
+  "name" : "AwsDocstoreIT_testGet-POST-17",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"PumaMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"PumaMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "2DO3QAHI83IBN3167EQ7O6MT2BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "901038788",
+      "Date" : "Wed, 04 Mar 2026 21:12:37 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "41b97774-a628-477d-9379-62bf1223cc50",
+  "persistent" : true,
+  "insertionIndex" : 58
+}

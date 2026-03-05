@@ -1,0 +1,32 @@
+{
+  "id" : "db876b3d-9a41-457c-a36e-82ad7d9589a1",
+  "name" : "AwsDocstoreIT_testGetQuery-POST-19",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Query"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"IndexName\":\"global\",\"KeyConditionExpression\":\"#attrPlayer = :value0\",\"ExpressionAttributeNames\":{\"#attrPlayer\":\"Player\"},\"ExpressionAttributeValues\":{\":value0\":{\"S\":\"billie\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":1,\"Items\":[{\"Player\":{\"S\":\"billie\"},\"WithGlitch\":{\"BOOL\":false},\"Score\":{\"N\":\"111\"},\"Game\":{\"S\":\"Zombie DMV\"},\"Time\":{\"S\":\"2024-04-10\"}}],\"ScannedCount\":1}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "9JQITUILC681FL39DMQSNFL53RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3579440872",
+      "Date" : "Wed, 04 Mar 2026 21:12:25 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "db876b3d-9a41-457c-a36e-82ad7d9589a1",
+  "persistent" : true,
+  "insertionIndex" : 20
+}
