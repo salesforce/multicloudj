@@ -50,8 +50,7 @@ public class OciRegistryClientTest {
   private static final String REGISTRY_ENDPOINT = "https://test-registry.example.com";
   private static final String REPOSITORY = "test-repo/test-image";
 
-  @Mock
-  private AbstractRegistry mockAuthProvider;
+  @Mock private AbstractRegistry mockAuthProvider;
 
   private AutoCloseable mocks;
 

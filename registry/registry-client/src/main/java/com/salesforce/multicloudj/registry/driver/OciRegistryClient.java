@@ -27,77 +27,80 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
 /** OCI Registry API v2 HTTP client; handles auth and registry operations. */
 public class OciRegistryClient implements AutoCloseable {
 
-    private static final String AUTH_SCHEME_ANONYMOUS = "anonymous";
-    private static final String AUTH_SCHEME_BASIC = "basic";
-    private static final String AUTH_SCHEME_BEARER = "bearer";
-    private static final String MANIFEST_ACCEPT_HEADER =
-            OciManifestFields.MEDIA_TYPE_OCI_MANIFEST + ","
-                    + OciManifestFields.MEDIA_TYPE_OCI_INDEX + ","
-                    + OciManifestFields.MEDIA_TYPE_DOCKER_MANIFEST + ","
-                    + OciManifestFields.MEDIA_TYPE_DOCKER_MANIFEST_LIST;
-    private static final String DIGEST_ALGORITHM = "SHA-256";
-    private static final String DIGEST_PREFIX = "sha256:";
-    private static final int MAX_MANIFEST_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+  private static final String AUTH_SCHEME_ANONYMOUS = "anonymous";
+  private static final String AUTH_SCHEME_BASIC = "basic";
+  private static final String AUTH_SCHEME_BEARER = "bearer";
+  private static final String MANIFEST_ACCEPT_HEADER =
+      OciManifestFields.MEDIA_TYPE_OCI_MANIFEST
+          + ","
+          + OciManifestFields.MEDIA_TYPE_OCI_INDEX
+          + ","
+          + OciManifestFields.MEDIA_TYPE_DOCKER_MANIFEST
+          + ","
+          + OciManifestFields.MEDIA_TYPE_DOCKER_MANIFEST_LIST;
+  private static final String DIGEST_ALGORITHM = "SHA-256";
+  private static final String DIGEST_PREFIX = "sha256:";
+  private static final int MAX_MANIFEST_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
 
+  private final String registryEndpoint;
+  private final CloseableHttpClient httpClient;
+  private final AuthProvider authProvider;
+  private final BearerTokenExchange tokenExchange;
 
-    private final String registryEndpoint;
-    private final CloseableHttpClient httpClient;
-    private final AuthProvider authProvider;
-    private final BearerTokenExchange tokenExchange;
+  /** Lock for thread-safe lazy initialization of cachedChallenge. */
+  private final Object challengeLock = new Object();
 
-    /** Lock for thread-safe lazy initialization of cachedChallenge. */
-    private final Object challengeLock = new Object();
+  /** Cached auth challenge, lazily initialized with double-checked locking. */
+  private volatile AuthChallenge cachedChallenge;
 
-    /** Cached auth challenge, lazily initialized with double-checked locking. */
-    private volatile AuthChallenge cachedChallenge;
+  /**
+   * Creates a new OciRegistryClient.
+   *
+   * <p>The HTTP client is configured with an AuthStrippingInterceptor that removes Authorization
+   * headers when following redirects to external hosts. This is required for registries like AWS
+   * ECR that redirect blob downloads to S3 pre-signed URLs.
+   *
+   * @param registryEndpoint the registry base URL
+   * @param authProvider the authentication provider
+   */
+  public OciRegistryClient(String registryEndpoint, AbstractRegistry registry) {
+    this(registryEndpoint, registry, null);
+  }
 
-    /**
-     * Creates a new OciRegistryClient.
-     *
-     * @param registryEndpoint the registry base URL
-     * @param registry the registry
-     */
-    public OciRegistryClient(String registryEndpoint, AbstractRegistry registry) {
-        this(registryEndpoint, registry, null);
+  /**
+   * Creates OciRegistryClient with specified HttpClient.
+   *
+   * @param registryEndpoint the registry base URL
+   * @param registry the registry
+   * @param httpClient the HTTP client to use (null to create default)
+   */
+  public OciRegistryClient(
+      String registryEndpoint, AbstractRegistry registry, CloseableHttpClient httpClient) {
+    this.registryEndpoint = registryEndpoint;
+    this.authProvider = registry;
+    if (httpClient != null) {
+      this.httpClient = httpClient;
+    } else {
+      HttpClientBuilder builder = HttpClients.custom();
+      for (HttpRequestInterceptor interceptor : registry.getInterceptors()) {
+        builder.addInterceptorLast(interceptor);
+      }
+      this.httpClient = builder.build();
     }
-
-    /**
-     * Creates OciRegistryClient with specified HttpClient.
-     *
-     * @param registryEndpoint the registry base URL
-     * @param registry the registry
-     * @param httpClient the HTTP client to use (null to create default)
-     */
-    public OciRegistryClient(String registryEndpoint, AbstractRegistry registry,
-                            CloseableHttpClient httpClient) {
-        this.registryEndpoint = registryEndpoint;
-        this.authProvider = registry;
-        if (httpClient != null) {
-            this.httpClient = httpClient;
-        } else {
-            HttpClientBuilder builder = HttpClients.custom();
-            for (HttpRequestInterceptor interceptor : registry.getInterceptors()) {
-                builder.addInterceptorLast(interceptor);
-            }
-            this.httpClient = builder.build();
-        }
-        this.tokenExchange = new BearerTokenExchange(this.httpClient);
-    }
+    this.tokenExchange = new BearerTokenExchange(this.httpClient);
+  }
 
   /**
    * Builds HTTP Authorization header for the given repository. Discovers auth requirements on first
