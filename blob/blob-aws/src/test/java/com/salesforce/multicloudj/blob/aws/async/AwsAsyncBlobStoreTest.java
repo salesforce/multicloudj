@@ -1434,6 +1434,57 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void doUploadDirectory_FollowSymbolicLinks()
+      throws ExecutionException, InterruptedException, IOException {
+    Path tempDir = Files.createTempDirectory("test-upload-dir-symlink");
+    try {
+      Path file1 = tempDir.resolve("file1.txt");
+      Files.write(file1, "content1".getBytes());
+
+      DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+      CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+      doReturn(mockDirectoryUpload)
+          .when(mockS3TransferManager)
+          .uploadDirectory(any(UploadDirectoryRequest.class));
+      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+          .when(mockDirectoryUpload)
+          .completionFuture();
+      doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+
+      DirectoryUploadRequest uploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("files/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+
+      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+
+      assertNotNull(response);
+      assertTrue(response.getFailedTransfers().isEmpty());
+
+      ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+          ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+      verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+      UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+      assertEquals(BUCKET, capturedRequest.bucket());
+      assertTrue(capturedRequest.followSymbolicLinks().orElse(false));
+    } finally {
+      Files.walk(tempDir)
+          .sorted((a, b) -> b.compareTo(a))
+          .forEach(
+              path -> {
+                try {
+                  Files.deleteIfExists(path);
+                } catch (IOException e) {
+                  // Ignore cleanup errors
+                }
+              });
+    }
+  }
+
+  @Test
   void doDeleteDirectory() throws ExecutionException, InterruptedException {
 
     // Arrange it so calling doList() returns these blobs via the async publisher
