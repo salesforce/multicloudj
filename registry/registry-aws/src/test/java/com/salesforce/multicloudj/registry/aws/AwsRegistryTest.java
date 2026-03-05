@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import org.apache.http.HttpRequestInterceptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -19,10 +20,14 @@ import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,7 +59,6 @@ class AwsRegistryTest {
         AwsRegistry.Builder builder = new AwsRegistry.Builder()
                 .withRegion(TEST_REGION)
                 .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT);
-        builder.providerId(PROVIDER_ID);
         return new AwsRegistry(builder, mockEcrClient);
     }
 
@@ -81,16 +85,6 @@ class AwsRegistryTest {
                 .build();
     }
 
-    static Stream<org.junit.jupiter.params.provider.Arguments> exceptionMappingProvider() { // NOSONAR - needed for @MethodSource resolution
-        return Stream.of(
-                arguments(new SubstrateSdkException("test"),              SubstrateSdkException.class),
-                arguments(awsException(AWS_ERROR_CODE_ACCESS_DENIED),     UnAuthorizedException.class),
-                arguments(awsException(AWS_ERROR_CODE_UNAVAILABLE),       UnknownException.class),
-                arguments(new IllegalArgumentException("invalid"),        InvalidArgumentException.class),
-                arguments(new RuntimeException("unknown"),                UnknownException.class)
-        );
-    }
-
     private void withMockedRegistry(RegistryTestAction action) throws Exception {
         EcrClient mockEcrClient = mock(EcrClient.class);
         try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
@@ -99,62 +93,78 @@ class AwsRegistryTest {
     }
 
     @Test
-    void testBuilderAndBasicProperties() throws Exception {
+    void testNoArgConstructor_CreatesInstanceWithDefaultBuilder() {
+        AwsRegistry registry = new AwsRegistry();
+        assertNotNull(registry);
+        assertNull(registry.getOciClient());
+    }
+
+    @Test
+    void testConstructor_WithBuilder_InitialisesFields() throws Exception {
         withMockedRegistry(registry -> {
-            assertNotNull(registry);
             assertEquals(PROVIDER_ID, registry.getProviderId());
             assertEquals(AUTH_USERNAME, registry.getAuthUsername());
-            assertNotNull(registry.builder());
+            assertNotNull(registry.getOciClient());
         });
+    }
+
+    @Test
+    void testBuilder_InstanceMethod_ReturnsNewBuilder() throws Exception {
+        withMockedRegistry(registry -> assertNotNull(registry.builder()));
+    }
+
+    @Test
+    void testBuilder_WithRegion_GetRegion_RoundTrip() {
+        AwsRegistry.Builder builder = new AwsRegistry.Builder().withRegion(TEST_REGION);
+        assertEquals(TEST_REGION, builder.getRegion());
     }
 
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
-    void testBuilder_InvalidRegion_ThrowsException(String region) {
+    void testBuilder_MissingEndpoint_ThrowsInvalidArgumentException(String endpoint) {
         assertThrows(InvalidArgumentException.class, () ->
-            new AwsRegistry.Builder()
-                    .withRegion(region)
-                    .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
-                    .build()
-        );
+                new AwsRegistry.Builder()
+                        .withRegion(TEST_REGION)
+                        .withRegistryEndpoint(endpoint)
+                        .build());
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    void testBuilder_MissingRegion_ThrowsInvalidArgumentException(String region) {
+        assertThrows(InvalidArgumentException.class, () ->
+                new AwsRegistry.Builder()
+                        .withRegion(region)
+                        .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+                        .build());
     }
 
     @Test
-    void testGetAuthToken_EmptyAuthorizationData_ThrowsUnknownException() throws Exception {
-        EcrClient mockEcrClient = mock(EcrClient.class);
-        GetAuthorizationTokenResponse response = GetAuthorizationTokenResponse.builder()
-                .authorizationData(Collections.emptyList())
-                .build();
-        when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class))).thenReturn(response);
-
-        try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
-            assertEquals(ERR_EMPTY_AUTH_DATA, exception.getMessage());
-        }
+    void testGetInterceptors_ReturnsAuthStrippingInterceptor() throws Exception {
+        withMockedRegistry(registry -> {
+            List<HttpRequestInterceptor> interceptors = registry.getInterceptors();
+            assertFalse(interceptors.isEmpty());
+            assertInstanceOf(AuthStrippingInterceptor.class, interceptors.get(0));
+        });
     }
 
     @Test
-    void testGetAuthToken_InvalidTokenFormat_ThrowsUnknownException() throws Exception {
-        EcrClient mockEcrClient = mock(EcrClient.class);
-        AuthorizationData authData = AuthorizationData.builder()
-                .authorizationToken(Base64.getEncoder().encodeToString("invalidtoken".getBytes()))
-                .expiresAt(Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))
-                .build();
-        when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
-                .thenReturn(tokenResponse(authData));
+    void testGetOciClient_ReturnsNonNull_WhenEndpointProvided() throws Exception {
+        withMockedRegistry(registry -> assertNotNull(registry.getOciClient()));
+    }
 
-        try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
-            assertEquals(ERR_INVALID_TOKEN_FORMAT, exception.getMessage());
-        }
+    @Test
+    void testGetOciClient_ReturnsNull_WhenNoEndpoint() {
+        AwsRegistry registry = new AwsRegistry();
+        assertNull(registry.getOciClient());
     }
 
     @Test
     void testGetAuthToken_TokenCachedWithinHalfwayWindow_NoRefresh() throws Exception {
         String expectedToken = "cached-token";
         EcrClient mockEcrClient = mock(EcrClient.class);
-        // Token expires 12 hours from now — halfway point is 6 hours from now, so no refresh expected
         when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
                 .thenReturn(tokenResponse(authDataWithExpiry(expectedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
@@ -171,7 +181,6 @@ class AwsRegistryTest {
         String refreshedToken = "refreshed-token";
         EcrClient mockEcrClient = mock(EcrClient.class);
         when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
-                // Token already past halfway point (expired 1 second ago)
                 .thenReturn(tokenResponse(authDataWithExpiry(firstToken, Instant.now().minusSeconds(1))))
                 .thenReturn(tokenResponse(authDataWithExpiry(refreshedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
@@ -183,11 +192,38 @@ class AwsRegistryTest {
     }
 
     @Test
+    void testGetAuthToken_EmptyAuthorizationData_ThrowsUnknownException() throws Exception {
+        EcrClient mockEcrClient = mock(EcrClient.class);
+        when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
+                .thenReturn(GetAuthorizationTokenResponse.builder().authorizationData(Collections.emptyList()).build());
+
+        try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
+            UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+            assertEquals(ERR_EMPTY_AUTH_DATA, ex.getMessage());
+        }
+    }
+
+    @Test
+    void testGetAuthToken_InvalidTokenFormat_ThrowsUnknownException() throws Exception {
+        EcrClient mockEcrClient = mock(EcrClient.class);
+        AuthorizationData authData = AuthorizationData.builder()
+                .authorizationToken(Base64.getEncoder().encodeToString("invalidtoken".getBytes()))
+                .expiresAt(Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))
+                .build();
+        when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
+                .thenReturn(tokenResponse(authData));
+
+        try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
+            UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+            assertEquals(ERR_INVALID_TOKEN_FORMAT, ex.getMessage());
+        }
+    }
+
+    @Test
     void testGetAuthToken_RefreshFails_FallsBackToCachedToken() throws Exception {
         String cachedToken = "still-valid-token";
         EcrClient mockEcrClient = mock(EcrClient.class);
         when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
-                // First call primes cache with past-halfway token, second call simulates transient failure
                 .thenReturn(tokenResponse(authDataWithExpiry(cachedToken, Instant.now().minusSeconds(1))))
                 .thenThrow(awsException(AWS_ERROR_CODE_UNAVAILABLE));
 
@@ -204,9 +240,33 @@ class AwsRegistryTest {
                 .thenThrow(awsException(AWS_ERROR_CODE_UNAVAILABLE));
 
         try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-            UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
-            assertEquals(ERR_FAILED_AUTH_TOKEN, exception.getMessage());
+            UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+            assertEquals(ERR_FAILED_AUTH_TOKEN, ex.getMessage());
         }
+    }
+
+    @Test
+    void testClose_WithOciAndEcrClient_ClosesAll() throws Exception {
+        EcrClient mockEcrClient = mock(EcrClient.class);
+        AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient);
+        registry.close();
+        verify(mockEcrClient).close();
+    }
+
+    @Test
+    void testClose_WithNullEcrClient_NoError() throws Exception {
+        AwsRegistry registry = new AwsRegistry();
+        registry.close(); // should not throw
+    }
+
+    static Stream<org.junit.jupiter.params.provider.Arguments> exceptionMappingProvider() { // NOSONAR - needed for @MethodSource resolution
+        return Stream.of(
+                arguments(new SubstrateSdkException("test"),              SubstrateSdkException.class),
+                arguments(awsException(AWS_ERROR_CODE_ACCESS_DENIED),     UnAuthorizedException.class),
+                arguments(awsException(AWS_ERROR_CODE_UNAVAILABLE),       UnknownException.class),
+                arguments(new IllegalArgumentException("invalid"),        InvalidArgumentException.class),
+                arguments(new RuntimeException("unknown"),                UnknownException.class)
+        );
     }
 
     @ParameterizedTest

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.registry.aws;
 
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
@@ -9,6 +10,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpRequestInterceptor;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -19,6 +21,7 @@ import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * AWS Elastic Container Registry (ECR) implementation.
@@ -32,7 +35,6 @@ import java.util.Base64;
 @AutoService(AbstractRegistry.class)
 public class AwsRegistry extends AbstractRegistry {
 
-    public static final String PROVIDER_ID = "aws";
     private static final String AWS_AUTH_USERNAME = "AWS";
 
     /** Lock for thread-safe lazy initialization of ECR client. */
@@ -41,7 +43,6 @@ public class AwsRegistry extends AbstractRegistry {
     /** Lock for thread-safe token refresh. */
     private final Object tokenLock = new Object();
 
-    private final String region;
     private final OciRegistryClient ociClient;
 
     /** Lazily initialized ECR client with double-checked locking. */
@@ -67,7 +68,6 @@ public class AwsRegistry extends AbstractRegistry {
      */
     public AwsRegistry(Builder builder, EcrClient ecrClient) {
         super(builder);
-        this.region = builder.getRegion();
         this.ecrClient = ecrClient;
         this.ociClient = registryEndpoint != null ? new OciRegistryClient(registryEndpoint, this) : null;
     }
@@ -97,6 +97,11 @@ public class AwsRegistry extends AbstractRegistry {
             }
         }
         return cachedAuthToken;
+    }
+
+    @Override
+    protected List<HttpRequestInterceptor> getInterceptors() {
+        return List.of(new AuthStrippingInterceptor(registryEndpoint));
     }
 
     /**
@@ -198,18 +203,7 @@ public class AwsRegistry extends AbstractRegistry {
     public static final class Builder extends AbstractRegistry.Builder<AwsRegistry, Builder> {
 
         public Builder() {
-            providerId(PROVIDER_ID);
-        }
-
-        private String region;
-
-        public Builder withRegion(String region) {
-            this.region = region;
-            return this;
-        }
-
-        public String getRegion() {
-            return region;
+            providerId(AwsConstants.PROVIDER_ID);
         }
 
         @Override

@@ -20,6 +20,7 @@ class AuthStrippingInterceptorTest {
     private static final String REGISTRY_ENDPOINT = "https://123456789012.dkr.ecr.us-east-1.amazonaws.com";
     private static final String REGISTRY_HOST = "123456789012.dkr.ecr.us-east-1.amazonaws.com";
     private static final String EXAMPLE_ENDPOINT_HOST = "registry.example.com";
+    private static final String S3_HOST = "s3.amazonaws.com";
     private static final String GET = "GET";
     private static final String BEARER_TOKEN = "Bearer token123";
     private static final String PATH_BLOB = "/v2/repo/blobs/sha256:abc";
@@ -78,7 +79,7 @@ class AuthStrippingInterceptorTest {
     @Test
     void testProcess_NoAuthHeader_NoError() {
         HttpRequest request = new BasicHttpRequest(GET, PATH_BLOB);
-        HttpContext context = contextWithHost("s3.amazonaws.com");
+        HttpContext context = contextWithHost(S3_HOST);
 
         interceptor.process(request, context);
 

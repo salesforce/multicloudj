@@ -11,9 +11,11 @@ import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpRequestInterceptor;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
 
     protected final String providerId;
     protected final String registryEndpoint;
+    protected final String region;
     protected final URI proxyEndpoint;
     protected final CredentialsOverrider credentialsOverrider;
     @Getter
@@ -34,6 +37,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     protected AbstractRegistry(Builder<?, ?> builder) {
         this.providerId = builder.getProviderId();
         this.registryEndpoint = builder.getRegistryEndpoint();
+        this.region = builder.getRegion();
         this.proxyEndpoint = builder.getProxyEndpoint();
         this.credentialsOverrider = builder.getCredentialsOverrider();
         this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
@@ -57,6 +61,15 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
 
     /** Returns the OCI client for this registry. */
     protected abstract OciRegistryClient getOciClient();
+
+    /**
+     * Returns the list of HTTP request interceptors to be registered with the HTTP client.
+     * Override this method in provider-specific subclasses to add custom interceptors.
+     * By default, returns an empty list (no interceptors).
+     */
+    protected List<HttpRequestInterceptor> getInterceptors() {
+        return Collections.emptyList();
+    }
 
     /**
      * Pulls an image from the registry (unified OCI flow).
@@ -203,9 +216,15 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     public abstract static class Builder<A extends AbstractRegistry, T extends Builder<A, T>> implements Provider.Builder {
         protected String providerId;
         protected String registryEndpoint;
+        protected String region;
         protected URI proxyEndpoint;
         protected CredentialsOverrider credentialsOverrider;
         protected Platform platform;
+
+        public T withRegion(String region) {
+            this.region = region;
+            return self();
+        }
 
         public T withRegistryEndpoint(String registryEndpoint) {
             this.registryEndpoint = registryEndpoint;

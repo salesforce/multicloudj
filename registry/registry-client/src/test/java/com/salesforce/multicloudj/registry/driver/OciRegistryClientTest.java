@@ -52,7 +52,7 @@ public class OciRegistryClientTest {
     private static final String REPOSITORY = "test-repo/test-image";
 
     @Mock
-    private AuthProvider mockAuthProvider;
+    private AbstractRegistry mockAuthProvider;
 
     private AutoCloseable mocks;
 
