@@ -97,6 +97,7 @@ Conformance tests require valid cloud credentials:
 ### Dependency management
 - Never add cloud specific dependency in cloud-agnostic package.
   - for example, `docstore-client` should never depend upon `multicloud-common-gcp`, `docstore-aws` etc
+- Never put any provider specific code, documentation, keywords in client, driver packages such as anything in `docstore-client` module.
 
 ### Adding New Functionality
 
@@ -105,7 +106,7 @@ Conformance tests require valid cloud credentials:
 3. Implement functionality in each provider-specific module (aws, gcp, ali)
 4. Add unit tests to provider modules
 5. Add/update conformance tests in `-client` module
-6. Ensure checkstyle passes (Google Java Style Guide)
+6. Ensure checkstyle passes (Google Java Style Guide), the checkstyle.xml are in config/
 
 ### Working with Multiple Cloud Providers
 
