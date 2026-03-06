@@ -11,4 +11,8 @@
     <!-- Allow flexible method naming in test classes (underscores for readability) -->
     <suppress checks="MethodName"
               files=".*[\\/]src[\\/]test[\\/].*"/>
+
+    <!-- Suppress checkstyle for JMH benchmark test files and ad-hoc test utilities (pre-date checkstyle enforcement) -->
+    <suppress checks=".*" files=".*BenchmarkTest\.java"/>
+    <suppress checks=".*" files="QuickConnectionTest\.java"/>
 </suppressions>
