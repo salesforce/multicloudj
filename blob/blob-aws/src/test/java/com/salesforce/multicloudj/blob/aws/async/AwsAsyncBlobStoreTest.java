@@ -1309,7 +1309,7 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
-  void doUploadDirectory() throws ExecutionException, InterruptedException, IOException {
+  void doUploadDirectory() throws ExecutionException, InterruptedException {
     DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
     CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
     doReturn(mockDirectoryUpload)
@@ -1342,7 +1342,7 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
-  void doUploadDirectory_WithTags() throws ExecutionException, InterruptedException, IOException {
+  void doUploadDirectory_WithTags() throws ExecutionException, InterruptedException {
     Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
 
     DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
@@ -1380,7 +1380,7 @@ public class AwsAsyncBlobStoreTest {
 
   @Test
   void doUploadDirectory_FollowSymbolicLinks()
-      throws ExecutionException, InterruptedException, IOException {
+      throws ExecutionException, InterruptedException {
     DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
     CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
     doReturn(mockDirectoryUpload)
