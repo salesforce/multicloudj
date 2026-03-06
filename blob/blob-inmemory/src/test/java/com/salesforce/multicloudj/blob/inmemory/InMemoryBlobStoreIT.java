@@ -8,81 +8,82 @@ import org.junit.jupiter.api.Test;
 
 public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
-    private static final String bucketName = "test-bucket";
-    private static final String versionedBucketName = "test-bucket-versioned";
-    private static final String nonExistentBucketName = "non-existent-bucket";
-    private static final String region = "us-west-2";
+  private static final String bucketName = "test-bucket";
+  private static final String versionedBucketName = "test-bucket-versioned";
+  private static final String nonExistentBucketName = "non-existent-bucket";
+  private static final String region = "us-west-2";
 
-    @AfterEach
-    public void cleanup() {
-        // Clear the in-memory storage after each test (includes buckets)
-        InMemoryBlobStore.clearStorage();
-    }
+  @AfterEach
+  public void cleanup() {
+    // Clear the in-memory storage after each test (includes buckets)
+    InMemoryBlobStore.clearStorage();
+  }
 
-    @Test
+  @Test
+  @Override
+  public void testInvalidCredentials() {
+    // This test doesn't apply to in memory blobstore.
+    Assumptions.assumeTrue(true, "testInvalidCredentials");
+  }
+
+  @Override
+  protected Harness createHarness() {
+    return new HarnessImpl();
+  }
+
+  public static class HarnessImpl implements Harness {
+
     @Override
-    public void testInvalidCredentials() {
-        // This test doesn't apply to in memory blobstore.
-        Assumptions.assumeTrue(true, "testInvalidCredentials");
+    public AbstractBlobStore createBlobStore(
+        boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
+      // For in-memory, credentials don't matter
+      String bucketNameToUse =
+          useValidBucket
+              ? (useVersionedBucket ? versionedBucketName : bucketName)
+              : nonExistentBucketName;
+
+      // Create the bucket if it should exist
+      if (useValidBucket) {
+        InMemoryBlobStore.createBucket(bucketNameToUse);
+      }
+
+      return new InMemoryBlobStore.Builder().withBucket(bucketNameToUse).withRegion(region).build();
     }
 
     @Override
-    protected Harness createHarness() {
-        return new HarnessImpl();
+    public String getEndpoint() {
+      return "http://localhost:8080";
     }
 
-    public static class HarnessImpl implements Harness {
-
-        @Override
-        public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
-            // For in-memory, credentials don't matter
-            String bucketNameToUse = useValidBucket ? (useVersionedBucket ? versionedBucketName : bucketName) : nonExistentBucketName;
-
-            // Create the bucket if it should exist
-            if (useValidBucket) {
-                InMemoryBlobStore.createBucket(bucketNameToUse);
-            }
-
-            return new InMemoryBlobStore.Builder()
-                    .withBucket(bucketNameToUse)
-                    .withRegion(region)
-                    .build();
-        }
-
-        @Override
-        public String getEndpoint() {
-            return "http://localhost:8080";
-        }
-
-        @Override
-        public String getProviderId() {
-            return "inmemory";
-        }
-
-        @Override
-        public String getMetadataHeader(String key) {
-            return "x-inmemory-meta-" + key;
-        }
-
-        @Override
-        public String getTaggingHeader() {
-            return "x-inmemory-tagging";
-        }
-
-        @Override
-        public int getPort() {
-            return 8080;
-        }
-
-        @Override
-        public String getKmsKeyId() {
-            // In-memory doesn't support KMS encryption
-            return null;
-        }
-
-        @Override
-        public void close() {
-            // Nothing to close for in-memory implementation
-        }
+    @Override
+    public String getProviderId() {
+      return "inmemory";
     }
+
+    @Override
+    public String getMetadataHeader(String key) {
+      return "x-inmemory-meta-" + key;
+    }
+
+    @Override
+    public String getTaggingHeader() {
+      return "x-inmemory-tagging";
+    }
+
+    @Override
+    public int getPort() {
+      return 8080;
+    }
+
+    @Override
+    public String getKmsKeyId() {
+      // In-memory doesn't support KMS encryption
+      return null;
+    }
+
+    @Override
+    public void close() {
+      // Nothing to close for in-memory implementation
+    }
+  }
 }

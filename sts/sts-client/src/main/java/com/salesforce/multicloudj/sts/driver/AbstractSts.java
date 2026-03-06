@@ -9,222 +9,212 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
-
 import lombok.Getter;
 
 /**
- * Abstract base class for Security Token Service (STS) implementations.
- * This class is internal for SDK and all the providers for STS implementations
- * are supposed to implement it.
+ * Abstract base class for Security Token Service (STS) implementations. This class is internal for
+ * SDK and all the providers for STS implementations are supposed to implement it.
  */
 public abstract class AbstractSts implements Provider {
-    protected final String providerId;
-    protected final String region;
+  protected final String providerId;
+  protected final String region;
+
+  /**
+   * Constructs an AbstractSts instance using a Builder.
+   *
+   * @param builder The Builder instance to use for construction.
+   */
+  public AbstractSts(Builder<?, ?> builder) {
+    this(builder.providerId, builder.region);
+  }
+
+  /**
+   * Constructs an AbstractSts instance with specified provider ID and region.
+   *
+   * @param providerId The ID of the provider.
+   * @param region The region for the STS.
+   */
+  public AbstractSts(String providerId, String region) {
+    this.providerId = providerId;
+    this.region = region;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public String getProviderId() {
+    return providerId;
+  }
+
+  /**
+   * Assumes a role and returns the credentialsOverrider.
+   *
+   * @param request The AssumedRoleRequest containing role information.
+   * @return StsCredentials for the assumed role.
+   * @throws IllegalArgumentException if credential scope contains non-storage permissions or
+   *     resources
+   */
+  public StsCredentials assumeRole(AssumedRoleRequest request) {
+    validateCredentialScope(request.getCredentialScope());
+    return getSTSCredentialsWithAssumeRole(request);
+  }
+
+  /**
+   * Validates that CredentialScope only contains storage-related permissions and resources.
+   *
+   * @param credentialScope The CredentialScope to validate (can be null)
+   * @throws IllegalArgumentException if scope contains non-storage permissions or resources
+   */
+  private void validateCredentialScope(CredentialScope credentialScope) {
+    if (credentialScope == null) {
+      return; // null is valid - no scope restrictions
+    }
+
+    for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
+      // Validate resource is storage-only
+      String resource = rule.getAvailableResource();
+      if (resource != null && !resource.startsWith("storage://")) {
+        throw new IllegalArgumentException(
+            "Credential scope resource must start with 'storage://'. Found: " + resource);
+      }
+
+      // Validate all permissions are storage-only
+      for (String permission : rule.getAvailablePermissions()) {
+        if (!permission.startsWith("storage:")) {
+          throw new IllegalArgumentException(
+              "Credential scope permission must start with 'storage:'. Found: " + permission);
+        }
+      }
+
+      // Validate condition resourcePrefix is storage-only (if present)
+      if (rule.getAvailabilityCondition() != null) {
+        String resourcePrefix = rule.getAvailabilityCondition().getResourcePrefix();
+        if (resourcePrefix != null && !resourcePrefix.startsWith("storage://")) {
+          throw new IllegalArgumentException(
+              "Credential scope condition resourcePrefix must start with "
+                  + "'storage://'. Found: "
+                  + resourcePrefix);
+        }
+      }
+    }
+  }
+
+  /**
+   * Retrieves the caller identity.
+   *
+   * @param request The GetCallerIdentityRequest.
+   * @return The CallerIdentity of the current caller.
+   */
+  public CallerIdentity getCallerIdentity(GetCallerIdentityRequest request) {
+    return getCallerIdentityFromProvider(request);
+  }
+
+  /**
+   * Retrieves an access token.
+   *
+   * @param request The GetAccessTokenRequest containing token request details.
+   * @return StsCredentials containing the access token.
+   */
+  public StsCredentials getAccessToken(GetAccessTokenRequest request) {
+    return getAccessTokenFromProvider(request);
+  }
+
+  /**
+   * Assumes a role with web identity and returns the credentials.
+   *
+   * @param request The AssumeRoleWithWebIdentityRequest containing role and web identity token
+   *     information.
+   * @return StsCredentials for the assumed role with web identity.
+   */
+  public StsCredentials assumeRoleWithWebIdentity(AssumeRoleWebIdentityRequest request) {
+    return getSTSCredentialsWithAssumeRoleWebIdentity(request);
+  }
+
+  /**
+   * Abstract builder class for AbstractSts implementations.
+   *
+   * @param <A> The concrete implementation type of AbstractSts.
+   * @param <T> The concrete implementation type of Builder.
+   */
+  public abstract static class Builder<A extends AbstractSts, T extends Builder<A, T>>
+      implements Provider.Builder {
+    @Getter protected String region;
+    @Getter protected URI endpoint;
+    protected String providerId;
 
     /**
-     * Constructs an AbstractSts instance using a Builder.
+     * Sets the region.
      *
-     * @param builder The Builder instance to use for construction.
+     * @param region The region to set.
+     * @return This Builder instance.
      */
-    public AbstractSts(Builder<?, ?> builder) {
-        this(builder.providerId, builder.region);
+    public T withRegion(String region) {
+      this.region = region;
+      return self();
     }
 
     /**
-     * Constructs an AbstractSts instance with specified provider ID and region.
+     * Sets the endpoint to override.
      *
-     * @param providerId The ID of the provider.
-     * @param region The region for the STS.
+     * @param endpoint The endpoint to set.
+     * @return This Builder instance.
      */
-    public AbstractSts(String providerId, String region) {
-        this.providerId = providerId;
-        this.region = region;
+    public T withEndpoint(URI endpoint) {
+      this.endpoint = endpoint;
+      return self();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    /** {@inheritDoc} */
     @Override
-    public String getProviderId() {
-        return providerId;
+    public T providerId(String providerId) {
+      this.providerId = providerId;
+      return self();
     }
 
     /**
-     * Assumes a role and returns the credentialsOverrider.
+     * Returns the builder instance.
      *
-     * @param request The AssumedRoleRequest containing role information.
-     * @return StsCredentials for the assumed role.
-     * @throws IllegalArgumentException if credential scope contains non-storage
-     *     permissions or resources
+     * @return This Builder instance.
      */
-    public StsCredentials assumeRole(AssumedRoleRequest request) {
-        validateCredentialScope(request.getCredentialScope());
-        return getSTSCredentialsWithAssumeRole(request);
-    }
+    public abstract T self();
 
     /**
-     * Validates that CredentialScope only contains storage-related permissions and resources.
+     * Builds and returns an instance of AbstractSts.
      *
-     * @param credentialScope The CredentialScope to validate (can be null)
-     * @throws IllegalArgumentException if scope contains non-storage permissions or resources
+     * @return An instance of AbstractSts.
      */
-    private void validateCredentialScope(CredentialScope credentialScope) {
-        if (credentialScope == null) {
-            return; // null is valid - no scope restrictions
-        }
+    public abstract A build();
+  }
 
-        for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
-            // Validate resource is storage-only
-            String resource = rule.getAvailableResource();
-            if (resource != null && !resource.startsWith("storage://")) {
-                throw new IllegalArgumentException(
-                        "Credential scope resource must start with 'storage://'. Found: "
-                                + resource);
-            }
+  /**
+   * Retrieves STS credentialsOverrider with assumed role.
+   *
+   * @param request The AssumedRoleRequest.
+   * @return StsCredentials for the assumed role.
+   */
+  protected abstract StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request);
 
-            // Validate all permissions are storage-only
-            for (String permission : rule.getAvailablePermissions()) {
-                if (!permission.startsWith("storage:")) {
-                    throw new IllegalArgumentException(
-                            "Credential scope permission must start with 'storage:'. Found: "
-                                    + permission);
-                }
-            }
+  /**
+   * Retrieves the caller identity from the provider.
+   *
+   * @param request The GetCallerIdentityRequest.
+   * @return The CallerIdentity.
+   */
+  protected abstract CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request);
 
-            // Validate condition resourcePrefix is storage-only (if present)
-            if (rule.getAvailabilityCondition() != null) {
-                String resourcePrefix = rule.getAvailabilityCondition().getResourcePrefix();
-                if (resourcePrefix != null && !resourcePrefix.startsWith("storage://")) {
-                    throw new IllegalArgumentException(
-                            "Credential scope condition resourcePrefix must start with "
-                                    + "'storage://'. Found: " + resourcePrefix);
-                }
-            }
-        }
-    }
+  /**
+   * Retrieves an access token from the provider.
+   *
+   * @param request The GetAccessTokenRequest.
+   * @return StsCredentials containing the access token.
+   */
+  protected abstract StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request);
 
-    /**
-     * Retrieves the caller identity.
-     *
-     * @param request The GetCallerIdentityRequest.
-     * @return The CallerIdentity of the current caller.
-     */
-    public CallerIdentity getCallerIdentity(GetCallerIdentityRequest request) {
-        return getCallerIdentityFromProvider(request);
-    }
-
-    /**
-     * Retrieves an access token.
-     *
-     * @param request The GetAccessTokenRequest containing token request details.
-     * @return StsCredentials containing the access token.
-     */
-    public StsCredentials getAccessToken(GetAccessTokenRequest request) {
-        return getAccessTokenFromProvider(request);
-    }
-
-    /**
-     * Assumes a role with web identity and returns the credentials.
-     *
-     * @param request The AssumeRoleWithWebIdentityRequest containing role and web identity
-     *     token information.
-     * @return StsCredentials for the assumed role with web identity.
-     */
-    public StsCredentials assumeRoleWithWebIdentity(AssumeRoleWebIdentityRequest request) {
-        return getSTSCredentialsWithAssumeRoleWebIdentity(request);
-    }
-
-    /**
-     * Abstract builder class for AbstractSts implementations.
-     *
-     * @param <A> The concrete implementation type of AbstractSts.
-     * @param <T> The concrete implementation type of Builder.
-     */
-    public abstract static class Builder<A extends AbstractSts, T extends Builder<A, T>>
-            implements Provider.Builder {
-        @Getter
-        protected String region;
-        @Getter
-        protected URI endpoint;
-        protected String providerId;
-
-        /**
-         * Sets the region.
-         *
-         * @param region The region to set.
-         * @return This Builder instance.
-         */
-        public T withRegion(String region) {
-            this.region = region;
-            return self();
-        }
-
-        /**
-         * Sets the endpoint to override.
-         *
-         * @param endpoint The endpoint to set.
-         * @return This Builder instance.
-         */
-        public T withEndpoint(URI endpoint) {
-            this.endpoint = endpoint;
-            return self();
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public T providerId(String providerId) {
-            this.providerId = providerId;
-            return self();
-        }
-
-        /**
-         * Returns the builder instance.
-         *
-         * @return This Builder instance.
-         */
-        public abstract T self();
-
-        /**
-         * Builds and returns an instance of AbstractSts.
-         *
-         * @return An instance of AbstractSts.
-         */
-        public abstract A build();
-    }
-
-    /**
-     * Retrieves STS credentialsOverrider with assumed role.
-     *
-     * @param request The AssumedRoleRequest.
-     * @return StsCredentials for the assumed role.
-     */
-    protected abstract StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request);
-
-    /**
-     * Retrieves the caller identity from the provider.
-     *
-     * @param request The GetCallerIdentityRequest.
-     * @return The CallerIdentity.
-     */
-    protected abstract CallerIdentity getCallerIdentityFromProvider(
-            GetCallerIdentityRequest request);
-
-    /**
-     * Retrieves an access token from the provider.
-     *
-     * @param request The GetAccessTokenRequest.
-     * @return StsCredentials containing the access token.
-     */
-    protected abstract StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request);
-
-    /**
-     * Retrieves STS credentials with AssumeRoleWithWebIdentity.
-     *
-     * @param request The AssumeRoleWithWebIdentityRequest.
-     * @return StsCredentials for the assumed role with web identity.
-     */
-    protected abstract StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
-            AssumeRoleWebIdentityRequest request);
+  /**
+   * Retrieves STS credentials with AssumeRoleWithWebIdentity.
+   *
+   * @param request The AssumeRoleWithWebIdentityRequest.
+   * @return StsCredentials for the assumed role with web identity.
+   */
+  protected abstract StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
+      AssumeRoleWebIdentityRequest request);
 }

@@ -1,0 +1,43 @@
+{
+  "id" : "f41e6d4d-121b-4300-8eef-e8489547155c",
+  "name" : "FSDocstoreIT_testAtomicWrites-POST-3",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites6\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"66\"},\"pName\":{\"stringValue\":\"testAtomicWrites6\"},\"i\":{\"integerValue\":\"6\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites7\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"77\"},\"pName\":{\"stringValue\":\"testAtomicWrites7\"},\"i\":{\"integerValue\":\"7\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}},{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites8\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"88\"},\"pName\":{\"stringValue\":\"testAtomicWrites8\"},\"i\":{\"integerValue\":\"8\"},\"DocstoreRevision\":{\"bytesValue\":\"CIrEos0GENDR/p8B\"}}},\"currentDocument\":{\"updateTime\":\"2026-03-04T21:20:10.335522Z\"}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    },\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    },\n    {\n      \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n    }\n  ],\n  \"commitTime\": \"2026-03-04T21:20:11.551743Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "5385703521729375622;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:20:11 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f41e6d4d-121b-4300-8eef-e8489547155c",
+  "persistent" : true,
+  "insertionIndex" : 131
+}

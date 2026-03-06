@@ -1,0 +1,43 @@
+{
+  "id" : "cf74a48b-00d3-40d1-ae7b-224d1015ac3a",
+  "name" : "FSDocstoreIT_testReplace-POST-10",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidReplace\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidReplace\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": false\n      },\n      \"s\": {\n        \"stringValue\": \"replacedString\"\n      },\n      \"pName\": {\n        \"stringValue\": \"DavidReplace\"\n      },\n      \"f\": {\n        \"doubleValue\": 0\n      },\n      \"i\": {\n        \"integerValue\": \"95\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:52.457766Z\",\n    \"updateTime\": \"2026-03-04T21:19:52.931781Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:52.931781Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "12366505079729646722;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:53 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "cf74a48b-00d3-40d1-ae7b-224d1015ac3a",
+  "persistent" : true,
+  "insertionIndex" : 88
+}

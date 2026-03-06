@@ -1,9 +1,7 @@
 package com.salesforce.multicloudj.blob.driver;
 
-/**
- * The types of supported presigned URL operations
- */
+/** The types of supported presigned URL operations */
 public enum PresignedOperation {
-    UPLOAD,
-    DOWNLOAD
+  UPLOAD,
+  DOWNLOAD
 }

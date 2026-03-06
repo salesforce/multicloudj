@@ -13,11 +13,11 @@ public class UploadPartResponse {
     private final long sizeInBytes;
     private final String checksumValue;
 
-    public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes){
+    public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes) {
         this(partNumber, etag, sizeInBytes, null);
     }
 
-    public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes, final String checksumValue){
+    public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes, final String checksumValue) {
         this.partNumber = partNumber;
         this.etag = etag;
         this.sizeInBytes = sizeInBytes;

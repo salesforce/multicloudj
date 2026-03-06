@@ -1,0 +1,43 @@
+{
+  "id" : "e46091a6-1fed-4ee6-a2e7-d3ea92c0dc30",
+  "name" : "FSDocstoreIT_testGetQuery-POST-15",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Player\"},\"op\":10,\"value\":{\"arrayValue\":{\"values\":[{\"stringValue\":\"pat\"},{\"stringValue\":\"billie\"}]}}}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:andy\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"andy\"\n      },\n      \"Score\": {\n        \"integerValue\": \"81\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-02-01\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:26.634142Z\",\n    \"updateTime\": \"2026-03-04T21:19:26.634142Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.862513Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:fran\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"fran\"\n      },\n      \"Score\": {\n        \"integerValue\": \"33\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-03-19\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:27.059317Z\",\n    \"updateTime\": \"2026-03-04T21:19:27.059317Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.862513Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:fran\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"fran\"\n      },\n      \"Score\": {\n        \"integerValue\": \"33\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-03-20\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:28.541184Z\",\n    \"updateTime\": \"2026-03-04T21:19:28.541184Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.862513Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"60\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-10\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:26.235376Z\",\n    \"updateTime\": \"2026-03-04T21:19:26.235376Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.862513Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"190\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-18\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:28.174910Z\",\n    \"updateTime\": \"2026-03-04T21:19:28.174910Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.862513Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "16990120583699883829;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:31 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e46091a6-1fed-4ee6-a2e7-d3ea92c0dc30",
+  "persistent" : true,
+  "insertionIndex" : 24
+}
