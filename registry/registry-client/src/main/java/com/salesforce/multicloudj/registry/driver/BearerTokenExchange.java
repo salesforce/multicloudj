@@ -6,24 +6,22 @@ import com.google.gson.JsonSyntaxException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-
-import org.apache.http.client.utils.URIBuilder;
-
 /**
- * Handles OAuth2 Bearer Token exchange for OCI registries.
- * Exchanges identity tokens for registry-scoped bearer tokens.
+ * Handles OAuth2 Bearer Token exchange for OCI registries. Exchanges identity tokens for
+ * registry-scoped bearer tokens.
  */
 public class BearerTokenExchange {
 
@@ -53,8 +51,8 @@ public class BearerTokenExchange {
    * @throws UnAuthorizedException if token exchange fails with non-200 status
    * @throws UnknownException if the request fails or response is invalid
    */
-  public String getBearerToken(AuthChallenge challenge, String identityToken,
-                               String repository, String... actions) {
+  public String getBearerToken(
+      AuthChallenge challenge, String identityToken, String repository, String... actions) {
     if (challenge == null || !challenge.isBearer()) {
       throw new InvalidArgumentException("Bearer token exchange requires a Bearer challenge");
     }
@@ -102,10 +100,11 @@ public class BearerTokenExchange {
     }
   }
 
-  private URI buildTokenUri(String realm, AuthChallenge challenge, String repository, String[] actions) {
+  private URI buildTokenUri(
+      String realm, AuthChallenge challenge, String repository, String[] actions) {
     try {
       URIBuilder uriBuilder = new URIBuilder(realm);
-      
+
       if (challenge.getService() != null) {
         uriBuilder.addParameter("service", challenge.getService());
       }

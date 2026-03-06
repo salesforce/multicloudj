@@ -1,0 +1,37 @@
+{
+  "id" : "1363ca1f-5b37-4c1c-8b3e-67c4a1bc4819",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withKms-GET-5",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-withKms",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm4taR6X0tjx1v_y3ElW1SjgJkv8yuzSEVWCWCyq1JrvtOxVUnFC2ka595wx7JrrNiA"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-withKms</Key><UploadId>ABPnzm4taR6X0tjx1v_y3ElW1SjgJkv8yuzSEVWCWCyq1JrvtOxVUnFC2ka595wx7JrrNiA</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-03-04T21:05:33.797311Z</LastModified><ETag>\"CJ/9/vGSh5MDEAEaJDY5YTY5YzhlLTAwMDAtMjI2Zi05YTlkLTA4OWUwODMxNzA2Yw==\"</ETag><Size>5242880</Size></Part><Part><PartNumber>2</PartNumber><LastModified>2026-03-04T21:05:34.574751Z</LastModified><ETag>\"CJ/9/vGSh5MDEAIaJDY5OGUwZDdiLTAwMDAtMjE4Zi04YzNiLTI0MDU4ODcyOWU2NA==\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWx55FxHa5YV1kjGO2hLVNXvWikE2yoYSFS_k_nG1SeW322Hqv0abpDMEO_b93wDfLsdglbsIbs",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:05:34 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "1363ca1f-5b37-4c1c-8b3e-67c4a1bc4819",
+  "persistent" : true,
+  "insertionIndex" : 408
+}

@@ -1,0 +1,38 @@
+{
+  "id" : "0906312c-a90e-4071-a2a8-a7a5fa7b5838",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_completeAnAbortedUpload-DELETE-0",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-completeAnAborted",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm4MjBCSyCLGZkFh3PwbILAKj6yqhQxMDZax7hGjcUlFif9cidKu_ooy14zlx4WvNh8"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzHVsRuexAWlP31hJhcnZ_DWPIyr01r4wmbCG2zAUxRcryEqR2BlqmCpHkwI9RSwJH5Fz2-OpU",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:07:42 GMT"
+    }
+  },
+  "uuid" : "0906312c-a90e-4071-a2a8-a7a5fa7b5838",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-substrate-sdk-gcp-poc1-test-bucket-conformance-tests-multipart-completeAnAborted",
+  "requiredScenarioState" : "scenario-1-substrate-sdk-gcp-poc1-test-bucket-conformance-tests-multipart-completeAnAborted-2",
+  "insertionIndex" : 749
+}
