@@ -587,6 +587,43 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, actualRequest.getObjectRequest().bucket());
     assertEquals("object-1", actualRequest.getObjectRequest().key());
     assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    assertNull(actualRequest.getObjectRequest().responseContentDisposition());
+  }
+
+  @Test
+  void testToGetObjectPresignRequest_WithContentDisposition() {
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(4))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+    GetObjectPresignRequest actualRequest =
+        transformer.toGetObjectPresignRequest(presignedUrlRequest);
+    assertEquals(BUCKET, actualRequest.getObjectRequest().bucket());
+    assertEquals("object-1", actualRequest.getObjectRequest().key());
+    assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    assertEquals(
+        "attachment; filename=\"report.pdf\"",
+        actualRequest.getObjectRequest().responseContentDisposition());
+  }
+
+  @Test
+  void testToPutObjectPresignRequest_IgnoresContentDisposition() {
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(4))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+    PutObjectPresignRequest actualRequest =
+        transformer.toPutObjectPresignRequest(presignedUrlRequest);
+    assertEquals(BUCKET, actualRequest.putObjectRequest().bucket());
+    assertEquals("object-1", actualRequest.putObjectRequest().key());
+    assertEquals(Duration.ofHours(4), actualRequest.signatureDuration());
+    assertNull(actualRequest.putObjectRequest().contentDisposition());
   }
 
   @Test
