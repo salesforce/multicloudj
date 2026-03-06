@@ -1310,178 +1310,106 @@ public class AwsAsyncBlobStoreTest {
 
   @Test
   void doUploadDirectory() throws ExecutionException, InterruptedException, IOException {
-    // Create a temporary directory with test files
-    Path tempDir = Files.createTempDirectory("test-upload-dir");
-    try {
-      // Create test files
-      Path file1 = tempDir.resolve("file1.txt");
-      Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
-      Files.createDirectories(file2.getParent());
-      Files.write(file1, "content1".getBytes());
-      Files.write(file2, "content2".getBytes());
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    doReturn(mockDirectoryUpload)
+        .when(mockS3TransferManager)
+        .uploadDirectory(any(UploadDirectoryRequest.class));
+    doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+        .when(mockDirectoryUpload)
+        .completionFuture();
+    doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
 
-      // Mock transfer manager directory upload
-      DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
-      CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
-      doReturn(mockDirectoryUpload)
-          .when(mockS3TransferManager)
-          .uploadDirectory(any(UploadDirectoryRequest.class));
-      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
-          .when(mockDirectoryUpload)
-          .completionFuture();
-      doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/tmp/test-upload-dir")
+            .prefix("files/")
+            .includeSubFolders(true)
+            .build();
 
-      DirectoryUploadRequest uploadRequest =
-          DirectoryUploadRequest.builder()
-              .localSourceDirectory(tempDir.toString())
-              .prefix("files/")
-              .includeSubFolders(true)
-              .build();
+    DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
 
-      // Perform the request
-      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().isEmpty());
 
-      // Verify the results
-      assertNotNull(response);
-      assertTrue(response.getFailedTransfers().isEmpty());
-
-      // Verify transfer manager uploadDirectory was called with correct request
-      ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
-          ArgumentCaptor.forClass(UploadDirectoryRequest.class);
-      verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
-      UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
-      assertEquals(BUCKET, capturedRequest.bucket());
-      assertEquals(tempDir, capturedRequest.source());
-      assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
-    } finally {
-      // Clean up
-      Files.walk(tempDir)
-          .sorted((a, b) -> b.compareTo(a))
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException e) {
-                  // Ignore cleanup errors
-                }
-              });
-    }
+    ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+        ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+    verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+    UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+    assertEquals(BUCKET, capturedRequest.bucket());
+    assertEquals(Paths.get("/tmp/test-upload-dir"), capturedRequest.source());
+    assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
   }
 
   @Test
   void doUploadDirectory_WithTags() throws ExecutionException, InterruptedException, IOException {
-    // Create a temporary directory with test files
-    Path tempDir = Files.createTempDirectory("test-upload-dir-tags");
-    try {
-      // Create test files
-      Path file1 = tempDir.resolve("file1.txt");
-      Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
-      Files.createDirectories(file2.getParent());
-      Files.write(file1, "content1".getBytes());
-      Files.write(file2, "content2".getBytes());
+    Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
 
-      Map<String, String> tags = Map.of("tag1", "value1", "tag2", "value2");
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    doReturn(mockDirectoryUpload)
+        .when(mockS3TransferManager)
+        .uploadDirectory(any(UploadDirectoryRequest.class));
+    doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+        .when(mockDirectoryUpload)
+        .completionFuture();
+    doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
 
-      // Mock transfer manager directory upload
-      DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
-      CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
-      doReturn(mockDirectoryUpload)
-          .when(mockS3TransferManager)
-          .uploadDirectory(any(UploadDirectoryRequest.class));
-      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
-          .when(mockDirectoryUpload)
-          .completionFuture();
-      doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/tmp/test-upload-dir-tags")
+            .prefix("files/")
+            .includeSubFolders(true)
+            .tags(tags)
+            .build();
 
-      DirectoryUploadRequest uploadRequest =
-          DirectoryUploadRequest.builder()
-              .localSourceDirectory(tempDir.toString())
-              .prefix("files/")
-              .includeSubFolders(true)
-              .tags(tags)
-              .build();
+    DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
 
-      // Perform the request
-      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().isEmpty());
 
-      // Verify the results
-      assertNotNull(response);
-      assertTrue(response.getFailedTransfers().isEmpty());
-
-      // Verify transfer manager uploadDirectory was called with correct request (including tags via
-      // transformer)
-      ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
-          ArgumentCaptor.forClass(UploadDirectoryRequest.class);
-      verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
-      UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
-      assertEquals(BUCKET, capturedRequest.bucket());
-      assertEquals(tempDir, capturedRequest.source());
-      assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
-      assertNotNull(capturedRequest.uploadFileRequestTransformer());
-    } finally {
-      // Clean up
-      Files.walk(tempDir)
-          .sorted((a, b) -> b.compareTo(a))
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException e) {
-                  // Ignore cleanup errors
-                }
-              });
-    }
+    ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+        ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+    verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+    UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+    assertEquals(BUCKET, capturedRequest.bucket());
+    assertEquals(Paths.get("/tmp/test-upload-dir-tags"), capturedRequest.source());
+    assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
+    assertNotNull(capturedRequest.uploadFileRequestTransformer());
   }
 
   @Test
   void doUploadDirectory_FollowSymbolicLinks()
       throws ExecutionException, InterruptedException, IOException {
-    Path tempDir = Files.createTempDirectory("test-upload-dir-symlink");
-    try {
-      Path file1 = tempDir.resolve("file1.txt");
-      Files.write(file1, "content1".getBytes());
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    doReturn(mockDirectoryUpload)
+        .when(mockS3TransferManager)
+        .uploadDirectory(any(UploadDirectoryRequest.class));
+    doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+        .when(mockDirectoryUpload)
+        .completionFuture();
+    doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
 
-      DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
-      CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
-      doReturn(mockDirectoryUpload)
-          .when(mockS3TransferManager)
-          .uploadDirectory(any(UploadDirectoryRequest.class));
-      doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
-          .when(mockDirectoryUpload)
-          .completionFuture();
-      doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/tmp/test-upload-dir-symlink")
+            .prefix("files/")
+            .includeSubFolders(true)
+            .followSymbolicLinks(true)
+            .build();
 
-      DirectoryUploadRequest uploadRequest =
-          DirectoryUploadRequest.builder()
-              .localSourceDirectory(tempDir.toString())
-              .prefix("files/")
-              .includeSubFolders(true)
-              .followSymbolicLinks(true)
-              .build();
+    DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
 
-      DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().isEmpty());
 
-      assertNotNull(response);
-      assertTrue(response.getFailedTransfers().isEmpty());
-
-      ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
-          ArgumentCaptor.forClass(UploadDirectoryRequest.class);
-      verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
-      UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
-      assertEquals(BUCKET, capturedRequest.bucket());
-      assertTrue(capturedRequest.followSymbolicLinks().orElse(false));
-    } finally {
-      Files.walk(tempDir)
-          .sorted((a, b) -> b.compareTo(a))
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException e) {
-                  // Ignore cleanup errors
-                }
-              });
-    }
+    ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+        ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+    verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+    UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+    assertEquals(BUCKET, capturedRequest.bucket());
+    assertTrue(capturedRequest.followSymbolicLinks().orElse(false));
   }
 
   @Test
