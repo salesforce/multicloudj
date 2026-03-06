@@ -4,26 +4,26 @@ import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
-import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Entry point for client code to interact with Identity and Access Management (IAM) services
- * in a substrate-agnostic way.
+ * Entry point for client code to interact with Identity and Access Management (IAM) services in a
+ * substrate-agnostic way.
  *
- * <p>This client provides unified IAM operations across multiple cloud providers including
- * AWS IAM, GCP IAM, and AliCloud RAM. It handles the complexity of different cloud IAM models
- * and provides a consistent API for identity lifecycle management and policy operations.
+ * <p>This client provides unified IAM operations across multiple cloud providers including AWS IAM,
+ * GCP IAM, and AliCloud RAM. It handles the complexity of different cloud IAM models and provides a
+ * consistent API for identity lifecycle management and policy operations.
  *
  * <p>Usage example:
+ *
  * <pre>
  * IamClient client = IamClient.builder("aws")
  *     .withRegion("us-west-2")
@@ -43,226 +43,231 @@ import java.util.Optional;
  *     .endStatement()
  *     .build();
  * client.attachInlinePolicy(AttachInlinePolicyRequest.builder()
- *     .policyDocument(policy).tenantId("123456789012").region("us-west-2").identityName("MyRole").build());
+ *     .policyDocument(policy).tenantId("123456789012")
+ *     .region("us-west-2").identityName("MyRole").build());
  * </pre>
  */
 public class IamClient implements AutoCloseable {
-    protected AbstractIam iam;
+  protected AbstractIam iam;
 
-    /**
-     * Constructor for IamClient with IamClientBuilder.
-     *
-     * @param iam The abstract IAM driver used to back this client for implementation.
-     */
-    protected IamClient(AbstractIam iam) {
-        this.iam = iam;
+  /**
+   * Constructor for IamClient with IamClientBuilder.
+   *
+   * @param iam The abstract IAM driver used to back this client for implementation.
+   */
+  protected IamClient(AbstractIam iam) {
+    this.iam = iam;
+  }
+
+  /**
+   * Creates a new IamClientBuilder for the specified provider.
+   *
+   * @param providerId the ID of the provider such as "aws", "gcp", or "ali"
+   * @return a new IamClientBuilder instance
+   */
+  public static IamClientBuilder builder(String providerId) {
+    return new IamClientBuilder(providerId);
+  }
+
+  /**
+   * Creates a new identity (role/service account) in the cloud provider.
+   *
+   * @param identityName the name of the identity to create
+   * @param description optional description for the identity (can be null)
+   * @param tenantId the tenant/project/account ID
+   * @param region the region for IAM operations
+   * @param trustConfig optional trust configuration
+   * @param options optional creation options
+   * @return the unique identifier of the created identity
+   */
+  public String createIdentity(
+      String identityName,
+      String description,
+      String tenantId,
+      String region,
+      Optional<TrustConfiguration> trustConfig,
+      Optional<CreateOptions> options) {
+    try {
+      return this.iam.createIdentity(
+          identityName, description, tenantId, region, trustConfig, options);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return null;
+    }
+  }
+
+  /**
+   * Attaches an inline policy to an identity.
+   *
+   * @param request the request (see AttachInlinePolicyRequest for required fields per provider)
+   */
+  public void attachInlinePolicy(AttachInlinePolicyRequest request) {
+    if (request == null) {
+      throw new InvalidArgumentException("Request cannot be null");
+    }
+    if (request.getPolicyDocument() == null
+        || request.getPolicyDocument().getStatements() == null
+        || request.getPolicyDocument().getStatements().isEmpty()) {
+      throw new InvalidArgumentException("Policy document must contain at least one statement");
     }
 
+    try {
+      this.iam.attachInlinePolicy(request);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
+  }
+
+  /**
+   * Retrieves the details of a specific inline policy attached to an identity.
+   *
+   * @param request the request containing identity name, policy name, role name, tenant ID, and
+   *     region. Policy name and role name are optional and subject to cloud semantics.
+   * @return the policy document details as a string
+   */
+  public String getInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
+    try {
+      return this.iam.getInlinePolicyDetails(request);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return null;
+    }
+  }
+
+  /**
+   * Lists all inline policies attached to an identity.
+   *
+   * @param request the request containing identity name, tenant ID, and region
+   * @return a list of policy names
+   */
+  public List<String> getAttachedPolicies(GetAttachedPoliciesRequest request) {
+    try {
+      return this.iam.getAttachedPolicies(request);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return null;
+    }
+  }
+
+  /**
+   * Removes an inline policy from an identity.
+   *
+   * @param identityName the name of the identity
+   * @param policyName the name of the policy to remove
+   * @param tenantId the tenant ID
+   * @param region the region
+   */
+  public void removePolicy(String identityName, String policyName, String tenantId, String region) {
+    try {
+      this.iam.removePolicy(identityName, policyName, tenantId, region);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
+  }
+
+  /**
+   * Deletes an identity from the cloud provider.
+   *
+   * @param identityName the name of the identity to delete
+   * @param tenantId the tenant ID
+   * @param region the region
+   */
+  public void deleteIdentity(String identityName, String tenantId, String region) {
+    try {
+      this.iam.deleteIdentity(identityName, tenantId, region);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
+  }
+
+  /**
+   * Retrieves metadata about an identity.
+   *
+   * @param identityName the name of the identity
+   * @param tenantId the tenant ID
+   * @param region the region
+   * @return the unique identity identifier (ARN, email, or roleId)
+   */
+  public String getIdentity(String identityName, String tenantId, String region) {
+    try {
+      return this.iam.getIdentity(identityName, tenantId, region);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return null;
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    this.iam.close();
+  }
+
+  /** Builder class for IamClient. */
+  public static class IamClientBuilder {
+    protected String region;
+    protected URI endpoint;
+    protected AbstractIam iam;
+    protected AbstractIam.Builder<?, ?> iamBuilder;
+
     /**
-     * Creates a new IamClientBuilder for the specified provider.
+     * Constructor for IamClientBuilder.
      *
      * @param providerId the ID of the provider such as "aws", "gcp", or "ali"
-     * @return a new IamClientBuilder instance
      */
-    public static IamClientBuilder builder(String providerId) {
-        return new IamClientBuilder(providerId);
+    public IamClientBuilder(String providerId) {
+      this.iamBuilder = ProviderSupplier.findProviderBuilder(providerId);
     }
 
-
     /**
-     * Creates a new identity (role/service account) in the cloud provider.
+     * Sets the region for the IAM client.
      *
-     * @param identityName the name of the identity to create
-     * @param description optional description for the identity (can be null)
-     * @param tenantId the tenant/project/account ID
-     * @param region the region for IAM operations
-     * @param trustConfig optional trust configuration
-     * @param options optional creation options
-     * @return the unique identifier of the created identity
+     * @param region the region to set
+     * @return this IamClientBuilder instance
      */
-    public String createIdentity(String identityName, String description, String tenantId, String region,
-                                Optional<TrustConfiguration> trustConfig, Optional<CreateOptions> options) {
-        try {
-            return this.iam.createIdentity(identityName, description, tenantId, region, trustConfig, options);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-            return null;
-        }
+    public IamClientBuilder withRegion(String region) {
+      this.region = region;
+      this.iamBuilder.withRegion(region);
+      return this;
     }
 
     /**
-     * Attaches an inline policy to an identity.
+     * Sets the endpoint to override for the IAM client.
      *
-     * @param request the request (see AttachInlinePolicyRequest for required fields per provider)
+     * @param endpoint the endpoint to set
+     * @return this IamClientBuilder instance
      */
-    public void attachInlinePolicy(AttachInlinePolicyRequest request) {
-        if (request == null) {
-            throw new InvalidArgumentException("Request cannot be null");
-        }
-        if (request.getPolicyDocument() == null || request.getPolicyDocument().getStatements() == null
-                || request.getPolicyDocument().getStatements().isEmpty()) {
-            throw new InvalidArgumentException("Policy document must contain at least one statement");
-        }
-
-        try {
-            this.iam.attachInlinePolicy(request);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-        }
+    public IamClientBuilder withEndpoint(URI endpoint) {
+      this.endpoint = endpoint;
+      this.iamBuilder.withEndpoint(endpoint);
+      return this;
     }
 
     /**
-     * Retrieves the details of a specific inline policy attached to an identity.
+     * Sets the credentials overrider for the IAM client.
      *
-     * @param request the request containing identity name, policy name, role name, tenant ID, and region.
-     *                Policy name and role name are optional and subject to cloud semantics.
-     * @return the policy document details as a string
+     * @param credentialsOverrider the credentials overrider to set
+     * @return this IamClientBuilder instance
      */
-    public String getInlinePolicyDetails(GetInlinePolicyDetailsRequest request) {
-        try {
-            return this.iam.getInlinePolicyDetails(request);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-            return null;
-        }
+    public IamClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
+      this.iamBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
     }
 
     /**
-     * Lists all inline policies attached to an identity.
+     * Builds and returns an IamClient instance.
      *
-     * @param request the request containing identity name, tenant ID, and region
-     * @return a list of policy names
+     * @return a new IamClient instance
      */
-    public List<String> getAttachedPolicies(GetAttachedPoliciesRequest request) {
-        try {
-            return this.iam.getAttachedPolicies(request);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-            return null;
-        }
+    public IamClient build() {
+      this.iam = this.iamBuilder.build();
+      return new IamClient(this.iam);
     }
-
-    /**
-     * Removes an inline policy from an identity.
-     *
-     * @param identityName the name of the identity
-     * @param policyName the name of the policy to remove
-     * @param tenantId the tenant ID
-     * @param region the region
-     */
-    public void removePolicy(String identityName, String policyName, String tenantId, String region) {
-        try {
-            this.iam.removePolicy(identityName, policyName, tenantId, region);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-        }
-    }
-
-    /**
-     * Deletes an identity from the cloud provider.
-     *
-     * @param identityName the name of the identity to delete
-     * @param tenantId the tenant ID
-     * @param region the region
-     */
-    public void deleteIdentity(String identityName, String tenantId, String region) {
-        try {
-            this.iam.deleteIdentity(identityName, tenantId, region);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-        }
-    }
-
-    /**
-     * Retrieves metadata about an identity.
-     *
-     * @param identityName the name of the identity
-     * @param tenantId the tenant ID
-     * @param region the region
-     * @return the unique identity identifier (ARN, email, or roleId)
-     */
-    public String getIdentity(String identityName, String tenantId, String region) {
-        try {
-            return this.iam.getIdentity(identityName, tenantId, region);
-        } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = this.iam.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-            return null;
-        }
-    }
-
-    @Override
-    public void close() throws Exception {
-        this.iam.close();
-    }
-
-    /**
-     * Builder class for IamClient.
-     */
-    public static class IamClientBuilder {
-        protected String region;
-        protected URI endpoint;
-        protected AbstractIam iam;
-        protected AbstractIam.Builder<?, ?> iamBuilder;
-
-        /**
-         * Constructor for IamClientBuilder.
-         *
-         * @param providerId the ID of the provider such as "aws", "gcp", or "ali"
-         */
-        public IamClientBuilder(String providerId) {
-            this.iamBuilder = ProviderSupplier.findProviderBuilder(providerId);
-        }
-
-        /**
-         * Sets the region for the IAM client.
-         *
-         * @param region the region to set
-         * @return this IamClientBuilder instance
-         */
-        public IamClientBuilder withRegion(String region) {
-            this.region = region;
-            this.iamBuilder.withRegion(region);
-            return this;
-        }
-
-        /**
-         * Sets the endpoint to override for the IAM client.
-         *
-         * @param endpoint the endpoint to set
-         * @return this IamClientBuilder instance
-         */
-        public IamClientBuilder withEndpoint(URI endpoint) {
-            this.endpoint = endpoint;
-            this.iamBuilder.withEndpoint(endpoint);
-            return this;
-        }
-
-        /**
-         * Sets the credentials overrider for the IAM client.
-         *
-         * @param credentialsOverrider the credentials overrider to set
-         * @return this IamClientBuilder instance
-         */
-        public IamClientBuilder withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
-            this.iamBuilder.withCredentialsOverrider(credentialsOverrider);
-            return this;
-        }
-
-        /**
-         * Builds and returns an IamClient instance.
-         *
-         * @return a new IamClient instance
-         */
-        public IamClient build() {
-            this.iam = this.iamBuilder.build();
-            return new IamClient(this.iam);
-        }
-    }
+  }
 }

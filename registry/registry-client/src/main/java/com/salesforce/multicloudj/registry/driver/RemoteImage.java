@@ -4,52 +4,51 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Layer;
 import com.salesforce.multicloudj.registry.model.Manifest;
-
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on demand.
- * Digest is the manifest digest (used to pull the image by digest reference).
+ * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on
+ * demand. Digest is the manifest digest (used to pull the image by digest reference).
  */
 final class RemoteImage implements Image {
 
-    private final OciRegistryClient client;
-    private final String repository;
-    private final String imageRef;
-    private final Manifest manifest;
+  private final OciRegistryClient client;
+  private final String repository;
+  private final String imageRef;
+  private final Manifest manifest;
 
-    RemoteImage(OciRegistryClient client, String repository, String imageRef, Manifest manifest) {
-        this.client = client;
-        this.repository = repository;
-        this.imageRef = imageRef;
-        this.manifest = manifest;
-    }
+  RemoteImage(OciRegistryClient client, String repository, String imageRef, Manifest manifest) {
+    this.client = client;
+    this.repository = repository;
+    this.imageRef = imageRef;
+    this.manifest = manifest;
+  }
 
-    @Override
-    public List<Layer> getLayers() {
-        List<String> layerDigests = manifest.getLayerDigests();
-        if (layerDigests == null) {
-            throw new InvalidArgumentException("Image manifest is missing layer digests");
-        }
-        List<Layer> layers = new ArrayList<>();
-        for (String layerDigest : layerDigests) {
-            layers.add(new RemoteLayer(client, repository, layerDigest));
-        }
-        return layers;
+  @Override
+  public List<Layer> getLayers() {
+    List<String> layerDigests = manifest.getLayerDigests();
+    if (layerDigests == null) {
+      throw new InvalidArgumentException("Image manifest is missing layer digests");
     }
+    List<Layer> layers = new ArrayList<>();
+    for (String layerDigest : layerDigests) {
+      layers.add(new RemoteLayer(client, repository, layerDigest));
+    }
+    return layers;
+  }
 
-    @Override
-    public String getDigest() {
-        String manifestDigest = manifest.getDigest();
-        if (manifestDigest == null || manifestDigest.isEmpty()) {
-            throw new InvalidArgumentException("Image manifest is missing digest");
-        }
-        return manifestDigest;
+  @Override
+  public String getDigest() {
+    String manifestDigest = manifest.getDigest();
+    if (manifestDigest == null || manifestDigest.isEmpty()) {
+      throw new InvalidArgumentException("Image manifest is missing digest");
     }
+    return manifestDigest;
+  }
 
-    @Override
-    public String getImageRef() {
-        return imageRef;
-    }
+  @Override
+  public String getImageRef() {
+    return imageRef;
+  }
 }

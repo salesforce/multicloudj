@@ -2,7 +2,7 @@ package com.salesforce.multicloudj.common.gcp;
 
 public class GcpConstants {
 
-    private GcpConstants() {}
+  private GcpConstants() {}
 
-    public static final String PROVIDER_ID = "gcp";
+  public static final String PROVIDER_ID = "gcp";
 }

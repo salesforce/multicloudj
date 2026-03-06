@@ -1,15 +1,12 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.util.List;
-
-/**
- * Wrapper object for directory download result metadata
- */
+/** Wrapper object for directory download result metadata */
 @Builder
 @Getter
 public class DirectoryDownloadResponse {
-    private final List<FailedBlobDownload> failedTransfers;
+  private final List<FailedBlobDownload> failedTransfers;
 }

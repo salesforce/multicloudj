@@ -4,9 +4,9 @@ import java.util.List;
 
 /** Interface for a container image; implementations are provided by the registry driver. */
 public interface Image {
-    List<Layer> getLayers();
+  List<Layer> getLayers();
 
-    String getDigest();
+  String getDigest();
 
-    String getImageRef();
+  String getImageRef();
 }

@@ -5,10 +5,9 @@ import com.salesforce.multicloudj.common.provider.SdkProvider;
 
 public interface AsyncBlobStoreProvider extends SdkProvider<AsyncBlobStore> {
 
-    abstract class Builder
-            extends BlobStoreBuilder<AsyncBlobStore>
-            implements SdkProvider.Builder<AsyncBlobStore> { }
+  abstract class Builder extends BlobStoreBuilder<AsyncBlobStore>
+      implements SdkProvider.Builder<AsyncBlobStore> {}
 
-    @Override
-    Builder builder();
+  @Override
+  Builder builder();
 }
