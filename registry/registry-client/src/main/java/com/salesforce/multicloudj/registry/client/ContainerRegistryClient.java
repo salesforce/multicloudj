@@ -73,17 +73,17 @@ public class ContainerRegistryClient implements AutoCloseable {
       return this;
     }
 
-        /** Sets the region. Required for AWS; ignored by GCP. */
-        public ContainerRegistryClientBuilder withRegion(String region) {
-            this.registryBuilder.withRegion(region);
-            return this;
-        }
+    /** Sets the region. Required for AWS; ignored by GCP. */
+    public ContainerRegistryClientBuilder withRegion(String region) {
+      this.registryBuilder.withRegion(region);
+      return this;
+    }
 
-        /** Sets a proxy endpoint override for HTTP requests. */
-        public ContainerRegistryClientBuilder withProxyEndpoint(java.net.URI proxyEndpoint) {
-            this.registryBuilder.withProxyEndpoint(proxyEndpoint);
-            return this;
-        }
+    /** Sets a proxy endpoint override for HTTP requests. */
+    public ContainerRegistryClientBuilder withProxyEndpoint(java.net.URI proxyEndpoint) {
+      this.registryBuilder.withProxyEndpoint(proxyEndpoint);
+      return this;
+    }
 
     /** Sets the target platform for multi-arch selection. Null for default (linux/amd64). */
     public ContainerRegistryClientBuilder withPlatform(Platform platform) {
