@@ -1,0 +1,28 @@
+{
+  "id" : "b9457d48-abe3-4455-add3-1ea89cf4f8c4",
+  "name" : "AwsBlobStoreIT_testUploadWithKmsKey_happyPath-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/upload-happy-path",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGVzdCBkYXRhIHdpdGggS01TIGVuY3J5cHRpb24f2WC2J4OorivRr/5x7BuH",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"1c43bf4d39bd2309b57664c06fe810ad\"",
+      "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
+      "Last-Modified" : "Fri, 06 Mar 2026 17:45:29 GMT",
+      "x-amz-request-id" : "9SHVV0A7P6VWT8DZ",
+      "x-amz-server-side-encryption" : "aws:kms",
+      "x-amz-id-2" : "rFZz7Kn+ZmutMl8qOvj12LvOz25lgBzzgWi8xCHiIteokzpAyxXpJzsKSBMg61uoQu8+1dSaBi8=",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Fri, 06 Mar 2026 17:45:30 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "b9457d48-abe3-4455-add3-1ea89cf4f8c4",
+  "persistent" : true,
+  "insertionIndex" : 209
+}

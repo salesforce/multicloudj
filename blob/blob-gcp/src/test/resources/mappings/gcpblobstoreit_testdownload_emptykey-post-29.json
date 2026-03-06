@@ -1,0 +1,50 @@
+{
+  "id" : "99a18ea2-2ff1-4a26-8a0b-b967449591ce",
+  "name" : "GcpBlobStoreIT_testDownload_emptyKey-POST-29",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/download_empty_key_unversioned"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/download_empty_key_unversioned\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzAkm10BCw9MZRwZqgWzmY0e0ZU53hsYM-fkDuYucit3riyEK-829YE40jXmbggfxNvOdov0fSkuRoEiaMwrKY3KT4DOzfWxn2um_jldxU",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:02:00 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/download_empty_key_unversioned&uploadType=resumable&upload_id=AGQBYWzAkm10BCw9MZRwZqgWzmY0e0ZU53hsYM-fkDuYucit3riyEK-829YE40jXmbggfxNvOdov0fSkuRoEiaMwrKY3KT4DOzfWxn2um_jldxU",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "99a18ea2-2ff1-4a26-8a0b-b967449591ce",
+  "persistent" : true,
+  "scenarioName" : "scenario-8-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-8-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-4",
+  "insertionIndex" : 256
+}

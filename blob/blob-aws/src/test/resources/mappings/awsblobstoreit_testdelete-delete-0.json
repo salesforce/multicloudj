@@ -1,0 +1,22 @@
+{
+  "id" : "e1bfa158-8857-4c59-9d16-59de4a069dba",
+  "name" : "AwsBlobStoreIT_testDelete-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-deleting",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KV8NYCNNSEVS570A",
+      "x-amz-id-2" : "fkLodeSwJAeHgvMExuvdgVFCsowqx3tjq2JDYFjQbbYfJjhdxTYM7N4eV3w/STnK2QfBvIN7mjkT/uHvKw0sLZbAFmYuVuYs",
+      "Date" : "Fri, 06 Mar 2026 17:48:11 GMT"
+    }
+  },
+  "uuid" : "e1bfa158-8857-4c59-9d16-59de4a069dba",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting-2",
+  "insertionIndex" : 477
+}

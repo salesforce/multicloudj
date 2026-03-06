@@ -1,0 +1,20 @@
+{
+  "id" : "d4d74ce3-5424-4843-845d-d146272e6729",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_duplicateParts-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "5YBHY9W3J41WKEB7",
+      "x-amz-id-2" : "nSRB61Mtdd/HDTbZTRh6MaoSQ5kZKMN9h61UrWawFfjNYtwAcPof7IYMNowbnq8e4Y1JyCQC/ZI74GA+zk4d4rnH01j5wNMg",
+      "Date" : "Fri, 06 Mar 2026 17:47:59 GMT"
+    }
+  },
+  "uuid" : "d4d74ce3-5424-4843-845d-d146272e6729",
+  "persistent" : true,
+  "insertionIndex" : 444
+}

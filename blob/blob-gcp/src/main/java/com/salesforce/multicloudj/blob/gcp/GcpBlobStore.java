@@ -178,7 +178,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
-        var channel = Channels.newInputStream(reader)) {
+         var channel = Channels.newInputStream(reader)) {
 
       Blob blob = storage.get(blobId);
       if (blob == null) {
@@ -219,7 +219,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    *
    * @param downloadRequest Wrapper object containing download data
    * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
+   * InputStream for reading the content
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
@@ -250,7 +250,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    * Performs Blob download
    *
    * @param downloadRequest Wrapper object containing download data
-   * @param path The Path that blob content will be written to
+   * @param path            The Path that blob content will be written to
    * @return Returns a DownloadResponse object that contains metadata about the blob
    */
   @Override
@@ -380,16 +380,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
-        return MultipartUpload.builder()
-                .bucket(getBucket())
-                .key(request.getKey())
-                .id(gcpMultipartUpload.uploadId())
-                .metadata(request.getMetadata())
-                .tags(request.getTags())
-                .kmsKeyId(request.getKmsKeyId())
-                .checksumEnabled(request.isChecksumEnabled())
-                .build();
-    }
+    return MultipartUpload.builder()
+        .bucket(getBucket())
+        .key(request.getKey())
+        .id(gcpMultipartUpload.uploadId())
+        .metadata(request.getMetadata())
+        .tags(request.getTags())
+        .kmsKeyId(request.getKmsKeyId())
+        .checksumEnabled(request.isChecksumEnabled())
+        .build();
+  }
 
   @Override
   protected com.salesforce.multicloudj.blob.driver.UploadPartResponse doUploadMultipartPart(
@@ -449,8 +449,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
-        return new MultipartUploadResponse(response.etag(), response.crc32c());
-    }
+    return new MultipartUploadResponse(response.etag(), response.crc32c());
+  }
 
   @Override
   protected List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> doListMultipartUpload(
@@ -675,12 +675,12 @@ public class GcpBlobStore extends AbstractBlobStore {
       Storage.BlobListOption[] options =
           (prefix != null)
               ? new Storage.BlobListOption[] {
-                Storage.BlobListOption.prefix(prefix),
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              }
+              Storage.BlobListOption.prefix(prefix),
+              Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+          }
               : new Storage.BlobListOption[] {
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              };
+              Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+          };
 
       List<FailedBlobDownload> failed = new ArrayList<>();
 

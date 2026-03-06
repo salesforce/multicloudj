@@ -1,0 +1,55 @@
+{
+  "id" : "a25cfa2d-63b3-4fcb-bcef-2e47e5449796",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-133",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FtestRangedRead_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772834673821137"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "c3QgZGF0YSBmb3IgdGhlIHJhbmc=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772834673821137",
+      "Content-Range" : "bytes 10-29/47",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Fri, 06 Mar 2026 22:04:33 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Fri, 06 Mar 2026 22:04:35 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CNGL6uejjJMDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWy4RFv9jWoxzxmA6N2zJzEkbOwfMtr6705_kV68NoaPdpcC2mGJmLNBVe3VNLHeSR2IzjaiPrc",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "a25cfa2d-63b3-4fcb-bcef-2e47e5449796",
+  "persistent" : true,
+  "scenarioName" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-2",
+  "newScenarioState" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-3",
+  "insertionIndex" : 878
+}

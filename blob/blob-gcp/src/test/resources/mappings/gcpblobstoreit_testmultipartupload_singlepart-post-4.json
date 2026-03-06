@@ -1,0 +1,45 @@
+{
+  "id" : "f6b9017c-0012-4b4f-862d-a902c9ef0de7",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_singlePart-POST-4",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-singlePart",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm6RNoZ8IyhCHxbnHyCbKvvJDLrNe2ecri6TXlr6USjwG3Z-DV118RtLo24jxEnF1Ug"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-singlePart</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-singlePart</Key><ETag>\"aebfdb0863b86cd46f7eb8c55728eae3-1\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "5242880",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Fri, 06 Mar 2026 22:02:55 GMT",
+      "x-goog-hash" : "crc32c=OGE8Qg==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWwPOWKd4iAEepFr09QKxBSshVZMNUeuZ_o-rAre-s5it4EZlNFrYbk-AAJGKnTbdj9UjfLfR6s",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1772834575659122",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "f6b9017c-0012-4b4f-862d-a902c9ef0de7",
+  "persistent" : true,
+  "insertionIndex" : 427
+}

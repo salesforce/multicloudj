@@ -1,0 +1,50 @@
+{
+  "id" : "dfb99881-71dc-46e9-b248-8df1860d5dd9",
+  "name" : "AwsBlobStoreIT_testListPage-GET-9",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
+      },
+      "continuation-token" : {
+        "hasExactly" : [ {
+          "equalTo" : "1V4NS1eivMUIAI4BGhp4eUxWmbcMT/wQW2dtVsPXAmt4KImt83fO/l0LxLibxl9HctPmUCtstnHIFr31OAQXS8+cKSAUH3bq8"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><ContinuationToken>1V4NS1eivMUIAI4BGhp4eUxWmbcMT/wQW2dtVsPXAmt4KImt83fO/l0LxLibxl9HctPmUCtstnHIFr31OAQXS8+cKSAUH3bq8</ContinuationToken><NextContinuationToken>1IRGv9eQ61O823Il6zIG5Do+2IwS5IcAR8CdXBAOFJ4htAXn9xBafpNDXCuPB0+WFTQyfGPLM1F+mQd+KvBdSDNx5CNyT9PRf</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix-2</Key><LastModified>2026-03-06T17:49:08.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-4</Key><LastModified>2026-03-06T17:49:09.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "FAW3BSCY9QF6V7P1",
+      "x-amz-id-2" : "6ATF4hjupzlviyGeQNGTFMAsEt+D9eRt0CKgZA8vtNs412Wp13ObO+ftCRJgC8M9sMRrrjDZt+Q3lSzbrx+jd8pO0ykwpct2",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Fri, 06 Mar 2026 17:49:12 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "dfb99881-71dc-46e9-b248-8df1860d5dd9",
+  "persistent" : true,
+  "insertionIndex" : 627
+}

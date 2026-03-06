@@ -1,0 +1,25 @@
+{
+  "id" : "828eced0-9944-43ce-8fd9-f1945629d141",
+  "name" : "AwsBlobStoreIT_testVersionedDownload_badVersionId-DELETE-6",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_bad_versionId_versioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "Q364YR1S66AYRJKS",
+      "x-amz-id-2" : "JXhpuolFWc3ZtrAoVui5n1IZWCP4yDsSTpqI3yL1Cx7MwK1+eRWgwCt9pQjxcKuNXx2U57h7tWI=",
+      "x-amz-version-id" : "u7AYv3eUfnWjbaBrbcmaaxMPo0_Hccyr",
+      "Date" : "Fri, 06 Mar 2026 17:47:09 GMT"
+    }
+  },
+  "uuid" : "828eced0-9944-43ce-8fd9-f1945629d141",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-2",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-3",
+  "insertionIndex" : 358
+}

@@ -1,0 +1,26 @@
+{
+  "id" : "f221d215-b30d-48ee-b0d9-d648c0103b48",
+  "name" : "GcpBlobStoreIT_testDelete-DELETE-8",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/blob-that-doesnt-exist",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/blob-that-doesnt-exist\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/blob-that-doesnt-exist\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzO1XbWf4ElPzTzsrKdhE3TwnuvTwfZdJJYiZqEgKK8jnNSk0f3KOInv9lQmrPYNC5lVqEjj34",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:04:18 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f221d215-b30d-48ee-b0d9-d648c0103b48",
+  "persistent" : true,
+  "insertionIndex" : 714
+}

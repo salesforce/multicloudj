@@ -1,0 +1,28 @@
+{
+  "id" : "274cd2ef-e9a0-41ef-9285-f8e869034229",
+  "name" : "AwsBlobStoreIT_testDoesObjectExist-HEAD-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/doesBlobExist/unversioned",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"c0a508abb648ff06209f605c1839820f\"",
+      "Last-Modified" : "Fri, 06 Mar 2026 17:44:48 GMT",
+      "x-amz-request-id" : "GFP8G1FEF5ADNEYV",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "Q+IxjilJigR4EPjM0w0W4NmXWptBxgpEpUG+MKDITLq2KpvWGmVrJj9mS+uFcPIo92AuFVdo+AY=",
+      "Date" : "Fri, 06 Mar 2026 17:44:48 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "274cd2ef-e9a0-41ef-9285-f8e869034229",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned-2",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-doesBlobExist-unversioned-3",
+  "insertionIndex" : 94
+}

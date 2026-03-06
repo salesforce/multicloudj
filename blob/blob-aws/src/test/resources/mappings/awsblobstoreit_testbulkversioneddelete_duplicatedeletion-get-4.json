@@ -1,0 +1,27 @@
+{
+  "id" : "c0cb24c4-7c63-448c-adc9-89bc9fe4c46e",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-GET-4",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy7",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/bulkDeleteByVersion/happy7</Key><RequestId>B3Q7SS8H7NBCSE26</RequestId><HostId>kaHOrKlHA3Hp7cmJz0dyCFwHb8As0DysxkNPGoKr1cbGH3VqlceOms9rdYfd4iQQkyJmSNI73d+3I7BBP0h4Uda+x6ulDbVL</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "B3Q7SS8H7NBCSE26",
+      "x-amz-id-2" : "kaHOrKlHA3Hp7cmJz0dyCFwHb8As0DysxkNPGoKr1cbGH3VqlceOms9rdYfd4iQQkyJmSNI73d+3I7BBP0h4Uda+x6ulDbVL",
+      "x-amz-version-id" : "hUGyfaxWNs7xiivqgSjgYD8xoRSctmUL",
+      "Date" : "Fri, 06 Mar 2026 17:48:11 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c0cb24c4-7c63-448c-adc9-89bc9fe4c46e",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-happy7",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-bulkDeleteByVersion-happy7-2",
+  "insertionIndex" : 489
+}

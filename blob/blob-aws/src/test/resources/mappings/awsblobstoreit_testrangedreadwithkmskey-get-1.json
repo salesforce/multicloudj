@@ -1,0 +1,31 @@
+{
+  "id" : "6d26edae-f2ed-4a97-8c5d-36f8b6c06f3d",
+  "name" : "AwsBlobStoreIT_testRangedReadWithKmsKey-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/ranged-read",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "IHRlc3QgZmlsZZGpynoL8yT07fC4QPArkLY=",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"1337c7ff734b3ec10fcfb7c27a778977\"",
+      "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
+      "Last-Modified" : "Fri, 06 Mar 2026 17:47:42 GMT",
+      "x-amz-request-id" : "MNHR971WRBJVQTJD",
+      "x-amz-server-side-encryption" : "aws:kms",
+      "x-amz-id-2" : "ibI6djfydLcMpkIOmFeMllztplLcdTzAHAUyi2YCPqEmMGDn4Udv4KuVLNDfhDOcGYD9WzBUcw4=",
+      "x-amz-content-range" : "bytes 41-50/51",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Fri, 06 Mar 2026 17:47:43 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "6d26edae-f2ed-4a97-8c5d-36f8b6c06f3d",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-kms-ranged-read-4",
+  "insertionIndex" : 426
+}

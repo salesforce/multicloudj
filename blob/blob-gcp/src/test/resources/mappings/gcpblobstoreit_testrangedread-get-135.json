@@ -1,0 +1,55 @@
+{
+  "id" : "bfc5768b-c856-4874-a28f-e435db679c1f",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-135",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FtestRangedRead_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772834673821137"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZQ==",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772834673821137",
+      "Content-Range" : "bytes 0-9/47",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Fri, 06 Mar 2026 22:04:33 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Fri, 06 Mar 2026 22:04:34 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CNGL6uejjJMDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWzK2VsXSMF8bbQDdphxDInq2h_JkocB3sPtPaH77hdvsNgSM0iJvbzw72JRGqhoNBUqBuvTwsM",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "bfc5768b-c856-4874-a28f-e435db679c1f",
+  "persistent" : true,
+  "scenarioName" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-22-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-2",
+  "insertionIndex" : 880
+}

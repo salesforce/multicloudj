@@ -1,0 +1,22 @@
+{
+  "id" : "1964d98e-5cd4-4dc9-80d6-36707dd09648",
+  "name" : "AwsBlobStoreIT_testNonexistentBucket-DELETE-10",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucket",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>EYX6B9BC4NFZ60YK</RequestId><HostId>51AiQ7IHnhDnqadAA0FPIH9X4rYtjn3HB2arVdY5FnfDnXUqM9AhMiWi5VUfKOdjiBr4zXeOY3A=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "EYX6B9BC4NFZ60YK",
+      "x-amz-id-2" : "51AiQ7IHnhDnqadAA0FPIH9X4rYtjn3HB2arVdY5FnfDnXUqM9AhMiWi5VUfKOdjiBr4zXeOY3A=",
+      "Date" : "Fri, 06 Mar 2026 17:45:30 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "1964d98e-5cd4-4dc9-80d6-36707dd09648",
+  "persistent" : true,
+  "insertionIndex" : 222
+}

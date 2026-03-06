@@ -1,0 +1,25 @@
+{
+  "id" : "0764116e-754c-4c76-bc4d-e4c2c1c8cfe0",
+  "name" : "AwsBlobStoreIT_testCopyFrom-PUT-13",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/copied-from-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-03-06T17:46:58.000Z</LastModified><ETag>\"70a2b8957d07af666aad6080c576a74d\"</ETag><ChecksumCRC64NVME>p4GJSOlB5kg=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "YD1EETDNM0R60NXC",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "TOvmfaFNkgrV07FO4VSi1gD/IL3bu29XRpYf0cZ/BvK+forUnyCK7qC/nIL2CjeRsQquHu1eWXk=",
+      "Date" : "Fri, 06 Mar 2026 17:46:58 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0764116e-754c-4c76-bc4d-e4c2c1c8cfe0",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob-3",
+  "insertionIndex" : 334
+}

@@ -1,0 +1,28 @@
+{
+  "id" : "8721bac4-9966-42ae-a0fb-79d8235c5721",
+  "name" : "AwsBlobStoreIT_testUploadWithChecksumValidationFile-PUT-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-file-checksum",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "Test checksum with File",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"72a85a20131e1a2b0cf48b33676817e8\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "RHDSJCED0150K7K7",
+      "x-amz-checksum-crc32c" : "3Vv93Q==",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "pvZp6GdbYYYGYBQLoRIewQTMah86lKZD56NpX5ujzxKhlTTHxD+7xBWi+DnEIXpr7U9BDGBmPwY=",
+      "Date" : "Fri, 06 Mar 2026 17:45:35 GMT"
+    }
+  },
+  "uuid" : "8721bac4-9966-42ae-a0fb-79d8235c5721",
+  "persistent" : true,
+  "insertionIndex" : 228
+}

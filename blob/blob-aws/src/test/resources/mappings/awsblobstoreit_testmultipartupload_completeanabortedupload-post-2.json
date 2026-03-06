@@ -1,0 +1,37 @@
+{
+  "id" : "25fd7956-cbf1-4cee-b7f2-2377ad9d9832",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_completeAnAbortedUpload-POST-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-completeAnAborted",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "dGueZJK7.FMuSb9Sw9uGApY7RsODSo5pBlWxnS95gS6pEL6p0Mf093ECtbE8hfQ1yxSoWj3ft5cb_uZt26ju2ZfxESvL1MJUFFjImauZ_wUNpx_ao8SyYArH3toO9AE1dDeQKuVOtEI_8A4jqOMWHLdJLeSvhEaJuOmZT6v8vIl82lX93mlElAYMP.sscPxnPy7UFUeL6niPxfKYETulrw--"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchUpload</Code><Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message><UploadId>dGueZJK7.FMuSb9Sw9uGApY7RsODSo5pBlWxnS95gS6pEL6p0Mf093ECtbE8hfQ1yxSoWj3ft5cb_uZt26ju2ZfxESvL1MJUFFjImauZ_wUNpx_ao8SyYArH3toO9AE1dDeQKuVOtEI_8A4jqOMWHLdJLeSvhEaJuOmZT6v8vIl82lX93mlElAYMP.sscPxnPy7UFUeL6niPxfKYETulrw--</UploadId><RequestId>PK2HYTE1J0AAPVRZ</RequestId><HostId>ouxR/QFydjDBGCpVeBnNfA+8RpGUCgKn4FEOiZ422AITfg0PN3mx6qakdExH1GIQupKSJIMl77SOTbOs50kb3V+W1Ma3p50Q</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PK2HYTE1J0AAPVRZ",
+      "x-amz-id-2" : "ouxR/QFydjDBGCpVeBnNfA+8RpGUCgKn4FEOiZ422AITfg0PN3mx6qakdExH1GIQupKSJIMl77SOTbOs50kb3V+W1Ma3p50Q",
+      "Date" : "Fri, 06 Mar 2026 17:48:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "25fd7956-cbf1-4cee-b7f2-2377ad9d9832",
+  "persistent" : true,
+  "insertionIndex" : 496
+}

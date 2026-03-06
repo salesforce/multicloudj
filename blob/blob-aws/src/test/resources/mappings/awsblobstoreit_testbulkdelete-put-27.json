@@ -1,0 +1,27 @@
+{
+  "id" : "30535580-c8ab-463b-aa1a-573cae59651f",
+  "name" : "AwsBlobStoreIT_testBulkDelete-PUT-27",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-bulk-delete_happy2",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "QnVsayBkZWxldGUgYmxvYiBmb3IgY29uZm9ybWFuY2UtdGVzdHMvYmxvYi1mb3ItYnVsay1kZWxldGVfaGFwcHky"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"12d0522679c559ad3ba843abcc73ee39\"",
+      "x-amz-checksum-crc64nvme" : "S4gi3lewHYg=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "0ZYCE59FWVJ5J6XR",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "VRP6fauyMQtdrIhVw+/jWF7NheJvoq0KooI0g6ZQOgemZxGikzg2d+CszATvhtMFpyoxMVSKSYs=",
+      "Date" : "Fri, 06 Mar 2026 17:44:20 GMT"
+    }
+  },
+  "uuid" : "30535580-c8ab-463b-aa1a-573cae59651f",
+  "persistent" : true,
+  "insertionIndex" : 47
+}

@@ -1,0 +1,38 @@
+{
+  "id" : "252149f3-7b9d-4570-a99e-1b904c029de5",
+  "name" : "GcpBlobStoreIT_testNonexistentBucket-POST-4",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart3",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "multipart3"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>etag</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchUpload</Code><Message>The requested upload was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWwh9W8fK9brT6kWuBBWUlAhpUPdmRctqkCQrIMMg1__Dk_HWtz2GtlBGjbg4qbj-CzEFmWMna0",
+      "Vary" : "Origin",
+      "Date" : "Fri, 06 Mar 2026 22:02:36 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "252149f3-7b9d-4570-a99e-1b904c029de5",
+  "persistent" : true,
+  "insertionIndex" : 364
+}

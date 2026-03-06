@@ -32,13 +32,6 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-import org.apache.commons.lang3.StringUtils;
-import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
-import software.amazon.awssdk.services.s3.model.StorageClass;
-import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
-import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
-import com.salesforce.multicloudj.blob.driver.RetentionMode;
-import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -51,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
@@ -427,44 +421,44 @@ public class AwsTransformer {
     }
     // else: no SSE headers; S3 uses bucket default encryption
 
-        if (request.isChecksumEnabled()) {
-            builder.checksumAlgorithm(CRC32_C);
-        }
-
-        return builder.build();
+    if (request.isChecksumEnabled()) {
+      builder.checksumAlgorithm(CRC32_C);
     }
 
-    public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
-        UploadPartRequest.Builder builder = UploadPartRequest.builder()
-                .bucket(getBucket())
-                .key(mpu.getKey())
-                .uploadId(mpu.getId())
-                .partNumber(mpp.getPartNumber())
-                .contentLength(mpp.getContentLength());
+    return builder.build();
+  }
 
-        if (!StringUtils.isEmpty(mpp.getChecksumValue())) {
-            builder.checksumAlgorithm(CRC32_C);
-            builder.checksumCRC32C(mpp.getChecksumValue());
-        }
+  public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
+    UploadPartRequest.Builder builder = UploadPartRequest.builder()
+        .bucket(getBucket())
+        .key(mpu.getKey())
+        .uploadId(mpu.getId())
+        .partNumber(mpp.getPartNumber())
+        .contentLength(mpp.getContentLength());
 
-        return builder.build();
+    if (!StringUtils.isEmpty(mpp.getChecksumValue())) {
+      builder.checksumAlgorithm(CRC32_C);
+      builder.checksumCRC32C(mpp.getChecksumValue());
     }
+
+    return builder.build();
+  }
 
   public CompleteMultipartUploadRequest toCompleteMultipartUploadRequest(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
 
-        List<CompletedPart> completedParts = parts.stream()
-                .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
-                .map(part -> {
-                    CompletedPart.Builder partBuilder = CompletedPart.builder()
-                            .partNumber(part.getPartNumber())
-                            .eTag(part.getEtag());
-                    if (StringUtils.isNotEmpty(part.getChecksumValue())) {
-                        partBuilder.checksumCRC32C(part.getChecksumValue());
-                    }
-                    return partBuilder.build();
-                })
-                .collect(Collectors.toList());
+    List<CompletedPart> completedParts = parts.stream()
+        .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
+        .map(part -> {
+          CompletedPart.Builder partBuilder = CompletedPart.builder()
+              .partNumber(part.getPartNumber())
+              .eTag(part.getEtag());
+          if (StringUtils.isNotEmpty(part.getChecksumValue())) {
+            partBuilder.checksumCRC32C(part.getChecksumValue());
+          }
+          return partBuilder.build();
+        })
+        .collect(Collectors.toList());
 
     return CompleteMultipartUploadRequest.builder()
         .bucket(getBucket())
@@ -661,29 +655,34 @@ public class AwsTransformer {
         .build();
   }
 
-    public MultipartUpload toMultipartUpload(MultipartUploadRequest request, CreateMultipartUploadResponse response) {
-        return MultipartUpload.builder()
-                .bucket(response.bucket())
-                .key(response.key())
-                .id(response.uploadId())
-                .metadata(request.getMetadata())
-                .tags(request.getTags())
-                .kmsKeyId(request.getKmsKeyId())
-                .checksumEnabled(request.isChecksumEnabled())
-                .build();
-    }
+  public MultipartUpload toMultipartUpload(MultipartUploadRequest request,
+                                           CreateMultipartUploadResponse response) {
+    return MultipartUpload.builder()
+        .bucket(response.bucket())
+        .key(response.key())
+        .id(response.uploadId())
+        .metadata(request.getMetadata())
+        .tags(request.getTags())
+        .kmsKeyId(request.getKmsKeyId())
+        .checksumEnabled(request.isChecksumEnabled())
+        .build();
+  }
 
-    public UploadPartResponse toUploadPartResponse(MultipartPart part, software.amazon.awssdk.services.s3.model.UploadPartResponse response) {
-        return new UploadPartResponse(part.getPartNumber(), response.eTag(), part.getContentLength(), response.checksumCRC32C());
-    }
+  public UploadPartResponse toUploadPartResponse(
+      MultipartPart part, software.amazon.awssdk.services.s3.model.UploadPartResponse response) {
+    return new UploadPartResponse(
+        part.getPartNumber(), response.eTag(), part.getContentLength(),
+        response.checksumCRC32C());
+  }
 
-    public MultipartUploadResponse toMultipartUploadResponse(CompleteMultipartUploadResponse response) {
-        String checksumValue = null;
-        if (response.checksumCRC32C() != null) {
-            checksumValue = response.checksumCRC32C();
-        }
-        return new MultipartUploadResponse(response.eTag(), checksumValue);
+  public MultipartUploadResponse toMultipartUploadResponse(
+      CompleteMultipartUploadResponse response) {
+    String checksumValue = null;
+    if (response.checksumCRC32C() != null) {
+      checksumValue = response.checksumCRC32C();
     }
+    return new MultipartUploadResponse(response.eTag(), checksumValue);
+  }
 
   /**
    * Converts MultiCloudJ RetryConfig to AWS SDK RetryStrategy

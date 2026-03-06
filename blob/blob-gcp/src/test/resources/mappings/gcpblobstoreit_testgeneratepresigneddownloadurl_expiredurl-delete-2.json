@@ -1,0 +1,26 @@
+{
+  "id" : "f2b3ca04-caca-4192-8215-63b2ab1a9f30",
+  "name" : "GcpBlobStoreIT_testGeneratePresignedDownloadUrl_expiredUrl-DELETE-2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FpresignedDownloadUrls%2FexpiredUrl",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedDownloadUrls/expiredUrl\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presignedDownloadUrls/expiredUrl\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWyDkNXmrNqTDZpClVSQnmko3xVH-DCAu8IEIER3swnDnqnB3Q9lIXVBCpBdY6mLZstHhUDf4fI",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:01:34 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f2b3ca04-caca-4192-8215-63b2ab1a9f30",
+  "persistent" : true,
+  "insertionIndex" : 158
+}

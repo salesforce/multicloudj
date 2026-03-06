@@ -1,0 +1,34 @@
+{
+  "id" : "a36cf983-ce5c-48b1-bd58-c884809983c7",
+  "name" : "AwsBlobStoreIT_testVersionedDelete-GET-5",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "UMgsKxz_5Hto0bQrpPutLmXCjyYYlc6F"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchVersion</Code><Message>The specified version does not exist.</Message><Key>conformance-tests/delete/happyPath</Key><VersionId>UMgsKxz_5Hto0bQrpPutLmXCjyYYlc6F</VersionId><RequestId>6J4XCN6V4SJZBW2E</RequestId><HostId>qVhthBc2dcjMAJy3PdjdjdzbN4trTHATBvu+/CwMbqVrGDwhy1UY3ZRl9983sNJMVmhx0Fpoce0=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "6J4XCN6V4SJZBW2E",
+      "x-amz-id-2" : "qVhthBc2dcjMAJy3PdjdjdzbN4trTHATBvu+/CwMbqVrGDwhy1UY3ZRl9983sNJMVmhx0Fpoce0=",
+      "Date" : "Fri, 06 Mar 2026 17:46:51 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a36cf983-ce5c-48b1-bd58-c884809983c7",
+  "persistent" : true,
+  "insertionIndex" : 307
+}

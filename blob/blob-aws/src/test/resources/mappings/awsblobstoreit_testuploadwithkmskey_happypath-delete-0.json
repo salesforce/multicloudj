@@ -1,0 +1,20 @@
+{
+  "id" : "a83a6a42-89dd-4307-aeb8-f6422ad4b800",
+  "name" : "AwsBlobStoreIT_testUploadWithKmsKey_happyPath-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/upload-happy-path",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "9SHTEM0F6MRYDX26",
+      "x-amz-id-2" : "uo2HuTCdhq3glTCMyOsfpiknTD1xckA+rhx4f3uDdjJUp0eSC5WlmWMV37jAP0P4ULumVj/LBxg=",
+      "Date" : "Fri, 06 Mar 2026 17:45:30 GMT"
+    }
+  },
+  "uuid" : "a83a6a42-89dd-4307-aeb8-f6422ad4b800",
+  "persistent" : true,
+  "insertionIndex" : 208
+}

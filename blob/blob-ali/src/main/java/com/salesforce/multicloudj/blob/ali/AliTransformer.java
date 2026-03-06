@@ -231,16 +231,18 @@ public class AliTransformer {
     return new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);
   }
 
-    public MultipartUpload toMultipartUpload(InitiateMultipartUploadResult initiateMultipartUploadResult, Map<String, String> metadata, String kmsKeyId, boolean checksumEnabled) {
-        return MultipartUpload.builder()
-                .bucket(initiateMultipartUploadResult.getBucketName())
-                .key(initiateMultipartUploadResult.getKey())
-                .id(initiateMultipartUploadResult.getUploadId())
-                .metadata(metadata)
-                .kmsKeyId(kmsKeyId)
-                .checksumEnabled(checksumEnabled)
-                .build();
-    }
+  public MultipartUpload toMultipartUpload(
+      InitiateMultipartUploadResult initiateMultipartUploadResult,
+      Map<String, String> metadata,
+      String kmsKeyId) {
+    return MultipartUpload.builder()
+        .bucket(initiateMultipartUploadResult.getBucketName())
+        .key(initiateMultipartUploadResult.getKey())
+        .id(initiateMultipartUploadResult.getUploadId())
+        .metadata(metadata)
+        .kmsKeyId(kmsKeyId)
+        .build();
+  }
 
   public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
     return new UploadPartRequest(

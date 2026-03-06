@@ -1,0 +1,25 @@
+{
+  "id" : "e92eb7c5-8abc-426d-827c-c9d8d3194ef3",
+  "name" : "AwsBlobStoreIT_testCopyFrom-PUT-16",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/copied-from-blob",
+    "method" : "PUT"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>blob-that-doesnt-exist</Key><RequestId>7W4XME22GGNWNQM5</RequestId><HostId>HM6+xPXpyXQKV9/ndb/+HT4IPOqGMg+mG4EHLQ9obtvNaSVncnvt5RC16OrK9MXmWKZE2eYEyv4=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "7W4XME22GGNWNQM5",
+      "x-amz-id-2" : "HM6+xPXpyXQKV9/ndb/+HT4IPOqGMg+mG4EHLQ9obtvNaSVncnvt5RC16OrK9MXmWKZE2eYEyv4=",
+      "Date" : "Fri, 06 Mar 2026 17:46:55 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e92eb7c5-8abc-426d-827c-c9d8d3194ef3",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-copied-from-blob-2",
+  "insertionIndex" : 337
+}

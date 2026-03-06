@@ -61,7 +61,6 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
-import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -731,52 +730,12 @@ public class AliBlobStoreTest {
     assertEquals("mpu-id", actualRequest.getUploadId());
   }
 
-    @Test
-    void testMultipartUploadWithChecksum() {
-        // Ali OSS doesn't natively support CRC32C for multipart uploads.
-        // Verify that checksum values are passed through without errors.
-        InitiateMultipartUploadResult mockInitResponse = mock(InitiateMultipartUploadResult.class);
-        doReturn("bucket-1").when(mockInitResponse).getBucketName();
-        doReturn("object-1").when(mockInitResponse).getKey();
-        doReturn("mpu-id").when(mockInitResponse).getUploadId();
-        when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any())).thenReturn(mockInitResponse);
-
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-                .withKey("object-1")
-                .withChecksumEnabled(true)
-                .build();
-
-        MultipartUpload mpu = ali.initiateMultipartUpload(request);
-        assertTrue(mpu.isChecksumEnabled());
-
-        // Upload part with checksum - Ali ignores it but shouldn't error
-        UploadPartResult mockUploadResult = mock(UploadPartResult.class);
-        doReturn(new PartETag(1, "etag")).when(mockUploadResult).getPartETag();
-        when(mockOssClient.uploadPart(any())).thenReturn(mockUploadResult);
-
-        byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
-        MultipartPart multipartPart = new MultipartPart(1, content, "AAAAAA==");
-
-        var uploadPartResp = ali.uploadMultipartPart(mpu, multipartPart);
-        assertNull(uploadPartResp.getChecksumValue());
-
-        // Complete multipart upload - Ali returns null checksum
-        CompleteMultipartUploadResult mockCompleteResult = mock(CompleteMultipartUploadResult.class);
-        when(mockOssClient.completeMultipartUpload(any())).thenReturn(mockCompleteResult);
-
-        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
-                List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", content.length));
-
-        MultipartUploadResponse completeResp = ali.completeMultipartUpload(mpu, parts);
-        assertNull(completeResp.getChecksumValue());
-    }
-
-    @Test
-    void testDoGetTags() {
-        TagSet mockResponse = mock(TagSet.class);
-        Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
-        doReturn(tags).when(mockResponse).getAllTags();
-        when(mockOssClient.getObjectTagging(any(), any())).thenReturn(mockResponse);
+  @Test
+  void testDoGetTags() {
+    TagSet mockResponse = mock(TagSet.class);
+    Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
+    doReturn(tags).when(mockResponse).getAllTags();
+    when(mockOssClient.getObjectTagging(any(), any())).thenReturn(mockResponse);
 
     Map<String, String> tagsResult = ali.getTags("object-1");
 

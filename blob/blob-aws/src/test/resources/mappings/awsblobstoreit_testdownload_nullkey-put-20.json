@@ -1,0 +1,30 @@
+{
+  "id" : "ea098fda-b524-45ae-9258-96959e7e3869",
+  "name" : "AwsBlobStoreIT_testDownload_nullKey-PUT-20",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_null_key_unversioned",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-checksum-crc64nvme" : "4G16TxxAsWw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "ZF8JQGZXJS3NJ9A4",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "ZZ3SBEwHXyvvtLiF+LeWano0U8Kab7LnU2cAiYutUsjHUY2xsXIaIuO/ZyTGfT/qJ2eSHyWvqD4=",
+      "Date" : "Fri, 06 Mar 2026 17:44:52 GMT"
+    }
+  },
+  "uuid" : "ea098fda-b524-45ae-9258-96959e7e3869",
+  "persistent" : true,
+  "scenarioName" : "scenario-5-chameleon-jcloud-conformance-tests-download_null_key_unversioned",
+  "requiredScenarioState" : "scenario-5-chameleon-jcloud-conformance-tests-download_null_key_unversioned-2",
+  "newScenarioState" : "scenario-5-chameleon-jcloud-conformance-tests-download_null_key_unversioned-3",
+  "insertionIndex" : 122
+}

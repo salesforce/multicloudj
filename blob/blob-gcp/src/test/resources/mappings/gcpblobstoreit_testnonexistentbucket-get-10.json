@@ -1,0 +1,46 @@
+{
+  "id" : "5f10be27-e51c-42e1-bf70-6f47c0347245",
+  "name" : "GcpBlobStoreIT_testNonexistentBucket-GET-10",
+  "request" : {
+    "urlPath" : "/storage/v1/b/java-bucket-does-not-exist/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "maxResults" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"The specified bucket does not exist.\",\n    \"errors\": [\n      {\n        \"message\": \"The specified bucket does not exist.\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWwu6-zd5Jff2KIKPbPB8KSrxpm2oIAAFVd3LjchzcWCU2dVEJoy1ZU0JsqFqzes4Ccv",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:02:34 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "5f10be27-e51c-42e1-bf70-6f47c0347245",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-storage-v1-b-java-bucket-does-not-exist-o",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-2-storage-v1-b-java-bucket-does-not-exist-o-2",
+  "insertionIndex" : 370
+}

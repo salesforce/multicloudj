@@ -1,0 +1,37 @@
+{
+  "id" : "77c7416d-fade-45f8-a4e9-ba763ecc0ebc",
+  "name" : "AwsBlobStoreIT_testTagging-PUT-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/blob-for-tagging-fake",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-tagging-fake</Key><RequestId>VBVNVQ6DH6GA8FFP</RequestId><HostId>jL1ij+UUocwrQjIh1uFQhh8WaRh1LguW2YYZBYXbxcUsJjcT8M2zk8ARbpZ+2n2TVeuXZ5YytWM=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VBVNVQ6DH6GA8FFP",
+      "x-amz-id-2" : "jL1ij+UUocwrQjIh1uFQhh8WaRh1LguW2YYZBYXbxcUsJjcT8M2zk8ARbpZ+2n2TVeuXZ5YytWM=",
+      "Date" : "Fri, 06 Mar 2026 17:44:33 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "77c7416d-fade-45f8-a4e9-ba763ecc0ebc",
+  "persistent" : true,
+  "insertionIndex" : 58
+}

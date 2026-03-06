@@ -1,0 +1,37 @@
+{
+  "id" : "cbed9cea-552e-4fbc-adae-4fc2d85d039f",
+  "name" : "AwsBlobStoreIT_testNonexistentBucket-POST-9",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/blob-for-failing/testNonexistentBucket</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>52PME4RHMWANZYGE</RequestId><HostId>ACBay57I3f+BdJQXdbZ52C/SjbNLF4zmRI0NqUZfTgiA4WNrEKabfi13EnAwxU8mOcrxqxeKTOA=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "52PME4RHMWANZYGE",
+      "x-amz-id-2" : "ACBay57I3f+BdJQXdbZ52C/SjbNLF4zmRI0NqUZfTgiA4WNrEKabfi13EnAwxU8mOcrxqxeKTOA=",
+      "Date" : "Fri, 06 Mar 2026 17:45:30 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "cbed9cea-552e-4fbc-adae-4fc2d85d039f",
+  "persistent" : true,
+  "insertionIndex" : 221
+}

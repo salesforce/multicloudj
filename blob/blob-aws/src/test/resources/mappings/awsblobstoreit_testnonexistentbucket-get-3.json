@@ -1,0 +1,34 @@
+{
+  "id" : "5d1e7277-0ee1-42e9-898a-d0245f35f3b8",
+  "name" : "AwsBlobStoreIT_testNonexistentBucket-GET-3",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucketmultipart4",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "multipart4"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>46MMPBD0HX7ECXXE</RequestId><HostId>MKBWXdb1CY3cK7PvpUqOQjEmAfzZ/PJ9VKD0JnshCP010DY4GUmkSNIF5gHsBVCQZwgiUeCRSOk=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "46MMPBD0HX7ECXXE",
+      "x-amz-id-2" : "MKBWXdb1CY3cK7PvpUqOQjEmAfzZ/PJ9VKD0JnshCP010DY4GUmkSNIF5gHsBVCQZwgiUeCRSOk=",
+      "Date" : "Fri, 06 Mar 2026 17:45:32 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5d1e7277-0ee1-42e9-898a-d0245f35f3b8",
+  "persistent" : true,
+  "insertionIndex" : 215
+}

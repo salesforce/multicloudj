@@ -1,0 +1,26 @@
+{
+  "id" : "c210adc9-e2e2-44f7-9171-d332d1f9220c",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_skippingNumbers-DELETE-1",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-skippingNumbers",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-skippingNumbers\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-skippingNumbers\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWwrgabnahee3OsVlOT1tdAv8MA_mrxDFvXthaoE2jAqUQXVqkZ_PJkCfEKa8QLjpfepwMuNsQo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:02:43 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c210adc9-e2e2-44f7-9171-d332d1f9220c",
+  "persistent" : true,
+  "insertionIndex" : 387
+}

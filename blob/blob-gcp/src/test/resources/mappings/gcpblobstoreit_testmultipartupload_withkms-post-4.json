@@ -1,0 +1,44 @@
+{
+  "id" : "3bbc1dec-7c7e-44a8-bcc5-da96e519996a",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withKms-POST-4",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-withKms",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm4tou8C5CQKBGmS81CaMJlzySNL6ir8LpRr6qvDuXyWvsZq6MRSyzn8cuUxZDFGa00"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"CM+bv7WjjJMDEAEaJDY5YTk4N2NiLTAwMDAtMmNjMS05YjA4LTM0YzdlOTFkNTI0Yg==\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"CM+bv7WjjJMDEAIaJDY5YTgzMjE0LTAwMDAtMjVlYy05OTU1LTE0MjIzYmM1ZjVlNg==\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-withKms</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-withKms</Key><ETag>\"-CKOT0LajjJMDEAE=\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "10485760",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "x-goog-metageneration" : "1",
+      "X-GUploader-UploadID" : "AGQBYWzz-7sgSnfLEW_eTmE7M7dJ_3T2XUbwfj6S7gsuBVrW2p5uaBHESb2e_g2f_0qpMbOCpc8IqWQ",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "x-goog-generation" : "1772834570635683",
+      "Date" : "Fri, 06 Mar 2026 22:02:50 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "3bbc1dec-7c7e-44a8-bcc5-da96e519996a",
+  "persistent" : true,
+  "insertionIndex" : 408
+}

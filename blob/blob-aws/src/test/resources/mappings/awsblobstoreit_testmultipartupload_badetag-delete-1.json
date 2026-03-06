@@ -1,0 +1,20 @@
+{
+  "id" : "f29edb76-df9b-4c89-8dd8-5ebe26b0174e",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_badETag-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-badETag",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "1Z062MAMENM548DG",
+      "x-amz-id-2" : "cmhhPEKCCwT4/Y4Sg/9K/vZX3eigKIOjzTIO/ILn+E5aT9eRitcvSGUjKJUdGW38Qqi0Bkc2qn0=",
+      "Date" : "Fri, 06 Mar 2026 21:29:36 GMT"
+    }
+  },
+  "uuid" : "f29edb76-df9b-4c89-8dd8-5ebe26b0174e",
+  "persistent" : true,
+  "insertionIndex" : 584
+}

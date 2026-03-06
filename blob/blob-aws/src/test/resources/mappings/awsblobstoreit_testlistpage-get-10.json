@@ -1,0 +1,45 @@
+{
+  "id" : "23b6e989-c1e7-4cbf-a20c-2ad9c6d06d38",
+  "name" : "AwsBlobStoreIT_testListPage-GET-10",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><NextContinuationToken>1V4NS1eivMUIAI4BGhp4eUxWmbcMT/wQW2dtVsPXAmt4KImt83fO/l0LxLibxl9HctPmUCtstnHIFr31OAQXS8+cKSAUH3bq8</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page</Key><LastModified>2026-03-06T17:49:07.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/blob-for-list-page/prefix-1</Key><LastModified>2026-03-06T17:49:07.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "FAW3NCFAD69GXR06",
+      "x-amz-id-2" : "vN+Dk/J11xyMXuV+TCsW5PA3VxWkmfjk+Jb6WycVUsGMBw9HyKPCY9Ykchi70HQZZW7xWE6uxDZV2n5zu88PcSjxHlhY7JVu",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Fri, 06 Mar 2026 17:49:12 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "23b6e989-c1e7-4cbf-a20c-2ad9c6d06d38",
+  "persistent" : true,
+  "insertionIndex" : 628
+}

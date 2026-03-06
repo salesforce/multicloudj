@@ -86,6 +86,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
@@ -131,7 +132,6 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.Tag;
-import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -1098,75 +1098,84 @@ public class AwsBlobStoreTest {
     assertEquals("mpu-id", actualRequest.uploadId());
   }
 
-    @Test
-    void testMultipartUploadWithChecksum() {
-        // Step 1: Initiate multipart upload with checksum enabled
-        CreateMultipartUploadResponse mockCreateResponse = mock(CreateMultipartUploadResponse.class);
-        doReturn("bucket-1").when(mockCreateResponse).bucket();
-        doReturn("object-1").when(mockCreateResponse).key();
-        doReturn("mpu-id").when(mockCreateResponse).uploadId();
-        when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(mockCreateResponse);
+  @Test
+  void testMultipartUploadWithChecksum() {
+    // Step 1: Initiate multipart upload with checksum enabled
+    CreateMultipartUploadResponse mockCreateResponse = mock(CreateMultipartUploadResponse.class);
+    doReturn("bucket-1").when(mockCreateResponse).bucket();
+    doReturn("object-1").when(mockCreateResponse).key();
+    doReturn("mpu-id").when(mockCreateResponse).uploadId();
+    when(mockS3Client.createMultipartUpload((CreateMultipartUploadRequest) any())).thenReturn(
+        mockCreateResponse);
 
-        MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-                .withKey("object-1")
-                .withChecksumEnabled(true)
-                .build();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("object-1")
+        .withChecksumEnabled(true)
+        .build();
 
-        MultipartUpload mpu = aws.initiateMultipartUpload(request);
+    MultipartUpload mpu = aws.initiateMultipartUpload(request);
 
-        // Verify checksumAlgorithm is set on create request
-        ArgumentCaptor<CreateMultipartUploadRequest> createCaptor = ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
-        verify(mockS3Client, times(1)).createMultipartUpload(createCaptor.capture());
-        assertEquals(ChecksumAlgorithm.CRC32_C, createCaptor.getValue().checksumAlgorithm());
-        assertTrue(mpu.isChecksumEnabled());
+    // Verify checksumAlgorithm is set on create request
+    ArgumentCaptor<CreateMultipartUploadRequest> createCaptor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mockS3Client, times(1)).createMultipartUpload(createCaptor.capture());
+    assertEquals(ChecksumAlgorithm.CRC32_C, createCaptor.getValue().checksumAlgorithm());
+    assertTrue(mpu.isChecksumEnabled());
 
-        // Step 2: Upload part with checksum
-        UploadPartResponse mockUploadPartResponse = mock(UploadPartResponse.class);
-        doReturn("part-etag").when(mockUploadPartResponse).eTag();
-        doReturn("AAAAAA==").when(mockUploadPartResponse).checksumCRC32C();
-        doReturn(mockUploadPartResponse).when(mockS3Client).uploadPart(any(UploadPartRequest.class), any(RequestBody.class));
+    // Step 2: Upload part with checksum
+    UploadPartResponse mockUploadPartResponse = mock(UploadPartResponse.class);
+    doReturn("part-etag").when(mockUploadPartResponse).eTag();
+    doReturn("AAAAAA==").when(mockUploadPartResponse).checksumCRC32C();
+    doReturn(mockUploadPartResponse).when(mockS3Client)
+        .uploadPart(any(UploadPartRequest.class), any(RequestBody.class));
 
-        byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
-        MultipartPart part = new MultipartPart(1, content, "AAAAAA==");
+    byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
+    MultipartPart part = new MultipartPart(1, content, "AAAAAA==");
 
-        var uploadPartResp = aws.uploadMultipartPart(mpu, part);
+    var uploadPartResp = aws.uploadMultipartPart(mpu, part);
 
-        // Verify checksumCRC32C is set on upload part request
-        ArgumentCaptor<UploadPartRequest> uploadCaptor = ArgumentCaptor.forClass(UploadPartRequest.class);
-        verify(mockS3Client, times(1)).uploadPart(uploadCaptor.capture(), any(RequestBody.class));
-        assertEquals(ChecksumAlgorithm.CRC32_C, uploadCaptor.getValue().checksumAlgorithm());
-        assertEquals("AAAAAA==", uploadCaptor.getValue().checksumCRC32C());
+    // Verify checksumCRC32C is set on upload part request
+    ArgumentCaptor<UploadPartRequest> uploadCaptor =
+        ArgumentCaptor.forClass(UploadPartRequest.class);
+    verify(mockS3Client, times(1)).uploadPart(uploadCaptor.capture(), any(RequestBody.class));
+    assertEquals(ChecksumAlgorithm.CRC32_C, uploadCaptor.getValue().checksumAlgorithm());
+    assertEquals("AAAAAA==", uploadCaptor.getValue().checksumCRC32C());
 
-        // Verify checksum in upload part response
-        assertEquals("AAAAAA==", uploadPartResp.getChecksumValue());
+    // Verify checksum in upload part response
+    assertEquals("AAAAAA==", uploadPartResp.getChecksumValue());
 
-        // Step 3: Complete multipart upload with checksum
-        CompleteMultipartUploadResponse mockCompleteResponse = mock(CompleteMultipartUploadResponse.class);
-        doReturn("complete-etag").when(mockCompleteResponse).eTag();
-        doReturn("composite-checksum==").when(mockCompleteResponse).checksumCRC32C();
-        doReturn(mockCompleteResponse).when(mockS3Client).completeMultipartUpload((CompleteMultipartUploadRequest) any());
+    // Step 3: Complete multipart upload with checksum
+    CompleteMultipartUploadResponse mockCompleteResponse =
+        mock(CompleteMultipartUploadResponse.class);
+    doReturn("complete-etag").when(mockCompleteResponse).eTag();
+    doReturn("composite-checksum==").when(mockCompleteResponse).checksumCRC32C();
+    doReturn(mockCompleteResponse).when(mockS3Client)
+        .completeMultipartUpload((CompleteMultipartUploadRequest) any());
 
-        List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
-                List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "part-etag", content.length, "AAAAAA=="));
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "part-etag",
+            content.length, "AAAAAA=="));
 
-        MultipartUploadResponse completeResp = aws.completeMultipartUpload(mpu, parts);
+    MultipartUploadResponse completeResp = aws.completeMultipartUpload(mpu, parts);
 
-        // Verify checksumCRC32C is set on completed part
-        ArgumentCaptor<CompleteMultipartUploadRequest> completeCaptor = ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
-        verify(mockS3Client, times(1)).completeMultipartUpload(completeCaptor.capture());
-        List<CompletedPart> completedParts = completeCaptor.getValue().multipartUpload().parts();
-        assertEquals("AAAAAA==", completedParts.get(0).checksumCRC32C());
+    // Verify checksumCRC32C is set on completed part
+    ArgumentCaptor<CompleteMultipartUploadRequest> completeCaptor =
+        ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
+    verify(mockS3Client, times(1)).completeMultipartUpload(completeCaptor.capture());
+    List<CompletedPart> completedParts = completeCaptor.getValue().multipartUpload().parts();
+    assertEquals("AAAAAA==", completedParts.get(0).checksumCRC32C());
 
-        // Verify composite checksum in response
-        assertEquals("composite-checksum==", completeResp.getChecksumValue());
-    }
+    // Verify composite checksum in response
+    assertEquals("composite-checksum==", completeResp.getChecksumValue());
+  }
 
-    @Test
-    void testDoGetTags() {
-        GetObjectTaggingResponse mockResponse = mock(GetObjectTaggingResponse.class);
-        List<Tag> tags = List.of(Tag.builder().key("key1").value("value1").build(), Tag.builder().key("key2").value("value2").build());
-        doReturn(tags).when(mockResponse).tagSet();
-        doReturn(mockResponse).when(mockS3Client).getObjectTagging((GetObjectTaggingRequest)any());
+  @Test
+  void testDoGetTags() {
+    GetObjectTaggingResponse mockResponse = mock(GetObjectTaggingResponse.class);
+    List<Tag> tags = List.of(Tag.builder().key("key1").value("value1").build(),
+        Tag.builder().key("key2").value("value2").build());
+    doReturn(tags).when(mockResponse).tagSet();
+    doReturn(mockResponse).when(mockS3Client).getObjectTagging((GetObjectTaggingRequest) any());
 
     Map<String, String> tagsResult = aws.getTags("object-1");
 
@@ -1274,7 +1283,7 @@ public class AwsBlobStoreTest {
   void testDoDoesBucketExist() {
     HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
     when(mockS3Client.headBucket(
-            ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any()))
+        ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any()))
         .thenReturn(mockResponse);
 
     boolean result = aws.doDoesBucketExist();

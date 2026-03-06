@@ -1,0 +1,50 @@
+{
+  "id" : "b0666b2f-ac25-4395-ab1e-0e978b4ed4d6",
+  "name" : "GcpBlobStoreIT_testRangedRead-POST-99",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/testRangedRead_unversioned"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/testRangedRead_unversioned\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzQxXDwK52wtW4uJ8tN2B4rn-2EFmEp17CgQf9g15Me63uhuuZsyvRGd6YGebrGRlKzNmwi8Lr6wo8UemmmeMJEmDcfX4JBu40KWsTmlw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:04:43 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/testRangedRead_unversioned&uploadType=resumable&upload_id=AGQBYWzQxXDwK52wtW4uJ8tN2B4rn-2EFmEp17CgQf9g15Me63uhuuZsyvRGd6YGebrGRlKzNmwi8Lr6wo8UemmmeMJEmDcfX4JBu40KWsTmlw",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "b0666b2f-ac25-4395-ab1e-0e978b4ed4d6",
+  "persistent" : true,
+  "scenarioName" : "scenario-18-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o",
+  "requiredScenarioState" : "scenario-18-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-4",
+  "insertionIndex" : 844
+}

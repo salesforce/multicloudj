@@ -1,0 +1,28 @@
+{
+  "id" : "e76293b5-2df1-4442-b125-105be2d1bb21",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-PUT-6",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/bulkDeleteByVersion/happy8",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "QnVsayB2ZXJzaW9uZWQgZGVsZXRlIGJsb2IgZm9yIGNvbmZvcm1hbmNlLXRlc3RzL2J1bGtEZWxldGVCeVZlcnNpb24vaGFwcHk4"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"0ca93d8143deb5608806b7013cb0f86d\"",
+      "x-amz-checksum-crc64nvme" : "2UVYPg8Xfso=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "40X3V2G4SYWFHVMG",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "zYfu2avlVeCeZjpZ/29hCCNFr+t60gW04HNzeHM21savwqIiur6bRKyGz1r0Jun/HiSGXFwIocNlsMjuimqi7RxXzGmSbbfZ",
+      "x-amz-version-id" : "zP_9xSU753kPcsCL_lxHRGm7NAF08OYY",
+      "Date" : "Fri, 06 Mar 2026 17:48:12 GMT"
+    }
+  },
+  "uuid" : "e76293b5-2df1-4442-b125-105be2d1bb21",
+  "persistent" : true,
+  "insertionIndex" : 491
+}

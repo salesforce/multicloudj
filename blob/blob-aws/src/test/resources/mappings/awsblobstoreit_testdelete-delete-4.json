@@ -1,0 +1,20 @@
+{
+  "id" : "676928bf-231f-49f8-9b13-e996d3a3e478",
+  "name" : "AwsBlobStoreIT_testDelete-DELETE-4",
+  "request" : {
+    "url" : "/chameleon-jcloud/blob-that-doesnt-exist",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "R7SKRCY7MA9XGY95",
+      "x-amz-id-2" : "/4yELSqYwspiLqWpEbzYZP+RX8PNKMmYwNvm99bTlGwndXY0UQZJ/bxQqO252rTnEJyTdbnEH5dVDuqk9UmhwjwY1ZJl/SDA",
+      "Date" : "Fri, 06 Mar 2026 17:48:09 GMT"
+    }
+  },
+  "uuid" : "676928bf-231f-49f8-9b13-e996d3a3e478",
+  "persistent" : true,
+  "insertionIndex" : 481
+}

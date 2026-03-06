@@ -1,0 +1,37 @@
+{
+  "id" : "e7bf8ecf-360e-49dc-a388-49a2a2aa0718",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_nonExistentParts-POST-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "Xg_lPEWaLTiddFvW.wrN5B2KGB2_OroizEMlCWXA_kYFhEVi8KK8JB9ZI_b.7tsKJQWNgDFIDM4LimAyNal_4rbXY_PBOqfPT2r7FWIuL5SV.Lk1K34jExjvBGltpZGTGCVp8AGG.tLO0OXIfKhpgb1nz8.EW5OlGpcDCTR0pTcaY6QvxDPgB1_y6ndcv9N43ul9jrWaZeMM2kc39HLm9g--"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>fakeEtag</ETag><PartNumber>3</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>Xg_lPEWaLTiddFvW.wrN5B2KGB2_OroizEMlCWXA_kYFhEVi8KK8JB9ZI_b.7tsKJQWNgDFIDM4LimAyNal_4rbXY_PBOqfPT2r7FWIuL5SV.Lk1K34jExjvBGltpZGTGCVp8AGG.tLO0OXIfKhpgb1nz8.EW5OlGpcDCTR0pTcaY6QvxDPgB1_y6ndcv9N43ul9jrWaZeMM2kc39HLm9g--</UploadId><PartNumber>3</PartNumber><ETag>fakeEtag</ETag><RequestId>9Z8X4QBSRQV28XD6</RequestId><HostId>/fKTlXHMqpXKG2Hh8UPekv36XV/rRC5CzaFgYMf6S34hnWe8nNqEsgw/uBFEht54Ij733JgVjPQ=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "9Z8X4QBSRQV28XD6",
+      "x-amz-id-2" : "/fKTlXHMqpXKG2Hh8UPekv36XV/rRC5CzaFgYMf6S34hnWe8nNqEsgw/uBFEht54Ij733JgVjPQ=",
+      "Date" : "Fri, 06 Mar 2026 17:47:04 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e7bf8ecf-360e-49dc-a388-49a2a2aa0718",
+  "persistent" : true,
+  "insertionIndex" : 345
+}

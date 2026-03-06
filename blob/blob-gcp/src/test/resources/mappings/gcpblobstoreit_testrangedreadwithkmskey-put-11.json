@@ -1,0 +1,58 @@
+{
+  "id" : "bcf83617-86c6-4fee-b90d-765491bac104",
+  "name" : "GcpBlobStoreIT_testRangedReadWithKmsKey-PUT-11",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "kmsKeyName" : {
+        "hasExactly" : [ {
+          "equalTo" : "projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test"
+        } ]
+      },
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/kms/ranged-read"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AGQBYWw12wvbnlFRFLGb6sBBkTxBbP2xsc-9b4hateHq8U0BSWAD_neDTzs-kcx9FFIntGXsq2ZzdKL1ngA11NCoa4QvD4RTPjNhmCEqqke39Oc"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "This is test data for the KMS ranged read test file",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/ranged-read/1772834632584730\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read?generation=1772834632584730&alt=media\",\n  \"name\": \"conformance-tests/kms/ranged-read\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772834632584730\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"51\",\n  \"md5Hash\": \"148SaEDsnL79UlK6jvfv1Q==\",\n  \"crc32c\": \"pKh0rA==\",\n  \"etag\": \"CJqcldSjjJMDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-03-06T22:03:52.631Z\",\n  \"updated\": \"2026-03-06T22:03:52.631Z\",\n  \"timeStorageClassUpdated\": \"2026-03-06T22:03:52.631Z\",\n  \"timeFinalized\": \"2026-03-06T22:03:52.631Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CJqcldSjjJMDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWw12wvbnlFRFLGb6sBBkTxBbP2xsc-9b4hateHq8U0BSWAD_neDTzs-kcx9FFIntGXsq2ZzdKL1ngA11NCoa4QvD4RTPjNhmCEqqke39Oc",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:03:52 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "bcf83617-86c6-4fee-b90d-765491bac104",
+  "persistent" : true,
+  "insertionIndex" : 634
+}

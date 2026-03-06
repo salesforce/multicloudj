@@ -1,0 +1,20 @@
+{
+  "id" : "e5ac6b3e-f334-4343-b790-96d93071eb04",
+  "name" : "AwsBlobStoreIT_testTagging-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "Z3W2NVF9RK7H27SG",
+      "x-amz-id-2" : "WdOQOZZ3EP6qAeg1tJyYuQyCxp9VHHta8lsuPX498iBlWelEb9DRkFhLKQu2IgQwiq16Tok4vTI=",
+      "Date" : "Fri, 06 Mar 2026 17:44:35 GMT"
+    }
+  },
+  "uuid" : "e5ac6b3e-f334-4343-b790-96d93071eb04",
+  "persistent" : true,
+  "insertionIndex" : 57
+}

@@ -1,0 +1,21 @@
+{
+  "id" : "3dde1c39-8943-415c-9022-e2e9499d9f5e",
+  "name" : "AwsBlobStoreIT_testDoesObjectExist-HEAD-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/doesBlobExist/unversionedfake",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "TRXFXAPTEQ18DAE3",
+      "x-amz-id-2" : "zUKaJUuKFeK+dXNDgzPJST3Hyqjn9lVpYFTOsi9cPEDwCTftqNFjKC3a2gbjKD9qTMCXDyYoopU=",
+      "Date" : "Fri, 06 Mar 2026 17:44:48 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "3dde1c39-8943-415c-9022-e2e9499d9f5e",
+  "persistent" : true,
+  "insertionIndex" : 92
+}

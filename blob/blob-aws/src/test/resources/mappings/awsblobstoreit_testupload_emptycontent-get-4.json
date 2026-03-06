@@ -1,0 +1,28 @@
+{
+  "id" : "dbecad61-9164-4bf5-9121-c050af9dd9fb",
+  "name" : "AwsBlobStoreIT_testUpload_emptyContent-GET-4",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/upload/emptyContent_versioned_File",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "�\u001D�ُ\u0000�\u0004�\t���B~",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"d41d8cd98f00b204e9800998ecf8427e\"",
+      "Last-Modified" : "Fri, 06 Mar 2026 17:49:00 GMT",
+      "x-amz-request-id" : "XHJCJ1H876HWHYZV",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "RJ8HDv5zf+6yzKOn0JapPImvyawWh9QFHFyZI8/N7/rQKGXHkpGA6Gcgo/5cj53tHrk25wY54AaN245owqI32dWonjiw+KD3",
+      "x-amz-transfer-encoding" : "append-md5",
+      "x-amz-version-id" : "9K0JQwajCU3O3WcF4w4zuBVOZ6rnOQTM",
+      "Date" : "Fri, 06 Mar 2026 17:49:00 GMT",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "dbecad61-9164-4bf5-9121-c050af9dd9fb",
+  "persistent" : true,
+  "insertionIndex" : 589
+}

@@ -1,0 +1,20 @@
+{
+  "id" : "534bae27-8d09-4bad-981e-9673611bf417",
+  "name" : "AwsBlobStoreIT_testGetMetadata-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-metadata",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "XRNQQDBN7RG2RHKB",
+      "x-amz-id-2" : "I2iNcq4qN/5mZdpYF6XMhZZBh0vlyay25EDKrS8OilV1BS0o0TWBxX9Nb0Vavdy9WpE4N8yFm2A=",
+      "Date" : "Fri, 06 Mar 2026 17:47:48 GMT"
+    }
+  },
+  "uuid" : "534bae27-8d09-4bad-981e-9673611bf417",
+  "persistent" : true,
+  "insertionIndex" : 437
+}

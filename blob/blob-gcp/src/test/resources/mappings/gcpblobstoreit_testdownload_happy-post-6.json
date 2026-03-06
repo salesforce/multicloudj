@@ -1,0 +1,50 @@
+{
+  "id" : "5c189462-4459-44b4-9655-40cf347161f4",
+  "name" : "GcpBlobStoreIT_testDownload_happy-POST-6",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/download_happy_versioned"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/download_happy_versioned\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWyhKschq-rBeo15EF6z6bklI-kOMZlR4EH26MUtucstSx1UAiJ38U01qmjqM5vgPK54cymwWsK67u2LQqvIl78xeO-gc7cAuik7E24_hK4",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:03:10 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/download_happy_versioned&uploadType=resumable&upload_id=AGQBYWyhKschq-rBeo15EF6z6bklI-kOMZlR4EH26MUtucstSx1UAiJ38U01qmjqM5vgPK54cymwWsK67u2LQqvIl78xeO-gc7cAuik7E24_hK4",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "5c189462-4459-44b4-9655-40cf347161f4",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
+  "requiredScenarioState" : "scenario-4-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-4",
+  "insertionIndex" : 439
+}

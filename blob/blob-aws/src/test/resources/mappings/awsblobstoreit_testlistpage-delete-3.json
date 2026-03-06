@@ -1,0 +1,20 @@
+{
+  "id" : "eb9b4ce9-b22a-4522-b407-666db71835d6",
+  "name" : "AwsBlobStoreIT_testListPage-DELETE-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-list-page/prefix_3",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "BMQKPXVGHMD0JXZH",
+      "x-amz-id-2" : "TxxKYMagc91pUvT2cD+Jcm76VVC3ZHM/uwE6s2YT0XTiyycHoS0tB8Yum+tTwdGEp5B/RAtaSz9Gg5Cj5k37QVQr9FxdGcmL",
+      "Date" : "Fri, 06 Mar 2026 17:49:14 GMT"
+    }
+  },
+  "uuid" : "eb9b4ce9-b22a-4522-b407-666db71835d6",
+  "persistent" : true,
+  "insertionIndex" : 621
+}

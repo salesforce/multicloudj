@@ -1,0 +1,23 @@
+{
+  "id" : "3ee14d09-a18d-4e92-80c2-937cb74254d6",
+  "name" : "AwsBlobStoreIT_testDownload_emptyKey-DELETE-18",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_empty_key_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "25P0C9EY0XJ3NJJ2",
+      "x-amz-id-2" : "mvV8h+V45IqfXb0P6Z8ZjuucnJG/k7syFUUd+tVHmjbthkQgcSENZZCUvkS2SRm/kTdk5xrNfvg=",
+      "Date" : "Fri, 06 Mar 2026 17:45:02 GMT"
+    }
+  },
+  "uuid" : "3ee14d09-a18d-4e92-80c2-937cb74254d6",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-chameleon-jcloud-conformance-tests-download_empty_key_unversioned",
+  "requiredScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-download_empty_key_unversioned-2",
+  "newScenarioState" : "scenario-3-chameleon-jcloud-conformance-tests-download_empty_key_unversioned-3",
+  "insertionIndex" : 145
+}

@@ -1,0 +1,20 @@
+{
+  "id" : "fe6ed766-3941-4cf3-b273-b454805cd510",
+  "name" : "AwsBlobStoreIT_testRangedReadWithKmsKey-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/ranged-read",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RPVPGMB5VWXCMKS8",
+      "x-amz-id-2" : "3XNJjSoq9GoHf6XaTB5ozqr+LCoStBfPSaV1LPs2sbXQ7H+OFtxaaSRJ9ZenwUruVcWGLBpwjpY=",
+      "Date" : "Fri, 06 Mar 2026 17:47:44 GMT"
+    }
+  },
+  "uuid" : "fe6ed766-3941-4cf3-b273-b454805cd510",
+  "persistent" : true,
+  "insertionIndex" : 425
+}

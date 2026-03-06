@@ -1,0 +1,38 @@
+{
+  "id" : "7483a4a2-d876-4b1c-b46f-412edfbc7971",
+  "name" : "GcpBlobStoreIT_testListPage-GET-40",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/blob-for-list-page/1772834712457836\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fblob-for-list-page?generation=1772834712457836&alt=media\",\n  \"name\": \"conformance-tests/blob-for-list-page\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772834712457836\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"29\",\n  \"md5Hash\": \"16GqxDYUIo8tWi7aRir4ig==\",\n  \"crc32c\": \"TteLWg==\",\n  \"etag\": \"COykoPqjjJMDEAE=\",\n  \"timeCreated\": \"2026-03-06T22:05:12.504Z\",\n  \"updated\": \"2026-03-06T22:05:12.504Z\",\n  \"timeStorageClassUpdated\": \"2026-03-06T22:05:12.504Z\",\n  \"timeFinalized\": \"2026-03-06T22:05:12.504Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COykoPqjjJMDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWwbEBlOXzIdVwXBYiiQIxT6U5QuJtsplEDlcwkx-ojDuzwgn_Tn1DU7FLpT6mYDi7aIrJQEAIw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 06 Mar 2026 22:05:12 GMT",
+      "Date" : "Fri, 06 Mar 2026 22:05:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "7483a4a2-d876-4b1c-b46f-412edfbc7971",
+  "persistent" : true,
+  "insertionIndex" : 959
+}
