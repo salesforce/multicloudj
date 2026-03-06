@@ -1,0 +1,36 @@
+{
+  "id" : "b6cf5d22-f89a-4446-aa09-578e634bd8b3",
+  "name" : "GcpBlobStoreIT_testNonexistentBucket-GET-3",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart4",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "multipart4"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0",
+      "X-GUploader-UploadID" : "AGQBYWx-a3RfX5SCZbEAtnjgCw8WrUYVC6_zT0LngAjxI3VVbYnjdrqlytAZ72gAIFbG1NoWKaZAEw",
+      "Expires" : "Wed, 04 Mar 2026 21:05:19 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:05:19 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "b6cf5d22-f89a-4446-aa09-578e634bd8b3",
+  "persistent" : true,
+  "insertionIndex" : 358
+}

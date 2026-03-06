@@ -6,24 +6,22 @@ import com.google.gson.JsonSyntaxException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-
-import org.apache.http.client.utils.URIBuilder;
-
 /**
- * Handles OAuth2 Bearer Token exchange for OCI registries.
- * Exchanges identity tokens for registry-scoped bearer tokens.
+ * Handles OAuth2 Bearer Token exchange for OCI registries. Exchanges identity tokens for
+ * registry-scoped bearer tokens.
  */
 public class BearerTokenExchange {
 
@@ -50,8 +48,8 @@ public class BearerTokenExchange {
    * @throws UnAuthorizedException if token exchange fails with non-200 status
    * @throws UnknownException if the request fails or response is invalid
    */
-  public String getBearerToken(AuthChallenge challenge, String identityToken,
-                               String repository, String... actions) {
+  public String getBearerToken(
+      AuthChallenge challenge, String identityToken, String repository, String... actions) {
     if (challenge == null || !challenge.isBearer()) {
       throw new InvalidArgumentException("Bearer token exchange requires a Bearer challenge");
     }
@@ -62,47 +60,51 @@ public class BearerTokenExchange {
     }
 
     try {
-    // Build token request URL using URIBuilder for proper encoding
-    URI tokenUri = buildTokenUri(realm, challenge, repository, actions);
+      // Build token request URL using URIBuilder for proper encoding
+      URI tokenUri = buildTokenUri(realm, challenge, repository, actions);
 
-    HttpGet request = new HttpGet(tokenUri);
-    // Use identity token as Bearer auth for the token endpoint
-    request.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + identityToken);
+      HttpGet request = new HttpGet(tokenUri);
+      // Use identity token as Bearer auth for the token endpoint
+      request.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + identityToken);
 
-    try (CloseableHttpResponse response = httpClient.execute(request)) {
-      int statusCode = response.getStatusLine().getStatusCode();
-      if (statusCode != HttpStatus.SC_OK) {
-        String errorBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-        throw new UnAuthorizedException("Token exchange failed: HTTP " + statusCode + " - " + errorBody);
+      try (CloseableHttpResponse response = httpClient.execute(request)) {
+        int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode != HttpStatus.SC_OK) {
+          String errorBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+          throw new UnAuthorizedException(
+              "Token exchange failed: HTTP " + statusCode + " - " + errorBody);
+        }
+
+        String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+
+        JsonObject json;
+        try {
+          json = JsonParser.parseString(responseBody).getAsJsonObject();
+        } catch (JsonSyntaxException e) {
+          throw new UnknownException(
+              "Invalid JSON response from token endpoint: " + responseBody, e);
+        }
+
+        // Token can be in "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry)
+        // field
+        if (json.has("token") && !json.get("token").isJsonNull()) {
+          return json.get("token").getAsString();
+        } else if (json.has("access_token") && !json.get("access_token").isJsonNull()) {
+          return json.get("access_token").getAsString();
+        }
+
+        throw new UnknownException("Token response missing token field");
       }
-
-      String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-      
-      JsonObject json;
-      try {
-        json = JsonParser.parseString(responseBody).getAsJsonObject();
-      } catch (JsonSyntaxException e) {
-        throw new UnknownException("Invalid JSON response from token endpoint: " + responseBody, e);
-      }
-
-      // Token can be in "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry) field
-      if (json.has("token") && !json.get("token").isJsonNull()) {
-        return json.get("token").getAsString();
-      } else if (json.has("access_token") && !json.get("access_token").isJsonNull()) {
-        return json.get("access_token").getAsString();
-      }
-
-      throw new UnknownException("Token response missing token field");
-    }
     } catch (IOException e) {
       throw new UnknownException("Token exchange request failed", e);
     }
   }
 
-  private URI buildTokenUri(String realm, AuthChallenge challenge, String repository, String[] actions) {
+  private URI buildTokenUri(
+      String realm, AuthChallenge challenge, String repository, String[] actions) {
     try {
       URIBuilder uriBuilder = new URIBuilder(realm);
-      
+
       if (challenge.getService() != null) {
         uriBuilder.addParameter("service", challenge.getService());
       }

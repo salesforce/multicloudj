@@ -1,0 +1,32 @@
+{
+  "id" : "411d4f2a-70f0-48e8-8443-2ec763f1a16c",
+  "name" : "AwsDocstoreIT_testCreate-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"TaylorMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"DocstoreRevision\":{\"S\":\"9b8aa92d-b861-91bb-05c5-74c7e9ae6210\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"TaylorMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "2D9245KQALOFHOBV4B6OAC6QGRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1051845559",
+      "Date" : "Wed, 04 Mar 2026 21:13:07 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "411d4f2a-70f0-48e8-8443-2ec763f1a16c",
+  "persistent" : true,
+  "insertionIndex" : 112
+}

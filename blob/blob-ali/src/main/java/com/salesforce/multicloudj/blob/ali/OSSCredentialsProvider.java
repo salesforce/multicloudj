@@ -10,33 +10,32 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 public class OSSCredentialsProvider {
-    public static CredentialsProvider getCredentialsProvider(CredentialsOverrider overrider, String region) {
-        if (overrider == null || overrider.getType() == null) {
-            return null;
+  public static CredentialsProvider getCredentialsProvider(
+      CredentialsOverrider overrider, String region) {
+    if (overrider == null || overrider.getType() == null) {
+      return null;
+    }
+
+    switch (overrider.getType()) {
+      case SESSION:
+        StsCredentials stsCredentials = overrider.getSessionCredentials();
+        CredentialsProviderFactory factory = new CredentialsProviderFactory();
+        return factory.newDefaultCredentialProvider(
+            stsCredentials.getAccessKeyId(),
+            stsCredentials.getAccessKeySecret(),
+            stsCredentials.getSecurityToken());
+      case ASSUME_ROLE:
+        String assumeRole = overrider.getRole();
+        DefaultCredentialsProvider provider;
+        try {
+          provider = new DefaultCredentialsProvider();
+        } catch (com.aliyuncs.exceptions.ClientException | ClientException e) {
+          throw new RuntimeException(e);
         }
-
-        switch (overrider.getType()) {
-            case SESSION:
-                StsCredentials stsCredentials = overrider.getSessionCredentials();
-                CredentialsProviderFactory factory = new CredentialsProviderFactory();
-                return factory.newDefaultCredentialProvider(
-                        stsCredentials.getAccessKeyId(),
-                        stsCredentials.getAccessKeySecret(),
-                        stsCredentials.getSecurityToken()
-                );
-            case ASSUME_ROLE:
-                String assumeRole = overrider.getRole();
-                DefaultCredentialsProvider provider;
-                try {
-                    provider = new DefaultCredentialsProvider();
-                } catch (com.aliyuncs.exceptions.ClientException | ClientException e) {
-                    throw new RuntimeException(e);
-                }
-                DefaultProfile clientProfile = DefaultProfile.getProfile(region);
-                return new STSAssumeRoleSessionCredentialsProvider(provider, assumeRole, clientProfile);
-
-        }
-
+        DefaultProfile clientProfile = DefaultProfile.getProfile(region);
+        return new STSAssumeRoleSessionCredentialsProvider(provider, assumeRole, clientProfile);
+      default:
         return null;
     }
+  }
 }

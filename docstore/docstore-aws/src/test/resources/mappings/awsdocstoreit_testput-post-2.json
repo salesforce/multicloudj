@@ -1,0 +1,32 @@
+{
+  "id" : "7769b3d8-daf0-4eda-b912-e0a0501e0a2e",
+  "name" : "AwsDocstoreIT_testPut-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"08e7b250-dc1d-5342-d324-a3d4c44c28ba\"},\"pName\":{\"S\":\"LeoPut\"},\"f\":{\"N\":\"12.65999984741211\"}},\"ConditionExpression\":\"#revField = :revValue\",\"ExpressionAttributeNames\":{\"#revField\":\"DocstoreRevision\"},\"ExpressionAttributeValues\":{\":revValue\":{\"S\":\"123\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\",\"message\":\"The conditional request failed\"}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "6GUGNPDPB8ES71NL058EIEJD7JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "396270901",
+      "Date" : "Wed, 04 Mar 2026 21:12:52 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "7769b3d8-daf0-4eda-b912-e0a0501e0a2e",
+  "persistent" : true,
+  "insertionIndex" : 65
+}

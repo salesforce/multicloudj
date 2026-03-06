@@ -10,19 +10,19 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 
 public interface AwsSdkService extends SdkService {
 
-    @Override
-    default Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof AwsServiceException) {
-            AwsServiceException awsServiceException = (AwsServiceException) t;
-            String requestId = awsServiceException.requestId();
-            if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
-                return UnAuthorizedException.class;
-            }
-            String errorCode = awsServiceException.awsErrorDetails().errorCode();
-            return ErrorCodeMapping.getException(errorCode);
-        } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-            return InvalidArgumentException.class;
-        }
-        return UnknownException.class;
+  @Override
+  default Class<? extends SubstrateSdkException> getException(Throwable t) {
+    if (t instanceof AwsServiceException) {
+      AwsServiceException awsServiceException = (AwsServiceException) t;
+      String requestId = awsServiceException.requestId();
+      if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
+        return UnAuthorizedException.class;
+      }
+      String errorCode = awsServiceException.awsErrorDetails().errorCode();
+      return ErrorCodeMapping.getException(errorCode);
+    } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
+      return InvalidArgumentException.class;
     }
+    return UnknownException.class;
+  }
 }

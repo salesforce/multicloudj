@@ -1,0 +1,27 @@
+{
+  "id" : "0a5a5551-57a8-4b8b-b205-2b5ef7261d74",
+  "name" : "AwsBlobStoreIT_testUploadWithKmsKey_nullKmsKeyId-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/upload-null-key",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGVzdCBkYXRhIHdpdGhvdXQgS01TrnTGcgfuSJQ++OnOjzuA3Q==",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"ae74c67207ee48943ef8e9ce8f3b80dd\"",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:57:54 GMT",
+      "x-amz-request-id" : "EXCASRGCYTEXC1C4",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "AYho5ctX4f1n74VJQbAxlq2SyC4GG3ZFYsT4q5KIzfoIdQCIoF2NC2WU46cOtg2Vi1TeOyScvKDnCGtbrHPvGQPjQLuFfvPd",
+      "x-amz-transfer-encoding" : "append-md5",
+      "Date" : "Wed, 04 Mar 2026 20:57:54 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "0a5a5551-57a8-4b8b-b205-2b5ef7261d74",
+  "persistent" : true,
+  "insertionIndex" : 255
+}

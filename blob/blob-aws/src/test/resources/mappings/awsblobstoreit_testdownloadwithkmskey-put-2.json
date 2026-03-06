@@ -1,0 +1,28 @@
+{
+  "id" : "eac4183a-8a6e-43ac-8302-25227e1cd359",
+  "name" : "AwsBlobStoreIT_testDownloadWithKmsKey-PUT-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/download-happy-path",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBkYXRhIGZvciBLTVMgZG93bmxvYWQ="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"ef95e31d932993792893c70f9c8ec5f0\"",
+      "x-amz-checksum-crc64nvme" : "XU8hlj9lJbQ=",
+      "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "MVD2X5S4SC0Z1PC9",
+      "x-amz-server-side-encryption" : "aws:kms",
+      "x-amz-id-2" : "WUi4MDTnYmrsE5X4vv4HWv6aHc62eHpwgNxKveVgm95fxyexmDFt3G4bkzzum1tEON68UvURbvIVHkeB1PQw1LP72qH0JtR6",
+      "Date" : "Wed, 04 Mar 2026 20:56:19 GMT"
+    }
+  },
+  "uuid" : "eac4183a-8a6e-43ac-8302-25227e1cd359",
+  "persistent" : true,
+  "insertionIndex" : 48
+}

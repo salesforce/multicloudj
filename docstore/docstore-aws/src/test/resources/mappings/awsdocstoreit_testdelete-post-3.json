@@ -1,0 +1,32 @@
+{
+  "id" : "da592e2f-9948-4ed7-a183-6689892eac5f",
+  "name" : "AwsDocstoreIT_testDelete-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"LouisMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"808abf74-167e-3855-e4cb-0e7778b4eb53\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "O7534E10BP7VF9DHMSNPRGNP6RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 04 Mar 2026 21:13:17 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "da592e2f-9948-4ed7-a183-6689892eac5f",
+  "persistent" : true,
+  "insertionIndex" : 129
+}

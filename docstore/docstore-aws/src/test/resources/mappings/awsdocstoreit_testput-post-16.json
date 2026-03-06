@@ -1,0 +1,32 @@
+{
+  "id" : "77999d32-371b-4f4a-af5e-0cc4fbab7b21",
+  "name" : "AwsDocstoreIT_testPut-POST-16",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"DavidMap\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "U3HPUUJ5RORTFP6MJICBD321V3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 04 Mar 2026 21:12:46 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "77999d32-371b-4f4a-af5e-0cc4fbab7b21",
+  "persistent" : true,
+  "insertionIndex" : 79
+}

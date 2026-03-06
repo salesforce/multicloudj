@@ -1,0 +1,32 @@
+{
+  "id" : "b2414746-168f-419c-9e83-d9ee73d51f3e",
+  "name" : "AwsDocstoreIT_testDelete-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"LouisMapDelete\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "31R3SE53O2J2OOUVPTI3QT2LBVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 04 Mar 2026 21:13:18 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "b2414746-168f-419c-9e83-d9ee73d51f3e",
+  "persistent" : true,
+  "insertionIndex" : 128
+}

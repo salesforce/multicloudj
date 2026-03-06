@@ -1,0 +1,20 @@
+{
+  "id" : "0f7804d7-dfdd-4092-9fa1-fbe95ce271a7",
+  "name" : "AwsBlobStoreIT_testDownloadWithKmsKey-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/download-happy-path",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VD5RSXW59WWX6QA3",
+      "x-amz-id-2" : "3TZKD6HjEutC+FZildHIKRVGhE47V2DPB+Bj5wIdQOjlUyUgnE1GEAAhUMmLCond9YbFgYdlPX4Cx/K1AJxQ+1j2B2UmZCWg",
+      "Date" : "Wed, 04 Mar 2026 20:56:21 GMT"
+    }
+  },
+  "uuid" : "0f7804d7-dfdd-4092-9fa1-fbe95ce271a7",
+  "persistent" : true,
+  "insertionIndex" : 46
+}

@@ -1,0 +1,25 @@
+{
+  "id" : "02094ca9-c81d-4162-81a3-7ea308a4ea07",
+  "name" : "AwsDBBackupRestoreIT_testRestore-PUT-1",
+  "request" : {
+    "url" : "/restore-jobs",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"Metadata\":{\"targetTableName\":\"restored-collection-b1b8f961-83c4-7719-e1a6-d5ea32dd672e\"},\"IamRoleArn\":\"arn:aws:iam::654654370895:role/chameleon-multi--f4msu63ppffhs\",\"IdempotencyToken\":\"c4ddfd7c-c336-eeb1-8250-9f9fe8c04b48\",\"ResourceType\":\"DynamoDB\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"RestoreJobId\":\"58c2404d-d7f0-49fe-a804-8c9013b21acb\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "0c718938-60ea-4084-ac46-a7cfd3b5e513",
+      "Date" : "Wed, 04 Mar 2026 21:27:08 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "02094ca9-c81d-4162-81a3-7ea308a4ea07",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

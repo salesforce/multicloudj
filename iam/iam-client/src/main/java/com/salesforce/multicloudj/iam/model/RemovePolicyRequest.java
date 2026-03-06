@@ -6,8 +6,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class RemovePolicyRequest {
-    private final String identityName;
-    private final String policyName;
-    private final String tenantId;
-    private final String region;
+  private final String identityName;
+  private final String policyName;
+  private final String tenantId;
+  private final String region;
 }
