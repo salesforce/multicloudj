@@ -569,6 +569,7 @@ public class AwsTransformer {
             .bucket(getBucket())
             .source(Paths.get(request.getLocalSourceDirectory()))
             .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+            .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
 
     // Merge tags into the existing PutObjectRequest per file; putObjectRequest(Consumer) would
