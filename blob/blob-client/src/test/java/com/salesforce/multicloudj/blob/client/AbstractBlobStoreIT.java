@@ -2044,7 +2044,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_singlePart() throws IOException {
+  public void testMultipartUpload_singlePart() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig("single part", DEFAULT_MULTIPART_KEY_PREFIX + "singlePart",
             Map.of("123", "456"), List.of(new MultipartUploadTestPart(1, multipartBytes1)),
@@ -2065,7 +2065,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_unorderedMultipleParts() throws IOException {
+  public void testMultipartUpload_unorderedMultipleParts() {
     runMultipartUploadTest(new MultipartUploadTestConfig("unordered multiple parts",
         DEFAULT_MULTIPART_KEY_PREFIX + "unorderedMultipleParts", Map.of("345", "456"),
         List.of(new MultipartUploadTestPart(1, multipartBytes1),
@@ -2075,7 +2075,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_skippingNumbers() throws IOException {
+  public void testMultipartUpload_skippingNumbers() {
     runMultipartUploadTest(new MultipartUploadTestConfig("skipping numbers",
         DEFAULT_MULTIPART_KEY_PREFIX + "skippingNumbers", Map.of("456", "456"),
         List.of(new MultipartUploadTestPart(2, multipartBytes1),
@@ -2086,7 +2086,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_duplicateParts() throws IOException {
+  public void testMultipartUpload_duplicateParts() {
     runMultipartUploadTest(new MultipartUploadTestConfig("duplicates parts",
         DEFAULT_MULTIPART_KEY_PREFIX + "duplicateParts", Map.of("567", "456"),
         List.of(new MultipartUploadTestPart(2, multipartBytes1),
@@ -2097,7 +2097,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_nonExistentParts() throws IOException {
+  public void testMultipartUpload_nonExistentParts() {
     runMultipartUploadTest(new MultipartUploadTestConfig("non-existent parts",
         DEFAULT_MULTIPART_KEY_PREFIX + "nonExistentParts", Map.of("678", "456"),
         List.of(new MultipartUploadTestPart(2, multipartBytes1)),
@@ -2106,14 +2106,22 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_badETag() throws IOException {
+  public void testMultipartUpload_badETag() {
     runMultipartUploadTest(
-        new MultipartUploadTestConfig("bad etag", DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
-            Map.of("789", "456"), List.of(new MultipartUploadTestPart(2, multipartBytes1),
-            new MultipartUploadTestPart(3, multipartBytes2),
-            new MultipartUploadTestPart(4, multipartBytes3)),
-            List.of(new MultipartUploadPartResult(2, true), new MultipartUploadPartResult(3, false),
-                new MultipartUploadPartResult(4, true)), false, true));
+        new MultipartUploadTestConfig(
+            "bad etag",
+            DEFAULT_MULTIPART_KEY_PREFIX + "badETag",
+            Map.of("789", "456"),
+            List.of(
+                new MultipartUploadTestPart(2, multipartBytes1),
+                new MultipartUploadTestPart(3, multipartBytes2),
+                new MultipartUploadTestPart(4, multipartBytes3)),
+            List.of(
+                new MultipartUploadPartResult(2, true),
+                new MultipartUploadPartResult(3, false),
+                new MultipartUploadPartResult(4, true)),
+            false,
+            true));
   }
 
   @Test
@@ -2291,8 +2299,8 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(part2Response);
 
       // For AWS, verify per-part checksum is returned
-      if (!ALI_PROVIDER_ID.equals(harness.getProviderId()) &&
-          !GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+      if (!ALI_PROVIDER_ID.equals(harness.getProviderId())
+          && !GCP_PROVIDER_ID.equals(harness.getProviderId())) {
         Assertions.assertNotNull(part1Response.getChecksumValue(),
             "Expected checksum in upload part response for " + harness.getProviderId());
         Assertions.assertNotNull(part2Response.getChecksumValue(),
