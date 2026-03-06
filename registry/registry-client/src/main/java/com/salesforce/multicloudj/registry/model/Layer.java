@@ -4,9 +4,9 @@ import java.io.InputStream;
 
 /** Interface for a single image layer; implementations are provided by the registry driver. */
 public interface Layer {
-    String getDigest();
+  String getDigest();
 
-    InputStream getUncompressed();
+  InputStream getUncompressed();
 
-    long getSize();
+  long getSize();
 }

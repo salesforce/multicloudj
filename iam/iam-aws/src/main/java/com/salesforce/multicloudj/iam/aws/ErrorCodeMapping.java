@@ -9,54 +9,52 @@ import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Maps AWS IAM error codes to SubstrateSdkException types.
- */
+/** Maps AWS IAM error codes to SubstrateSdkException types. */
 public final class ErrorCodeMapping {
 
-    private ErrorCodeMapping() {}
+  private ErrorCodeMapping() {}
 
-    private static final Map<String, Class<? extends SubstrateSdkException>> ERROR_MAPPING;
+  private static final Map<String, Class<? extends SubstrateSdkException>> ERROR_MAPPING;
 
-    static {
-        Map<String, Class<? extends SubstrateSdkException>> map = new HashMap<>(CommonErrorCodeMapping.get());
+  static {
+    Map<String, Class<? extends SubstrateSdkException>> map =
+        new HashMap<>(CommonErrorCodeMapping.get());
 
-        // AWS IAM specific error codes
-        // https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html
-        // https://docs.aws.amazon.com/IAM/latest/APIReference/API_Operations.html
+    // AWS IAM specific error codes
+    // https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html
+    // https://docs.aws.amazon.com/IAM/latest/APIReference/API_Operations.html
 
-        // InvalidArgument errors
-        map.put("InvalidInput", InvalidArgumentException.class);
-        map.put("MalformedPolicyDocument", InvalidArgumentException.class);
+    // InvalidArgument errors
+    map.put("InvalidInput", InvalidArgumentException.class);
+    map.put("MalformedPolicyDocument", InvalidArgumentException.class);
 
-        // ResourceNotFound errors
-        map.put("NoSuchEntity", ResourceNotFoundException.class);
-        map.put("NoSuchEntityException", ResourceNotFoundException.class);
+    // ResourceNotFound errors
+    map.put("NoSuchEntity", ResourceNotFoundException.class);
+    map.put("NoSuchEntityException", ResourceNotFoundException.class);
 
-        // ResourceAlreadyExists errors
-        map.put("EntityAlreadyExists", ResourceAlreadyExistsException.class);
-        map.put("EntityAlreadyExistsException", ResourceAlreadyExistsException.class);
+    // ResourceAlreadyExists errors
+    map.put("EntityAlreadyExists", ResourceAlreadyExistsException.class);
+    map.put("EntityAlreadyExistsException", ResourceAlreadyExistsException.class);
 
-        // ResourceConflict errors
-        map.put("DeleteConflict", ResourceConflictException.class);
-        map.put("DeleteConflictException", ResourceConflictException.class);
+    // ResourceConflict errors
+    map.put("DeleteConflict", ResourceConflictException.class);
+    map.put("DeleteConflictException", ResourceConflictException.class);
 
-        // ResourceExhausted errors
-        map.put("LimitExceeded", ResourceExhaustedException.class);
-        map.put("LimitExceededException", ResourceExhaustedException.class);
+    // ResourceExhausted errors
+    map.put("LimitExceeded", ResourceExhaustedException.class);
+    map.put("LimitExceededException", ResourceExhaustedException.class);
 
-        // Unknown errors
-        map.put("ServiceFailure", UnknownException.class);
-        map.put("ServiceFailureException", UnknownException.class);
+    // Unknown errors
+    map.put("ServiceFailure", UnknownException.class);
+    map.put("ServiceFailureException", UnknownException.class);
 
-        ERROR_MAPPING = ImmutableMap.copyOf(map);
-    }
+    ERROR_MAPPING = ImmutableMap.copyOf(map);
+  }
 
-    static Class<? extends SubstrateSdkException> getException(String errorCode) {
-        return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
-    }
+  static Class<? extends SubstrateSdkException> getException(String errorCode) {
+    return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+  }
 }
