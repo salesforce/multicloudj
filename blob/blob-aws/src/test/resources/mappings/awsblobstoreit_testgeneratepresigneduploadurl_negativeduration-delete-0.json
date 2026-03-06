@@ -1,0 +1,20 @@
+{
+  "id" : "b596f6ac-2072-4102-b5b1-3d0094188022",
+  "name" : "AwsBlobStoreIT_testGeneratePresignedUploadUrl_negativeDuration-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presignedUploadUrls/negativeDuration",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RN2WYDKD9AM5D7J9",
+      "x-amz-id-2" : "TM28Djf/gvDId3+09wbUNd7YRvu8KnwSGbYemZFO6yBYinTSnMX0+9rd0BloerUEczmBfe+7e5ghD0gaAimB6zKDlAarQUs/",
+      "Date" : "Wed, 04 Mar 2026 20:57:38 GMT"
+    }
+  },
+  "uuid" : "b596f6ac-2072-4102-b5b1-3d0094188022",
+  "persistent" : true,
+  "insertionIndex" : 224
+}

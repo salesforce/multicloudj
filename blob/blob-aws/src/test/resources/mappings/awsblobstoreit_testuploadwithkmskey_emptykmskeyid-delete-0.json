@@ -1,0 +1,20 @@
+{
+  "id" : "b267b307-99d7-4fea-940a-fc819d2b22e4",
+  "name" : "AwsBlobStoreIT_testUploadWithKmsKey_emptyKmsKeyId-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/kms/upload-empty-key",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "SDSKJY0G10E4N3RV",
+      "x-amz-id-2" : "Nqeae6ZYzns6FtItOEP1seTxVOVWrb+KTpgaj6qy63zDjSjdoSThRjz8Lg7aRughxnHt01wmcWO/ujgaIRiy2x27lsEUtNcf",
+      "Date" : "Wed, 04 Mar 2026 20:57:48 GMT"
+    }
+  },
+  "uuid" : "b267b307-99d7-4fea-940a-fc819d2b22e4",
+  "persistent" : true,
+  "insertionIndex" : 241
+}

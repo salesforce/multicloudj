@@ -1,0 +1,43 @@
+{
+  "id" : "b71a2dc5-643f-4e39-a453-39f150d93528",
+  "name" : "GcpBlobStoreIT_testDownload_happy-GET-45",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772658347618242"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/download_happy_unversioned/1772658347618242\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fdownload_happy_unversioned?generation=1772658347618242&alt=media\",\n  \"name\": \"conformance-tests/download_happy_unversioned\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772658347618242\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CMLf+PiSh5MDEAE=\",\n  \"timeCreated\": \"2026-03-04T21:05:47.664Z\",\n  \"updated\": \"2026-03-04T21:05:47.664Z\",\n  \"timeStorageClassUpdated\": \"2026-03-04T21:05:47.664Z\",\n  \"timeFinalized\": \"2026-03-04T21:05:47.664Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CMLf+PiSh5MDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWwB70TcvkpJzBArkzR2nwmwMybofATUMrdvO27Y0tuSXF-bdR83rbXFh58B1T04g72Sg74MH9I",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 04 Mar 2026 21:05:48 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:05:48 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b71a2dc5-643f-4e39-a453-39f150d93528",
+  "persistent" : true,
+  "insertionIndex" : 477
+}

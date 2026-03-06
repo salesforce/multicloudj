@@ -10,10 +10,11 @@ import lombok.Singular;
 /**
  * Represents a single statement within a policy document.
  *
- * <p>A statement defines the permissions, principals, resources, and conditions
- * for a specific set of actions in a substrate-neutral format.
+ * <p>A statement defines the permissions, principals, resources, and conditions for a specific set
+ * of actions in a substrate-neutral format.
  *
  * <p>Usage example:
+ *
  * <pre>
  * Statement statement = Statement.builder()
  *     .sid("StorageAccess")
@@ -36,11 +37,13 @@ public class Statement {
   private final Map<String, Map<String, Object>> conditions;
 
   @Builder
-  private Statement(String sid, String effect,
-                   @Singular List<String> principals,
-                   @Singular List<String> actions,
-                   @Singular List<String> resources,
-                   Map<String, Map<String, Object>> conditions) {
+  private Statement(
+      String sid,
+      String effect,
+      @Singular List<String> principals,
+      @Singular List<String> actions,
+      @Singular List<String> resources,
+      Map<String, Map<String, Object>> conditions) {
     // Validate effect
     if (effect == null || effect.trim().isEmpty()) {
       throw new InvalidArgumentException("Effect is required and cannot be empty");
@@ -66,13 +69,11 @@ public class Statement {
       return new java.util.ArrayList<>();
     }
     return input.stream()
-            .filter(s -> s != null && !s.trim().isEmpty())
-            .collect(java.util.stream.Collectors.toList());
+        .filter(s -> s != null && !s.trim().isEmpty())
+        .collect(java.util.stream.Collectors.toList());
   }
 
-  /**
-   * Custom builder for Statement to handle conditions.
-   */
+  /** Custom builder for Statement to handle conditions. */
   public static class StatementBuilder {
     /**
      * Adds a condition to the statement.
@@ -87,8 +88,7 @@ public class Statement {
         if (this.conditions == null) {
           this.conditions = new java.util.HashMap<>();
         }
-        this.conditions.computeIfAbsent(operator, k -> new java.util.HashMap<>())
-                .put(key, value);
+        this.conditions.computeIfAbsent(operator, k -> new java.util.HashMap<>()).put(key, value);
       }
       return this;
     }

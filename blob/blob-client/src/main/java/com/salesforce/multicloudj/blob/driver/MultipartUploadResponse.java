@@ -2,16 +2,13 @@ package com.salesforce.multicloudj.blob.driver;
 
 import lombok.Getter;
 
-/**
- * The response object returned from completing a multipartUpload
- */
+/** The response object returned from completing a multipartUpload */
 @Getter
 public class MultipartUploadResponse {
 
-    private final String etag;
+  private final String etag;
 
-    public MultipartUploadResponse(final String etag){
-        this.etag = etag;
-    }
-
+  public MultipartUploadResponse(final String etag) {
+    this.etag = etag;
+  }
 }

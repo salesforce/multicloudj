@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.dbbackuprestore.ali;
 
-import com.salesforce.multicloudj.common.exceptions.*;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 
 /**
  * Maps Alibaba Cloud HBR exceptions to MultiCloudJ exception types.
@@ -10,9 +11,9 @@ import com.salesforce.multicloudj.common.exceptions.*;
 public class ErrorCodeMapping {
 
   /**
-   * Maps an Alibaba Cloud exception to the appropriate MultiCloudJ exception type.
-   * Error codes are defined here:
-   * <a href="https://www.alibabacloud.com/help/en/cloud-backup/developer-reference/api-hbr-2017-09-08-errorcodes">...</a>
+   * Maps an Alibaba Cloud exception to the appropriate MultiCloudJ exception type. Error codes are
+   * defined here: <a
+   * href="https://www.alibabacloud.com/help/en/cloud-backup/developer-reference/api-hbr-2017-09-08-errorcodes">...</a>
    * TODO: revisit this after conformance tests enabled to extract the error codes, there is a lack
    * of documentation which specific exception class is thrown by hbrclient.
    *
