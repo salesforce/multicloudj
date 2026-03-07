@@ -1,5 +1,5 @@
 {
-  "id" : "bb8eb948-e90c-4f19-841e-d5400c7bc049",
+  "id" : "e1bfa158-8857-4c59-9d16-59de4a069dba",
   "name" : "AwsBlobStoreIT_testDelete-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/blob-for-deleting",
@@ -9,14 +9,14 @@
     "status" : 204,
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "0RABDTGGH9ZKP0F0",
-      "x-amz-id-2" : "VVrAs1zxCKRE2NaCoCqAM7CME6t2IW0m7iazqfqeOVDsPnJYrNnmLmHH+W1SyfQhd0OLekAMn2K/84sR5jwzALWWH9Q7hxhx",
-      "Date" : "Wed, 04 Mar 2026 20:59:30 GMT"
+      "x-amz-request-id" : "KV8NYCNNSEVS570A",
+      "x-amz-id-2" : "fkLodeSwJAeHgvMExuvdgVFCsowqx3tjq2JDYFjQbbYfJjhdxTYM7N4eV3w/STnK2QfBvIN7mjkT/uHvKw0sLZbAFmYuVuYs",
+      "Date" : "Fri, 06 Mar 2026 17:48:11 GMT"
     }
   },
-  "uuid" : "bb8eb948-e90c-4f19-841e-d5400c7bc049",
+  "uuid" : "e1bfa158-8857-4c59-9d16-59de4a069dba",
   "persistent" : true,
   "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting",
   "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-blob-for-deleting-2",
-  "insertionIndex" : 468
+  "insertionIndex" : 477
 }

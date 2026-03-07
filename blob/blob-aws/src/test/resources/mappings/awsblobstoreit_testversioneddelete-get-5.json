@@ -1,5 +1,5 @@
 {
-  "id" : "e3927243-fbc8-4d61-9b97-ee09a463d205",
+  "id" : "a36cf983-ce5c-48b1-bd58-c884809983c7",
   "name" : "AwsBlobStoreIT_testVersionedDelete-GET-5",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath",
@@ -12,23 +12,23 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "ci66q1AAWLSzHkDOB2LTMEDxAAKAVQOb"
+          "equalTo" : "UMgsKxz_5Hto0bQrpPutLmXCjyYYlc6F"
         } ]
       }
     }
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchVersion</Code><Message>The specified version does not exist.</Message><Key>conformance-tests/delete/happyPath</Key><VersionId>ci66q1AAWLSzHkDOB2LTMEDxAAKAVQOb</VersionId><RequestId>9MV3RF4EF9T4SZ76</RequestId><HostId>aWsiMeZxvq1jL/BcZy9HRKJ7w4/4b1V7y9P+bNLU7lrrHR58WfeH5ehz61K/mrvbj1rBv/Z15KFW+D+vorEgMQ9nM3lsrhf6</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchVersion</Code><Message>The specified version does not exist.</Message><Key>conformance-tests/delete/happyPath</Key><VersionId>UMgsKxz_5Hto0bQrpPutLmXCjyYYlc6F</VersionId><RequestId>6J4XCN6V4SJZBW2E</RequestId><HostId>qVhthBc2dcjMAJy3PdjdjdzbN4trTHATBvu+/CwMbqVrGDwhy1UY3ZRl9983sNJMVmhx0Fpoce0=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "9MV3RF4EF9T4SZ76",
-      "x-amz-id-2" : "aWsiMeZxvq1jL/BcZy9HRKJ7w4/4b1V7y9P+bNLU7lrrHR58WfeH5ehz61K/mrvbj1rBv/Z15KFW+D+vorEgMQ9nM3lsrhf6",
-      "Date" : "Wed, 04 Mar 2026 20:58:12 GMT",
+      "x-amz-request-id" : "6J4XCN6V4SJZBW2E",
+      "x-amz-id-2" : "qVhthBc2dcjMAJy3PdjdjdzbN4trTHATBvu+/CwMbqVrGDwhy1UY3ZRl9983sNJMVmhx0Fpoce0=",
+      "Date" : "Fri, 06 Mar 2026 17:46:51 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "e3927243-fbc8-4d61-9b97-ee09a463d205",
+  "uuid" : "a36cf983-ce5c-48b1-bd58-c884809983c7",
   "persistent" : true,
-  "insertionIndex" : 303
+  "insertionIndex" : 307
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "4cd0b574-2fd9-4585-830c-0b2ad739c485",
+  "id" : "975161b7-443c-42cb-a8a0-866369269444",
   "name" : "AwsBlobStoreIT_testNonexistentBucket-PUT-0",
   "request" : {
     "urlPath" : "/java-bucket-does-not-exist/conformance-tests/blob-for-failing/testNonexistentBucket",
@@ -17,21 +17,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tagfail2</Key><Value>value2</Value></Tag><Tag><Key>tagfail1</Key><Value>value1</Value></Tag></TagSet></Tagging>"
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tagfail1</Key><Value>value1</Value></Tag><Tag><Key>tagfail2</Key><Value>value2</Value></Tag></TagSet></Tagging>"
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>ZQ7SHZZ9N3N87NWA</RequestId><HostId>jCdaVAcB+rfUl0UlXPX0OwGvuWd6s9yjzbzUMkCSyYRkajoSqzxCWv8US3EA2ftXEqAVf1FoHb8TdSM0huN4TNnoEwjwEC9s</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>RHDGMQKD0YYMADNG</RequestId><HostId>aLBJeAkC8zrVk8ddAAFUNifM5V7Tt8tQFMh0TVPlPRv4JEZzWeDhbfK32hUja+1WnajqnYzHVW0=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "ZQ7SHZZ9N3N87NWA",
-      "x-amz-id-2" : "jCdaVAcB+rfUl0UlXPX0OwGvuWd6s9yjzbzUMkCSyYRkajoSqzxCWv8US3EA2ftXEqAVf1FoHb8TdSM0huN4TNnoEwjwEC9s",
-      "Date" : "Wed, 04 Mar 2026 20:57:35 GMT",
+      "x-amz-request-id" : "RHDGMQKD0YYMADNG",
+      "x-amz-id-2" : "aLBJeAkC8zrVk8ddAAFUNifM5V7Tt8tQFMh0TVPlPRv4JEZzWeDhbfK32hUja+1WnajqnYzHVW0=",
+      "Date" : "Fri, 06 Mar 2026 17:45:34 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "4cd0b574-2fd9-4585-830c-0b2ad739c485",
+  "uuid" : "975161b7-443c-42cb-a8a0-866369269444",
   "persistent" : true,
-  "insertionIndex" : 206
+  "insertionIndex" : 212
 }

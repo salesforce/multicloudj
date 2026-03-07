@@ -1,5 +1,5 @@
 {
-  "id" : "ab9ace3c-a26a-4ffe-9118-67aa577ee1ac",
+  "id" : "64e0a11a-5324-48b2-948f-61d24a5de54d",
   "name" : "AwsBlobStoreIT_testRangedRead-GET-31",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/testRangedRead_versioned",
@@ -12,25 +12,25 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "RdkdoMNL1jje2k7QWV1L28niHiemWgKW"
+          "equalTo" : "olBQv04ZGiq0sjMhDuBWCxiyuQmLKIM1"
         } ]
       }
     }
   },
   "response" : {
     "status" : 416,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRange</Code><Message>The requested range is not satisfiable</Message><RangeRequested>bytes=57-</RangeRequested><ActualObjectSize>47</ActualObjectSize><RequestId>8VH500HNKKEYK18G</RequestId><HostId>PGCVTGN0MFzfaNra02tgxGOTf7gAZo4ghLXDv90cKdEM1+jtMkgPV0rlYDElUObNVvUfm3Ov8i/3sP2rHrVOn+hYH8Acats3</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRange</Code><Message>The requested range is not satisfiable</Message><RangeRequested>bytes=57-</RangeRequested><ActualObjectSize>47</ActualObjectSize><RequestId>TZHMP3YZ5FXH45EN</RequestId><HostId>oY9uv7QyOIDfF0gtNLtHbRZrRc1CP4uw8YRa+8p4d9E7akNzt1vO7VKe+EfjS4hIkfQVdUb4WhR+EzndLVH0aP/fC/0EpF7I</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "8VH500HNKKEYK18G",
-      "x-amz-id-2" : "PGCVTGN0MFzfaNra02tgxGOTf7gAZo4ghLXDv90cKdEM1+jtMkgPV0rlYDElUObNVvUfm3Ov8i/3sP2rHrVOn+hYH8Acats3",
-      "Date" : "Wed, 04 Mar 2026 20:59:56 GMT",
+      "x-amz-request-id" : "TZHMP3YZ5FXH45EN",
+      "x-amz-id-2" : "oY9uv7QyOIDfF0gtNLtHbRZrRc1CP4uw8YRa+8p4d9E7akNzt1vO7VKe+EfjS4hIkfQVdUb4WhR+EzndLVH0aP/fC/0EpF7I",
+      "Date" : "Fri, 06 Mar 2026 17:48:40 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "ab9ace3c-a26a-4ffe-9118-67aa577ee1ac",
+  "uuid" : "64e0a11a-5324-48b2-948f-61d24a5de54d",
   "persistent" : true,
   "scenarioName" : "scenario-6-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned",
   "requiredScenarioState" : "scenario-6-chameleon-jcloud-versioned-conformance-tests-testRangedRead_versioned-8",
-  "insertionIndex" : 523
+  "insertionIndex" : 535
 }

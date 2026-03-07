@@ -17,4 +17,5 @@ public class MultipartUpload {
   private final Map<String, String> metadata;
   private final Map<String, String> tags;
   private final String kmsKeyId;
+  private final boolean checksumEnabled;
 }

@@ -1,0 +1,45 @@
+{
+  "id" : "8fdd817e-4add-4453-8c73-86e2e97f7fcc",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_withChecksum-POST-3",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-withChecksum",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm7hTkrOcBEk40E-NFk6qE55B8h5KnhNe1ropZsXdMoPyWodufq4wgcytozOW1NUkFg"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-withChecksum</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-withChecksum</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "10485760",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Sat, 07 Mar 2026 07:05:45 GMT",
+      "x-goog-hash" : "crc32c=jaLPjA==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWxl2GVEf-mXlkw314qoO8gixnUAWP3i8WIB5XaLsVkyGZRJJmgAl_mJYq1s_03BqC5gGKW44nw",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1772867145228178",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "8fdd817e-4add-4453-8c73-86e2e97f7fcc",
+  "persistent" : true,
+  "insertionIndex" : 6
+}

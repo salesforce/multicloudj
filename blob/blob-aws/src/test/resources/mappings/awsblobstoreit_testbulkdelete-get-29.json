@@ -1,5 +1,5 @@
 {
-  "id" : "fb82e409-6736-4100-8481-ba0da70ecd78",
+  "id" : "a5cfbf8f-71f7-451a-b743-4ac8ffc7b925",
   "name" : "AwsBlobStoreIT_testBulkDelete-GET-29",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/blob-for-bulk-delete_nonexisting",
@@ -7,16 +7,16 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key><RequestId>45283XE7VZHA4W1Z</RequestId><HostId>fXDax7lV2bciMbd/E5UtSMRnZXMwr6TDdpCgoDXIGliLxM7c+YBDI5+onkp0dC/ljzzxS6Su4mrxtiIatpcH7vLyOcDUYZlh</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key><RequestId>CQF6R7JSX6EQCZKQ</RequestId><HostId>6iv+sCX+UAiizwmj1T5Jzp5T9tzw082U7tD0j7eBSxHZfudsP96GaCk4D9HxneQgupTIcqa5BoQ=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "45283XE7VZHA4W1Z",
-      "x-amz-id-2" : "fXDax7lV2bciMbd/E5UtSMRnZXMwr6TDdpCgoDXIGliLxM7c+YBDI5+onkp0dC/ljzzxS6Su4mrxtiIatpcH7vLyOcDUYZlh",
-      "Date" : "Wed, 04 Mar 2026 20:56:05 GMT",
+      "x-amz-request-id" : "CQF6R7JSX6EQCZKQ",
+      "x-amz-id-2" : "6iv+sCX+UAiizwmj1T5Jzp5T9tzw082U7tD0j7eBSxHZfudsP96GaCk4D9HxneQgupTIcqa5BoQ=",
+      "Date" : "Fri, 06 Mar 2026 17:44:18 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "fb82e409-6736-4100-8481-ba0da70ecd78",
+  "uuid" : "a5cfbf8f-71f7-451a-b743-4ac8ffc7b925",
   "persistent" : true,
-  "insertionIndex" : 43
+  "insertionIndex" : 49
 }

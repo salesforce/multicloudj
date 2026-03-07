@@ -1,5 +1,5 @@
 {
-  "id" : "0427f9df-f77a-4f61-86e4-3f5f830b0d77",
+  "id" : "13edb1f6-f2cd-4f7c-8885-aede23fc7c70",
   "name" : "AwsBlobStoreIT_testVersionedDownload_badVersionId-GET-1",
   "request" : {
     "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_bad_versionId_versioned",
@@ -19,18 +19,18 @@
   },
   "response" : {
     "status" : 400,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Invalid version id specified</Message><ArgumentName>versionId</ArgumentName><ArgumentValue>fakeVersionId</ArgumentValue><RequestId>S9G9FQQ9NMZXMBHV</RequestId><HostId>fMVHPuWECNBXluIusze5NF4LuMRbvP4Zhs4ezYXy0ywljEuyij5eQuh0Om3/z22fP7wb6NRv6jYohjpFUlr9fwhFIjN5kKlq</HostId></Error>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Invalid version id specified</Message><ArgumentName>versionId</ArgumentName><ArgumentValue>fakeVersionId</ArgumentValue><RequestId>35ASA1NVSAYMFCY3</RequestId><HostId>Wn5cExytvbKBXaztJKk+bb9+lv3vNIpWw2AZ988HncYE4E5ijn1VdS0L0c/W3EAJhzOfzsyDK/k=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "S9G9FQQ9NMZXMBHV",
-      "x-amz-id-2" : "fMVHPuWECNBXluIusze5NF4LuMRbvP4Zhs4ezYXy0ywljEuyij5eQuh0Om3/z22fP7wb6NRv6jYohjpFUlr9fwhFIjN5kKlq",
-      "Date" : "Wed, 04 Mar 2026 20:58:34 GMT",
+      "x-amz-request-id" : "35ASA1NVSAYMFCY3",
+      "x-amz-id-2" : "Wn5cExytvbKBXaztJKk+bb9+lv3vNIpWw2AZ988HncYE4E5ijn1VdS0L0c/W3EAJhzOfzsyDK/k=",
+      "Date" : "Fri, 06 Mar 2026 17:47:10 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "0427f9df-f77a-4f61-86e4-3f5f830b0d77",
+  "uuid" : "13edb1f6-f2cd-4f7c-8885-aede23fc7c70",
   "persistent" : true,
   "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned",
   "requiredScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-4",
-  "insertionIndex" : 349
+  "insertionIndex" : 353
 }

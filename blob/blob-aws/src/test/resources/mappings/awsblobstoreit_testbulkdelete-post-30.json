@@ -1,5 +1,5 @@
 {
-  "id" : "25a49d36-a06a-46e4-bad5-769c3a73d7a2",
+  "id" : "844e0def-749b-4277-aa6b-aa9164e1321c",
   "name" : "AwsBlobStoreIT_testBulkDelete-POST-30",
   "request" : {
     "urlPath" : "/chameleon-jcloud",
@@ -25,13 +25,13 @@
     "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key></Deleted></DeleteResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "452CZQ930EQEPSEP",
-      "x-amz-id-2" : "1Z8pHxkzMWQHdGWratO6dcftoJynWaxrp/xb2kqASYTn4jqSNeo7G7mgXSccl3kYepHExIZuDdZrN3ldxFuWtQLZ91oULnuT",
-      "Date" : "Wed, 04 Mar 2026 20:56:06 GMT",
+      "x-amz-request-id" : "CQF3MFD9RFBH04R5",
+      "x-amz-id-2" : "iPAVlVfAsUHCk/1mDBDqsMFTCK5CPV4KQJ16GpK7VqpvMx6KWkMB/Xp4vVMPcMKeB0Eaob4PmxQ=",
+      "Date" : "Fri, 06 Mar 2026 17:44:19 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "25a49d36-a06a-46e4-bad5-769c3a73d7a2",
+  "uuid" : "844e0def-749b-4277-aa6b-aa9164e1321c",
   "persistent" : true,
-  "insertionIndex" : 44
+  "insertionIndex" : 50
 }

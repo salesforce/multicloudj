@@ -1,5 +1,5 @@
 {
-  "id" : "c79dae5f-5411-48cd-a036-766bc2c4f30f",
+  "id" : "5af58ddb-29be-44c4-b369-47ef16ee98bd",
   "name" : "AwsBlobStoreIT_testVersionedCopy-PUT-8",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/copied-blob-latest",
@@ -7,19 +7,19 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-03-04T20:57:25.000Z</LastModified><ETag>\"da4b066b3b23245e2a2e9ea32cf75263\"</ETag><ChecksumCRC64NVME>QJFaFb/w52U=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-03-06T17:45:26.000Z</LastModified><ETag>\"da4b066b3b23245e2a2e9ea32cf75263\"</ETag><ChecksumCRC64NVME>QJFaFb/w52U=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-copy-source-version-id" : "TUROlqpdqCOeV0e7rT.oUHLFiwlXE5tE",
-      "x-amz-request-id" : "RG5B7XQE4SMX6WTT",
+      "x-amz-copy-source-version-id" : "gpACpYNCMN5NYC70DC2QFwjB4Af5YB98",
+      "x-amz-request-id" : "N8SS4HSZR9GTHQM0",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "8jMClpPKVSA2BDKrYXkeIwT6TbmV95vGMBUs0DbDIUPCDzaWI+4dAvtnAPlH31WoV7u+7URmNoBYZIJwbV9bZ16mFGffxzfG",
-      "x-amz-version-id" : "SZepl.jBPVqnUyBp1uc0uajKecolHR.p",
-      "Date" : "Wed, 04 Mar 2026 20:57:25 GMT",
+      "x-amz-id-2" : "e65XXbEUk0KhHlBxZVGEW+nX08Un4c79W69jxzL3ZJQR9PgQFFvpRK376S/++LSq+07zxbvvF2A=",
+      "x-amz-version-id" : "wUq96nCfBt4Vk80786Hpk1QpzNzjAMDT",
+      "Date" : "Fri, 06 Mar 2026 17:45:26 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "c79dae5f-5411-48cd-a036-766bc2c4f30f",
+  "uuid" : "5af58ddb-29be-44c4-b369-47ef16ee98bd",
   "persistent" : true,
-  "insertionIndex" : 188
+  "insertionIndex" : 194
 }

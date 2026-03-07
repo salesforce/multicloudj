@@ -7,8 +7,15 @@ import lombok.Getter;
 public class MultipartUploadResponse {
 
   private final String etag;
+  private final String checksumValue;
 
   public MultipartUploadResponse(final String etag) {
-    this.etag = etag;
+    this(etag, null);
   }
+
+  public MultipartUploadResponse(final String etag, final String checksumValue) {
+    this.etag = etag;
+    this.checksumValue = checksumValue;
+  }
+
 }

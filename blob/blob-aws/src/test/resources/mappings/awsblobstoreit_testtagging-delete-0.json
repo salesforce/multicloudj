@@ -1,5 +1,5 @@
 {
-  "id" : "c5ebd180-4d28-4b57-9c00-86e33886d60f",
+  "id" : "51ce79a1-42dd-4364-a9e8-0ba1b859258e",
   "name" : "AwsBlobStoreIT_testTagging-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/blob-for-tagging-fake",
@@ -9,12 +9,12 @@
     "status" : 204,
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "CFFP9QTN34EAXRMN",
-      "x-amz-id-2" : "sBE8qQ7U//wrwLB0NE4DxXdOfmOmItC65NXteZ5Z5s+SwcNvCp1n/bjyyoa7iv/zdu3wx+ZxoZgoEWra0mCnNp83ywbd6p5P",
-      "Date" : "Wed, 04 Mar 2026 20:56:24 GMT"
+      "x-amz-request-id" : "Z3WCY5RC8949XC9G",
+      "x-amz-id-2" : "OQeqnIY/NXfDQNf0b3a2tDejN+aEZfRs4XwO1qnQF2hB5dtYH5JMP88c7e+ieNsiNOgpNl6kF6w=",
+      "Date" : "Fri, 06 Mar 2026 17:44:35 GMT"
     }
   },
-  "uuid" : "c5ebd180-4d28-4b57-9c00-86e33886d60f",
+  "uuid" : "51ce79a1-42dd-4364-a9e8-0ba1b859258e",
   "persistent" : true,
-  "insertionIndex" : 50
+  "insertionIndex" : 56
 }

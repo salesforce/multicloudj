@@ -1,5 +1,5 @@
 {
-  "id" : "e944a791-1d10-4835-933c-343d29354aff",
+  "id" : "78b74334-8857-45a7-9aa8-0f3e24134f2d",
   "name" : "AwsBlobStoreIT_testDoesBucketExist-HEAD-0",
   "request" : {
     "url" : "/chameleon-jcloud",
@@ -11,14 +11,14 @@
       "Server" : "AmazonS3",
       "x-amz-access-point-alias" : "false",
       "x-amz-bucket-arn" : "arn:aws:s3:::chameleon-jcloud",
-      "x-amz-request-id" : "037GZ57QKK5WVSFA",
-      "x-amz-id-2" : "cWLz7V1qpiYnZqo7FxLmmUvzCXCuxcHnXRrBup3WCSY3nB276FmlumxN+86rpkfTm1SJf3iorJI5Qma3xlsTuXnmcQTxr4b+",
+      "x-amz-request-id" : "NPBTW060PGCA3M93",
+      "x-amz-id-2" : "Rm3h9DKNG87JuaUFyS7dIQe4SEOCkyuR+zhYVwLbl9VeoKmjVm4G2G4kaNVR7B1eA1mJvmCt704=",
       "x-amz-bucket-region" : "us-west-2",
-      "Date" : "Wed, 04 Mar 2026 20:58:17 GMT",
+      "Date" : "Fri, 06 Mar 2026 17:46:55 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "e944a791-1d10-4835-933c-343d29354aff",
+  "uuid" : "78b74334-8857-45a7-9aa8-0f3e24134f2d",
   "persistent" : true,
-  "insertionIndex" : 312
+  "insertionIndex" : 316
 }
