@@ -57,6 +57,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -109,6 +110,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final GcpTransformer transformer;
   private static final String TAG_PREFIX = "gcp-tag-";
+  private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
   public GcpBlobStore() {
     this(new Builder(), null, null);
@@ -565,6 +567,12 @@ public class GcpBlobStore extends AbstractBlobStore {
     options.add(Storage.SignUrlOption.withV4Signature());
     if (request.getMetadata() != null) {
       options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+    }
+    if (request.getContentDisposition() != null
+        && request.getType() == PresignedOperation.DOWNLOAD) {
+      Map<String, String> queryParams = new HashMap<>();
+      queryParams.put(RESPONSE_CONTENT_DISPOSITION, request.getContentDisposition());
+      options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
     return storage.signUrl(

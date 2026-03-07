@@ -1282,6 +1282,84 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class));
   }
 
+  @Test
+  void testDoGeneratePresignedUrl_WithContentDisposition() throws Exception {
+    Duration duration = Duration.ofHours(4);
+    String contentDisposition = "attachment; filename=\"report.pdf\"";
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key(TEST_KEY)
+            .duration(duration)
+            .contentDisposition(contentDisposition)
+            .build();
+
+    URL expectedUrl = new URL("https://signed-url-with-cd.example.com");
+
+    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockStorage.signUrl(
+            eq(mockBlobInfo),
+            any(Long.class),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class)))
+        .thenReturn(expectedUrl);
+
+    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+    assertEquals(expectedUrl, actualUrl);
+    ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
+    verify(mockStorage)
+        .signUrl(
+            eq(mockBlobInfo),
+            eq(duration.toMillis()),
+            eq(TimeUnit.MILLISECONDS),
+            optionsCaptor.capture());
+    Storage.SignUrlOption[] options = optionsCaptor.getValue();
+    assertEquals(
+        3, options.length, "Download with contentDisposition should have httpMethod, v4Signature,"
+            + " and queryParams options");
+  }
+
+  @Test
+  void testDoGeneratePresignedUrl_UploadIgnoresContentDisposition() throws Exception {
+    Duration duration = Duration.ofHours(4);
+    String contentDisposition = "attachment; filename=\"report.pdf\"";
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(duration)
+            .contentDisposition(contentDisposition)
+            .build();
+
+    URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
+
+    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockStorage.signUrl(
+            eq(mockBlobInfo),
+            any(Long.class),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class)))
+        .thenReturn(expectedUrl);
+
+    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+    assertEquals(expectedUrl, actualUrl);
+    ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
+    verify(mockStorage)
+        .signUrl(
+            eq(mockBlobInfo),
+            eq(duration.toMillis()),
+            eq(TimeUnit.MILLISECONDS),
+            optionsCaptor.capture());
+    Storage.SignUrlOption[] options = optionsCaptor.getValue();
+    assertEquals(
+        2, options.length,
+        "Upload should only have httpMethod and v4Signature options, no queryParams");
+  }
+
   // Test class to access protected methods
   private static class TestGcpBlobStore extends GcpBlobStore {
     public TestGcpBlobStore(Builder builder, Storage storage, MultipartUploadClient client) {
