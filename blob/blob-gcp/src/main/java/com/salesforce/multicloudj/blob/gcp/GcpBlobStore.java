@@ -675,12 +675,12 @@ public class GcpBlobStore extends AbstractBlobStore {
       Storage.BlobListOption[] options =
           (prefix != null)
               ? new Storage.BlobListOption[] {
-              Storage.BlobListOption.prefix(prefix),
-              Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-          }
+                Storage.BlobListOption.prefix(prefix),
+                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+              }
               : new Storage.BlobListOption[] {
-              Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-          };
+                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
+              };
 
       List<FailedBlobDownload> failed = new ArrayList<>();
 

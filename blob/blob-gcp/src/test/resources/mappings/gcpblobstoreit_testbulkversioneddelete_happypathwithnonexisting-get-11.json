@@ -1,5 +1,5 @@
 {
-  "id" : "cab21044-b3ec-484c-9303-78ee8fe15933",
+  "id" : "12b96472-3423-4ea2-a853-576f96bb1555",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-GET-11",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -24,22 +24,22 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cixjb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL2hhcHB5NA==\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy4/1772834621617860\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4?generation=1772834621617860&alt=media\",\n      \"name\": \"conformance-tests/bulkDeleteByVersion/happy4\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1772834621617860\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"75\",\n      \"md5Hash\": \"jI3XOX7jaCvXy4beRDaWhQ==\",\n      \"crc32c\": \"8GluoQ==\",\n      \"etag\": \"CMTt986jjJMDEAE=\",\n      \"timeCreated\": \"2026-03-06T22:03:41.670Z\",\n      \"updated\": \"2026-03-06T22:03:41.670Z\",\n      \"timeStorageClassUpdated\": \"2026-03-06T22:03:41.670Z\",\n      \"timeFinalized\": \"2026-03-06T22:03:41.670Z\"\n    }\n  ]\n}\n",
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cixjb25mb3JtYW5jZS10ZXN0cy9idWxrRGVsZXRlQnlWZXJzaW9uL2hhcHB5NA==\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy4/1772867443545278\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy4?generation=1772867443545278&alt=media\",\n      \"name\": \"conformance-tests/bulkDeleteByVersion/happy4\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1772867443545278\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"75\",\n      \"md5Hash\": \"jI3XOX7jaCvXy4beRDaWhQ==\",\n      \"crc32c\": \"8GluoQ==\",\n      \"etag\": \"CL6p0/GdjZMDEAE=\",\n      \"timeCreated\": \"2026-03-07T07:10:43.589Z\",\n      \"updated\": \"2026-03-07T07:10:43.589Z\",\n      \"timeStorageClassUpdated\": \"2026-03-07T07:10:43.589Z\",\n      \"timeFinalized\": \"2026-03-07T07:10:43.589Z\"\n    }\n  ]\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "X-GUploader-UploadID" : "AGQBYWzfy4rWcniwJMLOdtqIp1r_xvRuMZsgMCEC6M2HUTtZBrwOVonUaGIt5FJIAsgRlYCVVhj_4uM",
+      "X-GUploader-UploadID" : "AGQBYWxniwwEYvQpFzt5Cso82s50UiPi0OFS_CoRR0pM-i4X_eRWCFNiZGW8uYCCUAVrTaSMjPllT_QsXk5btA",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Fri, 06 Mar 2026 22:03:44 GMT",
-      "Date" : "Fri, 06 Mar 2026 22:03:44 GMT",
+      "Expires" : "Sat, 07 Mar 2026 07:10:46 GMT",
+      "Date" : "Sat, 07 Mar 2026 07:10:46 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "cab21044-b3ec-484c-9303-78ee8fe15933",
+  "uuid" : "12b96472-3423-4ea2-a853-576f96bb1555",
   "persistent" : true,
   "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-2",
-  "insertionIndex" : 604
+  "insertionIndex" : 561
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "2346dcc9-8e24-4201-84a1-3673952aee20",
+  "id" : "9e04439a-9423-46b5-a90d-2b8e6e95eab2",
   "name" : "GcpBlobStoreIT_testMultipartUpload_unorderedMultipleParts-POST-4",
   "request" : {
     "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-unorderedMultipleParts",
@@ -10,29 +10,36 @@
       }
     },
     "queryParameters" : {
-      "uploads" : {
+      "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : ""
+          "equalTo" : "ABPnzm5nXLtwMCUhhQTMyIQP6llEuXe-tiQ0LoPYgnEz0c8xJXWYQ0ZfjGvZ_r567WdR7HE"
         } ]
       }
-    }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version='1.0' encoding='UTF-8'?><InitiateMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-unorderedMultipleParts</Key><UploadId>ABPnzm4BhN7VvXXtIUS9onhOjIkhnmWluZiVj2Lv9VyOECKsvFllcVI6_QzYeIinP0Nd-XM</UploadId></InitiateMultipartUploadResult>",
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-unorderedMultipleParts</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-unorderedMultipleParts</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag></CompleteMultipartUploadResult>",
     "headers" : {
+      "x-goog-stored-content-length" : "10485760",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Sat, 07 Mar 2026 07:10:41 GMT",
+      "x-goog-hash" : "crc32c=jaLPjA==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWxqJbR9pI3VAGJx-BQWc3Fi-2sRIVN0D9UGKp7DKQ1Ay7kvuBdyruIzdHIPeyHImwIcKQwxX98",
+      "X-GUploader-UploadID" : "AGQBYWya_MGfABXV2Pxcfi4EJOlwv5PQdJlFsUCriO1Mhmc_lm0gbbK0PUwm_d58ZZVA7YDcghzHZKzTYK4HPQ",
       "Vary" : "Origin",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Pragma" : "no-cache",
-      "Date" : "Fri, 06 Mar 2026 22:03:38 GMT",
+      "x-goog-generation" : "1772867441096261",
       "Content-Type" : "text/html; charset=UTF-8"
     }
   },
-  "uuid" : "2346dcc9-8e24-4201-84a1-3673952aee20",
+  "uuid" : "9e04439a-9423-46b5-a90d-2b8e6e95eab2",
   "persistent" : true,
-  "insertionIndex" : 588
+  "insertionIndex" : 541
 }

@@ -1,0 +1,38 @@
+{
+  "id" : "3bf2d526-906f-47d4-a09d-54a2a9d47ffc",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_nonExistentParts-POST-3",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-nonExistentParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm5C1OrqzWKzH3tEZrErw3pqRLXgq-3grFi4IZfmVXpcLy7CeJgz5HjIJZCBtOvLE18"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>fakeEtag</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchPart</Code><Message>The requested upload part was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWyudPNFnBObOoOwA4SGvrIxFPMwDdC8HWEWtwblVVawv6_dw5yyw9iSA1IJU5wHvlYlJ9f1OOg",
+      "Vary" : "Origin",
+      "Date" : "Sat, 07 Mar 2026 07:10:26 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "3bf2d526-906f-47d4-a09d-54a2a9d47ffc",
+  "persistent" : true,
+  "insertionIndex" : 508
+}

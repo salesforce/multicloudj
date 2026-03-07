@@ -1,0 +1,38 @@
+{
+  "id" : "2d98e7ee-66f7-4b0f-aede-26f3e79105aa",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_skippingNumbers-POST-9",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-skippingNumbers",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><InitiateMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-skippingNumbers</Key><UploadId>ABPnzm6OghjHYevzlTeIz3J4bavizOg127E7Dj7Ndbrcpcq9NlenOeon_ldDGrKTZUJ6Hf0</UploadId></InitiateMultipartUploadResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWz16MniKHJiTAgpEtE9Wb_tvZGf-hfv2JPKeRdOAsYr2nz4E2AVf9A4VP8tpQFsBtWOrzOxAGs",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Sat, 07 Mar 2026 07:07:53 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "2d98e7ee-66f7-4b0f-aede-26f3e79105aa",
+  "persistent" : true,
+  "insertionIndex" : 401
+}

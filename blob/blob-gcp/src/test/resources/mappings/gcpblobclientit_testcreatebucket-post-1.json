@@ -1,0 +1,49 @@
+{
+  "id" : "ec4c9853-1b2c-4c5a-b61c-58d8736b4b22",
+  "name" : "GcpBlobClientIT_testCreateBucket-POST-1",
+  "request" : {
+    "urlPath" : "/storage/v1/b",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "project" : {
+        "hasExactly" : [ {
+          "equalTo" : "substrate-sdk-gcp-poc1"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"name\":\"test-bucket-create-multicloudj4\",\"retentionPolicy\":null}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#bucket\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/test-bucket-create-multicloudj4\",\n  \"id\": \"test-bucket-create-multicloudj4\",\n  \"name\": \"test-bucket-create-multicloudj4\",\n  \"projectNumber\": \"599653580068\",\n  \"generation\": \"1772866475192731161\",\n  \"metageneration\": \"1\",\n  \"location\": \"US\",\n  \"storageClass\": \"STANDARD\",\n  \"etag\": \"CAE=\",\n  \"timeCreated\": \"2026-03-07T06:54:35.414Z\",\n  \"updated\": \"2026-03-07T06:54:35.414Z\",\n  \"softDeletePolicy\": {\n    \"retentionDurationSeconds\": \"604800\",\n    \"effectiveTime\": \"2026-03-07T06:54:35.414Z\"\n  },\n  \"iamConfiguration\": {\n    \"bucketPolicyOnly\": {\n      \"enabled\": true,\n      \"lockedTime\": \"2026-06-05T06:54:35.414Z\"\n    },\n    \"uniformBucketLevelAccess\": {\n      \"enabled\": true,\n      \"lockedTime\": \"2026-06-05T06:54:35.414Z\"\n    },\n    \"publicAccessPrevention\": \"inherited\"\n  },\n  \"locationType\": \"multi-region\",\n  \"rpo\": \"DEFAULT\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CAE=",
+      "X-GUploader-UploadID" : "AGQBYWxVl4fFwM9GnfrUhCS_MfgbFlbp7cC24GeWZ-IGA9IAoNYYKAxboYYM08xiQjIjq0kX3KXem1Y",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Sat, 07 Mar 2026 06:54:35 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ec4c9853-1b2c-4c5a-b61c-58d8736b4b22",
+  "persistent" : true,
+  "insertionIndex" : 910
+}

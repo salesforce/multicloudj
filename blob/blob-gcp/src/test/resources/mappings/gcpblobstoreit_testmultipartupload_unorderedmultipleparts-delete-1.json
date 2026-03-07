@@ -1,26 +1,25 @@
 {
-  "id" : "c1145c75-6367-4ec2-b68d-47afb1e2a1ed",
+  "id" : "83ab0e09-260e-4497-ad4a-776183b6b56e",
   "name" : "GcpBlobStoreIT_testMultipartUpload_unorderedMultipleParts-DELETE-1",
   "request" : {
     "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-unorderedMultipleParts",
     "method" : "DELETE"
   },
   "response" : {
-    "status" : 404,
-    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-unorderedMultipleParts\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-unorderedMultipleParts\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "status" : 204,
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWxPydI9GIFtxWnjlhyfU7LHvXcuyf8WXrxdOQsgKmXEn_bKKpKKFYq_oL3OfghcK8Pt13lEvxs",
+      "X-GUploader-UploadID" : "AGQBYWx6XodAH-MpXqFkR_MbKwfH7NsN2ErLq6Lp5-J5mt_DB1D0GQFpU38GUjEHJlgyX9ZdiOB_0k8",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Fri, 06 Mar 2026 22:03:40 GMT",
-      "Content-Type" : "application/json; charset=UTF-8"
+      "Date" : "Sat, 07 Mar 2026 07:10:42 GMT",
+      "Content-Type" : "application/json"
     }
   },
-  "uuid" : "c1145c75-6367-4ec2-b68d-47afb1e2a1ed",
+  "uuid" : "83ab0e09-260e-4497-ad4a-776183b6b56e",
   "persistent" : true,
-  "insertionIndex" : 585
+  "insertionIndex" : 538
 }

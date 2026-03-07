@@ -1,5 +1,5 @@
 {
-  "id" : "7aee5015-38ee-41e6-a98c-cf1b45d486fc",
+  "id" : "d65b08e6-c5d3-4d60-8447-f6d6674f2961",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPath-PUT-12",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AGQBYWz2WlsbTWnUZR41g27lYSKuurh1GLV2VJc-pYMcnHVBVO8Ju13y8L6KlxphcTkqqz8d4aBUkOEVVFQ8p20FMkZrwfT4zrMJ05aJ3KFWTw"
+          "equalTo" : "AGQBYWzx_1twpuenONiBfFvcebIQuKHrIWVkcuZ5W0flM2CSDY1EdQHKNSisqSChab6XGlcQgBvEEj6l3EIg0mKHtVYavqP0nRK9QfwC-j70ig"
         } ]
       }
     },
@@ -33,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy3/1772834487845033\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy3\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy3?generation=1772834487845033&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/happy3\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1772834487845033\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"75\",\n  \"md5Hash\": \"m5t9FwGmB9MpCljR7iQErA==\",\n  \"crc32c\": \"JKMKSg==\",\n  \"etag\": \"CKmBk4+jjJMDEAE=\",\n  \"timeCreated\": \"2026-03-06T22:01:27.896Z\",\n  \"updated\": \"2026-03-06T22:01:27.896Z\",\n  \"timeStorageClassUpdated\": \"2026-03-06T22:01:27.896Z\",\n  \"timeFinalized\": \"2026-03-06T22:01:27.896Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/bulkDeleteByVersion/happy3/1772867191669594\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy3\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FbulkDeleteByVersion%2Fhappy3?generation=1772867191669594&alt=media\",\n  \"name\": \"conformance-tests/bulkDeleteByVersion/happy3\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1772867191669594\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"75\",\n  \"md5Hash\": \"m5t9FwGmB9MpCljR7iQErA==\",\n  \"crc32c\": \"JKMKSg==\",\n  \"etag\": \"CNqGxvmcjZMDEAE=\",\n  \"timeCreated\": \"2026-03-07T07:06:31.711Z\",\n  \"updated\": \"2026-03-07T07:06:31.711Z\",\n  \"timeStorageClassUpdated\": \"2026-03-07T07:06:31.711Z\",\n  \"timeFinalized\": \"2026-03-07T07:06:31.711Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CKmBk4+jjJMDEAE=",
-      "X-GUploader-UploadID" : "AGQBYWz2WlsbTWnUZR41g27lYSKuurh1GLV2VJc-pYMcnHVBVO8Ju13y8L6KlxphcTkqqz8d4aBUkOEVVFQ8p20FMkZrwfT4zrMJ05aJ3KFWTw",
+      "ETag" : "CNqGxvmcjZMDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWzx_1twpuenONiBfFvcebIQuKHrIWVkcuZ5W0flM2CSDY1EdQHKNSisqSChab6XGlcQgBvEEj6l3EIg0mKHtVYavqP0nRK9QfwC-j70ig",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Fri, 06 Mar 2026 22:01:27 GMT",
+      "Date" : "Sat, 07 Mar 2026 07:06:31 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "7aee5015-38ee-41e6-a98c-cf1b45d486fc",
+  "uuid" : "d65b08e6-c5d3-4d60-8447-f6d6674f2961",
   "persistent" : true,
-  "insertionIndex" : 147
+  "insertionIndex" : 153
 }

@@ -1,0 +1,38 @@
+{
+  "id" : "1d7c3f42-0b47-4f6f-9f6c-e9d9b7010fa5",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_skippingNumbers-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-skippingNumbers",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-skippingNumbers/1772867276456674\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-skippingNumbers\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fmultipart-skippingNumbers?generation=1772867276456674&alt=media\",\n  \"name\": \"conformance-tests/multipart-skippingNumbers\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772867276456674\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/x-www-form-urlencoded\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"15728640\",\n  \"crc32c\": \"UwKSow==\",\n  \"etag\": \"COKF/aGdjZMDEAE=\",\n  \"timeCreated\": \"2026-03-07T07:07:56.561Z\",\n  \"updated\": \"2026-03-07T07:07:56.561Z\",\n  \"timeStorageClassUpdated\": \"2026-03-07T07:07:56.561Z\",\n  \"timeFinalized\": \"2026-03-07T07:07:56.561Z\",\n  \"metadata\": {\n    \"456\": \"456\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COKF/aGdjZMDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWzb8iURhk_bTt_1UvtBweVyQi2tAQz-nW5CmbjV2kHK6mYbtBISl_OEaToOTug4Ysuxi8fxo4wsBLMEOQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Sat, 07 Mar 2026 07:07:56 GMT",
+      "Date" : "Sat, 07 Mar 2026 07:07:56 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1d7c3f42-0b47-4f6f-9f6c-e9d9b7010fa5",
+  "persistent" : true,
+  "insertionIndex" : 395
+}

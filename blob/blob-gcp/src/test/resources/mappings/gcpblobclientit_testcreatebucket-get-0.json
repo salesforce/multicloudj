@@ -1,0 +1,42 @@
+{
+  "id" : "a279c0da-59fa-410f-9ce4-55f72531677b",
+  "name" : "GcpBlobClientIT_testCreateBucket-GET-0",
+  "request" : {
+    "urlPath" : "/storage/v1/b",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "project" : {
+        "hasExactly" : [ {
+          "equalTo" : "substrate-sdk-gcp-poc1"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "gcpblobclientit_testcreatebucket-get-0-a279c0da-59fa-410f-9ce4-55f72531677b.json",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AGQBYWyIn-15tx2LTYc-gU3ByDGCuTKc7x71RC1lbZ6qUWjzFMjnBrXyMkrSpYCI8jPaJtX_",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Sat, 07 Mar 2026 06:54:36 GMT",
+      "Date" : "Sat, 07 Mar 2026 06:54:36 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a279c0da-59fa-410f-9ce4-55f72531677b",
+  "persistent" : true,
+  "insertionIndex" : 909
+}

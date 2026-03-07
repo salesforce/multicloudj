@@ -1,0 +1,37 @@
+{
+  "id" : "dfba3a26-2c39-4f3c-8a51-94fa372404bc",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_skippingNumbers-GET-5",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-skippingNumbers",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm6OghjHYevzlTeIz3J4bavizOg127E7Dj7Ndbrcpcq9NlenOeon_ldDGrKTZUJ6Hf0"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-skippingNumbers</Key><UploadId>ABPnzm6OghjHYevzlTeIz3J4bavizOg127E7Dj7Ndbrcpcq9NlenOeon_ldDGrKTZUJ6Hf0</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2026-03-07T07:07:54.176095Z</LastModified><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-03-07T07:07:54.992991Z</LastModified><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag><Size>5242880</Size></Part><Part><PartNumber>6</PartNumber><LastModified>2026-03-07T07:07:55.807007Z</LastModified><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWxfqW1ajgdP19nJvkUu2xEoUES-cuSGzbFQthR6ZSDYheGYS4brBT8jwdtJrAkO-j1TpkA_0GN1QZVwjw",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Sat, 07 Mar 2026 07:07:56 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "dfba3a26-2c39-4f3c-8a51-94fa372404bc",
+  "persistent" : true,
+  "insertionIndex" : 397
+}
