@@ -28,11 +28,12 @@ import org.slf4j.LoggerFactory;
 public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-  // Constants
-  private static final String DEFAULT_PROVIDER = "gcp";
-  private static final String REGISTRY_ENDPOINT = "https://us-docker.pkg.dev";
-  private static final String REPOSITORY = "my-project/my-repo/my-image";
-  private static final String TAG = "latest";
+    // Constants
+    private static final String DEFAULT_PROVIDER = "gcp";
+    private static final String REGISTRY_ENDPOINT = "https://your-registry-endpoint";
+    private static final String REPOSITORY = "your-repository";
+    private static final String TAG = "latest";
+    private static final String REGION = "your-region";
 
   // Demo settings
   private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -247,13 +248,14 @@ public class Main {
         showSuccess("Digest verified — same image content guaranteed");
       }
 
-    } catch (ResourceNotFoundException e) {
-      showError("Image not found: " + e.getMessage());
-    } catch (SubstrateSdkException e) {
-      showError("Failed to pull image by digest: " + e.getMessage());
-    } catch (Exception e) {
-      showError("Unexpected error: " + e.getMessage());
-      logger.error("Pull by digest demo failed", e);
+    /**
+     * Initialize the ContainerRegistryClient with appropriate configuration.
+     */
+    private ContainerRegistryClient initializeClient() {
+        return ContainerRegistryClient.builder(provider)
+                .withRegistryEndpoint(REGISTRY_ENDPOINT)
+                .withRegion(REGION)
+                .build();
     }
 
     waitForEnter("Press Enter to continue...");
@@ -346,26 +348,61 @@ public class Main {
       logger.error("Extract filesystem demo failed", e);
     }
 
-    waitForEnter("Press Enter to continue to error handling...");
-  }
+    /**
+     * Demonstrates platform-specific image selection for multi-arch registries.
+     *
+     * <p>Platform fields:
+     * <ul>
+     *   <li>{@code operatingSystem} – e.g., {@code "linux"}, {@code "windows"}</li>
+     *   <li>{@code architecture} – e.g., {@code "amd64"}, {@code "arm64"}</li>
+     *   <li>{@code variant} – optional, e.g., {@code "v8"} for arm64</li>
+     * </ul>
+     *
+     * <p>For single-arch images, the platform setting is ignored.
+     */
+    private void demonstratePlatformSelection() {
+        showSectionHeaderWithPause("Platform Selection (Multi-Arch)");
 
-  /** Demonstrates error handling for common registry error conditions. */
-  private void demonstrateErrorHandling() {
-    showSectionHeaderWithPause("Error Handling");
+        String imageRef = REPOSITORY + ":" + TAG;
 
-    // Case 1: Pull a non-existent tag → ResourceNotFoundException
-    showInfo("Pulling a non-existent tag (expect ResourceNotFoundException)...");
-    try (ContainerRegistryClient client = initializeClient()) {
-      client.pull(REPOSITORY + ":non-existent-tag-that-does-not-exist");
-      showError("Expected ResourceNotFoundException was not thrown");
-    } catch (ResourceNotFoundException e) {
-      showSuccess("Correctly caught ResourceNotFoundException: " + truncate(e.getMessage(), 100));
-    } catch (SubstrateSdkException e) {
-      showError(
-          "Unexpected SDK exception: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-    } catch (Exception e) {
-      showError("Unexpected error: " + e.getMessage());
-      logger.error("Error handling demo failed", e);
+        // Default platform (linux/amd64)
+        showInfo("Pulling with default platform (linux/amd64)...");
+        try (ContainerRegistryClient client = initializeClient()) {
+            Image image = client.pull(imageRef);
+            showSuccess("Pulled with default platform: " + image.getDigest());
+        } catch (SubstrateSdkException e) {
+            showError("Pull failed: " + e.getMessage());
+        } catch (Exception e) {
+            showError("Unexpected error: " + e.getMessage());
+            logger.error("Platform selection demo failed", e);
+        }
+
+        // Explicit linux/arm64 platform
+        showInfo("Pulling with explicit linux/arm64 platform...");
+        Platform arm64 = Platform.builder()
+                .operatingSystem("linux")
+                .architecture("arm64")
+                .build();
+
+        try (ContainerRegistryClient client = ContainerRegistryClient.builder(provider)
+                .withRegistryEndpoint(REGISTRY_ENDPOINT)
+                .withRegion(REGION)
+                .withPlatform(arm64)
+                .build()) {
+
+            Image image = client.pull(imageRef);
+            showSuccess("Pulled linux/arm64 image: " + image.getDigest());
+
+        } catch (ResourceNotFoundException e) {
+            showError("arm64 variant not found: " + e.getMessage());
+        } catch (SubstrateSdkException e) {
+            showError("Pull failed for arm64: " + e.getMessage());
+        } catch (Exception e) {
+            showError("Unexpected error: " + e.getMessage());
+            logger.error("Platform selection demo failed", e);
+        }
+
+        waitForEnter("Press Enter to continue...");
     }
 
     // Case 2: Pull with a blank image reference → InvalidArgumentException
