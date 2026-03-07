@@ -1,0 +1,26 @@
+{
+  "id" : "d043ee89-6dca-4c42-9896-9ad56d368af1",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_skippingNumbers-HEAD-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"eec45a21cb3a20f919a040b07435380a-3\"",
+      "x-amz-meta-456" : "456",
+      "Last-Modified" : "Sat, 07 Mar 2026 06:08:46 GMT",
+      "x-amz-request-id" : "Z0BQXECFFTFEYZPV",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "+nkl+LnPjiIDoPmGzYbhXaV7P016v2BlqCyp9skMYRApF93lrCMutTJyV3a5aywNfg1jWmgog0rNzeWGYkyTRzGa9Knc0F/r",
+      "Date" : "Sat, 07 Mar 2026 06:08:52 GMT",
+      "Content-Type" : "binary/octet-stream"
+    }
+  },
+  "uuid" : "d043ee89-6dca-4c42-9896-9ad56d368af1",
+  "persistent" : true,
+  "insertionIndex" : 586
+}

@@ -198,6 +198,8 @@ public class TestsUtil {
             WireMockConfiguration.options()
                 .httpsPort(port)
                 .port(port + 1) // http port
+                .containerThreads(100)
+                .asynchronousResponseEnabled(true)
                 .keystorePath("wiremock-keystore.jks")
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)

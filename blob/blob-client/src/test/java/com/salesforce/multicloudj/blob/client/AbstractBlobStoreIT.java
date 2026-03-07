@@ -2081,8 +2081,10 @@ public abstract class AbstractBlobStoreIT {
         List.of(new MultipartUploadTestPart(2, multipartBytes1),
             new MultipartUploadTestPart(3, multipartBytes2),
             new MultipartUploadTestPart(6, multipartBytes3)),
-        List.of(new MultipartUploadPartResult(2, true), new MultipartUploadPartResult(3, true),
-            new MultipartUploadPartResult(6, true)), false, false));
+        List.of(new MultipartUploadPartResult(2, true),
+            new MultipartUploadPartResult(3, true),
+            new MultipartUploadPartResult(6, true)),
+        false, false));
   }
 
   @Test
