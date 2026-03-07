@@ -855,13 +855,46 @@ public class OciRegistryClientTest {
               assertEquals("Basic dXNlcjp0b2tlbg==", authHeader.getValue()); // Base64("user:token")
             });
 
-    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
-      try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
-        assertNotNull(stream);
-      }
-      client.close();
+    @Test
+    void testDownloadBlob_SetsAuthorizationHeader() throws Exception {
+        String digest = "sha256:authtest";
+        CloseableHttpClient mockHttpClient = createMockHttpClientWithExecuteAnswer("auth test", invocation -> {
+            HttpGet request = invocation.getArgument(0);
+            Header authHeader = request.getFirstHeader("Authorization");
+            assertNotNull(authHeader, "Authorization header should be set");
+            assertEquals("Basic " + Base64.getEncoder().encodeToString("user:token".getBytes(StandardCharsets.UTF_8)), authHeader.getValue());
+        });
+
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+                assertNotNull(stream);
+            }
+            client.close();
+        }
+    }
+
+    @Test
+    void testDownloadBlob_DoesNotSetAuthHeaderForAnonymous() throws Exception {
+        String digest = "sha256:noauthtest";
+        CloseableHttpClient mockHttpClient = createMockHttpClientWithExecuteAnswer("no auth test", invocation -> {
+            HttpGet request = invocation.getArgument(0);
+            Header authHeader = request.getFirstHeader("Authorization");
+            assertNull(authHeader, "Authorization header should not be set for anonymous auth");
+        });
+
+        AuthChallenge anonymousChallenge = AuthChallenge.anonymous();
+        try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
+            mockedAuthChallenge.when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
+                    .thenReturn(anonymousChallenge);
+            mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
+
+            OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+            try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+                assertNotNull(stream);
+            }
+            client.close();
+        }
     }
   }
 

@@ -125,64 +125,52 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
       throw new InvalidArgumentException("Manifest is not an index");
     }
 
-    List<Manifest.IndexEntry> entries = indexManifest.getIndexManifests();
-    if (entries == null || entries.isEmpty()) {
-      throw new UnknownException("Image index contains no platform entries");
-    }
+    /** Returns the OCI client for this registry. */
+    protected abstract OciRegistryClient getOciClient();
 
-    // Find first matching platform entry
-    for (Manifest.IndexEntry entry : entries) {
-      Platform entryPlatform = entry.getPlatform();
-      if (entryPlatform != null && entryPlatform.matches(platform)) {
-        return entry.getDigest();
-      }
-    }
+    /**
+     * Pulls an image from the registry (unified OCI flow).
+     * 
+     * <p>This method implements the OCI image pull workflow:
+     * <ol>
+     *   <li>Parse the image reference to extract repository and reference (tag or digest)</li>
+     *   <li>Fetch the manifest from the registry</li>
+     *   <li>If the manifest is a multi-arch index, select a platform-specific manifest</li>
+     *   <li>Return a RemoteImage that lazily loads layers on demand</li>
+     * </ol>
+     * 
+     * <p>The returned Image uses lazy loading - blobs are only downloaded when accessed
+     * via {@link Image#getLayers()}.
+     *
+     * @param imageRef image reference (e.g. "my-repo/my-image:latest" or "my-repo/my-image@sha256:...")
+     * @return Image metadata and layer descriptors (lazy-loaded)
+     * @throws InvalidArgumentException if the image reference format is invalid
+     * @throws UnknownException if the pull fails (network error, authentication failure, manifest not found, etc.)
+     */
+    public Image pull(String imageRef) {
+        if (StringUtils.isBlank(imageRef)) {
+            throw new InvalidArgumentException("Image reference cannot be null or empty");
+        }
 
-    String targetOperatingSystem = platform.getOperatingSystem();
-    String targetArchitecture = platform.getArchitecture();
-    throw new UnknownException(
-        String.format(
-            "No manifest found for platform %s/%s in image index. Available platforms: %s",
-            targetOperatingSystem != null ? targetOperatingSystem : UNKNOWN,
-            targetArchitecture != null ? targetArchitecture : UNKNOWN,
-            formatAvailablePlatforms(entries)));
-  }
+        // Step 1: Parse image reference
+        ImageReference imageReference = ImageReference.parse(imageRef);
+        String repository = imageReference.getRepository();
+        String reference = imageReference.getReference();
 
-  /** Formats available platforms from index entries for error messages. */
-  private String formatAvailablePlatforms(List<Manifest.IndexEntry> entries) {
-    return entries.stream()
-        .map(
-            entry ->
-                String.format(
-                    "%s/%s",
-                    entry.getOs() != null ? entry.getOs() : UNKNOWN,
-                    entry.getArchitecture() != null ? entry.getArchitecture() : UNKNOWN))
-        .collect(Collectors.joining(", "));
-  }
+        // Step 2: Get OCI client
+        OciRegistryClient client = getOciClient();
 
-  /**
-   * Extracts the image filesystem as a tar stream.
-   *
-   * <p>This method implements OCI layer flattening.
-   *
-   * <ol>
-   *   <li>Layers are processed in order (bottom to top)
-   *   <li>Each layer is a tar archive that is decompressed and streamed
-   *   <li>Whiteout files (.wh.*) mark deletions from lower layers
-   *   <li>Opaque whiteouts (.wh..wh..opq) indicate directory replacement
-   * </ol>
-   *
-   * <p>The returned InputStream produces a tar archive representing the flattened filesystem.
-   * Caller is responsible for closing the stream.
-   *
-   * @param image image from a previous pull
-   * @return InputStream of the flattened filesystem tar
-   * @throws InvalidArgumentException if image is null or has no layers
-   * @throws UnknownException if extraction fails
-   */
-  public InputStream extract(Image image) {
-    if (image == null) {
-      throw new InvalidArgumentException("Image cannot be null");
+        // Step 3: Fetch manifest
+        Manifest manifest = client.fetchManifest(repository, reference);
+
+        // Step 4: Handle multi-arch image index
+        if (manifest.isIndex()) {
+            String selectedDigest = selectPlatformFromIndex(manifest, targetPlatform);
+            manifest = client.fetchManifest(repository, selectedDigest);
+        }
+
+        // Step 5: Create and return RemoteImage (lazy-loading)
+        return new RemoteImage(client, repository, imageRef, manifest);
     }
 
     List<Layer> layers = image.getLayers();

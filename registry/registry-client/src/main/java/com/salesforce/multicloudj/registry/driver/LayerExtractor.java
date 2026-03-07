@@ -67,41 +67,94 @@ final class LayerExtractor {
       throw new UnknownException("Failed to set up extraction pipe", e);
     }
 
-    AtomicReference<Throwable> extractionError = new AtomicReference<>();
-
-    ExecutorService executor =
-        Executors.newSingleThreadExecutor(
-            r -> {
-              Thread t = new Thread(r, THREAD_NAME);
-              t.setDaemon(true);
-              return t;
+    /**
+     * Extracts all layers into a flattened tar stream.
+     * 
+     * <p>The extraction runs in a background thread, writing to a piped stream.
+     * The returned InputStream can be consumed by the caller.
+     *
+     * @return InputStream of the flattened filesystem tar
+     * @throws UnknownException if extraction setup fails
+     */
+    public InputStream extract() {
+        PipedInputStream pipedIn = new PipedInputStream(PIPE_BUFFER_SIZE);
+        PipedOutputStream pipedOut;
+        try {
+            pipedOut = new PipedOutputStream(pipedIn);
+        } catch (IOException e) {
+            throw new UnknownException("Failed to set up extraction pipe", e);
+        }
+        
+        AtomicReference<Throwable> extractionError = new AtomicReference<>();
+        
+        ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, THREAD_NAME);
+            t.setDaemon(true);
+            return t;
+        });
+        
+        try {
+            executor.submit(() -> {
+                try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(pipedOut)) {
+                    tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+                    tarOut.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX);
+                    
+                    // Track files to handle whiteouts and overwrites
+                    Set<String> seenPaths = new HashSet<>();
+                    Set<String> deletedPaths = new HashSet<>();
+                    Set<String> opaqueDirectories = new HashSet<>();
+                    
+                    // Process layers in reverse order (top to bottom) - most recent layer first
+                    // This ensures that the top layer's files take precedence
+                    for (int i = layers.size() - 1; i >= 0; i--) {
+                        processLayer(layers.get(i), tarOut, seenPaths, deletedPaths, opaqueDirectories);
+                    }
+                    
+                    tarOut.finish();
+                } catch (Throwable t) {
+                    extractionError.set(t);
+                } finally {
+                    try {
+                        pipedOut.close();
+                    } catch (IOException ignored) {
+                        // Ignore close errors
+                    }
+                }
             });
-
-    executor.submit(
-        () -> {
-          try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(pipedOut)) {
-            tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-            tarOut.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX);
-
-            // Track files to handle whiteouts and overwrites
-            Set<String> seenPaths = new HashSet<>();
-            Set<String> deletedPaths = new HashSet<>();
-            Set<String> opaqueDirectories = new HashSet<>();
-
-            // Process layers in reverse order (top to bottom) - most recent layer first
-            // This ensures that the top layer's files take precedence
-            for (int i = layers.size() - 1; i >= 0; i--) {
-              processLayer(layers.get(i), tarOut, seenPaths, deletedPaths, opaqueDirectories);
-            }
-
-            tarOut.finish();
-          } catch (Throwable t) {
-            extractionError.set(t);
-          } finally {
+        } catch (Exception e) {
             try {
-              pipedOut.close();
+                pipedOut.close();
             } catch (IOException ignored) {
-              // Ignore close errors
+                // Ignore close errors
+            }
+            throw new UnknownException("Failed to start layer extraction", e);
+        }
+        
+        // Return a wrapper that checks for extraction errors and cleans up executor on close
+        return new ExtractionInputStream(pipedIn, extractionError, executor);
+    }
+
+    /**
+     * Processes a single layer, applying whiteout rules.
+     */
+    private void processLayer(Layer layer, TarArchiveOutputStream tarOut,
+                              Set<String> seenPaths, Set<String> deletedPaths,
+                              Set<String> opaqueDirectories) throws IOException {
+        
+        try (InputStream layerStream = layer.getUncompressed();
+             TarArchiveInputStream tarIn = new TarArchiveInputStream(layerStream)) {
+            
+            TarArchiveEntry entry;
+            while ((entry = tarIn.getNextTarEntry()) != null) {
+                String name = normalizePath(entry.getName());
+                
+                if (handleWhiteout(name, deletedPaths, opaqueDirectories)
+                        || shouldSkipEntry(name, seenPaths, deletedPaths, opaqueDirectories)) {
+                    continue;
+                }
+                
+                seenPaths.add(name);
+                writeEntry(tarOut, tarIn, entry, name);
             }
           }
         });
