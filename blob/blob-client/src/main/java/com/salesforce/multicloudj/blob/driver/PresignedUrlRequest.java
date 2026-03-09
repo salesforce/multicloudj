@@ -30,4 +30,9 @@ public class PresignedUrlRequest {
 
   /** Optional: Specify the KMS key ID to be used for encryption in a presignedUrl upload */
   private final String kmsKeyId;
+
+  /**
+   * Optional: Specify the Content-Disposition header to override in a presigned download URL. 
+   */
+  private final String contentDisposition;
 }
