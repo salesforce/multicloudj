@@ -1,5 +1,5 @@
 {
-  "id" : "55e279d8-8a16-49d2-bf63-cc2bf4a088fa",
+  "id" : "178bbfb3-a71c-46e2-83db-44fcc42725ae",
   "name" : "AwsBlobStoreIT_testCopy-HEAD-3",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/clobbered-blob",
@@ -13,15 +13,15 @@
       "x-amz-meta-key2" : "value2",
       "Server" : "AmazonS3",
       "ETag" : "\"70a2b8957d07af666aad6080c576a74d\"",
-      "Last-Modified" : "Fri, 06 Mar 2026 17:45:14 GMT",
-      "x-amz-request-id" : "RTRCCDBKWDB7BTYY",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:57:11 GMT",
+      "x-amz-request-id" : "DP5VX2TXH33F9PEX",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "h+YI0aOdSWzhD+6lq3dti3PGDLs7VmhCCPuxL8Yq487bFjyA3mLB1gg60J2Q0ST2q8InfN31CCc=",
-      "Date" : "Fri, 06 Mar 2026 17:45:16 GMT",
+      "x-amz-id-2" : "btV+penBSKgO/PFc9p9WzNdv+SeRid317KzCJff4tcBP+5QPFJUa/m+t7EQv+L0kvMo394MNmKIF4QBrQpnK0/tSYbrOTMba",
+      "Date" : "Wed, 04 Mar 2026 20:57:12 GMT",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "55e279d8-8a16-49d2-bf63-cc2bf4a088fa",
+  "uuid" : "178bbfb3-a71c-46e2-83db-44fcc42725ae",
   "persistent" : true,
-  "insertionIndex" : 159
+  "insertionIndex" : 153
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "cbed9cea-552e-4fbc-adae-4fc2d85d039f",
+  "id" : "79b5efe7-a75b-4ce8-a654-005294a4fa7e",
   "name" : "AwsBlobStoreIT_testNonexistentBucket-POST-9",
   "request" : {
     "urlPath" : "/java-bucket-does-not-exist",
@@ -22,16 +22,16 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>52PME4RHMWANZYGE</RequestId><HostId>ACBay57I3f+BdJQXdbZ52C/SjbNLF4zmRI0NqUZfTgiA4WNrEKabfi13EnAwxU8mOcrxqxeKTOA=</HostId></Error>",
+    "body" : "<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>java-bucket-does-not-exist</BucketName><RequestId>81RMHF9V9C85V60W</RequestId><HostId>gJaFulDad/gNXMWRmEKlQM8lwyniiqv04aorlCO63nUnghNw9UDfpcbegnpPMhUIIW1Z+Vv8BRgUhv2RYIfBBCFcMwFpsE8r</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "52PME4RHMWANZYGE",
-      "x-amz-id-2" : "ACBay57I3f+BdJQXdbZ52C/SjbNLF4zmRI0NqUZfTgiA4WNrEKabfi13EnAwxU8mOcrxqxeKTOA=",
-      "Date" : "Fri, 06 Mar 2026 17:45:30 GMT",
+      "x-amz-request-id" : "81RMHF9V9C85V60W",
+      "x-amz-id-2" : "gJaFulDad/gNXMWRmEKlQM8lwyniiqv04aorlCO63nUnghNw9UDfpcbegnpPMhUIIW1Z+Vv8BRgUhv2RYIfBBCFcMwFpsE8r",
+      "Date" : "Wed, 04 Mar 2026 20:57:31 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "cbed9cea-552e-4fbc-adae-4fc2d85d039f",
+  "uuid" : "79b5efe7-a75b-4ce8-a654-005294a4fa7e",
   "persistent" : true,
-  "insertionIndex" : 221
+  "insertionIndex" : 215
 }

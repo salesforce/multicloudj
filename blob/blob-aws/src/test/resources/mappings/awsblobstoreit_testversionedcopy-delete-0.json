@@ -1,5 +1,5 @@
 {
-  "id" : "a1ad91a0-e872-4433-8530-b683524f91e2",
+  "id" : "f0fb6969-89b9-4bbf-82d5-3af7383a5c50",
   "name" : "AwsBlobStoreIT_testVersionedCopy-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/copied-blob-latest",
@@ -10,13 +10,13 @@
     "headers" : {
       "Server" : "AmazonS3",
       "x-amz-delete-marker" : "true",
-      "x-amz-request-id" : "1KZ1JGQAZVGJTABP",
-      "x-amz-id-2" : "FK75FjIA6LmXbXm479wJMYib01FmWxNJOwG5f6ZdaJ5zvnqBBm4p6uzFZXAfUXedmkETYzUjEnw=",
-      "x-amz-version-id" : "twmUw0T4eZIfXdmeVndiCeKjmR5GhPcB",
-      "Date" : "Fri, 06 Mar 2026 17:45:29 GMT"
+      "x-amz-request-id" : "1SW9HQW518GW0TN4",
+      "x-amz-id-2" : "Khp2zAxeOAcg8LclrmpUWPRTT3n75U9SVnkO84Rkizk+z/6f58+1VglsAMYdx+B/oiAO8MHGwFHcafTxTPjmWoUyRIx4hehl",
+      "x-amz-version-id" : "4lK.GAoj0pu4sEXfadw6EL6blCAKbi1y",
+      "Date" : "Wed, 04 Mar 2026 20:57:30 GMT"
     }
   },
-  "uuid" : "a1ad91a0-e872-4433-8530-b683524f91e2",
+  "uuid" : "f0fb6969-89b9-4bbf-82d5-3af7383a5c50",
   "persistent" : true,
-  "insertionIndex" : 186
+  "insertionIndex" : 180
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "814c651c-9f06-4c34-b1fe-40b8fe4b352b",
+  "id" : "69997381-3a0d-4aee-8834-3ac331485cfc",
   "name" : "AwsBlobStoreIT_testCopyFrom-DELETE-0",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/clobbered-from-blob",
@@ -9,12 +9,12 @@
     "status" : 204,
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "WH4D6KKYABG246ZT",
-      "x-amz-id-2" : "iAYKTZ9Ya0J5wQQidjzFIkVuvAAaZ+ujDvX/zRUiew9qD6AjLy8brtI4RxFMx21w8eUAtnroGC4=",
-      "Date" : "Fri, 06 Mar 2026 17:47:02 GMT"
+      "x-amz-request-id" : "F10W8WHEYH3DW30E",
+      "x-amz-id-2" : "N98kUFo4S8wyhrR2OAtDHbiGOgLNSah91nUYMQgxVNXLG4V0Y1UzRTJpgVTCdUkB9JCQVTbZKhj9tyqAJL5GAVExqWKZeD99",
+      "Date" : "Wed, 04 Mar 2026 20:58:25 GMT"
     }
   },
-  "uuid" : "814c651c-9f06-4c34-b1fe-40b8fe4b352b",
+  "uuid" : "69997381-3a0d-4aee-8834-3ac331485cfc",
   "persistent" : true,
-  "insertionIndex" : 321
+  "insertionIndex" : 317
 }

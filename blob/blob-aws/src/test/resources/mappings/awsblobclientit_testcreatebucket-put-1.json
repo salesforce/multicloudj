@@ -1,8 +1,8 @@
 {
-  "id" : "e3e86db6-fb37-4d53-a51d-a497194a7572",
+  "id" : "24ec03b3-5ed1-435f-8db8-8834a21b99f2",
   "name" : "AwsBlobClientIT_testCreateBucket-PUT-1",
   "request" : {
-    "url" : "/test-bucket-create-multicloudj4",
+    "url" : "/test-bucket-create-multicloudj3",
     "method" : "PUT",
     "bodyPatterns" : [ {
       "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CreateBucketConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LocationConstraint>us-west-2</LocationConstraint></CreateBucketConfiguration>"
@@ -12,14 +12,14 @@
     "status" : 200,
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-bucket-arn" : "arn:aws:s3:::test-bucket-create-multicloudj4",
-      "x-amz-request-id" : "BWQ0FBSPJ18T57FS",
-      "x-amz-id-2" : "pNcCkYoBtL+iXuEfMAs4O6HvAxmPeWqQ3OFXnrCwWdwVXKtC2y3j7fUJM1knAPBiyqAN9A3Do8E=",
-      "Date" : "Sat, 07 Mar 2026 06:53:39 GMT",
-      "Location" : "http://test-bucket-create-multicloudj4.s3.amazonaws.com/"
+      "x-amz-bucket-arn" : "arn:aws:s3:::test-bucket-create-multicloudj3",
+      "x-amz-request-id" : "DMRQJRGGZ77MV0TY",
+      "x-amz-id-2" : "1nJiS+aFDbgWDf9f1P1VDI7ARv69600gWTjIfKXQcduPkEf6eeqPJ00D/BeA+PpFSbzTSWg/eO0=",
+      "Date" : "Wed, 04 Mar 2026 22:31:32 GMT",
+      "Location" : "http://test-bucket-create-multicloudj3.s3.amazonaws.com/"
     }
   },
-  "uuid" : "e3e86db6-fb37-4d53-a51d-a497194a7572",
+  "uuid" : "24ec03b3-5ed1-435f-8db8-8834a21b99f2",
   "persistent" : true,
-  "insertionIndex" : 594
+  "insertionIndex" : 580
 }
