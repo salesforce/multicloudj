@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 import org.apache.http.HttpRequestInterceptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -278,7 +279,7 @@ class AwsRegistryTest {
     registry.close(); // should not throw
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments>
+  static Stream<Arguments>
       exceptionMappingProvider() { // NOSONAR - needed for @MethodSource resolution
     return Stream.of(
         arguments(new SubstrateSdkException("test"), SubstrateSdkException.class),
