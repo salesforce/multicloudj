@@ -11,10 +11,12 @@ import com.salesforce.multicloudj.registry.model.Platform;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpRequestInterceptor;
 
 /** Abstract registry driver. Each cloud implements authentication and OCI client. */
 public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
@@ -23,6 +25,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
 
   protected final String providerId;
   protected final String registryEndpoint;
+  protected final String region;
   protected final URI proxyEndpoint;
   protected final CredentialsOverrider credentialsOverrider;
   @Getter protected final Platform targetPlatform;
@@ -30,6 +33,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
   protected AbstractRegistry(Builder<?, ?> builder) {
     this.providerId = builder.getProviderId();
     this.registryEndpoint = builder.getRegistryEndpoint();
+    this.region = builder.getRegion();
     this.proxyEndpoint = builder.getProxyEndpoint();
     this.credentialsOverrider = builder.getCredentialsOverrider();
     this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
@@ -51,6 +55,15 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
 
   /** Returns the OCI client for this registry. */
   protected abstract OciRegistryClient getOciClient();
+
+  /**
+   * Returns the list of HTTP request interceptors to be registered with the HTTP client. Override
+   * this method in provider-specific subclasses to add custom interceptors. By default, returns an
+   * empty list (no interceptors).
+   */
+  protected List<HttpRequestInterceptor> getInterceptors() {
+    return Collections.emptyList();
+  }
 
   /**
    * Pulls an image from the registry (unified OCI flow).
@@ -110,7 +123,7 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
    *
    * <ul>
    *   <li>OS, Architecture, Variant, and OS version must match
-   *   <li>OS features in the spec must be a subset of the entry's OS features
+   *   <li>OS features in the spec must be a subset of the entry&#39;s OS features
    *   <li>Empty/null fields in the target platform are treated as wildcards
    * </ul>
    *
@@ -205,9 +218,15 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
       implements Provider.Builder {
     protected String providerId;
     protected String registryEndpoint;
+    protected String region;
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
     protected Platform platform;
+
+    public T withRegion(String region) {
+      this.region = region;
+      return self();
+    }
 
     public T withRegistryEndpoint(String registryEndpoint) {
       this.registryEndpoint = registryEndpoint;

@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.function.Consumer;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
@@ -40,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Unit tests for OciRegistryClient. Tests authentication header generation for Basic, Bearer, and
@@ -50,7 +52,7 @@ public class OciRegistryClientTest {
   private static final String REGISTRY_ENDPOINT = "https://test-registry.example.com";
   private static final String REPOSITORY = "test-repo/test-image";
 
-  @Mock private AuthProvider mockAuthProvider;
+  @Mock private AbstractRegistry mockAuthProvider;
 
   private AutoCloseable mocks;
 
@@ -1010,8 +1012,7 @@ public class OciRegistryClientTest {
    * @return mocked CloseableHttpClient
    */
   private CloseableHttpClient createMockHttpClientWithExecuteAnswer(
-      String blobContent,
-      java.util.function.Consumer<org.mockito.invocation.InvocationOnMock> requestAssertion) {
+      String blobContent, Consumer<InvocationOnMock> requestAssertion) {
     CloseableHttpClient mockHttpClient = mock(CloseableHttpClient.class);
     CloseableHttpResponse mockResponse = mock(CloseableHttpResponse.class);
     StatusLine mockStatusLine = mock(StatusLine.class);
@@ -1072,6 +1073,6 @@ public class OciRegistryClientTest {
 
   @FunctionalInterface
   interface ManifestAssertion {
-    void assertManifest(com.salesforce.multicloudj.registry.model.Manifest manifest);
+    void assertManifest(Manifest manifest);
   }
 }

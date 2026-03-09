@@ -27,15 +27,13 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 
 /** OCI Registry API v2 HTTP client; handles auth and registry operations. */
@@ -77,73 +75,31 @@ public class OciRegistryClient implements AutoCloseable {
    * @param registryEndpoint the registry base URL
    * @param authProvider the authentication provider
    */
-  public OciRegistryClient(String registryEndpoint, AuthProvider authProvider) {
-    this(registryEndpoint, authProvider, null);
+  public OciRegistryClient(String registryEndpoint, AbstractRegistry registry) {
+    this(registryEndpoint, registry, null);
   }
 
   /**
    * Creates OciRegistryClient with specified HttpClient.
    *
    * @param registryEndpoint the registry base URL
-   * @param authProvider the authentication provider
+   * @param registry the registry
    * @param httpClient the HTTP client to use (null to create default)
    */
   public OciRegistryClient(
-      String registryEndpoint, AuthProvider authProvider, CloseableHttpClient httpClient) {
+      String registryEndpoint, AbstractRegistry registry, CloseableHttpClient httpClient) {
     this.registryEndpoint = registryEndpoint;
-    this.authProvider = authProvider;
+    this.authProvider = registry;
     if (httpClient != null) {
       this.httpClient = httpClient;
     } else {
-      this.httpClient =
-          HttpClients.custom()
-              .addInterceptorLast(new AuthStrippingInterceptor(registryEndpoint))
-              .build();
+      HttpClientBuilder builder = HttpClients.custom();
+      for (HttpRequestInterceptor interceptor : registry.getInterceptors()) {
+        builder.addInterceptorLast(interceptor);
+      }
+      this.httpClient = builder.build();
     }
     this.tokenExchange = new BearerTokenExchange(this.httpClient);
-  }
-
-  /**
-   * HTTP request interceptor that strips Authorization headers when the request target is not the
-   * registry host.
-   *
-   * <p>This is necessary because registries like AWS ECR redirect blob downloads to S3 pre-signed
-   * URLs, which already contain authentication in query parameters. Sending an Authorization header
-   * to S3 causes a 400 error ("Only one auth mechanism allowed").
-   */
-  private static class AuthStrippingInterceptor implements HttpRequestInterceptor {
-    private final String registryHost;
-
-    AuthStrippingInterceptor(String registryEndpoint) {
-      this.registryHost = extractHost(registryEndpoint);
-    }
-
-    @Override
-    public void process(HttpRequest request, HttpContext context) {
-      // Get the target host from the context (works for both initial requests and redirects)
-      var targetHost =
-          (org.apache.http.HttpHost) context.getAttribute(HttpClientContext.HTTP_TARGET_HOST);
-      if (targetHost != null) {
-        String requestHost = targetHost.getHostName();
-        // Strip Authorization header if request is not to the registry host
-        if (!registryHost.equalsIgnoreCase(requestHost)) {
-          request.removeHeaders(HttpHeaders.AUTHORIZATION);
-        }
-      }
-    }
-
-    private static String extractHost(String url) {
-      String host = url.replaceFirst("^https?://", "");
-      int slashIndex = host.indexOf('/');
-      if (slashIndex > 0) {
-        host = host.substring(0, slashIndex);
-      }
-      int colonIndex = host.indexOf(':');
-      if (colonIndex > 0) {
-        host = host.substring(0, colonIndex);
-      }
-      return host;
-    }
   }
 
   /**
