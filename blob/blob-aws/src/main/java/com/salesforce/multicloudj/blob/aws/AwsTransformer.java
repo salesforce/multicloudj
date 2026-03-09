@@ -508,11 +508,14 @@ public class AwsTransformer {
   }
 
   public GetObjectPresignRequest toGetObjectPresignRequest(PresignedUrlRequest request) {
-    GetObjectRequest getObjectRequest =
-        GetObjectRequest.builder().bucket(getBucket()).key(request.getKey()).build();
+    GetObjectRequest.Builder getObjectBuilder =
+        GetObjectRequest.builder().bucket(getBucket()).key(request.getKey());
+    if (request.getContentDisposition() != null) {
+      getObjectBuilder.responseContentDisposition(request.getContentDisposition());
+    }
     return GetObjectPresignRequest.builder()
         .signatureDuration(request.getDuration())
-        .getObjectRequest(getObjectRequest)
+        .getObjectRequest(getObjectBuilder.build())
         .build();
   }
 
