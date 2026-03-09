@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.model.Image;
 import com.salesforce.multicloudj.registry.model.Platform;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.InputStream;
 
 /**
@@ -73,6 +74,12 @@ public class ContainerRegistryClient implements AutoCloseable {
       return this;
     }
 
+    /** Sets the region. Required for AWS; ignored by GCP. */
+    public ContainerRegistryClientBuilder withRegion(String region) {
+      this.registryBuilder.withRegion(region);
+      return this;
+    }
+
     /** Sets a proxy endpoint override for HTTP requests. */
     public ContainerRegistryClientBuilder withProxyEndpoint(java.net.URI proxyEndpoint) {
       this.registryBuilder.withProxyEndpoint(proxyEndpoint);
@@ -87,7 +94,7 @@ public class ContainerRegistryClient implements AutoCloseable {
 
     /** Sets credentials overrider for authentication. */
     public ContainerRegistryClientBuilder withCredentialsOverrider(
-        com.salesforce.multicloudj.sts.model.CredentialsOverrider credentialsOverrider) {
+        CredentialsOverrider credentialsOverrider) {
       this.registryBuilder.withCredentialsOverrider(credentialsOverrider);
       return this;
     }
