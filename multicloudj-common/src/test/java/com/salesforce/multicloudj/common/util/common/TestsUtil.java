@@ -34,10 +34,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestsUtil {
-  private static Logger logger = LoggerFactory.getLogger(TestsUtil.class);
+  private static final Logger logger = LoggerFactory.getLogger(TestsUtil.class);
   static WireMockServer wireMockServer;
   public static final String WIREMOCK_HOST = "localhost";
-  private static List<StubMappingTransformer> loadedTransformers = new ArrayList<>();
+  private static final List<StubMappingTransformer> loadedTransformers = new ArrayList<>();
   @Getter private static String currentTestPrefix;
   private static final AtomicInteger stubCounter = new AtomicInteger(0);
 
@@ -198,6 +198,8 @@ public class TestsUtil {
             WireMockConfiguration.options()
                 .httpsPort(port)
                 .port(port + 1) // http port
+                .containerThreads(100)
+                .asynchronousResponseEnabled(true)
                 .keystorePath("wiremock-keystore.jks")
                 .keystorePassword("password")
                 .withRootDirectory(rootDir)

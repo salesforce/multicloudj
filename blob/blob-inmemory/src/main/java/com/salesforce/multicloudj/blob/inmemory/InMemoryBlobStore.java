@@ -591,6 +591,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .key(request.getKey())
         .metadata(request.getMetadata())
         .tags(request.getTags())
+        .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
         .build();
   }
@@ -613,10 +614,11 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
       byte[] partData = baos.toByteArray();
       String etag = generateEtag(partData);
+      String checksumValue = computeCrc32cChecksum(partData);
 
       state.addPart(mpp.getPartNumber(), partData, etag);
 
-      return new UploadPartResponse(mpp.getPartNumber(), etag, (long) partData.length);
+      return new UploadPartResponse(mpp.getPartNumber(), etag, partData.length, checksumValue);
     } catch (Exception e) {
       throw new UnknownException("Failed to upload multipart part", e);
     }
@@ -675,8 +677,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
       MULTIPART_UPLOADS.remove(mpu.getId());
+      String checksumValue = computeCrc32cChecksum(finalData);
 
-      return new MultipartUploadResponse(etag);
+      return new MultipartUploadResponse(etag, checksumValue);
     } catch (Exception e) {
       throw new UnknownException("Failed to complete multipart upload", e);
     }
@@ -696,7 +699,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 new UploadPartResponse(
                     entry.getKey(),
                     entry.getValue().getEtag(),
-                    (long) entry.getValue().getData().length))
+                    entry.getValue().getData().length))
         .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
         .collect(Collectors.toList());
   }
@@ -786,6 +789,18 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private String generateEtag(byte[] data) {
     return "\"" + Integer.toHexString(java.util.Arrays.hashCode(data)) + "\"";
+  }
+
+  private String computeCrc32cChecksum(byte[] data) {
+    java.util.zip.CRC32C crc32c = new java.util.zip.CRC32C();
+    crc32c.update(data);
+    long value = crc32c.getValue();
+    byte[] checksumBytes = new byte[4];
+    checksumBytes[0] = (byte) (value >> 24);
+    checksumBytes[1] = (byte) (value >> 16);
+    checksumBytes[2] = (byte) (value >> 8);
+    checksumBytes[3] = (byte) value;
+    return java.util.Base64.getEncoder().encodeToString(checksumBytes);
   }
 
   private byte[] extractRange(byte[] data, Long start, Long end) {
