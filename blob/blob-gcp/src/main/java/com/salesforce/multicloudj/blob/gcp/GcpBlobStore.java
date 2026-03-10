@@ -180,7 +180,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
-        var channel = Channels.newInputStream(reader)) {
+         var channel = Channels.newInputStream(reader)) {
 
       Blob blob = storage.get(blobId);
       if (blob == null) {
@@ -221,7 +221,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    *
    * @param downloadRequest Wrapper object containing download data
    * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
+   * InputStream for reading the content
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
@@ -252,7 +252,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    * Performs Blob download
    *
    * @param downloadRequest Wrapper object containing download data
-   * @param path The Path that blob content will be written to
+   * @param path            The Path that blob content will be written to
    * @return Returns a DownloadResponse object that contains metadata about the blob
    */
   @Override
@@ -389,6 +389,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .metadata(request.getMetadata())
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
+        .checksumEnabled(request.isChecksumEnabled())
         .build();
   }
 
@@ -450,7 +451,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
-    return new MultipartUploadResponse(response.etag());
+    return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
 
   @Override
