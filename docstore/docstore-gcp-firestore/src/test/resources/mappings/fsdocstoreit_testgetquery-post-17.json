@@ -1,0 +1,43 @@
+{
+  "id" : "1cc09459-8ae6-407f-951b-1bc925358a1e",
+  "name" : "FSDocstoreIT_testGetQuery-POST-17",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"compositeFilter\":{\"op\":1,\"filters\":[{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Game\"},\"op\":5,\"value\":{\"stringValue\":\"Praise All Monsters\"}}},{\"fieldFilter\":{\"field\":{\"fieldPath\":\"Score\"},\"op\":4,\"value\":{\"integerValue\":\"50\"}}}]}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"60\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-10\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:26.235376Z\",\n    \"updateTime\": \"2026-03-04T21:19:26.235376Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.181074Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Praise All Monsters:andy\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"andy\"\n      },\n      \"Score\": {\n        \"integerValue\": \"81\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Praise All Monsters\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": false\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-02-01\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:26.634142Z\",\n    \"updateTime\": \"2026-03-04T21:19:26.634142Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:31.181074Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "12365295904385506258;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:31 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "1cc09459-8ae6-407f-951b-1bc925358a1e",
+  "persistent" : true,
+  "insertionIndex" : 26
+}

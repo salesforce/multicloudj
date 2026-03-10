@@ -1,0 +1,43 @@
+{
+  "id" : "4b710e57-6eda-43bf-aa29-1f722440783a",
+  "name" : "FSDocstoreIT_testGet-POST-9",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankMap\"],\"mask\":{\"fieldPaths\":[\"s\",\"pName\",\"f\",\"i\"]}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankMap\",\n    \"fields\": {\n      \"s\": {\n        \"stringValue\": \"random String\"\n      },\n      \"pName\": {\n        \"stringValue\": \"FrankMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:41.092657Z\",\n    \"updateTime\": \"2026-03-04T21:19:41.092657Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:41.092657Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11428623878025055297;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:41 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4b710e57-6eda-43bf-aa29-1f722440783a",
+  "persistent" : true,
+  "insertionIndex" : 52
+}

@@ -5,8 +5,8 @@ import com.salesforce.multicloudj.common.gcp.GcpConstants;
 
 public class GcpProviderSupplierIT extends ProviderSupplierIT {
 
-    @Override
-    protected String getSubstrate() {
-        return GcpConstants.PROVIDER_ID;
-    }
+  @Override
+  protected String getSubstrate() {
+    return GcpConstants.PROVIDER_ID;
+  }
 }

@@ -1,0 +1,34 @@
+{
+  "id" : "c7cb408a-abf6-4690-93dd-9050367c6585",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_singlePart-GET-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-singlePart",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "dfTEmH_02536.ABLcxW.aroIn.s9Kp8jfSYmk_fSr553BxOi.QRIxuFvRL3K46YUpSduJaMgbsOk49WzIqU3xh1ztpxGCr3xJohwbvt06yGgcS7PweLRcYObR0bmVb9DNBTEhVHM02nJnriek6PDVOaAO.O417EqhSBLyTIpkLC5BIKAYIoXYt66YM81q1GwJHQ5zr62uULLMNLT5UWIFw--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-singlePart</Key><UploadId>dfTEmH_02536.ABLcxW.aroIn.s9Kp8jfSYmk_fSr553BxOi.QRIxuFvRL3K46YUpSduJaMgbsOk49WzIqU3xh1ztpxGCr3xJohwbvt06yGgcS7PweLRcYObR0bmVb9DNBTEhVHM02nJnriek6PDVOaAO.O417EqhSBLyTIpkLC5BIKAYIoXYt66YM81q1GwJHQ5zr62uULLMNLT5UWIFw--</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-sandeeppal@02d84870-f01e-4750-abfe-9c63c7f3221e</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>1</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>1</PartNumber><LastModified>2026-03-04T20:57:56.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PYWRMNX8BNSVE917",
+      "x-amz-id-2" : "DpzlhhSqL9VtqKdhwlK0V9vLU5ISilZ4c1O9Ok6WdXJqG7VtDBglQ2Wpz5p4o9dgQNCkKfiLs/Dh4K13apuGGbBqLiIJjHU1",
+      "Date" : "Wed, 04 Mar 2026 20:57:57 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c7cb408a-abf6-4690-93dd-9050367c6585",
+  "persistent" : true,
+  "insertionIndex" : 262
+}

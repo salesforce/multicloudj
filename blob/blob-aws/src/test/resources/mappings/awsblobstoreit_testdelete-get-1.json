@@ -1,0 +1,22 @@
+{
+  "id" : "3cadcd2a-c38a-46e6-9238-4fb5c0a424d2",
+  "name" : "AwsBlobStoreIT_testDelete-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/blob-for-deleting",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/blob-for-deleting</Key><RequestId>W850VK2ZT0KR3RV4</RequestId><HostId>c14avzE/+p3LafRbspoiXFrFYbPzGVvVE7AAX0QEh9wlWDbBd7JYB+CR6WaxXIzLZKHJyAvTIE/7KVsvvE9Ysv1zxDTqoX5q</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "W850VK2ZT0KR3RV4",
+      "x-amz-id-2" : "c14avzE/+p3LafRbspoiXFrFYbPzGVvVE7AAX0QEh9wlWDbBd7JYB+CR6WaxXIzLZKHJyAvTIE/7KVsvvE9Ysv1zxDTqoX5q",
+      "Date" : "Wed, 04 Mar 2026 20:59:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "3cadcd2a-c38a-46e6-9238-4fb5c0a424d2",
+  "persistent" : true,
+  "insertionIndex" : 469
+}

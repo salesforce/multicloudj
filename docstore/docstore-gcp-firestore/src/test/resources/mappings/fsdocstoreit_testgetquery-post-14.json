@@ -1,0 +1,43 @@
+{
+  "id" : "3433da19-164a-4a1c-bdb8-69b8d28e0a06",
+  "name" : "FSDocstoreIT_testGetQuery-POST-14",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:runQuery",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"docstore-test-2\"}],\"where\":{\"fieldFilter\":{\"field\":{\"fieldPath\":\"WithGlitch\"},\"op\":5,\"value\":{\"booleanValue\":true}}}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:mel\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"mel\"\n      },\n      \"Score\": {\n        \"integerValue\": \"190\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-18\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:28.174910Z\",\n    \"updateTime\": \"2026-03-04T21:19:28.174910Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:32.187545Z\"\n}\n,\r\n{\n  \"document\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-2/Zombie DMV:pat\",\n    \"fields\": {\n      \"Player\": {\n        \"stringValue\": \"pat\"\n      },\n      \"Score\": {\n        \"integerValue\": \"120\"\n      },\n      \"Game\": {\n        \"stringValue\": \"Zombie DMV\"\n      },\n      \"WithGlitch\": {\n        \"booleanValue\": true\n      },\n      \"Time\": {\n        \"stringValue\": \"2024-04-01\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:27.472570Z\",\n    \"updateTime\": \"2026-03-04T21:19:27.472570Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:32.187545Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "1513877222705111139;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:19:32 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3433da19-164a-4a1c-bdb8-69b8d28e0a06",
+  "persistent" : true,
+  "insertionIndex" : 23
+}

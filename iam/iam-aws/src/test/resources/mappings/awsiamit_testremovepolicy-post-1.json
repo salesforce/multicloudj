@@ -1,0 +1,24 @@
+{
+  "id" : "f14e1623-007d-419b-a2b4-4221292303ef",
+  "name" : "AwsIamIT_testRemovePolicy-POST-1",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3AGetObject%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%3A%3A%3Amulticloudj-iam-it-test-bucket%2F*%22%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<PutRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>13b00b87-6ccc-42b7-a0f7-8a144aa2262f</RequestId>\n  </ResponseMetadata>\n</PutRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "13b00b87-6ccc-42b7-a0f7-8a144aa2262f",
+      "Date" : "Tue, 10 Mar 2026 06:16:23 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "f14e1623-007d-419b-a2b4-4221292303ef",
+  "persistent" : true,
+  "insertionIndex" : 40
+}

@@ -6,23 +6,15 @@ package com.salesforce.multicloudj.dbbackuprestore.driver;
  * @since 0.2.25
  */
 public enum RestoreStatus {
-    /**
-     * Restore operation is in progress.
-     */
-    RESTORING,
+  /** Restore operation is in progress. */
+  RESTORING,
 
-    /**
-     * Restore operation completed successfully.
-     */
-    COMPLETED,
+  /** Restore operation completed successfully. */
+  COMPLETED,
 
-    /**
-     * Restore operation failed.
-     */
-    FAILED,
+  /** Restore operation failed. */
+  FAILED,
 
-    /**
-     * Restore status is unknown.
-     */
-    UNKNOWN
+  /** Restore status is unknown. */
+  UNKNOWN
 }

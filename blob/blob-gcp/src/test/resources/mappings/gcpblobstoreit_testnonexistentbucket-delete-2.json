@@ -1,0 +1,37 @@
+{
+  "id" : "75ef4895-8109-4512-b38b-ed57233aceb6",
+  "name" : "GcpBlobStoreIT_testNonexistentBucket-DELETE-2",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart5",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "multipart5"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchUpload</Code><Message>The requested upload was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0",
+      "X-GUploader-UploadID" : "AGQBYWwm7xaFV24jHDtHXMrlKpzFxdERtCt0zRsAO6qSmx32fSbH6Vta0ID_GERbym0lGPUb1q2aj88",
+      "Vary" : "Origin",
+      "Expires" : "Wed, 04 Mar 2026 21:05:19 GMT",
+      "Date" : "Wed, 04 Mar 2026 21:05:19 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "75ef4895-8109-4512-b38b-ed57233aceb6",
+  "persistent" : true,
+  "insertionIndex" : 357
+}
