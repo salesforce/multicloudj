@@ -1,0 +1,40 @@
+{
+  "id" : "85982f9b-e129-4fac-beca-e815ae80b3b4",
+  "name" : "GcpBlobStoreIT_testTagging_withObjectLock-GET-5",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/blob-for-tagging-objectlock/1773153415967335\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock?generation=1773153415967335&alt=media\",\n  \"name\": \"conformance-tests/blob-for-tagging-objectlock\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1773153415967335\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"34\",\n  \"md5Hash\": \"fhoYDt3ji+s3dJJLcNy/xw==\",\n  \"crc32c\": \"Np37Cg==\",\n  \"etag\": \"COfk9pvHlZMDEAI=\",\n  \"timeCreated\": \"2026-03-10T14:36:56.033Z\",\n  \"updated\": \"2026-03-10T14:36:57.656Z\",\n  \"timeStorageClassUpdated\": \"2026-03-10T14:36:56.033Z\",\n  \"timeFinalized\": \"2026-03-10T14:36:56.033Z\",\n  \"metadata\": {\n    \"gcp-tag-tag3\": \"value3\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COfk9pvHlZMDEAI=",
+      "X-GUploader-UploadID" : "AGQBYWxzCccr50Zase_4PL7i30PODMszjVmZhCgMF2puE8ovr5wL5HvH9pE7go72Dp7-S0zZ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 10 Mar 2026 14:36:58 GMT",
+      "Date" : "Tue, 10 Mar 2026 14:36:58 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "85982f9b-e129-4fac-beca-e815ae80b3b4",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-blob-for-tagging-objectlock",
+  "requiredScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-blob-for-tagging-objectlock-4",
+  "insertionIndex" : 920
+}
