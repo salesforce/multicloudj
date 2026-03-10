@@ -14,9 +14,15 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.ConditionOperator;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
+import com.salesforce.multicloudj.iam.model.PolicyDocument;
+import com.salesforce.multicloudj.iam.model.Statement;
+import com.salesforce.multicloudj.iam.model.StorageActions;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +50,8 @@ import software.amazon.awssdk.services.iam.model.GetRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.GetRoleRequest;
 import software.amazon.awssdk.services.iam.model.GetRoleResponse;
 import software.amazon.awssdk.services.iam.model.NoSuchEntityException;
+import software.amazon.awssdk.services.iam.model.PutRolePolicyRequest;
+import software.amazon.awssdk.services.iam.model.PutRolePolicyResponse;
 import software.amazon.awssdk.services.iam.model.Role;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyRequest;
 import software.amazon.awssdk.services.iam.model.UpdateAssumeRolePolicyResponse;
@@ -753,5 +761,121 @@ public class AwsIamTest {
     assertThrows(
         NoSuchEntityException.class,
         () -> awsIam.removePolicy(TEST_ROLE_NAME, TEST_POLICY_NAME, TEST_TENANT_ID, TEST_REGION));
+  }
+
+  @Test
+  void testAttachInlinePolicyTranslatesActionsResourcesAndConditions() throws Exception {
+    // Setup
+    when(mockIamClient.putRolePolicy(any(PutRolePolicyRequest.class)))
+        .thenReturn(PutRolePolicyResponse.builder().build());
+
+    // Create a policy with substrate-neutral actions, resources, and conditions
+    PolicyDocument policyDocument =
+        PolicyDocument.builder()
+            .name("TestPolicy")
+            .version("2012-10-17")
+            .statement(
+                Statement.builder()
+                    .sid("TestStatement")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
+                    .action(StorageActions.PUT_OBJECT)
+                    .resource("storage://my-bucket/*")
+                    .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
+                    .principal("arn:aws:iam::123456789012:user/TestUser")
+                    .build())
+            .build();
+
+    // Execute
+    awsIam.attachInlinePolicy(
+        AttachInlinePolicyRequest.builder()
+            .policyDocument(policyDocument)
+            .identityName(TEST_ROLE_NAME)
+            .tenantId(TEST_TENANT_ID)
+            .region(TEST_REGION)
+            .build());
+
+    // Verify the policy was attached with proper translations
+    ArgumentCaptor<PutRolePolicyRequest> captor =
+        ArgumentCaptor.forClass(PutRolePolicyRequest.class);
+    verify(mockIamClient, times(1)).putRolePolicy(captor.capture());
+
+    PutRolePolicyRequest request = captor.getValue();
+    assertEquals(TEST_ROLE_NAME, request.roleName());
+    assertEquals("TestPolicy", request.policyName());
+
+    // Parse the policy document JSON to verify translations
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode policyJson = mapper.readTree(request.policyDocument());
+
+    // Verify version
+    assertEquals("2012-10-17", policyJson.get("Version").asText());
+
+    // Verify statement structure
+    JsonNode statements = policyJson.get("Statement");
+    assertEquals(1, statements.size());
+
+    JsonNode statement = statements.get(0);
+
+    // Verify SID
+    assertEquals("TestStatement", statement.get("Sid").asText());
+
+    // Verify Effect
+    assertEquals("Allow", statement.get("Effect").asText());
+
+    // Verify actions are translated: storage:GetObject → s3:GetObject
+    JsonNode actions = statement.get("Action");
+    assertTrue(actions.isArray());
+    assertEquals(2, actions.size());
+    assertEquals("s3:GetObject", actions.get(0).asText());
+    assertEquals("s3:PutObject", actions.get(1).asText());
+
+    // Verify resource is translated: storage://my-bucket/* → arn:aws:s3:::my-bucket/*
+    String resource = statement.get("Resource").asText();
+    assertEquals("arn:aws:s3:::my-bucket/*", resource);
+
+    // Verify condition operator is translated: stringEquals → StringEquals
+    JsonNode condition = statement.get("Condition");
+    assertTrue(condition.has("StringEquals"));
+    assertEquals("us-west-2", condition.get("StringEquals").get("aws:RequestedRegion").asText());
+
+    // Verify principal is wrapped correctly
+    JsonNode principal = statement.get("Principal");
+    assertTrue(principal.has("AWS"));
+    assertEquals("arn:aws:iam::123456789012:user/TestUser", principal.get("AWS").asText());
+  }
+
+  @Test
+  void testAttachInlinePolicyWithNullVersionDefaultsToAwsVersion() throws Exception {
+    // Setup
+    when(mockIamClient.putRolePolicy(any(PutRolePolicyRequest.class)))
+        .thenReturn(PutRolePolicyResponse.builder().build());
+
+    // Create a policy without version
+    PolicyDocument policyDocument =
+        PolicyDocument.builder()
+            .name("TestPolicy")
+            .statement(
+                Statement.builder().effect(Effect.ALLOW).action(StorageActions.GET_OBJECT).build())
+            .build();
+
+    // Execute
+    awsIam.attachInlinePolicy(
+        AttachInlinePolicyRequest.builder()
+            .policyDocument(policyDocument)
+            .identityName(TEST_ROLE_NAME)
+            .tenantId(TEST_TENANT_ID)
+            .region(TEST_REGION)
+            .build());
+
+    // Verify the version defaults to "2012-10-17"
+    ArgumentCaptor<PutRolePolicyRequest> captor =
+        ArgumentCaptor.forClass(PutRolePolicyRequest.class);
+    verify(mockIamClient, times(1)).putRolePolicy(captor.capture());
+
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode policyJson = mapper.readTree(captor.getValue().policyDocument());
+
+    assertEquals("2012-10-17", policyJson.get("Version").asText());
   }
 }
