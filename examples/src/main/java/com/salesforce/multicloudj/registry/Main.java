@@ -30,9 +30,10 @@ public class Main {
 
   // Constants
   private static final String DEFAULT_PROVIDER = "gcp";
-  private static final String REGISTRY_ENDPOINT = "https://us-docker.pkg.dev";
-  private static final String REPOSITORY = "my-project/my-repo/my-image";
+  private static final String REGISTRY_ENDPOINT = "https://your-registry-endpoint";
+  private static final String REPOSITORY = "your-repository";
   private static final String TAG = "latest";
+  private static final String REGION = "your-region";
 
   // Demo settings
   private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -163,6 +164,7 @@ public class Main {
   private ContainerRegistryClient initializeClient() {
     return ContainerRegistryClient.builder(provider)
         .withRegistryEndpoint(REGISTRY_ENDPOINT)
+        .withRegion(REGION)
         .build();
   }
 
@@ -296,6 +298,7 @@ public class Main {
     try (ContainerRegistryClient client =
         ContainerRegistryClient.builder(provider)
             .withRegistryEndpoint(REGISTRY_ENDPOINT)
+            .withRegion(REGION)
             .withPlatform(arm64)
             .build()) {
 
