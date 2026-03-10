@@ -1,0 +1,28 @@
+{
+  "id" : "3758bdbe-7113-4e68-b3be-afbdb66ea55d",
+  "name" : "GcpBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-GET-2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fretention-governance?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/retention-governance/1773158121900466\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fretention-governance\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fretention-governance?generation=1773158121900466&alt=media\",\n  \"name\": \"conformance-tests/objectlock/retention-governance\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1773158121900466\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"37\",\n  \"md5Hash\": \"fnzudKkVoyLvbHXDqwNNTw==\",\n  \"crc32c\": \"s67YvA==\",\n  \"etag\": \"CLKT8t/YlZMDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2026-03-11T15:47:28.252Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2026-03-11T15:47:28.252Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-03-10T15:55:21.964Z\",\n  \"updated\": \"2026-03-10T15:55:21.964Z\",\n  \"timeStorageClassUpdated\": \"2026-03-10T15:55:21.964Z\",\n  \"timeFinalized\": \"2026-03-10T15:55:21.964Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CLKT8t/YlZMDEAE=",
+      "X-GUploader-UploadID" : "AGQBYWyQnXT_LvvI8nwsdbY_PlqfxGUh5yDvwhgAiuFfEuOJBOIN-_2jouXRzRWpWAfBJVBF",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 10 Mar 2026 15:55:22 GMT",
+      "Date" : "Tue, 10 Mar 2026 15:55:22 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3758bdbe-7113-4e68-b3be-afbdb66ea55d",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-retention-governance",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-retention-governance-2",
+  "insertionIndex" : 962
+}
