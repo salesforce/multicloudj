@@ -53,6 +53,8 @@ public class OciRegistryClient implements AutoCloseable {
   private static final String DIGEST_ALGORITHM = "SHA-256";
   private static final String DIGEST_PREFIX = "sha256:";
   private static final int MAX_MANIFEST_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+  private static final String MANIFEST_ERROR_FORMAT =
+      "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s";
 
   private final String registryEndpoint;
   private final CloseableHttpClient httpClient;
@@ -170,88 +172,81 @@ public class OciRegistryClient implements AutoCloseable {
    * @throws UnknownException if the request fails or manifest cannot be parsed
    */
   public Manifest fetchManifest(String repository, String reference) {
-    String url = String.format("%s/v2/%s/manifests/%s", registryEndpoint, repository, reference);
+    HttpGet request = buildFetchManifestRequest(repository, reference);
+    try {
+      return executeFetchManifestRequest(request, repository, reference);
+    } catch (IOException e) {
+      throw new UnknownException("Failed to fetch manifest", e);
+    }
+  }
 
+  private HttpGet buildFetchManifestRequest(String repository, String reference) {
+    String url = String.format("%s/v2/%s/manifests/%s", registryEndpoint, repository, reference);
     HttpGet request = new HttpGet(url);
     request.setHeader(HttpHeaders.ACCEPT, MANIFEST_ACCEPT_HEADER);
     String authHeader = getHttpAuthHeader(repository);
     if (authHeader != null) {
       request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
     }
+    return request;
+  }
 
-    try {
-      try (CloseableHttpResponse response = httpClient.execute(request)) {
-        int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode != HttpStatus.SC_OK) {
-          String errorBody =
-              response.getEntity() != null
-                  ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
-                  : StringUtils.EMPTY;
-          if (statusCode == HttpStatus.SC_NOT_FOUND) {
-            throw new ResourceNotFoundException(
-                String.format(
-                    "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
-                    repository, reference, registryEndpoint, statusCode, errorBody));
-          }
-          if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
-            throw new UnAuthorizedException(
-                String.format(
-                    "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
-                    repository, reference, registryEndpoint, statusCode, errorBody));
-          }
-          throw new UnknownException(
-              String.format(
-                  "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s",
-                  repository, reference, registryEndpoint, statusCode, errorBody));
-        }
-
-        if (response.getEntity() == null) {
-          throw new UnknownException("Failed to fetch manifest: empty response body");
-        }
-
-        // Check manifest size limit (100 MB)
-        long contentLength = response.getEntity().getContentLength();
-        if (contentLength > MAX_MANIFEST_SIZE_BYTES) {
-          throw new UnknownException(
-              String.format(
-                  "Manifest size (%d bytes) exceeds maximum allowed size (%d bytes)",
-                  contentLength, MAX_MANIFEST_SIZE_BYTES));
-        }
-
-        String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-        Header header = response.getFirstHeader("Docker-Content-Digest");
-        String digestHeader = header != null ? header.getValue() : null;
-
-        // If Docker-Content-Digest header is missing (e.g., AWS ECR), calculate it from the
-        // response body
-        if (digestHeader == null) {
-          try {
-            MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
-            byte[] hash = md.digest(responseBody.getBytes(StandardCharsets.UTF_8));
-            digestHeader = DIGEST_PREFIX + Hex.encodeHexString(hash);
-          } catch (NoSuchAlgorithmException e) {
-            throw new UnknownException(
-                "Failed to calculate manifest digest: "
-                    + DIGEST_ALGORITHM
-                    + " SHA-256 algorithm not available",
-                e);
-          }
-        }
-
-        // Validate digest if fetching by digest
-        if (reference.startsWith(DIGEST_PREFIX)) {
-          if (!reference.equals(digestHeader)) {
-            throw new UnknownException(
-                String.format(
-                    "Manifest digest mismatch: expected %s, got %s for %s:%s",
-                    reference, digestHeader, repository, reference));
-          }
-        }
-
-        return parseManifestResponse(responseBody, digestHeader);
+  private Manifest executeFetchManifestRequest(
+      HttpGet request, String repository, String reference) throws IOException {
+    try (CloseableHttpResponse response = httpClient.execute(request)) {
+      int statusCode = response.getStatusLine().getStatusCode();
+      if (statusCode != HttpStatus.SC_OK) {
+        String errorBody =
+            response.getEntity() != null
+                ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
+                : StringUtils.EMPTY;
+        String message =
+            String.format(
+                MANIFEST_ERROR_FORMAT,
+                repository, reference, registryEndpoint, statusCode, errorBody);
+        throw mapHttpStatusToException(statusCode, message);
       }
-    } catch (IOException e) {
-      throw new UnknownException("Failed to fetch manifest", e);
+
+      if (response.getEntity() == null) {
+        throw new UnknownException("Failed to fetch manifest: empty response body");
+      }
+
+      long contentLength = response.getEntity().getContentLength();
+      if (contentLength > MAX_MANIFEST_SIZE_BYTES) {
+        throw new UnknownException(
+            String.format(
+                "Manifest size (%d bytes) exceeds maximum allowed size (%d bytes)",
+                contentLength, MAX_MANIFEST_SIZE_BYTES));
+      }
+
+      String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+      String digestHeader = computeManifestDigest(response, responseBody);
+
+      if (reference.startsWith(DIGEST_PREFIX) && !reference.equals(digestHeader)) {
+        throw new UnknownException(
+            String.format(
+                "Manifest digest mismatch: expected %s, got %s for %s:%s",
+                reference, digestHeader, repository, reference));
+      }
+
+      return parseManifestResponse(responseBody, digestHeader);
+    }
+  }
+
+  private String computeManifestDigest(CloseableHttpResponse response, String responseBody) {
+    Header header = response.getFirstHeader("Docker-Content-Digest");
+    if (header != null) {
+      return header.getValue();
+    }
+    try {
+      MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
+      byte[] hash = md.digest(responseBody.getBytes(StandardCharsets.UTF_8));
+      return DIGEST_PREFIX + Hex.encodeHexString(hash);
+    } catch (NoSuchAlgorithmException e) {
+      throw new UnknownException(
+          "Failed to calculate manifest digest: " + DIGEST_ALGORITHM
+              + " SHA-256 algorithm not available",
+          e);
     }
   }
 
