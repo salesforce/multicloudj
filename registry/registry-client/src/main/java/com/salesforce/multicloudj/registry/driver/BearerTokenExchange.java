@@ -91,8 +91,7 @@ public class BearerTokenExchange {
             "Invalid JSON response from token endpoint: " + responseBody, e);
       }
 
-      // Token can be in "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry)
-      // field
+      // Token field is "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry)
       if (json.has(TOKEN_FIELD) && !json.get(TOKEN_FIELD).isJsonNull()) {
         return json.get(TOKEN_FIELD).getAsString();
       } else if (json.has(ACCESS_TOKEN_FIELD) && !json.get(ACCESS_TOKEN_FIELD).isJsonNull()) {

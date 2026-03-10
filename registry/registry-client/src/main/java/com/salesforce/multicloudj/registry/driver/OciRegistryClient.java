@@ -211,6 +211,7 @@ public class OciRegistryClient implements AutoCloseable {
         throw new UnknownException("Failed to fetch manifest: empty response body");
       }
 
+      // Check manifest size limit to prevent resource exhaustion
       long contentLength = response.getEntity().getContentLength();
       if (contentLength > MAX_MANIFEST_SIZE_BYTES) {
         throw new UnknownException(
@@ -222,6 +223,7 @@ public class OciRegistryClient implements AutoCloseable {
       String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
       String digestHeader = computeManifestDigest(response, responseBody);
 
+      // Validate digest if fetching by digest reference (e.g., repo@sha256:...)
       if (reference.startsWith(DIGEST_PREFIX) && !reference.equals(digestHeader)) {
         throw new UnknownException(
             String.format(
@@ -238,6 +240,7 @@ public class OciRegistryClient implements AutoCloseable {
     if (header != null) {
       return header.getValue();
     }
+    // Docker-Content-Digest header may be absent (e.g., AWS ECR); calculate from response body
     try {
       MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
       byte[] hash = md.digest(responseBody.getBytes(StandardCharsets.UTF_8));
