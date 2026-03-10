@@ -63,6 +63,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
       return createBlobStore(bucketNameToUse, credentialsOverrider);
     }
 
+    @Override
+    public boolean isObjectLockSupported() {
+      return true;
+    }
+
     private AbstractBlobStore createBlobStore(
         final String bucketName, final CredentialsOverrider credentialsOverrider) {
 

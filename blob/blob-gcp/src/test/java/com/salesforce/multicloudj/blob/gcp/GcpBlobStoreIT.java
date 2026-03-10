@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import static com.salesforce.multicloudj.common.util.common.TestsUtil.WIREMOCK_HOST;
+
 import com.google.api.client.http.HttpTransport;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -62,9 +64,24 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
       }
     }
 
+    @Override
+    public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials,
+        boolean useVersionedBucket, boolean useObjectLockBucket) {
+      // GCP retention/legal hold works on any bucket; use versioned bucket for object lock tests
+      return createBlobStore(
+          useValidBucket, useValidCredentials, useVersionedBucket || useObjectLockBucket);
+    }
+
+    @Override
+    public boolean isObjectLockSupported() {
+      return true;
+    }
+
     private AbstractBlobStore createBlobStore(
         final String bucketName, final Credentials credentials) {
 
+      // Connect directly to WireMock HTTPS to record/replay the full request (no CONNECT tunnel)
+      String host = "https://" + WIREMOCK_HOST + ":" + port;
       HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
       HttpTransportOptions transportOptions =
           HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> httpTransport).build();
@@ -73,7 +90,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
           StorageOptions.newBuilder()
               .setTransportOptions(transportOptions)
               .setCredentials(credentials)
-              .setHost(endpoint)
+              .setHost(host)
               .build()
               .getService();
 
