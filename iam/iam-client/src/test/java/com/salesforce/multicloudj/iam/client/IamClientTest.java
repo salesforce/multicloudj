@@ -17,10 +17,12 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
+import com.salesforce.multicloudj.iam.model.StorageActions;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
 import java.util.Arrays;
@@ -138,8 +140,8 @@ public class IamClientTest {
             .statement(
                 Statement.builder()
                     .sid("TestPolicy")
-                    .effect("Allow")
-                    .action("storage:GetObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
                     .build())
             .build();
     AttachInlinePolicyRequest request =
@@ -165,8 +167,8 @@ public class IamClientTest {
             .statement(
                 Statement.builder()
                     .sid("TestPolicy")
-                    .effect("Allow")
-                    .action("storage:GetObject")
+                    .effect(Effect.ALLOW)
+                    .action(StorageActions.GET_OBJECT)
                     .build())
             .build();
     AttachInlinePolicyRequest request =

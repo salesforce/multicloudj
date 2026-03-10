@@ -57,6 +57,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -109,6 +110,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final GcpTransformer transformer;
   private static final String TAG_PREFIX = "gcp-tag-";
+  private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
   public GcpBlobStore() {
     this(new Builder(), null, null);
@@ -178,7 +180,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
-        var channel = Channels.newInputStream(reader)) {
+         var channel = Channels.newInputStream(reader)) {
 
       Blob blob = storage.get(blobId);
       if (blob == null) {
@@ -219,7 +221,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    *
    * @param downloadRequest Wrapper object containing download data
    * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
+   * InputStream for reading the content
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
@@ -250,7 +252,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    * Performs Blob download
    *
    * @param downloadRequest Wrapper object containing download data
-   * @param path The Path that blob content will be written to
+   * @param path            The Path that blob content will be written to
    * @return Returns a DownloadResponse object that contains metadata about the blob
    */
   @Override
@@ -387,6 +389,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .metadata(request.getMetadata())
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
+        .checksumEnabled(request.isChecksumEnabled())
         .build();
   }
 
@@ -448,7 +451,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
-    return new MultipartUploadResponse(response.etag());
+    return new MultipartUploadResponse(response.etag(), response.crc32c());
   }
 
   @Override
@@ -564,6 +567,12 @@ public class GcpBlobStore extends AbstractBlobStore {
     options.add(Storage.SignUrlOption.withV4Signature());
     if (request.getMetadata() != null) {
       options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+    }
+    if (request.getContentDisposition() != null
+        && request.getType() == PresignedOperation.DOWNLOAD) {
+      Map<String, String> queryParams = new HashMap<>();
+      queryParams.put(RESPONSE_CONTENT_DISPOSITION, request.getContentDisposition());
+      options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
     return storage.signUrl(

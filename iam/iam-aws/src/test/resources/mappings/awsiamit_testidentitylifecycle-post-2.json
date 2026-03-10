@@ -1,0 +1,24 @@
+{
+  "id" : "4263f922-9cb4-4d8a-bcdf-243ee01b46f5",
+  "name" : "AwsIamIT_testIdentityLifecycle-POST-2",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateRole&Version=2010-05-08&RoleName=MultiCloudJTestRoleLifeCycle&AssumeRolePolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%5B%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%5D%7D%7D%5D%7D&Description=Test+identity+for+lifecycle+test",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<CreateRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreateRoleResult>\n    <Role>\n      <Path>/</Path>\n      <AssumeRolePolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%5B%22arn%3Aaws%3Aiam%3A%3A654654370895%3Aroot%22%5D%7D%7D%5D%7D</AssumeRolePolicyDocument>\n      <RoleId>AROAZQ3DQ6RHUQ3VPZU7X</RoleId>\n      <RoleName>MultiCloudJTestRoleLifeCycle</RoleName>\n      <Arn>arn:aws:iam::654654370895:role/MultiCloudJTestRoleLifeCycle</Arn>\n      <CreateDate>2026-03-10T06:16:17Z</CreateDate>\n    </Role>\n  </CreateRoleResult>\n  <ResponseMetadata>\n    <RequestId>15fb3022-3c3b-4763-982c-452752ff30b0</RequestId>\n  </ResponseMetadata>\n</CreateRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "15fb3022-3c3b-4763-982c-452752ff30b0",
+      "Date" : "Tue, 10 Mar 2026 06:16:17 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "4263f922-9cb4-4d8a-bcdf-243ee01b46f5",
+  "persistent" : true,
+  "insertionIndex" : 32
+}

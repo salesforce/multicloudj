@@ -126,33 +126,47 @@ class GcpBlobStoreTest {
   private static final String TEST_ETAG = "test-etag";
   private static final byte[] TEST_CONTENT = "test content".getBytes();
 
-  @Mock private Storage mockStorage;
+  @Mock
+  private Storage mockStorage;
 
-  @Mock private MultipartUploadClient mpuClient;
+  @Mock
+  private MultipartUploadClient mpuClient;
 
-  @Mock private GcpTransformer mockTransformer;
+  @Mock
+  private GcpTransformer mockTransformer;
 
-  @Mock private GcpTransformerSupplier mockTransformerSupplier;
+  @Mock
+  private GcpTransformerSupplier mockTransformerSupplier;
 
-  @Mock private Blob mockBlob;
+  @Mock
+  private Blob mockBlob;
 
-  @Mock private BlobId mockBlobId;
+  @Mock
+  private BlobId mockBlobId;
 
-  @Mock private Page<Blob> mockPage;
+  @Mock
+  private Page<Blob> mockPage;
 
-  @Mock private UploadResponse mockUploadResponse;
+  @Mock
+  private UploadResponse mockUploadResponse;
 
-  @Mock private BlobInfo mockBlobInfo;
+  @Mock
+  private BlobInfo mockBlobInfo;
 
-  @Mock private WriteChannel mockWriteChannel;
+  @Mock
+  private WriteChannel mockWriteChannel;
 
-  @Mock private ReadChannel mockReadChannel;
+  @Mock
+  private ReadChannel mockReadChannel;
 
-  @Mock private Storage.CopyRequest mockCopyRequest;
+  @Mock
+  private Storage.CopyRequest mockCopyRequest;
 
-  @Mock private CopyWriter mockCopyWriter;
+  @Mock
+  private CopyWriter mockCopyWriter;
 
-  @TempDir Path tempDir;
+  @TempDir
+  Path tempDir;
 
   private GcpBlobStore gcpBlobStore;
 
@@ -277,7 +291,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.getKmsTargetOptions(uploadRequest))
         .thenReturn(new Storage.BlobTargetOption[0]);
     when(mockStorage.create(
-            eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class)))
+        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
@@ -306,7 +320,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.getKmsWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-            eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
@@ -335,7 +349,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.getKmsWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-            eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
@@ -361,7 +375,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.getKmsWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-            eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
         .thenThrow(new IOException("Test exception"));
 
     // When & Then
@@ -1105,10 +1119,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo),
-            any(Long.class),
-            eq(TimeUnit.MILLISECONDS),
-            any(Storage.SignUrlOption[].class)))
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
     // When
@@ -1140,10 +1154,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo),
-            any(Long.class),
-            eq(TimeUnit.MILLISECONDS),
-            any(Storage.SignUrlOption[].class)))
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
     // When
@@ -1175,10 +1189,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo),
-            any(Long.class),
-            eq(TimeUnit.MILLISECONDS),
-            any(Storage.SignUrlOption[].class)))
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
     // When
@@ -1212,10 +1226,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo),
-            any(Long.class),
-            eq(TimeUnit.MILLISECONDS),
-            any(Storage.SignUrlOption[].class)))
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
     // When
@@ -1248,10 +1262,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo),
-            any(Long.class),
-            eq(TimeUnit.MILLISECONDS),
-            any(Storage.SignUrlOption[].class)))
+        eq(mockBlobInfo),
+        any(Long.class),
+        eq(TimeUnit.MILLISECONDS),
+        any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
     // When
@@ -1266,6 +1280,84 @@ class GcpBlobStoreTest {
             eq(duration.toMillis()),
             eq(TimeUnit.MILLISECONDS),
             any(Storage.SignUrlOption[].class));
+  }
+
+  @Test
+  void testDoGeneratePresignedUrl_WithContentDisposition() throws Exception {
+    Duration duration = Duration.ofHours(4);
+    String contentDisposition = "attachment; filename=\"report.pdf\"";
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key(TEST_KEY)
+            .duration(duration)
+            .contentDisposition(contentDisposition)
+            .build();
+
+    URL expectedUrl = new URL("https://signed-url-with-cd.example.com");
+
+    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockStorage.signUrl(
+            eq(mockBlobInfo),
+            any(Long.class),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class)))
+        .thenReturn(expectedUrl);
+
+    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+    assertEquals(expectedUrl, actualUrl);
+    ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
+    verify(mockStorage)
+        .signUrl(
+            eq(mockBlobInfo),
+            eq(duration.toMillis()),
+            eq(TimeUnit.MILLISECONDS),
+            optionsCaptor.capture());
+    Storage.SignUrlOption[] options = optionsCaptor.getValue();
+    assertEquals(
+        3, options.length, "Download with contentDisposition should have httpMethod, v4Signature,"
+            + " and queryParams options");
+  }
+
+  @Test
+  void testDoGeneratePresignedUrl_UploadIgnoresContentDisposition() throws Exception {
+    Duration duration = Duration.ofHours(4);
+    String contentDisposition = "attachment; filename=\"report.pdf\"";
+    PresignedUrlRequest presignedUrlRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(duration)
+            .contentDisposition(contentDisposition)
+            .build();
+
+    URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
+
+    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockStorage.signUrl(
+            eq(mockBlobInfo),
+            any(Long.class),
+            eq(TimeUnit.MILLISECONDS),
+            any(Storage.SignUrlOption[].class)))
+        .thenReturn(expectedUrl);
+
+    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+
+    assertEquals(expectedUrl, actualUrl);
+    ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
+        ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
+    verify(mockStorage)
+        .signUrl(
+            eq(mockBlobInfo),
+            eq(duration.toMillis()),
+            eq(TimeUnit.MILLISECONDS),
+            optionsCaptor.capture());
+    Storage.SignUrlOption[] options = optionsCaptor.getValue();
+    assertEquals(
+        2, options.length,
+        "Upload should only have httpMethod and v4Signature options, no queryParams");
   }
 
   // Test class to access protected methods
@@ -1517,7 +1609,7 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
-            eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any()))
+        eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(null);
 
     URL url = gcpBlobStore.doGeneratePresignedUrl(request);
@@ -1555,7 +1647,7 @@ class GcpBlobStoreTest {
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
       when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.createFrom(
-              eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class)))
+          eq(mockBlobInfo), eq(tempFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -1577,7 +1669,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
     when(mockStorage.createFrom(
-            any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class)))
+        any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class)))
         .thenThrow(new IOException("File not found"));
 
     assertThrows(
@@ -1595,7 +1687,7 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getKmsTargetOptions(request)).thenReturn(new Storage.BlobTargetOption[0]);
     when(mockStorage.create(
-            eq(mockBlobInfo), eq(emptyArray), any(Storage.BlobTargetOption[].class)))
+        eq(mockBlobInfo), eq(emptyArray), any(Storage.BlobTargetOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -1615,7 +1707,7 @@ class GcpBlobStoreTest {
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
       when(mockTransformer.getKmsWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.createFrom(
-              eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class)))
+          eq(mockBlobInfo), eq(emptyFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -2741,6 +2833,61 @@ class GcpBlobStoreTest {
     assertEquals(TEST_BUCKET, capturedRequest.bucket());
     assertEquals(TEST_KEY, capturedRequest.key());
     assertEquals("test-upload-id", capturedRequest.uploadId());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_WithChecksum() {
+    // Given
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(TEST_BUCKET)
+        .key(TEST_KEY)
+        .id("test-upload-id")
+        .checksumEnabled(true)
+        .build();
+
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts = Arrays.asList(
+        new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L),
+        new com.salesforce.multicloudj.blob.driver.UploadPartResponse(2, "etag-2", 2048L)
+    );
+
+    CompleteMultipartUploadResponse mockGcpResponse = CompleteMultipartUploadResponse.builder()
+        .etag("complete-etag")
+        .crc32c("composite-crc32c==")
+        .build();
+
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    // When
+    MultipartUploadResponse result = gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+    // Then
+    assertNotNull(result);
+    assertEquals("complete-etag", result.getEtag());
+    assertEquals("composite-crc32c==", result.getChecksumValue());
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithChecksumEnabled() {
+    // Given
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumEnabled(true)
+        .build();
+
+    CreateMultipartUploadResponse mockGcpResponse = CreateMultipartUploadResponse.builder()
+        .uploadId("test-upload-id-checksum")
+        .build();
+
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    // When
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+    // Then
+    assertNotNull(result);
+    assertTrue(result.isChecksumEnabled());
   }
 
   @Test

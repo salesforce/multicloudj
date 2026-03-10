@@ -21,9 +21,11 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
+import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateIdentityRequest;
 import com.salesforce.multicloudj.iam.model.DeleteIdentityRequest;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetIdentityRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
@@ -62,18 +64,6 @@ public class GcpIam extends AbstractIam {
    * is provided, it also grants the roles/iam.serviceAccountTokenCreator role to the specified
    * trusted principals, enabling them to impersonate this service account.
    *
-   * @param identityName the service account ID (e.g., "my-service-account"). This will be used to
-   *     construct the full email: {identityName}@{project-id}.iam.gserviceaccount.com
-   * @param description optional description for the service account (can be null, defaults to empty
-   *     string)
-   * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
-   *     (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
-   * @param region the region (not used in GCP IAM as service accounts are global resources)
-   * @param trustConfig optional trust configuration containing principals that should be granted
-   *     the roles/iam.serviceAccountTokenCreator role. Principals can be specified as: - Service
-   *     account email: "sa@project.iam.gserviceaccount.com" - Formatted member:
-   *     "serviceAccount:sa@project.iam.gserviceaccount.com" - User: "user:user@example.com" -
-   *     Group: "group:group@example.com"
    * @param request the request containing identity name, description, tenant ID, region, trust
    *     config, and options
    * @return the service account email address (unique identifier) in the format:
@@ -164,20 +154,27 @@ public class GcpIam extends AbstractIam {
   }
 
   /**
-   * Attaches an inline policy to a resource. This implementation treats each action in the
-   * PolicyDocument statement as a GCP IAM role name and grants that role to the IAM member. The
-   * action values are used directly as role names (e.g., "roles/iam.serviceAccountUser",
-   * "roles/storage.objectViewer").
+   * Attaches an inline policy to a resource. This implementation translates substrate-neutral
+   * actions from the PolicyDocument to GCP IAM roles and grants those roles to the IAM member via
+   * bindings.
+   *
+   * <p>Translation examples:
+   *
+   * <ul>
+   *   <li>storage:GetObject → roles/storage.objectViewer
+   *   <li>storage:PutObject → roles/storage.objectCreator
+   *   <li>compute:CreateInstance → roles/compute.instanceAdmin.v1
+   * </ul>
    *
    * <p>Note: GCP IAM is deny-by-default: access is denied unless explicitly allowed via bindings.
    *
-   * <p>Note: This implementation only processes "Allow" statements. "Deny" statements are skipped
-   * because ProjectsClient only supports allow policies (bindings). Deny policies require the IAM
-   * v2 API (PoliciesClient) and are managed separately from allow policies.
+   * <p>Note: This implementation only processes "Allow" statements. "Deny" statements are not
+   * supported because ProjectsClient only supports allow policies (bindings). Deny policies require
+   * the IAM v2 API (PoliciesClient) and are managed separately from allow policies.
    *
-   * @param request the request; GCP uses identityName as member, tenantId as resource name (e.g.
-   *     organizations/123, folders/456, projects/my-project). Policy document actions are treated
-   *     as GCP IAM role names.
+   * @param request the substrate-neutral policy document
+   * @throws SubstrateSdkException if translation fails (unknown action, unsupported condition,
+   *     etc.)
    */
   @Override
   protected void doAttachInlinePolicy(AttachInlinePolicyRequest request) {
@@ -201,13 +198,16 @@ public class GcpIam extends AbstractIam {
     for (Statement statement : request.getPolicyDocument().getStatements()) {
       // Skip Deny statements: ProjectsClient only supports allow policies (bindings).
       // Deny policies require the IAM v2 API (PoliciesClient) and are managed separately.
-      if (!EFFECT_ALLOW.equalsIgnoreCase(statement.getEffect())) {
+      if (statement.getEffect() != Effect.ALLOW) {
         continue;
       }
 
-      // Treat each action as a GCP IAM role name
-      for (String action : statement.getActions()) {
-        policy = addBinding(policy, action, member);
+      // Translate substrate-neutral actions to GCP roles
+      List<String> roles = GcpIamPolicyTranslator.translateActionsToRoles(statement);
+
+      // Add binding for each translated role
+      for (String role : roles) {
+        policy = addBinding(policy, role, member);
       }
     }
 
@@ -324,12 +324,20 @@ public class GcpIam extends AbstractIam {
 
     // Build a PolicyDocument to represent this role binding
     // The version field is immaterial for GCP IAM policy document.
+    // Convert GCP role format (e.g., "roles/iam.serviceAccountUser") to substrate-neutral format
+    String actionString =
+        request.getRoleName().startsWith("roles/")
+            ? "gcp-role:" + request.getRoleName().substring("roles/".length())
+            : request.getRoleName();
     PolicyDocument policyDocument =
         PolicyDocument.builder()
             .name(request.getRoleName())
             .version("")
             .statement(
-                Statement.builder().effect(EFFECT_ALLOW).action(request.getRoleName()).build())
+                Statement.builder()
+                    .effect(Effect.ALLOW)
+                    .action(Action.of(actionString))
+                    .build())
             .build();
 
     // Convert PolicyDocument to JSON string using Jackson
@@ -361,7 +369,7 @@ public class GcpIam extends AbstractIam {
    *     "serviceAccount:my-sa@project.iam.gserviceaccount.com", "user:user@example.com",
    *     "group:group@example.com") tenantId the resource name that owns the IAM policy. Examples
    *     include: "organizations/123456789012", "folders/987654321098", "projects/my-project",
-   *     "projects/my-project/topics/my-topic",, Can be any GCP resource that supports IAM policies.
+   *     "projects/my-project/topics/my-topic", Can be any GCP resource that supports IAM policies.
    *     region the region (optional for GCP)
    * @return a list of role names (e.g., "roles/iam.serviceAccountUser",
    *     "roles/storage.objectViewer")
@@ -391,13 +399,6 @@ public class GcpIam extends AbstractIam {
    * Removes an inline policy (role) from an IAM member. In GCP, this removes the IAM member from
    * the specified role binding in the resource's IAM policy.
    *
-   * @param identityName the IAM member (e.g.,
-   *     "serviceAccount:my-sa@project.iam.gserviceaccount.com", "user:user@example.com",
-   *     "group:group@example.com")
-   * @param policyName the role name to remove (e.g., "roles/iam.serviceAccountUser")
-   * @param tenantId the resource name that owns the IAM policy. Examples include:
-   *     "organizations/123456789012", "folders/987654321098", "projects/my-project",
-   *     "projects/my-project/topics/my-topic",, Can be any GCP resource that supports IAM policies.
    * @param request the request containing identity name, policy name, tenant ID, and region
    */
   @Override
@@ -505,13 +506,7 @@ public class GcpIam extends AbstractIam {
    * operation cannot be undone. The method accepts either a service account ID or full email
    * address as input and constructs the appropriate resource name for the API call.
    *
-   * @param identityName the service account identifier to delete, which can be: - Service account
-   *     ID: "my-service-account" - Full email:
-   *     "my-service-account@project-id.iam.gserviceaccount.com" Both formats are accepted and will
-   *     be normalized to the full resource name.
-   * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
-   *     (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
-   * @param region the region (not used in GCP IAM as service accounts are global resources)
+   * @param request the request containing identity name, tenant ID, and region
    * @throws ApiException if the service account is not found, access is denied, or deletion fails
    *     (propagates to IamClient)
    */
@@ -535,11 +530,6 @@ public class GcpIam extends AbstractIam {
    * the unique identifier. The method accepts either a service account ID or full email address as
    * input and constructs the appropriate resource name for the API call.
    *
-   * @param identityName the service account identifier, which can be: - Service account ID:
-   *     "my-service-account" - Full email: "my-service-account@project-id.iam.gserviceaccount.com"
-   *     Both formats are accepted and will be normalized to the full resource name.
-   * @param tenantId the GCP project ID (e.g., "my-project-123") or full project resource name
-   *     (e.g., "projects/my-project-123"). The "projects/" prefix is optional.
    * @param request the request containing identity name, tenant ID, and region
    * @return the service account email address (unique identifier) in the format:
    *     {account-id}@{project-id}.iam.gserviceaccount.com

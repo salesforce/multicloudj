@@ -9,10 +9,18 @@ public class UploadPartResponse {
   private final int partNumber;
   private final String etag;
   private final long sizeInBytes;
+  private final String checksumValue;
 
   public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes) {
+    this(partNumber, etag, sizeInBytes, null);
+  }
+
+  public UploadPartResponse(final int partNumber, final String etag, final long sizeInBytes,
+                            final String checksumValue) {
     this.partNumber = partNumber;
     this.etag = etag;
     this.sizeInBytes = sizeInBytes;
+    this.checksumValue = checksumValue;
   }
+
 }

@@ -20,12 +20,12 @@ import lombok.Singular;
  * PolicyDocument policy = PolicyDocument.builder()
  *     .statement(Statement.builder()
  *         .sid("StorageAccess")
- *         .effect("Allow")
- *         .action("storage:GetObject")
- *         .action("storage:PutObject")
+ *         .effect(Effect.ALLOW)
+ *         .action(StorageActions.GET_OBJECT)
+ *         .action(StorageActions.PUT_OBJECT)
  *         .principal("arn:aws:iam::123456789012:user/ExampleUser")
  *         .resource("storage://my-bucket/*")
- *         .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+ *         .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
  *         .build())
  *     .build();
  * </pre>

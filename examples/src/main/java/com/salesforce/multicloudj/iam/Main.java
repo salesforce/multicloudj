@@ -4,10 +4,12 @@ import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.iam.client.IamClient;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
 import com.salesforce.multicloudj.iam.model.CreateOptions;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
 import com.salesforce.multicloudj.iam.model.Statement;
+import com.salesforce.multicloudj.iam.model.StorageActions;
 import com.salesforce.multicloudj.iam.model.TrustConfiguration;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -275,7 +277,7 @@ public class Main {
         "Press Enter to remove the storage policy (check cloud console before proceeding)...");
     showInfo("Removing storage policy...");
     try {
-      removePolicy("roles/storage.admin");
+      removePolicy("storage-policy");
       showSuccess("Successfully removed storage policy");
     } catch (Exception e) {
       showError("Failed to remove policy: " + e.getMessage());
@@ -374,20 +376,37 @@ public class Main {
   }
 
   /**
-   * Attach a storage policy using a single comprehensive GCP IAM role. Using roles/storage.admin
-   * which provides full storage permissions.
+   * Attach a storage policy using substrate-neutral actions. These actions will be translated to
+   * cloud-specific formats: - AWS: storage:GetObject → s3:GetObject, storage:* → s3:* - GCP:
+   * storage:GetObject → roles/storage.objectViewer, storage:* → roles/storage.admin
    */
   private void attachStoragePolicy() throws Exception {
     try (IamClient iamClient = initializeClient()) {
-      // Create a policy document using a single comprehensive GCP IAM role
+      // Create a comprehensive policy document using substrate-neutral actions
       PolicyDocument policyDocument =
           PolicyDocument.builder()
               .version("2024-01-01")
               .statement(
                   Statement.builder()
+                      .sid("StorageReadAccess")
+                      .effect(Effect.ALLOW)
+                      .action(StorageActions.GET_OBJECT)
+                      .action(StorageActions.LIST_BUCKET)
+                      .resource("storage://demo-bucket/*")
+                      .build())
+              .statement(
+                  Statement.builder()
+                      .sid("StorageWriteAccess")
+                      .effect(Effect.ALLOW)
+                      .action(StorageActions.PUT_OBJECT)
+                      .action(StorageActions.DELETE_OBJECT)
+                      .resource("storage://demo-bucket/*")
+                      .build())
+              .statement(
+                  Statement.builder()
                       .sid("StorageFullAccess")
-                      .effect("Allow")
-                      .action("roles/storage.admin")
+                      .effect(Effect.ALLOW)
+                      .action(StorageActions.ALL)
                       .resource("storage://demo-bucket/*")
                       .build())
               .build();

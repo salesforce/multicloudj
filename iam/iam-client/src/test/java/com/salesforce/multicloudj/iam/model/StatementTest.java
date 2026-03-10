@@ -18,24 +18,27 @@ public class StatementTest {
     Statement statement =
         Statement.builder()
             .sid("TestStatement")
-            .effect("Allow")
-            .action("storage:GetObject")
-            .action("storage:PutObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
+            .action(StorageActions.PUT_OBJECT)
             .resource("storage://my-bucket/*")
             .principal("arn:aws:iam::123456789012:user/TestUser")
-            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
             .build();
 
     assertEquals("TestStatement", statement.getSid());
-    assertEquals("Allow", statement.getEffect());
-    assertEquals(Arrays.asList("storage:GetObject", "storage:PutObject"), statement.getActions());
+    assertEquals(Effect.ALLOW, statement.getEffect());
+    assertEquals(2, statement.getActions().size());
+    assertEquals(StorageActions.GET_OBJECT, statement.getActions().get(0));
+    assertEquals(StorageActions.PUT_OBJECT, statement.getActions().get(1));
     assertEquals(Arrays.asList("storage://my-bucket/*"), statement.getResources());
     assertEquals(
         Arrays.asList("arn:aws:iam::123456789012:user/TestUser"), statement.getPrincipals());
 
-    assertTrue(statement.getConditions().containsKey("StringEquals"));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.STRING_EQUALS));
     assertEquals(
-        "us-west-2", statement.getConditions().get("StringEquals").get("aws:RequestedRegion"));
+        "us-west-2",
+        statement.getConditions().get(ConditionOperator.STRING_EQUALS).get("aws:RequestedRegion"));
   }
 
   @Test
@@ -43,14 +46,15 @@ public class StatementTest {
     Statement statement =
         Statement.builder()
             .sid("MinimalStatement")
-            .effect("Deny")
-            .action("storage:DeleteObject")
+            .effect(Effect.DENY)
+            .action(StorageActions.DELETE_OBJECT)
             .resource("storage://sensitive-bucket/*")
             .build();
 
     assertEquals("MinimalStatement", statement.getSid());
-    assertEquals("Deny", statement.getEffect());
-    assertEquals(Arrays.asList("storage:DeleteObject"), statement.getActions());
+    assertEquals(Effect.DENY, statement.getEffect());
+    assertEquals(1, statement.getActions().size());
+    assertEquals(StorageActions.DELETE_OBJECT, statement.getActions().get(0));
     assertEquals(Arrays.asList("storage://sensitive-bucket/*"), statement.getResources());
     assertTrue(statement.getPrincipals().isEmpty());
     assertTrue(statement.getConditions().isEmpty());
@@ -63,8 +67,8 @@ public class StatementTest {
     Statement statement =
         Statement.builder()
             .sid("MultiResourceStatement")
-            .effect("Allow")
-            .action("storage:GetObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
             .resource("storage://bucket1/*")
             .resource("storage://bucket2/*")
             .build();
@@ -81,8 +85,8 @@ public class StatementTest {
     Statement statement =
         Statement.builder()
             .sid("MultiPrincipalStatement")
-            .effect("Allow")
-            .action("storage:GetObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
             .resource("storage://shared-bucket/*")
             .principal("arn:aws:iam::123456789012:user/User1")
             .principal("arn:aws:iam::123456789012:user/User2")
@@ -96,33 +100,35 @@ public class StatementTest {
     Statement statement =
         Statement.builder()
             .sid("MultiConditionStatement")
-            .effect("Allow")
-            .action("storage:GetObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
             .resource("storage://conditional-bucket/*")
-            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
-            .condition("DateGreaterThan", "aws:CurrentTime", "2024-01-01T00:00:00Z")
+            .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
+            .condition(
+                ConditionOperator.DATE_GREATER_THAN, "aws:CurrentTime", "2024-01-01T00:00:00Z")
             .build();
 
-    assertTrue(statement.getConditions().containsKey("StringEquals"));
-    assertTrue(statement.getConditions().containsKey("DateGreaterThan"));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.STRING_EQUALS));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.DATE_GREATER_THAN));
     assertEquals(
-        "us-west-2", statement.getConditions().get("StringEquals").get("aws:RequestedRegion"));
+        "us-west-2",
+        statement.getConditions().get(ConditionOperator.STRING_EQUALS).get("aws:RequestedRegion"));
     assertEquals(
         "2024-01-01T00:00:00Z",
-        statement.getConditions().get("DateGreaterThan").get("aws:CurrentTime"));
+        statement.getConditions().get(ConditionOperator.DATE_GREATER_THAN).get("aws:CurrentTime"));
   }
 
   @Test
   public void testStatementWithoutSid() {
     Statement statement =
         Statement.builder()
-            .effect("Allow")
-            .action("storage:GetObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
             .resource("storage://no-sid-bucket/*")
             .build();
 
     assertNull(statement.getSid());
-    assertEquals("Allow", statement.getEffect());
+    assertEquals(Effect.ALLOW, statement.getEffect());
   }
 
   @Test
@@ -141,7 +147,7 @@ public class StatementTest {
         () -> {
           Statement.builder()
               .sid("NoEffectStatement")
-              .action("storage:GetObject")
+              .action(StorageActions.GET_OBJECT)
               .resource("storage://test-bucket/*")
               .build();
         });
@@ -154,34 +160,21 @@ public class StatementTest {
         () -> {
           Statement.builder()
               .sid("NoActionsStatement")
-              .effect("Allow")
+              .effect(Effect.ALLOW)
               .resource("storage://test-bucket/*")
               .build();
         });
   }
 
   @Test
-  public void testStatementWithEmptyEffect() {
+  public void testStatementWithNullAction() {
     assertThrows(
         InvalidArgumentException.class,
         () -> {
           Statement.builder()
-              .sid("EmptyEffectStatement")
-              .effect("")
-              .action("storage:GetObject")
-              .build();
-        });
-  }
-
-  @Test
-  public void testStatementWithWhitespaceEffect() {
-    assertThrows(
-        InvalidArgumentException.class,
-        () -> {
-          Statement.builder()
-              .sid("WhitespaceEffectStatement")
-              .effect("   ")
-              .action("storage:GetObject")
+              .sid("NullActionStatement")
+              .effect(Effect.ALLOW)
+              .action((Action) null)
               .build();
         });
   }
@@ -190,11 +183,8 @@ public class StatementTest {
   public void testNullAndEmptyValueHandling() {
     Statement statement =
         Statement.builder()
-            .effect("Allow")
-            .action(null)
-            .action("")
-            .action("   ")
-            .action("storage:GetObject")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
             .resource(null)
             .resource("")
             .resource("   ")
@@ -204,13 +194,13 @@ public class StatementTest {
             .principal("   ")
             .principal("valid-principal")
             .condition(null, "key", "value")
-            .condition("StringEquals", null, "value")
-            .condition("StringEquals", "key", null)
-            .condition("StringEquals", "aws:RequestedRegion", "us-west-2")
+            .condition(ConditionOperator.STRING_EQUALS, null, "value")
+            .condition(ConditionOperator.STRING_EQUALS, "key", null)
+            .condition(ConditionOperator.STRING_EQUALS, "aws:RequestedRegion", "us-west-2")
             .build();
 
     assertEquals(1, statement.getActions().size());
-    assertEquals("storage:GetObject", statement.getActions().get(0));
+    assertEquals(StorageActions.GET_OBJECT, statement.getActions().get(0));
 
     assertEquals(1, statement.getResources().size());
     assertEquals("storage://test-bucket/*", statement.getResources().get(0));
@@ -219,51 +209,83 @@ public class StatementTest {
     assertEquals("valid-principal", statement.getPrincipals().get(0));
 
     assertEquals(1, statement.getConditions().size());
-    assertTrue(statement.getConditions().containsKey("StringEquals"));
+    assertTrue(statement.getConditions().containsKey(ConditionOperator.STRING_EQUALS));
     assertEquals(
-        "us-west-2", statement.getConditions().get("StringEquals").get("aws:RequestedRegion"));
+        "us-west-2",
+        statement.getConditions().get(ConditionOperator.STRING_EQUALS).get("aws:RequestedRegion"));
   }
 
   @Test
-  public void testListMethodsWithNullValues() {
-    List<String> principals = Arrays.asList("principal1", null, "", "   ", "principal2");
-    List<String> actions = Arrays.asList("storage:GetObject", null, "", "   ", "storage:PutObject");
-    List<String> resources =
-        Arrays.asList("storage://bucket1/*", null, "", "   ", "storage://bucket2/*");
-
+  public void testMixedServiceActions() {
     Statement statement =
         Statement.builder()
-            .effect("Allow")
-            .actions(actions)
-            .resources(resources)
-            .principals(principals)
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
+            .action(ComputeActions.CREATE_INSTANCE)
+            .action(IamActions.ASSUME_ROLE)
             .build();
 
-    assertEquals(2, statement.getActions().size());
-    assertTrue(statement.getActions().contains("storage:GetObject"));
-    assertTrue(statement.getActions().contains("storage:PutObject"));
-
-    assertEquals(2, statement.getResources().size());
-    assertTrue(statement.getResources().contains("storage://bucket1/*"));
-    assertTrue(statement.getResources().contains("storage://bucket2/*"));
-
-    assertEquals(2, statement.getPrincipals().size());
-    assertTrue(statement.getPrincipals().contains("principal1"));
-    assertTrue(statement.getPrincipals().contains("principal2"));
+    assertEquals(3, statement.getActions().size());
+    assertEquals(StorageActions.GET_OBJECT, statement.getActions().get(0));
+    assertEquals(ComputeActions.CREATE_INSTANCE, statement.getActions().get(1));
+    assertEquals(IamActions.ASSUME_ROLE, statement.getActions().get(2));
   }
 
   @Test
-  public void testListMethodsWithNullLists() {
-    // Test that individual actions and resources are preserved even without using list methods
+  public void testWildcardActions() {
     Statement statement =
         Statement.builder()
-            .effect("Allow")
-            .action("storage:GetObject")
-            .resource("storage://test-bucket/*")
+            .effect(Effect.ALLOW)
+            .action(StorageActions.ALL)
+            .action(ComputeActions.ALL)
+            .action(IamActions.ALL)
             .build();
+
+    assertEquals(3, statement.getActions().size());
+    assertTrue(statement.getActions().get(0).isWildcard());
+    assertTrue(statement.getActions().get(1).isWildcard());
+    assertTrue(statement.getActions().get(2).isWildcard());
+  }
+
+  @Test
+  public void testCustomAction() {
+    Action customAction = Action.of("customService:CustomOperation");
+    Statement statement = Statement.builder().effect(Effect.ALLOW).action(customAction).build();
 
     assertEquals(1, statement.getActions().size());
-    assertEquals(1, statement.getResources().size());
-    assertTrue(statement.getPrincipals().isEmpty());
+    assertEquals("customService:CustomOperation", statement.getActions().get(0).toActionString());
+  }
+
+  @Test
+  public void testGetActionsAsStrings() {
+    Statement statement =
+        Statement.builder()
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
+            .action(StorageActions.PUT_OBJECT)
+            .build();
+
+    List<String> actionStrings = statement.getActionsAsStrings();
+    assertEquals(2, actionStrings.size());
+    assertEquals("storage:GetObject", actionStrings.get(0));
+    assertEquals("storage:PutObject", actionStrings.get(1));
+  }
+
+  @Test
+  public void testGetConditionsAsStrings() {
+    Statement statement =
+        Statement.builder()
+            .effect(Effect.ALLOW)
+            .action(StorageActions.GET_OBJECT)
+            .condition(ConditionOperator.STRING_EQUALS, "key1", "value1")
+            .condition(ConditionOperator.NUMERIC_LESS_THAN, "key2", 100)
+            .build();
+
+    var conditionStrings = statement.getConditionsAsStrings();
+    assertEquals(2, conditionStrings.size());
+    assertTrue(conditionStrings.containsKey("stringEquals"));
+    assertTrue(conditionStrings.containsKey("numericLessThan"));
+    assertEquals("value1", conditionStrings.get("stringEquals").get("key1"));
+    assertEquals(100, conditionStrings.get("numericLessThan").get("key2"));
   }
 }

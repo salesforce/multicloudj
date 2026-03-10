@@ -16,7 +16,9 @@ import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.iam.client.TestIam;
+import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
+import com.salesforce.multicloudj.iam.model.Effect;
 import com.salesforce.multicloudj.iam.model.GetAttachedPoliciesRequest;
 import com.salesforce.multicloudj.iam.model.GetInlinePolicyDetailsRequest;
 import com.salesforce.multicloudj.iam.model.PolicyDocument;
@@ -274,7 +276,8 @@ public class AbstractIamTest {
     PolicyDocument policy =
         PolicyDocument.builder()
             .version("2012-10-17")
-            .statement(Statement.builder().effect("Allow").action("s3:GetObject").build())
+            .statement(
+                Statement.builder().effect(Effect.ALLOW).action(Action.of("s3:GetObject")).build())
             .build();
 
     // createIdentity
