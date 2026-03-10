@@ -28,6 +28,13 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
 
   @Override
+  protected String[] getWireMockExtensionClasses() {
+    return new String[] {
+      "com.salesforce.multicloudj.blob.gcp.util.GcpBatchBodyRelaxingTransformer"
+    };
+  }
+
+  @Override
   protected Harness createHarness() {
     return new HarnessImpl();
   }
@@ -62,14 +69,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
         return createBlobStore(bucketNameToUse, mockCreds);
       }
-    }
-
-    @Override
-    public AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials,
-        boolean useVersionedBucket, boolean useObjectLockBucket) {
-      // GCP retention/legal hold works on any bucket; use versioned bucket for object lock tests
-      return createBlobStore(
-          useValidBucket, useValidCredentials, useVersionedBucket || useObjectLockBucket);
     }
 
     @Override

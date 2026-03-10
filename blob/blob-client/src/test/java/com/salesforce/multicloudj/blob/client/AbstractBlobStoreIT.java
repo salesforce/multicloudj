@@ -81,17 +81,6 @@ public abstract class AbstractBlobStoreIT {
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
     /**
-     * Creates a blob store, optionally with an object-lock-enabled bucket.
-     * Default implementation ignores useObjectLockBucket and delegates to the 3-arg overload.
-     * Override in providers that support object lock (e.g. AWS, GCP) to use an object-lock
-     * bucket when true.
-     */
-    default AbstractBlobStore createBlobStore(boolean useValidBucket, boolean useValidCredentials,
-        boolean useVersionedBucket, boolean useObjectLockBucket) {
-      return createBlobStore(useValidBucket, useValidCredentials, useVersionedBucket);
-    }
-
-    /**
      * Whether this provider supports object lock (WORM). When false, object lock conformance
      * tests are skipped.
      */
@@ -2087,7 +2076,7 @@ public abstract class AbstractBlobStoreIT {
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
 
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     try {
@@ -2127,7 +2116,7 @@ public abstract class AbstractBlobStoreIT {
     byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE;
 
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     try {
@@ -2166,7 +2155,7 @@ public abstract class AbstractBlobStoreIT {
     String key = "conformance-tests/objectlock/no-lock";
     byte[] content = "Object without lock test".getBytes(StandardCharsets.UTF_8);
 
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     try {
@@ -2203,7 +2192,7 @@ public abstract class AbstractBlobStoreIT {
     Assumptions.assumeTrue(
         harness.isObjectLockSupported(), "Object lock not supported by this provider");
 
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     Assertions.assertThrows(
@@ -2922,7 +2911,7 @@ public abstract class AbstractBlobStoreIT {
     Assumptions.assumeTrue(
         harness.isObjectLockSupported(), "Object lock not supported by this provider");
 
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
     String key = "conformance-tests/blob-for-tagging-objectlock";
