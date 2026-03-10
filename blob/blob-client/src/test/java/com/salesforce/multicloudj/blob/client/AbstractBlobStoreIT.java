@@ -2067,6 +2067,12 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
+      Instant.parse("2026-03-11T15:47:28.252Z");
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
+      Instant.parse("2026-03-11T15:47:25.512Z");
+
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
     Assumptions.assumeTrue(
@@ -2074,7 +2080,7 @@ public abstract class AbstractBlobStoreIT {
 
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
-    Instant retainUntil = Instant.now().plusSeconds(86400); // 1 day
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2114,7 +2120,7 @@ public abstract class AbstractBlobStoreIT {
 
     String key = "conformance-tests/objectlock/retention-compliance";
     byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
-    Instant retainUntil = Instant.now().plusSeconds(86400);
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE;
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
