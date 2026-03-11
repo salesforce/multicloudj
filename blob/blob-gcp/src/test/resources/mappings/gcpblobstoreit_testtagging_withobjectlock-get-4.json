@@ -1,21 +1,9 @@
 {
-  "id" : "8e848e6d-d8c2-4f54-998a-4446c245c8a0",
+  "id" : "1db397e1-aaf4-4afb-808f-149edbce89fa",
   "name" : "GcpBlobStoreIT_testTagging_withObjectLock-GET-4",
   "request" : {
-    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock-fake",
-    "method" : "GET",
-    "headers" : {
-      "X-Query-Param-Count" : {
-        "equalTo" : "1"
-      }
-    },
-    "queryParameters" : {
-      "projection" : {
-        "hasExactly" : [ {
-          "equalTo" : "full"
-        } ]
-      }
-    }
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-tagging-objectlock-fake?projection=full",
+    "method" : "GET"
   },
   "response" : {
     "status" : 404,
@@ -24,15 +12,15 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWwWIaK0SfjykszQYRo1LqplmQhCHdbIJQigIIYm8P2vP5QTJU_Or1lhdB44CMEx5Ip7",
+      "X-GUploader-UploadID" : "AGQBYWwyv1KSmmrEuGMyBcvAMn6slTi5cIVZhd-thsrvPTE0_Vt37AL4jEOGx4ZiIr6IVodk",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Tue, 10 Mar 2026 14:36:58 GMT",
+      "Date" : "Tue, 10 Mar 2026 22:27:18 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "8e848e6d-d8c2-4f54-998a-4446c245c8a0",
+  "uuid" : "1db397e1-aaf4-4afb-808f-149edbce89fa",
   "persistent" : true,
-  "insertionIndex" : 919
+  "insertionIndex" : 927
 }

@@ -932,7 +932,6 @@ public abstract class AbstractBlobStoreIT {
 
   // Note: This tests bulk delete for non-versioned buckets
   @Test
-  @Disabled("disable the failed tests")
   public void testBulkDelete() throws IOException {
     class TestConfig {
       final String testName;
@@ -1158,7 +1157,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("disable the failed tests")
   public void testBulkVersionedDelete_nonExistingBlob() throws IOException {
     runBulkVersionedDeleteTest(
         "testBulkVersionedDelete_nonExistingBlob",
@@ -1168,7 +1166,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("disable the failed tests")
   public void testBulkVersionedDelete_happyPath() throws IOException {
     runBulkVersionedDeleteTest(
         "testBulkVersionedDelete_happyPath",
@@ -1178,7 +1175,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("disable the failed tests")
   public void testBulkVersionedDelete_happyPathWithNonExisting() throws IOException {
     runBulkVersionedDeleteTest(
         "testBulkVersionedDelete_happyPathWithNonExisting",
@@ -1188,7 +1184,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("disable the failed tests")
   public void testBulkVersionedDelete_duplicateDeletion() throws IOException {
     runBulkVersionedDeleteTest(
         "testBulkVersionedDelete_duplicateDeletion",

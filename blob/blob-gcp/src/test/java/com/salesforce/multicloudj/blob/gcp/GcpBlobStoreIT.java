@@ -80,7 +80,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         final String bucketName, final Credentials credentials) {
 
       // Connect directly to WireMock HTTPS to record/replay the full request (no CONNECT tunnel)
-      String host = "https://" + WIREMOCK_HOST + ":" + port;
       HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
       HttpTransportOptions transportOptions =
           HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> httpTransport).build();
@@ -89,7 +88,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
           StorageOptions.newBuilder()
               .setTransportOptions(transportOptions)
               .setCredentials(credentials)
-              .setHost(host)
+              .setHost(endpoint)
               .build()
               .getService();
 
