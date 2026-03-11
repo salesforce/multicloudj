@@ -79,14 +79,6 @@ public abstract class AbstractBlobStoreIT {
     AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
-    /**
-     * Whether this provider supports object lock (WORM). When false, object lock conformance
-     * tests are skipped.
-     */
-    default boolean isObjectLockSupported() {
-      return false;
-    }
-
     // provide the BlobClient endpoint in provider
     String getEndpoint();
 
@@ -2054,9 +2046,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
@@ -2094,9 +2083,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/retention-compliance";
     byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
     Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE;
@@ -2134,9 +2120,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/no-lock";
     byte[] content = "Object without lock test".getBytes(StandardCharsets.UTF_8);
 
@@ -2174,9 +2157,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_nonexistentKey_throws() {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2888,14 +2868,10 @@ public abstract class AbstractBlobStoreIT {
 
   /**
    * Conformance test for tagging on an object-lock-enabled bucket. Same flow as testTagging but
-   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket). Skipped if
-   * the provider does not support object lock.
+   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket).
    */
   @Test
   public void testTagging_withObjectLock() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 

@@ -62,11 +62,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
       }
     }
 
-    @Override
-    public boolean isObjectLockSupported() {
-      return true;
-    }
-
     private AbstractBlobStore createBlobStore(
         final String bucketName, final Credentials credentials) {
 
