@@ -1,7 +1,5 @@
 package com.salesforce.multicloudj.blob.gcp;
 
-import static com.salesforce.multicloudj.common.util.common.TestsUtil.WIREMOCK_HOST;
-
 import com.google.api.client.http.HttpTransport;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -26,13 +24,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
   private static final String bucketName = "substrate-sdk-gcp-poc1-test-bucket";
   private static final String versionedBucketName = "substrate-sdk-gcp-poc1-test-bucket-versioned";
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
-
-  @Override
-  protected String[] getWireMockExtensionClasses() {
-    return new String[] {
-      "com.salesforce.multicloudj.blob.gcp.util.GcpBatchBodyRelaxingTransformer"
-    };
-  }
 
   @Override
   protected Harness createHarness() {
@@ -79,7 +70,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     private AbstractBlobStore createBlobStore(
         final String bucketName, final Credentials credentials) {
 
-      // Connect directly to WireMock HTTPS to record/replay the full request (no CONNECT tunnel)
       HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
       HttpTransportOptions transportOptions =
           HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> httpTransport).build();

@@ -41,7 +41,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -137,20 +136,11 @@ public abstract class AbstractBlobStoreIT {
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
 
-  /**
-   * WireMock extension class names (e.g. StubMappingTransformer) to load for replay.
-   * Override to add provider-specific transformers (e.g. relax body matching for object lock).
-   */
-  protected String[] getWireMockExtensionClasses() {
-    return new String[0];
-  }
-
   /** Initializes the WireMock server before all tests. */
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
-    TestsUtil.startWireMockServer(
-        "src/test/resources", harness.getPort(), getWireMockExtensionClasses());
+    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
   }
 
   /** Shuts down the WireMock server after all tests. */
