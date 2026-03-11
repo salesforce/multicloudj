@@ -348,6 +348,7 @@ public class Main {
             .localSourceDirectory("/tmp/test-directory") // Change this to your test directory
             .prefix("uploads/")
             .includeSubFolders(true)
+            .followSymbolicLinks(false) // Set to true to follow symbolic links during upload
             .build();
 
     System.out.println("DirectoryUploadRequest created: " + request);
@@ -382,6 +383,49 @@ public class Main {
     } catch (Exception e) {
       System.out.println("Directory upload failed: " + e.getMessage());
       e.printStackTrace();
+    }
+  }
+
+  /**
+   * Uploads a directory to blob storage with symbolic links enabled. When followSymbolicLinks is
+   * true, any symlinks in the directory will be followed and the target files/directories will be
+   * uploaded.
+   */
+  public static void uploadDirectoryWithSymbolicLinks() {
+    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/tmp/test-directory")
+            .prefix("uploads-with-symlinks/")
+            .includeSubFolders(true)
+            .followSymbolicLinks(true)
+            .build();
+
+    try {
+      CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
+      DirectoryUploadResponse response = future.get();
+
+      getLogger().info("Directory upload with symbolic links completed");
+      getLogger().info("Failed transfers: {}", response.getFailedTransfers().size());
+
+      if (!response.getFailedTransfers().isEmpty()) {
+        response
+            .getFailedTransfers()
+            .forEach(
+                failure -> {
+                  getLogger()
+                      .error(
+                          "Failed: {} - {}",
+                          failure.getSource(),
+                          failure.getException().getMessage());
+                });
+      } else {
+        getLogger().info("All files (including symlinked) uploaded successfully!");
+      }
+    } catch (Exception e) {
+      getLogger()
+          .error("Directory upload with symbolic links failed: {}", e.getMessage(), e);
     }
   }
 

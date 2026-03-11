@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -717,6 +718,29 @@ public class AwsTransformerTest {
             .build();
     request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
     assertTrue(request.maxDepth().isPresent());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_FollowSymbolicLinks() {
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .followSymbolicLinks(true)
+            .build();
+    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    assertEquals(Optional.of(true), request.followSymbolicLinks());
+
+    directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .followSymbolicLinks(false)
+            .build();
+    request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    assertEquals(Optional.of(false), request.followSymbolicLinks());
   }
 
   @Test
