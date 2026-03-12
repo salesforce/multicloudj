@@ -9,7 +9,9 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled("Temporarily disabled until recording files are ready")
 public class GcpRegistryIT extends AbstractRegistryIT {
 
   private static final String ENDPOINT = "https://us-central1-docker.pkg.dev";
