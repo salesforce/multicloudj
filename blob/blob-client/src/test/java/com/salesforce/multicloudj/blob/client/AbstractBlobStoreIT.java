@@ -17,8 +17,11 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -75,6 +78,14 @@ public abstract class AbstractBlobStoreIT {
     // Method to create a blob driver
     AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
+
+    /**
+     * Whether this provider supports object lock (WORM). When false, object lock conformance
+     * tests are skipped.
+     */
+    default boolean isObjectLockSupported() {
+      return true;
+    }
 
     // provide the BlobClient endpoint in provider
     String getEndpoint();
@@ -2035,6 +2046,145 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
+      Instant.parse("2026-03-11T15:47:28.252Z");
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
+      Instant.parse("2026-03-11T15:47:25.512Z");
+
+  @Test
+  public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    String key = "conformance-tests/objectlock/retention-governance";
+    byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      ObjectLockConfiguration lockConfig =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(retainUntil)
+              .legalHold(false)
+              .build();
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withObjectLock(lockConfig)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertNotNull(
+          info, "getObjectLock should return non-null for object with retention");
+      Assertions.assertEquals(RetentionMode.GOVERNANCE, info.getMode());
+      Assertions.assertFalse(info.isLegalHold());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    String key = "conformance-tests/objectlock/retention-compliance";
+    byte[] content = "Object lock retention compliance test".getBytes(StandardCharsets.UTF_8);
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE;
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      ObjectLockConfiguration lockConfig =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(retainUntil)
+              .legalHold(false)
+              .build();
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withObjectLock(lockConfig)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertNotNull(
+          info, "getObjectLock should return non-null for object with retention");
+      Assertions.assertEquals(RetentionMode.COMPLIANCE, info.getMode());
+      Assertions.assertFalse(info.isLegalHold());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    String key = "conformance-tests/objectlock/no-lock";
+    byte[] content = "Object without lock test".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .build(),
+            inputStream);
+      }
+
+      // Provider may return null, return ObjectLockInfo with no retention/hold, or throw
+      // (e.g. AWS S3 when object has no lock)
+      try {
+        ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+        if (info != null) {
+          Assertions.assertNull(info.getMode(), "Object without lock should have null mode");
+          Assertions.assertNull(
+              info.getRetainUntilDate(), "Object without lock should have null retainUntilDate");
+          Assertions.assertFalse(
+              info.isLegalHold(), "Object without lock should have legalHold false");
+        }
+      } catch (Exception e) {
+        // Acceptable: some providers (e.g. AWS S3) throw when object has no object lock config
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testGetObjectLock_nonexistentKey_throws() {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Assertions.assertThrows(
+        Exception.class,
+        () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
+  }
+
   @Test
   public void testGetVersionedMetadata() throws IOException {
 
@@ -2731,6 +2881,63 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertTrue(failed, "testTagging: Succeeded in writing tags to non-existent blob");
     } finally {
       // Now delete all blobs that were created
+      safeDeleteBlobs(bucketClient, key);
+      safeDeleteBlobs(bucketClient, key + "-fake");
+    }
+  }
+
+  /**
+   * Conformance test for tagging on an object-lock-enabled bucket. Same flow as testTagging but
+   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket). Skipped if
+   * the provider does not support object lock.
+   */
+  @Test
+  public void testTagging_withObjectLock() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String key = "conformance-tests/blob-for-tagging-objectlock";
+    try {
+      String defaultTestData = "Tagging with object lock test data";
+      byte[] utf8BlobBytes = defaultTestData.getBytes(StandardCharsets.UTF_8);
+      Map<String, String> tags = Map.of("tag1", "value1");
+
+      try (InputStream inputStream = new ByteArrayInputStream(utf8BlobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(utf8BlobBytes.length)
+                .withTags(tags)
+                .build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      Map<String, String> tagResults = bucketClient.getTags(key);
+      Assertions.assertEquals(
+          tags, tagResults, "testTagging_withObjectLock: Tags did not match what was uploaded");
+
+      Map<String, String> tags2 = Map.of("tag3", "value3");
+      bucketClient.setTags(key, tags2);
+      tagResults = bucketClient.getTags(key);
+      Assertions.assertEquals(
+          tags2,
+          tagResults,
+          "testTagging_withObjectLock: Tags did not match what was overwriting");
+
+      boolean failed = false;
+      try {
+        Map<String, String> tags3 = Map.of("tag5", "value5");
+        bucketClient.setTags(key + "-fake", tags3);
+      } catch (Throwable t) {
+        failed = true;
+      }
+      Assertions.assertTrue(
+          failed,
+          "testTagging_withObjectLock: Succeeded in writing tags to non-existent blob");
+    } finally {
       safeDeleteBlobs(bucketClient, key);
       safeDeleteBlobs(bucketClient, key + "-fake");
     }

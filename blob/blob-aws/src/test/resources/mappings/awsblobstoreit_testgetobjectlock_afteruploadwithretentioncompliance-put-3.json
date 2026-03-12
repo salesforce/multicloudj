@@ -1,0 +1,28 @@
+{
+  "id" : "36c0110e-2f3b-45c0-8ac8-fa58a72c252d",
+  "name" : "AwsBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-PUT-3",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/retention-compliance",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "T2JqZWN0IGxvY2sgcmV0ZW50aW9uIGNvbXBsaWFuY2UgdGVzdA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"a0d246afc0f8baf1e7dd602c80efd967\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "4HYQDD20GF2X48A5",
+      "x-amz-checksum-crc32c" : "4z8aNg==",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "FieLviYJIUnvJJpzcWvPahzS2rpJhmLJKlhX8L8PPj06Vpw5H3hWevDMEMlnuBQpil8vFCEJFltftsJElzW/ztGFTFQEh+r8",
+      "x-amz-version-id" : "qeEgCuuJTDNRMqIIut.sJOq4qQ_hqj_o",
+      "Date" : "Tue, 10 Mar 2026 16:18:31 GMT"
+    }
+  },
+  "uuid" : "36c0110e-2f3b-45c0-8ac8-fa58a72c252d",
+  "persistent" : true,
+  "insertionIndex" : 603
+}

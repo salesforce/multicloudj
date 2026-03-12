@@ -966,6 +966,145 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToFilePaths_FollowSymbolicLinks() throws IOException {
+    Path tempDir = Files.createTempDirectory("test-upload-symlink");
+    Path realDir = Files.createTempDirectory("test-upload-target");
+    Path realFile = realDir.resolve("linked-file.txt");
+    Files.write(realFile, "linked-content".getBytes());
+    Path file1 = tempDir.resolve("file1.txt");
+    Files.write(file1, "content1".getBytes());
+    Path symlink = tempDir.resolve("link-dir");
+    Files.createSymbolicLink(symlink, realDir);
+
+    try {
+      DirectoryUploadRequest requestNoFollow =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(false)
+              .build();
+      List<Path> noFollowPaths = transformer.toFilePaths(requestNoFollow);
+      assertEquals(1, noFollowPaths.size());
+      assertTrue(noFollowPaths.contains(file1));
+
+      DirectoryUploadRequest requestFollow =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+      List<Path> followPaths = transformer.toFilePaths(requestFollow);
+      assertEquals(2, followPaths.size());
+      assertTrue(followPaths.contains(file1));
+    } finally {
+      Files.walk(realDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+      Files.walk(tempDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+    }
+  }
+
+  @Test
+  public void testToFilePaths_CircularSymbolicLinks() throws IOException {
+    Path tempDir = Files.createTempDirectory("test-circular-symlink");
+    try {
+      Files.write(tempDir.resolve("file.txt"), "content".getBytes());
+      Path dirA = Files.createDirectory(tempDir.resolve("dirA"));
+      Path dirB = Files.createDirectory(tempDir.resolve("dirB"));
+      Files.createSymbolicLink(dirA.resolve("link-to-b"), dirB);
+      Files.createSymbolicLink(dirB.resolve("link-to-a"), dirA);
+
+      DirectoryUploadRequest request =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+
+      assertThrows(RuntimeException.class, () -> transformer.toFilePaths(request));
+    } finally {
+      Files.deleteIfExists(tempDir.resolve("dirA/link-to-b"));
+      Files.deleteIfExists(tempDir.resolve("dirB/link-to-a"));
+      Files.walk(tempDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+    }
+  }
+
+  @Test
+  public void testToFilePaths_BrokenSymbolicLinks() throws IOException {
+    Path tempDir = Files.createTempDirectory("test-broken-symlink");
+    try {
+      Path file1 = tempDir.resolve("file1.txt");
+      Files.write(file1, "content".getBytes());
+      Files.createSymbolicLink(tempDir.resolve("broken-link"), Paths.get("/non/existent/path"));
+
+      DirectoryUploadRequest request =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+
+      List<Path> paths = transformer.toFilePaths(request);
+      assertEquals(1, paths.size());
+      assertTrue(paths.contains(file1));
+    } finally {
+      Files.walk(tempDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+    }
+  }
+
+  @Test
+  public void testToFilePaths_NestedSymbolicLinks() throws IOException {
+    Path tempDir = Files.createTempDirectory("test-nested-symlink");
+    Path externalDir1 = Files.createTempDirectory("test-nested-target1");
+    Path externalDir2 = Files.createTempDirectory("test-nested-target2");
+    try {
+      Files.write(tempDir.resolve("root.txt"), "root".getBytes());
+      Files.write(externalDir2.resolve("deep.txt"), "deep".getBytes());
+      Files.createSymbolicLink(externalDir1.resolve("link-to-dir2"), externalDir2);
+      Files.createSymbolicLink(tempDir.resolve("link-to-dir1"), externalDir1);
+
+      DirectoryUploadRequest request =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("uploads/")
+              .includeSubFolders(true)
+              .followSymbolicLinks(true)
+              .build();
+
+      List<Path> paths = transformer.toFilePaths(request);
+      assertEquals(2, paths.size());
+      assertTrue(paths.contains(tempDir.resolve("root.txt")));
+    } finally {
+      Files.walk(externalDir2)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+      Files.walk(externalDir1)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+      Files.walk(tempDir)
+          .sorted(Comparator.reverseOrder())
+          .map(Path::toFile)
+          .forEach(File::delete);
+    }
+  }
+
+  @Test
   public void testToBlobKey() {
     Path sourceDir = Paths.get("/source");
     Path filePath = Paths.get("/source/subdir/file.txt");

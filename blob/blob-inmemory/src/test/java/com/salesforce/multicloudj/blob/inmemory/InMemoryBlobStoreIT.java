@@ -82,6 +82,11 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isObjectLockSupported() {
+      return false;
+    }
+
+    @Override
     public void close() {
       // Nothing to close for in-memory implementation
     }

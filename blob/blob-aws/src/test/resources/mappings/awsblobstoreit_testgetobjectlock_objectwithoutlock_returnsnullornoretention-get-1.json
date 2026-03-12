@@ -1,0 +1,22 @@
+{
+  "id" : "2be5a1bf-f7c1-44e1-a19c-7637bcf7a342",
+  "name" : "AwsBlobStoreIT_testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/no-lock?retention",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>Q1ZDKSZKG7BEC0R5</RequestId><HostId>SmI82WQ8Lq+Uv2Rs+fQOQSi8VOn3Ecm63tHWlgQ5B1nu3Dj7LvOVVZPzXC8Ua5kqsMohxy3dz/O0BcwBEt4dCXQKy+ZCbUW2</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "Q1ZDKSZKG7BEC0R5",
+      "x-amz-id-2" : "SmI82WQ8Lq+Uv2Rs+fQOQSi8VOn3Ecm63tHWlgQ5B1nu3Dj7LvOVVZPzXC8Ua5kqsMohxy3dz/O0BcwBEt4dCXQKy+ZCbUW2",
+      "Date" : "Tue, 10 Mar 2026 16:18:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2be5a1bf-f7c1-44e1-a19c-7637bcf7a342",
+  "persistent" : true,
+  "insertionIndex" : 597
+}
