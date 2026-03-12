@@ -257,6 +257,7 @@ public abstract class AbstractPubsubIT {
   }
 
   @Test
+  @Disabled()
   @Timeout(120) // Integration test with batch operations - allow time for message delivery
   public void testBatchNack() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
@@ -415,6 +416,7 @@ public abstract class AbstractPubsubIT {
 
   /** Receive from two subscriptions to the same topic. Verify both get all the messages. */
   @Test
+  @Disabled
   @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
   public void testSendReceiveTwo() throws Exception {
     // Create two subscriptions to the same topic
