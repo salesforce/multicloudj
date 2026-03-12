@@ -255,9 +255,9 @@ public abstract class AbstractPubsubIT {
       subscription.sendAcks(ackIDs).join();
     }
   }
-
+  
+  @Disabled
   @Test
-  @Disabled()
   @Timeout(120) // Integration test with batch operations - allow time for message delivery
   public void testBatchNack() throws Exception {
     try (AbstractTopic topic = harness.createTopicDriver();
