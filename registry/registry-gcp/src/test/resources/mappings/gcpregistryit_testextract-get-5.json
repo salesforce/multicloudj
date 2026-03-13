@@ -1,0 +1,25 @@
+{
+  "id" : "bc9296e9-4328-40e7-be30-f63dc881cd92",
+  "name" : "GcpRegistryIT_testExtract-GET-5",
+  "request" : {
+    "url" : "/v2/",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 401,
+    "body" : "{\"errors\":[{\"code\":\"UNAUTHORIZED\",\"message\":\"not authenticated: No credential was supplied.\"}]}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Docker-Distribution-Api-Version" : "registry/2.0",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "X-Content-Type-Options" : "nosniff",
+      "X-Xss-Protection" : "0",
+      "Www-Authenticate" : "Bearer realm=\"https://us-central1-docker.pkg.dev/v2/token\"",
+      "Date" : "Fri, 13 Mar 2026 20:00:35 GMT",
+      "Content-Type" : "application/json; charset=utf-8"
+    }
+  },
+  "uuid" : "bc9296e9-4328-40e7-be30-f63dc881cd92",
+  "persistent" : true,
+  "insertionIndex" : 6
+}
