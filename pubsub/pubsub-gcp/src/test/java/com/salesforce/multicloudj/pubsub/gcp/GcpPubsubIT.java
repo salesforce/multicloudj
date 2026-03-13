@@ -12,6 +12,7 @@ import com.google.pubsub.v1.Subscription;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
+import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubIT;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
@@ -153,7 +154,16 @@ public class GcpPubsubIT extends AbstractPubsubIT {
 
         GcpSubscription.Builder subscriptionBuilder =
             new GcpSubscription.Builder().withSubscriptionName(fullSubscriptionName);
-        GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client);
+        GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client) {
+          @Override
+          protected Batcher.Options createReceiveBatcherOptions() {
+            return new Batcher.Options()
+                .setMaxHandlers(1)
+                .setMinBatchSize(1)
+                .setMaxBatchSize(1)
+                .setMaxBatchByteSize(0);
+          }
+        };
 
         if (index == 0) {
           subscription = sub;
