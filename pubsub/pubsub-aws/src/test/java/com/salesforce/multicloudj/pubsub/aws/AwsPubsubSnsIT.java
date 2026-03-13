@@ -94,7 +94,7 @@ public class AwsPubsubSnsIT extends AbstractPubsubIT {
         cachedTopicArn = response.topicArn();
       }
 
-      AwsSnsTopic.Builder topicBuilder = new AwsSnsTopic.Builder();
+      AwsSnsTopic.Builder topicBuilder = new AwsSnsTopic().builder();
       topicBuilder.withTopicName(cachedTopicArn);
       topicBuilder.withSnsClient(snsClient);
       topic = topicBuilder.build();
