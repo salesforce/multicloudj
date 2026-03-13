@@ -103,7 +103,7 @@ public class AwsPubsubSqsIT extends AbstractPubsubIT {
       sqsClient = createSqsClient();
       ensureQueueExists();
 
-      AwsSqsTopic.Builder topicBuilder = new AwsSqsTopic.Builder();
+      AwsSqsTopic.Builder topicBuilder = new AwsSqsTopic().builder();
       topicBuilder.withTopicName(cachedQueueUrl);
       topicBuilder.withSqsClient(sqsClient);
       topic = topicBuilder.build();

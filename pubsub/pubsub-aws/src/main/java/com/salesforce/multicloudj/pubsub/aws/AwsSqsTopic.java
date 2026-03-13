@@ -32,6 +32,10 @@ public class AwsSqsTopic extends AwsBaseTopic<AwsSqsTopic> {
   private final SqsClient sqsClient;
   private final String queueUrl;
 
+  public AwsSqsTopic() {
+    this(new Builder());
+  }
+
   public AwsSqsTopic(Builder builder) {
     super(builder);
     this.sqsClient = builder.sqsClient;
