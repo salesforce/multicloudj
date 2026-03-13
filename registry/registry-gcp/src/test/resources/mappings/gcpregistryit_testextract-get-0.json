@@ -1,0 +1,26 @@
+{
+  "id" : "a210b037-7a52-4fbf-ac3e-f14e62265176",
+  "name" : "GcpRegistryIT_testExtract-GET-0",
+  "request" : {
+    "url" : "/artifacts-downloads/namespaces/substrate-sdk-gcp-poc1/repositories/test-repo/downloads/_LiotIR6C6mW7qHh",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "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",
+    "headers" : {
+      "X-Goog-Hash" : "crc32c=gFxM7w==",
+      "Accept-Ranges" : "bytes",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0",
+      "X-GUploader-UploadID" : "AGQBYWwv_QhL0EirHKrKH8pCkwxeSosqSwTpV0rv-MVhiuGmcRgvUIYnIV9R01bjaBj9_jHD7VtVQbE",
+      "Expires" : "Fri, 13 Mar 2026 20:00:37 GMT",
+      "Date" : "Fri, 13 Mar 2026 20:00:37 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "a210b037-7a52-4fbf-ac3e-f14e62265176",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

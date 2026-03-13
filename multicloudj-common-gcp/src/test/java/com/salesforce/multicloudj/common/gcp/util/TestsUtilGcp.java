@@ -16,6 +16,10 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import org.apache.http.HttpHost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
 /**
  * Utility class for GCP testing that provides methods to create test-friendly transport
@@ -111,6 +115,24 @@ public class TestsUtilGcp {
     // Create and return channel provider using configured transport
     return InstantiatingHttpJsonChannelProvider.newBuilder()
         .setHttpTransport(getHttpTransport(port))
+        .build();
+  }
+
+  /**
+   * Gets an Apache HttpClient configured with a proxy to the WireMock server and trust-all SSL.
+   * Used for services that communicate via raw HTTP (e.g., OCI registry) rather than GCP SDK
+   * clients.
+   *
+   * @param port The base port for WireMock (proxy will use port+1)
+   * @return A configured CloseableHttpClient
+   * @throws SecurityConfigurationException if SSL context creation fails
+   */
+  public static CloseableHttpClient getProxyHttpClient(int port) {
+    SSLContext sslContext = createTrustAllSSLContext();
+    return HttpClients.custom()
+        .setProxy(new HttpHost(WIREMOCK_HOST, port + 1))
+        .setSSLContext(sslContext)
+        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
         .build();
   }
 
