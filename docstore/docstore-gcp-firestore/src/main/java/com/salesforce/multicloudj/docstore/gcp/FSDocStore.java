@@ -798,8 +798,23 @@ public class FSDocStore extends AbstractDocStore {
     // Handle pagination token (cursor)
     if (query.getPaginationToken() != null
         && query.getPaginationToken() instanceof FSPaginationToken) {
-      // If no explicit ordering is specified, order by document ID to support pagination
-      // This ensures the cursor works correctly with document ID-based pagination
+      // If no explicit ordering is specified but there's an inequality filter,
+      // Firestore requires the inequality field to appear in orderBy before __name__
+      if (query.getOrderByField() == null || query.getOrderByField().isEmpty()) {
+        String inequalityField = getInequalityFilterField(query.getFilters());
+        if (inequalityField != null) {
+          structuredQueryBuilder.addOrderBy(
+              StructuredQuery.Order.newBuilder()
+                  .setField(
+                      StructuredQuery.FieldReference.newBuilder()
+                          .setFieldPath(inequalityField)
+                          .build())
+                  .setDirection(StructuredQuery.Direction.ASCENDING)
+                  .build());
+        }
+      }
+
+      // Always add __name__ as the final orderBy for pagination cursor support
       structuredQueryBuilder.addOrderBy(
           StructuredQuery.Order.newBuilder()
               .setField(
@@ -933,6 +948,26 @@ public class FSDocStore extends AbstractDocStore {
                 .setValue(firestoreValue)
                 .build())
         .build();
+  }
+
+  /**
+   * Returns the field path of the first inequality filter, or null if none exists. Firestore
+   * requires inequality filter fields to appear in the orderBy clause before __name__.
+   */
+  private String getInequalityFilterField(List<Filter> filters) {
+    if (filters == null) {
+      return null;
+    }
+    for (Filter filter : filters) {
+      FilterOperation op = filter.getOp();
+      if (op == FilterOperation.GREATER_THAN
+          || op == FilterOperation.GREATER_THAN_OR_EQUAL_TO
+          || op == FilterOperation.LESS_THAN
+          || op == FilterOperation.LESS_THAN_OR_EQUAL_TO) {
+        return filter.getFieldPath();
+      }
+    }
+    return null;
   }
 
   /**
