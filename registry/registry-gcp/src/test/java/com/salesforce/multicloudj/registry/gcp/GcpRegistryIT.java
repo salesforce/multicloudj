@@ -9,9 +9,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.junit.jupiter.api.Disabled;
 
-@Disabled("Temporarily disabled until recording files are ready")
 public class GcpRegistryIT extends AbstractRegistryIT {
 
   private static final String ENDPOINT = "https://us-central1-docker.pkg.dev";
@@ -68,6 +66,13 @@ public class GcpRegistryIT extends AbstractRegistryIT {
     @Override
     public String getTestImageRef() {
       return TEST_IMAGE_REF;
+    }
+
+    @Override
+    public String[] getWiremockExtensions() {
+      return new String[] {
+        "com.salesforce.multicloudj.registry.gcp.util.RegistryTokenRedactingTransformer"
+      };
     }
 
     @Override
