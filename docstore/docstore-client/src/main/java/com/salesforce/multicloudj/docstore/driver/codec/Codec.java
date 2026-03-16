@@ -328,6 +328,10 @@ public class Codec {
       return v;
     }
 
+    if (target.isArray() && target.getComponentType() == byte.class) {
+      return decoder.asBytes();
+    }
+
     if (target.isArray()) {
       return decodeArray(decoder);
     }

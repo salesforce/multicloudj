@@ -135,7 +135,7 @@ public class AwsDecoder implements Decoder {
           throw new IllegalArgumentException(attributeValue.n() + " is not a number");
         }
       case B:
-        return attributeValue.b();
+        return attributeValue.b().asByteArray();
       case S:
         return attributeValue.s();
       case L:

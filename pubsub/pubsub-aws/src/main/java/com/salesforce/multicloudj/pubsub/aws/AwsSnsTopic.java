@@ -26,6 +26,10 @@ public class AwsSnsTopic extends AwsBaseTopic<AwsSnsTopic> {
   private final SnsClient snsClient;
   private final String topicArn;
 
+  public AwsSnsTopic() {
+    this(new Builder());
+  }
+
   public AwsSnsTopic(Builder builder) {
     super(builder);
     this.snsClient = builder.snsClient;
