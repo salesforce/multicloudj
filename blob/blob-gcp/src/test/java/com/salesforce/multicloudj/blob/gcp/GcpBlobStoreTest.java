@@ -211,7 +211,7 @@ class GcpBlobStoreTest {
           .thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockWriteChannel);
-      when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(mockBlob);
+      when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
       // When
@@ -221,7 +221,7 @@ class GcpBlobStoreTest {
       // Then
       assertEquals(expectedResponse, response);
       verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-      verify(mockStorage).get(TEST_BUCKET, TEST_KEY);
+      verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
       verify(mockTransformer).toUploadResponse(mockBlob);
     }
   }
@@ -263,19 +263,19 @@ class GcpBlobStoreTest {
           .thenReturn(new Storage.BlobWriteOption[0]);
       when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockWriteChannel);
-      when(mockStorage.get(TEST_BUCKET, TEST_KEY)).thenReturn(null);
+      when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(null);
 
       // When
-      SubstrateSdkException exception =
+      ResourceNotFoundException exception =
           assertThrows(
-              SubstrateSdkException.class,
+              ResourceNotFoundException.class,
               () -> {
                 gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
               });
 
       // Then
       verify(mockStorage).writer(mockBlobInfo);
-      verify(mockStorage).get(TEST_BUCKET, TEST_KEY);
+      verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
     }
   }
 
@@ -434,11 +434,11 @@ class GcpBlobStoreTest {
       // When
       SubstrateSdkException exception =
           assertThrows(
-              SubstrateSdkException.class,
+              ResourceNotFoundException.class,
               () -> {
                 gcpBlobStore.doDownload(downloadRequest, outputStream);
               });
-      assertEquals("Blob not found", exception.getMessage());
+      assertTrue(exception.getMessage().startsWith("Blob not found"));
     }
   }
 
@@ -1407,11 +1407,11 @@ class GcpBlobStoreTest {
       // When & Then
       SubstrateSdkException exception =
           assertThrows(
-              SubstrateSdkException.class,
+              ResourceNotFoundException.class,
               () -> {
                 gcpBlobStore.doDownload(downloadRequest);
               });
-      assertEquals("Blob not found", exception.getMessage());
+      assertTrue(exception.getMessage().startsWith("Blob not found"));
       verify(mockTransformer).toBlobId(downloadRequest);
       verify(mockStorage).get(mockBlobId);
     }
@@ -1577,9 +1577,10 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(null);
 
-    BlobMetadata metadata = gcpBlobStore.doGetMetadata(TEST_KEY, null);
+    assertThrows(
+        ResourceNotFoundException.class,
+        () -> gcpBlobStore.doGetMetadata(TEST_KEY, null));
 
-    assertNull(metadata);
     verify(mockStorage).get(mockBlobId);
   }
 
