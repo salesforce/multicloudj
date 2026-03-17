@@ -61,7 +61,7 @@ class AbstractRegistryTest {
   private static final String TEST_PROVIDER = "test-provider";
   private static final String PROXY_ENDPOINT = "http://proxy.example.com:8080";
 
-  @Mock private OciRegistryClient mockOciClient;
+  @Mock private OciHttpTransport mockOciClient;
 
   private TestRegistry registry;
 
@@ -312,9 +312,9 @@ class AbstractRegistryTest {
 
   static class TestRegistry extends AbstractRegistry {
 
-    private final OciRegistryClient ociClient;
+    private final OciHttpTransport ociClient;
 
-    TestRegistry(String endpoint, OciRegistryClient client) {
+    TestRegistry(String endpoint, OciHttpTransport client) {
       super(new TestBuilder().withRegistryEndpoint(endpoint));
       this.ociClient = client;
     }
@@ -340,7 +340,7 @@ class AbstractRegistryTest {
     }
 
     @Override
-    protected OciRegistryClient getOciClient() {
+    protected OciHttpTransport getOciTransport() {
       return ociClient;
     }
 

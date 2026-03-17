@@ -31,7 +31,7 @@ public class RemoteImageTest {
   private static final String LAYER_DIGEST_2 = "sha256:layer2";
   private static final String LAYER_DIGEST_3 = "sha256:layer3";
 
-  @Mock private OciRegistryClient mockClient;
+  @Mock private OciHttpTransport mockClient;
 
   @Mock private Manifest mockManifest;
 

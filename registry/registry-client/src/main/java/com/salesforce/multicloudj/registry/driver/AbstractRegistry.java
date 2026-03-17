@@ -47,8 +47,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
   /** Returns a builder instance for this registry type. */
   public abstract Builder<?, ?> builder();
 
-  /** Returns the OCI client for this registry. */
-  protected abstract OciRegistryClient getOciClient();
+  /** Returns the OCI HTTP transport for this registry. */
+  protected abstract OciHttpTransport getOciTransport();
 
   /**
    * Returns the list of HTTP request interceptors to be registered with the HTTP client. Override
@@ -91,8 +91,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     String repository = imageReference.getRepository();
     String reference = imageReference.getReference();
 
-    // Step 2: Get OCI client
-    OciRegistryClient client = getOciClient();
+    // Step 2: Get OCI transport
+    OciHttpTransport client = getOciTransport();
 
     // Step 3: Fetch manifest
     Manifest manifest = client.fetchManifest(repository, reference);
