@@ -172,7 +172,7 @@ public class AwsTransformer {
             .metadata(request.getMetadata())
             .tagging(Tagging.builder().tagSet(tags).build());
 
-    if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(request.getKmsKeyId());
     } else if (request.isUseKmsManagedKey()) {
       builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
@@ -180,7 +180,7 @@ public class AwsTransformer {
     // else: no SSE headers; S3 applies bucket default encryption
 
     // Set storage class if provided
-    if (request.getStorageClass() != null && !request.getStorageClass().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getStorageClass())) {
       try {
         StorageClass awsStorageClass = StorageClass.fromValue(request.getStorageClass());
         builder.storageClass(awsStorageClass);
@@ -204,13 +204,13 @@ public class AwsTransformer {
     }
 
     // Set checksum if provided
-    if (request.getChecksumValue() != null && !request.getChecksumValue().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getChecksumValue())) {
       builder.checksumAlgorithm(CRC32_C);
       builder.checksumCRC32C(request.getChecksumValue());
     }
 
     // Set content type if provided
-    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getContentType())) {
       builder.contentType(request.getContentType());
     }
 
@@ -422,7 +422,7 @@ public class AwsTransformer {
       builder.tagging(Tagging.builder().tagSet(tags).build());
     }
 
-    if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(ServerSideEncryption.AWS_KMS).ssekmsKeyId(request.getKmsKeyId());
     } else if (request.isUseKmsManagedKey()) {
       builder.serverSideEncryption(ServerSideEncryption.AWS_KMS);
@@ -434,7 +434,7 @@ public class AwsTransformer {
     }
 
     // Set content type if provided
-    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getContentType())) {
       builder.contentType(request.getContentType());
     }
 
@@ -552,7 +552,7 @@ public class AwsTransformer {
             .destination(Paths.get(request.getLocalDestinationDirectory()));
 
     // Download every blob that starts with this prefix
-    if (request.getPrefixToDownload() != null && !request.getPrefixToDownload().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getPrefixToDownload())) {
       downloadDirectoryRequestBuilder.listObjectsV2RequestTransformer(
           builder -> builder.prefix(request.getPrefixToDownload()));
     }

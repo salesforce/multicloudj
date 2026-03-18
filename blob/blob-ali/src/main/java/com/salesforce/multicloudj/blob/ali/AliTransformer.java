@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -78,21 +79,21 @@ public class AliTransformer {
     metadata.setObjectTagging(uploadRequest.getTags());
 
     // Set storage class if provided
-    if (uploadRequest.getStorageClass() != null && !uploadRequest.getStorageClass().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getStorageClass())) {
       metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
     }
 
-    if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
       metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());
     }
 
-    if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
       metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
     }
 
     // Set content type if provided
-    if (uploadRequest.getContentType() != null && !uploadRequest.getContentType().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getContentType())) {
       metadata.setContentType(uploadRequest.getContentType());
     }
 
@@ -231,13 +232,13 @@ public class AliTransformer {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setUserMetadata(request.getMetadata());
 
-    if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
       metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
     }
 
     // Set content type if provided
-    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getContentType())) {
       metadata.setContentType(request.getContentType());
     }
 
@@ -317,7 +318,7 @@ public class AliTransformer {
     }
 
     // Add KMS encryption headers if KMS key is specified
-    if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       presignedUrlRequest.addHeader(
           OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION, ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
       presignedUrlRequest.addHeader(

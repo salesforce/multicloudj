@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -306,7 +307,7 @@ public class GcpTransformer {
     BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
     // Set storage class if provided
-    if (storageClass != null && !storageClass.isEmpty()) {
+    if (StringUtils.isNotEmpty(storageClass)) {
       try {
         StorageClass gcpStorageClass = StorageClass.valueOf(storageClass.toUpperCase());
         builder.setStorageClass(gcpStorageClass);
@@ -316,7 +317,7 @@ public class GcpTransformer {
     }
 
     // Set CRC32C checksum if provided (GCP's native checksum algorithm)
-    if (checksumValue != null && !checksumValue.isEmpty()) {
+    if (StringUtils.isNotEmpty(checksumValue)) {
       builder.setCrc32c(checksumValue);
     }
 
@@ -349,7 +350,7 @@ public class GcpTransformer {
     }
 
     // Set content type if provided
-    if (contentType != null && !contentType.isEmpty()) {
+    if (StringUtils.isNotEmpty(contentType)) {
       builder.setContentType(contentType);
     }
 
@@ -357,7 +358,7 @@ public class GcpTransformer {
   }
 
   public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {
-    if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       return new Storage.BlobTargetOption[] {
         Storage.BlobTargetOption.kmsKeyName(uploadRequest.getKmsKeyId())
       };
@@ -366,7 +367,7 @@ public class GcpTransformer {
   }
 
   public Storage.BlobWriteOption[] getKmsWriteOptions(UploadRequest uploadRequest) {
-    if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       return new Storage.BlobWriteOption[] {
         Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId())
       };
@@ -435,7 +436,7 @@ public class GcpTransformer {
     Path relativePath = sourceDir.relativize(filePath);
     String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
 
-    if (prefix != null && !prefix.isEmpty()) {
+    if (StringUtils.isNotEmpty(prefix)) {
       // Ensure prefix ends with "/" if it doesn't already
       String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
       key = normalizedPrefix + key;
