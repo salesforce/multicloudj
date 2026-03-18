@@ -10,7 +10,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>registry</artifactId>
-        <version>0.2.26-SNAPSHOT</version>
+        <version>0.2.29-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -87,6 +87,12 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <version>5.12.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <version>5.12.1</version>
             <scope>test</scope>
         </dependency>

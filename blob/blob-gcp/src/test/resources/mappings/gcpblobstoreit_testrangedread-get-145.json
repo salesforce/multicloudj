@@ -1,0 +1,56 @@
+{
+  "id" : "aefa36a7-6593-4221-acb8-decad203a1f7",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-145",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FtestRangedRead_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772658463481484"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772658463481484",
+      "Content-Range" : "bytes 0-46/47",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Wed, 04 Mar 2026 21:07:43 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Wed, 04 Mar 2026 21:07:47 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=YmH3dA==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CIy9mLCTh5MDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWx6dJmPJfHfcmAvTj44KqVeS9d83Lqiql2kkXBplAsCJzrOHt_AlxRp6Uo-oALvVuDVVfdouyo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "aefa36a7-6593-4221-acb8-decad203a1f7",
+  "persistent" : true,
+  "scenarioName" : "scenario-24-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-24-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-6",
+  "newScenarioState" : "scenario-24-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-7",
+  "insertionIndex" : 903
+}

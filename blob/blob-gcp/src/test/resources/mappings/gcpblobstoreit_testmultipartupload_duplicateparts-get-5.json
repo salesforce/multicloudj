@@ -1,0 +1,37 @@
+{
+  "id" : "cb347ccb-0111-4e0a-8620-efc46538ce95",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_duplicateParts-GET-5",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-duplicateParts",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm51QyASp_3o1DbyrIJiJUyZIyK7wq-dTf5x70IS3_Ileier991zJ2jQJodWvwzGqC0"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><ListPartsResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><UploadId>ABPnzm51QyASp_3o1DbyrIJiJUyZIyK7wq-dTf5x70IS3_Ileier991zJ2jQJodWvwzGqC0</UploadId><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>0</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2026-03-04T21:07:11.200287Z</LastModified><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-03-04T21:07:10.470047Z</LastModified><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzFSDpObQh03GVGCf8mKqc5xrEjH1Zhrya4wntnVFj52GMtMtqNDUdBllAEgJ2-b8PrTUB1WLc",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:07:11 GMT",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "cb347ccb-0111-4e0a-8620-efc46538ce95",
+  "persistent" : true,
+  "insertionIndex" : 670
+}

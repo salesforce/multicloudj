@@ -6,14 +6,14 @@ import lombok.Getter;
 /**
  * Optional configuration for identity creation operations.
  *
- * <p>This class provides additional options that can be set during identity creation,
- * such as path specifications, session duration limits, and permission boundaries.
+ * <p>This class provides additional options that can be set during identity creation, such as path
+ * specifications, session duration limits, and permission boundaries.
  *
- * <p>Permission boundary identifiers are provider-specific and translated internally
- * by the implementation layer. The client accepts the native format for the target
- * cloud provider.
+ * <p>Permission boundary identifiers are provider-specific and translated internally by the
+ * implementation layer. The client accepts the native format for the target cloud provider.
  *
  * <p>Usage example:
+ *
  * <pre>
  * CreateOptions options = CreateOptions.builder()
  *     .path("/service-roles/")

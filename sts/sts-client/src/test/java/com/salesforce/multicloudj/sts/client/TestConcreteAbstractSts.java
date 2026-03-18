@@ -10,57 +10,58 @@ import com.salesforce.multicloudj.sts.model.StsCredentials;
 
 public class TestConcreteAbstractSts extends AbstractSts {
 
-    public TestConcreteAbstractSts(TestConcreteAbstractSts.Builder builder) {
-        super(builder);
-    }
+  public TestConcreteAbstractSts(TestConcreteAbstractSts.Builder builder) {
+    super(builder);
+  }
 
-    public TestConcreteAbstractSts() {
-        super(new Builder());
+  public TestConcreteAbstractSts() {
+    super(new Builder());
+  }
+
+  @Override
+  protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
+    return null;
+  }
+
+  @Override
+  protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
+      com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request) {
+    return null;
+  }
+
+  @Override
+  protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
+    return null;
+  }
+
+  @Override
+  protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
+    return null;
+  }
+
+  @Override
+  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+    return null;
+  }
+
+  @Override
+  public Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder extends AbstractSts.Builder<TestConcreteAbstractSts, Builder> {
+    protected Builder() {
+      providerId("mockProviderId");
     }
 
     @Override
-    protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
-        return null;
+    public Builder self() {
+      return this;
     }
 
     @Override
-    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest request) {
-        return null;
+    public TestConcreteAbstractSts build() {
+      return new TestConcreteAbstractSts(this);
     }
-
-    @Override
-    protected CallerIdentity getCallerIdentityFromProvider(GetCallerIdentityRequest request) {
-        return null;
-    }
-
-    @Override
-    protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
-        return null;
-    }
-
-    @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        return null;
-    }
-
-    @Override
-    public Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder extends AbstractSts.Builder<TestConcreteAbstractSts, Builder> {
-        protected Builder() {
-            providerId("mockProviderId");
-        }
-
-        @Override
-        public Builder self() {
-            return this;
-        }
-
-        @Override
-        public TestConcreteAbstractSts build() {
-            return new TestConcreteAbstractSts(this);
-        }
-    }
+  }
 }

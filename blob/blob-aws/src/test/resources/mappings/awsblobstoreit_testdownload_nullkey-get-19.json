@@ -1,0 +1,25 @@
+{
+  "id" : "e30f9b34-3e8a-4ea0-a090-28f2d354fcca",
+  "name" : "AwsBlobStoreIT_testDownload_nullKey-GET-19",
+  "request" : {
+    "url" : "/chameleon-jcloud/null_unversioned",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>null_unversioned</Key><RequestId>57GSJPEHTWGN505W</RequestId><HostId>x+MZ7l6nPdUr7qaFNCd+ntL3P1wUAiB7NIJPdnWjfR8BLDMymof/N9Fv015+7ilho6Ig0APmmcc2upBPZr/amU2POk9BBBwB</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "57GSJPEHTWGN505W",
+      "x-amz-id-2" : "x+MZ7l6nPdUr7qaFNCd+ntL3P1wUAiB7NIJPdnWjfR8BLDMymof/N9Fv015+7ilho6Ig0APmmcc2upBPZr/amU2POk9BBBwB",
+      "Date" : "Wed, 04 Mar 2026 20:56:42 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e30f9b34-3e8a-4ea0-a090-28f2d354fcca",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-chameleon-jcloud-null_unversioned",
+  "requiredScenarioState" : "scenario-4-chameleon-jcloud-null_unversioned-2",
+  "newScenarioState" : "scenario-4-chameleon-jcloud-null_unversioned-3",
+  "insertionIndex" : 115
+}

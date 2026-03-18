@@ -1,0 +1,43 @@
+{
+  "id" : "14b31366-e2d0-40f0-b30f-2fe5225ef07e",
+  "name" : "FSDocstoreIT_testDelete-POST-9",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TigerMapDelete\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"random String\"},\"pName\":{\"stringValue\":\"TigerMapDelete\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"},\"DocstoreRevision\":{\"nullValue\":null}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-03-04T21:20:05.725217Z\"\n    }\n  ],\n  \"commitTime\": \"2026-03-04T21:20:05.725217Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "15763376567120537225;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:20:05 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "14b31366-e2d0-40f0-b30f-2fe5225ef07e",
+  "persistent" : true,
+  "insertionIndex" : 117
+}

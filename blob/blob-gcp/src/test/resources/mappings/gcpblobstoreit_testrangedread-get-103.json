@@ -1,0 +1,54 @@
+{
+  "id" : "43e98ea3-4e94-49d5-b946-8d431a3e4b1c",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-103",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2FtestRangedRead_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772658477446508"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772658477446508",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Wed, 04 Mar 2026 21:07:57 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Wed, 04 Mar 2026 21:08:02 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=YmH3dA==,md5=T+WNlSpPVYjzKzCl+bYs2g==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "COzq7LaTh5MDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWzeoApVdsDDoD7wH5O3cKW0gbpFK0ywEjVnpwXFYhT-T33ISXS6QzsjtzSirTdrEupaGukj8gANyvUidg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "43e98ea3-4e94-49d5-b946-8d431a3e4b1c",
+  "persistent" : true,
+  "scenarioName" : "scenario-20-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-20-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-testRangedRead_unversioned-7",
+  "insertionIndex" : 861
+}

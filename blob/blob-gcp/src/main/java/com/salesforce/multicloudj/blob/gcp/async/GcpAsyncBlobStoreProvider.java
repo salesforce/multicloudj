@@ -7,13 +7,13 @@ import com.salesforce.multicloudj.common.gcp.GcpConstants;
 @AutoService(AsyncBlobStoreProvider.class)
 public class GcpAsyncBlobStoreProvider implements AsyncBlobStoreProvider {
 
-    @Override
-    public GcpAsyncBlobStore.Builder builder() {
-        return GcpAsyncBlobStore.builder();
-    }
+  @Override
+  public GcpAsyncBlobStore.Builder builder() {
+    return GcpAsyncBlobStore.builder();
+  }
 
-    @Override
-    public String getProviderId() {
-        return GcpConstants.PROVIDER_ID;
-    }
+  @Override
+  public String getProviderId() {
+    return GcpConstants.PROVIDER_ID;
+  }
 }

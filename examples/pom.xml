@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.salesforce.multicloudj</groupId>
         <artifactId>multicloudj-parent</artifactId>
-        <version>0.2.26-SNAPSHOT</version>
+        <version>0.2.29-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>multicloudj-examples</artifactId>
@@ -37,6 +37,14 @@
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>pubsub-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>iam-client</artifactId>
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
@@ -74,6 +82,56 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>iam-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>iam-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-gcp-firestore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>dbbackuprestore-ali</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>iam-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>iam-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>registry-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>registry-gcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>registry-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
@@ -96,6 +154,10 @@
         </dependency>
 
     </dependencies>
+
+    <properties>
+        <checkstyle.skip>true</checkstyle.skip>
+    </properties>
 
     <build>
         <plugins>

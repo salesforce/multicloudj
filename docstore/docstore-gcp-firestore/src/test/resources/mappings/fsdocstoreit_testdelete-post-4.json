@@ -1,0 +1,43 @@
+{
+  "id" : "8a5405f1-ebd6-4180-b6c1-ecc042d8c595",
+  "name" : "FSDocstoreIT_testDelete-POST-4",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LionMapDelete\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"missing\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LionMapDelete\",\n  \"readTime\": \"2026-03-04T21:20:07.317385Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "772605815657222479;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:20:07 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8a5405f1-ebd6-4180-b6c1-ecc042d8c595",
+  "persistent" : true,
+  "insertionIndex" : 112
+}

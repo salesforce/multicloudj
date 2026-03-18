@@ -1,0 +1,32 @@
+{
+  "id" : "16799bd2-41cb-44e1-83c7-2636efa3b1fb",
+  "name" : "AwsDocstoreIT_testDelete-POST-7",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"TigerMapDelete\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "0P8GFOS899OEDLTTIAP6R5PT7JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "289144682",
+      "Date" : "Wed, 04 Mar 2026 21:13:15 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "16799bd2-41cb-44e1-83c7-2636efa3b1fb",
+  "persistent" : true,
+  "insertionIndex" : 133
+}

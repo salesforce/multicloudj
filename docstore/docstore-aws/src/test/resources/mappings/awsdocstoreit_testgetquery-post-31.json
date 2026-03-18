@@ -1,0 +1,32 @@
+{
+  "id" : "4f28e316-dc81-4b3d-81d4-4bb299d220ad",
+  "name" : "AwsDocstoreIT_testGetQuery-POST-31",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"Item\":{\"Player\":{\"S\":\"pat\"},\"Score\":{\"N\":\"49\"},\"Game\":{\"S\":\"Praise All Monsters\"},\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-03-13\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "B24LDGC64UB7ROC5NFPHEIUS1BVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 04 Mar 2026 21:12:19 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4f28e316-dc81-4b3d-81d4-4bb299d220ad",
+  "persistent" : true,
+  "insertionIndex" : 32
+}
