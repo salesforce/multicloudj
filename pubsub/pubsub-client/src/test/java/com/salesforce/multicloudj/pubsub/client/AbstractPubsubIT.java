@@ -23,9 +23,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
+
+  private static final Logger logger = LoggerFactory.getLogger(AbstractPubsubIT.class);
 
   public interface Harness extends AutoCloseable {
 
@@ -442,16 +446,16 @@ public abstract class AbstractPubsubIT {
     try (AbstractTopic topic = harness.createTopicDriver()) {
       for (int i = 0; i < messagesToSend.size(); i++) {
         Message message = messagesToSend.get(i);
-        System.out.printf("[send] Sending message %d/%d: body=%s, metadata=%s%n",
+        logger.info("[send] Sending message {}/{}: body={}, metadata={}",
             i + 1, messagesToSend.size(), new String(message.getBody()), message.getMetadata());
         topic.send(message);
-        System.out.printf("[send] Message %d sent successfully%n", i + 1);
+        logger.info("[send] Message {} sent successfully", i + 1);
       }
     } 
 
-    System.out.println("[wait] Sleeping 500ms for message delivery...");
+    logger.info("[wait] Sleeping 500ms for message delivery...");
     TimeUnit.MILLISECONDS.sleep(500);
-    System.out.println("[wait] Sleep done, starting receive phase");
+    logger.info("[wait] Sleep done, starting receive phase");
 
     try (AbstractSubscription sub1 = subscription1;
         AbstractSubscription sub2 = subscription2) {
@@ -460,7 +464,7 @@ public abstract class AbstractPubsubIT {
       List<Message> received2 = receiveMessages(sub2, messagesToSend.size(), "sub2");
 
       // Verify both subscriptions received all messages
-      System.out.printf("[verify] sub1 received %d messages, sub2 received %d messages%n",
+      logger.info("[verify] sub1 received {} messages, sub2 received {} messages",
           received1.size(), received2.size());
       Assertions.assertEquals(
           messagesToSend.size(),
@@ -478,20 +482,20 @@ public abstract class AbstractPubsubIT {
               + received2.size());
 
       // Verify messages match for both subscriptions
-      System.out.println("[verify] Verifying sub1 messages...");
+      logger.info("[verify] Verifying sub1 messages...");
       verifyMessages(received1, messagesToSend, "Subscription 1");
-      System.out.println("[verify] sub1 messages OK");
-      System.out.println("[verify] Verifying sub2 messages...");
+      logger.info("[verify] sub1 messages OK");
+      logger.info("[verify] Verifying sub2 messages...");
       verifyMessages(received2, messagesToSend, "Subscription 2");
-      System.out.println("[verify] sub2 messages OK");
+      logger.info("[verify] sub2 messages OK");
 
       // Ack all messages from both subscriptions
-      System.out.println("[ack] Acking sub1 messages...");
+      logger.info("[ack] Acking sub1 messages...");
       ackMessages(sub1, received1);
-      System.out.println("[ack] sub1 ack done");
-      System.out.println("[ack] Acking sub2 messages...");
+      logger.info("[ack] sub1 ack done");
+      logger.info("[ack] Acking sub2 messages...");
       ackMessages(sub2, received2);
-      System.out.println("[ack] sub2 ack done");
+      logger.info("[ack] sub2 ack done");
     }
   }
 
@@ -502,17 +506,17 @@ public abstract class AbstractPubsubIT {
     long timeoutSeconds = 60;
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
-    System.out.printf("[%s] Starting to receive %d messages (timeout=%ds)%n",
+    logger.info("[{}] Starting to receive {} messages (timeout={}s)",
         subscriptionId, expectedCount, timeoutSeconds);
 
     List<Message> received = new ArrayList<>();
     try {
       while (received.size() < expectedCount && System.nanoTime() < deadline) {
         long remainingSec = TimeUnit.NANOSECONDS.toSeconds(deadline - System.nanoTime());
-        System.out.printf("[%s] Calling receive() - got %d/%d so far, %ds remaining%n",
+        logger.info("[{}] Calling receive() - got {}/{} so far, {}s remaining",
             subscriptionId, received.size(), expectedCount, remainingSec);
         Message r = subscription.receive();
-        System.out.printf("[%s] receive() returned message: body=%s, ackID=%s%n",
+        logger.info("[{}] receive() returned message: body={}, ackID={}",
             subscriptionId,
             r != null ? new String(r.getBody()) : "null",
             r != null ? r.getAckID() : "null");
@@ -524,18 +528,17 @@ public abstract class AbstractPubsubIT {
               + " Exception: %s - %s",
           subscriptionId, received.size(), expectedCount,
           e.getClass().getSimpleName(), e.getMessage());
-      System.out.println(errorMsg);
-      e.printStackTrace(System.out);
+      logger.error(errorMsg, e);
       Assertions.fail(errorMsg, e);
     }
     if (received.size() < expectedCount) {
       String errorMsg = String.format(
           "[%s] Timeout waiting for messages: Received %d/%d messages.",
           subscriptionId, received.size(), expectedCount);
-      System.out.println(errorMsg);
+      logger.error(errorMsg);
       Assertions.fail(errorMsg);
     }
-    System.out.printf("[%s] Successfully received all %d messages%n",
+    logger.info("[{}] Successfully received all {} messages",
         subscriptionId, received.size());
     return received;
   }

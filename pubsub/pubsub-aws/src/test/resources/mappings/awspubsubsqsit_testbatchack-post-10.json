@@ -1,0 +1,30 @@
+{
+  "id" : "8e6ee5cd-6dbb-4b8a-a4dc-cd7058051cdd",
+  "name" : "AwsPubsubSqsIT_testBatchAck-POST-10",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-sqs-testBatchAck\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testBatchAck\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "1dac45bd-c416-599c-b7f7-2789327869e9",
+      "Date" : "Wed, 18 Mar 2026 18:51:26 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "8e6ee5cd-6dbb-4b8a-a4dc-cd7058051cdd",
+  "persistent" : true,
+  "insertionIndex" : 65
+}

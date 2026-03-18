@@ -1,0 +1,30 @@
+{
+  "id" : "e43771a0-aa47-4a40-8158-e3ec7cd7b3fe",
+  "name" : "AwsPubsubSqsIT_testAckNullThrows-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.CreateQueue"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueName\":\"test-sqs-testAckNullThrows\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testAckNullThrows\"}",
+    "headers" : {
+      "x-amzn-RequestId" : "57c4a6b3-1676-5118-92cb-c487e007dbb4",
+      "Date" : "Wed, 18 Mar 2026 18:51:30 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "e43771a0-aa47-4a40-8158-e3ec7cd7b3fe",
+  "persistent" : true,
+  "insertionIndex" : 67
+}
