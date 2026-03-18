@@ -54,6 +54,12 @@ Learn how to manage database backup and restore operations across cloud provider
 
 - [DB Backup Restore](dbbackuprestore-guide.html)
 
+## 📦 Container Registry
+
+Pull and inspect OCI/Docker container images from cloud-hosted registries in a cloud-neutral way.
+
+- [Container Registry](registry-guide.html)
+
 ---
 
 ## 🧪 Testing
