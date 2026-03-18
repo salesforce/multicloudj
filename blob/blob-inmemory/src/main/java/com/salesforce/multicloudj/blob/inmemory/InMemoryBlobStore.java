@@ -115,7 +115,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionedKey = baseKey + ":" + versionId;
 
     StoredBlob blob =
-        new StoredBlob(content, etag, versionId, Instant.now(), uploadRequest.getMetadata());
+        new StoredBlob(
+            content, etag, versionId, Instant.now(), uploadRequest.getMetadata(),
+            uploadRequest.getContentType());
 
     STORAGE.put(versionedKey, blob);
     LATEST_VERSIONS.put(baseKey, versionId);
@@ -372,7 +374,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getEtag(),
             newVersionId,
             Instant.now(),
-            sourceBlob.getMetadata());
+            sourceBlob.getMetadata(),
+            sourceBlob.getContentType());
 
     STORAGE.put(destVersionedKey, destBlob);
     LATEST_VERSIONS.put(destBaseKey, newVersionId);
@@ -419,7 +422,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
             sourceBlob.getEtag(),
             newVersionId,
             Instant.now(),
-            sourceBlob.getMetadata());
+            sourceBlob.getMetadata(),
+            sourceBlob.getContentType());
 
     STORAGE.put(destVersionedKey, destBlob);
     LATEST_VERSIONS.put(destBaseKey, newVersionId);
@@ -461,6 +465,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .objectSize((long) blob.getData().length)
         .metadata(blob.getMetadata())
         .lastModified(blob.getLastModified())
+        .contentType(blob.getContentType())
         .build();
   }
 
@@ -581,7 +586,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String uploadId = UUID.randomUUID().toString();
 
-    MultipartUploadState state = new MultipartUploadState(request.getKey(), request.getMetadata());
+    MultipartUploadState state =
+        new MultipartUploadState(request.getKey(), request.getMetadata(), request.getContentType());
 
     MULTIPART_UPLOADS.put(uploadId, state);
 
@@ -672,7 +678,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String baseKey = getStorageKey(mpu.getKey());
       String versionedKey = baseKey + ":" + versionId;
       StoredBlob blob =
-          new StoredBlob(finalData, etag, versionId, Instant.now(), state.getMetadata());
+          new StoredBlob(
+              finalData, etag, versionId, Instant.now(), state.getMetadata(),
+              state.getContentType());
 
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
@@ -871,6 +879,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .contentType(blob.getContentType())
                 .build())
         .build();
   }
@@ -887,6 +896,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .contentType(blob.getContentType())
                 .build())
         .inputStream(inputStream)
         .build();
@@ -921,18 +931,21 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     private final String versionId;
     private final Instant lastModified;
     private final Map<String, String> metadata;
+    private final String contentType;
 
     public StoredBlob(
         byte[] data,
         String etag,
         String versionId,
         Instant lastModified,
-        Map<String, String> metadata) {
+        Map<String, String> metadata,
+        String contentType) {
       this.data = data;
       this.etag = etag;
       this.versionId = versionId;
       this.lastModified = lastModified;
       this.metadata = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+      this.contentType = contentType;
     }
   }
 
@@ -951,11 +964,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private static class MultipartUploadState {
     private final String key;
     private final Map<String, String> metadata;
+    private final String contentType;
     private final Map<Integer, PartData> parts = new ConcurrentHashMap<>();
 
-    public MultipartUploadState(String key, Map<String, String> metadata) {
+    public MultipartUploadState(String key, Map<String, String> metadata, String contentType) {
       this.key = key;
       this.metadata = metadata;
+      this.contentType = contentType;
     }
 
     public void addPart(int partNumber, byte[] data, String etag) {

@@ -908,6 +908,34 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToBlobInfo_uploadRequestWithContentType() {
+    UploadRequest request =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withContentType("application/x-directory")
+            .build();
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    assertEquals("application/x-directory", blobInfo.getContentType());
+  }
+
+  @Test
+  public void testToBlobInfo_multipartUploadRequestWithContentType() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_KEY)
+            .withContentType("application/x-directory")
+            .build();
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    assertEquals("application/x-directory", blobInfo.getContentType());
+  }
+
+  @Test
   public void testToFilePaths_UploadRequest() throws IOException {
     // Create a temporary directory structure
     Path tempDir = Files.createTempDirectory("test-upload");

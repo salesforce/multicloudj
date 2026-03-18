@@ -672,6 +672,33 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testGenerateObjectMetadataWithContentType() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey("test-key")
+            .withContentType("application/x-directory")
+            .build();
+
+    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+    assertEquals("application/x-directory", result.getContentType());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequestWithContentType() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("test-key")
+            .withContentType("application/x-directory")
+            .build();
+
+    com.aliyun.oss.model.InitiateMultipartUploadRequest result =
+        transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("application/x-directory", result.getObjectMetadata().getContentType());
+  }
+
+  @Test
   void testToPutObjectRequestWithStorageClass() {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withStorageClass("IA").build();

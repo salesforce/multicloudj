@@ -3645,4 +3645,38 @@ public abstract class AbstractBlobStoreIT {
       }
     }
   }
+
+  @Test
+  public void testUploadWithContentType() {
+    String key = "conformance-tests/content-type/upload-with-content-type";
+    byte[] content = new byte[0];
+    String contentType = "application/x-directory";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withContentType(contentType)
+              .build();
+
+      UploadResponse uploadResponse =
+          bucketClient.upload(uploadRequest, new ByteArrayInputStream(content));
+
+      Assertions.assertNotNull(uploadResponse, "Upload response should not be null");
+      Assertions.assertNotNull(uploadResponse.getETag(), "ETag should not be null");
+
+      // Verify content type is returned in metadata
+      BlobMetadata metadata = bucketClient.getMetadata(key, null);
+      Assertions.assertNotNull(metadata, "Metadata should not be null");
+      Assertions.assertEquals(
+          contentType, metadata.getContentType(), "Content type should match what was uploaded");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
 }
