@@ -91,6 +91,11 @@ public class AliTransformer {
       metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
     }
 
+    // Set content type if provided
+    if (uploadRequest.getContentType() != null && !uploadRequest.getContentType().isEmpty()) {
+      metadata.setContentType(uploadRequest.getContentType());
+    }
+
     return metadata;
   }
 
@@ -139,6 +144,7 @@ public class AliTransformer {
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
+                .contentType(ossObject.getObjectMetadata().getContentType())
                 .build())
         .build();
   }
@@ -154,6 +160,7 @@ public class AliTransformer {
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
+                .contentType(ossObject.getObjectMetadata().getContentType())
                 .build())
         .inputStream(inputStream)
         .build();
@@ -215,6 +222,7 @@ public class AliTransformer {
         .metadata(rawMetadata)
         .lastModified(metadata.getLastModified().toInstant())
         .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
+        .contentType(metadata.getContentType())
         .build();
   }
 
@@ -226,6 +234,11 @@ public class AliTransformer {
     if (request.getKmsKeyId() != null && !request.getKmsKeyId().isEmpty()) {
       metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
       metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+    }
+
+    // Set content type if provided
+    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+      metadata.setContentType(request.getContentType());
     }
 
     return new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);

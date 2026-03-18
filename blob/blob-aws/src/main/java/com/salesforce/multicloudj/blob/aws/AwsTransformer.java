@@ -209,6 +209,11 @@ public class AwsTransformer {
       builder.checksumCRC32C(request.getChecksumValue());
     }
 
+    // Set content type if provided
+    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+      builder.contentType(request.getContentType());
+    }
+
     return builder.build();
   }
 
@@ -289,6 +294,7 @@ public class AwsTransformer {
                 .lastModified(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
+                .contentType(response.contentType())
                 .build())
         .build();
   }
@@ -307,6 +313,7 @@ public class AwsTransformer {
                 .lastModified(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
+                .contentType(response.contentType())
                 .build())
         .inputStream(responseInputStream)
         .build();
@@ -381,6 +388,7 @@ public class AwsTransformer {
         .metadata(metadata)
         .lastModified(response.lastModified())
         .md5(eTagToMD5(eTag))
+        .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
         .build();
   }
@@ -423,6 +431,11 @@ public class AwsTransformer {
 
     if (request.isChecksumEnabled()) {
       builder.checksumAlgorithm(CRC32_C);
+    }
+
+    // Set content type if provided
+    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+      builder.contentType(request.getContentType());
     }
 
     return builder.build();

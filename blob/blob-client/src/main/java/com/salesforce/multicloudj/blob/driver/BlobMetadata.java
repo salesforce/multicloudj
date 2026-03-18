@@ -29,6 +29,9 @@ public class BlobMetadata {
   private final Instant lastModified;
   private final byte[] md5;
 
+  /** The content type of the blob (e.g., "application/octet-stream", "application/x-directory") */
+  private final String contentType;
+
   /** Object lock information for this blob. null if object lock is not configured. */
   private final ObjectLockInfo objectLockInfo;
 }

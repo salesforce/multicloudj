@@ -53,6 +53,12 @@ public class UploadRequest {
   /** (Optional parameter) Object lock configuration for WORM protection. */
   private final ObjectLockConfiguration objectLock;
 
+  /**
+   * (Optional parameter) The content type of the blob (e.g., "application/octet-stream",
+   * "application/x-directory", "text/plain")
+   */
+  private final String contentType;
+
   private UploadRequest(Builder builder) {
     this.key = builder.key;
     this.contentLength = builder.contentLength;
@@ -63,6 +69,7 @@ public class UploadRequest {
     this.useKmsManagedKey = builder.useKmsManagedKey;
     this.objectLock = builder.objectLock;
     this.checksumValue = builder.checksumValue;
+    this.contentType = builder.contentType;
   }
 
   public Map<String, String> getMetadata() {
@@ -83,6 +90,7 @@ public class UploadRequest {
     private boolean useKmsManagedKey;
     private ObjectLockConfiguration objectLock;
     private String checksumValue;
+    private String contentType;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -127,6 +135,11 @@ public class UploadRequest {
 
     public Builder withChecksumValue(String checksumValue) {
       this.checksumValue = checksumValue;
+      return this;
+    }
+
+    public Builder withContentType(String contentType) {
+      this.contentType = contentType;
       return this;
     }
 

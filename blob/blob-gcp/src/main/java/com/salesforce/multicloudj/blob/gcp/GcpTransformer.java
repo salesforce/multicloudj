@@ -72,14 +72,15 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Delegate to the protected toBlobInfo method which handles storage class, checksum, and object
-    // lock
+    // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
+    // lock, and content type
     return toBlobInfo(
         uploadRequest.getKey(),
         metadata,
         uploadRequest.getStorageClass(),
         null,
-        uploadRequest.getObjectLock());
+        uploadRequest.getObjectLock(),
+        uploadRequest.getContentType());
   }
 
   public UploadResponse toUploadResponse(Blob blob) {
@@ -204,6 +205,7 @@ public class GcpTransformer {
                 ? blob.getUpdateTimeOffsetDateTime().toInstant()
                 : null)
         .md5(HexUtil.convertToBytes(blob.getMd5()))
+        .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)
         .build();
   }
@@ -259,7 +261,8 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    return toBlobInfo(request.getKey(), metadata);
+    return toBlobInfo(
+        request.getKey(), metadata, null, null, null, request.getContentType());
   }
 
   public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
@@ -285,11 +288,11 @@ public class GcpTransformer {
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-    return toBlobInfo(key, metadata, null, null, null);
+    return toBlobInfo(key, metadata, null, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
-    return toBlobInfo(key, metadata, storageClass, null, null);
+    return toBlobInfo(key, metadata, storageClass, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(
@@ -297,7 +300,8 @@ public class GcpTransformer {
       Map<String, String> metadata,
       String storageClass,
       String checksumValue,
-      ObjectLockConfiguration objectLock) {
+      ObjectLockConfiguration objectLock,
+      String contentType) {
     metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
     BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
@@ -342,6 +346,11 @@ public class GcpTransformer {
       } else {
         builder.setTemporaryHold(objectLock.isLegalHold());
       }
+    }
+
+    // Set content type if provided
+    if (contentType != null && !contentType.isEmpty()) {
+      builder.setContentType(contentType);
     }
 
     return builder.build();
