@@ -139,10 +139,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
-    Blob blob = storage.get(getBucket(), uploadRequest.getKey());
-    if (blob == null) {
-      throw new SubstrateSdkException("Could not locate newly uploaded blob");
-    }
+    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
     return transformer.toUploadResponse(blob);
   }
 
@@ -182,10 +179,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     try (ReadChannel reader = storage.reader(blobId);
          var channel = Channels.newInputStream(reader)) {
 
-      Blob blob = storage.get(blobId);
-      if (blob == null) {
-        throw new SubstrateSdkException("Blob not found");
-      }
+      Blob blob = getRequiredBlob(blobId);
       var range =
           transformer.computeRange(
               downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
@@ -226,10 +220,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = storage.get(blobId);
-    if (blob == null) {
-      throw new SubstrateSdkException("Blob not found");
-    }
+    Blob blob = getRequiredBlob(blobId);
     try {
       ReadChannel reader = blob.reader();
       var range =
@@ -297,7 +288,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected BlobMetadata doGetMetadata(String key, String versionId) {
     BlobId blobId = transformer.toBlobId(bucket, key, versionId);
-    Blob blob = storage.get(blobId);
+    Blob blob = getRequiredBlob(blobId);
     return transformer.toBlobMetadata(blob);
   }
 
@@ -485,6 +476,22 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
+   * Retrieves a blob by its BlobId, throwing ResourceNotFoundException if not found.
+   *
+   * @param blobId The BlobId of the blob to retrieve
+   * @return The non-null Blob object
+   * @throws ResourceNotFoundException if the blob does not exist
+   */
+  private Blob getRequiredBlob(BlobId blobId) {
+    Blob blob = storage.get(blobId);
+    if (blob == null) {
+      throw new ResourceNotFoundException(
+          "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
+    }
+    return blob;
+  }
+
+  /**
    * Validates that the bucket exists, throwing ResourceNotFoundException if not found. Uses
    * Objects.List with pageSize(1) instead of Buckets.Get so that only {@code storage.objects.list}
    * is required on the bucket, not {@code storage.buckets.get}.
@@ -504,10 +511,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected Map<String, String> doGetTags(String key) {
-    Blob blob = storage.get(transformer.toBlobId(key, null));
-    if (blob == null) {
-      throw new SubstrateSdkException("Blob not found");
-    }
+    Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
     if (blob.getMetadata() == null) {
       return Collections.emptyMap();
     }
@@ -520,10 +524,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
-    Blob blob = storage.get(transformer.toBlobId(key, null));
-    if (blob == null) {
-      throw new SubstrateSdkException("Blob not found");
-    }
+    Blob blob = getRequiredBlob(transformer.toBlobId(key, null));
 
     // Copy all existing metadata
     Map<String, String> metadata =
@@ -764,10 +765,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Gets object lock configuration for a blob. */
   @Override
   public ObjectLockInfo getObjectLock(String key, String versionId) {
-    Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-    if (blob == null) {
-      throw new ResourceNotFoundException("Object not found: " + key);
-    }
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
 
     // Check for object retention
     Retention retention = blob.getRetention();
@@ -818,10 +816,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   public void updateObjectRetention(
       String key, String versionId, java.time.Instant retainUntilDate) {
-    Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-    if (blob == null) {
-      throw new ResourceNotFoundException("Object not found: " + key);
-    }
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
 
     Retention currentRetention = blob.getRetention();
     if (currentRetention == null) {
@@ -877,10 +872,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   /** Updates legal hold status on an object. */
   @Override
   public void updateLegalHold(String key, String versionId, boolean legalHold) {
-    Blob blob = storage.get(transformer.toBlobId(bucket, key, versionId));
-    if (blob == null) {
-      throw new ResourceNotFoundException("Object not found: " + key);
-    }
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
 
     // Determine which hold type to use based on existing configuration
     // If object has eventBasedHold, use that; otherwise use temporaryHold

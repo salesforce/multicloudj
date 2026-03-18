@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.28](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.27...multicloudj-v0.2.28) (2026-03-17)
+
+
+### Blob Store
+
+* checksum support for mpu ([#332](https://github.com/salesforce/multicloudj/issues/332)) ([5a56444](https://github.com/salesforce/multicloudj/commit/5a564449035f890c2446f5cea204d8719eb525fe))
+* Fix the doGetMetadata blob existence exception ([#341](https://github.com/salesforce/multicloudj/issues/341)) ([fc428ad](https://github.com/salesforce/multicloudj/commit/fc428add5b2babcdd36257dbf690117770b64710))
+* Object lock conformance ([#336](https://github.com/salesforce/multicloudj/issues/336)) ([5a0fb4a](https://github.com/salesforce/multicloudj/commit/5a0fb4a9ab6a5b8ce9f92d50617f47d17f093969))
+
+
+### Document Store
+
+* fix the inequality filter scenario in pagination token ([#340](https://github.com/salesforce/multicloudj/issues/340)) ([f97b58b](https://github.com/salesforce/multicloudj/commit/f97b58b9decbb239b170093043168e32ef03d41c))
+* support decoding byte[] ([#338](https://github.com/salesforce/multicloudj/issues/338)) ([fb1c6f7](https://github.com/salesforce/multicloudj/commit/fb1c6f79378140dfca992cf79b004f79f6360aa7))
+
+
+### PubSub
+
+* add the no-arg constructor ([#339](https://github.com/salesforce/multicloudj/issues/339)) ([bdba4b4](https://github.com/salesforce/multicloudj/commit/bdba4b43aadf4c50c5416c015e3a567e12e3438e))
+
+
+### IAM
+
+* implement substrate neutral policy document model ([#327](https://github.com/salesforce/multicloudj/issues/327)) ([03f6a8c](https://github.com/salesforce/multicloudj/commit/03f6a8ca172c72b8af37222db26b699ca8478db2))
+
 ## [0.2.27](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.26...multicloudj-v0.2.27) (2026-03-04)
 
 

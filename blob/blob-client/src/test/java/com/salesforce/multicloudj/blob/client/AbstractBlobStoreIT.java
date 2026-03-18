@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
@@ -1949,7 +1950,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testGetMetadata() throws IOException {
+  public void testGetMetadata() {
 
     class TestConfig {
       final String testName;
@@ -2044,6 +2045,18 @@ public abstract class AbstractBlobStoreIT {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, key);
     }
+  }
+
+  @Test
+  public void testGetMetadataBlobNotExists() {
+    // Create the BucketClient
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Attempt to get metadata for a blob that does not exist
+    Assertions.assertThrows(
+        ResourceNotFoundException.class,
+        () -> bucketClient.getMetadata("conformance-tests/non-existent-blob", null));
   }
 
   /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
@@ -2498,7 +2511,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_singlePart() throws IOException {
+  public void testMultipartUpload_singlePart() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "single part",
@@ -2511,7 +2524,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_multipleParts() throws IOException {
+  public void testMultipartUpload_multipleParts() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "multiple parts",
@@ -2532,7 +2545,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_unorderedMultipleParts() throws IOException {
+  public void testMultipartUpload_unorderedMultipleParts() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "unordered multiple parts",
@@ -2547,7 +2560,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_skippingNumbers() throws IOException {
+  public void testMultipartUpload_skippingNumbers() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "skipping numbers",
@@ -2566,7 +2579,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_duplicateParts() throws IOException {
+  public void testMultipartUpload_duplicateParts() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "duplicates parts",
@@ -2582,7 +2595,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_nonExistentParts() throws IOException {
+  public void testMultipartUpload_nonExistentParts() {
     runMultipartUploadTest(
         new MultipartUploadTestConfig(
             "non-existent parts",
@@ -2740,7 +2753,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  public void testMultipartUpload_withKms() throws IOException {
+  public void testMultipartUpload_withKms() {
     String kmsKeyId = harness.getKmsKeyId();
     Assumptions.assumeTrue(kmsKeyId != null && !kmsKeyId.isEmpty(), "KMS key ID not configured");
 
@@ -2759,7 +2772,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   // @Test
-  public void testMultipartUpload_withTags() throws IOException {
+  public void testMultipartUpload_withTags() {
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withTags";
     Map<String, String> tags = Map.of("tag1", "value1");
     runMultipartUploadTest(
@@ -3131,14 +3144,14 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  void testGeneratePresignedDownloadUrl_nonExistingFile() throws IOException {
+  void testGeneratePresignedDownloadUrl_nonExistingFile() {
     String key = PRESIGNED_BLOB_DOWNLOAD_PREFIX + "nonExistingFile";
     Assertions.assertThrows(
         Throwable.class, () -> runPresignedDownloadTest(key, false, Duration.ofHours(4), null));
   }
 
   @Test
-  void testGeneratePresignedDownloadUrl_negativeDuration() throws IOException {
+  void testGeneratePresignedDownloadUrl_negativeDuration() {
     String key = PRESIGNED_BLOB_DOWNLOAD_PREFIX + "negativeDuration";
     Assertions.assertThrows(
         InvalidArgumentException.class,
@@ -3146,7 +3159,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  void testGeneratePresignedDownloadUrl_zeroDuration() throws IOException {
+  void testGeneratePresignedDownloadUrl_zeroDuration() {
     String key = PRESIGNED_BLOB_DOWNLOAD_PREFIX + "zeroDuration";
     Assertions.assertThrows(
         InvalidArgumentException.class,
@@ -3154,7 +3167,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  void testGeneratePresignedDownloadUrl_expiredUrl() throws IOException {
+  void testGeneratePresignedDownloadUrl_expiredUrl() {
     String key = PRESIGNED_BLOB_DOWNLOAD_PREFIX + "expiredUrl";
     Assertions.assertThrows(
         Exception.class, () -> runPresignedDownloadTest(key, false, Duration.ofSeconds(1), 2L));
