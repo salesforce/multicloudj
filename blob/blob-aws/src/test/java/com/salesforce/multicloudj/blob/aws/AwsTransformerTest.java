@@ -959,6 +959,35 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testUploadRequestWithContentType() {
+    var key = "some-key";
+    var contentType = "application/x-directory";
+
+    var request =
+        UploadRequest.builder().withKey(key).withContentType(contentType).build();
+
+    var result = transformer.toRequest(request);
+
+    assertEquals(BUCKET, result.bucket());
+    assertEquals(key, result.key());
+    assertEquals(contentType, result.contentType());
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequestWithContentType() {
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withContentType("application/x-directory")
+            .build();
+    CreateMultipartUploadRequest request =
+        transformer.toCreateMultipartUploadRequest(mpuRequest);
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals("application/x-directory", request.contentType());
+  }
+
+  @Test
   void testToAwsRetryStrategyWithExponentialMode() {
     RetryConfig config =
         RetryConfig.builder()

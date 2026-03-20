@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -72,14 +73,15 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    // Delegate to the protected toBlobInfo method which handles storage class, checksum, and object
-    // lock
+    // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
+    // lock, and content type
     return toBlobInfo(
         uploadRequest.getKey(),
         metadata,
         uploadRequest.getStorageClass(),
         null,
-        uploadRequest.getObjectLock());
+        uploadRequest.getObjectLock(),
+        uploadRequest.getContentType());
   }
 
   public UploadResponse toUploadResponse(Blob blob) {
@@ -204,6 +206,7 @@ public class GcpTransformer {
                 ? blob.getUpdateTimeOffsetDateTime().toInstant()
                 : null)
         .md5(HexUtil.convertToBytes(blob.getMd5()))
+        .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)
         .build();
   }
@@ -259,7 +262,8 @@ public class GcpTransformer {
           .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
     }
 
-    return toBlobInfo(request.getKey(), metadata);
+    return toBlobInfo(
+        request.getKey(), metadata, null, null, null, request.getContentType());
   }
 
   public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {
@@ -285,11 +289,11 @@ public class GcpTransformer {
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata) {
-    return toBlobInfo(key, metadata, null, null, null);
+    return toBlobInfo(key, metadata, null, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(String key, Map<String, String> metadata, String storageClass) {
-    return toBlobInfo(key, metadata, storageClass, null, null);
+    return toBlobInfo(key, metadata, storageClass, null, null, null);
   }
 
   protected BlobInfo toBlobInfo(
@@ -297,12 +301,13 @@ public class GcpTransformer {
       Map<String, String> metadata,
       String storageClass,
       String checksumValue,
-      ObjectLockConfiguration objectLock) {
+      ObjectLockConfiguration objectLock,
+      String contentType) {
     metadata = metadata != null ? ImmutableMap.copyOf(metadata) : Collections.emptyMap();
     BlobInfo.Builder builder = BlobInfo.newBuilder(bucket, key).setMetadata(metadata);
 
     // Set storage class if provided
-    if (storageClass != null && !storageClass.isEmpty()) {
+    if (StringUtils.isNotEmpty(storageClass)) {
       try {
         StorageClass gcpStorageClass = StorageClass.valueOf(storageClass.toUpperCase());
         builder.setStorageClass(gcpStorageClass);
@@ -312,7 +317,7 @@ public class GcpTransformer {
     }
 
     // Set CRC32C checksum if provided (GCP's native checksum algorithm)
-    if (checksumValue != null && !checksumValue.isEmpty()) {
+    if (StringUtils.isNotEmpty(checksumValue)) {
       builder.setCrc32c(checksumValue);
     }
 
@@ -344,11 +349,16 @@ public class GcpTransformer {
       }
     }
 
+    // Set content type if provided
+    if (StringUtils.isNotEmpty(contentType)) {
+      builder.setContentType(contentType);
+    }
+
     return builder.build();
   }
 
   public Storage.BlobTargetOption[] getKmsTargetOptions(UploadRequest uploadRequest) {
-    if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       return new Storage.BlobTargetOption[] {
         Storage.BlobTargetOption.kmsKeyName(uploadRequest.getKmsKeyId())
       };
@@ -357,7 +367,7 @@ public class GcpTransformer {
   }
 
   public Storage.BlobWriteOption[] getKmsWriteOptions(UploadRequest uploadRequest) {
-    if (uploadRequest.getKmsKeyId() != null && !uploadRequest.getKmsKeyId().isEmpty()) {
+    if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       return new Storage.BlobWriteOption[] {
         Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId())
       };
@@ -426,7 +436,7 @@ public class GcpTransformer {
     Path relativePath = sourceDir.relativize(filePath);
     String key = relativePath.toString().replace("\\", "/"); // Normalize path separators
 
-    if (prefix != null && !prefix.isEmpty()) {
+    if (StringUtils.isNotEmpty(prefix)) {
       // Ensure prefix ends with "/" if it doesn't already
       String normalizedPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
       key = normalizedPrefix + key;

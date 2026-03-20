@@ -16,6 +16,7 @@ public class MultipartUploadRequest {
   private final String kmsKeyId;
   private final boolean useKmsManagedKey;
   private final boolean checksumEnabled;
+  private final String contentType;
 
   private MultipartUploadRequest(final Builder builder) {
     this.key = builder.key;
@@ -24,6 +25,7 @@ public class MultipartUploadRequest {
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
     this.checksumEnabled = builder.checksumEnabled;
+    this.contentType = builder.contentType;
   }
 
   public Map<String, String> getMetadata() {
@@ -41,6 +43,7 @@ public class MultipartUploadRequest {
     private String kmsKeyId;
     private boolean useKmsManagedKey;
     private boolean checksumEnabled;
+    private String contentType;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -69,6 +72,11 @@ public class MultipartUploadRequest {
 
     public Builder withChecksumEnabled(boolean checksumEnabled) {
       this.checksumEnabled = checksumEnabled;
+      return this;
+    }
+
+    public Builder withContentType(String contentType) {
+      this.contentType = contentType;
       return this;
     }
 
