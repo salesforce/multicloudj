@@ -19,3 +19,7 @@ just_the_docs:
   show_title: true
   search_enabled: true
   show_last_modified_time: true
+
+keep_files:
+  - api
+  - target
