@@ -8,12 +8,13 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
+import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.impl.client.CloseableHttpClient;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -41,7 +42,7 @@ public class AwsRegistry extends AbstractRegistry {
   /** Lock for thread-safe token refresh. */
   private final Object tokenLock = new Object();
 
-  private final OciRegistryClient ociClient;
+  private final OciHttpTransport ociClient;
 
   /** Lazily initialized ECR client with double-checked locking. */
   private volatile EcrClient ecrClient;
@@ -65,10 +66,23 @@ public class AwsRegistry extends AbstractRegistry {
    * @param ecrClient the ECR client to use (null to create default)
    */
   public AwsRegistry(Builder builder, EcrClient ecrClient) {
+    this(builder, ecrClient, null);
+  }
+
+  /**
+   * Creates AwsRegistry with specified EcrClient and HttpClient.
+   *
+   * @param builder the builder with configuration
+   * @param ecrClient the ECR client to use (null to create default)
+   * @param httpClient the HTTP client for OCI transport (null to create default)
+   */
+  public AwsRegistry(Builder builder, EcrClient ecrClient, CloseableHttpClient httpClient) {
     super(builder);
     this.ecrClient = ecrClient;
     this.ociClient =
-        registryEndpoint != null ? new OciRegistryClient(registryEndpoint, this) : null;
+        registryEndpoint != null
+            ? new OciHttpTransport(registryEndpoint, this, httpClient)
+            : null;
   }
 
   @Override
@@ -77,7 +91,7 @@ public class AwsRegistry extends AbstractRegistry {
   }
 
   @Override
-  protected OciRegistryClient getOciClient() {
+  protected OciHttpTransport getOciTransport() {
     return ociClient;
   }
 

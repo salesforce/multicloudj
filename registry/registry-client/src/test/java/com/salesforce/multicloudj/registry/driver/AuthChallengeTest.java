@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.IOException;
 import org.apache.http.HttpHeaders;
@@ -29,7 +30,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/** Unit tests for AuthChallenge. */
+/** Unit tests for AuthChallenge and AuthScheme. */
 @ExtendWith(MockitoExtension.class)
 public class AuthChallengeTest {
 
@@ -43,7 +44,44 @@ public class AuthChallengeTest {
 
   @Mock private StatusLine mockStatusLine;
 
-  // ==================== discover() tests ====================
+  @Test
+  void testAuthSchemeFromString_Anonymous() {
+    assertEquals(AuthScheme.ANONYMOUS, AuthScheme.fromString("anonymous"));
+    assertEquals(AuthScheme.ANONYMOUS, AuthScheme.fromString("ANONYMOUS"));
+    assertEquals(AuthScheme.ANONYMOUS, AuthScheme.fromString("Anonymous"));
+  }
+
+  @Test
+  void testAuthSchemeFromString_Basic() {
+    assertEquals(AuthScheme.BASIC, AuthScheme.fromString("basic"));
+    assertEquals(AuthScheme.BASIC, AuthScheme.fromString("BASIC"));
+    assertEquals(AuthScheme.BASIC, AuthScheme.fromString("Basic"));
+  }
+
+  @Test
+  void testAuthSchemeFromString_Bearer() {
+    assertEquals(AuthScheme.BEARER, AuthScheme.fromString("bearer"));
+    assertEquals(AuthScheme.BEARER, AuthScheme.fromString("BEARER"));
+    assertEquals(AuthScheme.BEARER, AuthScheme.fromString("Bearer"));
+  }
+
+  @Test
+  void testAuthSchemeFromString_NullThrowsInvalidArgumentException() {
+    assertThrows(InvalidArgumentException.class, () -> AuthScheme.fromString(null));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "   ", "\t"})
+  void testAuthSchemeFromString_BlankThrowsInvalidArgumentException(String blank) {
+    assertThrows(InvalidArgumentException.class, () -> AuthScheme.fromString(blank));
+  }
+
+  @Test
+  void testAuthSchemeFromString_UnsupportedThrowsUnSupportedOperationException() {
+    assertThrows(UnSupportedOperationException.class, () -> AuthScheme.fromString("digest"));
+    assertThrows(UnSupportedOperationException.class, () -> AuthScheme.fromString("ntlm"));
+    assertThrows(UnSupportedOperationException.class, () -> AuthScheme.fromString("unknown"));
+  }
 
   @Test
   void testDiscover_ReturnsAnonymous_WhenStatusOk() throws Exception {
@@ -54,7 +92,7 @@ public class AuthChallengeTest {
     AuthChallenge challenge = AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT);
 
     assertNotNull(challenge);
-    assertEquals("Anonymous", challenge.getScheme());
+    assertEquals(AuthScheme.ANONYMOUS, challenge.getScheme());
   }
 
   @Test
@@ -71,7 +109,7 @@ public class AuthChallengeTest {
     AuthChallenge challenge = AuthChallenge.discover(mockHttpClient, REGISTRY_ENDPOINT);
 
     assertNotNull(challenge);
-    assertEquals("Bearer", challenge.getScheme());
+    assertEquals(AuthScheme.BEARER, challenge.getScheme());
     assertEquals(TOKEN_ENDPOINT, challenge.getRealm());
     assertEquals(SERVICE, challenge.getService());
   }
@@ -120,21 +158,17 @@ public class AuthChallengeTest {
     assertEquals(IOException.class, exception.getCause().getClass());
   }
 
-  // ==================== anonymous() tests ====================
-
   @Test
   void testAnonymous_ReturnsAnonymousChallenge() {
     AuthChallenge challenge = AuthChallenge.anonymous();
 
     assertNotNull(challenge);
-    assertEquals("Anonymous", challenge.getScheme());
+    assertEquals(AuthScheme.ANONYMOUS, challenge.getScheme());
     assertNull(challenge.getRealm());
     assertNull(challenge.getService());
     assertNull(challenge.getScope());
     assertFalse(challenge.isBearer());
   }
-
-  // ==================== parse() tests ====================
 
   @Test
   void testParse_BearerChallenge_WithAllParams() {
@@ -145,7 +179,7 @@ public class AuthChallengeTest {
     AuthChallenge challenge = AuthChallenge.parse(header);
 
     assertNotNull(challenge);
-    assertEquals("Bearer", challenge.getScheme());
+    assertEquals(AuthScheme.BEARER, challenge.getScheme());
     assertEquals("https://auth.example.com/token", challenge.getRealm());
     assertEquals("registry.example.com", challenge.getService());
     assertEquals("repository:test:pull", challenge.getScope());
@@ -159,7 +193,7 @@ public class AuthChallengeTest {
     AuthChallenge challenge = AuthChallenge.parse(header);
 
     assertNotNull(challenge);
-    assertEquals("Basic", challenge.getScheme());
+    assertEquals(AuthScheme.BASIC, challenge.getScheme());
     assertEquals("Registry Realm", challenge.getRealm());
     assertNull(challenge.getService());
     assertNull(challenge.getScope());
@@ -168,12 +202,13 @@ public class AuthChallengeTest {
 
   @Test
   void testParse_CaseInsensitiveScheme() {
+    // "bearer" (lowercase) should be parsed to AuthScheme.BEARER via fromString()
     String header = "bearer realm=\"https://auth.example.com/token\"";
 
     AuthChallenge challenge = AuthChallenge.parse(header);
 
     assertNotNull(challenge);
-    assertEquals("bearer", challenge.getScheme());
+    assertEquals(AuthScheme.BEARER, challenge.getScheme());
     assertTrue(challenge.isBearer());
   }
 
@@ -201,7 +236,7 @@ public class AuthChallengeTest {
     AuthChallenge challenge = AuthChallenge.parse(header);
 
     assertNotNull(challenge);
-    assertEquals("Bearer", challenge.getScheme());
+    assertEquals(AuthScheme.BEARER, challenge.getScheme());
     assertNull(challenge.getRealm());
     assertNull(challenge.getService());
     assertNull(challenge.getScope());

@@ -12,7 +12,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
+import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
@@ -37,7 +37,7 @@ public class GcpRegistry extends AbstractRegistry {
   /** Lock for thread-safe lazy initialization of credentials. */
   private final Object credentialsLock = new Object();
 
-  private final OciRegistryClient ociClient;
+  private final OciHttpTransport ociClient;
 
   /** Lazily initialized credentials with double-checked locking. */
   private volatile GoogleCredentials credentials;
@@ -54,7 +54,7 @@ public class GcpRegistry extends AbstractRegistry {
     super(builder);
     this.ociClient =
         registryEndpoint != null
-            ? new OciRegistryClient(registryEndpoint, this, httpClient)
+            ? new OciHttpTransport(registryEndpoint, this, httpClient)
             : null;
   }
 
@@ -64,7 +64,7 @@ public class GcpRegistry extends AbstractRegistry {
   }
 
   @Override
-  protected OciRegistryClient getOciClient() {
+  protected OciHttpTransport getOciTransport() {
     return ociClient;
   }
 

@@ -27,7 +27,7 @@ public class RemoteLayerTest {
   private static final String REPOSITORY = "test-repo/test-image";
   private static final String DIGEST = "sha256:abc123";
 
-  @Mock private OciRegistryClient mockClient;
+  @Mock private OciHttpTransport mockClient;
 
   private RemoteLayer remoteLayer;
 
