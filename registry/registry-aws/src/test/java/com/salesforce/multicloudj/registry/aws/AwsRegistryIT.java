@@ -1,17 +1,27 @@
 package com.salesforce.multicloudj.registry.aws;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
 import com.salesforce.multicloudj.registry.client.AbstractRegistryIT;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.impl.client.CloseableHttpClient;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecr.EcrClient;
+import software.amazon.awssdk.services.ecr.model.AuthorizationData;
+import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenRequest;
+import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
 
 public class AwsRegistryIT extends AbstractRegistryIT {
 
@@ -26,27 +36,27 @@ public class AwsRegistryIT extends AbstractRegistryIT {
 
   public static class HarnessImpl implements Harness {
     int port = ThreadLocalRandom.current().nextInt(1000, 10000);
-    SdkHttpClient sdkHttpClient;
     EcrClient ecrClient;
 
     @Override
     public AbstractRegistry createRegistryDriver() {
+      boolean isRecordingEnabled = System.getProperty("record") != null;
       CloseableHttpClient ociHttpClient = TestsUtilAws.getProxyHttpClient(port);
-      sdkHttpClient = TestsUtilAws.getProxyClient("https", port);
 
-      ecrClient =
-          EcrClient.builder()
-              .region(Region.of(REGION))
-              .httpClient(sdkHttpClient)
-              .credentialsProvider(
-                  StaticCredentialsProvider.create(
-                      AwsSessionCredentials.create(
-                          System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
-                          System.getenv()
-                              .getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
-                          System.getenv()
-                              .getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))))
-              .build();
+      if (isRecordingEnabled) {
+        ecrClient =
+            EcrClient.builder()
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsSessionCredentials.create(
+                            System.getenv("AWS_ACCESS_KEY_ID"),
+                            System.getenv("AWS_SECRET_ACCESS_KEY"),
+                            System.getenv("AWS_SESSION_TOKEN"))))
+                .build();
+      } else {
+        ecrClient = createMockEcrClient();
+      }
 
       AwsRegistry.Builder builder =
           (AwsRegistry.Builder)
@@ -55,6 +65,26 @@ public class AwsRegistryIT extends AbstractRegistryIT {
                   .withRegistryEndpoint(ENDPOINT);
 
       return new AwsRegistry(builder, ecrClient, ociHttpClient);
+    }
+
+    private static EcrClient createMockEcrClient() {
+      String fakeToken =
+          Base64.getEncoder()
+              .encodeToString("AWS:fake_ecr_password".getBytes(StandardCharsets.UTF_8));
+      GetAuthorizationTokenResponse response =
+          GetAuthorizationTokenResponse.builder()
+              .authorizationData(
+                  AuthorizationData.builder()
+                      .authorizationToken(fakeToken)
+                      .expiresAt(Instant.now().plus(12, ChronoUnit.HOURS))
+                      .proxyEndpoint(ENDPOINT)
+                      .build())
+              .build();
+
+      EcrClient mockClient = mock(EcrClient.class);
+      when(mockClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
+          .thenReturn(response);
+      return mockClient;
     }
 
     @Override
@@ -87,9 +117,6 @@ public class AwsRegistryIT extends AbstractRegistryIT {
     public void close() {
       if (ecrClient != null) {
         ecrClient.close();
-      }
-      if (sdkHttpClient != null) {
-        sdkHttpClient.close();
       }
     }
   }

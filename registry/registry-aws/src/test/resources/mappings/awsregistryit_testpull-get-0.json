@@ -1,5 +1,5 @@
 {
-  "id" : "c1e57e0c-44ec-42bf-82dc-117e4b8e6fd0",
+  "id" : "9c6c398f-ba95-454c-b6cd-65123677b096",
   "name" : "AwsRegistryIT_testPull-GET-0",
   "request" : {
     "url" : "/v2/test-registry/manifests/latest",
@@ -11,11 +11,11 @@
     "headers" : {
       "Docker-Distribution-Api-Version" : "registry/2.0",
       "Sizes" : "",
-      "Date" : "Fri, 20 Mar 2026 01:00:02 GMT",
+      "Date" : "Fri, 20 Mar 2026 18:51:13 GMT",
       "Content-Type" : "application/vnd.oci.image.manifest.v1+json"
     }
   },
-  "uuid" : "c1e57e0c-44ec-42bf-82dc-117e4b8e6fd0",
+  "uuid" : "9c6c398f-ba95-454c-b6cd-65123677b096",
   "persistent" : true,
-  "insertionIndex" : 1
+  "insertionIndex" : 6
 }

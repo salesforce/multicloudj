@@ -1,5 +1,5 @@
 {
-  "id" : "77149074-50b7-46a3-956a-19046d39244d",
+  "id" : "2324142a-fd8d-483e-a6e7-d8c865655295",
   "name" : "AwsRegistryIT_testExtract-GET-1",
   "request" : {
     "url" : "/v2/test-registry/blobs/sha256:17eec7bbc9d79fa397ac95c7283ecd04d1fe6978516932a3db110c6206430809",
@@ -12,7 +12,7 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "77149074-50b7-46a3-956a-19046d39244d",
+  "uuid" : "2324142a-fd8d-483e-a6e7-d8c865655295",
   "persistent" : true,
-  "insertionIndex" : 4
+  "insertionIndex" : 2
 }

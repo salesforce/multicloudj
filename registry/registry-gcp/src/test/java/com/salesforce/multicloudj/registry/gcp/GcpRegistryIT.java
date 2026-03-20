@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.impl.client.CloseableHttpClient;
 
@@ -69,10 +70,9 @@ public class GcpRegistryIT extends AbstractRegistryIT {
     }
 
     @Override
-    public String[] getWiremockExtensions() {
-      return new String[] {
-        "com.salesforce.multicloudj.registry.gcp.util.RegistryTokenRedactingTransformer"
-      };
+    public List<String> getWiremockExtensions() {
+      return List.of(
+          "com.salesforce.multicloudj.registry.gcp.util.RegistryTokenRedactingTransformer");
     }
 
     @Override

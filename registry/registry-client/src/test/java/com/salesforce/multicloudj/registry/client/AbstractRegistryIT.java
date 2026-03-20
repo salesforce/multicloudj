@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.model.Image;
 import java.io.InputStream;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -31,8 +32,8 @@ public abstract class AbstractRegistryIT {
 
     String getTestImageRef();
 
-    default String[] getWiremockExtensions() {
-      return new String[0];
+    default List<String> getWiremockExtensions() {
+      return List.of();
     }
   }
 
@@ -44,8 +45,9 @@ public abstract class AbstractRegistryIT {
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
+    List<String> extensions = harness.getWiremockExtensions();
     TestsUtil.startWireMockServer(
-        "src/test/resources", harness.getPort(), harness.getWiremockExtensions());
+        "src/test/resources", harness.getPort(), extensions.toArray(new String[0]));
   }
 
   @AfterAll
