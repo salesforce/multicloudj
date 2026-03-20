@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 /**
  * GCP Artifact Registry implementation.
@@ -46,9 +47,15 @@ public class GcpRegistry extends AbstractRegistry {
   }
 
   public GcpRegistry(Builder builder) {
+    this(builder, null);
+  }
+
+  public GcpRegistry(Builder builder, CloseableHttpClient httpClient) {
     super(builder);
     this.ociClient =
-        registryEndpoint != null ? new OciHttpTransport(registryEndpoint, this) : null;
+        registryEndpoint != null
+            ? new OciHttpTransport(registryEndpoint, this, httpClient)
+            : null;
   }
 
   @Override
