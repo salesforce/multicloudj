@@ -8,7 +8,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.registry.driver.OciRegistryClient;
+import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -41,7 +41,7 @@ public class AwsRegistry extends AbstractRegistry {
   /** Lock for thread-safe token refresh. */
   private final Object tokenLock = new Object();
 
-  private final OciRegistryClient ociClient;
+  private final OciHttpTransport ociClient;
 
   /** Lazily initialized ECR client with double-checked locking. */
   private volatile EcrClient ecrClient;
@@ -68,7 +68,7 @@ public class AwsRegistry extends AbstractRegistry {
     super(builder);
     this.ecrClient = ecrClient;
     this.ociClient =
-        registryEndpoint != null ? new OciRegistryClient(registryEndpoint, this) : null;
+        registryEndpoint != null ? new OciHttpTransport(registryEndpoint, this) : null;
   }
 
   @Override
@@ -77,7 +77,7 @@ public class AwsRegistry extends AbstractRegistry {
   }
 
   @Override
-  protected OciRegistryClient getOciClient() {
+  protected OciHttpTransport getOciTransport() {
     return ociClient;
   }
 

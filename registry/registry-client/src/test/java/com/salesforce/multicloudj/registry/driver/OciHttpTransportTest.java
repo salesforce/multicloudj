@@ -17,7 +17,6 @@ import static org.mockito.Mockito.when;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.model.Manifest;
 import java.io.ByteArrayInputStream;
@@ -35,19 +34,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Unit tests for OciRegistryClient. Tests authentication header generation for Basic, Bearer, and
- * Anonymous auth schemes.
- */
-public class OciRegistryClientTest {
+/** Unit tests for OciHttpTransport. */
+public class OciHttpTransportTest {
 
   private static final String REGISTRY_ENDPOINT = "https://test-registry.example.com";
   private static final String REPOSITORY = "test-repo/test-image";
@@ -70,7 +64,6 @@ public class OciRegistryClientTest {
 
   @Test
   void testGetHttpAuthHeader_BasicAuth() throws Exception {
-    // Setup mock for Basic auth challenge
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
 
     when(mockAuthProvider.getAuthUsername()).thenReturn("testuser");
@@ -83,26 +76,24 @@ public class OciRegistryClientTest {
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+      OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-      String authHeader = client.getHttpAuthHeader(REPOSITORY);
+      String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
       assertNotNull(authHeader);
       assertTrue(authHeader.startsWith("Basic "));
 
-      // Verify the encoded credentials
       String expectedCredentials = "testuser:testtoken";
       String expectedEncoded =
           Base64.getEncoder().encodeToString(expectedCredentials.getBytes(StandardCharsets.UTF_8));
       assertEquals("Basic " + expectedEncoded, authHeader);
 
-      client.close();
+      transport.close();
     }
   }
 
   @Test
   void testGetHttpAuthHeader_BearerAuth() throws Exception {
-    // Setup mock for Bearer auth challenge
     AuthChallenge bearerChallenge =
         AuthChallenge.parse(
             "Bearer realm=\"https://auth.example.com/token\",service=\"registry.example.com\"");
@@ -122,20 +113,19 @@ public class OciRegistryClientTest {
           .thenReturn(bearerChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+      OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-      String authHeader = client.getHttpAuthHeader(REPOSITORY);
+      String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
       assertNotNull(authHeader);
       assertEquals("Bearer bearer-token-123", authHeader);
 
-      client.close();
+      transport.close();
     }
   }
 
   @Test
   void testGetHttpAuthHeader_AnonymousAuth() throws Exception {
-    // Setup mock for anonymous auth (no auth required)
     AuthChallenge anonymousChallenge = AuthChallenge.anonymous();
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
@@ -144,50 +134,13 @@ public class OciRegistryClientTest {
           .thenReturn(anonymousChallenge);
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+      OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
-      String authHeader = client.getHttpAuthHeader(REPOSITORY);
+      String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
       assertNull(authHeader);
 
-      client.close();
-    }
-  }
-
-  @Test
-  void testGetHttpAuthHeader_UnsupportedScheme() throws Exception {
-    AuthChallenge mockChallenge = mock(AuthChallenge.class);
-    when(mockChallenge.getScheme()).thenReturn("unsupported");
-
-    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
-      mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
-          .thenReturn(mockChallenge);
-
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
-
-      assertThrows(UnSupportedOperationException.class, () -> client.getHttpAuthHeader(REPOSITORY));
-
-      client.close();
-    }
-  }
-
-  @ParameterizedTest
-  @NullAndEmptySource
-  void testGetHttpAuthHeader_BlankOrNullScheme(String scheme) throws Exception {
-    AuthChallenge mockChallenge = mock(AuthChallenge.class);
-    when(mockChallenge.getScheme()).thenReturn(scheme);
-
-    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
-      mockedAuthChallenge
-          .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
-          .thenReturn(mockChallenge);
-
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
-
-      assertThrows(InvalidArgumentException.class, () -> client.getHttpAuthHeader(REPOSITORY));
-
-      client.close();
+      transport.close();
     }
   }
 
@@ -204,21 +157,19 @@ public class OciRegistryClientTest {
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client = new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider);
+      OciHttpTransport transport = new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider);
 
       // Call twice
-      client.getHttpAuthHeader(REPOSITORY);
-      client.getHttpAuthHeader(REPOSITORY);
+      transport.getHttpAuthHeader(REPOSITORY);
+      transport.getHttpAuthHeader(REPOSITORY);
 
       // Verify discover was called only once (challenge is cached)
       mockedAuthChallenge.verify(
           () -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()), times(1));
 
-      client.close();
+      transport.close();
     }
   }
-
-  // ========== fetchManifest Tests ==========
 
   @Test
   void testFetchManifest_SingleImageManifest_WithDockerDigestHeader() throws Exception {
@@ -469,14 +420,14 @@ public class OciRegistryClientTest {
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
-          assertThrows(UnknownException.class, () -> client.fetchManifest(REPOSITORY, "latest"));
+          assertThrows(UnknownException.class, () -> transport.fetchManifest(REPOSITORY, "latest"));
       assertTrue(exception.getMessage().contains("empty response body"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -603,14 +554,14 @@ public class OciRegistryClientTest {
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
-          assertThrows(UnknownException.class, () -> client.fetchManifest(REPOSITORY, "latest"));
+          assertThrows(UnknownException.class, () -> transport.fetchManifest(REPOSITORY, "latest"));
       assertTrue(exception.getMessage().contains("exceeds maximum allowed size"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -648,17 +599,17 @@ public class OciRegistryClientTest {
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
           assertThrows(
-              UnknownException.class, () -> client.fetchManifest(REPOSITORY, requestedDigest));
+              UnknownException.class, () -> transport.fetchManifest(REPOSITORY, requestedDigest));
       assertTrue(exception.getMessage().contains("Manifest digest mismatch"));
       assertTrue(exception.getMessage().contains(requestedDigest));
       assertTrue(exception.getMessage().contains(actualDigest));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -690,14 +641,14 @@ public class OciRegistryClientTest {
           .thenReturn(basicChallenge);
       mockedAuthChallenge.when(() -> AuthChallenge.parse(anyString())).thenCallRealMethod();
 
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
-          assertThrows(UnknownException.class, () -> client.fetchManifest(REPOSITORY, "latest"));
+          assertThrows(UnknownException.class, () -> transport.fetchManifest(REPOSITORY, "latest"));
       assertTrue(exception.getMessage().contains("Invalid JSON response"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -706,7 +657,7 @@ public class OciRegistryClientTest {
     String invalidIndexJson =
         "{"
             + "\"mediaType\":\"application/vnd.oci.image.index.v1+json\","
-            + "\"manifests\":[{\"platform\":{\"os\":\"linux\"}}]" // Missing digest
+            + "\"manifests\":[{\"platform\":{\"os\":\"linux\"}}]"
             + "}";
 
     testFetchManifestWithErrorExpected(
@@ -717,7 +668,6 @@ public class OciRegistryClientTest {
   void testFetchManifest_LayerMissingDigest() throws Exception {
     String invalidManifestJson =
         "{\"schemaVersion\":2,\"config\":{\"digest\":\"sha256:cfg\"},"
-            // Missing digest
             + "\"layers\":[{\"mediaType\":"
             + "\"application/vnd.oci.image.layer.v1.tar+gzip\"}]"
             + "}";
@@ -735,16 +685,16 @@ public class OciRegistryClientTest {
         createMockHttpClientForBlob(blobContent, HttpStatus.SC_OK, true);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
-      try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+      try (InputStream stream = transport.downloadBlob(REPOSITORY, digest)) {
         assertNotNull(stream);
         byte[] content = stream.readAllBytes();
         assertEquals(blobContent, new String(content, StandardCharsets.UTF_8));
       }
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -756,15 +706,15 @@ public class OciRegistryClientTest {
         createMockHttpClientForBlob("Not Found", HttpStatus.SC_NOT_FOUND, true);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       ResourceNotFoundException exception =
           assertThrows(
-              ResourceNotFoundException.class, () -> client.downloadBlob(REPOSITORY, digest));
+              ResourceNotFoundException.class, () -> transport.downloadBlob(REPOSITORY, digest));
       assertTrue(exception.getMessage().contains("HTTP 404"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -776,14 +726,15 @@ public class OciRegistryClientTest {
         createMockHttpClientForBlob("Unauthorized", HttpStatus.SC_UNAUTHORIZED, true);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnAuthorizedException exception =
-          assertThrows(UnAuthorizedException.class, () -> client.downloadBlob(REPOSITORY, digest));
+          assertThrows(
+              UnAuthorizedException.class, () -> transport.downloadBlob(REPOSITORY, digest));
       assertTrue(exception.getMessage().contains("HTTP 401"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -795,14 +746,15 @@ public class OciRegistryClientTest {
         createMockHttpClientForBlob("Forbidden", HttpStatus.SC_FORBIDDEN, true);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnAuthorizedException exception =
-          assertThrows(UnAuthorizedException.class, () -> client.downloadBlob(REPOSITORY, digest));
+          assertThrows(
+              UnAuthorizedException.class, () -> transport.downloadBlob(REPOSITORY, digest));
       assertTrue(exception.getMessage().contains("HTTP 403"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -815,14 +767,14 @@ public class OciRegistryClientTest {
             "Internal Server Error", HttpStatus.SC_INTERNAL_SERVER_ERROR, true);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
-          assertThrows(UnknownException.class, () -> client.downloadBlob(REPOSITORY, digest));
+          assertThrows(UnknownException.class, () -> transport.downloadBlob(REPOSITORY, digest));
       assertTrue(exception.getMessage().contains("HTTP 500"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -833,14 +785,14 @@ public class OciRegistryClientTest {
     CloseableHttpClient mockHttpClient = createMockHttpClientForBlob(null, HttpStatus.SC_OK, false);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       UnknownException exception =
-          assertThrows(UnknownException.class, () -> client.downloadBlob(REPOSITORY, digest));
+          assertThrows(UnknownException.class, () -> transport.downloadBlob(REPOSITORY, digest));
       assertTrue(exception.getMessage().contains("empty response body"));
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -862,12 +814,12 @@ public class OciRegistryClientTest {
             });
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
-      try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      try (InputStream stream = transport.downloadBlob(REPOSITORY, digest)) {
         assertNotNull(stream);
       }
-      client.close();
+      transport.close();
     }
   }
 
@@ -890,12 +842,12 @@ public class OciRegistryClientTest {
           .thenReturn(anonymousChallenge);
       mockedAuthChallenge.when(AuthChallenge::anonymous).thenCallRealMethod();
 
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
-      try (InputStream stream = client.downloadBlob(REPOSITORY, digest)) {
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      try (InputStream stream = transport.downloadBlob(REPOSITORY, digest)) {
         assertNotNull(stream);
       }
-      client.close();
+      transport.close();
     }
   }
 
@@ -906,14 +858,14 @@ public class OciRegistryClientTest {
         createMockHttpClientForManifest(responseBody, digestHeader, statusCode, 100L);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
-      Manifest manifest = client.fetchManifest(REPOSITORY, "latest");
+      Manifest manifest = transport.fetchManifest(REPOSITORY, "latest");
       assertNotNull(manifest);
       assertion.assertManifest(manifest);
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -924,11 +876,11 @@ public class OciRegistryClientTest {
         createMockHttpClientForManifest("error body", null, statusCode, 100L);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       Exception exception =
-          assertThrows(expectedExceptionType, () -> client.fetchManifest(REPOSITORY, "latest"));
+          assertThrows(expectedExceptionType, () -> transport.fetchManifest(REPOSITORY, "latest"));
       assertTrue(
           exception.getMessage().contains(expectedMessageSubstring),
           "Expected message containing '"
@@ -936,7 +888,7 @@ public class OciRegistryClientTest {
               + "' but got: "
               + exception.getMessage());
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -946,12 +898,12 @@ public class OciRegistryClientTest {
         createMockHttpClientForManifest(responseBody, null, HttpStatus.SC_OK, 100L);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockAuthChallenge()) {
-      OciRegistryClient client =
-          new OciRegistryClient(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
+      OciHttpTransport transport =
+          new OciHttpTransport(REGISTRY_ENDPOINT, mockAuthProvider, mockHttpClient);
 
       InvalidArgumentException exception =
           assertThrows(
-              InvalidArgumentException.class, () -> client.fetchManifest(REPOSITORY, "latest"));
+              InvalidArgumentException.class, () -> transport.fetchManifest(REPOSITORY, "latest"));
       assertTrue(
           exception.getMessage().contains(expectedErrorSubstring),
           "Expected error containing '"
@@ -959,7 +911,7 @@ public class OciRegistryClientTest {
               + "' but got: "
               + exception.getMessage());
 
-      client.close();
+      transport.close();
     }
   }
 
@@ -1007,14 +959,6 @@ public class OciRegistryClientTest {
     return mockedAuthChallenge;
   }
 
-  /**
-   * Creates a mock HttpClient that invokes a custom assertion on the outgoing request before
-   * returning a 200 response.
-   *
-   * @param blobContent the blob content to return
-   * @param requestAssertion assertion to run on the outgoing HttpGet (e.g. to check headers)
-   * @return mocked CloseableHttpClient
-   */
   private CloseableHttpClient createMockHttpClientWithExecuteAnswer(
       String blobContent, Consumer<InvocationOnMock> requestAssertion) {
     CloseableHttpClient mockHttpClient = mock(CloseableHttpClient.class);
@@ -1039,14 +983,6 @@ public class OciRegistryClientTest {
     return mockHttpClient;
   }
 
-  /**
-   * Creates a mock HttpClient for blob download tests.
-   *
-   * @param blobContent the blob content to return (null for no entity)
-   * @param statusCode the HTTP status code
-   * @param hasEntity whether the response has an entity
-   * @return mocked CloseableHttpClient
-   */
   private CloseableHttpClient createMockHttpClientForBlob(
       String blobContent, int statusCode, boolean hasEntity) {
     CloseableHttpClient mockHttpClient = mock(CloseableHttpClient.class);
@@ -1060,7 +996,6 @@ public class OciRegistryClientTest {
       when(mockResponse.getEntity()).thenReturn(mockEntity);
 
       if (hasEntity && blobContent != null) {
-        // Create a fresh InputStream each time getContent() is called
         when(mockEntity.getContent())
             .thenAnswer(
                 invocation ->

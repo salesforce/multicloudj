@@ -98,7 +98,7 @@ class AwsRegistryTest {
   void testNoArgConstructor_CreatesInstanceWithDefaultBuilder() {
     AwsRegistry registry = new AwsRegistry();
     assertNotNull(registry);
-    assertNull(registry.getOciClient());
+    assertNull(registry.getOciTransport());
   }
 
   @Test
@@ -107,7 +107,7 @@ class AwsRegistryTest {
         registry -> {
           assertEquals(PROVIDER_ID, registry.getProviderId());
           assertEquals(AUTH_USERNAME, registry.getAuthUsername());
-          assertNotNull(registry.getOciClient());
+          assertNotNull(registry.getOciTransport());
         });
   }
 
@@ -159,14 +159,14 @@ class AwsRegistryTest {
   }
 
   @Test
-  void testGetOciClient_ReturnsNonNull_WhenEndpointProvided() throws Exception {
-    withMockedRegistry(registry -> assertNotNull(registry.getOciClient()));
+  void testGetOciTransport_ReturnsNonNull_WhenEndpointProvided() throws Exception {
+    withMockedRegistry(registry -> assertNotNull(registry.getOciTransport()));
   }
 
   @Test
-  void testGetOciClient_ReturnsNull_WhenNoEndpoint() {
+  void testGetOciTransport_ReturnsNull_WhenNoEndpoint() {
     AwsRegistry registry = new AwsRegistry();
-    assertNull(registry.getOciClient());
+    assertNull(registry.getOciTransport());
   }
 
   @Test

@@ -8,17 +8,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Image implementation for a remote registry; layer blobs are fetched via OciRegistryClient on
+ * Image implementation for a remote registry; layer blobs are fetched via OciHttpTransport on
  * demand. Digest is the manifest digest (used to pull the image by digest reference).
  */
 final class RemoteImage implements Image {
 
-  private final OciRegistryClient client;
+  private final OciHttpTransport client;
   private final String repository;
   private final String imageRef;
   private final Manifest manifest;
 
-  RemoteImage(OciRegistryClient client, String repository, String imageRef, Manifest manifest) {
+  RemoteImage(OciHttpTransport client, String repository, String imageRef, Manifest manifest) {
     this.client = client;
     this.repository = repository;
     this.imageRef = imageRef;
