@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpRequestInterceptor;
 
 /** Abstract registry driver. Each cloud implements authentication and OCI client. */
-public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
+public abstract class AbstractRegistry implements Provider, AutoCloseable {
 
   private static final String UNKNOWN = "unknown";
 
@@ -49,6 +49,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
 
   /** Returns the OCI HTTP transport for this registry. */
   protected abstract OciHttpTransport getOciTransport();
+
+  public abstract String getAuthorizationHeader(AuthChallenge challenge, String repository);
 
   /**
    * Returns the list of HTTP request interceptors to be registered with the HTTP client. Override

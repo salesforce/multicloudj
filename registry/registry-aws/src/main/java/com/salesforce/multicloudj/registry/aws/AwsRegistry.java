@@ -8,6 +8,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
+import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -36,16 +37,11 @@ public class AwsRegistry extends AbstractRegistry {
 
   private static final String AWS_AUTH_USERNAME = "AWS";
 
-  /** Lock for thread-safe lazy initialization of ECR client. */
-  private final Object ecrClientLock = new Object();
-
   /** Lock for thread-safe token refresh. */
   private final Object tokenLock = new Object();
 
   private final OciHttpTransport ociClient;
-
-  /** Lazily initialized ECR client with double-checked locking. */
-  private volatile EcrClient ecrClient;
+  private final EcrClient ecrClient;
 
   private volatile String cachedAuthToken;
   private volatile long tokenRequestedAt;
@@ -78,7 +74,8 @@ public class AwsRegistry extends AbstractRegistry {
    */
   public AwsRegistry(Builder builder, EcrClient ecrClient, CloseableHttpClient httpClient) {
     super(builder);
-    this.ecrClient = ecrClient;
+    this.ecrClient = ecrClient != null ? ecrClient
+        : (StringUtils.isNotBlank(region) ? createEcrClient() : null);
     this.ociClient =
         registryEndpoint != null
             ? new OciHttpTransport(registryEndpoint, this, httpClient)
@@ -96,12 +93,14 @@ public class AwsRegistry extends AbstractRegistry {
   }
 
   @Override
-  public String getAuthUsername() {
-    return AWS_AUTH_USERNAME;
+  public String getAuthorizationHeader(AuthChallenge challenge, String repository) {
+    String credentials = AWS_AUTH_USERNAME + ":" + getAuthToken();
+    String encoded =
+        Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+    return "Basic " + encoded;
   }
 
-  @Override
-  public String getAuthToken() {
+  private String getAuthToken() {
     if (cachedAuthToken == null || isPastRefreshPoint()) {
       synchronized (tokenLock) {
         if (cachedAuthToken == null || isPastRefreshPoint()) {
@@ -127,18 +126,6 @@ public class AwsRegistry extends AbstractRegistry {
     return System.currentTimeMillis() >= halfwayPoint;
   }
 
-  /** Returns the ECR client, initializing lazily with double-checked locking. */
-  private EcrClient getOrCreateEcrClient() {
-    if (ecrClient == null) {
-      synchronized (ecrClientLock) {
-        if (ecrClient == null) {
-          ecrClient = createEcrClient();
-        }
-      }
-    }
-    return ecrClient;
-  }
-
   private EcrClient createEcrClient() {
     Region awsRegion = Region.of(region);
     AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
@@ -159,8 +146,7 @@ public class AwsRegistry extends AbstractRegistry {
   private void refreshAuthToken() {
     try {
       GetAuthorizationTokenResponse response =
-          getOrCreateEcrClient()
-              .getAuthorizationToken(GetAuthorizationTokenRequest.builder().build());
+          ecrClient.getAuthorizationToken(GetAuthorizationTokenRequest.builder().build());
 
       if (response.authorizationData().isEmpty()) {
         throw new UnknownException("ECR returned empty authorization data");

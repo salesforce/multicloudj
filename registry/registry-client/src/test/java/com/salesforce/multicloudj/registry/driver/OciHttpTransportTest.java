@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
@@ -65,9 +63,13 @@ public class OciHttpTransportTest {
   @Test
   void testGetHttpAuthHeader_BasicAuth() throws Exception {
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
+    String expectedHeader =
+        "Basic "
+            + Base64.getEncoder()
+                .encodeToString("testuser:testtoken".getBytes(StandardCharsets.UTF_8));
 
-    when(mockAuthProvider.getAuthUsername()).thenReturn("testuser");
-    when(mockAuthProvider.getAuthToken()).thenReturn("testtoken");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn(expectedHeader);
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -81,12 +83,7 @@ public class OciHttpTransportTest {
       String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
       assertNotNull(authHeader);
-      assertTrue(authHeader.startsWith("Basic "));
-
-      String expectedCredentials = "testuser:testtoken";
-      String expectedEncoded =
-          Base64.getEncoder().encodeToString(expectedCredentials.getBytes(StandardCharsets.UTF_8));
-      assertEquals("Basic " + expectedEncoded, authHeader);
+      assertEquals(expectedHeader, authHeader);
 
       transport.close();
     }
@@ -97,17 +94,12 @@ public class OciHttpTransportTest {
     AuthChallenge bearerChallenge =
         AuthChallenge.parse(
             "Bearer realm=\"https://auth.example.com/token\",service=\"registry.example.com\"");
+    String expectedHeader = "Bearer bearer-token-123";
 
-    when(mockAuthProvider.getAuthToken()).thenReturn("identity-token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn(expectedHeader);
 
-    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class);
-        MockedConstruction<BearerTokenExchange> mockedExchange =
-            mockConstruction(
-                BearerTokenExchange.class,
-                (mock, context) ->
-                    when(mock.getBearerToken(any(), anyString(), anyString(), any()))
-                        .thenReturn("bearer-token-123"))) {
-
+    try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
           .when(() -> AuthChallenge.discover(any(CloseableHttpClient.class), anyString()))
           .thenReturn(bearerChallenge);
@@ -118,7 +110,7 @@ public class OciHttpTransportTest {
       String authHeader = transport.getHttpAuthHeader(REPOSITORY);
 
       assertNotNull(authHeader);
-      assertEquals("Bearer bearer-token-123", authHeader);
+      assertEquals(expectedHeader, authHeader);
 
       transport.close();
     }
@@ -148,8 +140,8 @@ public class OciHttpTransportTest {
   void testGetHttpAuthHeader_CachesChallenge() throws Exception {
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
 
-    when(mockAuthProvider.getAuthUsername()).thenReturn("testuser");
-    when(mockAuthProvider.getAuthToken()).thenReturn("testtoken");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn("Basic dXNlcjp0b2tlbg==");
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -411,8 +403,8 @@ public class OciHttpTransportTest {
     when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
 
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-    when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-    when(mockAuthProvider.getAuthToken()).thenReturn("token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn("Basic dXNlcjp0b2tlbg==");
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -545,8 +537,8 @@ public class OciHttpTransportTest {
     when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
 
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-    when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-    when(mockAuthProvider.getAuthToken()).thenReturn("token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn("Basic dXNlcjp0b2tlbg==");
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -590,8 +582,8 @@ public class OciHttpTransportTest {
     when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
 
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-    when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-    when(mockAuthProvider.getAuthToken()).thenReturn("token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn("Basic dXNlcjp0b2tlbg==");
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -632,8 +624,8 @@ public class OciHttpTransportTest {
     when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockResponse);
 
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-    when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-    when(mockAuthProvider.getAuthToken()).thenReturn("token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn("Basic dXNlcjp0b2tlbg==");
 
     try (MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class)) {
       mockedAuthChallenge
@@ -948,8 +940,11 @@ public class OciHttpTransportTest {
 
   private MockedStatic<AuthChallenge> mockAuthChallenge() {
     AuthChallenge basicChallenge = AuthChallenge.parse("Basic realm=\"test\"");
-    when(mockAuthProvider.getAuthUsername()).thenReturn("user");
-    when(mockAuthProvider.getAuthToken()).thenReturn("token");
+    when(mockAuthProvider.getAuthorizationHeader(any(), anyString()))
+        .thenReturn(
+            "Basic "
+                + Base64.getEncoder()
+                    .encodeToString("user:token".getBytes(StandardCharsets.UTF_8)));
 
     MockedStatic<AuthChallenge> mockedAuthChallenge = mockStatic(AuthChallenge.class);
     mockedAuthChallenge

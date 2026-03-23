@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -17,6 +18,8 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.registry.driver.AuthChallenge;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
@@ -50,6 +53,7 @@ class AwsRegistryTest {
   private static final String AWS_ERROR_CODE_ACCESS_DENIED = "AccessDenied";
   private static final String AWS_ERROR_CODE_UNAVAILABLE = "ServiceUnavailableException";
   private static final long TOKEN_VALIDITY_SECONDS = 43200; // 12 hours
+  private static final AuthChallenge BASIC_CHALLENGE = AuthChallenge.parse("Basic realm=\"ecr\"");
 
   @FunctionalInterface
   interface RegistryTestAction {
@@ -87,6 +91,15 @@ class AwsRegistryTest {
         .build();
   }
 
+  private String decodeTokenFromBasicHeader(String header) {
+    assertTrue(header.startsWith("Basic "));
+    String decoded =
+        new String(
+            Base64.getDecoder().decode(header.substring("Basic ".length())),
+            StandardCharsets.UTF_8);
+    return decoded.substring(AUTH_USERNAME.length() + 1); // strip "AWS:" prefix
+  }
+
   private void withMockedRegistry(RegistryTestAction action) throws Exception {
     EcrClient mockEcrClient = mock(EcrClient.class);
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
@@ -106,7 +119,6 @@ class AwsRegistryTest {
     withMockedRegistry(
         registry -> {
           assertEquals(PROVIDER_ID, registry.getProviderId());
-          assertEquals(AUTH_USERNAME, registry.getAuthUsername());
           assertNotNull(registry.getOciTransport());
         });
   }
@@ -170,7 +182,30 @@ class AwsRegistryTest {
   }
 
   @Test
-  void testGetAuthToken_TokenCachedWithinHalfwayWindow_NoRefresh() throws Exception {
+  void testGetAuthorizationHeader_ReturnsValidBasicHeader() throws Exception {
+    String expectedToken = "my-ecr-password";
+    EcrClient mockEcrClient = mock(EcrClient.class);
+    when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
+        .thenReturn(
+            tokenResponse(
+                authDataWithExpiry(
+                    expectedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
+
+    try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
+      String header = registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo");
+
+      assertNotNull(header);
+      assertTrue(header.startsWith("Basic "));
+      String decoded =
+          new String(
+              Base64.getDecoder().decode(header.substring("Basic ".length())),
+              StandardCharsets.UTF_8);
+      assertEquals(AUTH_USERNAME + ":" + expectedToken, decoded);
+    }
+  }
+
+  @Test
+  void testGetAuthorizationHeader_TokenCachedWithinHalfwayWindow_NoRefresh() throws Exception {
     String expectedToken = "cached-token";
     EcrClient mockEcrClient = mock(EcrClient.class);
     when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
@@ -180,15 +215,15 @@ class AwsRegistryTest {
                     expectedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      assertEquals(expectedToken, registry.getAuthToken());
-      assertEquals(expectedToken, registry.getAuthToken()); // second call should use cache
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo");
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // second call should use cache
       verify(mockEcrClient, times(1))
           .getAuthorizationToken(any(GetAuthorizationTokenRequest.class));
     }
   }
 
   @Test
-  void testGetAuthToken_TokenPastHalfwayPoint_Refreshes() throws Exception {
+  void testGetAuthorizationHeader_TokenPastHalfwayPoint_Refreshes() throws Exception {
     String firstToken = "first-token";
     String refreshedToken = "refreshed-token";
     EcrClient mockEcrClient = mock(EcrClient.class);
@@ -200,15 +235,17 @@ class AwsRegistryTest {
                     refreshedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      registry.getAuthToken(); // primes cache with already-past-halfway token
-      assertEquals(refreshedToken, registry.getAuthToken()); // triggers refresh
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // primes cache
+      String header =
+          registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // triggers refresh
+      assertEquals(refreshedToken, decodeTokenFromBasicHeader(header));
       verify(mockEcrClient, times(2))
           .getAuthorizationToken(any(GetAuthorizationTokenRequest.class));
     }
   }
 
   @Test
-  void testGetAuthToken_EmptyAuthorizationData_ThrowsUnknownException() throws Exception {
+  void testGetAuthorizationHeader_EmptyAuthorizationData_ThrowsUnknownException() throws Exception {
     EcrClient mockEcrClient = mock(EcrClient.class);
     when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
         .thenReturn(
@@ -217,13 +254,16 @@ class AwsRegistryTest {
                 .build());
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException ex =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
       assertEquals(ERR_EMPTY_AUTH_DATA, ex.getMessage());
     }
   }
 
   @Test
-  void testGetAuthToken_InvalidTokenFormat_ThrowsUnknownException() throws Exception {
+  void testGetAuthorizationHeader_InvalidTokenFormat_ThrowsUnknownException() throws Exception {
     EcrClient mockEcrClient = mock(EcrClient.class);
     AuthorizationData authData =
         AuthorizationData.builder()
@@ -234,13 +274,16 @@ class AwsRegistryTest {
         .thenReturn(tokenResponse(authData));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException ex =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
       assertEquals(ERR_INVALID_TOKEN_FORMAT, ex.getMessage());
     }
   }
 
   @Test
-  void testGetAuthToken_RefreshFails_FallsBackToCachedToken() throws Exception {
+  void testGetAuthorizationHeader_RefreshFails_FallsBackToCachedToken() throws Exception {
     String cachedToken = "still-valid-token";
     EcrClient mockEcrClient = mock(EcrClient.class);
     when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
@@ -248,19 +291,25 @@ class AwsRegistryTest {
         .thenThrow(awsException(AWS_ERROR_CODE_UNAVAILABLE));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      registry.getAuthToken(); // primes cache
-      assertEquals(cachedToken, registry.getAuthToken()); // falls back to cached token
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // primes cache
+      String header =
+          registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // falls back to cached
+      assertEquals(cachedToken, decodeTokenFromBasicHeader(header));
     }
   }
 
   @Test
-  void testGetAuthToken_RefreshFails_NoCachedToken_ThrowsUnknownException() throws Exception {
+  void testGetAuthorizationHeader_RefreshFails_NoCachedToken_ThrowsUnknownException()
+      throws Exception {
     EcrClient mockEcrClient = mock(EcrClient.class);
     when(mockEcrClient.getAuthorizationToken(any(GetAuthorizationTokenRequest.class)))
         .thenThrow(awsException(AWS_ERROR_CODE_UNAVAILABLE));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      UnknownException ex = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException ex =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
       assertEquals(ERR_FAILED_AUTH_TOKEN, ex.getMessage());
     }
   }

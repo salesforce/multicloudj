@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.model.Manifest;
 import com.salesforce.multicloudj.registry.model.Platform;
@@ -19,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -57,8 +55,7 @@ public class OciHttpTransport implements AutoCloseable {
 
   private final String registryEndpoint;
   private final CloseableHttpClient httpClient;
-  private final AuthProvider authProvider;
-  private final BearerTokenExchange tokenExchange;
+  private final AbstractRegistry authenticator;
 
   /** Lock for thread-safe lazy initialization of cachedChallenge. */
   private final Object challengeLock = new Object();
@@ -89,7 +86,7 @@ public class OciHttpTransport implements AutoCloseable {
   public OciHttpTransport(
       String registryEndpoint, AbstractRegistry registry, CloseableHttpClient httpClient) {
     this.registryEndpoint = registryEndpoint;
-    this.authProvider = registry;
+    this.authenticator = registry;
     if (httpClient != null) {
       this.httpClient = httpClient;
     } else {
@@ -99,7 +96,6 @@ public class OciHttpTransport implements AutoCloseable {
       }
       this.httpClient = builder.build();
     }
-    this.tokenExchange = new BearerTokenExchange(this.httpClient);
   }
 
   /**
@@ -120,37 +116,11 @@ public class OciHttpTransport implements AutoCloseable {
       }
     }
 
-    switch (cachedChallenge.getScheme()) {
-      case ANONYMOUS:
-        return null;
-      case BASIC:
-        return buildBasicAuthHeader();
-      case BEARER:
-        return buildBearerAuthHeader(repository);
-      default:
-        throw new UnSupportedOperationException(
-            "Unsupported authentication scheme: " + cachedChallenge.getScheme());
+    if (cachedChallenge.getScheme() == AuthScheme.ANONYMOUS) {
+      return null;
     }
-  }
 
-  private String buildBasicAuthHeader() {
-    String username = authProvider.getAuthUsername();
-    String token = authProvider.getAuthToken();
-    String credentials = username + ":" + token;
-    String encoded =
-        Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
-    return "Basic " + encoded;
-  }
-
-  private String buildBearerAuthHeader(String repository) {
-    // Get identity token from provider (e.g., GCP OAuth2 access token)
-    String identityToken = authProvider.getAuthToken();
-
-    // Exchange for registry-scoped bearer token
-    String bearerToken =
-        tokenExchange.getBearerToken(cachedChallenge, identityToken, repository, "pull");
-
-    return "Bearer " + bearerToken;
+    return authenticator.getAuthorizationHeader(cachedChallenge, repository);
   }
 
   /**
