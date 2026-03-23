@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Simple script to generate JavaDoc and copy to site branch in versioned directory
+# Script to generate JavaDoc and Jekyll HTML, then copy to site branch.
 # Usage: ./scripts/generate-site.sh [version]
+#
+# Prerequisites:
+#   - Ruby 3.3 (brew install ruby@3.3)
+#   - Bundler (gem install bundler)
 
 set -e
 
@@ -35,10 +39,17 @@ cp -r "$TEMP_DIR"/* "$TARGET_DIR/"
 rm -f "$LATEST_DIR"
 ln -sf "$VERSION" "$LATEST_DIR"
 
-# 6. Show result
+# 6. Generate Jekyll HTML from Markdown sources
+echo "Running Jekyll build..."
+export PATH="/opt/homebrew/opt/ruby@3.3/bin:$PATH"
+bundle install --quiet
+bundle exec jekyll build --destination docs
+
+# 7. Show result
 echo "JavaDoc for version $VERSION copied to $TARGET_DIR (site branch)"
 echo "Latest symlink updated to point to $VERSION"
+echo "Jekyll HTML generated in docs/"
 echo "You can now commit and push the changes."
 
 # Cleanup
-test -d "$TEMP_DIR" && rm -rf "$TEMP_DIR" 
+test -d "$TEMP_DIR" && rm -rf "$TEMP_DIR"
