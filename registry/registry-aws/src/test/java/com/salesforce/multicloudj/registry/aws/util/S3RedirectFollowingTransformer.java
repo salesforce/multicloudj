@@ -57,7 +57,6 @@ public class S3RedirectFollowingTransformer extends StubMappingTransformer {
     }
 
     // Follow the S3 pre-signed URL and inline the blob content
-    logger.info("Resolving S3 redirect for stub: {} -> {}", stub.getRequest().getUrl(), location);
     try {
       byte[] content = downloadContent(location);
       stub.setResponse(
@@ -66,7 +65,6 @@ public class S3RedirectFollowingTransformer extends StubMappingTransformer {
               .withHeader("Content-Type", "application/octet-stream")
               .withBase64Body(Base64.getEncoder().encodeToString(content))
               .build());
-      logger.info("Replaced redirect with 200 response ({} bytes)", content.length);
     } catch (Exception e) {
       logger.warn("Failed to resolve S3 redirect, keeping original response", e);
     }

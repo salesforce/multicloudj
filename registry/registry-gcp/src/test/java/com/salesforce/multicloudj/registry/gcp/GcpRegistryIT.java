@@ -1,7 +1,7 @@
 package com.salesforce.multicloudj.registry.gcp;
 
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
-import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.registry.client.AbstractRegistryIT;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -29,7 +29,7 @@ public class GcpRegistryIT extends AbstractRegistryIT {
     public AbstractRegistry createRegistryDriver() {
       boolean isRecordingEnabled = System.getProperty("record") != null;
 
-      CloseableHttpClient ociHttpClient = TestsUtilGcp.getProxyHttpClient(port);
+      CloseableHttpClient ociHttpClient = TestsUtil.getProxyHttpClient(port);
 
       GcpRegistry.Builder builder =
           (GcpRegistry.Builder)

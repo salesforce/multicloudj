@@ -6,20 +6,11 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.security.GeneralSecurityException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import org.apache.http.HttpHost;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 
 /**
  * Utility class for GCP testing that provides methods to create test-friendly transport
@@ -27,54 +18,7 @@ import org.apache.http.impl.client.HttpClients;
  */
 public class TestsUtilGcp {
 
-  private static final String TLS_PROTOCOL = "TLS";
-
-  private TestsUtilGcp() {
-    // Private constructor to prevent instantiation of utility class
-  }
-
-  /**
-   * Creates a trust manager that accepts all certificates without validation. For testing purposes
-   * only.
-   *
-   * @return An array containing a single trust-all X509TrustManager
-   */
-  private static TrustManager[] createTrustAllManager() {
-    return new TrustManager[] {
-      new X509TrustManager() {
-        @Override
-        public void checkClientTrusted(X509Certificate[] certs, String authType) {
-          // No validation for testing
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] certs, String authType) {
-          // No validation for testing
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0];
-        }
-      }
-    };
-  }
-
-  /**
-   * Creates an SSL context that trusts all certificates. For testing purposes only.
-   *
-   * @return A configured SSLContext
-   * @throws SecurityConfigurationException if SSL context creation fails
-   */
-  private static SSLContext createTrustAllSSLContext() {
-    try {
-      SSLContext sslContext = SSLContext.getInstance(TLS_PROTOCOL);
-      sslContext.init(null, createTrustAllManager(), new java.security.SecureRandom());
-      return sslContext;
-    } catch (NoSuchAlgorithmException | KeyManagementException e) {
-      throw new SecurityConfigurationException("Failed to create SSL context", e);
-    }
-  }
+  private TestsUtilGcp() {}
 
   /**
    * Gets an HttpTransport configured with a proxy to the WireMock server. This allows HTTP/HTTPS
@@ -82,24 +26,19 @@ public class TestsUtilGcp {
    *
    * @param port The base port for WireMock (proxy will use port+1)
    * @return A configured HttpTransport
-   * @throws SecurityConfigurationException if transport configuration fails
    */
   public static HttpTransport getHttpTransport(int port) {
     try {
-      // Get SSL socket factory that trusts all certificates
-      SSLSocketFactory sslSocketFactory = createTrustAllSSLContext().getSocketFactory();
-
-      // Define proxy to WireMock
+      SSLSocketFactory sslSocketFactory = TestsUtil.createTrustAllSSLContext().getSocketFactory();
       Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(WIREMOCK_HOST, port + 1));
 
-      // Set up HTTP transport with proxy and SSL settings
       return new NetHttpTransport.Builder()
           .setProxy(proxy)
           .doNotValidateCertificate()
           .setSslSocketFactory(sslSocketFactory)
           .build();
     } catch (GeneralSecurityException e) {
-      throw new SecurityConfigurationException("Failed to configure transport", e);
+      throw new RuntimeException("Failed to configure transport", e);
     }
   }
 
@@ -109,37 +48,10 @@ public class TestsUtilGcp {
    *
    * @param port The base port for WireMock (proxy will use port+1)
    * @return A configured TransportChannelProvider
-   * @throws SecurityConfigurationException if transport configuration fails
    */
   public static TransportChannelProvider getTransportChannelProvider(int port) {
-    // Create and return channel provider using configured transport
     return InstantiatingHttpJsonChannelProvider.newBuilder()
         .setHttpTransport(getHttpTransport(port))
         .build();
-  }
-
-  /**
-   * Gets an Apache HttpClient configured with a proxy to the WireMock server and trust-all SSL.
-   * Used for services that communicate via raw HTTP (e.g., OCI registry) rather than GCP SDK
-   * clients.
-   *
-   * @param port The base port for WireMock (proxy will use port+1)
-   * @return A configured CloseableHttpClient
-   * @throws SecurityConfigurationException if SSL context creation fails
-   */
-  public static CloseableHttpClient getProxyHttpClient(int port) {
-    SSLContext sslContext = createTrustAllSSLContext();
-    return HttpClients.custom()
-        .setProxy(new HttpHost(WIREMOCK_HOST, port + 1))
-        .setSSLContext(sslContext)
-        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-        .build();
-  }
-
-  /** Custom exception for security configuration issues. */
-  public static class SecurityConfigurationException extends RuntimeException {
-    public SecurityConfigurationException(String message, Throwable cause) {
-      super(message, cause);
-    }
   }
 }

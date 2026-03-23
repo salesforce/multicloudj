@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.salesforce.multicloudj.common.aws.AwsConstants;
-import com.salesforce.multicloudj.common.aws.util.TestsUtilAws;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.registry.client.AbstractRegistryIT;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +41,7 @@ public class AwsRegistryIT extends AbstractRegistryIT {
     @Override
     public AbstractRegistry createRegistryDriver() {
       boolean isRecordingEnabled = System.getProperty("record") != null;
-      CloseableHttpClient ociHttpClient = TestsUtilAws.getProxyHttpClient(port);
+      CloseableHttpClient ociHttpClient = TestsUtil.getProxyHttpClient(port);
 
       if (isRecordingEnabled) {
         ecrClient =
