@@ -1,10 +1,10 @@
 package com.salesforce.multicloudj.registry.driver;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -21,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.codec.binary.Hex;
@@ -52,6 +53,7 @@ public class OciHttpTransport implements AutoCloseable {
   private static final int MAX_MANIFEST_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
   private static final String MANIFEST_ERROR_FORMAT =
       "Failed to fetch manifest for %s:%s from %s - HTTP %d: %s";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final String registryEndpoint;
   private final CloseableHttpClient httpClient;
@@ -249,10 +251,10 @@ public class OciHttpTransport implements AutoCloseable {
    * image indexes (multi-arch).
    */
   private Manifest parseManifestResponse(String responseBody, String digest) {
-    JsonObject json;
+    ObjectNode json;
     try {
-      json = JsonParser.parseString(responseBody).getAsJsonObject();
-    } catch (JsonSyntaxException e) {
+      json = (ObjectNode) OBJECT_MAPPER.readTree(responseBody);
+    } catch (JsonProcessingException e) {
       throw new UnknownException(
           "Invalid JSON response from registry: "
               + responseBody.substring(0, Math.min(200, responseBody.length())),
@@ -273,26 +275,28 @@ public class OciHttpTransport implements AutoCloseable {
   }
 
   /** Parses annotations from a manifest or index JSON. */
-  private Map<String, String> parseAnnotations(JsonObject json) {
+  private Map<String, String> parseAnnotations(ObjectNode json) {
     if (!json.has(OciManifestFields.ANNOTATIONS)) {
       return null;
     }
-    JsonObject annotationsObj = json.getAsJsonObject(OciManifestFields.ANNOTATIONS);
+    ObjectNode annotationsObj = (ObjectNode) json.get(OciManifestFields.ANNOTATIONS);
     Map<String, String> annotations = new HashMap<>(annotationsObj.size());
-    for (Map.Entry<String, JsonElement> entry : annotationsObj.entrySet()) {
-      annotations.put(entry.getKey(), entry.getValue().getAsString());
+    Iterator<Map.Entry<String, JsonNode>> fields = annotationsObj.fields();
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> entry = fields.next();
+      annotations.put(entry.getKey(), entry.getValue().asText());
     }
     return annotations;
   }
 
   /** Parses subject field from a manifest or index JSON. */
-  private String parseSubject(JsonObject json) {
+  private String parseSubject(ObjectNode json) {
     if (!json.has(OciManifestFields.SUBJECT)) {
       return null;
     }
-    JsonObject subjectObj = json.getAsJsonObject(OciManifestFields.SUBJECT);
+    ObjectNode subjectObj = (ObjectNode) json.get(OciManifestFields.SUBJECT);
     return subjectObj.has(OciManifestFields.DIGEST)
-        ? subjectObj.get(OciManifestFields.DIGEST).getAsString()
+        ? subjectObj.get(OciManifestFields.DIGEST).asText()
         : null;
   }
 
@@ -303,12 +307,12 @@ public class OciHttpTransport implements AutoCloseable {
    * @param manifestDesc the manifest descriptor JSON object
    * @return Platform object or null if no platform information
    */
-  private Platform parsePlatform(JsonObject manifestDesc) {
+  private Platform parsePlatform(ObjectNode manifestDesc) {
     if (!manifestDesc.has(OciManifestFields.PLATFORM)) {
       return null;
     }
 
-    JsonObject platformObj = manifestDesc.getAsJsonObject(OciManifestFields.PLATFORM);
+    ObjectNode platformObj = (ObjectNode) manifestDesc.get(OciManifestFields.PLATFORM);
 
     List<String> osFeatures = parseOsFeatures(platformObj);
 
@@ -327,26 +331,26 @@ public class OciHttpTransport implements AutoCloseable {
    * @param platformObj the platform JSON object
    * @return List of OS feature strings or null
    */
-  private List<String> parseOsFeatures(JsonObject platformObj) {
+  private List<String> parseOsFeatures(ObjectNode platformObj) {
     if (!platformObj.has(OciManifestFields.OS_FEATURES)) {
       return null;
     }
 
-    JsonArray osFeaturesArray = platformObj.getAsJsonArray(OciManifestFields.OS_FEATURES);
+    ArrayNode osFeaturesArray = (ArrayNode) platformObj.get(OciManifestFields.OS_FEATURES);
     if (osFeaturesArray == null) {
       return null;
     }
 
     List<String> osFeatures = new ArrayList<>(osFeaturesArray.size());
-    for (JsonElement featureElement : osFeaturesArray) {
-      osFeatures.add(featureElement.getAsString());
+    for (JsonNode featureElement : osFeaturesArray) {
+      osFeatures.add(featureElement.asText());
     }
     return osFeatures;
   }
 
   /** Parses an image index (multi-architecture manifest list). */
-  private Manifest parseImageIndex(JsonObject json, String digest) {
-    JsonArray manifestsArray = json.getAsJsonArray(OciManifestFields.MANIFESTS);
+  private Manifest parseImageIndex(ObjectNode json, String digest) {
+    ArrayNode manifestsArray = (ArrayNode) json.get(OciManifestFields.MANIFESTS);
     int initialCapacity = manifestsArray != null ? manifestsArray.size() : 0;
     List<Manifest.IndexEntry> entries = new ArrayList<>(initialCapacity);
 
@@ -354,13 +358,13 @@ public class OciHttpTransport implements AutoCloseable {
       return Manifest.index(entries, digest);
     }
 
-    for (JsonElement element : manifestsArray) {
-      JsonObject manifestDesc = element.getAsJsonObject();
+    for (JsonNode element : manifestsArray) {
+      ObjectNode manifestDesc = (ObjectNode) element;
       if (!manifestDesc.has(OciManifestFields.DIGEST)) {
         throw new InvalidArgumentException(
             "Invalid image index: manifest entry missing required 'digest' field");
       }
-      String manifestDigest = manifestDesc.get(OciManifestFields.DIGEST).getAsString();
+      String manifestDigest = manifestDesc.get(OciManifestFields.DIGEST).asText();
       Platform platform = parsePlatform(manifestDesc);
       entries.add(new Manifest.IndexEntry(manifestDigest, platform));
     }
@@ -369,13 +373,13 @@ public class OciHttpTransport implements AutoCloseable {
   }
 
   /** Parses a single image manifest. */
-  private Manifest parseImageManifest(JsonObject json, String digest) {
+  private Manifest parseImageManifest(ObjectNode json, String digest) {
     // Get config digest
     String configDigest = null;
     if (json.has(OciManifestFields.CONFIG)) {
-      JsonObject config = json.getAsJsonObject(OciManifestFields.CONFIG);
+      ObjectNode config = (ObjectNode) json.get(OciManifestFields.CONFIG);
       if (config != null && config.has(OciManifestFields.DIGEST)) {
-        configDigest = config.get(OciManifestFields.DIGEST).getAsString();
+        configDigest = config.get(OciManifestFields.DIGEST).asText();
       }
     }
 
@@ -385,19 +389,19 @@ public class OciHttpTransport implements AutoCloseable {
   }
 
   /** Parses layer information from a manifest JSON object. */
-  private List<Manifest.LayerInfo> parseLayerInfos(JsonObject json) {
-    JsonArray layers =
-        json.has(OciManifestFields.LAYERS) ? json.getAsJsonArray(OciManifestFields.LAYERS) : null;
+  private List<Manifest.LayerInfo> parseLayerInfos(ObjectNode json) {
+    ArrayNode layers =
+        json.has(OciManifestFields.LAYERS) ? (ArrayNode) json.get(OciManifestFields.LAYERS) : null;
     int layerCapacity = layers != null ? layers.size() : 0;
     List<Manifest.LayerInfo> layerInfos = new ArrayList<>(layerCapacity);
     if (layers != null) {
-      for (JsonElement element : layers) {
-        JsonObject layer = element.getAsJsonObject();
+      for (JsonNode element : layers) {
+        ObjectNode layer = (ObjectNode) element;
         if (!layer.has(OciManifestFields.DIGEST)) {
           throw new InvalidArgumentException(
               "Invalid image manifest: layer missing required 'digest' field");
         }
-        String layerDigest = layer.get(OciManifestFields.DIGEST).getAsString();
+        String layerDigest = layer.get(OciManifestFields.DIGEST).asText();
         String mediaType = getStringOrNull(layer, OciManifestFields.MEDIA_TYPE);
         Long size = getLongOrNull(layer, OciManifestFields.SIZE);
         layerInfos.add(new Manifest.LayerInfo(layerDigest, mediaType, size));
@@ -491,8 +495,8 @@ public class OciHttpTransport implements AutoCloseable {
    * @param field the field name
    * @return the string value, or {@code null} if absent
    */
-  private static String getStringOrNull(JsonObject json, String field) {
-    return json.has(field) ? json.get(field).getAsString() : null;
+  private static String getStringOrNull(ObjectNode json, String field) {
+    return json.has(field) ? json.get(field).asText() : null;
   }
 
   /**
@@ -502,8 +506,8 @@ public class OciHttpTransport implements AutoCloseable {
    * @param field the field name
    * @return the Long value, or {@code null} if absent
    */
-  private static Long getLongOrNull(JsonObject json, String field) {
-    return json.has(field) ? json.get(field).getAsLong() : null;
+  private static Long getLongOrNull(ObjectNode json, String field) {
+    return json.has(field) ? json.get(field).asLong() : null;
   }
 
   @Override
