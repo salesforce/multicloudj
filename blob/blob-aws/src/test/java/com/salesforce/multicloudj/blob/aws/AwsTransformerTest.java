@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
+import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
@@ -49,6 +50,7 @@ import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
@@ -66,6 +68,7 @@ import software.amazon.awssdk.services.s3.model.ObjectLockMode;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.StorageClass;
@@ -1315,5 +1318,159 @@ public class AwsTransformerTest {
     var result = transformer.toPutObjectLegalHoldRequest(key, versionId, false);
 
     assertEquals(ObjectLockLegalHoldStatus.OFF, result.legalHold().status());
+  }
+
+  @Test
+  void testToRequest_UploadWithSha256Checksum() {
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withChecksumValue("abc123sha256")
+            .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
+        actual.checksumAlgorithm());
+    assertEquals("abc123sha256", actual.checksumSHA256());
+  }
+
+  @Test
+  void testToRequest_UploadWithCrc32cChecksum() {
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withChecksumValue("abc123crc32c")
+            .withChecksumAlgorithm(ChecksumAlgorithm.CRC32C)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        actual.checksumAlgorithm());
+    assertEquals("abc123crc32c", actual.checksumCRC32C());
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_WithSha256() {
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .build();
+
+    CreateMultipartUploadRequest request =
+        transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
+        request.checksumAlgorithm());
+  }
+
+  @Test
+  void testToUploadPartRequest_WithSha256Checksum() {
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder()
+            .bucket("bucket-1")
+            .key("object-1")
+            .id("mpu-id")
+            .checksumEnabled(true)
+            .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .build();
+    byte[] content = "This is test data".getBytes();
+    MultipartPart multipartPart = new MultipartPart(1, content, "sha256checksum");
+
+    UploadPartRequest request =
+        transformer.toUploadPartRequest(multipartUpload, multipartPart);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals("mpu-id", request.uploadId());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
+        request.checksumAlgorithm());
+    assertEquals("sha256checksum", request.checksumSHA256());
+  }
+
+  @Test
+  void testToCompleteMultipartUploadRequest_WithSha256() {
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder()
+            .bucket("bucket-1")
+            .key("object-1")
+            .id("mpu-id")
+            .checksumEnabled(true)
+            .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .build();
+    var listOfParts =
+        List.of(
+            new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
+                1, "etag1", 3000, "sha256checksum1"),
+            new com.salesforce.multicloudj.blob.driver.UploadPartResponse(
+                2, "etag2", 2000, "sha256checksum2"));
+
+    CompleteMultipartUploadRequest request =
+        transformer.toCompleteMultipartUploadRequest(multipartUpload, listOfParts);
+
+    List<CompletedPart> parts = request.multipartUpload().parts();
+    assertEquals(2, parts.size());
+    assertEquals("sha256checksum1", parts.get(0).checksumSHA256());
+    assertEquals("sha256checksum2", parts.get(1).checksumSHA256());
+    assertNull(parts.get(0).checksumCRC32C());
+    assertNull(parts.get(1).checksumCRC32C());
+  }
+
+  @Test
+  void testToUploadResponse_WithSha256Checksum() {
+    PutObjectResponse response =
+        PutObjectResponse.builder()
+            .versionId("v1")
+            .eTag("etag")
+            .checksumSHA256("sha256value")
+            .build();
+
+    var actual = transformer.toUploadResponse("some-key", response);
+
+    assertEquals("some-key", actual.getKey());
+    assertEquals("v1", actual.getVersionId());
+    assertEquals("etag", actual.getETag());
+    assertEquals("sha256value", actual.getChecksumValue());
+  }
+
+  @Test
+  void testToUploadPartResponse_WithSha256Checksum() {
+    software.amazon.awssdk.services.s3.model.UploadPartResponse response =
+        software.amazon.awssdk.services.s3.model.UploadPartResponse.builder()
+            .eTag("etag")
+            .checksumSHA256("sha256partvalue")
+            .build();
+    byte[] content = "This is test data".getBytes();
+    MultipartPart part = new MultipartPart(1, content, "sha256partvalue");
+
+    var actual = transformer.toUploadPartResponse(part, response);
+
+    assertEquals(1, actual.getPartNumber());
+    assertEquals("etag", actual.getEtag());
+    assertEquals(content.length, actual.getSizeInBytes());
+    assertEquals("sha256partvalue", actual.getChecksumValue());
+  }
+
+  @Test
+  void testToMultipartUploadResponse_WithSha256Checksum() {
+    CompleteMultipartUploadResponse response =
+        CompleteMultipartUploadResponse.builder()
+            .eTag("etag")
+            .checksumSHA256("sha256completevalue")
+            .build();
+
+    var actual = transformer.toMultipartUploadResponse(response);
+
+    assertEquals("etag", actual.getEtag());
+    assertEquals("sha256completevalue", actual.getChecksumValue());
   }
 }

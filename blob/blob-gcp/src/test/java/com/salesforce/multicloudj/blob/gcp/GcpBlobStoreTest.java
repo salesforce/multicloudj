@@ -51,6 +51,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -2889,6 +2890,65 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(result);
     assertTrue(result.isChecksumEnabled());
+    assertEquals(ChecksumAlgorithm.CRC32C, result.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testDoUpload_WithSha256_ThrowsUnsupportedOperationException() {
+    // Given
+    UploadRequest uploadRequest = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+        .withChecksumValue("dummychecksum")
+        .build();
+
+    // When & Then
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doUpload(
+            uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithSha256_ThrowsUnsupportedOperationException() {
+    // Given
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+        .build();
+
+    // When & Then
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doInitiateMultipartUpload(request));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithChecksumAlgorithm_CRC32C() {
+    // Given
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumAlgorithm.CRC32C)
+        .build();
+
+    CreateMultipartUploadResponse mockGcpResponse =
+        CreateMultipartUploadResponse.builder()
+            .uploadId("test-upload-id-crc32c")
+            .build();
+
+    when(mpuClient.createMultipartUpload(
+        any(CreateMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    // When
+    MultipartUpload result =
+        gcpBlobStore.doInitiateMultipartUpload(request);
+
+    // Then
+    assertNotNull(result);
+    assertTrue(result.isChecksumEnabled());
+    assertEquals(
+        ChecksumAlgorithm.CRC32C, result.getChecksumAlgorithm());
   }
 
   @Test

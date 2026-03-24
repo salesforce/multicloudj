@@ -1,10 +1,9 @@
 package com.salesforce.multicloudj.blob.aws;
 
-import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
-
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -111,6 +110,18 @@ public class AwsTransformer {
     return bucket;
   }
 
+  private software.amazon.awssdk.services.s3.model.ChecksumAlgorithm toAwsChecksumAlgorithm(
+      ChecksumAlgorithm algorithm) {
+    switch (algorithm) {
+      case CRC32C:
+        return software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
+      case SHA256:
+        return software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256;
+      default:
+        throw new InvalidArgumentException("Unsupported checksum algorithm: " + algorithm);
+    }
+  }
+
   public ListBlobsBatch toBatch(ListObjectsV2Response response) {
     List<BlobInfo> blobs =
         response.contents().stream().map(this::toInfo).collect(Collectors.toList());
@@ -204,9 +215,15 @@ public class AwsTransformer {
     }
 
     // Set checksum if provided
-    if (StringUtils.isNotEmpty(request.getChecksumValue())) {
-      builder.checksumAlgorithm(CRC32_C);
-      builder.checksumCRC32C(request.getChecksumValue());
+    if (StringUtils.isNotEmpty(request.getChecksumValue())
+        && request.getChecksumAlgorithm() != null) {
+      ChecksumAlgorithm algo = request.getChecksumAlgorithm();
+      builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
+      if (algo == ChecksumAlgorithm.SHA256) {
+        builder.checksumSHA256(request.getChecksumValue());
+      } else {
+        builder.checksumCRC32C(request.getChecksumValue());
+      }
     }
 
     // Set content type if provided
@@ -430,7 +447,9 @@ public class AwsTransformer {
     // else: no SSE headers; S3 uses bucket default encryption
 
     if (request.isChecksumEnabled()) {
-      builder.checksumAlgorithm(CRC32_C);
+      ChecksumAlgorithm algo = request.getChecksumAlgorithm() != null
+          ? request.getChecksumAlgorithm() : ChecksumAlgorithm.CRC32C;
+      builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
     }
 
     // Set content type if provided
@@ -450,8 +469,14 @@ public class AwsTransformer {
         .contentLength(mpp.getContentLength());
 
     if (!StringUtils.isEmpty(mpp.getChecksumValue())) {
-      builder.checksumAlgorithm(CRC32_C);
-      builder.checksumCRC32C(mpp.getChecksumValue());
+      ChecksumAlgorithm algo = mpu.getChecksumAlgorithm() != null
+          ? mpu.getChecksumAlgorithm() : ChecksumAlgorithm.CRC32C;
+      builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
+      if (algo == ChecksumAlgorithm.SHA256) {
+        builder.checksumSHA256(mpp.getChecksumValue());
+      } else {
+        builder.checksumCRC32C(mpp.getChecksumValue());
+      }
     }
 
     return builder.build();
@@ -467,7 +492,11 @@ public class AwsTransformer {
               .partNumber(part.getPartNumber())
               .eTag(part.getEtag());
           if (StringUtils.isNotEmpty(part.getChecksumValue())) {
-            partBuilder.checksumCRC32C(part.getChecksumValue());
+            if (mpu.getChecksumAlgorithm() == ChecksumAlgorithm.SHA256) {
+              partBuilder.checksumSHA256(part.getChecksumValue());
+            } else {
+              partBuilder.checksumCRC32C(part.getChecksumValue());
+            }
           }
           return partBuilder.build();
         })
@@ -655,8 +684,9 @@ public class AwsTransformer {
     UploadResponse.UploadResponseBuilder builder =
         UploadResponse.builder().key(key).versionId(response.versionId()).eTag(response.eTag());
 
-    // Extract CRC32C checksum from response if present
-    if (response.checksumCRC32C() != null) {
+    if (response.checksumSHA256() != null) {
+      builder.checksumValue(response.checksumSHA256());
+    } else if (response.checksumCRC32C() != null) {
       builder.checksumValue(response.checksumCRC32C());
     }
 
@@ -682,20 +712,24 @@ public class AwsTransformer {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
+        .checksumAlgorithm(request.getChecksumAlgorithm())
         .build();
   }
 
   public UploadPartResponse toUploadPartResponse(
       MultipartPart part, software.amazon.awssdk.services.s3.model.UploadPartResponse response) {
+    String checksumValue = response.checksumSHA256() != null
+        ? response.checksumSHA256() : response.checksumCRC32C();
     return new UploadPartResponse(
-        part.getPartNumber(), response.eTag(), part.getContentLength(),
-        response.checksumCRC32C());
+        part.getPartNumber(), response.eTag(), part.getContentLength(), checksumValue);
   }
 
   public MultipartUploadResponse toMultipartUploadResponse(
       CompleteMultipartUploadResponse response) {
     String checksumValue = null;
-    if (response.checksumCRC32C() != null) {
+    if (response.checksumSHA256() != null) {
+      checksumValue = response.checksumSHA256();
+    } else if (response.checksumCRC32C() != null) {
       checksumValue = response.checksumCRC32C();
     }
     return new MultipartUploadResponse(response.eTag(), checksumValue);

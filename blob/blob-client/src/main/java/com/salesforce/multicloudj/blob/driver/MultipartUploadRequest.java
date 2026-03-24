@@ -16,6 +16,7 @@ public class MultipartUploadRequest {
   private final String kmsKeyId;
   private final boolean useKmsManagedKey;
   private final boolean checksumEnabled;
+  private final ChecksumAlgorithm checksumAlgorithm;
   private final String contentType;
 
   private MultipartUploadRequest(final Builder builder) {
@@ -24,7 +25,10 @@ public class MultipartUploadRequest {
     this.tags = builder.tags;
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
-    this.checksumEnabled = builder.checksumEnabled;
+    this.checksumAlgorithm = builder.checksumAlgorithm != null
+        ? builder.checksumAlgorithm
+        : (builder.checksumEnabled ? ChecksumAlgorithm.CRC32C : null);
+    this.checksumEnabled = this.checksumAlgorithm != null;
     this.contentType = builder.contentType;
   }
 
@@ -43,6 +47,7 @@ public class MultipartUploadRequest {
     private String kmsKeyId;
     private boolean useKmsManagedKey;
     private boolean checksumEnabled;
+    private ChecksumAlgorithm checksumAlgorithm;
     private String contentType;
 
     public Builder withKey(String key) {
@@ -72,6 +77,11 @@ public class MultipartUploadRequest {
 
     public Builder withChecksumEnabled(boolean checksumEnabled) {
       this.checksumEnabled = checksumEnabled;
+      return this;
+    }
+
+    public Builder withChecksumAlgorithm(ChecksumAlgorithm checksumAlgorithm) {
+      this.checksumAlgorithm = checksumAlgorithm;
       return this;
     }
 

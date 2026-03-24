@@ -45,10 +45,15 @@ public class UploadRequest {
   private final boolean useKmsManagedKey;
 
   /**
-   * (Optional parameter) The base64-encoded checksum value for upload validation. crc32c is the
-   * most common across most cloud providers. No other checksum is supported for now.
+   * (Optional parameter) The base64-encoded checksum value for upload validation.
    */
   private final String checksumValue;
+
+  /**
+   * (Optional parameter) The checksum algorithm used for the checksumValue.
+   * Defaults to CRC32C when checksumValue is set but no algorithm is specified.
+   */
+  private final ChecksumAlgorithm checksumAlgorithm;
 
   /** (Optional parameter) Object lock configuration for WORM protection. */
   private final ObjectLockConfiguration objectLock;
@@ -69,6 +74,9 @@ public class UploadRequest {
     this.useKmsManagedKey = builder.useKmsManagedKey;
     this.objectLock = builder.objectLock;
     this.checksumValue = builder.checksumValue;
+    this.checksumAlgorithm = builder.checksumAlgorithm != null
+        ? builder.checksumAlgorithm
+        : (builder.checksumValue != null ? ChecksumAlgorithm.CRC32C : null);
     this.contentType = builder.contentType;
   }
 
@@ -90,6 +98,7 @@ public class UploadRequest {
     private boolean useKmsManagedKey;
     private ObjectLockConfiguration objectLock;
     private String checksumValue;
+    private ChecksumAlgorithm checksumAlgorithm;
     private String contentType;
 
     public Builder withKey(String key) {
@@ -135,6 +144,11 @@ public class UploadRequest {
 
     public Builder withChecksumValue(String checksumValue) {
       this.checksumValue = checksumValue;
+      return this;
+    }
+
+    public Builder withChecksumAlgorithm(ChecksumAlgorithm checksumAlgorithm) {
+      this.checksumAlgorithm = checksumAlgorithm;
       return this;
     }
 
