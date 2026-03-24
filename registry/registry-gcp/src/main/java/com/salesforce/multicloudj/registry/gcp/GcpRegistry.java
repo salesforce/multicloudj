@@ -47,11 +47,13 @@ public class GcpRegistry extends AbstractRegistry {
   }
 
   public GcpRegistry(Builder builder) {
-    this(builder, null);
+    this(builder, null, null);
   }
 
-  public GcpRegistry(Builder builder, CloseableHttpClient httpClient) {
+  public GcpRegistry(
+      Builder builder, CloseableHttpClient httpClient, GoogleCredentials credentials) {
     super(builder);
+    this.credentials = credentials;
     this.ociClient =
         registryEndpoint != null
             ? new OciHttpTransport(registryEndpoint, this, httpClient)

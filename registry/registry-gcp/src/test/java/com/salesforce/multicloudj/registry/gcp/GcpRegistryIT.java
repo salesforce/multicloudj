@@ -1,12 +1,12 @@
 package com.salesforce.multicloudj.registry.gcp;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.registry.client.AbstractRegistryIT;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import com.salesforce.multicloudj.sts.model.CredentialsType;
-import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -35,18 +35,18 @@ public class GcpRegistryIT extends AbstractRegistryIT {
           (GcpRegistry.Builder)
               new GcpRegistry.Builder().withRegistryEndpoint(ENDPOINT);
 
+      GoogleCredentials credentials;
       if (isRecordingEnabled) {
-        return new GcpRegistry(builder, ociHttpClient);
+        try {
+          credentials = GoogleCredentials.getApplicationDefault();
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to load GCP credentials for recording", e);
+        }
+      } else {
+        credentials = MockGoogleCredentialsFactory.createMockCredentials();
       }
 
-      CredentialsOverrider overrider =
-          new CredentialsOverrider.Builder(CredentialsType.SESSION)
-              .withSessionCredentials(
-                  new StsCredentials("mock-key-id", "mock-secret", "mock-gcp-oauth2-token"))
-              .build();
-      builder.withCredentialsOverrider(overrider);
-
-      return new GcpRegistry(builder, ociHttpClient);
+      return new GcpRegistry(builder, ociHttpClient, credentials);
     }
 
     @Override
