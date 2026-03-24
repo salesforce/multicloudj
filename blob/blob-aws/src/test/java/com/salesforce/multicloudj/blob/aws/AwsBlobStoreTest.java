@@ -87,6 +87,7 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
@@ -809,6 +810,7 @@ public class AwsBlobStoreTest {
     List<S3Object> list =
         IntStream.range(1, 100).mapToObj(this::mockObject).collect(Collectors.toList());
     when(mockResponse.contents()).thenReturn(list);
+    when(mockResponse.commonPrefixes()).thenReturn(List.of());
   }
 
   @Test
@@ -845,6 +847,7 @@ public class AwsBlobStoreTest {
     assertEquals(99, response.getBlobs().size()); // 1 to 99
     assertEquals(true, response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
+    assertEquals(List.of(), response.getCommonPrefixes());
 
     // Verify first and last blob
     assertEquals("key-1", response.getBlobs().get(0).getKey());
@@ -859,6 +862,7 @@ public class AwsBlobStoreTest {
     ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
     when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
     when(mockResponse.contents()).thenReturn(List.of());
+    when(mockResponse.commonPrefixes()).thenReturn(List.of());
     when(mockResponse.isTruncated()).thenReturn(false);
     when(mockResponse.nextContinuationToken()).thenReturn(null);
 
@@ -866,8 +870,105 @@ public class AwsBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of(), response.getCommonPrefixes());
     assertFalse(response.isTruncated());
     assertNull(response.getNextPageToken());
+  }
+
+  @Test
+  void testDoListPage_WithCommonPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    List<CommonPrefix> awsPrefixes = List.of(
+        CommonPrefix.builder().prefix("dir1/").build(),
+        CommonPrefix.builder().prefix("dir2/").build());
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+    when(mockResponse.contents()).thenReturn(List.of());
+    when(mockResponse.commonPrefixes()).thenReturn(awsPrefixes);
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("dir1/", "dir2/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_WithBothBlobsAndPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    List<S3Object> blobs = List.of(
+        S3Object.builder().key("root.txt").size(100L).build());
+    List<CommonPrefix> awsPrefixes = List.of(
+        CommonPrefix.builder().prefix("dir1/").build());
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+    when(mockResponse.contents()).thenReturn(blobs);
+    when(mockResponse.commonPrefixes()).thenReturn(awsPrefixes);
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertEquals("root.txt", response.getBlobs().get(0).getKey());
+    assertEquals(List.of("dir1/"), response.getCommonPrefixes());
+  }
+
+  @Test
+  void testDoListPage_WithOnlyPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").withMaxResults(5).build();
+
+    List<CommonPrefix> awsPrefixes = List.of(
+        CommonPrefix.builder().prefix("a/").build(),
+        CommonPrefix.builder().prefix("b/").build(),
+        CommonPrefix.builder().prefix("c/").build());
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+    when(mockResponse.contents()).thenReturn(List.of());
+    when(mockResponse.commonPrefixes()).thenReturn(awsPrefixes);
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("a/", "b/", "c/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_CommonPrefixesEmptyWhenNoDelimiter() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withPrefix("data/").build();
+
+    List<S3Object> blobs = List.of(S3Object.builder().key("data/file.txt").size(10L).build());
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2((ListObjectsV2Request) any())).thenReturn(mockResponse);
+    when(mockResponse.contents()).thenReturn(blobs);
+    when(mockResponse.commonPrefixes()).thenReturn(List.of());
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertNotNull(response.getCommonPrefixes());
+    assertEquals(0, response.getCommonPrefixes().size());
   }
 
   @Test

@@ -1,0 +1,23 @@
+{
+  "id" : "d2d6a9ae-1cb1-4153-8ff7-1da1b0330113",
+  "name" : "AwsBlobStoreIT_testListPage_MaxResults1_WithDelimiter-GET-2",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&max-keys=1&prefix=conformance-tests%2Fcommon-prefix-maxresults1%2F&continuation-token=1jMHoM7xYSuBTBAcX05tOK1yGYF3aoALE4UtZO0fVV6LwcnBcKThWzgTIhQdWNb%2FHTmRCzulry%2Fp2gzRCR0Fk7Nylb2YvP3AtACyj6E8VfPk%3D",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-maxresults1/</Prefix><ContinuationToken>1jMHoM7xYSuBTBAcX05tOK1yGYF3aoALE4UtZO0fVV6LwcnBcKThWzgTIhQdWNb/HTmRCzulry/p2gzRCR0Fk7Nylb2YvP3AtACyj6E8VfPk=</ContinuationToken><KeyCount>1</KeyCount><MaxKeys>1</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-maxresults1/root.txt</Key><LastModified>2026-04-02T04:52:52.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PB8JYGMFPDWFSQQH",
+      "x-amz-id-2" : "sczR9B+7RRdhEtNQhCJlAvDrxahePxMOnoZ+hAK10ZlHolpFshYRe9l+SViMCl7gCEUVOHAhd63qj8hL6lYHneGG7z/a5UFr",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:54 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d2d6a9ae-1cb1-4153-8ff7-1da1b0330113",
+  "persistent" : true,
+  "insertionIndex" : 657
+}

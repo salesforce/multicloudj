@@ -1,0 +1,27 @@
+{
+  "id" : "75e8fd80-0499-4aa2-8c99-272fd60c39a2",
+  "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-PUT-8",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/common-prefix-basic/dir1/a.txt",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "dGVzdA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"098f6bcd4621d373cade4e832627b4f6\"",
+      "x-amz-checksum-crc64nvme" : "+bu+zv66sUM=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "FRJRWFRDY34QD5HK",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "qjDRUMMh5PdY/y1JXAd4ktF6EEf966TVG+KBhTrZNFwSd4P1Q1MlVg8aBd3KoKypXLHQgh5LKm8p2oTzheEdJVbG/SBCtUBI",
+      "Date" : "Thu, 02 Apr 2026 04:52:42 GMT"
+    }
+  },
+  "uuid" : "75e8fd80-0499-4aa2-8c99-272fd60c39a2",
+  "persistent" : true,
+  "insertionIndex" : 653
+}
