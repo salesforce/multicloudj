@@ -1,8 +1,8 @@
 package com.salesforce.multicloudj.registry.driver;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -27,6 +27,7 @@ public class BearerTokenExchange {
 
   private static final String TOKEN_FIELD = "token";
   private static final String ACCESS_TOKEN_FIELD = "access_token";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final CloseableHttpClient httpClient;
 
@@ -83,19 +84,19 @@ public class BearerTokenExchange {
 
       String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
 
-      JsonObject json;
+      ObjectNode json;
       try {
-        json = JsonParser.parseString(responseBody).getAsJsonObject();
-      } catch (JsonSyntaxException e) {
+        json = (ObjectNode) OBJECT_MAPPER.readTree(responseBody);
+      } catch (JsonProcessingException e) {
         throw new UnknownException(
             "Invalid JSON response from token endpoint: " + responseBody, e);
       }
 
       // Token field is "token" (Docker Hub, AWS ECR) or "access_token" (GCP Artifact Registry)
-      if (json.has(TOKEN_FIELD) && !json.get(TOKEN_FIELD).isJsonNull()) {
-        return json.get(TOKEN_FIELD).getAsString();
-      } else if (json.has(ACCESS_TOKEN_FIELD) && !json.get(ACCESS_TOKEN_FIELD).isJsonNull()) {
-        return json.get(ACCESS_TOKEN_FIELD).getAsString();
+      if (json.has(TOKEN_FIELD) && !json.get(TOKEN_FIELD).isNull()) {
+        return json.get(TOKEN_FIELD).asText();
+      } else if (json.has(ACCESS_TOKEN_FIELD) && !json.get(ACCESS_TOKEN_FIELD).isNull()) {
+        return json.get(ACCESS_TOKEN_FIELD).asText();
       }
 
       throw new UnknownException("Token response missing token field");
