@@ -98,6 +98,8 @@ import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
+import software.amazon.awssdk.transfer.s3.progress.TransferListener;
 
 public class AwsTransformer {
 
@@ -616,6 +618,43 @@ public class AwsTransformer {
           });
     }
 
+    return builder.build();
+  }
+
+  public UploadDirectoryRequest toUploadDirectoryRequest(
+      DirectoryUploadRequest request,
+      boolean useTransferListener,
+      TransferListener internalTransferListener) {
+    UploadDirectoryRequest.Builder builder =
+        UploadDirectoryRequest.builder()
+            .bucket(getBucket())
+            .source(Paths.get(request.getLocalSourceDirectory()))
+            .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+            .followSymbolicLinks(request.isFollowSymbolicLinks())
+            .s3Prefix(request.getPrefix());
+    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    if (hasTags || useTransferListener || internalTransferListener != null) {
+      List<Tag> tagSet =
+          hasTags
+              ? request.getTags().entrySet().stream()
+                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                  .collect(Collectors.toList())
+              : null;
+      builder.uploadFileRequestTransformer(
+          fileRequestBuilder -> {
+            if (hasTags) {
+              PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+              fileRequestBuilder.putObjectRequest(
+                  existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
+            }
+            if (useTransferListener) {
+              fileRequestBuilder.addTransferListener(LoggingTransferListener.create());
+            }
+            if (internalTransferListener != null) {
+              fileRequestBuilder.addTransferListener(internalTransferListener);
+            }
+          });
+    }
     return builder.build();
   }
 
