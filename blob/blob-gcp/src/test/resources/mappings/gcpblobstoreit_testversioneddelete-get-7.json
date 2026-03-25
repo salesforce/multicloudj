@@ -21,8 +21,8 @@
   },
   "uuid" : "bbcf5217-1f6f-477a-a208-17ce3bb2609d",
   "persistent" : true,
-  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
-  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-2",
-  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-3",
-  this"insertionIndex" : 970
+  "scenarioName" : "testversioneddelete-scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o",
+  "requiredScenarioState" : "testversioneddelete-scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-2",
+  "newScenarioState" : "testversioneddelete-scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-3",
+  "insertionIndex" : 970
 }
