@@ -1309,6 +1309,50 @@ public class AwsAsyncBlobStoreTest {
   }
 
   @Test
+  void doDownloadDirectory_WithTransferListener_ReturnsTotalBytesRequested()
+      throws ExecutionException, InterruptedException {
+    DirectoryDownload awsResponseFuture = mock(DirectoryDownload.class);
+    CompletedDirectoryDownload awsResponse = mock(CompletedDirectoryDownload.class);
+    doAnswer(
+            invocation -> {
+              DownloadDirectoryRequest request = invocation.getArgument(0);
+              request
+                  .filter()
+                  .test(S3Object.builder().key("files/a.txt").size(123L).build());
+              request
+                  .filter()
+                  .test(S3Object.builder().key("files/b.txt").size(77L).build());
+              return awsResponseFuture;
+            })
+        .when(mockS3TransferManager)
+        .downloadDirectory(any(DownloadDirectoryRequest.class));
+    doReturn(future(awsResponse)).when(awsResponseFuture).completionFuture();
+    doReturn(List.of()).when(awsResponse).failedTransfers();
+
+    AwsAsyncBlobStore awsWithTransferListener =
+        new AwsAsyncBlobStore(
+            BUCKET,
+            REGION,
+            null,
+            validator,
+            mockS3Client,
+            mockS3TransferManager,
+            transformerSupplier,
+            true);
+
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("files/")
+            .localDestinationDirectory("/home/documents")
+            .build();
+
+    DirectoryDownloadResponse response =
+        awsWithTransferListener.doDownloadDirectory(downloadRequest).get();
+    assertNotNull(response);
+    assertEquals(200L, response.getTotalBytesRequested());
+  }
+
+  @Test
   void doUploadDirectory() throws ExecutionException, InterruptedException {
     DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
     CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
@@ -1339,6 +1383,52 @@ public class AwsAsyncBlobStoreTest {
     assertEquals(BUCKET, capturedRequest.bucket());
     assertEquals(Paths.get("/tmp/test-upload-dir"), capturedRequest.source());
     assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
+  }
+
+  @Test
+  void doUploadDirectory_WithTransferListener_ReturnsTotalBytesToUpload()
+      throws ExecutionException, InterruptedException, IOException {
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    doReturn(mockDirectoryUpload)
+        .when(mockS3TransferManager)
+        .uploadDirectory(any(UploadDirectoryRequest.class));
+    doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+        .when(mockDirectoryUpload)
+        .completionFuture();
+    doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+
+    Path tempDir = Files.createTempDirectory("aws-async-upload-dir");
+    Path tempFile = tempDir.resolve("a.txt");
+    Files.write(tempFile, "hello world".getBytes(StandardCharsets.UTF_8));
+
+    try {
+      AwsAsyncBlobStore awsWithTransferListener =
+          new AwsAsyncBlobStore(
+              BUCKET,
+              REGION,
+              null,
+              validator,
+              mockS3Client,
+              mockS3TransferManager,
+              transformerSupplier,
+              true);
+
+      DirectoryUploadRequest uploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("files/")
+              .includeSubFolders(true)
+              .build();
+
+      DirectoryUploadResponse response =
+          awsWithTransferListener.doUploadDirectory(uploadRequest).get();
+      assertNotNull(response);
+      assertEquals(11L, response.getTotalBytesToUpload());
+    } finally {
+      Files.deleteIfExists(tempFile);
+      Files.deleteIfExists(tempDir);
+    }
   }
 
   @Test

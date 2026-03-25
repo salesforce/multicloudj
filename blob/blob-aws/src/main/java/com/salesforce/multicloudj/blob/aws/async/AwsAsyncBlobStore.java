@@ -50,9 +50,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
@@ -77,15 +81,19 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
 
 /** AWS implementation of AsyncBlobStore */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
 
   private static final int MAX_OBJECTS_PER_DELETE = 1000;
+  private static final Logger logger = LoggerFactory.getLogger(AwsAsyncBlobStore.class);
 
   private final S3AsyncClient client;
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
+  private final boolean useTransferListener;
 
   public AwsAsyncBlobStore(
       String bucket,
@@ -95,10 +103,31 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
+    this(
+        bucket,
+        region,
+        credentialsOverrider,
+        validator,
+        client,
+        transferManager,
+        transformerSupplier,
+        null);
+  }
+
+  public AwsAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      S3AsyncClient client,
+      S3TransferManager transferManager,
+      AwsTransformerSupplier transformerSupplier,
+      Boolean useTransferListener) {
     super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
+    this.useTransferListener = Boolean.TRUE.equals(useTransferListener);
   }
 
   @Override
@@ -364,19 +393,108 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.Builder builder =
+        software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.builder()
+            .bucket(getBucket())
+            .destination(
+                java.nio.file.Paths.get(directoryDownloadRequest.getLocalDestinationDirectory()));
+    if (StringUtils.isNotEmpty(directoryDownloadRequest.getPrefixToDownload())) {
+      builder.listObjectsV2RequestTransformer(
+          reqBuilder -> reqBuilder.prefix(directoryDownloadRequest.getPrefixToDownload()));
+    }
+    builder.filter(
+        getPrefixExclusionsFilter(
+            directoryDownloadRequest.getPrefixesToExclude(), totalBytesRequested));
+    if (useTransferListener) {
+      builder.downloadFileRequestTransformer(
+          request -> {
+            request.addTransferListener(LoggingTransferListener.create());
+            request.addTransferListener(
+                new InternalS3LoggingTransferListener(totalBytesTransferred));
+          });
+    }
     return transferManager
-        .downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest))
+        .downloadDirectory(builder.build())
         .completionFuture()
-        .thenApply(transformer::toDirectoryDownloadResponse);
+        .thenApply(
+            completed -> {
+              DirectoryDownloadResponse response =
+                  transformer.toDirectoryDownloadResponse(completed);
+              return DirectoryDownloadResponse.builder()
+                  .failedTransfers(response.getFailedTransfers())
+                  .totalBytesRequested(useTransferListener ? totalBytesRequested.get() : null)
+                  .build();
+            });
   }
 
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
+    long totalBytesToUpload = calculateTotalBytesToUpload(directoryUploadRequest);
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest uploadDirectoryRequest =
+        transformer.toUploadDirectoryRequest(
+            directoryUploadRequest,
+            useTransferListener,
+            useTransferListener
+                ? new InternalS3LoggingTransferListener(totalBytesTransferred)
+                : null);
     return transferManager
-        .uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
+        .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
-        .thenApply(transformer::toDirectoryUploadResponse);
+        .thenApply(
+            completed -> {
+              DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completed);
+              return DirectoryUploadResponse.builder()
+                  .failedTransfers(response.getFailedTransfers())
+                  .totalBytesToUpload(useTransferListener ? totalBytesToUpload : null)
+                  .build();
+            });
+  }
+
+  private DownloadFilter getPrefixExclusionsFilter(
+      List<String> prefixesToExclude, AtomicLong totalBytesRequested) {
+    return s3Object -> {
+      if (prefixesToExclude != null) {
+        for (String prefixToExclude : prefixesToExclude) {
+          if (s3Object.key().startsWith(prefixToExclude)) {
+            return false;
+          }
+        }
+      }
+      totalBytesRequested.addAndGet(s3Object.size());
+      return true;
+    };
+  }
+
+  private long calculateTotalBytesToUpload(DirectoryUploadRequest directoryUploadRequest) {
+    try {
+      java.nio.file.Path source =
+          java.nio.file.Paths.get(directoryUploadRequest.getLocalSourceDirectory());
+      int maxDepth = directoryUploadRequest.isIncludeSubFolders() ? Integer.MAX_VALUE : 1;
+      java.util.stream.Stream<java.nio.file.Path> stream =
+          directoryUploadRequest.isFollowSymbolicLinks()
+              ? java.nio.file.Files.walk(
+                  source, maxDepth, java.nio.file.FileVisitOption.FOLLOW_LINKS)
+              : java.nio.file.Files.walk(source, maxDepth);
+      try (stream) {
+        return stream
+            .filter(java.nio.file.Files::isRegularFile)
+            .mapToLong(
+                path -> {
+                  try {
+                    return java.nio.file.Files.size(path);
+                  } catch (java.io.IOException e) {
+                    return 0L;
+                  }
+                })
+            .sum();
+      }
+    } catch (java.io.IOException e) {
+      return 0L;
+    }
   }
 
   @Override
@@ -725,7 +843,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier());
+          getTransformerSupplier(),
+          getUseTransferListener());
     }
   }
 }
