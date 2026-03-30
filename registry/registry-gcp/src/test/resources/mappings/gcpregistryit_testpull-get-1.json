@@ -1,0 +1,35 @@
+{
+  "id" : "31209434-69fe-468d-ba3e-263eb372ae78",
+  "name" : "GcpRegistryIT_testPull-GET-1",
+  "request" : {
+    "urlPath" : "/v2/token",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "scope" : {
+        "hasExactly" : [ {
+          "equalTo" : "repository:substrate-sdk-gcp-poc1/test-repo/hello-world:pull"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"token\":\"REDACTED\",\"expires_in\":43200}",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "X-Content-Type-Options" : "nosniff",
+      "X-Xss-Protection" : "0",
+      "Date" : "Fri, 13 Mar 2026 20:00:38 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "31209434-69fe-468d-ba3e-263eb372ae78",
+  "persistent" : true,
+  "insertionIndex" : 9
+}
