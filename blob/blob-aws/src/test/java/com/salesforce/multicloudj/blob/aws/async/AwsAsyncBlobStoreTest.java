@@ -145,6 +145,8 @@ import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FailedFileDownload;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.progress.TransferListener;
+import software.amazon.awssdk.transfer.s3.progress.TransferProgressSnapshot;
 
 public class AwsAsyncBlobStoreTest {
 
@@ -1322,6 +1324,17 @@ public class AwsAsyncBlobStoreTest {
               request
                   .filter()
                   .test(S3Object.builder().key("files/b.txt").size(77L).build());
+              DownloadFileRequest.Builder downloadFileRequestBuilder =
+                  DownloadFileRequest.builder()
+                      .destination(Paths.get("/tmp/a.txt"))
+                      .getObjectRequest(
+                          GetObjectRequest.builder().bucket(BUCKET).key("files/a.txt").build());
+              request.downloadFileRequestTransformer().accept(downloadFileRequestBuilder);
+              DownloadFileRequest downloadFileRequest = downloadFileRequestBuilder.build();
+              for (TransferListener transferListener : downloadFileRequest.transferListeners()) {
+                transferListener.transferComplete(createTransferCompleteContext(123L));
+                transferListener.transferComplete(createTransferCompleteContext(77L));
+              }
               return awsResponseFuture;
             })
         .when(mockS3TransferManager)
@@ -1390,7 +1403,23 @@ public class AwsAsyncBlobStoreTest {
       throws ExecutionException, InterruptedException, IOException {
     DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
     CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
-    doReturn(mockDirectoryUpload)
+    doAnswer(
+            invocation -> {
+              UploadDirectoryRequest request = invocation.getArgument(0);
+              software.amazon.awssdk.transfer.s3.model.UploadFileRequest.Builder
+                  uploadFileRequestBuilder =
+                      software.amazon.awssdk.transfer.s3.model.UploadFileRequest.builder()
+                          .source(Paths.get("/tmp/a.txt"))
+                          .putObjectRequest(
+                              PutObjectRequest.builder().bucket(BUCKET).key("files/a.txt").build());
+              request.uploadFileRequestTransformer().accept(uploadFileRequestBuilder);
+              software.amazon.awssdk.transfer.s3.model.UploadFileRequest uploadFileRequest =
+                  uploadFileRequestBuilder.build();
+              for (TransferListener transferListener : uploadFileRequest.transferListeners()) {
+                transferListener.transferComplete(createTransferCompleteContext(11L));
+              }
+              return mockDirectoryUpload;
+            })
         .when(mockS3TransferManager)
         .uploadDirectory(any(UploadDirectoryRequest.class));
     doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
@@ -1429,6 +1458,15 @@ public class AwsAsyncBlobStoreTest {
       Files.deleteIfExists(tempFile);
       Files.deleteIfExists(tempDir);
     }
+  }
+
+  private TransferListener.Context.TransferComplete createTransferCompleteContext(long bytes) {
+    TransferProgressSnapshot transferProgressSnapshot = mock(TransferProgressSnapshot.class);
+    doReturn(bytes).when(transferProgressSnapshot).transferredBytes();
+    TransferListener.Context.TransferComplete transferCompleteContext =
+        mock(TransferListener.Context.TransferComplete.class);
+    doReturn(transferProgressSnapshot).when(transferCompleteContext).progressSnapshot();
+    return transferCompleteContext;
   }
 
   @Test
