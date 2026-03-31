@@ -1,0 +1,25 @@
+{
+  "id" : "b2b8dde5-e44b-4420-87f8-626ae44b6729",
+  "name" : "GcpRegistryIT_testExtract-GET-3",
+  "request" : {
+    "url" : "/v2/substrate-sdk-gcp-poc1/test-repo/hello-world/manifests/latest",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n   \"schemaVersion\": 2,\n   \"mediaType\": \"application/vnd.docker.distribution.manifest.v2+json\",\n   \"config\": {\n      \"mediaType\": \"application/vnd.docker.container.image.v1+json\",\n      \"size\": 562,\n      \"digest\": \"sha256:ca9905c726f06de3cb54aaa54d4d1eade5403594e3fbfb050ccc970fd0212983\"\n   },\n   \"layers\": [\n      {\n         \"mediaType\": \"application/vnd.docker.image.rootfs.diff.tar.gzip\",\n         \"size\": 3021,\n         \"digest\": \"sha256:198f93fd5094f85a71f793fb8d8f481294d75fb80e6190abb4c6fad2b052a6b6\"\n      }\n   ]\n}",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Docker-Distribution-Api-Version" : "registry/2.0",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "X-Content-Type-Options" : "nosniff",
+      "X-Xss-Protection" : "0",
+      "Date" : "Fri, 13 Mar 2026 20:00:36 GMT",
+      "Docker-Content-Digest" : "sha256:48b5775c1cd7cf723f57537f82b68e3888f2eeb4bf34098e683a727982cc5b03",
+      "Content-Type" : "application/vnd.docker.distribution.manifest.v2+json"
+    }
+  },
+  "uuid" : "b2b8dde5-e44b-4420-87f8-626ae44b6729",
+  "persistent" : true,
+  "insertionIndex" : 4
+}
