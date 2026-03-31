@@ -55,8 +55,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
@@ -88,7 +86,6 @@ import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
 
   private static final int MAX_OBJECTS_PER_DELETE = 1000;
-  private static final Logger logger = LoggerFactory.getLogger(AwsAsyncBlobStore.class);
 
   private final S3AsyncClient client;
   private final S3TransferManager transferManager;
@@ -127,7 +124,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
-    this.useTransferListener = Boolean.TRUE.equals(useTransferListener);
+    this.useTransferListener = useTransferListener != null ? useTransferListener : false;
   }
 
   @Override
@@ -393,7 +390,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
-    AtomicLong totalBytesRequested = new AtomicLong(0L);
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
     software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.Builder builder =
         software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.builder()
@@ -404,9 +400,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       builder.listObjectsV2RequestTransformer(
           reqBuilder -> reqBuilder.prefix(directoryDownloadRequest.getPrefixToDownload()));
     }
-    builder.filter(
-        getPrefixExclusionsFilter(
-            directoryDownloadRequest.getPrefixesToExclude(), totalBytesRequested));
+    if (directoryDownloadRequest.getPrefixesToExclude() != null
+        && !directoryDownloadRequest.getPrefixesToExclude().isEmpty()) {
+      builder.filter(getPrefixExclusionsFilter(directoryDownloadRequest.getPrefixesToExclude()));
+    }
     if (useTransferListener) {
       builder.downloadFileRequestTransformer(
           request -> {
@@ -424,7 +421,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                   transformer.toDirectoryDownloadResponse(completed);
               return DirectoryDownloadResponse.builder()
                   .failedTransfers(response.getFailedTransfers())
-                  .totalBytesRequested(useTransferListener ? totalBytesRequested.get() : null)
+                  .totalBytesRequested(useTransferListener ? totalBytesTransferred.get() : null)
                   .build();
             });
   }
@@ -432,7 +429,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
-    long totalBytesToUpload = calculateTotalBytesToUpload(directoryUploadRequest);
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
     software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest uploadDirectoryRequest =
         transformer.toUploadDirectoryRequest(
@@ -449,13 +445,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
               DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completed);
               return DirectoryUploadResponse.builder()
                   .failedTransfers(response.getFailedTransfers())
-                  .totalBytesToUpload(useTransferListener ? totalBytesToUpload : null)
+                  .totalBytesToUpload(useTransferListener ? totalBytesTransferred.get() : null)
                   .build();
             });
   }
 
-  private DownloadFilter getPrefixExclusionsFilter(
-      List<String> prefixesToExclude, AtomicLong totalBytesRequested) {
+  private DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
     return s3Object -> {
       if (prefixesToExclude != null) {
         for (String prefixToExclude : prefixesToExclude) {
@@ -464,37 +459,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           }
         }
       }
-      totalBytesRequested.addAndGet(s3Object.size());
       return true;
     };
-  }
-
-  private long calculateTotalBytesToUpload(DirectoryUploadRequest directoryUploadRequest) {
-    try {
-      java.nio.file.Path source =
-          java.nio.file.Paths.get(directoryUploadRequest.getLocalSourceDirectory());
-      int maxDepth = directoryUploadRequest.isIncludeSubFolders() ? Integer.MAX_VALUE : 1;
-      java.util.stream.Stream<java.nio.file.Path> stream =
-          directoryUploadRequest.isFollowSymbolicLinks()
-              ? java.nio.file.Files.walk(
-                  source, maxDepth, java.nio.file.FileVisitOption.FOLLOW_LINKS)
-              : java.nio.file.Files.walk(source, maxDepth);
-      try (stream) {
-        return stream
-            .filter(java.nio.file.Files::isRegularFile)
-            .mapToLong(
-                path -> {
-                  try {
-                    return java.nio.file.Files.size(path);
-                  } catch (java.io.IOException e) {
-                    return 0L;
-                  }
-                })
-            .sum();
-      }
-    } catch (java.io.IOException e) {
-      return 0L;
-    }
   }
 
   @Override
