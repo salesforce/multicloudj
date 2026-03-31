@@ -21,7 +21,9 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -331,7 +333,9 @@ class AbstractRegistryTest {
 
     @Override
     public String getAuthorizationHeader(AuthChallenge challenge, String repository) {
-      return "Basic dGVzdHVzZXI6dGVzdHRva2Vu";
+      return "Basic "
+          + Base64.getEncoder()
+              .encodeToString("testuser:testtoken".getBytes(StandardCharsets.UTF_8));
     }
 
     @Override

@@ -74,8 +74,7 @@ public class AwsRegistry extends AbstractRegistry {
    */
   public AwsRegistry(Builder builder, EcrClient ecrClient, CloseableHttpClient httpClient) {
     super(builder);
-    this.ecrClient = ecrClient != null ? ecrClient
-        : (StringUtils.isNotBlank(region) ? createEcrClient() : null);
+    this.ecrClient = ecrClient != null ? ecrClient : createEcrClient();
     this.ociClient =
         registryEndpoint != null
             ? new OciHttpTransport(registryEndpoint, this, httpClient)
@@ -127,6 +126,9 @@ public class AwsRegistry extends AbstractRegistry {
   }
 
   private EcrClient createEcrClient() {
+    if (StringUtils.isBlank(region)) {
+      return null;
+    }
     Region awsRegion = Region.of(region);
     AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
     if (credentialsOverrider != null) {

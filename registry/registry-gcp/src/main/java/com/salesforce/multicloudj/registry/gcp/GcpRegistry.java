@@ -79,25 +79,21 @@ public class GcpRegistry extends AbstractRegistry {
       BearerTokenExchange tokenExchange) {
     super(builder);
     this.credentials = credentials;
-    if (registryEndpoint != null) {
-      this.ociClient = new OciHttpTransport(registryEndpoint, this, ociHttpClient);
-      if (tokenExchange != null) {
-        this.tokenHttpClient = null;
-        this.tokenExchange = tokenExchange;
-      } else if (ociHttpClient != null) {
-        // Reuse the same proxy client so token exchange also goes through WireMock in tests
-        this.tokenHttpClient = null;
-        this.tokenExchange = new BearerTokenExchange(ociHttpClient);
-      } else {
-        // In production: create a dedicated HTTP client owned by this registry
-        this.tokenHttpClient = HttpClients.createDefault();
-        this.tokenExchange = new BearerTokenExchange(this.tokenHttpClient);
-      }
-    } else {
-      this.ociClient = null;
-      this.tokenHttpClient = null;
-      this.tokenExchange = null;
-    }
+    // In production (no injected client or exchange), create a dedicated client for token exchange
+    CloseableHttpClient tokenClient =
+        (registryEndpoint != null && tokenExchange == null && ociHttpClient == null)
+            ? HttpClients.createDefault()
+            : null;
+    this.tokenHttpClient = tokenClient;
+    this.ociClient =
+        registryEndpoint != null
+            ? new OciHttpTransport(registryEndpoint, this, ociHttpClient)
+            : null;
+    this.tokenExchange =
+        registryEndpoint == null ? null
+        : tokenExchange != null  ? tokenExchange
+        : ociHttpClient != null  ? new BearerTokenExchange(ociHttpClient)
+                                 : new BearerTokenExchange(tokenClient);
   }
 
   @Override
