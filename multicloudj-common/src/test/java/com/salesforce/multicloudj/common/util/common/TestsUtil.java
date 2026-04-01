@@ -22,6 +22,10 @@ import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,7 +33,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import lombok.Getter;
+import org.apache.http.HttpHost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +48,61 @@ public class TestsUtil {
   private static final Logger logger = LoggerFactory.getLogger(TestsUtil.class);
   static WireMockServer wireMockServer;
   public static final String WIREMOCK_HOST = "localhost";
+  private static final String TLS_PROTOCOL = "TLS";
   private static final List<StubMappingTransformer> loadedTransformers = new ArrayList<>();
   @Getter private static String currentTestPrefix;
   private static final AtomicInteger stubCounter = new AtomicInteger(0);
+
+  /**
+   * Creates a trust manager that accepts all certificates without validation.
+   * For testing purposes only.
+   */
+  public static TrustManager[] createTrustAllManager() {
+    return new TrustManager[] {
+      new X509TrustManager() {
+        @Override
+        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+          return new X509Certificate[0];
+        }
+      }
+    };
+  }
+
+  /**
+   * Creates an SSL context that trusts all certificates. For testing purposes only.
+   */
+  public static SSLContext createTrustAllSSLContext() {
+    try {
+      SSLContext sslContext = SSLContext.getInstance(TLS_PROTOCOL);
+      sslContext.init(null, createTrustAllManager(), new SecureRandom());
+      return sslContext;
+    } catch (NoSuchAlgorithmException | KeyManagementException e) {
+      throw new RuntimeException("Failed to create SSL context", e);
+    }
+  }
+
+  /**
+   * Gets an Apache HttpClient configured with a proxy to the WireMock server and trust-all SSL.
+   * Used for services that communicate via raw HTTP (e.g., OCI registry) rather than
+   * provider-specific SDK clients.
+   *
+   * @param port The base port for WireMock (proxy will use port+1)
+   * @return A configured CloseableHttpClient
+   */
+  public static CloseableHttpClient getProxyHttpClient(int port) {
+    SSLContext sslContext = createTrustAllSSLContext();
+    return HttpClients.custom()
+        .setProxy(new HttpHost(WIREMOCK_HOST, port + 1))
+        .setSSLContext(sslContext)
+        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+        .build();
+  }
 
   public static class StubNamingTransformer extends StubMappingTransformer {
 

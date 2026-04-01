@@ -1,0 +1,25 @@
+{
+  "id" : "212a974a-1462-45c7-a33a-01e0a165f3b0",
+  "name" : "GcpRegistryIT_testExtract-GET-1",
+  "request" : {
+    "url" : "/v2/substrate-sdk-gcp-poc1/test-repo/hello-world/blobs/sha256:198f93fd5094f85a71f793fb8d8f481294d75fb80e6190abb4c6fad2b052a6b6",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 302,
+    "body" : "<a href=\"/artifacts-downloads/namespaces/substrate-sdk-gcp-poc1/repositories/test-repo/downloads/_LiotIR6C6mW7qHh\">Found</a>.\n\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Docker-Distribution-Api-Version" : "registry/2.0",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "X-Content-Type-Options" : "nosniff",
+      "X-Xss-Protection" : "0",
+      "Date" : "Fri, 13 Mar 2026 20:00:37 GMT",
+      "Location" : "/artifacts-downloads/namespaces/substrate-sdk-gcp-poc1/repositories/test-repo/downloads/_LiotIR6C6mW7qHh",
+      "Content-Type" : "text/html; charset=utf-8"
+    }
+  },
+  "uuid" : "212a974a-1462-45c7-a33a-01e0a165f3b0",
+  "persistent" : true,
+  "insertionIndex" : 2
+}
