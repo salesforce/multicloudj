@@ -25,7 +25,7 @@ import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -90,7 +90,7 @@ public class AliTransformer {
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
-      if (uploadRequest.getChecksumAlgorithm() == ChecksumAlgorithm.SHA256) {
+      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
         metadata.setHeader("x-oss-content-sha256", uploadRequest.getChecksumValue());
       } else {
         metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());

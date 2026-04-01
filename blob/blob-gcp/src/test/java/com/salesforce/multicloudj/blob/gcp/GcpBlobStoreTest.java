@@ -51,7 +51,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -2890,7 +2890,7 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(result);
     assertTrue(result.isChecksumEnabled());
-    assertEquals(ChecksumAlgorithm.CRC32C, result.getChecksumAlgorithm());
+    assertEquals(ChecksumMethod.CRC32C, result.getChecksumAlgorithm());
   }
 
   @Test
@@ -2898,7 +2898,7 @@ class GcpBlobStoreTest {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder()
         .withKey(TEST_KEY)
-        .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
         .withChecksumValue("dummychecksum")
         .build();
 
@@ -2914,7 +2914,7 @@ class GcpBlobStoreTest {
     // Given
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey(TEST_KEY)
-        .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
         .build();
 
     // When & Then
@@ -2928,7 +2928,7 @@ class GcpBlobStoreTest {
     // Given
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey(TEST_KEY)
-        .withChecksumAlgorithm(ChecksumAlgorithm.CRC32C)
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
         .build();
 
     CreateMultipartUploadResponse mockGcpResponse =
@@ -2948,7 +2948,7 @@ class GcpBlobStoreTest {
     assertNotNull(result);
     assertTrue(result.isChecksumEnabled());
     assertEquals(
-        ChecksumAlgorithm.CRC32C, result.getChecksumAlgorithm());
+        ChecksumMethod.CRC32C, result.getChecksumAlgorithm());
   }
 
   @Test

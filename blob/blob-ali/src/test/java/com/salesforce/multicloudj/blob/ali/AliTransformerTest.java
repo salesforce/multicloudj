@@ -20,7 +20,7 @@ import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -723,7 +723,7 @@ public class AliTransformerTest {
         UploadRequest.builder()
             .withKey("test-key")
             .withChecksumValue("abc123sha256value")
-            .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
             .build();
 
     ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
@@ -759,7 +759,7 @@ public class AliTransformerTest {
     doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey("key")
-        .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
         .build();
 
     var actual = transformer.toMultipartUpload(
@@ -768,7 +768,7 @@ public class AliTransformerTest {
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());
     assertEquals("uploadId", actual.getId());
-    assertEquals(ChecksumAlgorithm.SHA256, actual.getChecksumAlgorithm());
+    assertEquals(ChecksumMethod.SHA256, actual.getChecksumAlgorithm());
   }
 
   @Test

@@ -38,7 +38,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -129,8 +129,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
-  private void rejectSha256(ChecksumAlgorithm algorithm) {
-    if (algorithm == ChecksumAlgorithm.SHA256) {
+  private void rejectSha256(ChecksumMethod algorithm) {
+    if (algorithm == ChecksumMethod.SHA256) {
       throw new UnsupportedOperationException(
           "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
     }

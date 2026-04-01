@@ -53,7 +53,7 @@ public class UploadRequest {
    * (Optional parameter) The checksum algorithm used for the checksumValue.
    * Defaults to CRC32C when checksumValue is set but no algorithm is specified.
    */
-  private final ChecksumAlgorithm checksumAlgorithm;
+  private final ChecksumMethod checksumAlgorithm;
 
   /** (Optional parameter) Object lock configuration for WORM protection. */
   private final ObjectLockConfiguration objectLock;
@@ -76,7 +76,7 @@ public class UploadRequest {
     this.checksumValue = builder.checksumValue;
     this.checksumAlgorithm = builder.checksumAlgorithm != null
         ? builder.checksumAlgorithm
-        : (builder.checksumValue != null ? ChecksumAlgorithm.CRC32C : null);
+        : (builder.checksumValue != null ? ChecksumMethod.CRC32C : null);
     this.contentType = builder.contentType;
   }
 
@@ -98,7 +98,7 @@ public class UploadRequest {
     private boolean useKmsManagedKey;
     private ObjectLockConfiguration objectLock;
     private String checksumValue;
-    private ChecksumAlgorithm checksumAlgorithm;
+    private ChecksumMethod checksumAlgorithm;
     private String contentType;
 
     public Builder withKey(String key) {
@@ -147,7 +147,7 @@ public class UploadRequest {
       return this;
     }
 
-    public Builder withChecksumAlgorithm(ChecksumAlgorithm checksumAlgorithm) {
+    public Builder withChecksumAlgorithm(ChecksumMethod checksumAlgorithm) {
       this.checksumAlgorithm = checksumAlgorithm;
       return this;
     }

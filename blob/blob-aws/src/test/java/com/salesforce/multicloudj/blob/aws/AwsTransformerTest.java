@@ -11,7 +11,7 @@ import static org.mockito.Mockito.mock;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
@@ -1326,7 +1326,7 @@ public class AwsTransformerTest {
         UploadRequest.builder()
             .withKey("some-key")
             .withChecksumValue("abc123sha256")
-            .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
             .build();
 
     var actual = transformer.toRequest(request);
@@ -1343,7 +1343,7 @@ public class AwsTransformerTest {
         UploadRequest.builder()
             .withKey("some-key")
             .withChecksumValue("abc123crc32c")
-            .withChecksumAlgorithm(ChecksumAlgorithm.CRC32C)
+            .withChecksumAlgorithm(ChecksumMethod.CRC32C)
             .build();
 
     var actual = transformer.toRequest(request);
@@ -1359,7 +1359,7 @@ public class AwsTransformerTest {
     MultipartUploadRequest mpuRequest =
         new MultipartUploadRequest.Builder()
             .withKey("object-1")
-            .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
             .build();
 
     CreateMultipartUploadRequest request =
@@ -1380,7 +1380,7 @@ public class AwsTransformerTest {
             .key("object-1")
             .id("mpu-id")
             .checksumEnabled(true)
-            .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .checksumAlgorithm(ChecksumMethod.SHA256)
             .build();
     byte[] content = "This is test data".getBytes();
     MultipartPart multipartPart = new MultipartPart(1, content, "sha256checksum");
@@ -1405,7 +1405,7 @@ public class AwsTransformerTest {
             .key("object-1")
             .id("mpu-id")
             .checksumEnabled(true)
-            .checksumAlgorithm(ChecksumAlgorithm.SHA256)
+            .checksumAlgorithm(ChecksumMethod.SHA256)
             .build();
     var listOfParts =
         List.of(

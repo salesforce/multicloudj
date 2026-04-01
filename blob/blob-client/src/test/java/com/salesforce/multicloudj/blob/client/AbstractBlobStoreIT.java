@@ -5,7 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -3685,7 +3685,7 @@ public abstract class AbstractBlobStoreIT {
           new MultipartUploadRequest.Builder()
               .withKey(expectedKey)
               .withMetadata(Map.of("key1", "value1"))
-              .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+              .withChecksumAlgorithm(ChecksumMethod.SHA256)
               .build();
       mpu = bucketClient
           .initiateMultipartUpload(multipartUploadRequest);

@@ -3,7 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
-import com.salesforce.multicloudj.blob.driver.ChecksumAlgorithm;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -50,6 +50,7 @@ import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -110,15 +111,15 @@ public class AwsTransformer {
     return bucket;
   }
 
-  private software.amazon.awssdk.services.s3.model.ChecksumAlgorithm toAwsChecksumAlgorithm(
-      ChecksumAlgorithm algorithm) {
-    switch (algorithm) {
+  private ChecksumAlgorithm toAwsChecksumAlgorithm(
+      ChecksumMethod checksumMethod) {
+    switch (checksumMethod) {
       case CRC32C:
-        return software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
+        return ChecksumAlgorithm.CRC32_C;
       case SHA256:
-        return software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256;
+        return ChecksumAlgorithm.SHA256;
       default:
-        throw new InvalidArgumentException("Unsupported checksum algorithm: " + algorithm);
+        throw new InvalidArgumentException("Unsupported checksum algorithm: " + checksumMethod);
     }
   }
 
@@ -217,9 +218,9 @@ public class AwsTransformer {
     // Set checksum if provided
     if (StringUtils.isNotEmpty(request.getChecksumValue())
         && request.getChecksumAlgorithm() != null) {
-      ChecksumAlgorithm algo = request.getChecksumAlgorithm();
+      ChecksumMethod algo = request.getChecksumAlgorithm();
       builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
-      if (algo == ChecksumAlgorithm.SHA256) {
+      if (algo == ChecksumMethod.SHA256) {
         builder.checksumSHA256(request.getChecksumValue());
       } else {
         builder.checksumCRC32C(request.getChecksumValue());
@@ -447,8 +448,8 @@ public class AwsTransformer {
     // else: no SSE headers; S3 uses bucket default encryption
 
     if (request.isChecksumEnabled()) {
-      ChecksumAlgorithm algo = request.getChecksumAlgorithm() != null
-          ? request.getChecksumAlgorithm() : ChecksumAlgorithm.CRC32C;
+      ChecksumMethod algo = request.getChecksumAlgorithm() != null
+          ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
       builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
     }
 
@@ -469,10 +470,10 @@ public class AwsTransformer {
         .contentLength(mpp.getContentLength());
 
     if (!StringUtils.isEmpty(mpp.getChecksumValue())) {
-      ChecksumAlgorithm algo = mpu.getChecksumAlgorithm() != null
-          ? mpu.getChecksumAlgorithm() : ChecksumAlgorithm.CRC32C;
+      ChecksumMethod algo = mpu.getChecksumAlgorithm() != null
+          ? mpu.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
       builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
-      if (algo == ChecksumAlgorithm.SHA256) {
+      if (algo == ChecksumMethod.SHA256) {
         builder.checksumSHA256(mpp.getChecksumValue());
       } else {
         builder.checksumCRC32C(mpp.getChecksumValue());
@@ -492,7 +493,7 @@ public class AwsTransformer {
               .partNumber(part.getPartNumber())
               .eTag(part.getEtag());
           if (StringUtils.isNotEmpty(part.getChecksumValue())) {
-            if (mpu.getChecksumAlgorithm() == ChecksumAlgorithm.SHA256) {
+            if (mpu.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
               partBuilder.checksumSHA256(part.getChecksumValue());
             } else {
               partBuilder.checksumCRC32C(part.getChecksumValue());
