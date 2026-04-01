@@ -31,9 +31,11 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -83,11 +85,14 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 
 /** AWS implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
   private final S3Client s3Client;
+  private final S3TransferManager s3DownloadTransferMgr;
   private final AwsTransformer transformer;
 
   public AwsBlobStore() {
@@ -97,6 +102,7 @@ public class AwsBlobStore extends AbstractBlobStore {
   public AwsBlobStore(Builder builder, S3Client s3Client) {
     super(builder);
     this.s3Client = s3Client;
+    this.s3DownloadTransferMgr = builder.getTransferManager();
     this.transformer = builder.getTransformerSupplier().get(bucket);
   }
 
@@ -105,9 +111,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     return builder.getProxyEndpoint() != null
         || builder.getMaxConnections() != null
         || builder.getSocketTimeout() != null
-        || builder.getIdleConnectionTimeout() != null
-        || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null;
+        || builder.getIdleConnectionTimeout() != null;
   }
 
   @Override
@@ -202,9 +206,31 @@ public class AwsBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response =
-        s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    if (!downloadRequest.isParallelDownload()) {
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    }
+
+    // Transfer Manager parallel download targets a file path, so stage to a temp file and
+    // then stream the result into the caller-provided OutputStream.
+    Path tempPath = null;
+    try {
+      tempPath = Files.createTempFile("multicloudj-parallel-download-", ".tmp");
+      GetObjectResponse response = doParallelDownload(request, tempPath);
+      Files.copy(tempPath, outputStream);
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (IOException e) {
+      throw new SubstrateSdkException("Request failed while transforming to output stream", e);
+    } finally {
+      if (tempPath != null) {
+        try {
+          Files.deleteIfExists(tempPath);
+        } catch (IOException ignored) {
+          // best effort cleanup
+        }
+      }
+    }
   }
 
   /**
@@ -234,7 +260,10 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(file));
+    GetObjectResponse response =
+        downloadRequest.isParallelDownload()
+            ? doParallelDownload(request, file.toPath())
+            : s3Client.getObject(request, ResponseTransformer.toFile(file));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
@@ -248,8 +277,21 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(path));
+    GetObjectResponse response =
+        downloadRequest.isParallelDownload()
+            ? doParallelDownload(request, path)
+            : s3Client.getObject(request, ResponseTransformer.toFile(path));
     return transformer.toDownloadResponse(downloadRequest, response);
+  }
+
+  private GetObjectResponse doParallelDownload(GetObjectRequest request, Path destination) {
+    DownloadFileRequest downloadFileRequest =
+        DownloadFileRequest.builder().getObjectRequest(request).destination(destination).build();
+    return s3DownloadTransferMgr
+        .downloadFile(downloadFileRequest)
+        .completionFuture()
+        .join()
+        .response();
   }
 
   /**
@@ -570,6 +612,9 @@ public class AwsBlobStore extends AbstractBlobStore {
   /** Closes the underlying S3 client and releases any resources. */
   @Override
   public void close() {
+    if (s3DownloadTransferMgr != null) {
+      s3DownloadTransferMgr.close();
+    }
     if (s3Client != null) {
       s3Client.close();
     }
@@ -579,6 +624,7 @@ public class AwsBlobStore extends AbstractBlobStore {
   public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore, Builder> {
 
     private S3Client s3Client;
+    private S3TransferManager transferManager;
     private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
     public Builder() {
@@ -628,24 +674,16 @@ public class AwsBlobStore extends AbstractBlobStore {
       return b.build();
     }
 
+    private static S3TransferManager buildTransferManager(Builder builder) {
+      return S3TransferManager.builder().build();
+    }
+
     /** Helper function to generate the HttpClient */
     private static SdkHttpClient generateHttpClient(Builder builder) {
       ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
-      if (builder.getProxyEndpoint() != null
-          || builder.getUseSystemPropertyProxyValues() != null
-          || builder.getUseEnvironmentVariableProxyValues() != null) {
-        ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
-        if (builder.getProxyEndpoint() != null) {
-          proxyConfigBuilder.endpoint(builder.getProxyEndpoint());
-        }
-        if (builder.getUseSystemPropertyProxyValues() != null) {
-          proxyConfigBuilder.useSystemPropertyValues(builder.getUseSystemPropertyProxyValues());
-        }
-        if (builder.getUseEnvironmentVariableProxyValues() != null) {
-          proxyConfigBuilder.useEnvironmentVariableValues(
-              builder.getUseEnvironmentVariableProxyValues());
-        }
-        httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
+      if (builder.getProxyEndpoint() != null) {
+        httpClientBuilder.proxyConfiguration(
+            ProxyConfiguration.builder().endpoint(builder.getProxyEndpoint()).build());
       }
       if (builder.getMaxConnections() != null) {
         httpClientBuilder.maxConnections(builder.getMaxConnections());
@@ -669,10 +707,18 @@ public class AwsBlobStore extends AbstractBlobStore {
       return this;
     }
 
+    public Builder withTransferManager(S3TransferManager transferManager) {
+      this.transferManager = transferManager;
+      return this;
+    }
+
     @Override
     public AwsBlobStore build() {
       if (s3Client == null) {
         s3Client = buildS3Client(this);
+      }
+      if (transferManager == null) {
+        transferManager = buildTransferManager(this);
       }
 
       return new AwsBlobStore(this, s3Client);

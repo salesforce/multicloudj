@@ -11,6 +11,7 @@ public class DownloadRequest {
   private final Long start;
   private final Long end;
   private final String kmsKeyId;
+  private final boolean parallelDownload;
 
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
@@ -18,6 +19,7 @@ public class DownloadRequest {
     this.start = builder.start;
     this.end = builder.end;
     this.kmsKeyId = builder.kmsKeyId;
+    this.parallelDownload = builder.parallelDownload;
   }
 
   public static Builder builder() {
@@ -30,6 +32,7 @@ public class DownloadRequest {
     private Long start;
     private Long end;
     private String kmsKeyId;
+    private boolean parallelDownload;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -87,6 +90,15 @@ public class DownloadRequest {
      */
     public Builder withKmsKeyId(String kmsKeyId) {
       this.kmsKeyId = kmsKeyId;
+      return this;
+    }
+
+    /**
+     * (Optional) Enables provider-specific parallel download optimization when supported.
+     * Defaults to false.
+     */
+    public Builder withParallelDownload(boolean parallelDownload) {
+      this.parallelDownload = parallelDownload;
       return this;
     }
 

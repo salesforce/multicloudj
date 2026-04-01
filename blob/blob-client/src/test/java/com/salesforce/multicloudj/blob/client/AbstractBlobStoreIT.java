@@ -521,6 +521,15 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testDownload_parallelHappy() throws IOException {
+    runParallelDownloadTests(
+        "happy path read with parallel download",
+        "conformance-tests/download_parallel_happy",
+        "conformance-tests/download_parallel_happy",
+        false);
+  }
+
+  @Test
   public void testVersionedDownload_happy() throws IOException {
     runVersionedDownloadTests(
         "happy versioned download",
@@ -642,6 +651,101 @@ public abstract class AbstractBlobStoreIT {
         wantError);
   }
 
+  private void runParallelDownloadTests(
+      String testName, String uploadKey, String downloadKey, boolean wantError) throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey + "_unversioned",
+        downloadKey + "_unversioned",
+        false,
+        DownloadType.InputStream,
+        true,
+        true,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_unversioned",
+        downloadKey + "_unversioned",
+        false,
+        DownloadType.ByteArray,
+        true,
+        true,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_unversioned",
+        downloadKey + "_unversioned",
+        false,
+        DownloadType.File,
+        true,
+        true,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_unversioned",
+        downloadKey + "_unversioned",
+        false,
+        DownloadType.Path,
+        true,
+        true,
+        wantError,
+        true);
+    runParallelVersionedDownloadTests(testName, uploadKey, downloadKey, true, true, wantError);
+  }
+
+  private void runParallelVersionedDownloadTests(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError)
+      throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey + "_versioned",
+        downloadKey + "_versioned",
+        true,
+        DownloadType.InputStream,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_versioned",
+        downloadKey + "_versioned",
+        true,
+        DownloadType.ByteArray,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_versioned",
+        downloadKey + "_versioned",
+        true,
+        DownloadType.File,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        true);
+    runDownloadTest(
+        testName,
+        uploadKey + "_versioned",
+        downloadKey + "_versioned",
+        true,
+        DownloadType.Path,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        true);
+  }
+
   private void runDownloadTest(
       String testName,
       String uploadKey,
@@ -651,6 +755,29 @@ public abstract class AbstractBlobStoreIT {
       boolean downloadUsingVersionId,
       boolean useCorrectVersionId,
       boolean wantError)
+      throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload)
       throws IOException {
     // Test data
     String blobData = "This is test data";
@@ -686,6 +813,7 @@ public abstract class AbstractBlobStoreIT {
         requestBuilder.withVersionId(
             useCorrectVersionId ? uploadResponse.getVersionId() : "fakeVersionId");
       }
+      requestBuilder.withParallelDownload(parallelDownload);
       DownloadRequest request = requestBuilder.build();
       DownloadResponse response;
       byte[] content;
