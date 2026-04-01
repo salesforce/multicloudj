@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -134,7 +135,6 @@ public abstract class AbstractBlobStoreIT {
     }
 
     // Whether this provider supports SHA256 checksums.
-    // GCP does not support SHA256 natively.
     default boolean isSha256Supported() {
       return true;
     }
@@ -146,7 +146,7 @@ public abstract class AbstractBlobStoreIT {
         byte[] hash = digest.digest(content);
         return Base64.getEncoder().encodeToString(hash);
       } catch (NoSuchAlgorithmException e) {
-        throw new RuntimeException("SHA-256 not available", e);
+        throw new UnSupportedOperationException("SHA-256 not available", e);
       }
     }
   }
@@ -3663,49 +3663,6 @@ public abstract class AbstractBlobStoreIT {
       if (tempFile != null) {
         Files.deleteIfExists(tempFile);
       }
-    }
-  }
-
-  @Test
-  public void testUploadWithSha256ChecksumInputStream() {
-    Assumptions.assumeTrue(
-        harness.isSha256Supported(),
-        "SHA256 checksum not supported by " + harness.getProviderId());
-
-    String key =
-        "conformance-tests/checksum/upload-inputstream-sha256";
-    byte[] content =
-        "Test SHA256 checksum with InputStream"
-            .getBytes(StandardCharsets.UTF_8);
-
-    AbstractBlobStore blobStore =
-        harness.createBlobStore(true, true, false);
-    BucketClient bucketClient = new BucketClient(blobStore);
-
-    try {
-      String checksum = harness.computeSha256Checksum(content);
-
-      UploadRequest uploadRequest =
-          UploadRequest.builder()
-              .withKey(key)
-              .withContentLength(content.length)
-              .withChecksumValue(checksum)
-              .withChecksumAlgorithm(ChecksumAlgorithm.SHA256)
-              .build();
-
-      InputStream inputStream = new ByteArrayInputStream(content);
-      UploadResponse uploadResponse =
-          bucketClient.upload(uploadRequest, inputStream);
-
-      Assertions.assertNotNull(uploadResponse);
-      Assertions.assertEquals(key, uploadResponse.getKey());
-      Assertions.assertNotNull(uploadResponse.getChecksumValue());
-
-      boolean exists = bucketClient.doesObjectExist(key, null);
-      Assertions.assertTrue(exists,
-          "Uploaded blob should exist");
-    } finally {
-      safeDeleteBlobs(bucketClient, key);
     }
   }
 

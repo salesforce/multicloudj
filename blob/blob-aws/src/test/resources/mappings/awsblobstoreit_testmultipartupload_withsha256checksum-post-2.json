@@ -1,0 +1,26 @@
+{
+  "id" : "987b5f4b-f63c-4814-8cf9-6f075507ca03",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withSha256Checksum-POST-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-withSha256Checksum?uploadId=TkINOf6fGcyST_UaHA311JS3vb2jDI8weMkJGpQG5Nuxc14HFYc2ACr5QmCPZuAZz2.Qt1EQLkLtD5gAmzhtpjFeAV2ZwEXkOB43xPpLwCh_yDdU2hJiSLeXwu5HMyhb5xAMCg8WAQV3hIIOfs4h2s05XJzYYkPe1uhBuinRNzWr6tMxbn6jdWfuqVHY877hKkr4H3XhaQetTtYdeS_Z7A--",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><ChecksumSHA256>w+00W+EpLUqgksmRJxzbaqfG43PQi1ZsG/3nQrJLFy0=</ChecksumSHA256><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><ChecksumSHA256>PJuK7825Zz/jBRR64o6zivIw+PJS6QCcb7QDdEDO3rg=</ChecksumSHA256><PartNumber>2</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-withSha256Checksum</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withSha256Checksum</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag><ChecksumSHA256>Vbw08pBQu5mL8jYLOja+2JVTM5vsqo+rxdk86mH2eMs=-2</ChecksumSHA256><ChecksumType>COMPOSITE</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "1XJCYJA7E2NV8D6N",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "9sfIv7xQnJ1orGU343sJf80oBRbseRXe5L/svZAJb8HUQrTqL+l4cAqles9Qs+oZUFYlbfPkisL44M+GMqdzDb5b70wRXhUW1A1lljQ524A=",
+      "Date" : "Wed, 01 Apr 2026 21:38:40 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "987b5f4b-f63c-4814-8cf9-6f075507ca03",
+  "persistent" : true,
+  "insertionIndex" : 613
+}
