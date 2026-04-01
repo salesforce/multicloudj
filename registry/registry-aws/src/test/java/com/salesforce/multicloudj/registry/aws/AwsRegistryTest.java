@@ -61,11 +61,11 @@ class AwsRegistryTest {
   }
 
   private AwsRegistry createRegistryWithMockEcrClient(EcrClient mockEcrClient) {
-    AwsRegistry.Builder builder =
-        new AwsRegistry.Builder()
-            .withRegion(TEST_REGION)
-            .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT);
-    return new AwsRegistry(builder, mockEcrClient);
+    return new AwsRegistry.Builder()
+        .withRegion(TEST_REGION)
+        .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+        .withEcrClient(mockEcrClient)
+        .build();
   }
 
   private String encodeToken(String token) {

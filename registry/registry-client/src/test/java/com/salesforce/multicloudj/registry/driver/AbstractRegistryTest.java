@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.registry.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -310,6 +311,30 @@ class AbstractRegistryTest {
       assertNotNull(reg);
       assertEquals(TEST_PROVIDER, reg.getProviderId());
     }
+
+    @Test
+    void builder_withHttpClient_setsHttpClientField() {
+      TestRegistry.TestBuilder builder =
+          new TestRegistry.TestBuilder()
+              .withRegistryEndpoint(REGISTRY_ENDPOINT)
+              .withHttpClient(null);
+
+      assertNull(builder.getHttpClient());
+    }
+
+    @Test
+    void closeOciTransport_whenOciClientNotNull_closesCleanly() throws Exception {
+      // registry is set up with REGISTRY_ENDPOINT, so AbstractRegistry's ociClient is non-null
+      registry.closeOciTransport();
+    }
+
+    @Test
+    void closeOciTransport_whenOciClientNull_isNoOp() throws Exception {
+      // Private TestRegistry(TestBuilder) constructor bypasses TestBuilder.build() validation,
+      // creating an instance with no endpoint so AbstractRegistry.ociClient remains null.
+      TestRegistry noEndpointRegistry = new TestRegistry(new TestRegistry.TestBuilder());
+      noEndpointRegistry.closeOciTransport();
+    }
   }
 
   static class TestRegistry extends AbstractRegistry {
@@ -339,7 +364,7 @@ class AbstractRegistryTest {
     }
 
     @Override
-    protected OciHttpTransport getOciTransport() {
+    public OciHttpTransport getOciTransport() {
       return ociClient;
     }
 

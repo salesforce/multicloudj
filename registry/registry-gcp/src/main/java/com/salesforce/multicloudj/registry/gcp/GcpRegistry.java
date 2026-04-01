@@ -14,7 +14,6 @@ import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.AuthChallenge;
 import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
-import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
@@ -39,7 +38,6 @@ public class GcpRegistry extends AbstractRegistry {
   /** Lock for thread-safe lazy initialization of credentials. */
   private final Object credentialsLock = new Object();
 
-  private final OciHttpTransport ociClient;
   private final CloseableHttpClient tokenHttpClient;
   private final BearerTokenExchange tokenExchange;
 
@@ -77,7 +75,7 @@ public class GcpRegistry extends AbstractRegistry {
       CloseableHttpClient ociHttpClient,
       GoogleCredentials credentials,
       BearerTokenExchange tokenExchange) {
-    super(builder);
+    super(builder.withHttpClient(ociHttpClient));
     this.credentials = credentials;
     // In production (no injected client or exchange), create a dedicated client for token exchange
     CloseableHttpClient tokenClient =
@@ -85,10 +83,6 @@ public class GcpRegistry extends AbstractRegistry {
             ? HttpClients.createDefault()
             : null;
     this.tokenHttpClient = tokenClient;
-    this.ociClient =
-        registryEndpoint != null
-            ? new OciHttpTransport(registryEndpoint, this, ociHttpClient)
-            : null;
     this.tokenExchange =
         registryEndpoint == null ? null
         : tokenExchange != null  ? tokenExchange
@@ -99,11 +93,6 @@ public class GcpRegistry extends AbstractRegistry {
   @Override
   public Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  protected OciHttpTransport getOciTransport() {
-    return ociClient;
   }
 
   @Override
@@ -188,9 +177,7 @@ public class GcpRegistry extends AbstractRegistry {
 
   @Override
   public void close() throws Exception {
-    if (ociClient != null) {
-      ociClient.close();
-    }
+    closeOciTransport();
     if (tokenHttpClient != null) {
       tokenHttpClient.close();
     }

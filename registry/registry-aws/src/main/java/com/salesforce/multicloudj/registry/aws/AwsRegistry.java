@@ -9,13 +9,11 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
 import com.salesforce.multicloudj.registry.driver.AuthChallenge;
-import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.impl.client.CloseableHttpClient;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -40,7 +38,6 @@ public class AwsRegistry extends AbstractRegistry {
   /** Lock for thread-safe token refresh. */
   private final Object tokenLock = new Object();
 
-  private final OciHttpTransport ociClient;
   private final EcrClient ecrClient;
 
   private volatile String cachedAuthToken;
@@ -51,44 +48,14 @@ public class AwsRegistry extends AbstractRegistry {
     this(new Builder());
   }
 
-  public AwsRegistry(Builder builder) {
-    this(builder, null);
-  }
-
-  /**
-   * Creates AwsRegistry with specified EcrClient.
-   *
-   * @param builder the builder with configuration
-   * @param ecrClient the ECR client to use (null to create default)
-   */
-  public AwsRegistry(Builder builder, EcrClient ecrClient) {
-    this(builder, ecrClient, null);
-  }
-
-  /**
-   * Creates AwsRegistry with specified EcrClient and HttpClient.
-   *
-   * @param builder the builder with configuration
-   * @param ecrClient the ECR client to use (null to create default)
-   * @param httpClient the HTTP client for OCI transport (null to create default)
-   */
-  public AwsRegistry(Builder builder, EcrClient ecrClient, CloseableHttpClient httpClient) {
+  AwsRegistry(Builder builder) {
     super(builder);
-    this.ecrClient = ecrClient != null ? ecrClient : createEcrClient();
-    this.ociClient =
-        registryEndpoint != null
-            ? new OciHttpTransport(registryEndpoint, this, httpClient)
-            : null;
+    this.ecrClient = builder.ecrClient;
   }
 
   @Override
   public Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  protected OciHttpTransport getOciTransport() {
-    return ociClient;
   }
 
   @Override
@@ -123,22 +90,6 @@ public class AwsRegistry extends AbstractRegistry {
   private boolean isPastRefreshPoint() {
     long halfwayPoint = tokenRequestedAt + (tokenExpirationTime - tokenRequestedAt) / 2;
     return System.currentTimeMillis() >= halfwayPoint;
-  }
-
-  private EcrClient createEcrClient() {
-    if (StringUtils.isBlank(region)) {
-      return null;
-    }
-    Region awsRegion = Region.of(region);
-    AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-    if (credentialsOverrider != null) {
-      AwsCredentialsProvider overrideProvider =
-          CredentialsProvider.getCredentialsProvider(credentialsOverrider, awsRegion);
-      if (overrideProvider != null) {
-        credentialsProvider = overrideProvider;
-      }
-    }
-    return EcrClient.builder().region(awsRegion).credentialsProvider(credentialsProvider).build();
   }
 
   /**
@@ -192,9 +143,7 @@ public class AwsRegistry extends AbstractRegistry {
 
   @Override
   public void close() throws Exception {
-    if (ociClient != null) {
-      ociClient.close();
-    }
+    closeOciTransport();
     if (ecrClient != null) {
       ecrClient.close();
     }
@@ -202,8 +151,15 @@ public class AwsRegistry extends AbstractRegistry {
 
   public static final class Builder extends AbstractRegistry.Builder<AwsRegistry, Builder> {
 
+    private EcrClient ecrClient;
+
     public Builder() {
       providerId(AwsConstants.PROVIDER_ID);
+    }
+
+    public Builder withEcrClient(EcrClient ecrClient) {
+      this.ecrClient = ecrClient;
+      return this;
     }
 
     @Override
@@ -219,7 +175,26 @@ public class AwsRegistry extends AbstractRegistry {
       if (StringUtils.isBlank(region)) {
         throw new InvalidArgumentException("AWS region is required");
       }
+      if (ecrClient == null) {
+        ecrClient = buildEcrClient();
+      }
       return new AwsRegistry(this);
+    }
+
+    private EcrClient buildEcrClient() {
+      Region awsRegion = Region.of(region);
+      AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
+      if (credentialsOverrider != null) {
+        AwsCredentialsProvider overrideProvider =
+            CredentialsProvider.getCredentialsProvider(credentialsOverrider, awsRegion);
+        if (overrideProvider != null) {
+          credentialsProvider = overrideProvider;
+        }
+      }
+      return EcrClient.builder()
+          .region(awsRegion)
+          .credentialsProvider(credentialsProvider)
+          .build();
     }
   }
 }
