@@ -324,14 +324,11 @@ class AbstractRegistryTest {
 
     @Test
     void closeOciTransport_whenOciClientNotNull_closesCleanly() throws Exception {
-      // registry is set up with REGISTRY_ENDPOINT, so AbstractRegistry's ociClient is non-null
       registry.closeOciTransport();
     }
 
     @Test
     void closeOciTransport_whenOciClientNull_isNoOp() throws Exception {
-      // Private TestRegistry(TestBuilder) constructor bypasses TestBuilder.build() validation,
-      // creating an instance with no endpoint so AbstractRegistry.ociClient remains null.
       TestRegistry noEndpointRegistry = new TestRegistry(new TestRegistry.TestBuilder());
       noEndpointRegistry.closeOciTransport();
     }

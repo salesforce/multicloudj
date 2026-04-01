@@ -38,13 +38,14 @@ import org.mockito.MockedStatic;
 class GcpRegistryTest {
 
   private static final String TEST_REGISTRY_ENDPOINT = "https://us-central1-docker.pkg.dev";
+  private static final String TEST_REGISTRY_HOST = "us-central1-docker.pkg.dev";
+  private static final String GCP_TOKEN_URL = "https://oauth2.googleapis.com/token";
   private static final String PROVIDER_ID = "gcp";
   private static final String TEST_REPOSITORY = "my-repo";
   private static final String TEST_REPOSITORY_WITH_IMAGE = "my-repo/my-image";
   private static final AuthChallenge BEARER_CHALLENGE =
       AuthChallenge.parse(
-          "Bearer realm=\"https://oauth2.googleapis.com/token\","
-              + "service=\"us-central1-docker.pkg.dev\"");
+          "Bearer realm=\"" + GCP_TOKEN_URL + "\",service=\"" + TEST_REGISTRY_HOST + "\"");
 
   @FunctionalInterface
   interface RegistryTestAction {
