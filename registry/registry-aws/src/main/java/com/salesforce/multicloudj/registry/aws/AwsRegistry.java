@@ -28,7 +28,7 @@ import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
  * <p>Authentication uses ECR's GetAuthorizationToken API which returns a Base64-encoded {@code
  * AWS:<password>} pair. The token is valid for 12 hours and is cached in memory. It is proactively
  * refreshed at the halfway point of its validity window (6 hours). If a refresh fails and a cached
- * tokenis available, the cached token is reused as a fallback rather than failing the request.
+ * token is available, the cached token is reused as a fallback rather than failing the request.
  */
 @AutoService(AbstractRegistry.class)
 public class AwsRegistry extends AbstractRegistry {

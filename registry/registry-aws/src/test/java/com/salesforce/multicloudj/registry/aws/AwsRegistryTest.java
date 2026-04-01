@@ -53,6 +53,7 @@ class AwsRegistryTest {
   private static final String AWS_ERROR_CODE_ACCESS_DENIED = "AccessDenied";
   private static final String AWS_ERROR_CODE_UNAVAILABLE = "ServiceUnavailableException";
   private static final long TOKEN_VALIDITY_SECONDS = 43200; // 12 hours
+  private static final String TEST_REPOSITORY = "my-repo";
   private static final AuthChallenge BASIC_CHALLENGE = AuthChallenge.parse("Basic realm=\"ecr\"");
 
   @FunctionalInterface
@@ -192,7 +193,7 @@ class AwsRegistryTest {
                     expectedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      String header = registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo");
+      String header = registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY);
 
       assertNotNull(header);
       assertTrue(header.startsWith("Basic "));
@@ -215,8 +216,9 @@ class AwsRegistryTest {
                     expectedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo");
-      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // second call should use cache
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY);
+      // second call should use cache
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY);
       verify(mockEcrClient, times(1))
           .getAuthorizationToken(any(GetAuthorizationTokenRequest.class));
     }
@@ -235,9 +237,9 @@ class AwsRegistryTest {
                     refreshedToken, Instant.now().plusSeconds(TOKEN_VALIDITY_SECONDS))));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // primes cache
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY); // primes cache
       String header =
-          registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // triggers refresh
+          registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY); // triggers refresh
       assertEquals(refreshedToken, decodeTokenFromBasicHeader(header));
       verify(mockEcrClient, times(2))
           .getAuthorizationToken(any(GetAuthorizationTokenRequest.class));
@@ -257,7 +259,7 @@ class AwsRegistryTest {
       UnknownException ex =
           assertThrows(
               UnknownException.class,
-              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY));
       assertEquals(ERR_EMPTY_AUTH_DATA, ex.getMessage());
     }
   }
@@ -277,7 +279,7 @@ class AwsRegistryTest {
       UnknownException ex =
           assertThrows(
               UnknownException.class,
-              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY));
       assertEquals(ERR_INVALID_TOKEN_FORMAT, ex.getMessage());
     }
   }
@@ -291,9 +293,9 @@ class AwsRegistryTest {
         .thenThrow(awsException(AWS_ERROR_CODE_UNAVAILABLE));
 
     try (AwsRegistry registry = createRegistryWithMockEcrClient(mockEcrClient)) {
-      registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // primes cache
+      registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY); // primes cache
       String header =
-          registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"); // falls back to cached
+          registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY); // falls back to cached
       assertEquals(cachedToken, decodeTokenFromBasicHeader(header));
     }
   }
@@ -309,7 +311,7 @@ class AwsRegistryTest {
       UnknownException ex =
           assertThrows(
               UnknownException.class,
-              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, "my-repo"));
+              () -> registry.getAuthorizationHeader(BASIC_CHALLENGE, TEST_REPOSITORY));
       assertEquals(ERR_FAILED_AUTH_TOKEN, ex.getMessage());
     }
   }
