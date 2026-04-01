@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.28...multicloudj-v0.3.0) (2026-03-27)
+
+
+### Features
+
+* add Jekyll build step to generate-site.sh ([#350](https://github.com/salesforce/multicloudj/issues/350)) ([dc22fe0](https://github.com/salesforce/multicloudj/commit/dc22fe018879d6c9d6f4c8caa3db513921055b55))
+
+
+### Blob Store
+
+* onboard content-type in upload for all clouds ([#346](https://github.com/salesforce/multicloudj/issues/346)) ([f9d8080](https://github.com/salesforce/multicloudj/commit/f9d8080866885edc464b1f1e4cccc65fbb869132))
+
 ## [0.2.28](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.27...multicloudj-v0.2.28) (2026-03-17)
 
 

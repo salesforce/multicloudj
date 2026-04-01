@@ -1088,7 +1088,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testVersionedDelete() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the BucketClient
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
