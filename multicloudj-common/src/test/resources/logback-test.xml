@@ -10,6 +10,10 @@
     <!-- WireMock logger -->
     <logger name="com.github.tomakehurst.wiremock" level="DEBUG"/>
 
+    <!-- Disable Jetty and HTTP Wire logs -->
+    <logger name="org.eclipse.jetty" level="OFF"/>
+    <logger name="org.apache.http.wire" level="OFF"/>
+
     <!-- Root logger -->
     <root level="DEBUG">
         <appender-ref ref="STDOUT"/>
