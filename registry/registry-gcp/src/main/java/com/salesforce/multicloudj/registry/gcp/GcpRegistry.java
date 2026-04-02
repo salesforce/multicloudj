@@ -12,11 +12,13 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.registry.driver.AbstractRegistry;
-import com.salesforce.multicloudj.registry.driver.OciHttpTransport;
+import com.salesforce.multicloudj.registry.driver.AuthChallenge;
+import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
 /**
  * GCP Artifact Registry implementation.
@@ -30,14 +32,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 @AutoService(AbstractRegistry.class)
 public class GcpRegistry extends AbstractRegistry {
 
-  private static final String GCP_AUTH_USERNAME = "oauth2accesstoken";
   private static final String CLOUD_PLATFORM_SCOPE =
       "https://www.googleapis.com/auth/cloud-platform";
 
   /** Lock for thread-safe lazy initialization of credentials. */
   private final Object credentialsLock = new Object();
 
-  private final OciHttpTransport ociClient;
+  private final CloseableHttpClient tokenHttpClient;
+  private final BearerTokenExchange tokenExchange;
 
   /** Lazily initialized credentials with double-checked locking. */
   private volatile GoogleCredentials credentials;
@@ -47,17 +49,45 @@ public class GcpRegistry extends AbstractRegistry {
   }
 
   public GcpRegistry(Builder builder) {
-    this(builder, null, null);
+    this(builder, null, null, null);
   }
 
+  /**
+   * Creates GcpRegistry with specified HTTP client and credentials. Used by conformance tests to
+   * inject a WireMock proxy client and mock/real credentials.
+   *
+   * @param builder the builder with configuration
+   * @param ociHttpClient the HTTP client for OCI transport (null to create default); also reused
+   *     for bearer token exchange when provided
+   * @param credentials pre-loaded credentials (null to load from application default)
+   */
   public GcpRegistry(
-      Builder builder, CloseableHttpClient httpClient, GoogleCredentials credentials) {
-    super(builder);
+      Builder builder, CloseableHttpClient ociHttpClient, GoogleCredentials credentials) {
+    this(builder, ociHttpClient, credentials, null);
+  }
+
+  /**
+   * Full injection constructor for unit testing. Allows injecting a mock BearerTokenExchange to
+   * avoid real HTTP calls during tests.
+   */
+  GcpRegistry(
+      Builder builder,
+      CloseableHttpClient ociHttpClient,
+      GoogleCredentials credentials,
+      BearerTokenExchange tokenExchange) {
+    super(builder.withHttpClient(ociHttpClient));
     this.credentials = credentials;
-    this.ociClient =
-        registryEndpoint != null
-            ? new OciHttpTransport(registryEndpoint, this, httpClient)
+    // In production (no injected client or exchange), create a dedicated client for token exchange
+    CloseableHttpClient tokenClient =
+        (registryEndpoint != null && tokenExchange == null && ociHttpClient == null)
+            ? HttpClients.createDefault()
             : null;
+    this.tokenHttpClient = tokenClient;
+    this.tokenExchange =
+        registryEndpoint == null ? null
+        : tokenExchange != null  ? tokenExchange
+        : ociHttpClient != null  ? new BearerTokenExchange(ociHttpClient)
+                                 : new BearerTokenExchange(tokenClient);
   }
 
   @Override
@@ -66,17 +96,14 @@ public class GcpRegistry extends AbstractRegistry {
   }
 
   @Override
-  protected OciHttpTransport getOciTransport() {
-    return ociClient;
+  public String getAuthorizationHeader(AuthChallenge challenge, String repository) {
+    String identityToken = getAuthToken();
+    String bearerToken =
+        tokenExchange.getBearerToken(challenge, identityToken, repository, "pull");
+    return "Bearer " + bearerToken;
   }
 
-  @Override
-  public String getAuthUsername() {
-    return GCP_AUTH_USERNAME;
-  }
-
-  @Override
-  public String getAuthToken() {
+  private String getAuthToken() {
     GoogleCredentials creds = getOrCreateCredentials();
 
     AccessToken accessToken = creds.getAccessToken();
@@ -150,8 +177,9 @@ public class GcpRegistry extends AbstractRegistry {
 
   @Override
   public void close() throws Exception {
-    if (ociClient != null) {
-      ociClient.close();
+    closeOciTransport();
+    if (tokenHttpClient != null) {
+      tokenHttpClient.close();
     }
   }
 
