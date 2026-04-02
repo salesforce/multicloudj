@@ -42,6 +42,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -394,8 +395,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.Builder builder =
         software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.builder()
             .bucket(getBucket())
-            .destination(
-                java.nio.file.Paths.get(directoryDownloadRequest.getLocalDestinationDirectory()));
+            .destination(Paths.get(directoryDownloadRequest.getLocalDestinationDirectory()));
     if (StringUtils.isNotEmpty(directoryDownloadRequest.getPrefixToDownload())) {
       builder.listObjectsV2RequestTransformer(
           reqBuilder -> reqBuilder.prefix(directoryDownloadRequest.getPrefixToDownload()));
