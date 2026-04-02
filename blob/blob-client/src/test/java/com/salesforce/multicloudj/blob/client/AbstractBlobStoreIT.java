@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -28,6 +29,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -40,10 +42,13 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,7 +131,23 @@ public abstract class AbstractBlobStoreIT {
       checksumBytes[3] = (byte) checksumValue;
 
       // Return base64-encoded
-      return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+      return Base64.getEncoder().encodeToString(checksumBytes);
+    }
+
+    // Whether this provider supports SHA256 checksums.
+    default boolean isSha256Supported() {
+      return true;
+    }
+
+    // Computes SHA256 checksum and returns as base64-encoded string
+    default String computeSha256Checksum(byte[] content) {
+      try {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(content);
+        return Base64.getEncoder().encodeToString(hash);
+      } catch (NoSuchAlgorithmException e) {
+        throw new UnSupportedOperationException("SHA-256 not available", e);
+      }
     }
   }
 
@@ -1683,7 +1704,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testList() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the BucketClient
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3642,6 +3662,75 @@ public abstract class AbstractBlobStoreIT {
       if (tempFile != null) {
         Files.deleteIfExists(tempFile);
       }
+    }
+  }
+
+  @Test
+  public void testMultipartUpload_withSha256Checksum() {
+    Assumptions.assumeTrue(
+        harness.isSha256Supported(),
+        "SHA256 checksum not supported by " + harness.getProviderId());
+
+    String expectedKey =
+        DEFAULT_MULTIPART_KEY_PREFIX + "withSha256Checksum";
+
+    AbstractBlobStore blobStore =
+        harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withMetadata(Map.of("key1", "value1"))
+              .withChecksumAlgorithm(ChecksumMethod.SHA256)
+              .build();
+      mpu = bucketClient
+          .initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu);
+
+      String checksum1 =
+          harness.computeSha256Checksum(multipartBytes1);
+      String checksum2 =
+          harness.computeSha256Checksum(multipartBytes2);
+
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu,
+              new MultipartPart(1, multipartBytes1, checksum1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu,
+              new MultipartPart(2, multipartBytes2, checksum2));
+
+      Assertions.assertNotNull(part1Response);
+      Assertions.assertNotNull(part2Response);
+
+      // For AWS, verify per-part checksum is returned
+      if (!ALI_PROVIDER_ID.equals(harness.getProviderId())
+          && !GCP_PROVIDER_ID.equals(harness.getProviderId())) {
+        Assertions.assertNotNull(
+            part1Response.getChecksumValue(),
+            "Expected SHA256 checksum in upload part response");
+        Assertions.assertNotNull(
+            part2Response.getChecksumValue(),
+            "Expected SHA256 checksum in upload part response");
+      }
+
+      List<UploadPartResponse> partsToComplete =
+          List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(
+              mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse);
+      Assertions.assertNotNull(completeResponse.getEtag());
+
+      boolean exists =
+          bucketClient.doesObjectExist(expectedKey, null);
+      Assertions.assertTrue(exists,
+          "Uploaded multipart blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
     }
   }
 

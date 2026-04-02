@@ -121,6 +121,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isSha256Supported() {
+      return false;
+    }
+
+    @Override
     public void close() {
       try {
         storage.close();

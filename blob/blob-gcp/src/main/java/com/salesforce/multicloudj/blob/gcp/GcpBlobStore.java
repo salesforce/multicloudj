@@ -32,12 +32,14 @@ import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
+import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreBuilder;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -128,8 +130,16 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
+  private void rejectSha256(ChecksumMethod algorithm) {
+    if (algorithm == ChecksumMethod.SHA256) {
+      throw new UnsupportedOperationException(
+          "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+    }
+  }
+
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
+    rejectSha256(uploadRequest.getChecksumAlgorithm());
     try (WriteChannel writer =
             storage.writer(
                 transformer.toBlobInfo(uploadRequest),
@@ -145,6 +155,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
+    rejectSha256(uploadRequest.getChecksumAlgorithm());
     Blob blob =
         storage.create(
             transformer.toBlobInfo(uploadRequest),
@@ -155,11 +166,13 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
+    rejectSha256(uploadRequest.getChecksumAlgorithm());
     return doUpload(uploadRequest, file.toPath());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
+    rejectSha256(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -307,7 +320,12 @@ public class GcpBlobStore extends AbstractBlobStore {
     Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
 
     return new Iterator<>() {
-      private final Iterator<Blob> blobIterator = blobs.iterator();
+      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
+      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
+      private final Iterator<Blob> blobIterator = Iterators.filter(
+          blobs.iterator(),
+          blob -> !blob.isDirectory()
+      );
 
       @Override
       public boolean hasNext() {
@@ -358,6 +376,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
+    rejectSha256(request.getChecksumAlgorithm());
     validateBucketExists();
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
@@ -381,6 +400,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
+        .checksumAlgorithm(request.getChecksumAlgorithm())
         .build();
   }
 
