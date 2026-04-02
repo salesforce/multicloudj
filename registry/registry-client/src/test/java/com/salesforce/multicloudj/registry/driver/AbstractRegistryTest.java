@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.registry.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -21,7 +22,9 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -308,6 +311,27 @@ class AbstractRegistryTest {
       assertNotNull(reg);
       assertEquals(TEST_PROVIDER, reg.getProviderId());
     }
+
+    @Test
+    void builder_withHttpClient_setsHttpClientField() {
+      TestRegistry.TestBuilder builder =
+          new TestRegistry.TestBuilder()
+              .withRegistryEndpoint(REGISTRY_ENDPOINT)
+              .withHttpClient(null);
+
+      assertNull(builder.getHttpClient());
+    }
+
+    @Test
+    void closeOciTransport_whenOciClientNotNull_closesCleanly() throws Exception {
+      registry.closeOciTransport();
+    }
+
+    @Test
+    void closeOciTransport_whenOciClientNull_isNoOp() throws Exception {
+      TestRegistry noEndpointRegistry = new TestRegistry(new TestRegistry.TestBuilder());
+      noEndpointRegistry.closeOciTransport();
+    }
   }
 
   static class TestRegistry extends AbstractRegistry {
@@ -330,17 +354,14 @@ class AbstractRegistryTest {
     }
 
     @Override
-    public String getAuthUsername() {
-      return "testuser";
+    public String getAuthorizationHeader(AuthChallenge challenge, String repository) {
+      return "Basic "
+          + Base64.getEncoder()
+              .encodeToString("testuser:testtoken".getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
-    public String getAuthToken() {
-      return "testtoken";
-    }
-
-    @Override
-    protected OciHttpTransport getOciTransport() {
+    public OciHttpTransport getOciTransport() {
       return ociClient;
     }
 

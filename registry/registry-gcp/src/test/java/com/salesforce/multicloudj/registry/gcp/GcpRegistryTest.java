@@ -6,9 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.gax.rpc.ApiException;
@@ -19,14 +23,29 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.registry.driver.AuthChallenge;
+import com.salesforce.multicloudj.registry.driver.BearerTokenExchange;
+import com.salesforce.multicloudj.registry.model.Platform;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.util.Date;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class GcpRegistryTest {
 
   private static final String TEST_REGISTRY_ENDPOINT = "https://us-central1-docker.pkg.dev";
+  private static final String TEST_REGISTRY_HOST = "us-central1-docker.pkg.dev";
+  private static final String GCP_TOKEN_URL = "https://oauth2.googleapis.com/token";
+  private static final String PROVIDER_ID = "gcp";
+  private static final String TEST_REPOSITORY = "my-repo";
+  private static final String TEST_REPOSITORY_WITH_IMAGE = "my-repo/my-image";
+  private static final AuthChallenge BEARER_CHALLENGE =
+      AuthChallenge.parse(
+          "Bearer realm=\"" + GCP_TOKEN_URL + "\",service=\"" + TEST_REGISTRY_HOST + "\"");
 
   @FunctionalInterface
   interface RegistryTestAction {
@@ -55,8 +74,7 @@ class GcpRegistryTest {
     withMockedRegistry(
         registry -> {
           assertNotNull(registry);
-          assertEquals("gcp", registry.getProviderId());
-          assertEquals("oauth2accesstoken", registry.getAuthUsername());
+          assertEquals(PROVIDER_ID, registry.getProviderId());
           assertNotNull(registry.getOciTransport());
           assertNotNull(registry.builder());
         });
@@ -65,12 +83,12 @@ class GcpRegistryTest {
   @Test
   void testNoArgConstructor_ForServiceLoaderDiscovery() {
     GcpRegistry registry = new GcpRegistry();
-    assertEquals("gcp", registry.getProviderId());
+    assertEquals(PROVIDER_ID, registry.getProviderId());
     assertNotNull(registry.builder());
   }
 
   @Test
-  void testGetAuthToken_Success() throws Exception {
+  void testGetAuthorizationHeader_PassesIdentityTokenToBearerExchange() throws Exception {
     try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
       GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
       GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -81,16 +99,27 @@ class GcpRegistryTest {
       when(scopedCredentials.getAccessToken()).thenReturn(accessToken);
       mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
 
-      GcpRegistry registry =
-          new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+      BearerTokenExchange mockTokenExchange = mock(BearerTokenExchange.class);
+      when(mockTokenExchange.getBearerToken(
+              any(), eq("test-token-value"), anyString(), anyString()))
+          .thenReturn("registry-bearer-token");
 
-      assertEquals("test-token-value", registry.getAuthToken());
+      GcpRegistry registry =
+          new GcpRegistry(
+              new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT),
+              null,
+              null,
+              mockTokenExchange);
+
+      String header = registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY);
+      assertEquals("Bearer registry-bearer-token", header);
+
       registry.close();
     }
   }
 
   @Test
-  void testGetAuthToken_NullAccessToken_ThrowsUnknownException() throws Exception {
+  void testGetAuthorizationHeader_NullAccessToken_ThrowsUnknownException() throws Exception {
     try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
       GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
       GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -102,7 +131,10 @@ class GcpRegistryTest {
       GcpRegistry registry =
           new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
 
-      UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException exception =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
       assertEquals(
           "Failed to obtain GCP access token: access token is null", exception.getMessage());
       registry.close();
@@ -110,7 +142,7 @@ class GcpRegistryTest {
   }
 
   @Test
-  void testGetAuthToken_NullTokenValue_ThrowsUnknownException() throws Exception {
+  void testGetAuthorizationHeader_NullTokenValue_ThrowsUnknownException() throws Exception {
     try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
       GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
       GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -124,7 +156,10 @@ class GcpRegistryTest {
       GcpRegistry registry =
           new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
 
-      UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException exception =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
       assertEquals(
           "Failed to obtain GCP access token: token value is null", exception.getMessage());
       registry.close();
@@ -172,7 +207,7 @@ class GcpRegistryTest {
   }
 
   @Test
-  void testGetAuthToken_TokenCaching() throws Exception {
+  void testGetAuthorizationHeader_TokenCachingCallsApplicationDefaultOnce() throws Exception {
     try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
       GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
       GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
@@ -183,16 +218,78 @@ class GcpRegistryTest {
       when(scopedCredentials.getAccessToken()).thenReturn(accessToken);
       mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
 
-      GcpRegistry registry =
-          new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+      BearerTokenExchange mockTokenExchange = mock(BearerTokenExchange.class);
+      when(mockTokenExchange.getBearerToken(any(), anyString(), anyString(), anyString()))
+          .thenReturn("bearer-token");
 
-      registry.getAuthToken();
-      registry.getAuthToken();
+      GcpRegistry registry =
+          new GcpRegistry(
+              new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT),
+              null,
+              null,
+              mockTokenExchange);
+
+      registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY);
+      registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY);
 
       // getApplicationDefault should only be called once — credentials are cached
-      mockedStatic.verify(GoogleCredentials::getApplicationDefault, org.mockito.Mockito.times(1));
+      mockedStatic.verify(GoogleCredentials::getApplicationDefault, times(1));
 
       registry.close();
+    }
+  }
+
+  @Test
+  void testGetAuthorizationHeader_ReturnsBearerHeader() throws Exception {
+    try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class)) {
+      GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
+      GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
+      AccessToken accessToken =
+          new AccessToken("gcp-identity-token", new Date(System.currentTimeMillis() + 3600000));
+
+      when(mockCredentials.createScoped(anyList())).thenReturn(scopedCredentials);
+      when(scopedCredentials.getAccessToken()).thenReturn(accessToken);
+      mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
+
+      BearerTokenExchange mockTokenExchange = mock(BearerTokenExchange.class);
+      when(mockTokenExchange.getBearerToken(any(), anyString(), anyString(), any()))
+          .thenReturn("registry-bearer-token");
+
+      GcpRegistry registry =
+          new GcpRegistry(
+              new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT),
+              null,
+              null,
+              mockTokenExchange);
+
+      String header = registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY_WITH_IMAGE);
+
+      assertNotNull(header);
+      assertEquals("Bearer registry-bearer-token", header);
+
+      registry.close();
+    }
+  }
+
+  @Test
+  void testClose_ClosesTokenHttpClientAndOciClient() throws Exception {
+    try (MockedStatic<GoogleCredentials> mockedStatic = mockStatic(GoogleCredentials.class);
+        MockedStatic<HttpClients> mockedHttpClients = mockStatic(HttpClients.class)) {
+      GoogleCredentials mockCredentials = mock(GoogleCredentials.class);
+      GoogleCredentials scopedCredentials = mock(GoogleCredentials.class);
+      when(mockCredentials.createScoped(anyList())).thenReturn(scopedCredentials);
+      mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
+
+      CloseableHttpClient mockTokenClient = mock(CloseableHttpClient.class);
+      mockedHttpClients.when(HttpClients::createDefault).thenReturn(mockTokenClient);
+      // OciHttpTransport uses HttpClients.custom() — delegate to the real implementation
+      mockedHttpClients.when(HttpClients::custom).thenCallRealMethod();
+
+      GcpRegistry registry =
+          new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
+      registry.close();
+
+      verify(mockTokenClient).close();
     }
   }
 
@@ -215,11 +312,8 @@ class GcpRegistryTest {
       when(mockCredentials.createScoped(anyList())).thenReturn(scopedCredentials);
       mockedStatic.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCredentials);
 
-      com.salesforce.multicloudj.registry.model.Platform customPlatform =
-          com.salesforce.multicloudj.registry.model.Platform.builder()
-              .operatingSystem("linux")
-              .architecture("arm64")
-              .build();
+      Platform customPlatform =
+          Platform.builder().operatingSystem("linux").architecture("arm64").build();
 
       GcpRegistry registry =
           new GcpRegistry.Builder()
@@ -247,19 +341,14 @@ class GcpRegistryTest {
 
   @Test
   void testCredentialsOverrider_ReturnsNull_ThrowsException() throws Exception {
-    try (MockedStatic<com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider> mockedProvider =
-        mockStatic(com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.class)) {
+    try (MockedStatic<GcpCredentialsProvider> mockedProvider =
+        mockStatic(GcpCredentialsProvider.class)) {
 
-      // Mock GcpCredentialsProvider to return null
       mockedProvider
-          .when(
-              () ->
-                  com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.getCredentials(
-                      org.mockito.ArgumentMatchers.any()))
+          .when(() -> GcpCredentialsProvider.getCredentials(any()))
           .thenReturn(null);
 
-      com.salesforce.multicloudj.sts.model.CredentialsOverrider overrider =
-          mock(com.salesforce.multicloudj.sts.model.CredentialsOverrider.class);
+      CredentialsOverrider overrider = mock(CredentialsOverrider.class);
 
       GcpRegistry registry =
           new GcpRegistry.Builder()
@@ -267,8 +356,10 @@ class GcpRegistryTest {
               .withCredentialsOverrider(overrider)
               .build();
 
-      // Attempting to get auth token should fail when overrider produces no credentials
-      UnknownException exception = assertThrows(UnknownException.class, registry::getAuthToken);
+      UnknownException exception =
+          assertThrows(
+              UnknownException.class,
+              () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY));
       assertEquals(
           "Failed to obtain credentials from CredentialsOverrider", exception.getMessage());
 
@@ -278,27 +369,32 @@ class GcpRegistryTest {
 
   @Test
   void testCreateGoogleCredentials_WithCredentialsOverrider_Success() throws Exception {
-    try (MockedStatic<com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider> mp =
-        mockStatic(com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.class)) {
+    try (MockedStatic<GcpCredentialsProvider> mp = mockStatic(GcpCredentialsProvider.class)) {
       GoogleCredentials creds = mock(GoogleCredentials.class);
       GoogleCredentials scoped = mock(GoogleCredentials.class);
       when(creds.createScoped(anyList())).thenReturn(scoped);
       when(scoped.getAccessToken())
           .thenReturn(
               new AccessToken("overrider-token", new Date(System.currentTimeMillis() + 3600000)));
-      mp.when(
-              () ->
-                  com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider.getCredentials(
-                      any()))
-          .thenReturn(creds);
+      mp.when(() -> GcpCredentialsProvider.getCredentials(any())).thenReturn(creds);
+
+      BearerTokenExchange mockTokenExchange = mock(BearerTokenExchange.class);
+      when(mockTokenExchange.getBearerToken(any(), eq("overrider-token"), anyString(), anyString()))
+          .thenReturn("bearer-token");
 
       GcpRegistry registry =
-          new GcpRegistry.Builder()
-              .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
-              .withCredentialsOverrider(
-                  mock(com.salesforce.multicloudj.sts.model.CredentialsOverrider.class))
-              .build();
-      assertEquals("overrider-token", registry.getAuthToken());
+          new GcpRegistry(
+              new GcpRegistry.Builder()
+                  .withRegistryEndpoint(TEST_REGISTRY_ENDPOINT)
+                  .withCredentialsOverrider(mock(CredentialsOverrider.class)),
+              null,
+              null,
+              mockTokenExchange);
+
+      String header = registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY);
+      assertEquals("Bearer bearer-token", header);
+      verify(mockTokenExchange)
+          .getBearerToken(any(), eq("overrider-token"), anyString(), anyString());
     }
   }
 
@@ -310,7 +406,9 @@ class GcpRegistryTest {
       GcpRegistry registry =
           new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
       assertTrue(
-          assertThrows(UnknownException.class, registry::getAuthToken)
+          assertThrows(
+                  UnknownException.class,
+                  () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY))
               .getMessage()
               .contains("application default credentials not available"));
     }
@@ -323,7 +421,9 @@ class GcpRegistryTest {
       GcpRegistry registry =
           new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
       assertTrue(
-          assertThrows(UnknownException.class, registry::getAuthToken)
+          assertThrows(
+                  UnknownException.class,
+                  () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY))
               .getMessage()
               .contains("Failed to load GCP credentials"));
     }
@@ -341,7 +441,9 @@ class GcpRegistryTest {
       GcpRegistry registry =
           new GcpRegistry.Builder().withRegistryEndpoint(TEST_REGISTRY_ENDPOINT).build();
       assertTrue(
-          assertThrows(UnknownException.class, registry::getAuthToken)
+          assertThrows(
+                  UnknownException.class,
+                  () -> registry.getAuthorizationHeader(BEARER_CHALLENGE, TEST_REPOSITORY))
               .getMessage()
               .contains("Failed to refresh GCP credentials"));
     }

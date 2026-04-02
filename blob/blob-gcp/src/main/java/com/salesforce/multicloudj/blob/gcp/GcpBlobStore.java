@@ -32,6 +32,7 @@ import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
+import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -319,7 +320,12 @@ public class GcpBlobStore extends AbstractBlobStore {
     Iterable<Blob> blobs = storage.list(getBucket(), listOptionsArray).iterateAll();
 
     return new Iterator<>() {
-      private final Iterator<Blob> blobIterator = blobs.iterator();
+      // `Iterators.filter()` retains the lazy fetching behavior of iterateAll().
+      // i.e., Subsequent page responses are only fetched when the iterator is advanced.
+      private final Iterator<Blob> blobIterator = Iterators.filter(
+          blobs.iterator(),
+          blob -> !blob.isDirectory()
+      );
 
       @Override
       public boolean hasNext() {
