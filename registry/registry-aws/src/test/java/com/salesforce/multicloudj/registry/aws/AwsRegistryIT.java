@@ -58,13 +58,12 @@ public class AwsRegistryIT extends AbstractRegistryIT {
         ecrClient = createMockEcrClient();
       }
 
-      AwsRegistry.Builder builder =
-          (AwsRegistry.Builder)
-              new AwsRegistry.Builder()
-                  .withRegion(REGION)
-                  .withRegistryEndpoint(ENDPOINT);
-
-      return new AwsRegistry(builder, ecrClient, ociHttpClient);
+      return new AwsRegistry.Builder()
+          .withRegion(REGION)
+          .withRegistryEndpoint(ENDPOINT)
+          .withEcrClient(ecrClient)
+          .withHttpClient(ociHttpClient)
+          .build();
     }
 
     private static EcrClient createMockEcrClient() {

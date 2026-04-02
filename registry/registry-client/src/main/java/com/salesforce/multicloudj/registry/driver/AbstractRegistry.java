@@ -17,9 +17,10 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 /** Abstract registry driver. Each cloud implements authentication and OCI client. */
-public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthProvider {
+public abstract class AbstractRegistry implements Provider, AutoCloseable {
 
   private static final String UNKNOWN = "unknown";
 
@@ -30,6 +31,8 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
   protected final CredentialsOverrider credentialsOverrider;
   @Getter protected final Platform targetPlatform;
 
+  private final OciHttpTransport ociClient;
+
   protected AbstractRegistry(Builder<?, ?> builder) {
     this.providerId = builder.getProviderId();
     this.registryEndpoint = builder.getRegistryEndpoint();
@@ -37,6 +40,10 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     this.proxyEndpoint = builder.getProxyEndpoint();
     this.credentialsOverrider = builder.getCredentialsOverrider();
     this.targetPlatform = builder.getPlatform() != null ? builder.getPlatform() : Platform.DEFAULT;
+    this.ociClient =
+        registryEndpoint != null
+            ? new OciHttpTransport(registryEndpoint, this, builder.getHttpClient())
+            : null;
   }
 
   @Override
@@ -48,7 +55,21 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
   public abstract Builder<?, ?> builder();
 
   /** Returns the OCI HTTP transport for this registry. */
-  protected abstract OciHttpTransport getOciTransport();
+  public OciHttpTransport getOciTransport() {
+    return ociClient;
+  }
+
+  /**
+   * Closes the OCI HTTP transport. Providers must call this in their {@link #close()} method to
+   * release the transport's connection pool.
+   */
+  protected final void closeOciTransport() throws Exception {
+    if (ociClient != null) {
+      ociClient.close();
+    }
+  }
+
+  public abstract String getAuthorizationHeader(AuthChallenge challenge, String repository);
 
   /**
    * Returns the list of HTTP request interceptors to be registered with the HTTP client. Override
@@ -216,6 +237,12 @@ public abstract class AbstractRegistry implements Provider, AutoCloseable, AuthP
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
     protected Platform platform;
+    protected CloseableHttpClient httpClient;
+
+    public T withHttpClient(CloseableHttpClient httpClient) {
+      this.httpClient = httpClient;
+      return self();
+    }
 
     public T withRegion(String region) {
       this.region = region;
