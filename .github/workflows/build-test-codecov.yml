@@ -24,6 +24,7 @@ jobs:
 
       - name: Build with Maven and run tests
         run: mvn -B clean verify
+        timeout-minutes: 30
 
       - name: Debug - Check JaCoCo Report Location
         run: |
