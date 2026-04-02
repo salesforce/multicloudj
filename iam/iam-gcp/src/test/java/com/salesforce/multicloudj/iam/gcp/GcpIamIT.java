@@ -82,7 +82,7 @@ public class GcpIamIT extends AbstractIamIT {
     IAMClient iamClient;
     ProjectsClient projectsClient;
     // Parent starts HTTP WireMock on this port, we use a different port for gRPC
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     int grpcPort = ThreadLocalRandom.current().nextInt(10000, 20000);
 
     private static final String TEST_PROJECT_ID = "projects/substrate-sdk-gcp-poc1";

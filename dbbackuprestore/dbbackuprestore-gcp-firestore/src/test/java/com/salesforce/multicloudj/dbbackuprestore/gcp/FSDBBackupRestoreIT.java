@@ -25,7 +25,7 @@ public class FSDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
 
   public static class HarnessImpl implements Harness {
     FirestoreAdminClient firestoreAdminClient;
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractDBBackupRestore createDBBackupRestoreDriver() {

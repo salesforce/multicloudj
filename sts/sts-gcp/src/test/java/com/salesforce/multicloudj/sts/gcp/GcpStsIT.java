@@ -18,7 +18,7 @@ public class GcpStsIT extends AbstractStsIT {
   }
 
   public static class HarnessImpl implements AbstractStsIT.Harness {
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractSts createStsDriver(boolean longTermCredentials) {

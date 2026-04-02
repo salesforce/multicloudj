@@ -24,7 +24,7 @@ public class AliDBBackupRestoreIT extends AbstractDBBackupRestoreIT {
 
   public static class HarnessImpl implements Harness {
     private Client hbrClient;
-    private final int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    private final int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractDBBackupRestore createDBBackupRestoreDriver() {

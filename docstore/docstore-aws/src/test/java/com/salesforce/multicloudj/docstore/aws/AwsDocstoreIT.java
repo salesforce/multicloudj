@@ -25,7 +25,7 @@ public class AwsDocstoreIT extends AbstractDocstoreIT {
   public static class HarnessImpl implements Harness {
     SdkHttpClient httpClient;
     DynamoDbClient client;
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractDocStore createDocstoreDriver(CollectionKind kind) {

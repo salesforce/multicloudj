@@ -23,7 +23,7 @@ public class GcpRegistryIT extends AbstractRegistryIT {
   }
 
   public static class HarnessImpl implements Harness {
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractRegistry createRegistryDriver() {
