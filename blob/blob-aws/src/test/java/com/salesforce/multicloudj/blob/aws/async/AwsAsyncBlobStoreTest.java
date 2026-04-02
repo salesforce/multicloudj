@@ -1350,13 +1350,13 @@ public class AwsAsyncBlobStoreTest {
             validator,
             mockS3Client,
             mockS3TransferManager,
-            transformerSupplier,
-            true);
+            transformerSupplier);
 
     DirectoryDownloadRequest downloadRequest =
         DirectoryDownloadRequest.builder()
             .prefixToDownload("files/")
             .localDestinationDirectory("/home/documents")
+            .enableTransferStatusLogging(true)
             .build();
 
     DirectoryDownloadResponse response =
@@ -1440,14 +1440,14 @@ public class AwsAsyncBlobStoreTest {
               validator,
               mockS3Client,
               mockS3TransferManager,
-              transformerSupplier,
-              true);
+              transformerSupplier);
 
       DirectoryUploadRequest uploadRequest =
           DirectoryUploadRequest.builder()
               .localSourceDirectory(tempDir.toString())
               .prefix("files/")
               .includeSubFolders(true)
+              .enableTransferStatusLogging(true)
               .build();
 
       DirectoryUploadResponse response =

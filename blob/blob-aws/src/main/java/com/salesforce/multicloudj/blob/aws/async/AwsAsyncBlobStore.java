@@ -92,7 +92,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   private final S3AsyncClient client;
   private final S3TransferManager transferManager;
   private final AwsTransformer transformer;
-  private final boolean useTransferListener;
 
   public AwsAsyncBlobStore(
       String bucket,
@@ -102,31 +101,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
-    this(
-        bucket,
-        region,
-        credentialsOverrider,
-        validator,
-        client,
-        transferManager,
-        transformerSupplier,
-        null);
-  }
-
-  public AwsAsyncBlobStore(
-      String bucket,
-      String region,
-      CredentialsOverrider credentialsOverrider,
-      BlobStoreValidator validator,
-      S3AsyncClient client,
-      S3TransferManager transferManager,
-      AwsTransformerSupplier transformerSupplier,
-      Boolean useTransferListener) {
     super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
-    this.useTransferListener = useTransferListener != null ? useTransferListener : false;
   }
 
   @Override
@@ -405,7 +383,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         && !directoryDownloadRequest.getPrefixesToExclude().isEmpty()) {
       builder.filter(getPrefixExclusionsFilter(directoryDownloadRequest.getPrefixesToExclude()));
     }
-    if (useTransferListener) {
+    if (directoryDownloadRequest.isEnableTransferStatusLogging()) {
       builder.downloadFileRequestTransformer(
           request -> {
             request.addTransferListener(
@@ -421,7 +399,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                   transformer.toDirectoryDownloadResponse(completed);
               return DirectoryDownloadResponse.builder()
                   .failedTransfers(response.getFailedTransfers())
-                  .totalBytesRequested(useTransferListener ? totalBytesTransferred.get() : null)
+                  .totalBytesRequested(
+                      directoryDownloadRequest.isEnableTransferStatusLogging()
+                          ? totalBytesTransferred.get()
+                          : null)
                   .build();
             });
   }
@@ -431,7 +412,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       DirectoryUploadRequest directoryUploadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
     InternalS3LoggingTransferListener internalTransferListener =
-        useTransferListener
+        directoryUploadRequest.isEnableTransferStatusLogging()
             ? InternalS3LoggingTransferListener.create(totalBytesTransferred)
             : null;
     UploadDirectoryRequest uploadDirectoryRequest =
@@ -444,7 +425,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
               DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completed);
               return DirectoryUploadResponse.builder()
                   .failedTransfers(response.getFailedTransfers())
-                  .totalBytesToUpload(useTransferListener ? totalBytesTransferred.get() : null)
+                  .totalBytesToUpload(
+                      directoryUploadRequest.isEnableTransferStatusLogging()
+                          ? totalBytesTransferred.get()
+                          : null)
                   .build();
             });
   }
@@ -808,8 +792,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier(),
-          getUseTransferListener());
+          getTransformerSupplier());
     }
   }
 }
