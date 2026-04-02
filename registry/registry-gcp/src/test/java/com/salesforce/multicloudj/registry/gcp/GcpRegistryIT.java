@@ -31,9 +31,7 @@ public class GcpRegistryIT extends AbstractRegistryIT {
 
       CloseableHttpClient ociHttpClient = TestsUtil.getProxyHttpClient(port);
 
-      GcpRegistry.Builder builder =
-          (GcpRegistry.Builder)
-              new GcpRegistry.Builder().withRegistryEndpoint(ENDPOINT);
+      GcpRegistry.Builder builder = new GcpRegistry.Builder().withRegistryEndpoint(ENDPOINT);
 
       GoogleCredentials credentials;
       if (isRecordingEnabled) {
