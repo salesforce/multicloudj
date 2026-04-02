@@ -81,6 +81,8 @@ import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
 
 /** AWS implementation of AsyncBlobStore */
@@ -392,8 +394,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.Builder builder =
-        software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest.builder()
+    DownloadDirectoryRequest.Builder builder =
+        DownloadDirectoryRequest.builder()
             .bucket(getBucket())
             .destination(Paths.get(directoryDownloadRequest.getLocalDestinationDirectory()));
     if (StringUtils.isNotEmpty(directoryDownloadRequest.getPrefixToDownload())) {
@@ -430,13 +432,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest uploadDirectoryRequest =
-        transformer.toUploadDirectoryRequest(
-            directoryUploadRequest,
-            useTransferListener,
-            useTransferListener
-                ? new InternalS3LoggingTransferListener(totalBytesTransferred)
-                : null);
+    InternalS3LoggingTransferListener internalTransferListener =
+        useTransferListener
+            ? InternalS3LoggingTransferListener.create(totalBytesTransferred)
+            : null;
+    UploadDirectoryRequest uploadDirectoryRequest =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, internalTransferListener);
     return transferManager
         .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()

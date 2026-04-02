@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
 
+import com.salesforce.multicloudj.blob.aws.async.InternalS3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -37,6 +38,7 @@ import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -98,8 +100,6 @@ import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
-import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
-import software.amazon.awssdk.transfer.s3.progress.TransferListener;
 
 public class AwsTransformer {
 
@@ -623,8 +623,7 @@ public class AwsTransformer {
 
   public UploadDirectoryRequest toUploadDirectoryRequest(
       DirectoryUploadRequest request,
-      boolean useTransferListener,
-      TransferListener internalTransferListener) {
+      InternalS3LoggingTransferListener internalTransferListener) {
     UploadDirectoryRequest.Builder builder =
         UploadDirectoryRequest.builder()
             .bucket(getBucket())
@@ -633,7 +632,7 @@ public class AwsTransformer {
             .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
-    if (hasTags || useTransferListener || internalTransferListener != null) {
+    if (hasTags || internalTransferListener != null) {
       List<Tag> tagSet =
           hasTags
               ? request.getTags().entrySet().stream()
@@ -646,9 +645,6 @@ public class AwsTransformer {
               PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
               fileRequestBuilder.putObjectRequest(
                   existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
-            }
-            if (useTransferListener) {
-              fileRequestBuilder.addTransferListener(LoggingTransferListener.create());
             }
             if (internalTransferListener != null) {
               fileRequestBuilder.addTransferListener(internalTransferListener);
@@ -821,7 +817,7 @@ public class AwsTransformer {
       String key,
       String versionId,
       ObjectLockRetentionMode mode,
-      java.time.Instant retainUntilDate) {
+      Instant retainUntilDate) {
     return PutObjectRetentionRequest.builder()
         .bucket(getBucket())
         .key(key)
