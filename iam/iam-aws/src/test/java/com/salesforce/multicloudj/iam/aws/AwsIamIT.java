@@ -23,7 +23,7 @@ public class AwsIamIT extends AbstractIamIT {
   public static class HarnessImpl implements AbstractIamIT.Harness {
     SdkHttpClient httpClient;
     IamClient client;
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractIam createIamDriver() {

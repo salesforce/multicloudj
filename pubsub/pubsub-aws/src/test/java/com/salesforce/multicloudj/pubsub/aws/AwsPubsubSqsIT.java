@@ -53,7 +53,7 @@ public class AwsPubsubSqsIT extends AbstractPubsubIT {
     private AwsSubscription subscription;
     private SqsClient sqsClient;
     private SdkHttpClient httpClient;
-    private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    private int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private String queueName = BASE_QUEUE_NAME;
     private String cachedQueueUrl;
 

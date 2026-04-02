@@ -24,7 +24,7 @@ public class FSDocstoreIT extends AbstractDocstoreIT {
 
   public static class HarnessImpl implements Harness {
     FirestoreClient firestoreClient;
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractDocStore createDocstoreDriver(CollectionKind collectionKind) {
