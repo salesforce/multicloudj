@@ -83,7 +83,6 @@ import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
-import software.amazon.awssdk.transfer.s3.progress.LoggingTransferListener;
 
 /** AWS implementation of AsyncBlobStore */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
@@ -409,7 +408,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     if (useTransferListener) {
       builder.downloadFileRequestTransformer(
           request -> {
-            request.addTransferListener(LoggingTransferListener.create());
             request.addTransferListener(
                 new InternalS3LoggingTransferListener(totalBytesTransferred));
           });
