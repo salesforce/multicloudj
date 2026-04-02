@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
+
 import com.salesforce.multicloudj.blob.aws.async.InternalS3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
