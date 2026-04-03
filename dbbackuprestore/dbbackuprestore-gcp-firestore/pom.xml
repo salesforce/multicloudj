@@ -17,7 +17,6 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.34</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -29,13 +28,11 @@
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock</artifactId>
-            <version>3.12.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.17.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -46,19 +43,16 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.16.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.12.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-            <version>5.16.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -106,7 +100,6 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.0.1-jre</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
