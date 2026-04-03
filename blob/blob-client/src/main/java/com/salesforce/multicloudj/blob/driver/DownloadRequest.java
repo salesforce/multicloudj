@@ -12,6 +12,7 @@ public class DownloadRequest {
   private final Long end;
   private final String kmsKeyId;
   private final boolean parallelDownload;
+  private final boolean createParentPath;
 
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
@@ -20,6 +21,7 @@ public class DownloadRequest {
     this.end = builder.end;
     this.kmsKeyId = builder.kmsKeyId;
     this.parallelDownload = builder.parallelDownload;
+    this.createParentPath = builder.createParentPath;
   }
 
   public static Builder builder() {
@@ -33,6 +35,7 @@ public class DownloadRequest {
     private Long end;
     private String kmsKeyId;
     private boolean parallelDownload;
+    private boolean createParentPath;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -99,6 +102,15 @@ public class DownloadRequest {
      */
     public Builder withParallelDownload(boolean parallelDownload) {
       this.parallelDownload = parallelDownload;
+      return this;
+    }
+
+    /**
+     * (Optional) If true, provider implementations may preserve the key's parent path structure in
+     * local file downloads when supported. Defaults to false.
+     */
+    public Builder withCreateParentPath(boolean createParentPath) {
+      this.createParentPath = createParentPath;
       return this;
     }
 

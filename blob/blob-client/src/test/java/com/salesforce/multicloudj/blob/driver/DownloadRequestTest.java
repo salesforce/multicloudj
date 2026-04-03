@@ -17,6 +17,7 @@ public class DownloadRequestTest {
     Long end = 100L;
     String kmsKeyId = "arn:aws:kms:us-east-1:123456789012:key/test-key-id";
     boolean parallelDownload = true;
+    boolean createParentPath = true;
 
     // When
     DownloadRequest request =
@@ -26,6 +27,7 @@ public class DownloadRequestTest {
             .withRange(start, end)
             .withKmsKeyId(kmsKeyId)
             .withParallelDownload(parallelDownload)
+            .withCreateParentPath(createParentPath)
             .build();
 
     // Then
@@ -35,6 +37,7 @@ public class DownloadRequestTest {
     assertEquals(end, request.getEnd());
     assertEquals(kmsKeyId, request.getKmsKeyId());
     assertEquals(parallelDownload, request.isParallelDownload());
+    assertEquals(createParentPath, request.isCreateParentPath());
   }
 
   @Test
@@ -76,6 +79,7 @@ public class DownloadRequestTest {
     assertNotNull(request);
     assertEquals(key, request.getKey());
     assertEquals(false, request.isParallelDownload());
+    assertEquals(false, request.isCreateParentPath());
   }
 
   @Test

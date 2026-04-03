@@ -176,6 +176,11 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
+    if (downloadRequest.isParallelDownload()
+        && downloadRequest.getStart() == null
+        && downloadRequest.getEnd() == null) {
+      return optimizedDownload(downloadRequest, blobId, outputStream);
+    }
     try (ReadChannel reader = storage.reader(blobId);
          var channel = Channels.newInputStream(reader)) {
 
@@ -248,10 +253,63 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    try (OutputStream outputStream = Files.newOutputStream(path)) {
+    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
+    if (downloadRequest.isParallelDownload()
+        && downloadRequest.getStart() == null
+        && downloadRequest.getEnd() == null) {
+      return optimizedDownload(downloadRequest, destinationPath);
+    }
+    try (OutputStream outputStream = Files.newOutputStream(destinationPath)) {
       return doDownload(downloadRequest, outputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while saving content to path", e);
+    }
+  }
+
+  private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    // Keep key parent structure under the provided local destination root when requested.
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
+  }
+
+  private DownloadResponse optimizedDownload(
+      DownloadRequest downloadRequest, Path destinationPath) {
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlob(blobId);
+    blob.downloadTo(destinationPath);
+    return transformer.toDownloadResponse(blob);
+  }
+
+  private DownloadResponse optimizedDownload(
+      DownloadRequest downloadRequest, BlobId blobId, OutputStream outputStream) {
+    Blob blob = getRequiredBlob(blobId);
+    Path tempPath = null;
+    try {
+      tempPath = Files.createTempFile("multicloudj-parallel-download-", ".tmp");
+      blob.downloadTo(tempPath);
+      Files.copy(tempPath, outputStream);
+      return transformer.toDownloadResponse(blob);
+    } catch (IOException e) {
+      throw new SubstrateSdkException("Request failed during download", e);
+    } finally {
+      if (tempPath != null) {
+        try {
+          Files.deleteIfExists(tempPath);
+        } catch (IOException ignored) {
+          // best effort cleanup
+        }
+      }
     }
   }
 

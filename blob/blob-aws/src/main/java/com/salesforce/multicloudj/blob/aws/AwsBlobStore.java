@@ -260,9 +260,10 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
+    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, file.toPath());
     GetObjectResponse response =
         downloadRequest.isParallelDownload()
-            ? doParallelDownload(request, file.toPath())
+            ? doParallelDownload(request, destinationPath)
             : s3Client.getObject(request, ResponseTransformer.toFile(file));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
@@ -277,11 +278,29 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
+    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
     GetObjectResponse response =
         downloadRequest.isParallelDownload()
-            ? doParallelDownload(request, path)
+            ? doParallelDownload(request, destinationPath)
             : s3Client.getObject(request, ResponseTransformer.toFile(path));
     return transformer.toDownloadResponse(downloadRequest, response);
+  }
+
+  private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    // When requested, keep the key's parent path structure under the provided destination root.
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   private GetObjectResponse doParallelDownload(GetObjectRequest request, Path destination) {

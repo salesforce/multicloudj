@@ -617,6 +617,58 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testDoDownloadPath_WithParallelDownloadAndCreateParentPath() throws IOException {
+    Instant now = Instant.now();
+    Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
+    GetObjectResponse getObjectResponse = mock(GetObjectResponse.class);
+    doReturn("version-1").when(getObjectResponse).versionId();
+    doReturn("etag1").when(getObjectResponse).eTag();
+    doReturn(now).when(getObjectResponse).lastModified();
+    doReturn(metadataMap).when(getObjectResponse).metadata();
+    doReturn(100L).when(getObjectResponse).contentLength();
+
+    CompletedFileDownload completed = mock(CompletedFileDownload.class);
+    doReturn(getObjectResponse).when(completed).response();
+    FileDownload fileDownload = mock(FileDownload.class);
+    doReturn(java.util.concurrent.CompletableFuture.completedFuture(completed))
+        .when(fileDownload)
+        .completionFuture();
+    doReturn(fileDownload).when(mockTransferManager).downloadFile(any(DownloadFileRequest.class));
+
+    Path rootPath = Path.of("tempParallelRoot");
+    try {
+      Files.createDirectories(rootPath);
+      DownloadRequest request =
+          DownloadRequest.builder()
+              .withKey("prefix-a/prefix-b/object-1")
+              .withVersionId("version-1")
+              .withRange(10L, 110L)
+              .withParallelDownload(true)
+              .withCreateParentPath(true)
+              .build();
+      DownloadResponse response = aws.doDownload(request, rootPath);
+      assertEquals("prefix-a/prefix-b/object-1", response.getKey());
+
+      ArgumentCaptor<DownloadFileRequest> downloadFileRequestCaptor =
+          ArgumentCaptor.forClass(DownloadFileRequest.class);
+      verify(mockTransferManager, times(1)).downloadFile(downloadFileRequestCaptor.capture());
+      DownloadFileRequest actualDownloadFileRequest = downloadFileRequestCaptor.getValue();
+      assertEquals("bucket-1", actualDownloadFileRequest.getObjectRequest().bucket());
+      assertEquals(
+          "prefix-a/prefix-b/object-1", actualDownloadFileRequest.getObjectRequest().key());
+      assertEquals(
+          rootPath.resolve("prefix-a/prefix-b/object-1"), actualDownloadFileRequest.destination());
+      verify(mockS3Client, times(0))
+          .getObject(any(GetObjectRequest.class), any(ResponseTransformer.class));
+    } finally {
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b/object-1"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a"));
+      Files.deleteIfExists(rootPath);
+    }
+  }
+
+  @Test
   void testDoDownloadInputStream() {
     Instant now = Instant.now();
     setupMockGetObjectResponse(now, false);
