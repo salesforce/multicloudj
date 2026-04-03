@@ -385,17 +385,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         .downloadDirectory(request)
         .completionFuture()
         .thenApply(
-            completed -> {
-              DirectoryDownloadResponse response =
-                  transformer.toDirectoryDownloadResponse(completed);
-              return DirectoryDownloadResponse.builder()
-                  .failedTransfers(response.getFailedTransfers())
-                  .totalBytesRequested(
-                      directoryDownloadRequest.isEnableTransferStatusLogging()
-                          ? totalBytesTransferred.get()
-                          : null)
-                  .build();
-            });
+            completed ->
+                transformer.toDirectoryDownloadResponse(
+                    completed,
+                    directoryDownloadRequest.isEnableTransferStatusLogging()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override
@@ -412,16 +407,12 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
         .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
         .thenApply(
-            completed -> {
-              DirectoryUploadResponse response = transformer.toDirectoryUploadResponse(completed);
-              return DirectoryUploadResponse.builder()
-                  .failedTransfers(response.getFailedTransfers())
-                  .totalBytesToUpload(
-                      directoryUploadRequest.isEnableTransferStatusLogging()
-                          ? totalBytesTransferred.get()
-                          : null)
-                  .build();
-            });
+            completed ->
+                transformer.toDirectoryUploadResponse(
+                    completed,
+                    directoryUploadRequest.isEnableTransferStatusLogging()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override

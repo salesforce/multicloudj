@@ -624,6 +624,11 @@ public class AwsTransformer {
 
   public DirectoryDownloadResponse toDirectoryDownloadResponse(
       CompletedDirectoryDownload completedDirectoryDownload) {
+    return toDirectoryDownloadResponse(completedDirectoryDownload, null);
+  }
+
+  public DirectoryDownloadResponse toDirectoryDownloadResponse(
+      CompletedDirectoryDownload completedDirectoryDownload, Long totalBytesRequested) {
     return DirectoryDownloadResponse.builder()
         .failedTransfers(
             completedDirectoryDownload.failedTransfers().stream()
@@ -634,6 +639,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesRequested(totalBytesRequested)
         .build();
   }
 
@@ -699,6 +705,11 @@ public class AwsTransformer {
 
   public DirectoryUploadResponse toDirectoryUploadResponse(
       CompletedDirectoryUpload completedDirectoryUpload) {
+    return toDirectoryUploadResponse(completedDirectoryUpload, null);
+  }
+
+  public DirectoryUploadResponse toDirectoryUploadResponse(
+      CompletedDirectoryUpload completedDirectoryUpload, Long totalBytesToUpload) {
     return DirectoryUploadResponse.builder()
         .failedTransfers(
             completedDirectoryUpload.failedTransfers().stream()
@@ -709,6 +720,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesToUpload(totalBytesToUpload)
         .build();
   }
 
