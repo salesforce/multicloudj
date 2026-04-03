@@ -469,55 +469,6 @@ public class Main {
     }
   }
 
-  /** Manual test for request-level transfer status logging (AWS async directory operations). */
-  public static void awsDirectoryTransferStatusLoggingManualTest() {
-    String provider = getProvider();
-    if (!"aws".equalsIgnoreCase(provider)) {
-      getLogger().info("Skipping AWS transfer status logging manual test for provider={}", provider);
-      return;
-    }
-
-    AsyncBucketClient asyncClient = getAsyncBucketClient(provider);
-
-    DirectoryUploadRequest uploadRequest =
-        DirectoryUploadRequest.builder()
-            .localSourceDirectory("/tmp/test-directory")
-            .prefix("uploads-listener/")
-            .includeSubFolders(true)
-            .followSymbolicLinks(false)
-            .enableTransferStatusLogging(true)
-            .build();
-
-    DirectoryDownloadRequest downloadRequest =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload("uploads-listener/")
-            .localDestinationDirectory("/tmp/downloaded-directory-listener")
-            .enableTransferStatusLogging(true)
-            .build();
-
-    try {
-      DirectoryUploadResponse uploadResponse = asyncClient.uploadDirectory(uploadRequest).get();
-      getLogger()
-          .info(
-              "AWS listener upload failed transfers: {}",
-              uploadResponse.getFailedTransfers().size());
-      getLogger()
-          .info("AWS listener upload totalBytesToUpload: {}", uploadResponse.getTotalBytesToUpload());
-
-      DirectoryDownloadResponse downloadResponse = asyncClient.downloadDirectory(downloadRequest).get();
-      getLogger()
-          .info(
-              "AWS listener download failed transfers: {}",
-              downloadResponse.getFailedTransfers().size());
-      getLogger()
-          .info(
-              "AWS listener download totalBytesRequested: {}",
-              downloadResponse.getTotalBytesRequested());
-    } catch (Exception e) {
-      getLogger().error("AWS transfer listener manual test failed: {}", e.getMessage(), e);
-    }
-  }
-
   /** Deletes a directory from blob storage */
   public static void deleteDirectory() {
     // Get the AsyncBucketClient instance
@@ -654,8 +605,8 @@ public class Main {
   }
 
   private static String getProvider() {
-    String provider = System.getProperty("provider", System.getenv("PROVIDER"));
-    return provider == null || provider.trim().isEmpty() ? "aws" : provider;
+    // Change this to test different providers
+    return "gcp"; // or "aws" or "ali"
   }
 
   private static InputStream getInputStream() {
@@ -699,9 +650,13 @@ public class Main {
       System.out.println("=== Creating Test Directory ===");
       createTestDirectory();
 
-      // Test request-level transfer status logging for async directory operations.
-      getLogger().info("=== Testing AWS Transfer Status Logging (Request-Level) ===");
-      awsDirectoryTransferStatusLoggingManualTest();
+      // Test directory upload only
+      System.out.println("=== Testing Directory Upload ===");
+      uploadDirectory();
+
+      // Test directory download
+      getLogger().info("=== Testing Directory Download ===");
+      downloadDirectory();
 
       // Test directory delete
       getLogger().info("=== Testing Directory Delete ===");
