@@ -55,7 +55,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
@@ -81,7 +80,6 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
@@ -377,27 +375,14 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    DownloadDirectoryRequest.Builder builder =
-        DownloadDirectoryRequest.builder()
-            .bucket(getBucket())
-            .destination(Paths.get(directoryDownloadRequest.getLocalDestinationDirectory()));
-    if (StringUtils.isNotEmpty(directoryDownloadRequest.getPrefixToDownload())) {
-      builder.listObjectsV2RequestTransformer(
-          reqBuilder -> reqBuilder.prefix(directoryDownloadRequest.getPrefixToDownload()));
-    }
-    if (directoryDownloadRequest.getPrefixesToExclude() != null
-        && !directoryDownloadRequest.getPrefixesToExclude().isEmpty()) {
-      builder.filter(getPrefixExclusionsFilter(directoryDownloadRequest.getPrefixesToExclude()));
-    }
-    if (directoryDownloadRequest.isEnableTransferStatusLogging()) {
-      builder.downloadFileRequestTransformer(
-          request -> {
-            request.addTransferListener(
-                new InternalS3LoggingTransferListener(totalBytesTransferred));
-          });
-    }
+    S3LoggingTransferListener transferListener =
+        directoryDownloadRequest.isEnableTransferStatusLogging()
+            ? S3LoggingTransferListener.create(totalBytesTransferred)
+            : null;
+    DownloadDirectoryRequest request =
+        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, transferListener);
     return transferManager
-        .downloadDirectory(builder.build())
+        .downloadDirectory(request)
         .completionFuture()
         .thenApply(
             completed -> {
@@ -417,9 +402,9 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    InternalS3LoggingTransferListener internalTransferListener =
+    S3LoggingTransferListener internalTransferListener =
         directoryUploadRequest.isEnableTransferStatusLogging()
-            ? InternalS3LoggingTransferListener.create(totalBytesTransferred)
+            ? S3LoggingTransferListener.create(totalBytesTransferred)
             : null;
     UploadDirectoryRequest uploadDirectoryRequest =
         transformer.toUploadDirectoryRequest(directoryUploadRequest, internalTransferListener);
@@ -437,19 +422,6 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                           : null)
                   .build();
             });
-  }
-
-  private DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
-    return s3Object -> {
-      if (prefixesToExclude != null) {
-        for (String prefixToExclude : prefixesToExclude) {
-          if (s3Object.key().startsWith(prefixToExclude)) {
-            return false;
-          }
-        }
-      }
-      return true;
-    };
   }
 
   @Override

@@ -7,22 +7,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.transfer.s3.progress.TransferListener;
 
-public final class InternalS3LoggingTransferListener implements TransferListener {
-  private static final Logger logger =
-      LoggerFactory.getLogger(InternalS3LoggingTransferListener.class);
+public final class S3LoggingTransferListener implements TransferListener {
+  private static final Logger logger = LoggerFactory.getLogger(S3LoggingTransferListener.class);
 
   private final AtomicLong totalBytesTransferred;
   private Instant startTime;
 
-  public static InternalS3LoggingTransferListener create() {
-    return new InternalS3LoggingTransferListener(new AtomicLong(0L));
+  public static S3LoggingTransferListener create() {
+    return new S3LoggingTransferListener(new AtomicLong(0L));
   }
 
-  public static InternalS3LoggingTransferListener create(AtomicLong totalBytesTransferred) {
-    return new InternalS3LoggingTransferListener(totalBytesTransferred);
+  public static S3LoggingTransferListener create(AtomicLong totalBytesTransferred) {
+    return new S3LoggingTransferListener(totalBytesTransferred);
   }
 
-  InternalS3LoggingTransferListener(AtomicLong totalBytesTransferred) {
+  S3LoggingTransferListener(AtomicLong totalBytesTransferred) {
     this.totalBytesTransferred = totalBytesTransferred;
   }
 

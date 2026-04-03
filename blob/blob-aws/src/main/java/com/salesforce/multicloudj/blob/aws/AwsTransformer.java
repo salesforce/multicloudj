@@ -2,7 +2,7 @@ package com.salesforce.multicloudj.blob.aws;
 
 import static software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C;
 
-import com.salesforce.multicloudj.blob.aws.async.InternalS3LoggingTransferListener;
+import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -599,6 +599,17 @@ public class AwsTransformer {
     return downloadDirectoryRequestBuilder.build();
   }
 
+  public DownloadDirectoryRequest toDownloadDirectoryRequest(
+      DirectoryDownloadRequest request, S3LoggingTransferListener transferListener) {
+    DownloadDirectoryRequest.Builder downloadDirectoryRequestBuilder =
+        toDownloadDirectoryRequest(request).toBuilder();
+    if (request.isEnableTransferStatusLogging() && transferListener != null) {
+      downloadDirectoryRequestBuilder.downloadFileRequestTransformer(
+          builder -> builder.addTransferListener(transferListener));
+    }
+    return downloadDirectoryRequestBuilder.build();
+  }
+
   // Return false if we want to exclude this blob from the download
   protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
     return s3Object -> {
@@ -655,7 +666,7 @@ public class AwsTransformer {
 
   public UploadDirectoryRequest toUploadDirectoryRequest(
       DirectoryUploadRequest request,
-      InternalS3LoggingTransferListener internalTransferListener) {
+      S3LoggingTransferListener internalTransferListener) {
     UploadDirectoryRequest.Builder builder =
         UploadDirectoryRequest.builder()
             .bucket(getBucket())
