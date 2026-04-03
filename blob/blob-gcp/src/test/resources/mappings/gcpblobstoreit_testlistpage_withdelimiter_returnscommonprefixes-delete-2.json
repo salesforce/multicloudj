@@ -1,0 +1,25 @@
+{
+  "id" : "f20cd0ba-65c2-4de1-908a-27b20aad0e76",
+  "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-DELETE-2",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir2%2Fc.txt",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AMNfjG07F4q-WejkaMFj7YZqPC4RkzZm7eVQYvZ4EIcZTifHkkkDxnVll9HhLdu7iRKERI1WZc-wF7I",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:46:05 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "f20cd0ba-65c2-4de1-908a-27b20aad0e76",
+  "persistent" : true,
+  "insertionIndex" : 1052
+}

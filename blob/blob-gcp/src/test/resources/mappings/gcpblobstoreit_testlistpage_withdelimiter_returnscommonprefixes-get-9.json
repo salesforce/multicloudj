@@ -1,0 +1,26 @@
+{
+  "id" : "af81b97c-343c-4863-b97e-c6081c1a177b",
+  "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-GET-9",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Froot.txt?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-basic/root.txt/1775105162674273\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Froot.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Froot.txt?generation=1775105162674273&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-basic/root.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775105162674273\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"COGApIWuzpMDEAE=\",\n  \"timeCreated\": \"2026-04-02T04:46:02.746Z\",\n  \"updated\": \"2026-04-02T04:46:02.746Z\",\n  \"timeStorageClassUpdated\": \"2026-04-02T04:46:02.746Z\",\n  \"timeFinalized\": \"2026-04-02T04:46:02.746Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "COGApIWuzpMDEAE=",
+      "X-GUploader-UploadID" : "AMNfjG2W2H4iwdgUsvkcDLuU2ojPO7kkmYnMtMKjype_P_ef9evhFxkJzOfhWERKps-zF5-b6UgL1Qw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:46:03 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:46:03 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "af81b97c-343c-4863-b97e-c6081c1a177b",
+  "persistent" : true,
+  "insertionIndex" : 1059
+}

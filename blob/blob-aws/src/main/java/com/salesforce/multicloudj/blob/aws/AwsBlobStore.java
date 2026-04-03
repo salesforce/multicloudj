@@ -58,6 +58,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
@@ -354,8 +355,11 @@ public class AwsBlobStore extends AbstractBlobStore {
     List<BlobInfo> blobs =
         response.contents().stream().map(transformer::toInfo).collect(Collectors.toList());
 
+    List<String> commonPrefixes =
+        response.commonPrefixes().stream().map(CommonPrefix::prefix).collect(Collectors.toList());
+
     return new ListBlobsPageResponse(
-        blobs, response.isTruncated(), response.nextContinuationToken());
+        blobs, commonPrefixes, response.isTruncated(), response.nextContinuationToken());
   }
 
   /**

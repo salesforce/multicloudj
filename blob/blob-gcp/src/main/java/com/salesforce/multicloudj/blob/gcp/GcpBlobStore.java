@@ -190,7 +190,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
-         var channel = Channels.newInputStream(reader)) {
+        var channel = Channels.newInputStream(reader)) {
 
       Blob blob = getRequiredBlob(blobId);
       var range =
@@ -228,7 +228,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    *
    * @param downloadRequest Wrapper object containing download data
    * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   * InputStream for reading the content
+   *     InputStream for reading the content
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
@@ -256,7 +256,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    * Performs Blob download
    *
    * @param downloadRequest Wrapper object containing download data
-   * @param path            The Path that blob content will be written to
+   * @param path The Path that blob content will be written to
    * @return Returns a DownloadResponse object that contains metadata about the blob
    */
   @Override
@@ -359,19 +359,26 @@ public class GcpBlobStore extends AbstractBlobStore {
     Page<Blob> page = storage.list(getBucket(), transformer.toBlobListOptions(request));
 
     List<com.salesforce.multicloudj.blob.driver.BlobInfo> blobs = new ArrayList<>();
+    List<String> commonPrefixes = new ArrayList<>();
+
     for (Blob blob : page.getValues()) {
-      blobs.add(
-          com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
-              .withKey(blob.getName())
-              .withObjectSize(blob.getSize())
-              .withLastModified(
-                  blob.getUpdateTimeOffsetDateTime() != null
-                      ? blob.getUpdateTimeOffsetDateTime().toInstant()
-                      : null)
-              .build());
+      if (blob.isDirectory()) {
+        commonPrefixes.add(blob.getName());
+      } else {
+        blobs.add(
+            com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+                .withKey(blob.getName())
+                .withObjectSize(blob.getSize())
+                .withLastModified(
+                    blob.getUpdateTimeOffsetDateTime() != null
+                        ? blob.getUpdateTimeOffsetDateTime().toInstant()
+                        : null)
+                .build());
+      }
     }
 
-    return new ListBlobsPageResponse(blobs, page.hasNextPage(), page.getNextPageToken());
+    return new ListBlobsPageResponse(
+        blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
   }
 
   @Override

@@ -1,0 +1,25 @@
+{
+  "id" : "1b78394f-8fcb-46e1-9d99-426bff13972d",
+  "name" : "GcpBlobStoreIT_testListPage_CommonPrefixesNeverNull-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-not-null%2Ffile.txt",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AMNfjG2FQccR98IKwBbwO87jnNdzf2oXVTJJnnAjDgMK45YexgqunZ1fYwAcoQ9nPgbiI8Dd9V7RKmg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:27 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "1b78394f-8fcb-46e1-9d99-426bff13972d",
+  "persistent" : true,
+  "insertionIndex" : 980
+}
