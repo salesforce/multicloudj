@@ -1913,6 +1913,341 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  @Test
+  public void testListPage_WithDelimiter_ReturnsCommonPrefixes() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-basic/";
+    String[] keys = {
+      base + "dir1/a.txt",
+      base + "dir1/b.txt",
+      base + "dir2/c.txt",
+      base + "root.txt"
+    };
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      ListBlobsPageResponse response = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .withDelimiter("/")
+              .build());
+
+      Assertions.assertNotNull(response);
+      Assertions.assertNotNull(response.getCommonPrefixes());
+      Assertions.assertEquals(2, response.getCommonPrefixes().size(),
+          "Expected 2 common prefixes: dir1/ and dir2/");
+      Assertions.assertTrue(response.getCommonPrefixes().contains(base + "dir1/"),
+          "Expected common prefix: " + base + "dir1/");
+      Assertions.assertTrue(response.getCommonPrefixes().contains(base + "dir2/"),
+          "Expected common prefix: " + base + "dir2/");
+      Assertions.assertEquals(1, response.getBlobs().size(),
+          "Expected 1 top-level blob: root.txt");
+      Assertions.assertEquals(base + "root.txt", response.getBlobs().get(0).getKey());
+      Assertions.assertFalse(response.isTruncated());
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-nested/";
+    String[] keys = {
+      base + "dir1/a.txt",
+      base + "dir1/b.txt",
+      base + "dir2/c.txt",
+      base + "root.txt"
+    };
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      // List inside dir1/ — should return only blobs, no common prefixes
+      ListBlobsPageResponse response = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base + "dir1/")
+              .withDelimiter("/")
+              .build());
+
+      Assertions.assertNotNull(response);
+      Assertions.assertEquals(2, response.getBlobs().size(),
+          "Expected 2 blobs inside dir1/");
+      Assertions.assertTrue(response.getCommonPrefixes().isEmpty(),
+          "Expected no common prefixes when listing inside a leaf directory");
+      Assertions.assertFalse(response.isTruncated());
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_AllPrefixes_NoTopLevelBlobs() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-all-dirs/";
+    String[] keys = {
+      base + "dir1/a.txt",
+      base + "dir2/b.txt"
+    };
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      ListBlobsPageResponse response = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .withDelimiter("/")
+              .build());
+
+      Assertions.assertNotNull(response);
+      Assertions.assertEquals(0, response.getBlobs().size(),
+          "Expected no top-level blobs");
+      Assertions.assertEquals(2, response.getCommonPrefixes().size(),
+          "Expected 2 common prefixes");
+      Assertions.assertTrue(response.getCommonPrefixes().contains(base + "dir1/"));
+      Assertions.assertTrue(response.getCommonPrefixes().contains(base + "dir2/"));
+      Assertions.assertFalse(response.isTruncated());
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_WithDelimiter_MultiPage() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // 3 virtual dirs + 1 top-level blob = 4 total entries; maxResults=2 forces 2 pages
+    String base = "conformance-tests/common-prefix-multipage/";
+    String[] keys = {
+      base + "a/file.txt",
+      base + "b/file.txt",
+      base + "c/file.txt",
+      base + "root.txt"
+    };
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      // Collect all entries across pages
+      List<String> allBlobs = new ArrayList<>();
+      List<String> allPrefixes = new ArrayList<>();
+      String token = null;
+      int pageCount = 0;
+
+      do {
+        ListBlobsPageResponse page = bucketClient.listPage(
+            ListBlobsPageRequest.builder()
+                .withPrefix(base)
+                .withDelimiter("/")
+                .withMaxResults(2)
+                .withPaginationToken(token)
+                .build());
+
+        Assertions.assertNotNull(page);
+        Assertions.assertNotNull(page.getCommonPrefixes());
+        // Combined entries per page must not exceed maxResults
+        Assertions.assertTrue(
+            page.getBlobs().size() + page.getCommonPrefixes().size() <= 2,
+            "Combined entries per page must not exceed maxResults=2");
+
+        page.getBlobs().forEach(b -> allBlobs.add(b.getKey()));
+        allPrefixes.addAll(page.getCommonPrefixes());
+        token = page.getNextPageToken();
+        pageCount++;
+
+        Assertions.assertTrue(pageCount <= 5, "Pagination loop exceeded expected page count");
+      } while (token != null);
+
+      // All entries must be accounted for across pages
+      Assertions.assertTrue(allBlobs.contains(base + "root.txt"),
+          "root.txt must appear across pages");
+      Assertions.assertTrue(allPrefixes.contains(base + "a/"));
+      Assertions.assertTrue(allPrefixes.contains(base + "b/"));
+      Assertions.assertTrue(allPrefixes.contains(base + "c/"));
+      // No duplicates
+      Assertions.assertEquals(allBlobs.size(), new java.util.HashSet<>(allBlobs).size(),
+          "No duplicate blobs across pages");
+      Assertions.assertEquals(allPrefixes.size(), new java.util.HashSet<>(allPrefixes).size(),
+          "No duplicate prefixes across pages");
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_NoDelimiter_CommonPrefixesEmpty() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-no-delimiter/";
+    String[] keys = {base + "dir1/a.txt", base + "root.txt", base + "dir2/b.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      // No delimiter — all keys returned as blobs, no common prefixes
+      ListBlobsPageResponse response = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .build());
+
+      Assertions.assertNotNull(response);
+      Assertions.assertNotNull(response.getCommonPrefixes(),
+          "getCommonPrefixes() must never return null");
+      Assertions.assertTrue(response.getCommonPrefixes().isEmpty(),
+          "No common prefixes expected when delimiter is not set");
+      Assertions.assertEquals(3, response.getBlobs().size());
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_MaxResults1_WithDelimiter() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-maxresults1/";
+    String[] keys = {base + "dir1/a.txt", base + "root.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      for (String key : keys) {
+        try (InputStream is = new ByteArrayInputStream(content)) {
+          bucketClient.upload(
+              new UploadRequest.Builder().withKey(key).withContentLength(content.length).build(),
+              is);
+        }
+      }
+
+      // maxResults=1: first page must have exactly 1 entry, must be truncated
+      ListBlobsPageResponse firstPage = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .withDelimiter("/")
+              .withMaxResults(1)
+              .build());
+
+      Assertions.assertNotNull(firstPage);
+      Assertions.assertEquals(1,
+          firstPage.getBlobs().size() + firstPage.getCommonPrefixes().size(),
+          "First page must have exactly 1 combined entry with maxResults=1");
+      Assertions.assertTrue(firstPage.isTruncated(),
+          "Must be truncated when 2 total entries and maxResults=1");
+      Assertions.assertNotNull(firstPage.getNextPageToken());
+
+      // Second page must have the remaining entry
+      ListBlobsPageResponse secondPage = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .withDelimiter("/")
+              .withMaxResults(1)
+              .withPaginationToken(firstPage.getNextPageToken())
+              .build());
+
+      Assertions.assertNotNull(secondPage);
+      Assertions.assertEquals(1,
+          secondPage.getBlobs().size() + secondPage.getCommonPrefixes().size(),
+          "Second page must have exactly 1 combined entry");
+      Assertions.assertFalse(secondPage.isTruncated(),
+          "Second page must not be truncated");
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
+  @Test
+  public void testListPage_CommonPrefixesNeverNull() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String base = "conformance-tests/common-prefix-not-null/";
+    String[] keys = {base + "file.txt"};
+    byte[] content = "test".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      try (InputStream is = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(keys[0])
+                .withContentLength(content.length)
+                .build(),
+            is);
+      }
+
+      // With delimiter set but no virtual directories present
+      ListBlobsPageResponse response = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .withDelimiter("/")
+              .build());
+
+      Assertions.assertNotNull(response.getCommonPrefixes(),
+          "getCommonPrefixes() must never return null, even when no prefixes exist");
+
+      // Without delimiter
+      ListBlobsPageResponse responseNoDelimiter = bucketClient.listPage(
+          ListBlobsPageRequest.builder()
+              .withPrefix(base)
+              .build());
+
+      Assertions.assertNotNull(responseNoDelimiter.getCommonPrefixes(),
+          "getCommonPrefixes() must never return null when delimiter is not set");
+    } finally {
+      safeDeleteBlobs(bucketClient, keys);
+    }
+  }
+
   // @Test
   public void testListPage_withTimeStamp() throws IOException {
 

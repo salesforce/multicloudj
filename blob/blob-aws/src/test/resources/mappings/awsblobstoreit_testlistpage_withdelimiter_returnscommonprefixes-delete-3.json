@@ -1,0 +1,20 @@
+{
+  "id" : "ce942eb6-8f99-46bf-913f-ca57ad6e7d67",
+  "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-DELETE-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/common-prefix-basic/dir1/a.txt",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "NPGTE5VFSHR1T650",
+      "x-amz-id-2" : "UZWXJAkhM7tVckSNHWv43cCjmeVIBu0p+RN+RXdkpZ1pHi4uYfjLnRWtf3V3IjKZYR2s7PHV2jJNWFCam2IdZx47GZ6arLLh",
+      "Date" : "Thu, 02 Apr 2026 04:52:48 GMT"
+    }
+  },
+  "uuid" : "ce942eb6-8f99-46bf-913f-ca57ad6e7d67",
+  "persistent" : true,
+  "insertionIndex" : 648
+}

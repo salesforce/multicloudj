@@ -360,7 +360,10 @@ public class AliBlobStore extends AbstractBlobStore {
                         .build())
             .collect(Collectors.toList());
 
-    return new ListBlobsPageResponse(blobs, response.isTruncated(), response.getNextMarker());
+    List<String> commonPrefixes = response.getCommonPrefixes();
+
+    return new ListBlobsPageResponse(
+        blobs, commonPrefixes, response.isTruncated(), response.getNextMarker());
   }
 
   /**

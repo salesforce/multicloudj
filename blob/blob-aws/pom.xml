@@ -236,6 +236,7 @@
                 <exclusion>
                     <groupId>*</groupId>
                     <artifactId>*</artifactId>
+
                 </exclusion>
             </exclusions>
         </dependency>

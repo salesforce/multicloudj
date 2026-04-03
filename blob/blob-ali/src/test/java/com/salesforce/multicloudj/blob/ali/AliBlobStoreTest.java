@@ -544,6 +544,7 @@ public class AliBlobStoreTest {
     when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
     List<OSSObjectSummary> list = getList();
     when(mockObjectListing.getObjectSummaries()).thenReturn(list);
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
     when(mockObjectListing.isTruncated()).thenReturn(true);
     when(mockObjectListing.getNextMarker()).thenReturn("next-page-token");
 
@@ -563,6 +564,7 @@ public class AliBlobStoreTest {
     // Verify the response is mapped back properly
     assertNotNull(response);
     assertEquals(99, response.getBlobs().size()); // 1 to 99
+    assertEquals(List.of(), response.getCommonPrefixes());
     assertEquals(true, response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
 
@@ -579,6 +581,7 @@ public class AliBlobStoreTest {
     ObjectListing mockObjectListing = mock(ObjectListing.class);
     when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
     when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
     when(mockObjectListing.isTruncated()).thenReturn(false);
     when(mockObjectListing.getNextMarker()).thenReturn(null);
 
@@ -586,8 +589,98 @@ public class AliBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of(), response.getCommonPrefixes());
     assertEquals(false, response.isTruncated());
     assertNull(response.getNextPageToken());
+  }
+
+  @Test
+  void testDoListPage_WithCommonPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    ObjectListing mockObjectListing = mock(ObjectListing.class);
+    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
+    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/", "dir2/"));
+    when(mockObjectListing.isTruncated()).thenReturn(false);
+    when(mockObjectListing.getNextMarker()).thenReturn(null);
+
+    ListBlobsPageResponse response = ali.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("dir1/", "dir2/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_WithBothBlobsAndPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    OSSObjectSummary summary = new OSSObjectSummary();
+    summary.setKey("root.txt");
+    summary.setSize(100L);
+
+    ObjectListing mockObjectListing = mock(ObjectListing.class);
+    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
+    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/"));
+    when(mockObjectListing.isTruncated()).thenReturn(false);
+    when(mockObjectListing.getNextMarker()).thenReturn(null);
+
+    ListBlobsPageResponse response = ali.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertEquals("root.txt", response.getBlobs().get(0).getKey());
+    assertEquals(List.of("dir1/"), response.getCommonPrefixes());
+  }
+
+  @Test
+  void testDoListPage_WithOnlyPrefixes() {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").withMaxResults(5).build();
+
+    ObjectListing mockObjectListing = mock(ObjectListing.class);
+    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
+    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("a/", "b/", "c/"));
+    when(mockObjectListing.isTruncated()).thenReturn(false);
+    when(mockObjectListing.getNextMarker()).thenReturn(null);
+
+    ListBlobsPageResponse response = ali.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("a/", "b/", "c/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_NullCommonPrefixes() {
+    // OSS SDK may return null for getCommonPrefixes() in some cases — verify no NPE
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    OSSObjectSummary summary = new OSSObjectSummary();
+    summary.setKey("file.txt");
+    summary.setSize(50L);
+
+    ObjectListing mockObjectListing = mock(ObjectListing.class);
+    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
+    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
+    when(mockObjectListing.getCommonPrefixes()).thenReturn(null);
+    when(mockObjectListing.isTruncated()).thenReturn(false);
+    when(mockObjectListing.getNextMarker()).thenReturn(null);
+
+    // Should not throw; null from SDK handled gracefully
+    ListBlobsPageResponse response = ali.listPage(request);
+
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    // commonPrefixes may be null or empty — must not cause NPE
   }
 
   @Test

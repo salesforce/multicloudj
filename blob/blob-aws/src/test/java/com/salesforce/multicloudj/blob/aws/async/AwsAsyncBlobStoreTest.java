@@ -95,6 +95,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
@@ -847,6 +848,7 @@ public class AwsAsyncBlobStoreTest {
             S3Object.builder().key("key-2").size(200L).lastModified(Instant.now()).build(),
             S3Object.builder().key("key-3").size(300L).lastModified(Instant.now()).build());
     when(mockResponse.contents()).thenReturn(s3Objects);
+    when(mockResponse.commonPrefixes()).thenReturn(List.of());
     when(mockResponse.isTruncated()).thenReturn(true);
     when(mockResponse.nextContinuationToken()).thenReturn("next-page-token");
 
@@ -866,6 +868,7 @@ public class AwsAsyncBlobStoreTest {
     // Verify the response is mapped back properly
     assertNotNull(response);
     assertEquals(3, response.getBlobs().size());
+    assertEquals(List.of(), response.getCommonPrefixes());
     assertTrue(response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
 
@@ -885,6 +888,7 @@ public class AwsAsyncBlobStoreTest {
     when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
         .thenReturn(future(mockResponse));
     when(mockResponse.contents()).thenReturn(List.of());
+    when(mockResponse.commonPrefixes()).thenReturn(List.of());
     when(mockResponse.isTruncated()).thenReturn(false);
     when(mockResponse.nextContinuationToken()).thenReturn(null);
 
@@ -892,8 +896,55 @@ public class AwsAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of(), response.getCommonPrefixes());
     assertFalse(response.isTruncated());
     assertNull(response.getNextPageToken());
+  }
+
+  @Test
+  void testDoListPage_WithCommonPrefixes() throws ExecutionException, InterruptedException {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(future(mockResponse));
+    when(mockResponse.contents()).thenReturn(List.of());
+    when(mockResponse.commonPrefixes()).thenReturn(List.of(
+        CommonPrefix.builder().prefix("dir1/").build(),
+        CommonPrefix.builder().prefix("dir2/").build()));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.doListPage(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("dir1/", "dir2/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_WithBothBlobsAndPrefixes() throws ExecutionException, InterruptedException {
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    ListObjectsV2Response mockResponse = mock(ListObjectsV2Response.class);
+    when(mockS3Client.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(future(mockResponse));
+    when(mockResponse.contents()).thenReturn(
+        List.of(S3Object.builder().key("root.txt").size(50L).build()));
+    when(mockResponse.commonPrefixes()).thenReturn(
+        List.of(CommonPrefix.builder().prefix("dir1/").build()));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextContinuationToken()).thenReturn(null);
+
+    ListBlobsPageResponse response = aws.doListPage(request).get();
+
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertEquals("root.txt", response.getBlobs().get(0).getKey());
+    assertEquals(List.of("dir1/"), response.getCommonPrefixes());
   }
 
   @Test

@@ -11,11 +11,17 @@ import lombok.Getter;
 public class ListBlobsPageResponse {
 
   private final List<BlobInfo> blobs;
+  private final List<String> commonPrefixes;
   private final boolean isTruncated;
   private final String nextPageToken;
 
-  public ListBlobsPageResponse(List<BlobInfo> blobs, boolean isTruncated, String nextPageToken) {
+  public ListBlobsPageResponse(
+      List<BlobInfo> blobs,
+      List<String> commonPrefixes,
+      boolean isTruncated,
+      String nextPageToken) {
     this.blobs = blobs;
+    this.commonPrefixes = commonPrefixes;
     this.isTruncated = isTruncated;
     this.nextPageToken = nextPageToken;
   }
