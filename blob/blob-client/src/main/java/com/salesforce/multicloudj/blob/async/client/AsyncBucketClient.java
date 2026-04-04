@@ -596,6 +596,17 @@ public class AsyncBucketClient implements AutoCloseable {
       return this;
     }
 
+    /**
+     * Method to enable/disable transfer listeners for async directory operations.
+     *
+     * @param useTransferListener Whether to attach transfer listeners
+     * @return An instance of self
+     */
+    public Builder withUseTransferListener(Boolean useTransferListener) {
+      ((AsyncBlobStoreProvider.Builder) storeBuilder).withUseTransferListener(useTransferListener);
+      return this;
+    }
+
     /** {@inheritDoc} */
     @Override
     public AsyncBucketClient build() {

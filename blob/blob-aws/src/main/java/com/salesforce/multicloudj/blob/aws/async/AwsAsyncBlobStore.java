@@ -42,6 +42,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -78,6 +80,8 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 /** AWS implementation of AsyncBlobStore */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
@@ -370,19 +374,45 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    S3LoggingTransferListener transferListener =
+        directoryDownloadRequest.isEnableTransferStatusLogging()
+            ? S3LoggingTransferListener.create(totalBytesTransferred)
+            : null;
+    DownloadDirectoryRequest request =
+        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, transferListener);
     return transferManager
-        .downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest))
+        .downloadDirectory(request)
         .completionFuture()
-        .thenApply(transformer::toDirectoryDownloadResponse);
+        .thenApply(
+            completed ->
+                transformer.toDirectoryDownloadResponse(
+                    completed,
+                    directoryDownloadRequest.isEnableTransferStatusLogging()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    S3LoggingTransferListener internalTransferListener =
+        directoryUploadRequest.isEnableTransferStatusLogging()
+            ? S3LoggingTransferListener.create(totalBytesTransferred)
+            : null;
+    UploadDirectoryRequest uploadDirectoryRequest =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, internalTransferListener);
     return transferManager
-        .uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
+        .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
-        .thenApply(transformer::toDirectoryUploadResponse);
+        .thenApply(
+            completed ->
+                transformer.toDirectoryUploadResponse(
+                    completed,
+                    directoryUploadRequest.isEnableTransferStatusLogging()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override

@@ -9,4 +9,5 @@ import lombok.Getter;
 @Getter
 public class DirectoryUploadResponse {
   private final List<FailedBlobUpload> failedTransfers;
+  private final Long totalBytesToUpload;
 }
