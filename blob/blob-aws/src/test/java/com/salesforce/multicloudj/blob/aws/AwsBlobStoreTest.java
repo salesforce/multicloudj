@@ -13,6 +13,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -512,6 +513,23 @@ public class AwsBlobStoreTest {
     setupMockGetObjectResponse(now, false);
     DownloadResponse response = aws.doDownload(buildTestDownloadRequest(), mockContent);
     verifyDownloadTestResults(response, now, true);
+  }
+
+  @Test
+  void testDoDownloadOutputStream_ParallelDownloadIgnoredUsesGetObject() {
+    OutputStream mockContent = mock(OutputStream.class);
+    Instant now = Instant.now();
+    setupMockGetObjectResponse(now, false);
+    DownloadRequest request =
+        DownloadRequest.builder()
+            .withKey("object-1")
+            .withVersionId("version-1")
+            .withRange(10L, 110L)
+            .withParallelDownload(true)
+            .build();
+    DownloadResponse response = aws.doDownload(request, mockContent);
+    verifyDownloadTestResults(response, now, true);
+    verify(mockTransferManager, never()).downloadFile(any(DownloadFileRequest.class));
   }
 
   @Test

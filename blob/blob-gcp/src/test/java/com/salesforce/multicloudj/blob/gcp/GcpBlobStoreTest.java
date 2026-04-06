@@ -418,6 +418,30 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoDownload_WithOutputStream_ParallelDownloadIgnoredUsesReader() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      DownloadRequest downloadRequest =
+          DownloadRequest.builder().withKey(TEST_KEY).withParallelDownload(true).build();
+      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
+      doReturn(new ImmutablePair<>(null, null))
+          .when(mockTransformer)
+          .computeRange(any(), any(), anyLong());
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, outputStream);
+
+      assertEquals(expectedResponse, response);
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).downloadTo(any(Path.class));
+    }
+  }
+
+  @Test
   void testDoDownload_BlobNotFound() {
     try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
       // Given

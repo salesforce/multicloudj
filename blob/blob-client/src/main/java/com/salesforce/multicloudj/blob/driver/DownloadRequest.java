@@ -97,7 +97,9 @@ public class DownloadRequest {
     }
 
     /**
-     * (Optional) Enables provider-specific parallel download optimization when supported.
+     * (Optional) Enables provider-specific parallel download optimization when supported for
+     * file-based destinations ({@code Path} / {@code File}). Ignored for {@code OutputStream} and
+     * related streaming-style downloads so content is not fully materialized to disk first.
      * Defaults to false.
      */
     public Builder withParallelDownload(boolean parallelDownload) {

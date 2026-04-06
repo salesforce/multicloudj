@@ -206,31 +206,11 @@ public class AwsBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    if (!downloadRequest.isParallelDownload()) {
-      GetObjectResponse response =
-          s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
-      return transformer.toDownloadResponse(downloadRequest, response);
-    }
-
-    // Transfer Manager parallel download targets a file path, so stage to a temp file and
-    // then stream the result into the caller-provided OutputStream.
-    Path tempPath = null;
-    try {
-      tempPath = Files.createTempFile("multicloudj-parallel-download-", ".tmp");
-      GetObjectResponse response = doParallelDownload(request, tempPath);
-      Files.copy(tempPath, outputStream);
-      return transformer.toDownloadResponse(downloadRequest, response);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Request failed while transforming to output stream", e);
-    } finally {
-      if (tempPath != null) {
-        try {
-          Files.deleteIfExists(tempPath);
-        } catch (IOException ignored) {
-          // best effort cleanup
-        }
-      }
-    }
+    // Parallel download uses the transfer manager file API only; OutputStream downloads always
+    // stream via GetObject (parallelDownload is ignored for this overload).
+    GetObjectResponse response =
+        s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
+    return transformer.toDownloadResponse(downloadRequest, response);
   }
 
   /**
