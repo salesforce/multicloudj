@@ -1,24 +1,36 @@
 {
-  "id" : "8b4c43c2-cfed-403d-9096-356509e3d6ae",
+  "id" : "bf134950-02bd-4659-9fff-4cb51a5a4da3",
   "name" : "AwsBlobStoreIT_testMultipartUpload_withSha256Checksum-POST-5",
   "request" : {
-    "url" : "/chameleon-jcloud/conformance-tests/multipart-withSha256Checksum?uploads",
-    "method" : "POST"
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withSha256Checksum",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEluaXRpYXRlTXVsdGlwYXJ0VXBsb2FkUmVzdWx0IHhtbG5zPSJodHRwOi8vczMuYW1hem9uYXdzLmNvbS9kb2MvMjAwNi0wMy0wMS8iPjxCdWNrZXQ+Y2hhbWVsZW9uLWpjbG91ZDwvQnVja2V0PjxLZXk+Y29uZm9ybWFuY2UtdGVzdHMvbXVsdGlwYXJ0LXdpdGhTaGEyNTZDaGVja3N1bTwvS2V5PjxVcGxvYWRJZD5Ua0lOT2Y2ZkdjeVNUX1VhSEEzMTFKUzN2YjJqREk4d2VNa0pHcFFHNU51eGMxNEhGWWMyQUNyNVFtQ1BadUFaejIuUXQxRVFMa0x0RDVnQW16aHRwakZlQVYyWndFWGtPQjQzeFBwTHdDaF95RGRVMmhKaVNMZVh3dTVITXloYjV4QU1DZzhXQVFWM2hJSU9mczRoMnMwNVhKellZa1BlMXVoQnVpblJOeldyNnRNeGJuNmpkV2Z1cVZIWTg3N2hLa3I0SDNYaGFRZXRUdFlkZVNfWjdBLS08L1VwbG9hZElkPjwvSW5pdGlhdGVNdWx0aXBhcnRVcGxvYWRSZXN1bHQ+",
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEluaXRpYXRlTXVsdGlwYXJ0VXBsb2FkUmVzdWx0IHhtbG5zPSJodHRwOi8vczMuYW1hem9uYXdzLmNvbS9kb2MvMjAwNi0wMy0wMS8iPjxCdWNrZXQ+Y2hhbWVsZW9uLWpjbG91ZDwvQnVja2V0PjxLZXk+Y29uZm9ybWFuY2UtdGVzdHMvbXVsdGlwYXJ0LXdpdGhTaGEyNTZDaGVja3N1bTwvS2V5PjxVcGxvYWRJZD5sc3pReEQzOTRUdTAxUGRwV1c5ZjMxU05EUW5HTUVEZm91SGtGbU04Nm5HV3dXTGRXSVdyZWdxREkyWW9HMGlJN2U5ZDFBOTgzN0FzRloyTHFDTFBJVVp6VU5zN1BuVWhLUzV6RnhJcFQ1UGlodnJJNHUxU2pxdFRBaDZwWlduVEhjTzQyM0Q0bnlsa1R0ZkRLaklQUGlobkptUERFOGJCUm5FdGpXaWJsMG93bGJsbUdfOThfUUEyM0JOTEZfc3Q8L1VwbG9hZElkPjwvSW5pdGlhdGVNdWx0aXBhcnRVcGxvYWRSZXN1bHQ+",
     "headers" : {
       "Server" : "AmazonS3",
       "x-amz-checksum-algorithm" : "SHA256",
       "x-amz-checksum-type" : "COMPOSITE",
-      "x-amz-request-id" : "K9YGZEXAW61RKBV1",
+      "x-amz-request-id" : "CWKG3KEZ1WZ3V2PH",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "CemBWNh9E2c52+NlnNEcN64BSw0Xm+j/GZvRwDFBHlWRJUWQKhF+Go6UIytqkctDF0vw3c+exaHEU9RYoHmaUMegiY6s5ApE7L1yUM1Sd98=",
-      "Date" : "Wed, 01 Apr 2026 21:38:36 GMT"
+      "x-amz-id-2" : "r9I6cKEttFQN7b9eaquloAR8OCnEzBuHDO1g44kttqpNSvZCJHf5XWF+1f7QVI+PKA+9PzhRboIwR8UeEE10wmdNCe+Ba/6JMGxcTEa7npA=",
+      "Date" : "Mon, 06 Apr 2026 18:14:15 GMT"
     }
   },
-  "uuid" : "8b4c43c2-cfed-403d-9096-356509e3d6ae",
+  "uuid" : "bf134950-02bd-4659-9fff-4cb51a5a4da3",
   "persistent" : true,
-  "insertionIndex" : 616
+  "insertionIndex" : 663
 }

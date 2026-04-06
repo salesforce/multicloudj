@@ -1,10 +1,13 @@
 {
-  "id" : "1a7c83e9-b10f-41e1-a841-66f5c159abab",
+  "id" : "d431f96b-8e42-4637-818a-a7121c5df3b7",
   "name" : "AwsBlobStoreIT_testMultipartUpload_nonExistentParts-POST-2",
   "request" : {
     "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts",
     "method" : "POST",
     "headers" : {
+      "X-Body-MD5" : {
+        "equalTo" : "haGMm+bDieBP490IMvjp6w=="
+      },
       "X-Query-Param-Count" : {
         "equalTo" : "1"
       }
@@ -12,7 +15,7 @@
     "queryParameters" : {
       "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : "DbBbCLNsVT7RPyXpao5NkY9zwk5.WmL18kyBNwFKypzjHyl7cDOMdgaIWVqsg.Cg6wUQZeIikXd0sFRngj.7tEbJ1rA7.zmMl0O0cxUpyvPcKW4VHXu6xtJ3KFqI9vK2WExdPQ1AUZk.GmAvCJ03pvEZmmb7qUQDeFyAn75ftxUkxS02a5behGJLpmjb8ZguMPoNhhegAgWEUlKtze6UZA--"
+          "equalTo" : "NrAsS9DhoypKMaOSgv6kLsfi7l3Z8tQwsVYMRaNzTjNx12udWWsC1l9y7CRx9HRxVamL863dZDV2.9cZKXgLEWxvrfhs3zyzLXypL01GkQrXLriQPBm060xP_phRNtdJldH0Yl4Yyh3IHhQbQ6ElKMyJWiwRBpDq_.Hv.Ki2_S.iqVsWWjfSAGC3ZTxmdPWV"
         } ]
       }
     },
@@ -22,16 +25,16 @@
   },
   "response" : {
     "status" : 400,
-    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>DbBbCLNsVT7RPyXpao5NkY9zwk5.WmL18kyBNwFKypzjHyl7cDOMdgaIWVqsg.Cg6wUQZeIikXd0sFRngj.7tEbJ1rA7.zmMl0O0cxUpyvPcKW4VHXu6xtJ3KFqI9vK2WExdPQ1AUZk.GmAvCJ03pvEZmmb7qUQDeFyAn75ftxUkxS02a5behGJLpmjb8ZguMPoNhhegAgWEUlKtze6UZA--</UploadId><PartNumber>3</PartNumber><ETag>fakeEtag</ETag><RequestId>JNDDHFRFAMZDFM02</RequestId><HostId>F6zaQDgwQvtBHHnEIRG8iiYksgRo46i5ucNOjJ/zaS6m+iIfKamN1wFZUnXjKHKBrySj1KLKnIrOf0lAVyasR6xf6pllw9No</HostId></Error>",
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>NrAsS9DhoypKMaOSgv6kLsfi7l3Z8tQwsVYMRaNzTjNx12udWWsC1l9y7CRx9HRxVamL863dZDV2.9cZKXgLEWxvrfhs3zyzLXypL01GkQrXLriQPBm060xP_phRNtdJldH0Yl4Yyh3IHhQbQ6ElKMyJWiwRBpDq_.Hv.Ki2_S.iqVsWWjfSAGC3ZTxmdPWV</UploadId><PartNumber>3</PartNumber><ETag>fakeEtag</ETag><RequestId>1CDE351NH00PDFSP</RequestId><HostId>JO9RaG3q5jA7q+CDcgPEit+DIXXK6XP93PHcgPPmInqu0/pHEa+8xa+Pxk4OqnttH6jZFMpeI80pwArqHSLDhBgsK0SEio52fJ6n+H3tmes=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "JNDDHFRFAMZDFM02",
-      "x-amz-id-2" : "F6zaQDgwQvtBHHnEIRG8iiYksgRo46i5ucNOjJ/zaS6m+iIfKamN1wFZUnXjKHKBrySj1KLKnIrOf0lAVyasR6xf6pllw9No",
-      "Date" : "Wed, 04 Mar 2026 20:58:28 GMT",
+      "x-amz-request-id" : "1CDE351NH00PDFSP",
+      "x-amz-id-2" : "JO9RaG3q5jA7q+CDcgPEit+DIXXK6XP93PHcgPPmInqu0/pHEa+8xa+Pxk4OqnttH6jZFMpeI80pwArqHSLDhBgsK0SEio52fJ6n+H3tmes=",
+      "Date" : "Mon, 06 Apr 2026 18:13:48 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "1a7c83e9-b10f-41e1-a841-66f5c159abab",
+  "uuid" : "d431f96b-8e42-4637-818a-a7121c5df3b7",
   "persistent" : true,
-  "insertionIndex" : 341
+  "insertionIndex" : 622
 }

@@ -1,10 +1,13 @@
 {
-  "id" : "be5366b5-4ca1-4c85-847e-814d07235a4e",
+  "id" : "61b0fdc4-4583-4ab5-859a-e890e3abb282",
   "name" : "AwsBlobStoreIT_testMultipartUpload_completeAnAbortedUpload-POST-2",
   "request" : {
     "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-completeAnAborted",
     "method" : "POST",
     "headers" : {
+      "X-Body-MD5" : {
+        "equalTo" : "RbR/ngfQu4+rYZijhi0j3A=="
+      },
       "X-Query-Param-Count" : {
         "equalTo" : "1"
       }
@@ -12,7 +15,7 @@
     "queryParameters" : {
       "uploadId" : {
         "hasExactly" : [ {
-          "equalTo" : "5RcXGzLjx9rkqIZcq1_tG0vmokqBf2KCFn0UFlVK2OLu1WSvFthQK47eq_cf.cry0Rk61wo0hBVda9SE.mQTaDchqhQZspx1DQtadhn2gFgXRUA93D3HWxH4TpVRdAvXaMIh.GmTvy0PxX0dhoUHf5xVE8S8jDwDcM9fEOZXUxnODBAl.VvKlyeRAB2Q6.wFgIk.kc0V1h1cS_LEpeCoYA--"
+          "equalTo" : "QpUXYLtZ3..j1SQ0KhHqO_OdhY9GfxWreAU88ZUklIdyqF8.T7TGGqAyoA3EI6z6lICwCxVMhW3vzNAsxCUZfCYPKNTQqzu35TzIJE.ywDKjDfXr7bTHO9tEhbfpttEQDjUUzCnO1Lwsgk6Llaonys9HpFKbLl7_c6abfNybwOiMo8KMXohxV_tblg_68PPv"
         } ]
       }
     },
@@ -22,16 +25,16 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<Error><Code>NoSuchUpload</Code><Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message><UploadId>5RcXGzLjx9rkqIZcq1_tG0vmokqBf2KCFn0UFlVK2OLu1WSvFthQK47eq_cf.cry0Rk61wo0hBVda9SE.mQTaDchqhQZspx1DQtadhn2gFgXRUA93D3HWxH4TpVRdAvXaMIh.GmTvy0PxX0dhoUHf5xVE8S8jDwDcM9fEOZXUxnODBAl.VvKlyeRAB2Q6.wFgIk.kc0V1h1cS_LEpeCoYA--</UploadId><RequestId>Z4BNP5BQQN6VZNK0</RequestId><HostId>HCdw3lk25pRdTsItRHhP4T+J0mqeP05JTiNJl6lxiUGMY8f9n3yy94AOfkYqSbvUXdhcVgS5ANXK+bPFOAQMqB8+CBC2TzUJ</HostId></Error>",
+    "body" : "<Error><Code>NoSuchUpload</Code><Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message><UploadId>QpUXYLtZ3..j1SQ0KhHqO_OdhY9GfxWreAU88ZUklIdyqF8.T7TGGqAyoA3EI6z6lICwCxVMhW3vzNAsxCUZfCYPKNTQqzu35TzIJE.ywDKjDfXr7bTHO9tEhbfpttEQDjUUzCnO1Lwsgk6Llaonys9HpFKbLl7_c6abfNybwOiMo8KMXohxV_tblg_68PPv</UploadId><RequestId>MMR53Z3JYZ1WW80Q</RequestId><HostId>dkSzkmfmsHkYUh79CGeXrPThHEEZFER8NIElYpCfXKgY0oKFuTrVjwl5U18AnHG7AK+8jJJyVST2hC4ZRxMbVKFQX7y8gPFzjJVO4rIW1zc=</HostId></Error>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "Z4BNP5BQQN6VZNK0",
-      "x-amz-id-2" : "HCdw3lk25pRdTsItRHhP4T+J0mqeP05JTiNJl6lxiUGMY8f9n3yy94AOfkYqSbvUXdhcVgS5ANXK+bPFOAQMqB8+CBC2TzUJ",
-      "Date" : "Wed, 04 Mar 2026 20:59:36 GMT",
+      "x-amz-request-id" : "MMR53Z3JYZ1WW80Q",
+      "x-amz-id-2" : "dkSzkmfmsHkYUh79CGeXrPThHEEZFER8NIElYpCfXKgY0oKFuTrVjwl5U18AnHG7AK+8jJJyVST2hC4ZRxMbVKFQX7y8gPFzjJVO4rIW1zc=",
+      "Date" : "Mon, 06 Apr 2026 18:14:22 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "be5366b5-4ca1-4c85-847e-814d07235a4e",
+  "uuid" : "61b0fdc4-4583-4ab5-859a-e890e3abb282",
   "persistent" : true,
-  "insertionIndex" : 487
+  "insertionIndex" : 667
 }

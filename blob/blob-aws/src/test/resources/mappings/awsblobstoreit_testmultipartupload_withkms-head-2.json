@@ -1,5 +1,5 @@
 {
-  "id" : "a915c453-ba6f-4bd4-ad57-ea4063690604",
+  "id" : "d6b29ff2-8da4-4665-a070-c21ab9e0c854",
   "name" : "AwsBlobStoreIT_testMultipartUpload_withKms-HEAD-2",
   "request" : {
     "url" : "/chameleon-jcloud/conformance-tests/multipart-withKms",
@@ -10,18 +10,18 @@
     "headers" : {
       "Accept-Ranges" : "bytes",
       "Server" : "AmazonS3",
-      "ETag" : "\"05dc6217c64888db97c95a05a9bb666a-2\"",
+      "ETag" : "\"2ad08c85f97141aeade5b01a1f00e611-2\"",
       "x-amz-meta-encryption" : "kms",
       "x-amz-server-side-encryption-aws-kms-key-id" : "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89",
-      "Last-Modified" : "Wed, 04 Mar 2026 20:57:48 GMT",
-      "x-amz-request-id" : "NGP0KC90CSCWEPTY",
+      "Last-Modified" : "Mon, 06 Apr 2026 18:13:35 GMT",
+      "x-amz-request-id" : "DQWTV2EHEAS934JJ",
       "x-amz-server-side-encryption" : "aws:kms",
-      "x-amz-id-2" : "pj/alL9U6mM1erykgqUnI2iFlCH4PsNvUTtA6fq1yKjRPpEx+DVHnlgvreOn/57PFAKFinRug8MYK+rueoF2Cgl6nK42PY1j",
-      "Date" : "Wed, 04 Mar 2026 20:57:52 GMT",
+      "x-amz-id-2" : "gPz3m38QiNrwJ9NXLn83QiC0crwBAFBMJRsNLqpKJZBABGcIqyj+VXAG2qy5JNCTJri7dP27TLpqUeeHBdT+Jbmv69JoYnSFFfGGboK4P2Y=",
+      "Date" : "Mon, 06 Apr 2026 18:13:41 GMT",
       "Content-Type" : "binary/octet-stream"
     }
   },
-  "uuid" : "a915c453-ba6f-4bd4-ad57-ea4063690604",
+  "uuid" : "d6b29ff2-8da4-4665-a070-c21ab9e0c854",
   "persistent" : true,
-  "insertionIndex" : 247
+  "insertionIndex" : 605
 }

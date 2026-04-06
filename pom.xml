@@ -59,7 +59,7 @@
         <junit.version>5.12.1</junit.version>
         <mockito.version>5.16.1</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
-        <wiremock.version>3.12.1</wiremock.version>
+        <wiremock.version>3.13.2</wiremock.version>
         <lombok.version>1.18.36</lombok.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>

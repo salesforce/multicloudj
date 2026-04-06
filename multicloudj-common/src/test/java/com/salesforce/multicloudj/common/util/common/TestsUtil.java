@@ -15,6 +15,7 @@ import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterActi
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
 import com.github.tomakehurst.wiremock.extension.requestfilter.StubRequestFilterV2;
 import com.github.tomakehurst.wiremock.http.Request;
+import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
@@ -23,10 +24,12 @@ import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import java.security.KeyManagementException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -121,6 +124,16 @@ public class TestsUtil {
     }
   }
 
+  /**
+   * Rewrites body matchers in recorded stubs to prevent oversized mapping files.
+   *
+   * <ul>
+   *   <li>Binary bodies ({@link BinaryEqualToPattern}): matcher is dropped; body is verified
+   *       instead via the {@code X-Body-MD5} header recorded by {@link BodyHashFilter}.
+   *   <li>Long text bodies: truncated to {@value #TRUNCATE_MATCHER_REQUEST_BODY_OVER} chars and
+   *       converted to a prefix regex.
+   * </ul>
+   */
   public static class TruncateRequestBodyTransformer extends StubMappingTransformer {
 
     public static final String TRUNCATE_MATCHER_REQUEST_BODY_OVER =
@@ -133,10 +146,16 @@ public class TestsUtil {
       if (bodyPatterns != null && !bodyPatterns.isEmpty()) {
         List<ContentPattern<?>> newPatterns = new ArrayList<>();
         int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUEST_BODY_OVER);
+        boolean modified = false;
 
         // See if any of the existing body patterns exceed our length limit
         for (ContentPattern<?> pattern : bodyPatterns) {
-          if (pattern.getExpected().length() > truncateMatcherRequestBodyOver) {
+          if (pattern instanceof BinaryEqualToPattern) {
+            // Drop the binary body matcher. Body correctness is verified instead via the
+            // X-Body-MD5 header that BodyHashFilter injects into every request and
+            // captureHeader("X-Body-MD5") records into the stub during recording.
+            modified = true;
+          } else if (pattern.getExpected().length() > truncateMatcherRequestBodyOver) {
             // We've exceeded our desired matcher length, so truncate it.
             // The truncated substring may start with regex metacharacters like '{',
             // so we must escape it before constructing a RegexPattern.
@@ -144,11 +163,15 @@ public class TestsUtil {
                 pattern.getExpected().substring(0, truncateMatcherRequestBodyOver);
             String escaped = Pattern.quote(truncatedString);
             newPatterns.add(new RegexPattern("^" + escaped + ".*"));
+            modified = true;
+          } else {
+            // Keep the original pattern if not modified
+            newPatterns.add(pattern);
           }
         }
 
         // Clear out the existing patterns so we can replace them
-        if (!newPatterns.isEmpty()) {
+        if (modified) {
           bodyPatterns.clear();
           bodyPatterns.addAll(newPatterns);
         }
@@ -229,6 +252,42 @@ public class TestsUtil {
     }
   }
 
+  /**
+   * Calculates MD5 hash of request body and injects it as X-Body-MD5 header.
+   * Works in both record and replay modes to enable hash-based body verification.
+   * This allows us to verify request body content without storing large binary bodies in mapping
+   * files.
+   */
+  public static class BodyHashFilter implements StubRequestFilterV2 {
+
+    @Override
+    public RequestFilterAction filter(Request request, ServeEvent serveEvent) {
+      byte[] body = request.getBody();
+      if (body != null && body.length > 0) {
+        String hash = calculateMD5(body);
+        Request wrappedRequest =
+            RequestWrapper.create().addHeader("X-Body-MD5", hash).wrap(request);
+        return RequestFilterAction.continueWith(wrappedRequest);
+      }
+      return RequestFilterAction.continueWith(request);
+    }
+
+    private String calculateMD5(byte[] body) {
+      try {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        byte[] digest = md.digest(body);
+        return Base64.getEncoder().encodeToString(digest);
+      } catch (NoSuchAlgorithmException e) {
+        throw new RuntimeException("MD5 algorithm not available", e);
+      }
+    }
+
+    @Override
+    public String getName() {
+      return "body-hash-filter";
+    }
+  }
+
   public static void startWireMockServer(String rootDir, int port, String... extensionInstances) {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     logger.info("Recording enabled: {}", isRecordingEnabled);
@@ -238,7 +297,8 @@ public class TestsUtil {
     extensions.add(new StubNamingTransformer());
     extensions.add(new QueryParamCountTransformer());
     extensions.add(new QueryParamCountFilter());
-    // extensions.add(new TruncateRequestBodyTransformer());
+    extensions.add(new BodyHashFilter());
+    extensions.add(new TruncateRequestBodyTransformer());
 
     // Load additional extensions if provided
     for (String extensionClass : extensionInstances) {
@@ -290,8 +350,12 @@ public class TestsUtil {
             .forTarget(targetEndpoint.replace("http:", "https:"))
             .extractBinaryBodiesOver(4096 * 2)
             .captureHeader("X-Amz-Target")
+            .captureHeader("X-Body-MD5")
             .transformerParameters(
-                Parameters.from(Map.of(TRUNCATE_MATCHER_REQUEST_BODY_OVER, 4096 * 2)))
+                Parameters.from(
+                    Map.of(
+                        TRUNCATE_MATCHER_REQUEST_BODY_OVER,
+                        4096 * 2)))
             .chooseBodyMatchTypeAutomatically(true, false, false)
             .makeStubsPersistent(true);
 
