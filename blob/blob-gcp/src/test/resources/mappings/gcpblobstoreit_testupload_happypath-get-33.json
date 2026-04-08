@@ -1,0 +1,26 @@
+{
+  "id" : "a810c3b9-ccfe-42d1-a81f-911ae415a91c",
+  "name" : "GcpBlobStoreIT_testUpload_happyPath-GET-33",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/upload/happyPath_File/1775551624733601\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File?generation=1775551624733601&alt=media\",\n  \"name\": \"conformance-tests/upload/happyPath_File\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775551624733601\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"17\",\n  \"md5Hash\": \"cBu9S94e4E47BZb2OZTrrg==\",\n  \"crc32c\": \"E30mnQ==\",\n  \"etag\": \"CKHH/Z6t25MDEAE=\",\n  \"timeCreated\": \"2026-04-07T08:47:04.786Z\",\n  \"updated\": \"2026-04-07T08:47:04.786Z\",\n  \"timeStorageClassUpdated\": \"2026-04-07T08:47:04.786Z\",\n  \"timeFinalized\": \"2026-04-07T08:47:04.786Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CKHH/Z6t25MDEAE=",
+      "X-GUploader-UploadID" : "AMNfjG0K8i7k-56QsGOdTJyf5AuZnJ_W7OfJfg2vZ1i4rwvVbgKiHsKxc-Xm4wiDoXSkoWvyDWLHMww",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 07 Apr 2026 08:47:05 GMT",
+      "Date" : "Tue, 07 Apr 2026 08:47:05 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a810c3b9-ccfe-42d1-a81f-911ae415a91c",
+  "persistent" : true,
+  "insertionIndex" : 1194
+}

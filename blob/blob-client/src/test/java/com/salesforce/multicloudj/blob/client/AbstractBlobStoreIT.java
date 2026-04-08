@@ -149,6 +149,11 @@ public abstract class AbstractBlobStoreIT {
         throw new UnSupportedOperationException("SHA-256 not available", e);
       }
     }
+
+    // Returns custom WireMock extension class names for this provider
+    default List<String> getWiremockExtensions() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -162,7 +167,10 @@ public abstract class AbstractBlobStoreIT {
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    TestsUtil.startWireMockServer(
+        "src/test/resources",
+        harness.getPort(),
+        harness.getWiremockExtensions().toArray(new String[0]));
   }
 
   /** Shuts down the WireMock server after all tests. */
@@ -420,7 +428,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpload_happyPath() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_happyPath",
         "conformance-tests/upload/happyPath",

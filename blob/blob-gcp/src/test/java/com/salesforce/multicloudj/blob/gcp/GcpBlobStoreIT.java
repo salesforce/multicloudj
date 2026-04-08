@@ -16,6 +16,7 @@ import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GcpBlobStoreIT extends AbstractBlobStoreIT {
@@ -123,6 +124,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public boolean isSha256Supported() {
       return false;
+    }
+
+    @Override
+    public List<String> getWiremockExtensions() {
+      return List.of("com.salesforce.multicloudj.blob.gcp.util.MultipartBoundaryTransformer");
     }
 
     @Override
