@@ -17,7 +17,7 @@ public class DirectoryUploadRequest {
    * the files they point to. Defaults to false.
    */
   private final boolean followSymbolicLinks;
-  private final boolean enableTransferStatusLogging;
+  private final boolean transferStatusLoggingEnabled;
 
   /**
    * (Optional parameter) The map of tagName to tagValue to be associated with all blobs in the

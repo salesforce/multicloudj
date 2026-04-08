@@ -1407,13 +1407,13 @@ public class AwsAsyncBlobStoreTest {
         DirectoryDownloadRequest.builder()
             .prefixToDownload("files/")
             .localDestinationDirectory("/home/documents")
-            .enableTransferStatusLogging(true)
+            .transferStatusLoggingEnabled(true)
             .build();
 
     DirectoryDownloadResponse response =
         awsWithTransferListener.doDownloadDirectory(downloadRequest).get();
     assertNotNull(response);
-    assertEquals(200L, response.getTotalBytesRequested());
+    assertEquals(200L, response.getTotalBytesTransferred());
   }
 
   @Test
@@ -1498,13 +1498,13 @@ public class AwsAsyncBlobStoreTest {
               .localSourceDirectory(tempDir.toString())
               .prefix("files/")
               .includeSubFolders(true)
-              .enableTransferStatusLogging(true)
+              .transferStatusLoggingEnabled(true)
               .build();
 
       DirectoryUploadResponse response =
           awsWithTransferListener.doUploadDirectory(uploadRequest).get();
       assertNotNull(response);
-      assertEquals(11L, response.getTotalBytesToUpload());
+      assertEquals(11L, response.getTotalBytesTransferred());
     } finally {
       Files.deleteIfExists(tempFile);
       Files.deleteIfExists(tempDir);

@@ -688,7 +688,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryDownload).failedTransfers();
 
     DirectoryDownloadResponse response =
-        transformer.toDirectoryDownloadResponse(completedDirectoryDownload);
+        transformer.toDirectoryDownloadResponse(completedDirectoryDownload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getDestination());
@@ -794,7 +794,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryUpload).failedTransfers();
 
     DirectoryUploadResponse response =
-        transformer.toDirectoryUploadResponse(completedDirectoryUpload);
+        transformer.toDirectoryUploadResponse(completedDirectoryUpload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getSource());

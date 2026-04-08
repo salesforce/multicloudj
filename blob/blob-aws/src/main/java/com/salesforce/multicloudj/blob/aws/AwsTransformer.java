@@ -44,6 +44,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -598,10 +599,12 @@ public class AwsTransformer {
   }
 
   public DownloadDirectoryRequest toDownloadDirectoryRequest(
-      DirectoryDownloadRequest request, S3LoggingTransferListener transferListener) {
+      DirectoryDownloadRequest request, AtomicLong totalBytesTransferred) {
     DownloadDirectoryRequest.Builder downloadDirectoryRequestBuilder =
         toDownloadDirectoryRequest(request).toBuilder();
-    if (request.isEnableTransferStatusLogging() && transferListener != null) {
+    if (request.isTransferStatusLoggingEnabled()) {
+      S3LoggingTransferListener transferListener =
+          S3LoggingTransferListener.create(totalBytesTransferred);
       downloadDirectoryRequestBuilder.downloadFileRequestTransformer(
           builder -> builder.addTransferListener(transferListener));
     }
@@ -621,12 +624,7 @@ public class AwsTransformer {
   }
 
   public DirectoryDownloadResponse toDirectoryDownloadResponse(
-      CompletedDirectoryDownload completedDirectoryDownload) {
-    return toDirectoryDownloadResponse(completedDirectoryDownload, null);
-  }
-
-  public DirectoryDownloadResponse toDirectoryDownloadResponse(
-      CompletedDirectoryDownload completedDirectoryDownload, Long totalBytesRequested) {
+      CompletedDirectoryDownload completedDirectoryDownload, Long totalBytesTransferred) {
     return DirectoryDownloadResponse.builder()
         .failedTransfers(
             completedDirectoryDownload.failedTransfers().stream()
@@ -637,7 +635,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
-        .totalBytesRequested(totalBytesRequested)
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 
@@ -669,8 +667,7 @@ public class AwsTransformer {
   }
 
   public UploadDirectoryRequest toUploadDirectoryRequest(
-      DirectoryUploadRequest request,
-      S3LoggingTransferListener internalTransferListener) {
+      DirectoryUploadRequest request, AtomicLong totalBytesTransferred) {
     UploadDirectoryRequest.Builder builder =
         UploadDirectoryRequest.builder()
             .bucket(getBucket())
@@ -679,7 +676,12 @@ public class AwsTransformer {
             .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
-    if (hasTags || internalTransferListener != null) {
+    boolean transferStatusLoggingEnabled = request.isTransferStatusLoggingEnabled();
+    if (hasTags || transferStatusLoggingEnabled) {
+      S3LoggingTransferListener transferListener =
+          transferStatusLoggingEnabled
+              ? S3LoggingTransferListener.create(totalBytesTransferred)
+              : null;
       List<Tag> tagSet =
           hasTags
               ? request.getTags().entrySet().stream()
@@ -693,8 +695,8 @@ public class AwsTransformer {
               fileRequestBuilder.putObjectRequest(
                   existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
             }
-            if (internalTransferListener != null) {
-              fileRequestBuilder.addTransferListener(internalTransferListener);
+            if (transferListener != null) {
+              fileRequestBuilder.addTransferListener(transferListener);
             }
           });
     }
@@ -702,12 +704,7 @@ public class AwsTransformer {
   }
 
   public DirectoryUploadResponse toDirectoryUploadResponse(
-      CompletedDirectoryUpload completedDirectoryUpload) {
-    return toDirectoryUploadResponse(completedDirectoryUpload, null);
-  }
-
-  public DirectoryUploadResponse toDirectoryUploadResponse(
-      CompletedDirectoryUpload completedDirectoryUpload, Long totalBytesToUpload) {
+      CompletedDirectoryUpload completedDirectoryUpload, Long totalBytesTransferred) {
     return DirectoryUploadResponse.builder()
         .failedTransfers(
             completedDirectoryUpload.failedTransfers().stream()
@@ -718,7 +715,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
-        .totalBytesToUpload(totalBytesToUpload)
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 

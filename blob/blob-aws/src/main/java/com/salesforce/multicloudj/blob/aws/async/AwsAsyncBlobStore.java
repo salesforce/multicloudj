@@ -42,7 +42,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -375,12 +374,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    S3LoggingTransferListener transferListener =
-        directoryDownloadRequest.isEnableTransferStatusLogging()
-            ? S3LoggingTransferListener.create(totalBytesTransferred)
-            : null;
     DownloadDirectoryRequest request =
-        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, transferListener);
+        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, totalBytesTransferred);
     return transferManager
         .downloadDirectory(request)
         .completionFuture()
@@ -388,7 +383,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             completed ->
                 transformer.toDirectoryDownloadResponse(
                     completed,
-                    directoryDownloadRequest.isEnableTransferStatusLogging()
+                    directoryDownloadRequest.isTransferStatusLoggingEnabled()
                         ? totalBytesTransferred.get()
                         : null));
   }
@@ -397,12 +392,8 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
-    S3LoggingTransferListener internalTransferListener =
-        directoryUploadRequest.isEnableTransferStatusLogging()
-            ? S3LoggingTransferListener.create(totalBytesTransferred)
-            : null;
     UploadDirectoryRequest uploadDirectoryRequest =
-        transformer.toUploadDirectoryRequest(directoryUploadRequest, internalTransferListener);
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, totalBytesTransferred);
     return transferManager
         .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
@@ -410,7 +401,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             completed ->
                 transformer.toDirectoryUploadResponse(
                     completed,
-                    directoryUploadRequest.isEnableTransferStatusLogging()
+                    directoryUploadRequest.isTransferStatusLoggingEnabled()
                         ? totalBytesTransferred.get()
                         : null));
   }

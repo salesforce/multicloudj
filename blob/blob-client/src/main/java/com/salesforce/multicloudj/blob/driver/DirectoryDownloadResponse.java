@@ -9,5 +9,5 @@ import lombok.Getter;
 @Getter
 public class DirectoryDownloadResponse {
   private final List<FailedBlobDownload> failedTransfers;
-  private final Long totalBytesRequested;
+  private final Long totalBytesTransferred;
 }

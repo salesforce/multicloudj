@@ -635,14 +635,14 @@ public class AbstractAsyncBlobStoreTest {
     DirectoryUploadResponse expectedResponse =
         DirectoryUploadResponse.builder()
             .failedTransfers(List.of())
-            .totalBytesToUpload(321L)
+            .totalBytesTransferred(321L)
             .build();
     when(mockBlobStore.doUploadDirectory(request))
         .thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
     DirectoryUploadResponse actualResponse = mockBlobStore.uploadDirectory(request).join();
     assertNotNull(actualResponse);
-    assertEquals(321L, actualResponse.getTotalBytesToUpload());
+    assertEquals(321L, actualResponse.getTotalBytesTransferred());
   }
 
   @Test
@@ -655,14 +655,14 @@ public class AbstractAsyncBlobStoreTest {
     DirectoryDownloadResponse expectedResponse =
         DirectoryDownloadResponse.builder()
             .failedTransfers(List.of())
-            .totalBytesRequested(456L)
+            .totalBytesTransferred(456L)
             .build();
     when(mockBlobStore.doDownloadDirectory(request))
         .thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
     DirectoryDownloadResponse actualResponse = mockBlobStore.downloadDirectory(request).join();
     assertNotNull(actualResponse);
-    assertEquals(456L, actualResponse.getTotalBytesRequested());
+    assertEquals(456L, actualResponse.getTotalBytesTransferred());
   }
 
   @Test
