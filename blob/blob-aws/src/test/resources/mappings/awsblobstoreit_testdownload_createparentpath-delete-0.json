@@ -1,0 +1,22 @@
+{
+  "id" : "4746989d-5b8c-4c51-886c-fbbe79d07646",
+  "name" : "AwsBlobStoreIT_testDownload_createParentPath-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_create_parent/nested/object_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "VXEX05CQD0KHCT36",
+      "x-amz-id-2" : "Mlz6UpTuS4EgJLGjOZ8OsyTVCNY1PSNKLoxzFm2Y0O9Tc48yPGdpJexIpNvjm9srWklzqMM8TpWiJRnqpTivEK7Ib/1D/8jh",
+      "Date" : "Wed, 08 Apr 2026 18:25:31 GMT"
+    }
+  },
+  "uuid" : "4746989d-5b8c-4c51-886c-fbbe79d07646",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-download_create_parent-nested-object_unversioned",
+  "requiredScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-download_create_parent-nested-object_unversioned-2",
+  "insertionIndex" : 611
+}

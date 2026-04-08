@@ -1,0 +1,23 @@
+{
+  "id" : "372258e9-5b53-493a-82cd-b9b5aa8c5f70",
+  "name" : "AwsBlobStoreIT_testDownload_parallelFileAndPath-DELETE-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/download_parallel_file_path_unversioned",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "W87PC6E0Y4B2RPEK",
+      "x-amz-id-2" : "IpQNkD9HlCsJ2SKJE+yUw0FOUaUdnnFZZql9ykHjsOvaXEP3Vf1eH36WJzwsn0IY7I6nWRPBGPFh2FaXCrxLWui7GMZoeOMd",
+      "Date" : "Wed, 08 Apr 2026 18:25:33 GMT"
+    }
+  },
+  "uuid" : "372258e9-5b53-493a-82cd-b9b5aa8c5f70",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-conformance-tests-download_parallel_file_path_unversioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-conformance-tests-download_parallel_file_path_unversioned-2",
+  "insertionIndex" : 621
+}
