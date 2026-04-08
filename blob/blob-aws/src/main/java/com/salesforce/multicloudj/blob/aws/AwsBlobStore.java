@@ -57,6 +57,7 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -678,7 +679,19 @@ public class AwsBlobStore extends AbstractBlobStore {
     }
 
     private static S3TransferManager buildTransferManager(Builder builder) {
-      return S3TransferManager.builder().build();
+      Region regionObj = Region.of(builder.getRegion());
+      var asyncBuilder = S3AsyncClient.builder().region(regionObj);
+
+      AwsCredentialsProvider credentialsProvider =
+          CredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), regionObj);
+      if (credentialsProvider != null) {
+        asyncBuilder.credentialsProvider(credentialsProvider);
+      }
+      if (builder.getEndpoint() != null) {
+        asyncBuilder.endpointOverride(builder.getEndpoint());
+      }
+
+      return S3TransferManager.builder().s3Client(asyncBuilder.build()).build();
     }
 
     /** Helper function to generate the HttpClient */
