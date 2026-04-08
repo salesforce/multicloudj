@@ -1347,6 +1347,9 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     private static TransferManager buildParallelDownloadTransferManager(Storage storage) {
+      if (storage == null || storage.getOptions() == null) {
+        return null;
+      }
       TransferManagerConfig config =
           TransferManagerConfig.newBuilder()
               .setStorageOptions(storage.getOptions())
