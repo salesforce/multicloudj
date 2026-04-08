@@ -244,7 +244,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     GetObjectResponse response =
         downloadRequest.isParallelDownload()
             ? doParallelDownload(request, destinationPath)
-            : s3Client.getObject(request, ResponseTransformer.toFile(file));
+            : s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
@@ -262,7 +262,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     GetObjectResponse response =
         downloadRequest.isParallelDownload()
             ? doParallelDownload(request, destinationPath)
-            : s3Client.getObject(request, ResponseTransformer.toFile(path));
+            : s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 

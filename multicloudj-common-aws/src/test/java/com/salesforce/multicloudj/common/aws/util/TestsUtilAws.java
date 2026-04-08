@@ -12,6 +12,7 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.http.apache.internal.conn.SdkTlsSocketFactory;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 
 public class TestsUtilAws {
 
@@ -45,5 +46,22 @@ public class TestsUtilAws {
         .tlsTrustManagersProvider(() -> trustAllCerts)
         .socketFactory(sslSocketFactory)
         .build();
+  }
+
+  /**
+   * Get an async Netty HTTP client configured with a forward proxy to the WireMock server.
+   *
+   * @return async http client suitable for {@code S3AsyncClient}
+   */
+  public static NettyNioAsyncHttpClient.Builder getAsyncProxyClientBuilder(
+      String scheme, int port) {
+    return NettyNioAsyncHttpClient.builder()
+        .proxyConfiguration(
+            software.amazon.awssdk.http.nio.netty.ProxyConfiguration.builder()
+                .host(WIREMOCK_HOST)
+                .port(port)
+                .scheme(scheme)
+                .build())
+        .tlsTrustManagersProvider(() -> TestsUtil.createTrustAllManager());
   }
 }
