@@ -48,7 +48,6 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.12.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -62,7 +61,6 @@
         <dependency>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
-            <version>1.3.4</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -73,7 +71,6 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.15</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -86,7 +83,6 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.16.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -97,7 +93,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
-            <version>4.1.108.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -108,7 +103,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec</artifactId>
-            <version>4.1.125.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -119,7 +113,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>
-            <version>4.1.129.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -130,7 +123,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http2</artifactId>
-            <version>4.1.124.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -141,7 +133,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
-            <version>4.1.118.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -152,7 +143,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.118.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -163,7 +153,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-resolver</artifactId>
-            <version>4.1.108.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -174,7 +163,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport</artifactId>
-            <version>4.1.108.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -185,7 +173,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-classes-epoll</artifactId>
-            <version>4.1.108.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -196,7 +183,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.108.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -207,7 +193,6 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.14</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -218,7 +203,6 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
-            <version>4.4.16</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -240,7 +224,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>annotations</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -251,7 +235,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -262,7 +246,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>arns</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -273,7 +257,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-query-protocol</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -284,7 +268,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-xml-protocol</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -295,7 +279,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>checksums</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -306,7 +290,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>checksums-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -317,7 +301,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>crt-core</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -328,7 +312,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>endpoints-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -339,7 +323,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -350,7 +334,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-aws</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -361,7 +345,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-auth-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -372,7 +356,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-client-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -383,7 +367,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>identity-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -394,7 +378,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>json-utils</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -405,7 +389,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>metrics-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -416,7 +400,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>netty-nio-client</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -427,7 +411,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>profiles</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -438,7 +422,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>protocol-core</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -449,7 +433,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>retries</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -460,7 +444,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>retries-spi</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -471,7 +455,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>third-party-jackson-core</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -482,7 +466,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>utils</artifactId>
-            <version>2.35.0</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>

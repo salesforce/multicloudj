@@ -23,7 +23,7 @@ public class GcpRegistryIT extends AbstractRegistryIT {
   }
 
   public static class HarnessImpl implements Harness {
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     @Override
     public AbstractRegistry createRegistryDriver() {
@@ -31,9 +31,7 @@ public class GcpRegistryIT extends AbstractRegistryIT {
 
       CloseableHttpClient ociHttpClient = TestsUtil.getProxyHttpClient(port);
 
-      GcpRegistry.Builder builder =
-          (GcpRegistry.Builder)
-              new GcpRegistry.Builder().withRegistryEndpoint(ENDPOINT);
+      GcpRegistry.Builder builder = new GcpRegistry.Builder().withRegistryEndpoint(ENDPOINT);
 
       GoogleCredentials credentials;
       if (isRecordingEnabled) {

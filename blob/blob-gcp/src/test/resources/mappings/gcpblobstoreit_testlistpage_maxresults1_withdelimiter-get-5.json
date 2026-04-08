@@ -1,0 +1,25 @@
+{
+  "id" : "4ee8f321-d619-460b-9eff-8c91eafbf3a5",
+  "name" : "GcpBlobStoreIT_testListPage_MaxResults1_WithDelimiter-GET-5",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&maxResults=1&prefix=conformance-tests/common-prefix-maxresults1/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"CjFjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW1heHJlc3VsdHMxL2RpcjEv\",\n  \"prefixes\": [\n    \"conformance-tests/common-prefix-maxresults1/dir1/\"\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AMNfjG1itOrwRNHhzZIQoEEOaYEmO5JGvw3oCxEfWQXZw8m2Fr_ngkppATHG8eK4AZGOyhSMSl-vF1E",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:46:09 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:46:09 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4ee8f321-d619-460b-9eff-8c91eafbf3a5",
+  "persistent" : true,
+  "insertionIndex" : 1077
+}

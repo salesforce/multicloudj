@@ -1,0 +1,23 @@
+{
+  "id" : "5b1563d0-6345-408c-be27-afdefa8eade0",
+  "name" : "AwsBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-GET-4",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&prefix=conformance-tests%2Fcommon-prefix-nested%2Fdir1%2F",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-nested/dir1/</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-nested/dir1/a.txt</Key><LastModified>2026-04-02T04:52:33.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/common-prefix-nested/dir1/b.txt</Key><LastModified>2026-04-02T04:52:34.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "P541T47S5B7VGG43",
+      "x-amz-id-2" : "Cg6/n0mx0Hb+NIT0EIRR62Rl4FjK8WSiYjolVCZfMUlWsAEibrCKo//ewMTj7tX/yp+WniMobpsAUgHNYXebZkIBvOuFtjpm",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:37 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5b1563d0-6345-408c-be27-afdefa8eade0",
+  "persistent" : true,
+  "insertionIndex" : 639
+}

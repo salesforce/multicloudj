@@ -1,0 +1,26 @@
+{
+  "id" : "e39988d5-8aa5-4f70-8a8c-af04b32529f2",
+  "name" : "GcpBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-GET-15",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-nested%2Fdir1%2Fb.txt?projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-nested/dir1/b.txt/1775105151838500\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-nested%2Fdir1%2Fb.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-nested%2Fdir1%2Fb.txt?generation=1775105151838500&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-nested/dir1/b.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775105151838500\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CKTSjoCuzpMDEAE=\",\n  \"timeCreated\": \"2026-04-02T04:45:51.918Z\",\n  \"updated\": \"2026-04-02T04:45:51.918Z\",\n  \"timeStorageClassUpdated\": \"2026-04-02T04:45:51.918Z\",\n  \"timeFinalized\": \"2026-04-02T04:45:51.918Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CKTSjoCuzpMDEAE=",
+      "X-GUploader-UploadID" : "AMNfjG1GGF_Va4tZDk32pRIkJiNZupIygERsh9TjJRn3U_Jdp_ommeGO6SQyNskIOHFp1Mf10P87hdc",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:45:52 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:52 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e39988d5-8aa5-4f70-8a8c-af04b32529f2",
+  "persistent" : true,
+  "insertionIndex" : 1043
+}

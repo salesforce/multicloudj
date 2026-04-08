@@ -1,0 +1,25 @@
+{
+  "id" : "de493fbe-3d38-4f1e-a391-a7ee862d3e3a",
+  "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-8",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&maxResults=2&pageToken=Cixjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW11bHRpcGFnZS9iLw%3D%3D&prefix=conformance-tests/common-prefix-multipage/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"prefixes\": [\n    \"conformance-tests/common-prefix-multipage/c/\"\n  ],\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-multipage/root.txt/1775105144729730\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-multipage%2Froot.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-multipage%2Froot.txt?generation=1775105144729730&alt=media\",\n      \"name\": \"conformance-tests/common-prefix-multipage/root.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1775105144729730\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"4\",\n      \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n      \"crc32c\": \"hqBywA==\",\n      \"etag\": \"CILh3PytzpMDEAE=\",\n      \"timeCreated\": \"2026-04-02T04:45:44.808Z\",\n      \"updated\": \"2026-04-02T04:45:44.808Z\",\n      \"timeStorageClassUpdated\": \"2026-04-02T04:45:44.808Z\",\n      \"timeFinalized\": \"2026-04-02T04:45:44.808Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AMNfjG0MZYRzA6JxfFH9RKMwq1os_XsQ62gwdMUBpATA9tyZdom35pROwfaE0NKHECwHP627O9DaUQg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:45:45 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:45 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "de493fbe-3d38-4f1e-a391-a7ee862d3e3a",
+  "persistent" : true,
+  "insertionIndex" : 1013
+}

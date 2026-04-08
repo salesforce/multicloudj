@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.inmemory;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Lists;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -42,9 +43,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -538,65 +542,90 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     validateBucketExists();
     String prefix = request.getPrefix() != null ? request.getPrefix() : "";
     String delimiter = request.getDelimiter();
-    Integer maxKeys = request.getMaxResults() != null ? request.getMaxResults() : 1000;
+    int maxKeys = request.getMaxResults() != null ? request.getMaxResults() : 1000;
     String continuationToken = request.getPaginationToken();
 
-    // List only latest versions
-    List<BlobInfo> allBlobs =
-        LATEST_VERSIONS.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(bucket + ":"))
-            .filter(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  if (!key.startsWith(prefix)) {
-                    return false;
-                  }
-                  // If delimiter is specified, filter out keys containing the delimiter after the
-                  // prefix
-                  if (delimiter != null && !delimiter.isEmpty()) {
-                    String keyAfterPrefix = key.substring(prefix.length());
-                    return !keyAfterPrefix.contains(delimiter);
-                  }
-                  return true;
-                })
-            .map(
-                entry -> {
-                  String key = entry.getKey().substring((bucket + ":").length());
-                  String versionId = entry.getValue();
-                  String versionedKey = entry.getKey() + ":" + versionId;
-                  StoredBlob blob = STORAGE.get(versionedKey);
-                  if (blob == null) {
-                    return null;
-                  }
-                  return new BlobInfo.Builder()
-                      .withKey(key)
-                      .withObjectSize((long) blob.getData().length)
-                      .withLastModified(blob.getLastModified())
-                      .build();
-                })
-            .filter(blobInfo -> blobInfo != null)
-            .sorted(Comparator.comparing(BlobInfo::getKey))
-            .collect(Collectors.toList());
+    // Step 1: collect all matching blob keys -> StoredBlob from latest versions
+    TreeMap<String, StoredBlob> matchingBlobs = new TreeMap<>();
+    for (Map.Entry<String, String> entry : LATEST_VERSIONS.entrySet()) {
+      if (!entry.getKey().startsWith(bucket + ":")) {
+        continue;
+      }
+      String key = entry.getKey().substring((bucket + ":").length());
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      String versionedKey = entry.getKey() + ":" + entry.getValue();
+      StoredBlob blob = STORAGE.get(versionedKey);
+      if (blob != null) {
+        matchingBlobs.put(key, blob);
+      }
+    }
 
-    // Apply continuation token (skip to that key)
+    // Step 2: build a unified sorted entry list.
+    // Each entry is (entryString -> isCommonPrefix).
+    // For keys that fold under a delimiter: entryString is the common prefix string.
+    // For direct blob keys: entryString is the key itself.
+    // TreeMap keeps lexicographic order; common prefixes are deduplicated.
+    TreeMap<String, Boolean> allEntries = new TreeMap<>();
+    Set<String> seenPrefixes = new HashSet<>();
+
+    for (String key : matchingBlobs.keySet()) {
+      if (delimiter != null && !delimiter.isEmpty()) {
+        String keyAfterPrefix = key.substring(prefix.length());
+        int delimIdx = keyAfterPrefix.indexOf(delimiter);
+        if (delimIdx >= 0) {
+          // Key folds into a common prefix entry
+          String commonPrefix =
+              prefix + keyAfterPrefix.substring(0, delimIdx + delimiter.length());
+          if (seenPrefixes.add(commonPrefix)) {
+            allEntries.put(commonPrefix, true);
+          }
+          continue;
+        }
+      }
+      // Direct blob entry
+      allEntries.put(key, false);
+    }
+
+    // Step 3: apply continuation token — skip all entries up to and including the token
+    List<Map.Entry<String, Boolean>> sortedEntries = new ArrayList<>(allEntries.entrySet());
     int startIndex = 0;
     if (continuationToken != null) {
-      for (int i = 0; i < allBlobs.size(); i++) {
-        if (allBlobs.get(i).getKey().equals(continuationToken)) {
+      for (int i = 0; i < sortedEntries.size(); i++) {
+        if (sortedEntries.get(i).getKey().equals(continuationToken)) {
           startIndex = i + 1;
           break;
         }
       }
     }
 
-    // Get page of results
-    int endIndex = Math.min(startIndex + maxKeys, allBlobs.size());
-    List<BlobInfo> pageBlobs = allBlobs.subList(startIndex, endIndex);
+    // Step 4: apply combined maxKeys budget across both blobs and common prefixes
+    int endIndex = Math.min(startIndex + maxKeys, sortedEntries.size());
+    List<Map.Entry<String, Boolean>> pageEntries = sortedEntries.subList(startIndex, endIndex);
 
-    boolean isTruncated = endIndex < allBlobs.size();
-    String nextToken = isTruncated ? pageBlobs.get(pageBlobs.size() - 1).getKey() : null;
+    // Step 5: split page entries into blobs and common prefixes
+    List<BlobInfo> blobs = new ArrayList<>();
+    List<String> commonPrefixes = new ArrayList<>();
+    for (Map.Entry<String, Boolean> entry : pageEntries) {
+      if (entry.getValue()) {
+        commonPrefixes.add(entry.getKey());
+      } else {
+        StoredBlob stored = matchingBlobs.get(entry.getKey());
+        blobs.add(
+            new BlobInfo.Builder()
+                .withKey(entry.getKey())
+                .withObjectSize((long) stored.getData().length)
+                .withLastModified(stored.getLastModified())
+                .build());
+      }
+    }
 
-    return new ListBlobsPageResponse(pageBlobs, isTruncated, nextToken);
+    boolean isTruncated = endIndex < sortedEntries.size();
+    String nextToken =
+        isTruncated ? pageEntries.get(pageEntries.size() - 1).getKey() : null;
+
+    return new ListBlobsPageResponse(blobs, commonPrefixes, isTruncated, nextToken);
   }
 
   @Override
@@ -723,9 +752,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .map(
             entry ->
                 new UploadPartResponse(
-                    entry.getKey(),
-                    entry.getValue().getEtag(),
-                    entry.getValue().getData().length))
+                    entry.getKey(), entry.getValue().getEtag(), entry.getValue().getData().length))
         .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
         .collect(Collectors.toList());
   }

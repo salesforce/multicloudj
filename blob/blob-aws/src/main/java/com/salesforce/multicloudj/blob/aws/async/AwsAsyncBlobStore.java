@@ -66,6 +66,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -265,8 +266,13 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                       .map(transformer::toInfo)
                       .collect(Collectors.toList());
 
+              List<String> commonPrefixes =
+                  response.commonPrefixes().stream()
+                      .map(CommonPrefix::prefix)
+                      .collect(Collectors.toList());
+
               return new ListBlobsPageResponse(
-                  blobs, response.isTruncated(), response.nextContinuationToken());
+                  blobs, commonPrefixes, response.isTruncated(), response.nextContinuationToken());
             });
   }
 

@@ -31,7 +31,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
   }
 
   public static class HarnessImpl implements Harness {
-    int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
     Storage storage;
 
@@ -118,6 +118,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     public String getKmsKeyId() {
       return "projects/substrate-sdk-gcp-poc1/locations/us"
           + "/keyRings/chameleon-test/cryptoKeys/chameleon-test";
+    }
+
+    @Override
+    public boolean isSha256Supported() {
+      return false;
     }
 
     @Override

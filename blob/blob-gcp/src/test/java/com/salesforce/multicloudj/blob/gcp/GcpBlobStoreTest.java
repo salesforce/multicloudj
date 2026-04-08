@@ -51,6 +51,7 @@ import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -874,6 +875,176 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoList_DirectoryBlobIsFiltered() {
+    // Given
+    ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
+
+    Blob dirBlob = mock(Blob.class);
+    when(dirBlob.isDirectory()).thenReturn(true);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(dirBlob));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_MixedBlobsAndDirectoryBlobsFiltered() {
+    // Given
+    ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
+
+    Blob realBlob1 = mock(Blob.class);
+    Blob dirBlob = mock(Blob.class);
+    Blob realBlob2 = mock(Blob.class);
+    when(realBlob1.isDirectory()).thenReturn(false);
+    when(realBlob1.getName()).thenReturn("test-prefix/real-1");
+    when(realBlob1.getSize()).thenReturn(100L);
+    when(dirBlob.isDirectory()).thenReturn(true);
+    when(realBlob2.isDirectory()).thenReturn(false);
+    when(realBlob2.getName()).thenReturn("test-prefix/real-2");
+    when(realBlob2.getSize()).thenReturn(200L);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertTrue(iterator.hasNext());
+    var info1 = iterator.next();
+    assertEquals("test-prefix/real-1", info1.getKey());
+    assertEquals(100L, info1.getObjectSize());
+
+    assertTrue(iterator.hasNext());
+    var info2 = iterator.next();
+    assertEquals("test-prefix/real-2", info2.getKey());
+    assertEquals(200L, info2.getObjectSize());
+
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_AllDirectoryBlobsFiltered() {
+    // Given
+    ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
+
+    Blob dir1 = mock(Blob.class);
+    Blob dir2 = mock(Blob.class);
+    when(dir1.isDirectory()).thenReturn(true);
+    when(dir2.isDirectory()).thenReturn(true);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(dir1, dir2));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_WithDelimiter_DirectoryBlobIsFiltered() {
+    // Given
+    ListBlobsRequest request =
+        ListBlobsRequest.builder().withPrefix("test-prefix/").withDelimiter("/").build();
+
+    Blob dirBlob = mock(Blob.class);
+    when(dirBlob.isDirectory()).thenReturn(true);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Collections.singletonList(dirBlob));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_WithDelimiter_MixedBlobsFiltered() {
+    // Given
+    ListBlobsRequest request =
+        ListBlobsRequest.builder().withPrefix("test-prefix/").withDelimiter("/").build();
+
+    Blob realBlob1 = mock(Blob.class);
+    Blob dirBlob = mock(Blob.class);
+    Blob realBlob2 = mock(Blob.class);
+    when(realBlob1.isDirectory()).thenReturn(false);
+    when(realBlob1.getName()).thenReturn("test-prefix/real-1");
+    when(realBlob1.getSize()).thenReturn(100L);
+    when(dirBlob.isDirectory()).thenReturn(true);
+    when(realBlob2.isDirectory()).thenReturn(false);
+    when(realBlob2.getName()).thenReturn("test-prefix/real-2");
+    when(realBlob2.getSize()).thenReturn(200L);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(realBlob1, dirBlob, realBlob2));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertTrue(iterator.hasNext());
+    var info1 = iterator.next();
+    assertEquals("test-prefix/real-1", info1.getKey());
+    assertEquals(100L, info1.getObjectSize());
+
+    assertTrue(iterator.hasNext());
+    var info2 = iterator.next();
+    assertEquals("test-prefix/real-2", info2.getKey());
+    assertEquals(200L, info2.getObjectSize());
+
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  void testDoList_DirectoryBlobsAtBoundariesFiltered() {
+    // Given
+    ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("test-prefix/").build();
+
+    Blob leadingDir = mock(Blob.class);
+    Blob realBlob = mock(Blob.class);
+    Blob trailingDir = mock(Blob.class);
+    when(leadingDir.isDirectory()).thenReturn(true);
+    when(realBlob.isDirectory()).thenReturn(false);
+    when(realBlob.getName()).thenReturn("test-prefix/only-real");
+    when(realBlob.getSize()).thenReturn(512L);
+    when(trailingDir.isDirectory()).thenReturn(true);
+
+    Page mockPage = mock(Page.class);
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+    when(mockPage.iterateAll()).thenReturn(Arrays.asList(leadingDir, realBlob, trailingDir));
+
+    // When
+    var iterator = gcpBlobStore.doList(request);
+
+    // Then
+    assertTrue(iterator.hasNext());
+    var info = iterator.next();
+    assertEquals("test-prefix/only-real", info.getKey());
+    assertEquals(512L, info.getObjectSize());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
   void testDoListPage() {
     // Given
     ListBlobsPageRequest request =
@@ -899,10 +1070,12 @@ class GcpBlobStoreTest {
     when(mockPage.getValues()).thenReturn(mockBlobs);
     when(mockPage.hasNextPage()).thenReturn(true);
     when(mockPage.getNextPageToken()).thenReturn("next-page-token");
-    // Names should start with prefix but not contain delimiter after prefix
+    // Real blobs — not virtual directories
+    when(mockBlob1.isDirectory()).thenReturn(false);
     when(mockBlob1.getName()).thenReturn("test-prefixkey-1");
     when(mockBlob1.getSize()).thenReturn(1024L);
     when(mockBlob1.getUpdateTimeOffsetDateTime()).thenReturn(updateTime1);
+    when(mockBlob2.isDirectory()).thenReturn(false);
     when(mockBlob2.getName()).thenReturn("test-prefixkey-2");
     when(mockBlob2.getSize()).thenReturn(2048L);
     when(mockBlob2.getUpdateTimeOffsetDateTime()).thenReturn(updateTime2);
@@ -913,6 +1086,7 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(response);
     assertEquals(2, response.getBlobs().size());
+    assertEquals(0, response.getCommonPrefixes().size());
     assertTrue(response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
 
@@ -944,6 +1118,7 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(response);
     assertEquals(0, response.getBlobs().size());
+    assertEquals(0, response.getCommonPrefixes().size());
     assertEquals(false, response.isTruncated());
     assertNull(response.getNextPageToken());
   }
@@ -966,9 +1141,11 @@ class GcpBlobStoreTest {
     when(mockPage.getValues()).thenReturn(mockBlobs);
     when(mockPage.hasNextPage()).thenReturn(true);
     when(mockPage.getNextPageToken()).thenReturn("next-page-token");
-    // Names should start with prefix (no delimiter in this test)
+    // Real blobs — not virtual directories
+    when(mockBlob1.isDirectory()).thenReturn(false);
     when(mockBlob1.getName()).thenReturn("test-prefixkey-1");
     when(mockBlob1.getSize()).thenReturn(1024L);
+    when(mockBlob2.isDirectory()).thenReturn(false);
     when(mockBlob2.getName()).thenReturn("test-prefixkey-2");
     when(mockBlob2.getSize()).thenReturn(2048L);
 
@@ -978,6 +1155,7 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(response);
     assertEquals(2, response.getBlobs().size());
+    assertEquals(0, response.getCommonPrefixes().size());
     assertTrue(response.isTruncated(), "Response should be truncated when hasNextPage is true");
     assertEquals("next-page-token", response.getNextPageToken());
 
@@ -986,6 +1164,139 @@ class GcpBlobStoreTest {
     assertEquals(1024L, response.getBlobs().get(0).getObjectSize());
     assertEquals("test-prefixkey-2", response.getBlobs().get(1).getKey());
     assertEquals(2048L, response.getBlobs().get(1).getObjectSize());
+  }
+
+  @Test
+  void testDoListPage_WithCommonPrefixes() {
+    // Given
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    Blob dirBlob1 = mock(Blob.class);
+    Blob dirBlob2 = mock(Blob.class);
+    List<Blob> mockBlobs = Arrays.asList(dirBlob1, dirBlob2);
+    Page mockPage = mock(Page.class);
+    Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+
+    when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+    doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+    when(mockPage.getValues()).thenReturn(mockBlobs);
+    when(mockPage.hasNextPage()).thenReturn(false);
+    when(mockPage.getNextPageToken()).thenReturn(null);
+    // Virtual directory entries
+    when(dirBlob1.isDirectory()).thenReturn(true);
+    when(dirBlob1.getName()).thenReturn("dir1/");
+    when(dirBlob2.isDirectory()).thenReturn(true);
+    when(dirBlob2.getName()).thenReturn("dir2/");
+
+    // When
+    ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+    // Then
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("dir1/", "dir2/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_WithBothBlobsAndPrefixes() {
+    // Given
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").build();
+
+    Blob realBlob = mock(Blob.class);
+    Blob dirBlob = mock(Blob.class);
+    List<Blob> mockBlobs = Arrays.asList(dirBlob, realBlob);
+    Page mockPage = mock(Page.class);
+    Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+
+    when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+    doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+    when(mockPage.getValues()).thenReturn(mockBlobs);
+    when(mockPage.hasNextPage()).thenReturn(false);
+    when(mockPage.getNextPageToken()).thenReturn(null);
+    // Virtual directory entry
+    when(dirBlob.isDirectory()).thenReturn(true);
+    when(dirBlob.getName()).thenReturn("dir1/");
+    // Real blob
+    when(realBlob.isDirectory()).thenReturn(false);
+    when(realBlob.getName()).thenReturn("root.txt");
+    when(realBlob.getSize()).thenReturn(512L);
+    when(realBlob.getUpdateTimeOffsetDateTime()).thenReturn(null);
+
+    // When
+    ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+    // Then
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertEquals("root.txt", response.getBlobs().get(0).getKey());
+    assertEquals(List.of("dir1/"), response.getCommonPrefixes());
+  }
+
+  @Test
+  void testDoListPage_WithOnlyPrefixes() {
+    // Given
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withDelimiter("/").withMaxResults(5).build();
+
+    Blob d1 = mock(Blob.class);
+    Blob d2 = mock(Blob.class);
+    Blob d3 = mock(Blob.class);
+    Page mockPage = mock(Page.class);
+    Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+
+    when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+    doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+    when(mockPage.getValues()).thenReturn(Arrays.asList(d1, d2, d3));
+    when(mockPage.hasNextPage()).thenReturn(false);
+    when(mockPage.getNextPageToken()).thenReturn(null);
+    when(d1.isDirectory()).thenReturn(true);
+    when(d1.getName()).thenReturn("a/");
+    when(d2.isDirectory()).thenReturn(true);
+    when(d2.getName()).thenReturn("b/");
+    when(d3.isDirectory()).thenReturn(true);
+    when(d3.getName()).thenReturn("c/");
+
+    // When
+    ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+    // Then
+    assertNotNull(response);
+    assertEquals(0, response.getBlobs().size());
+    assertEquals(List.of("a/", "b/", "c/"), response.getCommonPrefixes());
+    assertFalse(response.isTruncated());
+  }
+
+  @Test
+  void testDoListPage_CommonPrefixesEmptyWhenNoDirectoryBlobs() {
+    // Given
+    ListBlobsPageRequest request =
+        ListBlobsPageRequest.builder().withPrefix("data/").build();
+
+    Blob realBlob = mock(Blob.class);
+    Page mockPage = mock(Page.class);
+    Storage.BlobListOption[] mockOptions = new Storage.BlobListOption[0];
+
+    when(mockTransformer.toBlobListOptions(request)).thenReturn(mockOptions);
+    doReturn(mockPage).when(mockStorage).list(eq(TEST_BUCKET), mockOptions);
+    when(mockPage.getValues()).thenReturn(List.of(realBlob));
+    when(mockPage.hasNextPage()).thenReturn(false);
+    when(mockPage.getNextPageToken()).thenReturn(null);
+    when(realBlob.isDirectory()).thenReturn(false);
+    when(realBlob.getName()).thenReturn("data/file.txt");
+    when(realBlob.getSize()).thenReturn(10L);
+    when(realBlob.getUpdateTimeOffsetDateTime()).thenReturn(null);
+
+    // When
+    ListBlobsPageResponse response = gcpBlobStore.listPage(request);
+
+    // Then
+    assertNotNull(response);
+    assertEquals(1, response.getBlobs().size());
+    assertNotNull(response.getCommonPrefixes());
+    assertEquals(0, response.getCommonPrefixes().size());
   }
 
   @Test
@@ -2996,6 +3307,65 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(result);
     assertTrue(result.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC32C, result.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testDoUpload_WithSha256_ThrowsUnsupportedOperationException() {
+    // Given
+    UploadRequest uploadRequest = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
+        .withChecksumValue("dummychecksum")
+        .build();
+
+    // When & Then
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doUpload(
+            uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithSha256_ThrowsUnsupportedOperationException() {
+    // Given
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
+        .build();
+
+    // When & Then
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doInitiateMultipartUpload(request));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithChecksumAlgorithm_CRC32C() {
+    // Given
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    CreateMultipartUploadResponse mockGcpResponse =
+        CreateMultipartUploadResponse.builder()
+            .uploadId("test-upload-id-crc32c")
+            .build();
+
+    when(mpuClient.createMultipartUpload(
+        any(CreateMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    // When
+    MultipartUpload result =
+        gcpBlobStore.doInitiateMultipartUpload(request);
+
+    // Then
+    assertNotNull(result);
+    assertTrue(result.isChecksumEnabled());
+    assertEquals(
+        ChecksumMethod.CRC32C, result.getChecksumAlgorithm());
   }
 
   @Test

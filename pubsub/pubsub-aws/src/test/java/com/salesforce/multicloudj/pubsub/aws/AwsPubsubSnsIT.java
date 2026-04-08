@@ -50,7 +50,7 @@ public class AwsPubsubSnsIT extends AbstractPubsubIT {
     private AbstractTopic topic;
     private SnsClient snsClient;
     private SdkHttpClient httpClient;
-    private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    private int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private String topicName = BASE_TOPIC_NAME;
     private String cachedTopicArn;
 

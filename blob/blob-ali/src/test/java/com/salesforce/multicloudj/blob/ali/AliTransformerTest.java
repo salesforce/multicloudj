@@ -20,6 +20,7 @@ import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -338,8 +339,10 @@ public class AliTransformerTest {
     doReturn("key").when(initiateMultipartUploadResult).getKey();
     doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withMetadata(metadata).build();
 
-    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, null);
+    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, request);
 
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());
@@ -356,8 +359,10 @@ public class AliTransformerTest {
     doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     String kmsKeyId = "test-kms-key-id";
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withMetadata(metadata).withKmsKeyId(kmsKeyId).build();
 
-    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, metadata, kmsKeyId);
+    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, request);
 
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());
@@ -710,6 +715,60 @@ public class AliTransformerTest {
     assertEquals(BUCKET, result.getBucketName());
     assertEquals("test-key", result.getKey());
     assertNotNull(result.getMetadata());
+  }
+
+  @Test
+  void testGenerateObjectMetadata_WithSha256Checksum() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey("test-key")
+            .withChecksumValue("abc123sha256value")
+            .withChecksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+    assertEquals(
+        "abc123sha256value",
+        result.getRawMetadata().get("x-oss-content-sha256"));
+    assertNull(result.getRawMetadata().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testGenerateObjectMetadata_WithCrc64Checksum() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey("test-key")
+            .withChecksumValue("12345678901234")
+            .build();
+
+    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+
+    assertEquals(
+        "12345678901234",
+        result.getRawMetadata().get("x-oss-hash-crc64ecma"));
+    assertNull(result.getRawMetadata().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testToMultipartUpload_WithChecksumAlgorithm() {
+    InitiateMultipartUploadResult initiateMultipartUploadResult =
+        mock(InitiateMultipartUploadResult.class);
+    doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
+    doReturn("key").when(initiateMultipartUploadResult).getKey();
+    doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key")
+        .withChecksumAlgorithm(ChecksumMethod.SHA256)
+        .build();
+
+    var actual = transformer.toMultipartUpload(
+        initiateMultipartUploadResult, request);
+
+    assertEquals(BUCKET, actual.getBucket());
+    assertEquals("key", actual.getKey());
+    assertEquals("uploadId", actual.getId());
+    assertEquals(ChecksumMethod.SHA256, actual.getChecksumAlgorithm());
   }
 
   @Test

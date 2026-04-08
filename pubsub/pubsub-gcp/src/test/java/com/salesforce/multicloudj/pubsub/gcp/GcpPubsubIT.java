@@ -78,7 +78,7 @@ public class GcpPubsubIT extends AbstractPubsubIT {
     private GcpSubscription subscription;
     private TopicAdminClient topicAdminClient;
     private SubscriptionAdminClient subscriptionAdminClient;
-    private int port = ThreadLocalRandom.current().nextInt(1000, 10000);
+    private int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     private String topicName = DEFAULT_TOPIC_NAME;
     private String subscriptionName = DEFAULT_SUBSCRIPTION_NAME;
 
