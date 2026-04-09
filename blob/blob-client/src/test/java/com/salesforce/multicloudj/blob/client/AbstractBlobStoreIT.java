@@ -2643,6 +2643,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   static class MultipartUploadTestConfig {
+    // The client defaults to binary (application/octet-stream). Override to text/plain here
+    // so that WireMock records body patterns as text instead of binary.
+    private static final String DEFAULT_CONTENT_TYPE = "text/plain";
     final String testName;
     final String key;
     final Map<String, String> metadata;
@@ -2652,6 +2655,7 @@ public abstract class AbstractBlobStoreIT {
     final boolean wantCompletionError;
     final String kmsKeyId;
     final Map<String, String> tags;
+    final String contentType;
 
     public MultipartUploadTestConfig(
         String testName,
@@ -2670,7 +2674,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           null,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2691,7 +2696,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           kmsKeyId,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2704,6 +2710,30 @@ public abstract class AbstractBlobStoreIT {
         boolean wantCompletionError,
         String kmsKeyId,
         Map<String, String> tags) {
+      this(
+          testName,
+          key,
+          metadata,
+          partsToUpload,
+          partsToComplete,
+          abortUpload,
+          wantCompletionError,
+          kmsKeyId,
+          tags,
+          DEFAULT_CONTENT_TYPE);
+    }
+
+    public MultipartUploadTestConfig(
+        String testName,
+        String key,
+        Map<String, String> metadata,
+        List<MultipartUploadTestPart> partsToUpload,
+        List<MultipartUploadPartResult> partsToComplete,
+        boolean abortUpload,
+        boolean wantCompletionError,
+        String kmsKeyId,
+        Map<String, String> tags,
+        String contentType) {
       this.testName = testName;
       this.key = key;
       this.metadata = metadata;
@@ -2713,6 +2743,7 @@ public abstract class AbstractBlobStoreIT {
       this.wantCompletionError = wantCompletionError;
       this.kmsKeyId = kmsKeyId;
       this.tags = tags;
+      this.contentType = contentType;
     }
   }
 
@@ -2735,6 +2766,9 @@ public abstract class AbstractBlobStoreIT {
       }
       if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
         requestBuilder.withTags(testConfig.tags);
+      }
+      if (testConfig.contentType != null) {
+        requestBuilder.withContentType(testConfig.contentType);
       }
       MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
       mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
