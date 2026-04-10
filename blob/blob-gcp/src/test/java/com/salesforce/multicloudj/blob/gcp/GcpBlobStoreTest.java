@@ -2798,6 +2798,7 @@ class GcpBlobStoreTest {
             .withKey(TEST_KEY)
             .withMetadata(Map.of("key1", "value1"))
             .withTags(Map.of("tag1", "value1"))
+            .withContentType("text/plain")
             .build();
 
     CreateMultipartUploadResponse mockGcpResponse =
@@ -2816,7 +2817,12 @@ class GcpBlobStoreTest {
     assertEquals("test-upload-id", result.getId());
     assertEquals(Map.of("key1", "value1"), result.getMetadata());
     assertEquals(Map.of("tag1", "value1"), result.getTags());
-    verify(mpuClient).createMultipartUpload(any(CreateMultipartUploadRequest.class));
+    assertEquals("text/plain", result.getContentType());
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    assertEquals("text/plain", captor.getValue().contentType());
   }
 
   @Test
@@ -3074,7 +3080,7 @@ class GcpBlobStoreTest {
     }
 
     ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
-    when(mockGcpResponse.getParts()).thenReturn(gcpParts);
+    when(mockGcpResponse.parts()).thenReturn(gcpParts);
 
     when(mpuClient.listParts(any(ListPartsRequest.class))).thenReturn(mockGcpResponse);
 
@@ -3114,7 +3120,7 @@ class GcpBlobStoreTest {
         MultipartUpload.builder().bucket(TEST_BUCKET).key(TEST_KEY).id("test-upload-id").build();
 
     ListPartsResponse mockGcpResponse = mock(ListPartsResponse.class);
-    when(mockGcpResponse.getParts()).thenReturn(Collections.emptyList());
+    when(mockGcpResponse.parts()).thenReturn(Collections.emptyList());
 
     when(mpuClient.listParts(any(ListPartsRequest.class))).thenReturn(mockGcpResponse);
 

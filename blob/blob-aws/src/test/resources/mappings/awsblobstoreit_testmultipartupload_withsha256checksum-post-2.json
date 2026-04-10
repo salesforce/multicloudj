@@ -1,9 +1,21 @@
 {
-  "id" : "987b5f4b-f63c-4814-8cf9-6f075507ca03",
+  "id" : "933a3414-9ceb-4ca8-b614-fe67c143e452",
   "name" : "AwsBlobStoreIT_testMultipartUpload_withSha256Checksum-POST-2",
   "request" : {
-    "url" : "/chameleon-jcloud/conformance-tests/multipart-withSha256Checksum?uploadId=TkINOf6fGcyST_UaHA311JS3vb2jDI8weMkJGpQG5Nuxc14HFYc2ACr5QmCPZuAZz2.Qt1EQLkLtD5gAmzhtpjFeAV2ZwEXkOB43xPpLwCh_yDdU2hJiSLeXwu5HMyhb5xAMCg8WAQV3hIIOfs4h2s05XJzYYkPe1uhBuinRNzWr6tMxbn6jdWfuqVHY877hKkr4H3XhaQetTtYdeS_Z7A--",
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withSha256Checksum",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1rmgvv8ldvIiM9Lvd2CkUpUso556mdmbfFS3dyA68deUtQYv_g1_.bTRyrBOVj4lKKek10QH_TWkY2lcwXZSUKIvFB2cXNXPMCCU9I.vFDEiX.ekEGT_Cpq7Lr_l0geYbm0A48JcuRE.8xJ6w1It0nhv3.36tein4ORsTykAEQTvJRw2K_gYmuw139iZ0S9S"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
       "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><ChecksumSHA256>w+00W+EpLUqgksmRJxzbaqfG43PQi1ZsG/3nQrJLFy0=</ChecksumSHA256><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><ChecksumSHA256>PJuK7825Zz/jBRR64o6zivIw+PJS6QCcb7QDdEDO3rg=</ChecksumSHA256><PartNumber>2</PartNumber></Part></CompleteMultipartUpload>"
     } ]
@@ -13,14 +25,14 @@
     "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-withSha256Checksum</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withSha256Checksum</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag><ChecksumSHA256>Vbw08pBQu5mL8jYLOja+2JVTM5vsqo+rxdk86mH2eMs=-2</ChecksumSHA256><ChecksumType>COMPOSITE</ChecksumType></CompleteMultipartUploadResult>",
     "headers" : {
       "Server" : "AmazonS3",
-      "x-amz-request-id" : "1XJCYJA7E2NV8D6N",
+      "x-amz-request-id" : "1AZ5CC2VJSZ0GPDN",
       "x-amz-server-side-encryption" : "AES256",
-      "x-amz-id-2" : "9sfIv7xQnJ1orGU343sJf80oBRbseRXe5L/svZAJb8HUQrTqL+l4cAqles9Qs+oZUFYlbfPkisL44M+GMqdzDb5b70wRXhUW1A1lljQ524A=",
-      "Date" : "Wed, 01 Apr 2026 21:38:40 GMT",
+      "x-amz-id-2" : "ECKJa30LCM9FtiIyUnR6KScTNd5Cb6TsiZ+Z3xD4NTXMgXaXjt8/AerHe6q4IYw1YAZTzfYAL4g=",
+      "Date" : "Thu, 09 Apr 2026 18:24:53 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "987b5f4b-f63c-4814-8cf9-6f075507ca03",
+  "uuid" : "933a3414-9ceb-4ca8-b614-fe67c143e452",
   "persistent" : true,
-  "insertionIndex" : 613
+  "insertionIndex" : 750
 }

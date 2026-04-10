@@ -261,6 +261,7 @@ public class AliTransformer {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .contentType(request.getContentType())
         .build();
   }
 
