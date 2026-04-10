@@ -1,0 +1,34 @@
+{
+  "id" : "bca244de-ab81-46e3-b553-2a6e046aa3d3",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withContentType-POST-6",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withContentType",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEluaXRpYXRlTXVsdGlwYXJ0VXBsb2FkUmVzdWx0IHhtbG5zPSJodHRwOi8vczMuYW1hem9uYXdzLmNvbS9kb2MvMjAwNi0wMy0wMS8iPjxCdWNrZXQ+Y2hhbWVsZW9uLWpjbG91ZDwvQnVja2V0PjxLZXk+Y29uZm9ybWFuY2UtdGVzdHMvbXVsdGlwYXJ0LXdpdGhDb250ZW50VHlwZTwvS2V5PjxVcGxvYWRJZD43eDJBSXlOV2VueU85Qzc0ZzFCb0pvNklQRHl3dWV4bkd1ZDJibWFNc0JuZy5BTEl5MlU1MnlPREM1WHczZ3o5LlVoZFNUbWlNWUYzV2dqejhGT054NFlUTDZkZGZONldIQVBOTEZtM2ZZdk13WDNxbmNIcERIM0ptNHlaaE9xTktyV0tuNEhHb01sUWZ2YVNyeHJCMXI1aEFtTHU5R0d2V2ZyREcybVdtVklmQVNTUDdQX04uVmEuMGxTZHkyU1Y8L1VwbG9hZElkPjwvSW5pdGlhdGVNdWx0aXBhcnRVcGxvYWRSZXN1bHQ+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "H7ZDS2AWW45224AW",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "HdPLBYxCe1tYBkDUiJeLkKV4w1XrkcOnbDsVG00/XqP3/mhw/TkBrDWpGE8BDm3TveU+oT1Q0F1jYeXEndJ1Wkeqsl8eu4M9",
+      "Date" : "Fri, 10 Apr 2026 16:16:37 GMT"
+    }
+  },
+  "uuid" : "bca244de-ab81-46e3-b553-2a6e046aa3d3",
+  "persistent" : true,
+  "insertionIndex" : 671
+}

@@ -483,6 +483,11 @@ public class AwsTransformer {
       }
     }
 
+    if (StringUtils.isNotEmpty(mpu.getContentType())) {
+      builder.overrideConfiguration(
+          b -> b.putHeader("Content-Type", mpu.getContentType()));
+    }
+
     return builder.build();
   }
 
@@ -769,6 +774,7 @@ public class AwsTransformer {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .contentType(request.getContentType())
         .build();
   }
 

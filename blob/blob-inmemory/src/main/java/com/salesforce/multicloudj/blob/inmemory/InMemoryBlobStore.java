@@ -628,6 +628,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
+        .contentType(request.getContentType())
         .build();
   }
 
