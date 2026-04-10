@@ -150,7 +150,6 @@ public abstract class AbstractBlobStoreIT {
       }
     }
 
-    // Returns custom WireMock extension class names for this provider
     default List<String> getWiremockExtensions() {
       return List.of();
     }
