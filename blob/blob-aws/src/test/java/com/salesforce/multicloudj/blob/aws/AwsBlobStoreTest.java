@@ -269,7 +269,7 @@ public class AwsBlobStoreTest {
             .withBucket("bucket-1")
             .withRegion("us-east-2")
             .withUseSystemPropertyProxyValues(false);
-    assertFalse(
+    assertTrue(
         AwsBlobStore.shouldConfigureHttpClient(
             (AwsBlobStore.Builder) builderWithUseSystemPropertyProxyValues));
 
@@ -279,7 +279,7 @@ public class AwsBlobStoreTest {
             .withBucket("bucket-1")
             .withRegion("us-east-2")
             .withUseEnvironmentVariableProxyValues(false);
-    assertFalse(
+    assertTrue(
         AwsBlobStore.shouldConfigureHttpClient(
             (AwsBlobStore.Builder) builderWithUseEnvVarProxyValues));
 

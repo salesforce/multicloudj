@@ -113,7 +113,9 @@ public class AwsBlobStore extends AbstractBlobStore {
     return builder.getProxyEndpoint() != null
         || builder.getMaxConnections() != null
         || builder.getSocketTimeout() != null
-        || builder.getIdleConnectionTimeout() != null;
+        || builder.getIdleConnectionTimeout() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null;
   }
 
   @Override
@@ -268,6 +270,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
+  /** When createParentPath is enabled, resolves the final file path by appending the object key to the destination root and creating any missing parent directories. */
   private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
     if (!request.isCreateParentPath()) {
       return destination;
@@ -288,6 +291,7 @@ public class AwsBlobStore extends AbstractBlobStore {
   private GetObjectResponse doParallelDownload(GetObjectRequest request, Path destination) {
     DownloadFileRequest downloadFileRequest =
         DownloadFileRequest.builder().getObjectRequest(request).destination(destination).build();
+    // Block until the async multi-part download completes, since doDownload is a synchronous API.
     return s3DownloadTransferMgr
         .downloadFile(downloadFileRequest)
         .completionFuture()
@@ -678,6 +682,7 @@ public class AwsBlobStore extends AbstractBlobStore {
       return b.build();
     }
 
+    /** S3TransferManager requires an S3AsyncClient; this is an AWS SDK constraint, not an async API choice. */
     private static S3TransferManager buildTransferManager(Builder builder) {
       Region regionObj = Region.of(builder.getRegion());
       var asyncBuilder = S3AsyncClient.builder().region(regionObj);
@@ -697,9 +702,21 @@ public class AwsBlobStore extends AbstractBlobStore {
     /** Helper function to generate the HttpClient */
     private static SdkHttpClient generateHttpClient(Builder builder) {
       ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
-      if (builder.getProxyEndpoint() != null) {
-        httpClientBuilder.proxyConfiguration(
-            ProxyConfiguration.builder().endpoint(builder.getProxyEndpoint()).build());
+      if (builder.getProxyEndpoint() != null
+          || builder.getUseSystemPropertyProxyValues() != null
+          || builder.getUseEnvironmentVariableProxyValues() != null) {
+        ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
+        if (builder.getProxyEndpoint() != null) {
+          proxyConfigBuilder.endpoint(builder.getProxyEndpoint());
+        }
+        if (builder.getUseSystemPropertyProxyValues() != null) {
+          proxyConfigBuilder.useSystemPropertyValues(builder.getUseSystemPropertyProxyValues());
+        }
+        if (builder.getUseEnvironmentVariableProxyValues() != null) {
+          proxyConfigBuilder.useEnvironmentVariableValues(
+              builder.getUseEnvironmentVariableProxyValues());
+        }
+        httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
       }
       if (builder.getMaxConnections() != null) {
         httpClientBuilder.maxConnections(builder.getMaxConnections());

@@ -128,7 +128,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
   private final GcpTransformer transformer;
-  private final TransferManager parallelDownloadTransferManager;
+  private final TransferManager transferManager;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
@@ -140,7 +140,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     super(builder);
     this.storage = storage;
     this.multipartUploadClient = mpuClient;
-    this.parallelDownloadTransferManager = builder.getTransferManager();
+    this.transferManager = builder.getTransferManager();
     this.transformer = builder.transformerSupplier.get(bucket);
   }
 
@@ -231,6 +231,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
   }
 
+  // parallelDownload not supported: delegates to OutputStream which cannot accept parallel range-GET writes.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -244,13 +245,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     return doDownload(downloadRequest, file.toPath());
   }
 
-  /**
-   * Performs Blob download and returns an InputStream
-   *
-   * @param downloadRequest Wrapper object containing download data
-   * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
-   */
+  // parallelDownload not supported: TransferManager writes to disk, cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
@@ -283,6 +278,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
+    // GCP TransferManager only supports full-file downloads; fall back to ReadChannel for range requests.
     if (downloadRequest.isParallelDownload()
         && downloadRequest.getStart() == null
         && downloadRequest.getEnd() == null) {
@@ -322,7 +318,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     BlobId blobId = transformer.toBlobId(downloadRequest);
     Blob blob = getRequiredBlob(blobId);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
-    if (parallelDownloadTransferManager == null || tmPaths == null) {
+    if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
     }
     executeTransferManagerDownload(blobId, downloadRequest.getKey(), tmPaths);
@@ -339,7 +335,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             .setStripPrefix(tmPaths.stripPrefix)
             .build();
     DownloadJob job =
-        parallelDownloadTransferManager.downloadBlobs(
+        transferManager.downloadBlobs(
             Collections.singletonList(blobInfo), parallelDownloadConfig);
     DownloadResult result = job.getDownloadResults().get(0);
     if (result.getStatus() != TransferStatus.SUCCESS) {
@@ -1129,8 +1125,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   public void close() {
     try {
-      if (parallelDownloadTransferManager != null) {
-        parallelDownloadTransferManager.close();
+      if (transferManager != null) {
+        transferManager.close();
       }
       if (storage != null) {
         storage.close();
