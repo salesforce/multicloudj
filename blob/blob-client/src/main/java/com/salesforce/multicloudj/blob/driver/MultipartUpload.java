@@ -19,4 +19,5 @@ public class MultipartUpload {
   private final String kmsKeyId;
   private final boolean checksumEnabled;
   private final ChecksumMethod checksumAlgorithm;
+  private final String contentType;
 }
