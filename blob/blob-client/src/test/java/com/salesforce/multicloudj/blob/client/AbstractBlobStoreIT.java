@@ -4104,6 +4104,57 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testMultipartUpload_withContentType() {
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
+    String contentType = "text/plain";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withContentType(contentType)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu);
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse);
+      Assertions.assertNotNull(completeResponse.getEtag());
+
+      // Verify content type is set correctly on the resulting object
+      BlobMetadata metadata = bucketClient.getMetadata(expectedKey, null);
+      Assertions.assertNotNull(metadata, "Metadata should not be null");
+      Assertions.assertEquals(
+          contentType, metadata.getContentType(),
+          "Content type should match what was set in multipart upload request");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+      try {
+        if (mpu != null) {
+          bucketClient.abortMultipartUpload(mpu);
+        }
+      } catch (Throwable t) {
+        // Ignore - upload may already be completed
+      }
+    }
+  }
+
+  @Test
   public void testUploadWithContentType() {
     String key = "conformance-tests/content-type/upload-with-content-type";
     byte[] content = new byte[0];

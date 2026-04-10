@@ -396,6 +396,10 @@ public class GcpBlobStore extends AbstractBlobStore {
       createRequestBuilder.metadata(request.getMetadata());
     }
 
+    if (request.getContentType() != null && !request.getContentType().isEmpty()) {
+      createRequestBuilder.contentType(request.getContentType());
+    }
+
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
@@ -408,6 +412,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .contentType(request.getContentType())
         .build();
   }
 
@@ -483,7 +488,7 @@ public class GcpBlobStore extends AbstractBlobStore {
             .build();
     ListPartsResponse response = multipartUploadClient.listParts(listPartsRequest);
 
-    return response.getParts().stream()
+    return response.parts().stream()
         .map(
             part ->
                 new com.salesforce.multicloudj.blob.driver.UploadPartResponse(

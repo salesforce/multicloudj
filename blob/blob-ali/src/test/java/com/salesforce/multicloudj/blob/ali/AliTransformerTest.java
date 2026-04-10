@@ -340,7 +340,7 @@ public class AliTransformerTest {
     doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
-        .withKey("key").withMetadata(metadata).build();
+        .withKey("key").withMetadata(metadata).withContentType("text/plain").build();
 
     var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, request);
 
@@ -348,6 +348,7 @@ public class AliTransformerTest {
     assertEquals("key", actual.getKey());
     assertEquals("uploadId", actual.getId());
     assertEquals(metadata, actual.getMetadata());
+    assertEquals("text/plain", actual.getContentType());
   }
 
   @Test
