@@ -4144,13 +4144,6 @@ public abstract class AbstractBlobStoreIT {
 
     } finally {
       safeDeleteBlobs(bucketClient, expectedKey);
-      try {
-        if (mpu != null) {
-          bucketClient.abortMultipartUpload(mpu);
-        }
-      } catch (Throwable t) {
-        // Ignore - upload may already be completed
-      }
     }
   }
 
