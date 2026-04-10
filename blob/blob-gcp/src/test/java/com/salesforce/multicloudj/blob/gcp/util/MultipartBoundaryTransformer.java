@@ -20,19 +20,18 @@ import java.util.regex.Pattern;
  * boundaries.
  *
  * <p>For GCP Storage multipart uploads, the boundary string changes on every request. This
- * transformer extracts the actual content and metadata from the recorded request and creates a
- * regex pattern that matches any boundary while verifying the important parts (JSON metadata and
- * file content).
+ * transformer regex-escapes the recorded body and replaces the specific boundary with a wildcard
+ * pattern, so any boundary is accepted during replay.
  */
 public class MultipartBoundaryTransformer extends StubMappingTransformer {
 
-  // Pattern to detect multipart boundaries in the format: --__END_OF_PART__<uuid>__
   private static final Pattern BOUNDARY_PATTERN =
       Pattern.compile("--(__END_OF_PART__[a-f0-9-]+__)");
 
+  private static final String BOUNDARY_REGEX = "--__END_OF_PART__[a-f0-9-]+__";
+
   @Override
   public StubMapping transform(StubMapping stubMapping, FileSource files, Parameters parameters) {
-    // Only process mappings with uploadType=multipart in the URL
     String url = stubMapping.getRequest().getUrl();
     if (url == null || !url.contains("uploadType=multipart")) {
       return stubMapping;
@@ -48,34 +47,27 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
 
     for (ContentPattern<?> pattern : bodyPatterns) {
       if (pattern instanceof BinaryEqualToPattern) {
-        // Decode the base64 binary content
         String base64Content = pattern.getExpected();
         byte[] binaryContent = Base64.getDecoder().decode(base64Content);
         String textContent = new String(binaryContent, StandardCharsets.UTF_8);
 
-        // Extract the boundary string
         Matcher matcher = BOUNDARY_PATTERN.matcher(textContent);
         if (matcher.find()) {
-          String originalBoundary = matcher.group(1);
-
-          // Extract the important parts: JSON metadata and file content
-          String[] parts = textContent.split("--" + Pattern.quote(originalBoundary));
-          if (parts.length >= 3) {
-            // parts[1] contains JSON metadata, parts[2] contains file content
-            String jsonPart = extractJsonContent(parts[1]);
-            String filePart = extractFileContent(parts[2]);
-
-            if (jsonPart != null && filePart != null) {
-              // Create a regex pattern that matches any boundary but verifies content
-              String regexPattern = createFlexiblePattern(jsonPart, filePart);
-              newPatterns.add(new RegexPattern(regexPattern));
-              modified = true;
-              continue;
+          String boundaryLiteral = "--" + matcher.group(1);
+          // Split body by the recorded boundary, escape each segment, rejoin with wildcard
+          String[] segments = textContent.split(Pattern.quote(boundaryLiteral), -1);
+          StringBuilder regex = new StringBuilder("(?s)");
+          for (int i = 0; i < segments.length; i++) {
+            regex.append(Pattern.quote(segments[i]));
+            if (i < segments.length - 1) {
+              regex.append(BOUNDARY_REGEX);
             }
           }
+          newPatterns.add(new RegexPattern(regex.toString()));
+          modified = true;
+          continue;
         }
       }
-      // Keep original pattern if we couldn't transform it
       newPatterns.add(pattern);
     }
 
@@ -85,58 +77,6 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
     }
 
     return stubMapping;
-  }
-
-  /**
-   * Extracts JSON content from a multipart part. The part contains headers followed by JSON.
-   */
-  private String extractJsonContent(String part) {
-    // Find the JSON object (starts with { and ends with })
-    int jsonStart = part.indexOf('{');
-    int jsonEnd = part.lastIndexOf('}');
-    if (jsonStart >= 0 && jsonEnd > jsonStart) {
-      return part.substring(jsonStart, jsonEnd + 1).trim();
-    }
-    return null;
-  }
-
-  /**
-   * Extracts file content from a multipart part. The part contains headers followed by the actual
-   * file data.
-   */
-  private String extractFileContent(String part) {
-    // Skip headers (they end with \r\n\r\n)
-    int contentStart = part.indexOf("\r\n\r\n");
-    if (contentStart >= 0) {
-      contentStart += 4; // Skip the \r\n\r\n
-      int contentEnd = part.lastIndexOf('\r');
-      if (contentEnd > contentStart) {
-        return part.substring(contentStart, contentEnd).trim();
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Creates a flexible regex pattern that matches multipart requests with any boundary string but
-   * verifies the JSON metadata and file content are present.
-   */
-  private String createFlexiblePattern(String jsonContent, String fileContent) {
-    // Escape special regex characters in the content
-    String escapedJson = Pattern.quote(jsonContent);
-    String escapedFile = Pattern.quote(fileContent);
-
-    // Create a pattern that:
-    // 1. Matches any boundary string (--__END_OF_PART__<anything>__)
-    // 2. Verifies the JSON content is present
-    // 3. Verifies the file content is present
-    return "(?s).*--__END_OF_PART__[a-f0-9-]+__.*"
-        + "Content-Type: application/json.*"
-        + escapedJson
-        + ".*--__END_OF_PART__[a-f0-9-]+__.*"
-        + "Content-Type: application/octet-stream.*"
-        + escapedFile
-        + ".*--__END_OF_PART__[a-f0-9-]+__--.*";
   }
 
   @Override
