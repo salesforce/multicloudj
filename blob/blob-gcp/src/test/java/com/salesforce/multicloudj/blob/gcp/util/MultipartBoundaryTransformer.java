@@ -54,16 +54,13 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
         Matcher matcher = BOUNDARY_PATTERN.matcher(textContent);
         if (matcher.find()) {
           String boundaryLiteral = "--" + matcher.group(1);
-          // Split body by the recorded boundary, escape each segment, rejoin with wildcard
-          String[] segments = textContent.split(Pattern.quote(boundaryLiteral), -1);
-          StringBuilder regex = new StringBuilder("(?s)");
-          for (int i = 0; i < segments.length; i++) {
-            regex.append(Pattern.quote(segments[i]));
-            if (i < segments.length - 1) {
-              regex.append(BOUNDARY_REGEX);
-            }
-          }
-          newPatterns.add(new RegexPattern(regex.toString()));
+          String escapedEntireBody = Pattern.quote(textContent);
+          String boundaryToReplace = Pattern.quote(boundaryLiteral);
+          String regex =
+              "(?s)"
+                  + escapedEntireBody.replace(
+                      boundaryToReplace, "\\E" + BOUNDARY_REGEX + "\\Q");
+          newPatterns.add(new RegexPattern(regex));
           modified = true;
           continue;
         }
