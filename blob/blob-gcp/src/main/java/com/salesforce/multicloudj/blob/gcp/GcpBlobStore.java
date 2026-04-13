@@ -231,7 +231,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
   }
 
-  // parallelDownload not supported: delegates to OutputStream which cannot accept parallel range-GET writes.
+  // parallelDownload not supported: delegates to OutputStream which
+  // cannot accept parallel range-GET writes.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -245,7 +246,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     return doDownload(downloadRequest, file.toPath());
   }
 
-  // parallelDownload not supported: TransferManager writes to disk, cannot produce an InputStream directly.
+  // parallelDownload not supported: TransferManager writes to disk,
+  // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
@@ -278,7 +280,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
-    // GCP TransferManager only supports full-file downloads; fall back to ReadChannel for range requests.
+    // GCP TransferManager only supports full-file downloads;
+    // fall back to ReadChannel for range requests.
     if (downloadRequest.isParallelDownload()
         && downloadRequest.getStart() == null
         && downloadRequest.getEnd() == null) {

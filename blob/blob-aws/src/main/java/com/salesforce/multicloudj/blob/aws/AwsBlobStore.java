@@ -270,7 +270,10 @@ public class AwsBlobStore extends AbstractBlobStore {
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
-  /** When createParentPath is enabled, resolves the final file path by appending the object key to the destination root and creating any missing parent directories. */
+  /**
+   * When createParentPath is enabled, resolves the final file path by appending
+   * the object key to the destination root and creating any missing parent directories.
+   */
   private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
     if (!request.isCreateParentPath()) {
       return destination;
@@ -682,7 +685,10 @@ public class AwsBlobStore extends AbstractBlobStore {
       return b.build();
     }
 
-    /** S3TransferManager requires an S3AsyncClient; this is an AWS SDK constraint, not an async API choice. */
+    /**
+     * S3TransferManager requires an S3AsyncClient; this is an AWS SDK
+     * constraint, not an async API choice.
+     */
     private static S3TransferManager buildTransferManager(Builder builder) {
       Region regionObj = Region.of(builder.getRegion());
       var asyncBuilder = S3AsyncClient.builder().region(regionObj);
