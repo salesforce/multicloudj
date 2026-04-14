@@ -19,8 +19,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -65,6 +67,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private static final Map<String, String> LATEST_VERSIONS = new ConcurrentHashMap<>();
   // Tags are per version - key is "bucket:key:versionId"
   private static final Map<String, Map<String, String>> TAGS = new ConcurrentHashMap<>();
+  // Object lock info per version - key is "bucket:key:versionId"
+  private static final Map<String, ObjectLockInfo> OBJECT_LOCKS = new ConcurrentHashMap<>();
   private static final Map<String, MultipartUploadState> MULTIPART_UPLOADS =
       new ConcurrentHashMap<>();
   // Track bucket metadata - key is bucket name
@@ -129,6 +133,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Store tags if provided
     if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
       TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
+    }
+
+    // Store object lock configuration if provided
+    if (uploadRequest.getObjectLock() != null) {
+      ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+      OBJECT_LOCKS.put(
+          versionedKey,
+          ObjectLockInfo.builder()
+              .mode(lockConfig.getMode())
+              .retainUntilDate(lockConfig.getRetainUntilDate())
+              .legalHold(lockConfig.isLegalHold())
+              .useEventBasedHold(lockConfig.getUseEventBasedHold())
+              .build());
     }
 
     return UploadResponse.builder()
@@ -303,6 +320,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       STORAGE.remove(versionedKey);
       TAGS.remove(versionedKey);
+      OBJECT_LOCKS.remove(versionedKey);
 
       // If deleting the latest version, clear the latest version tracker
       String latestVersion = LATEST_VERSIONS.get(baseKey);
@@ -316,6 +334,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         String versionedKey = baseKey + ":" + latestVersion;
         STORAGE.remove(versionedKey);
         TAGS.remove(versionedKey);
+        OBJECT_LOCKS.remove(versionedKey);
         LATEST_VERSIONS.remove(baseKey);
       }
 
@@ -329,6 +348,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       for (String storageKey : keysToDelete) {
         STORAGE.remove(storageKey);
         TAGS.remove(storageKey);
+        OBJECT_LOCKS.remove(storageKey);
       }
     }
   }
@@ -470,6 +490,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .metadata(blob.getMetadata())
         .lastModified(blob.getLastModified())
         .contentType(blob.getContentType())
+        .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
         .build();
   }
 
@@ -897,6 +918,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   private DownloadResponse buildDownloadResponse(String key, StoredBlob blob, int contentLength) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -908,12 +930,14 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
         .build();
   }
 
   private DownloadResponse buildDownloadResponse(
       String key, StoredBlob blob, int contentLength, InputStream inputStream) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -925,6 +949,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
         .inputStream(inputStream)
         .build();
@@ -932,14 +957,96 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   @Override
   public ObjectLockInfo getObjectLock(String key, String versionId) {
-    return null;
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+
+    if (versionId == null) {
+      versionId = LATEST_VERSIONS.get(baseKey);
+    }
+
+    if (versionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    String versionedKey = baseKey + ":" + versionId;
+    StoredBlob blob = STORAGE.get(versionedKey);
+    if (blob == null) {
+      throw new ResourceNotFoundException(
+          "Blob version not found: " + key + " version: " + versionId);
+    }
+
+    return OBJECT_LOCKS.get(versionedKey);
   }
 
   @Override
-  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {}
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+
+    if (versionId == null) {
+      versionId = LATEST_VERSIONS.get(baseKey);
+    }
+
+    if (versionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    String versionedKey = baseKey + ":" + versionId;
+    StoredBlob blob = STORAGE.get(versionedKey);
+    if (blob == null) {
+      throw new ResourceNotFoundException(
+          "Blob version not found: " + key + " version: " + versionId);
+    }
+
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+    RetentionMode mode = existing != null ? existing.getMode() : null;
+    boolean existingLegalHold = existing != null && existing.isLegalHold();
+    Boolean existingEventBasedHold = existing != null ? existing.getUseEventBasedHold() : null;
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(mode)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(existingLegalHold)
+            .useEventBasedHold(existingEventBasedHold)
+            .build());
+  }
 
   @Override
-  public void updateLegalHold(String key, String versionId, boolean legalHold) {}
+  public void updateLegalHold(String key, String versionId, boolean legalHold) {
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+
+    if (versionId == null) {
+      versionId = LATEST_VERSIONS.get(baseKey);
+    }
+
+    if (versionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    String versionedKey = baseKey + ":" + versionId;
+    StoredBlob blob = STORAGE.get(versionedKey);
+    if (blob == null) {
+      throw new ResourceNotFoundException(
+          "Blob version not found: " + key + " version: " + versionId);
+    }
+
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+    RetentionMode mode = existing != null ? existing.getMode() : null;
+    Instant retainUntilDate = existing != null ? existing.getRetainUntilDate() : null;
+    Boolean existingEventBasedHold = existing != null ? existing.getUseEventBasedHold() : null;
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(mode)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(legalHold)
+            .useEventBasedHold(existingEventBasedHold)
+            .build());
+  }
 
   // Inner classes for storage
 
@@ -1047,6 +1154,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     STORAGE.clear();
     LATEST_VERSIONS.clear();
     TAGS.clear();
+    OBJECT_LOCKS.clear();
     MULTIPART_UPLOADS.clear();
     BUCKETS.clear();
   }
