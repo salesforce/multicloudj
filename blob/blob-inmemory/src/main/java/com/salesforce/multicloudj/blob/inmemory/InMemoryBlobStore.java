@@ -955,96 +955,64 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .build();
   }
 
-  @Override
-  public ObjectLockInfo getObjectLock(String key, String versionId) {
+  /**
+   * Resolves the versioned storage key for a blob, validating that the bucket and blob exist.
+   * If versionId is null, resolves to the latest version.
+   */
+  private String resolveVersionedKey(String key, String versionId) {
     validateBucketExists();
     String baseKey = getStorageKey(key);
 
-    if (versionId == null) {
-      versionId = LATEST_VERSIONS.get(baseKey);
+    String resolvedVersionId = versionId;
+    if (resolvedVersionId == null) {
+      resolvedVersionId = LATEST_VERSIONS.get(baseKey);
     }
 
-    if (versionId == null) {
+    if (resolvedVersionId == null) {
       throw new ResourceNotFoundException("Blob not found: " + key);
     }
 
-    String versionedKey = baseKey + ":" + versionId;
-    StoredBlob blob = STORAGE.get(versionedKey);
-    if (blob == null) {
+    String versionedKey = baseKey + ":" + resolvedVersionId;
+    if (!STORAGE.containsKey(versionedKey)) {
       throw new ResourceNotFoundException(
-          "Blob version not found: " + key + " version: " + versionId);
+          "Blob version not found: " + key + " version: " + resolvedVersionId);
     }
 
-    return OBJECT_LOCKS.get(versionedKey);
+    return versionedKey;
+  }
+
+  @Override
+  public ObjectLockInfo getObjectLock(String key, String versionId) {
+    return OBJECT_LOCKS.get(resolveVersionedKey(key, versionId));
   }
 
   @Override
   public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
-    validateBucketExists();
-    String baseKey = getStorageKey(key);
-
-    if (versionId == null) {
-      versionId = LATEST_VERSIONS.get(baseKey);
-    }
-
-    if (versionId == null) {
-      throw new ResourceNotFoundException("Blob not found: " + key);
-    }
-
-    String versionedKey = baseKey + ":" + versionId;
-    StoredBlob blob = STORAGE.get(versionedKey);
-    if (blob == null) {
-      throw new ResourceNotFoundException(
-          "Blob version not found: " + key + " version: " + versionId);
-    }
-
+    String versionedKey = resolveVersionedKey(key, versionId);
     ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
-    RetentionMode mode = existing != null ? existing.getMode() : null;
-    boolean existingLegalHold = existing != null && existing.isLegalHold();
-    Boolean existingEventBasedHold = existing != null ? existing.getUseEventBasedHold() : null;
 
     OBJECT_LOCKS.put(
         versionedKey,
         ObjectLockInfo.builder()
-            .mode(mode)
+            .mode(existing != null ? existing.getMode() : null)
             .retainUntilDate(retainUntilDate)
-            .legalHold(existingLegalHold)
-            .useEventBasedHold(existingEventBasedHold)
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
             .build());
   }
 
   @Override
   public void updateLegalHold(String key, String versionId, boolean legalHold) {
-    validateBucketExists();
-    String baseKey = getStorageKey(key);
-
-    if (versionId == null) {
-      versionId = LATEST_VERSIONS.get(baseKey);
-    }
-
-    if (versionId == null) {
-      throw new ResourceNotFoundException("Blob not found: " + key);
-    }
-
-    String versionedKey = baseKey + ":" + versionId;
-    StoredBlob blob = STORAGE.get(versionedKey);
-    if (blob == null) {
-      throw new ResourceNotFoundException(
-          "Blob version not found: " + key + " version: " + versionId);
-    }
-
+    String versionedKey = resolveVersionedKey(key, versionId);
     ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
-    RetentionMode mode = existing != null ? existing.getMode() : null;
-    Instant retainUntilDate = existing != null ? existing.getRetainUntilDate() : null;
-    Boolean existingEventBasedHold = existing != null ? existing.getUseEventBasedHold() : null;
 
     OBJECT_LOCKS.put(
         versionedKey,
         ObjectLockInfo.builder()
-            .mode(mode)
-            .retainUntilDate(retainUntilDate)
+            .mode(existing != null ? existing.getMode() : null)
+            .retainUntilDate(existing != null ? existing.getRetainUntilDate() : null)
             .legalHold(legalHold)
-            .useEventBasedHold(existingEventBasedHold)
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
             .build());
   }
 
