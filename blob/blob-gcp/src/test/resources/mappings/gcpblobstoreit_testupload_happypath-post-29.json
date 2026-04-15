@@ -1,9 +1,26 @@
 {
-  "id" : "99b68653-fd9b-4889-aa99-43787084d60d",
+  "id" : "a4dad150-39e0-4a93-8f1a-d0b65e57e54d",
   "name" : "GcpBlobStoreIT_testUpload_happyPath-POST-29",
   "request" : {
-    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/happyPath_Path&uploadType=resumable",
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/upload/happyPath_Path"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/upload/happyPath_Path\"}",
       "ignoreArrayOrder" : true,
@@ -16,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG28msIcrzCjGAp1EkvgrDlWHoMX8pDSJsBi9Ykr6ScTWvN1TJBkLOyRzdG2qiTkC0_QESJ63eGeHtHpbOizxeqkUxNTFw3UltCwBIE6s9Y",
+      "X-GUploader-UploadID" : "AMNfjG1V3gSxsxDMMWqwUjjxQyKgAu6c6JAXAsZ4JzHQPyxpOTJapJwEO0m_LYL13J0T0GU020UyR2KZATaRjC10vUzdR9GExGap0Q_nH7dwdw",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Fri, 10 Apr 2026 20:39:50 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/happyPath_Path&uploadType=resumable&upload_id=AMNfjG28msIcrzCjGAp1EkvgrDlWHoMX8pDSJsBi9Ykr6ScTWvN1TJBkLOyRzdG2qiTkC0_QESJ63eGeHtHpbOizxeqkUxNTFw3UltCwBIE6s9Y",
+      "Date" : "Wed, 15 Apr 2026 00:23:15 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/happyPath_Path&uploadType=resumable&upload_id=AMNfjG1V3gSxsxDMMWqwUjjxQyKgAu6c6JAXAsZ4JzHQPyxpOTJapJwEO0m_LYL13J0T0GU020UyR2KZATaRjC10vUzdR9GExGap0Q_nH7dwdw",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "99b68653-fd9b-4889-aa99-43787084d60d",
+  "uuid" : "a4dad150-39e0-4a93-8f1a-d0b65e57e54d",
   "persistent" : true,
-  "insertionIndex" : 1142
+  "insertionIndex" : 1199
 }

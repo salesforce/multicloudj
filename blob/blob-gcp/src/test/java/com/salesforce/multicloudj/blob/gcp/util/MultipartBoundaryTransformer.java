@@ -32,11 +32,6 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
 
   @Override
   public StubMapping transform(StubMapping stubMapping, FileSource files, Parameters parameters) {
-    String url = stubMapping.getRequest().getUrl();
-    if (url == null || !url.contains("uploadType=multipart")) {
-      return stubMapping;
-    }
-
     List<ContentPattern<?>> bodyPatterns = stubMapping.getRequest().getBodyPatterns();
     if (bodyPatterns == null || bodyPatterns.isEmpty()) {
       return stubMapping;
@@ -54,13 +49,16 @@ public class MultipartBoundaryTransformer extends StubMappingTransformer {
         Matcher matcher = BOUNDARY_PATTERN.matcher(textContent);
         if (matcher.find()) {
           String boundaryLiteral = "--" + matcher.group(1);
-          String escapedEntireBody = Pattern.quote(textContent);
-          String boundaryToReplace = Pattern.quote(boundaryLiteral);
-          String regex =
-              "(?s)"
-                  + escapedEntireBody.replace(
-                      boundaryToReplace, "\\E" + BOUNDARY_REGEX + "\\Q");
-          newPatterns.add(new RegexPattern(regex));
+          // Replace boundary with wildcard, then quote the remaining literal parts
+          String[] parts = textContent.split(Pattern.quote(boundaryLiteral), -1);
+          StringBuilder regex = new StringBuilder("(?s)");
+          for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+              regex.append(BOUNDARY_REGEX);
+            }
+            regex.append(Pattern.quote(parts[i]));
+          }
+          newPatterns.add(new RegexPattern(regex.toString()));
           modified = true;
           continue;
         }
