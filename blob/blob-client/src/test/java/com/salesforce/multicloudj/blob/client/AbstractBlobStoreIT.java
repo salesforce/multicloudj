@@ -420,7 +420,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpload_emptyContent() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_emptyContent", "conformance-tests/upload/emptyContent", new byte[] {}, false);
   }
