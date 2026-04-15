@@ -1,9 +1,21 @@
 {
-  "id" : "f0ea68af-2e05-4b1d-8a12-b6952ffb6535",
+  "id" : "87b095db-fb44-4f04-bdf5-9d5c9f962e09",
   "name" : "GcpBlobStoreIT_testUpload_happyPath-GET-8",
   "request" : {
-    "url" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FhappyPath_versioned_File?alt=media",
-    "method" : "GET"
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FhappyPath_versioned_File",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
@@ -11,25 +23,25 @@
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1775853596092835",
+      "X-Goog-Generation" : "1776212601594520",
       "Pragma" : "no-cache",
-      "Last-Modified" : "Fri, 10 Apr 2026 20:39:56 GMT",
+      "Last-Modified" : "Wed, 15 Apr 2026 00:23:21 GMT",
       "X-Goog-Metageneration" : "1",
-      "Date" : "Fri, 10 Apr 2026 20:39:56 GMT",
+      "Date" : "Wed, 15 Apr 2026 00:23:22 GMT",
       "X-Goog-Stored-Content-Encoding" : "identity",
       "X-Goog-Hash" : "crc32c=E30mnQ==,md5=cBu9S94e4E47BZb2OZTrrg==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CKPTkpaS5JMDEAE=",
+      "ETag" : "CJjFp8nL7pMDEAE=",
       "Content-Disposition" : "attachment",
       "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AMNfjG2g9o49u8R72UjADceBJdF8eOEFRyTOnEaaPUscH-PMb-tNkdWNFUidH3om1XSUrx-7lrNu5w",
+      "X-GUploader-UploadID" : "AMNfjG1N4_ENaxeV3jXmdoIu8KnK0HxAU7AR0wR9l3mBHqKySlCVNGKgV26xrO-09xGIDLSRqudNdLo",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "X-Goog-Stored-Content-Length" : "17",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "f0ea68af-2e05-4b1d-8a12-b6952ffb6535",
+  "uuid" : "87b095db-fb44-4f04-bdf5-9d5c9f962e09",
   "persistent" : true,
-  "insertionIndex" : 1121
+  "insertionIndex" : 1178
 }
