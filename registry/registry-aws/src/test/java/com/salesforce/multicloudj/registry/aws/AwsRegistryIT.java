@@ -35,7 +35,7 @@ public class AwsRegistryIT extends AbstractRegistryIT {
   }
 
   public static class HarnessImpl implements Harness {
-    int port = ThreadLocalRandom.current().nextInt(2000, 20000);  
+    int port = ThreadLocalRandom.current().nextInt(2000, 20000);
     EcrClient ecrClient;
 
     @Override
