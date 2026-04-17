@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.0...multicloudj-v0.3.1) (2026-04-16)
+
+
+### Blob Store
+
+* add contentType support for MPU and optimize wiremock recordings     ([#378](https://github.com/salesforce/multicloudj/issues/378)) ([3f1945c](https://github.com/salesforce/multicloudj/commit/3f1945c13e725087ae757ef0b21f9c187cc4e8a2))
+* checksum support with sha256 ([#368](https://github.com/salesforce/multicloudj/issues/368)) ([1690f20](https://github.com/salesforce/multicloudj/commit/1690f20ba6869bf14d2fa063bd1490d3154c3cc6))
+* fix GCP sync list api to return only blobs ([#354](https://github.com/salesforce/multicloudj/issues/354)) ([0cd097f](https://github.com/salesforce/multicloudj/commit/0cd097f0718e6943fdc93b9c865b085c56ec8528))
+* LoggingTransferListener for AWS ([#367](https://github.com/salesforce/multicloudj/issues/367)) ([9d6bdaa](https://github.com/salesforce/multicloudj/commit/9d6bdaa9e24ec9922bc8d3452daf1a59e58b5bfa))
+* make ListBlobsPageResponse constructor backward compatible ([#376](https://github.com/salesforce/multicloudj/issues/376)) ([b11491d](https://github.com/salesforce/multicloudj/commit/b11491dc5e326f3adbc0688ee8f5368f1ebcddf6))
+* Onboard CommonPrefix support in listPage API ([#369](https://github.com/salesforce/multicloudj/issues/369)) ([f81e955](https://github.com/salesforce/multicloudj/commit/f81e955cacbc4f25606c1c38cfd297e3ca9baf21))
+* onboarding the aws basic credentials in aws creds overider ([#384](https://github.com/salesforce/multicloudj/issues/384)) ([015ccdf](https://github.com/salesforce/multicloudj/commit/015ccdfd4576db1a14d89e0f60b45ac81767e84d))
+* support isObjectLockSupported in in memory blobstore ([#380](https://github.com/salesforce/multicloudj/issues/380)) ([f2738a2](https://github.com/salesforce/multicloudj/commit/f2738a2249c5eb7bbcebe720a3dfc1fd260b597e))
+
 ## [0.3.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.28...multicloudj-v0.3.0) (2026-03-27)
 
 
