@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyString;
@@ -47,6 +48,14 @@ import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
 import com.google.cloud.storage.multipartupload.model.Part;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
+import com.google.cloud.storage.transfermanager.DownloadJob;
+import com.google.cloud.storage.transfermanager.DownloadResult;
+import com.google.cloud.storage.transfermanager.ParallelDownloadConfig;
+import com.google.cloud.storage.transfermanager.ParallelUploadConfig;
+import com.google.cloud.storage.transfermanager.TransferManager;
+import com.google.cloud.storage.transfermanager.TransferStatus;
+import com.google.cloud.storage.transfermanager.UploadJob;
+import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -134,6 +143,9 @@ class GcpBlobStoreTest {
   private MultipartUploadClient mpuClient;
 
   @Mock
+  private TransferManager mockTransferManager;
+
+  @Mock
   private GcpTransformer mockTransformer;
 
   @Mock
@@ -188,7 +200,7 @@ class GcpBlobStoreTest {
     Bucket mockBucket = mock(Bucket.class);
     lenient().when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
 
-    gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient);
+    gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
   }
 
   @Test
@@ -1674,7 +1686,7 @@ class GcpBlobStoreTest {
   // Test class to access protected methods
   private static class TestGcpBlobStore extends GcpBlobStore {
     public TestGcpBlobStore(Builder builder, Storage storage, MultipartUploadClient client) {
-      super(builder, storage, client);
+      super(builder, storage, client, null);
     }
   }
 
@@ -2165,6 +2177,31 @@ class GcpBlobStoreTest {
     assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
   }
 
+  private static UploadResult makeUploadResult(String key, TransferStatus status, Exception ex) {
+    BlobInfo blobInfo = BlobInfo.newBuilder(TEST_BUCKET, key).build();
+    UploadResult.Builder b = UploadResult.newBuilder(blobInfo, status);
+    if (status == TransferStatus.SUCCESS) {
+      b.setUploadedBlob(blobInfo);
+    }
+    if (ex != null) {
+      b.setException(ex);
+    }
+    return b.build();
+  }
+
+  private static DownloadResult makeDownloadResult(
+      String key, Path destination, TransferStatus status, Exception ex) {
+    DownloadResult.Builder b =
+        DownloadResult.newBuilder(BlobInfo.newBuilder(TEST_BUCKET, key).build(), status);
+    if (destination != null) {
+      b.setOutputDestination(destination);
+    }
+    if (ex != null) {
+      b.setException(ex);
+    }
+    return b.build();
+  }
+
   @Test
   void testUploadDirectory_Success() throws Exception {
     // Given
@@ -2175,19 +2212,20 @@ class GcpBlobStoreTest {
             .includeSubFolders(true)
             .build();
 
-    // Create test files in temp directory
     Path file1 = tempDir.resolve("file1.txt");
     Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
-    Files.createDirectories(file2.getParent());
-    Files.write(file1, "content1".getBytes());
-    Files.write(file2, "content2".getBytes());
 
     List<Path> filePaths = List.of(file1, file2);
     when(mockTransformer.toFilePaths(request)).thenReturn(filePaths);
-    when(mockTransformer.toBlobKey(eq(tempDir), eq(file1), eq("uploads/")))
-        .thenReturn("uploads/file1.txt");
-    when(mockTransformer.toBlobKey(eq(tempDir), eq(file2), eq("uploads/")))
-        .thenReturn("uploads/subdir/file2.txt");
+
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults())
+        .thenReturn(
+            List.of(
+                makeUploadResult("uploads/file1.txt", TransferStatus.SUCCESS, null),
+                makeUploadResult("uploads/subdir/file2.txt", TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
 
     // When
     DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
@@ -2195,8 +2233,10 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(response);
     assertTrue(response.getFailedTransfers().isEmpty());
-    verify(mockStorage).createFrom(any(BlobInfo.class), eq(file1));
-    verify(mockStorage).createFrom(any(BlobInfo.class), eq(file2));
+    ArgumentCaptor<ParallelUploadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(eq(filePaths), configCaptor.capture());
+    assertEquals(TEST_BUCKET, configCaptor.getValue().getBucketName());
   }
 
   @Test
@@ -2211,40 +2251,106 @@ class GcpBlobStoreTest {
             .tags(tags)
             .build();
 
-    // Create test files in temp directory
     Path file1 = tempDir.resolve("file1.txt");
     Path file2 = tempDir.resolve("subdir").resolve("file2.txt");
-    Files.createDirectories(file2.getParent());
-    Files.write(file1, "content1".getBytes());
-    Files.write(file2, "content2".getBytes());
 
-    List<Path> filePaths = List.of(file1, file2);
-    when(mockTransformer.toFilePaths(request)).thenReturn(filePaths);
+    when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1, file2));
     when(mockTransformer.toBlobKey(eq(tempDir), eq(file1), eq("uploads/")))
         .thenReturn("uploads/file1.txt");
     when(mockTransformer.toBlobKey(eq(tempDir), eq(file2), eq("uploads/")))
         .thenReturn("uploads/subdir/file2.txt");
 
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults())
+        .thenReturn(
+            List.of(
+                makeUploadResult("uploads/file1.txt", TransferStatus.SUCCESS, null),
+                makeUploadResult("uploads/subdir/file2.txt", TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
+
     // When
-    DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
+    gcpBlobStore.uploadDirectory(request);
 
-    // Then
-    assertNotNull(response);
-    assertTrue(response.getFailedTransfers().isEmpty());
+    // Then - capture config and exercise the UploadBlobInfoFactory to verify tags are applied
+    ArgumentCaptor<ParallelUploadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(anyList(), configCaptor.capture());
+    ParallelUploadConfig config = configCaptor.getValue();
 
-    // Verify that tags are applied to both files
-    ArgumentCaptor<BlobInfo> blobInfoCaptor = ArgumentCaptor.forClass(BlobInfo.class);
-    verify(mockStorage, times(2)).createFrom(blobInfoCaptor.capture(), any(Path.class));
+    BlobInfo produced1 =
+        config.getUploadBlobInfoFactory().apply(TEST_BUCKET, file1.toString());
+    BlobInfo produced2 =
+        config.getUploadBlobInfoFactory().apply(TEST_BUCKET, file2.toString());
 
-    List<BlobInfo> capturedBlobInfos = blobInfoCaptor.getAllValues();
-    assertEquals(2, capturedBlobInfos.size());
-
-    // Verify tags are present in metadata with TAG_PREFIX
-    for (BlobInfo blobInfo : capturedBlobInfos) {
+    assertEquals("uploads/file1.txt", produced1.getName());
+    assertEquals("uploads/subdir/file2.txt", produced2.getName());
+    for (BlobInfo blobInfo : List.of(produced1, produced2)) {
       assertNotNull(blobInfo.getMetadata());
       assertEquals("value1", blobInfo.getMetadata().get("gcp-tag-tag1"));
       assertEquals("value2", blobInfo.getMetadata().get("gcp-tag-tag2"));
     }
+  }
+
+  /**
+   * Regression test for the relative-source-directory case. The real GCS TransferManager
+   * always calls our factory with {@code sourceFile.toAbsolutePath().toString()} as the
+   * filename argument (see
+   * {@code com.google.cloud.storage.transfermanager.TransferManagerImpl#uploadFiles}).
+   * Our factory must therefore be able to relativize against the source dir even when the
+   * caller supplied a relative {@code localSourceDirectory}. This exercises the real
+   * {@link GcpTransformer} (not a mock) so that {@code Path#relativize} is actually invoked.
+   */
+  @Test
+  void testUploadDirectory_RelativeSourceDirectoryResolvedToAbsolute() throws Exception {
+    // Given - a relative localSourceDirectory
+    String relativeSourceDir = "./relative-test-dir-" + System.nanoTime();
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(relativeSourceDir)
+            .prefix("uploads/")
+            .build();
+
+    // Use the real transformer so Path#relativize is actually exercised. The
+    // toFilePaths() list just needs to be non-empty so that the implementation
+    // invokes the TransferManager; the actual Path values aren't walked because
+    // the TransferManager is mocked out.
+    Path dummyPath = Paths.get(relativeSourceDir, "subdir", "file.txt");
+    GcpTransformer realTransformer = Mockito.spy(new GcpTransformer(TEST_BUCKET));
+    doReturn(List.of(dummyPath))
+        .when(realTransformer)
+        .toFilePaths(any(DirectoryUploadRequest.class));
+    when(mockTransformerSupplier.get(TEST_BUCKET)).thenReturn(realTransformer);
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withStorage(mockStorage)
+                .withTransformerSupplier(mockTransformerSupplier)
+                .withBucket(TEST_BUCKET);
+    GcpBlobStore store = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
+
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults()).thenReturn(List.of());
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
+
+    // When
+    store.uploadDirectory(request);
+
+    // Then - capture the ParallelUploadConfig and simulate what the real TransferManager
+    // does: pass the file's toAbsolutePath().toString() to the factory.
+    ArgumentCaptor<ParallelUploadConfig> captor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(anyList(), captor.capture());
+
+    Path absoluteFile =
+        Paths.get(relativeSourceDir).toAbsolutePath().resolve("subdir").resolve("file.txt");
+
+    // Without the toAbsolutePath() fix for sourceDir, this call would throw
+    // IllegalArgumentException from Path#relativize due to relative/absolute mismatch.
+    BlobInfo produced =
+        captor.getValue().getUploadBlobInfoFactory().apply(TEST_BUCKET, absoluteFile.toString());
+    assertEquals("uploads/subdir/file.txt", produced.getName());
   }
 
   @Test
@@ -2258,17 +2364,16 @@ class GcpBlobStoreTest {
             .build();
 
     Path file1 = tempDir.resolve("file1.txt");
-    Files.write(file1, "content1".getBytes());
 
-    List<Path> filePaths = List.of(file1);
-    when(mockTransformer.toFilePaths(request)).thenReturn(filePaths);
-    when(mockTransformer.toBlobKey(eq(tempDir), eq(file1), eq("uploads/")))
-        .thenReturn("uploads/file1.txt");
+    when(mockTransformer.toFilePaths(request)).thenReturn(List.of(file1));
 
-    // Mock failure for the file upload
-    doThrow(new RuntimeException("Upload failed"))
-        .when(mockStorage)
-        .createFrom(any(BlobInfo.class), eq(file1));
+    UploadJob mockJob = mock(UploadJob.class);
+    RuntimeException cause = new RuntimeException("Upload failed");
+    when(mockJob.getUploadResults())
+        .thenReturn(
+            List.of(makeUploadResult("uploads/file1.txt", TransferStatus.FAILED_TO_FINISH, cause)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
 
     // When
     DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
@@ -2277,8 +2382,7 @@ class GcpBlobStoreTest {
     assertNotNull(response);
     assertEquals(1, response.getFailedTransfers().size());
     FailedBlobUpload failedUpload = response.getFailedTransfers().get(0);
-    assertEquals(file1, failedUpload.getSource());
-    assertTrue(failedUpload.getException() instanceof RuntimeException);
+    assertEquals(cause, failedUpload.getException());
     assertEquals("Upload failed", failedUpload.getException().getMessage());
   }
 
@@ -2300,7 +2404,8 @@ class GcpBlobStoreTest {
     // Then
     assertNotNull(response);
     assertTrue(response.getFailedTransfers().isEmpty());
-    verify(mockStorage, never()).createFrom(any(BlobInfo.class), any(Path.class));
+    verify(mockTransferManager, never())
+        .uploadFiles(anyList(), any(ParallelUploadConfig.class));
   }
 
   @Test
@@ -2312,7 +2417,6 @@ class GcpBlobStoreTest {
             .localDestinationDirectory(tempDir.toString())
             .build();
 
-    // Mock blobs in storage
     Blob blob1 = mock(Blob.class);
     Blob blob2 = mock(Blob.class);
     when(blob1.getName()).thenReturn("uploads/file1.txt");
@@ -2323,14 +2427,36 @@ class GcpBlobStoreTest {
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "uploads/file1.txt",
+                    tempDir.resolve("file1.txt"),
+                    TransferStatus.SUCCESS,
+                    null),
+                makeDownloadResult(
+                    "uploads/subdir/file2.txt",
+                    tempDir.resolve("subdir/file2.txt"),
+                    TransferStatus.SUCCESS,
+                    null)));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
+
     // When
     DirectoryDownloadResponse response = gcpBlobStore.downloadDirectory(request);
 
     // Then
     assertNotNull(response);
     assertTrue(response.getFailedTransfers().isEmpty());
-    verify(blob1).downloadTo(any(Path.class));
-    verify(blob2).downloadTo(any(Path.class));
+    ArgumentCaptor<ParallelDownloadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelDownloadConfig.class);
+    verify(mockTransferManager).downloadBlobs(anyList(), configCaptor.capture());
+    ParallelDownloadConfig config = configCaptor.getValue();
+    assertEquals(TEST_BUCKET, config.getBucketName());
+    assertEquals("uploads/", config.getStripPrefix());
+    assertEquals(tempDir, config.getDownloadDirectory());
   }
 
   @Test
@@ -2347,13 +2473,27 @@ class GcpBlobStoreTest {
     when(blob1.getName()).thenReturn("uploads/file1.txt");
     when(blob2.getName()).thenReturn("uploads/file2.txt");
 
-    // Mock failure for second blob
-    doThrow(new RuntimeException("Download failed")).when(blob2).downloadTo(any(Path.class));
-
     Page<Blob> mockPage = mock(Page.class);
     when(mockPage.iterateAll()).thenReturn(List.of(blob1, blob2));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "uploads/file1.txt",
+                    tempDir.resolve("file1.txt"),
+                    TransferStatus.SUCCESS,
+                    null),
+                makeDownloadResult(
+                    "uploads/file2.txt",
+                    tempDir.resolve("file2.txt"),
+                    TransferStatus.FAILED_TO_FINISH,
+                    new RuntimeException("Download failed"))));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
 
     // When
     DirectoryDownloadResponse response = gcpBlobStore.downloadDirectory(request);
@@ -2367,7 +2507,7 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDownloadDirectory_WithDirectoryMarkers() throws Exception {
+  void testDownloadDirectory_SkipsDirectoryMarkers() throws Exception {
     // Given
     DirectoryDownloadRequest request =
         DirectoryDownloadRequest.builder()
@@ -2385,14 +2525,30 @@ class GcpBlobStoreTest {
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "uploads/file1.txt",
+                    tempDir.resolve("file1.txt"),
+                    TransferStatus.SUCCESS,
+                    null)));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
+
     // When
     DirectoryDownloadResponse response = gcpBlobStore.downloadDirectory(request);
 
-    // Then
+    // Then - only the non-marker blob should be forwarded to the TransferManager
     assertNotNull(response);
     assertTrue(response.getFailedTransfers().isEmpty());
-    verify(fileBlob).downloadTo(any(Path.class));
-    verify(dirMarker).downloadTo(any(Path.class));
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<BlobInfo>> blobsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(mockTransferManager)
+        .downloadBlobs(blobsCaptor.capture(), any(ParallelDownloadConfig.class));
+    assertEquals(1, blobsCaptor.getValue().size());
+    assertEquals("uploads/file1.txt", blobsCaptor.getValue().get(0).getName());
   }
 
   @Test
@@ -2535,7 +2691,6 @@ class GcpBlobStoreTest {
             .localDestinationDirectory(localDir)
             .build();
 
-    // Mock blobs
     Blob blob1 = mock(Blob.class);
     when(blob1.getName()).thenReturn("test-prefix/file1.txt");
 
@@ -2547,6 +2702,23 @@ class GcpBlobStoreTest {
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "test-prefix/file1.txt",
+                    tempDir.resolve("file1.txt"),
+                    TransferStatus.SUCCESS,
+                    null),
+                makeDownloadResult(
+                    "test-prefix/subdir/file2.txt",
+                    tempDir.resolve("subdir/file2.txt"),
+                    TransferStatus.SUCCESS,
+                    null)));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
+
     // When
     DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
 
@@ -2554,8 +2726,7 @@ class GcpBlobStoreTest {
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
-    verify(blob1).downloadTo(any(Path.class));
-    verify(blob2).downloadTo(any(Path.class));
+    verify(mockTransferManager).downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
   }
 
   @Test
@@ -2569,7 +2740,6 @@ class GcpBlobStoreTest {
             .localDestinationDirectory(localDir)
             .build();
 
-    // Mock blobs including folder marker
     Blob folderMarker = mock(Blob.class);
     when(folderMarker.getName()).thenReturn("test-prefix/subdir/");
 
@@ -2581,102 +2751,30 @@ class GcpBlobStoreTest {
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
-    // When
-    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
-
-    // Then
-    assertNotNull(response);
-    assertEquals(0, response.getFailedTransfers().size());
-    verify(folderMarker).downloadTo(any(Path.class));
-    verify(realFile).downloadTo(any(Path.class));
-  }
-
-  @Disabled("Failing because of temp directory permission")
-  @Test
-  void testDoDownloadDirectory_PathTraversalProtection() {
-    // Given
-    String prefix = "test-prefix/";
-    String localDir = tempDir.toString();
-    DirectoryDownloadRequest request =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload(prefix)
-            .localDestinationDirectory(localDir)
-            .build();
-
-    // Mock malicious blob with path traversal
-    Blob maliciousBlob = mock(Blob.class);
-    when(maliciousBlob.getName()).thenReturn("test-prefix/../../../etc/passwd");
-
-    Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.iterateAll()).thenReturn(List.of(maliciousBlob));
-    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-        .thenReturn(mockPage);
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "test-prefix/file.txt",
+                    tempDir.resolve("file.txt"),
+                    TransferStatus.SUCCESS,
+                    null)));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
 
     // When
     DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
 
-    // Then
+    // Then - only the non-marker blob is forwarded to the TransferManager
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
-    verify(maliciousBlob).downloadTo(any(Path.class));
-  }
-
-  @Test
-  void testDoDownloadDirectory_EmptyRelativePath() throws Exception {
-    // Given
-    String prefix = "test-prefix/";
-    String localDir = tempDir.toString();
-    DirectoryDownloadRequest request =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload(prefix)
-            .localDestinationDirectory(localDir)
-            .build();
-
-    // Mock blob with empty relative path (name equals prefix)
-    Blob emptyBlob = mock(Blob.class);
-    when(emptyBlob.getName()).thenReturn("test-prefix/");
-
-    Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.iterateAll()).thenReturn(List.of(emptyBlob));
-    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-        .thenReturn(mockPage);
-
-    // When
-    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
-
-    // Then
-    assertNotNull(response);
-    assertEquals(0, response.getFailedTransfers().size());
-    verify(emptyBlob, never()).downloadTo(any(Path.class)); // Should be skipped
-  }
-
-  @Test
-  void testDoDownloadDirectory_NonMatchingPrefix() throws Exception {
-    // Given
-    String prefix = "test-prefix/";
-    String localDir = tempDir.toString();
-    DirectoryDownloadRequest request =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload(prefix)
-            .localDestinationDirectory(localDir)
-            .build();
-
-    // Mock blob that doesn't start with prefix
-    Blob nonMatchingBlob = mock(Blob.class);
-    when(nonMatchingBlob.getName()).thenReturn("other-prefix/file.txt");
-
-    Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.iterateAll()).thenReturn(List.of(nonMatchingBlob));
-    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-        .thenReturn(mockPage);
-
-    // When
-    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
-
-    // Then
-    assertNotNull(response);
-    assertEquals(0, response.getFailedTransfers().size());
-    verify(nonMatchingBlob).downloadTo(any(Path.class));
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<BlobInfo>> blobsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(mockTransferManager)
+        .downloadBlobs(blobsCaptor.capture(), any(ParallelDownloadConfig.class));
+    assertEquals(1, blobsCaptor.getValue().size());
+    assertEquals("test-prefix/file.txt", blobsCaptor.getValue().get(0).getName());
   }
 
   @Test
@@ -2690,15 +2788,25 @@ class GcpBlobStoreTest {
             .localDestinationDirectory(localDir)
             .build();
 
-    // Mock blob that will fail to download
     Blob failingBlob = mock(Blob.class);
     when(failingBlob.getName()).thenReturn("test-prefix/failing-file.txt");
-    doThrow(new RuntimeException("Download failed")).when(failingBlob).downloadTo(any(Path.class));
 
     Page<Blob> mockPage = mock(Page.class);
     when(mockPage.iterateAll()).thenReturn(List.of(failingBlob));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
+
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "test-prefix/failing-file.txt",
+                    tempDir.resolve("failing-file.txt"),
+                    TransferStatus.FAILED_TO_FINISH,
+                    new RuntimeException("Download failed"))));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
 
     // When
     DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
@@ -2717,7 +2825,6 @@ class GcpBlobStoreTest {
     DirectoryDownloadRequest request =
         DirectoryDownloadRequest.builder().localDestinationDirectory(localDir).build(); // No prefix
 
-    // Mock blob
     Blob blob = mock(Blob.class);
     when(blob.getName()).thenReturn("file.txt");
 
@@ -2726,13 +2833,28 @@ class GcpBlobStoreTest {
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
         .thenReturn(mockPage);
 
+    DownloadJob mockJob = mock(DownloadJob.class);
+    when(mockJob.getDownloadResults())
+        .thenReturn(
+            List.of(
+                makeDownloadResult(
+                    "file.txt", tempDir.resolve("file.txt"), TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.downloadBlobs(anyList(), any(ParallelDownloadConfig.class)))
+        .thenReturn(mockJob);
+
     // When
     DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
 
     // Then
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
-    verify(blob).downloadTo(any(Path.class));
+    ArgumentCaptor<ParallelDownloadConfig> captor =
+        ArgumentCaptor.forClass(ParallelDownloadConfig.class);
+    verify(mockTransferManager).downloadBlobs(anyList(), captor.capture());
+    // When no prefix is supplied, stripPrefix must not strip anything. The GCS TransferManager
+    // normalizes an unset prefix to an empty string.
+    String strip = captor.getValue().getStripPrefix();
+    assertTrue(strip == null || strip.isEmpty());
   }
 
   @Test
@@ -2755,39 +2877,6 @@ class GcpBlobStoreTest {
         () -> {
           gcpBlobStore.doDownloadDirectory(request);
         });
-  }
-
-  @Test
-  void testDoDownloadDirectory_CreatesParentDirectories() throws Exception {
-    // Given
-    String prefix = "test-prefix/";
-    String localDir = tempDir.toString();
-    DirectoryDownloadRequest request =
-        DirectoryDownloadRequest.builder()
-            .prefixToDownload(prefix)
-            .localDestinationDirectory(localDir)
-            .build();
-
-    // Mock blob in subdirectory
-    Blob blob = mock(Blob.class);
-    when(blob.getName()).thenReturn("test-prefix/subdir/nested/file.txt");
-
-    Page<Blob> mockPage = mock(Page.class);
-    when(mockPage.iterateAll()).thenReturn(List.of(blob));
-    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
-        .thenReturn(mockPage);
-
-    // When
-    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
-
-    // Then
-    assertNotNull(response);
-    assertEquals(0, response.getFailedTransfers().size());
-    verify(blob).downloadTo(any(Path.class));
-
-    // Verify the nested directory structure was created
-    Path expectedPath = tempDir.resolve("subdir/nested/file.txt");
-    assertTrue(Files.exists(expectedPath.getParent()));
   }
 
   @Test
