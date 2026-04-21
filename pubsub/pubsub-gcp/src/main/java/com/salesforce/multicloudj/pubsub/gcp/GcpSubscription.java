@@ -27,20 +27,29 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
+
+  /**
+   * Maximum ack deadline supported by GCP Pub/Sub's ModifyAckDeadline: 600 seconds (10 minutes).
+   */
+  private static final int PUBSUB_MAX_ACK_DEADLINE_SECONDS = 600;
 
   private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
   private Batcher.Options receiveBatcherOptions;
@@ -134,30 +143,44 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
   }
 
   @Override
-  protected void doSendNacks(List<AckID> ackIDs) {
+  protected void doSendNacks(List<AckInfo> nacks) {
     // NackLazy mode: bypass ModifyAckDeadline call
     // Messages will be redelivered after existing ack deadline expires
     if (nackLazy) {
       return;
     }
-    // Normal mode: immediate redelivery by setting deadline to 0
-    List<String> ackIds = new ArrayList<>();
-    for (AckID ackID : ackIDs) {
-      ackIds.add(ackID.toString());
-    }
-
-    if (ackIds.isEmpty()) {
+    if (nacks.isEmpty()) {
       return;
     }
 
-    ModifyAckDeadlineRequest request =
-        ModifyAckDeadlineRequest.newBuilder()
-            .setSubscription(subscriptionName)
-            .addAllAckIds(ackIds)
-            .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
-            .build();
+    // Pub/Sub's ModifyAckDeadline accepts one deadline per request, so we group ack ids by their
+    // effective (clamped) visibility timeout and issue one call per distinct timeout value.
+    // Clamp to Pub/Sub's supported range: 0 (immediate redelivery) to 600 seconds (10 minutes).
+    // See:
+    // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/modifyAckDeadline
+    Duration defaultTimeout = getNackVisibilityTimeout();
+    Map<Integer, List<String>> ackIdsByDeadline = new LinkedHashMap<>();
+    for (AckInfo nack : nacks) {
+      Duration effective =
+          nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : defaultTimeout;
+      int ackDeadlineSeconds =
+          (int)
+              Math.max(0, Math.min(effective.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS));
+      ackIdsByDeadline
+          .computeIfAbsent(ackDeadlineSeconds, k -> new ArrayList<>())
+          .add(nack.getAckID().toString());
+    }
 
-    getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
+    SubscriptionAdminClient client = getOrCreateSubscriptionAdminClient();
+    for (Map.Entry<Integer, List<String>> entry : ackIdsByDeadline.entrySet()) {
+      ModifyAckDeadlineRequest request =
+          ModifyAckDeadlineRequest.newBuilder()
+              .setSubscription(subscriptionName)
+              .addAllAckIds(entry.getValue())
+              .setAckDeadlineSeconds(entry.getKey())
+              .build();
+      client.modifyAckDeadlineCallable().call(request);
+    }
   }
 
   @Override
@@ -342,6 +365,13 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     public GcpSubscription.Builder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       super.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    @Override
+    public GcpSubscription.Builder withNackVisibilityTimeout(
+        java.time.Duration nackVisibilityTimeout) {
+      super.withNackVisibilityTimeout(nackVisibilityTimeout);
       return this;
     }
 
