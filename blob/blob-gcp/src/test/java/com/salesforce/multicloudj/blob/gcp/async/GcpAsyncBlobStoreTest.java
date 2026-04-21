@@ -846,6 +846,18 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
+  void testBuilder_WithUseTransferListener_DummyApiAccepted() {
+    GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+    builder.withBucket(TEST_BUCKET);
+    builder.withRegion(TEST_REGION);
+    builder.withStorage(mockStorage);
+    builder.withUseTransferListener(true);
+    GcpAsyncBlobStore store = builder.build();
+    assertNotNull(store);
+    assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
   void testBuilder_CopyFromAsyncBuilder() {
     // Given - Create an AsyncBlobStoreProvider.Builder with various configurations
     GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();

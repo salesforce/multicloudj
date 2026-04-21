@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -78,6 +79,8 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 /** AWS implementation of AsyncBlobStore */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
@@ -370,19 +373,37 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    DownloadDirectoryRequest request =
+        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, totalBytesTransferred);
     return transferManager
-        .downloadDirectory(transformer.toDownloadDirectoryRequest(directoryDownloadRequest))
+        .downloadDirectory(request)
         .completionFuture()
-        .thenApply(transformer::toDirectoryDownloadResponse);
+        .thenApply(
+            completed ->
+                transformer.toDirectoryDownloadResponse(
+                    completed,
+                    directoryDownloadRequest.isTransferStatusLoggingEnabled()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
+    AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    UploadDirectoryRequest uploadDirectoryRequest =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, totalBytesTransferred);
     return transferManager
-        .uploadDirectory(transformer.toUploadDirectoryRequest(directoryUploadRequest))
+        .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
-        .thenApply(transformer::toDirectoryUploadResponse);
+        .thenApply(
+            completed ->
+                transformer.toDirectoryUploadResponse(
+                    completed,
+                    directoryUploadRequest.isTransferStatusLoggingEnabled()
+                        ? totalBytesTransferred.get()
+                        : null));
   }
 
   @Override

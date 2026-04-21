@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -36,12 +37,14 @@ import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -480,6 +483,11 @@ public class AwsTransformer {
       }
     }
 
+    if (StringUtils.isNotEmpty(mpu.getContentType())) {
+      builder.overrideConfiguration(
+          b -> b.putHeader("Content-Type", mpu.getContentType()));
+    }
+
     return builder.build();
   }
 
@@ -595,6 +603,19 @@ public class AwsTransformer {
     return downloadDirectoryRequestBuilder.build();
   }
 
+  public DownloadDirectoryRequest toDownloadDirectoryRequest(
+      DirectoryDownloadRequest request, AtomicLong totalBytesTransferred) {
+    DownloadDirectoryRequest.Builder downloadDirectoryRequestBuilder =
+        toDownloadDirectoryRequest(request).toBuilder();
+    if (request.isTransferStatusLoggingEnabled()) {
+      S3LoggingTransferListener transferListener =
+          S3LoggingTransferListener.create(totalBytesTransferred);
+      downloadDirectoryRequestBuilder.downloadFileRequestTransformer(
+          builder -> builder.addTransferListener(transferListener));
+    }
+    return downloadDirectoryRequestBuilder.build();
+  }
+
   // Return false if we want to exclude this blob from the download
   protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
     return s3Object -> {
@@ -608,7 +629,7 @@ public class AwsTransformer {
   }
 
   public DirectoryDownloadResponse toDirectoryDownloadResponse(
-      CompletedDirectoryDownload completedDirectoryDownload) {
+      CompletedDirectoryDownload completedDirectoryDownload, Long totalBytesTransferred) {
     return DirectoryDownloadResponse.builder()
         .failedTransfers(
             completedDirectoryDownload.failedTransfers().stream()
@@ -619,6 +640,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 
@@ -649,8 +671,45 @@ public class AwsTransformer {
     return builder.build();
   }
 
+  public UploadDirectoryRequest toUploadDirectoryRequest(
+      DirectoryUploadRequest request, AtomicLong totalBytesTransferred) {
+    UploadDirectoryRequest.Builder builder =
+        UploadDirectoryRequest.builder()
+            .bucket(getBucket())
+            .source(Paths.get(request.getLocalSourceDirectory()))
+            .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+            .followSymbolicLinks(request.isFollowSymbolicLinks())
+            .s3Prefix(request.getPrefix());
+    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    boolean transferStatusLoggingEnabled = request.isTransferStatusLoggingEnabled();
+    if (hasTags || transferStatusLoggingEnabled) {
+      S3LoggingTransferListener transferListener =
+          transferStatusLoggingEnabled
+              ? S3LoggingTransferListener.create(totalBytesTransferred)
+              : null;
+      List<Tag> tagSet =
+          hasTags
+              ? request.getTags().entrySet().stream()
+                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                  .collect(Collectors.toList())
+              : null;
+      builder.uploadFileRequestTransformer(
+          fileRequestBuilder -> {
+            if (hasTags) {
+              PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+              fileRequestBuilder.putObjectRequest(
+                  existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
+            }
+            if (transferListener != null) {
+              fileRequestBuilder.addTransferListener(transferListener);
+            }
+          });
+    }
+    return builder.build();
+  }
+
   public DirectoryUploadResponse toDirectoryUploadResponse(
-      CompletedDirectoryUpload completedDirectoryUpload) {
+      CompletedDirectoryUpload completedDirectoryUpload, Long totalBytesTransferred) {
     return DirectoryUploadResponse.builder()
         .failedTransfers(
             completedDirectoryUpload.failedTransfers().stream()
@@ -661,6 +720,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 
@@ -714,6 +774,7 @@ public class AwsTransformer {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .contentType(request.getContentType())
         .build();
   }
 
@@ -817,7 +878,7 @@ public class AwsTransformer {
       String key,
       String versionId,
       ObjectLockRetentionMode mode,
-      java.time.Instant retainUntilDate) {
+      Instant retainUntilDate) {
     return PutObjectRetentionRequest.builder()
         .bucket(getBucket())
         .key(key)

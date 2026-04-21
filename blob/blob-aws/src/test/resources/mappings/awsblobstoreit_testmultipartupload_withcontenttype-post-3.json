@@ -1,0 +1,38 @@
+{
+  "id" : "c02e6eef-8f98-48a0-8fdb-e77b660db78f",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withContentType-POST-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withContentType",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "7x2AIyNWenyO9C74g1BoJo6IPDywuexnGud2bmaMsBng.ALIy2U52yODC5Xw3gz9.UhdSTmiMYF3Wgjz8FONx4YTL6ddfN6WHAPNLFm3fYvMwX3qncHpDH3Jm4yZhOqNKrWKn4HGoMlQfvaSrxrB1r5hAmLu9GGvWfrDG2mWmVIfASSP7P_N.Va.0lSdy2SV"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-withContentType</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-withContentType</Key><ETag>\"63a814bc1f352d8149b1dd9f3747e89e-2\"</ETag><ChecksumCRC64NVME>xd07QWveTJk=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "JHBDP10C6N676BKB",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "e1OyOgLLlgRXPoEow25IOJ8KTR7G2zqhdXJeTuRljqe9HTOulzyFY5hrc/BLLH6+YXLODx1NF8nAjhnvIrvc2iBNOBDflvNa",
+      "Date" : "Fri, 10 Apr 2026 16:16:41 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c02e6eef-8f98-48a0-8fdb-e77b660db78f",
+  "persistent" : true,
+  "insertionIndex" : 668
+}

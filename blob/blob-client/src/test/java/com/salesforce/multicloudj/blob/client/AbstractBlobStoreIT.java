@@ -149,6 +149,10 @@ public abstract class AbstractBlobStoreIT {
         throw new UnSupportedOperationException("SHA-256 not available", e);
       }
     }
+
+    default List<String> getWiremockExtensions() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -162,7 +166,10 @@ public abstract class AbstractBlobStoreIT {
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    TestsUtil.startWireMockServer(
+        "src/test/resources",
+        harness.getPort(),
+        harness.getWiremockExtensions().toArray(new String[0]));
   }
 
   /** Shuts down the WireMock server after all tests. */
@@ -413,14 +420,12 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpload_emptyContent() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_emptyContent", "conformance-tests/upload/emptyContent", new byte[] {}, false);
   }
 
   @Test
   public void testUpload_happyPath() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_happyPath",
         "conformance-tests/upload/happyPath",
@@ -2643,6 +2648,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   static class MultipartUploadTestConfig {
+    // The client defaults to binary (application/octet-stream). Override to text/plain here
+    // so that WireMock records body patterns as text instead of binary.
+    private static final String DEFAULT_CONTENT_TYPE = "text/plain";
     final String testName;
     final String key;
     final Map<String, String> metadata;
@@ -2652,6 +2660,7 @@ public abstract class AbstractBlobStoreIT {
     final boolean wantCompletionError;
     final String kmsKeyId;
     final Map<String, String> tags;
+    final String contentType;
 
     public MultipartUploadTestConfig(
         String testName,
@@ -2670,7 +2679,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           null,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2691,7 +2701,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           kmsKeyId,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2704,6 +2715,30 @@ public abstract class AbstractBlobStoreIT {
         boolean wantCompletionError,
         String kmsKeyId,
         Map<String, String> tags) {
+      this(
+          testName,
+          key,
+          metadata,
+          partsToUpload,
+          partsToComplete,
+          abortUpload,
+          wantCompletionError,
+          kmsKeyId,
+          tags,
+          DEFAULT_CONTENT_TYPE);
+    }
+
+    public MultipartUploadTestConfig(
+        String testName,
+        String key,
+        Map<String, String> metadata,
+        List<MultipartUploadTestPart> partsToUpload,
+        List<MultipartUploadPartResult> partsToComplete,
+        boolean abortUpload,
+        boolean wantCompletionError,
+        String kmsKeyId,
+        Map<String, String> tags,
+        String contentType) {
       this.testName = testName;
       this.key = key;
       this.metadata = metadata;
@@ -2713,6 +2748,7 @@ public abstract class AbstractBlobStoreIT {
       this.wantCompletionError = wantCompletionError;
       this.kmsKeyId = kmsKeyId;
       this.tags = tags;
+      this.contentType = contentType;
     }
   }
 
@@ -2735,6 +2771,9 @@ public abstract class AbstractBlobStoreIT {
       }
       if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
         requestBuilder.withTags(testConfig.tags);
+      }
+      if (testConfig.contentType != null) {
+        requestBuilder.withContentType(testConfig.contentType);
       }
       MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
       mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
@@ -4064,6 +4103,50 @@ public abstract class AbstractBlobStoreIT {
           bucketClient.doesObjectExist(expectedKey, null);
       Assertions.assertTrue(exists,
           "Uploaded multipart blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+    }
+  }
+
+  @Test
+  public void testMultipartUpload_withContentType() {
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
+    String contentType = "text/plain";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withContentType(contentType)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu);
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse);
+      Assertions.assertNotNull(completeResponse.getEtag());
+
+      // Verify content type is set correctly on the resulting object
+      BlobMetadata metadata = bucketClient.getMetadata(expectedKey, null);
+      Assertions.assertNotNull(metadata, "Metadata should not be null");
+      Assertions.assertEquals(
+          contentType, metadata.getContentType(),
+          "Content type should match what was set in multipart upload request");
+
     } finally {
       safeDeleteBlobs(bucketClient, expectedKey);
     }

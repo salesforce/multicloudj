@@ -91,6 +91,14 @@ public class AbstractAsyncBlobStoreTest {
   }
 
   @Test
+  void testBuilderWithUseTransferListener() {
+    AsyncBlobStoreProvider.Builder builder = new TestAsyncBlobStore.Builder();
+    builder.withBucket("bucket-1").withRegion("us-west-2");
+    builder.withUseTransferListener(true);
+    assertTrue(builder.getUseTransferListener());
+  }
+
+  @Test
   void testDoUploadFileInputStream() {
     byte[] content = "Unit test blob data".getBytes();
     InputStream inputStream = new ByteArrayInputStream(content);
@@ -614,6 +622,47 @@ public class AbstractAsyncBlobStoreTest {
     assertNotNull(result);
     assertNull(result.join());
     verify(mockBlobStore).doDownloadDirectory(request);
+  }
+
+  @Test
+  void testUploadDirectory_WithTotalBytesToUpload() {
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/files")
+            .prefix("prefix-1")
+            .includeSubFolders(true)
+            .build();
+    DirectoryUploadResponse expectedResponse =
+        DirectoryUploadResponse.builder()
+            .failedTransfers(List.of())
+            .totalBytesTransferred(321L)
+            .build();
+    when(mockBlobStore.doUploadDirectory(request))
+        .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
+    DirectoryUploadResponse actualResponse = mockBlobStore.uploadDirectory(request).join();
+    assertNotNull(actualResponse);
+    assertEquals(321L, actualResponse.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDownloadDirectory_WithTotalBytesRequested() {
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("prefix-1")
+            .localDestinationDirectory("/home/files")
+            .build();
+    DirectoryDownloadResponse expectedResponse =
+        DirectoryDownloadResponse.builder()
+            .failedTransfers(List.of())
+            .totalBytesTransferred(456L)
+            .build();
+    when(mockBlobStore.doDownloadDirectory(request))
+        .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
+    DirectoryDownloadResponse actualResponse = mockBlobStore.downloadDirectory(request).join();
+    assertNotNull(actualResponse);
+    assertEquals(456L, actualResponse.getTotalBytesTransferred());
   }
 
   @Test

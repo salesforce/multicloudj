@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -20,6 +21,18 @@ public class CredentialsProviderTest {
         CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
     Assertions.assertNotNull(awsCredsProvider);
     Assertions.assertInstanceOf(StsAssumeRoleCredentialsProvider.class, awsCredsProvider);
+  }
+
+  @Test
+  public void testBasicCredentialsProvider() {
+    CredentialsOverrider credentialsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(new StsCredentials("a", "b", null))
+            .build();
+    AwsCredentialsProvider awsCredsProvider =
+        CredentialsProvider.getCredentialsProvider(credentialsOverrider, Region.AF_SOUTH_1);
+    Assertions.assertNotNull(awsCredsProvider);
+    Assertions.assertInstanceOf(AwsBasicCredentials.class, awsCredsProvider.resolveCredentials());
   }
 
   @Test

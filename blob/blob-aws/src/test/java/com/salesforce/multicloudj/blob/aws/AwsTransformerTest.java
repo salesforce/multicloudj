@@ -437,6 +437,7 @@ public class AwsTransformerTest {
             .key("object-1")
             .id("mpu-id")
             .metadata(metadata)
+            .contentType("text/plain")
             .build();
     byte[] content = "This is test data".getBytes();
     MultipartPart multipartPart = new MultipartPart(1, content);
@@ -445,6 +446,9 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, request.bucket());
     assertEquals("mpu-id", request.uploadId());
     assertEquals(content.length, request.contentLength());
+    assertEquals(
+        "text/plain",
+        request.overrideConfiguration().get().headers().get("Content-Type").get(0));
   }
 
   @Test
@@ -688,7 +692,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryDownload).failedTransfers();
 
     DirectoryDownloadResponse response =
-        transformer.toDirectoryDownloadResponse(completedDirectoryDownload);
+        transformer.toDirectoryDownloadResponse(completedDirectoryDownload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getDestination());
@@ -794,7 +798,7 @@ public class AwsTransformerTest {
     doReturn(failedTransfers).when(completedDirectoryUpload).failedTransfers();
 
     DirectoryUploadResponse response =
-        transformer.toDirectoryUploadResponse(completedDirectoryUpload);
+        transformer.toDirectoryUploadResponse(completedDirectoryUpload, null);
 
     assertEquals(2, response.getFailedTransfers().size());
     assertEquals(path1, response.getFailedTransfers().get(0).getSource());
