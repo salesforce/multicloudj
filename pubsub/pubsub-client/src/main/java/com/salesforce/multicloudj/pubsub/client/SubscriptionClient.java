@@ -295,16 +295,13 @@ public class SubscriptionClient implements AutoCloseable {
     }
 
     /**
-     * Sets the visibility timeout applied when a message is negatively acknowledged (nacked).
+     * Sets the default visibility timeout applied when a message is nacked.
      *
-     * <p>When set to {@link Duration#ZERO} (the default), nacked messages are made immediately
-     * available for redelivery. A positive duration delays redelivery by that amount, giving
-     * downstream consumers time before the provider re-queues the message. A negative or null
-     * value is treated as zero (immediate redelivery).
+     * <p>{@link Duration#ZERO} (the default), or a negative/null value, makes nacked messages
+     * immediately available for redelivery. A positive value delays redelivery by that amount.
      *
-     * <p>This option is ignored by providers that do not expose a configurable nack visibility
-     * timeout. Per-call timeouts passed to {@link SubscriptionClient#sendNack(AckID, Duration)}
-     * or {@link SubscriptionClient#sendNacks(List, Duration)} take precedence over this default.
+     * <p>Overridden per-call by {@link SubscriptionClient#sendNack(AckID, Duration)} and
+     * {@link SubscriptionClient#sendNacks(List, Duration)}.
      *
      * @param nackVisibilityTimeout the visibility timeout to apply on nack
      * @return This builder instance

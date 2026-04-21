@@ -151,28 +151,35 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
       return;
     }
 
-    // ModifyAckDeadline accepts one deadline per request, so group ack ids that share the same
-    // deadline (per-message timeout if set, otherwise the subscription default).
-    Duration defaultTimeout = getNackVisibilityTimeout();
+    // Two layers of nack visibility timeout:
+    //   1) subscription-level default (set on the SubscriptionClient builder)
+    //   2) per-message override (passed via nack(ackId, duration))
+    // Resolve per-message > subscription default for each AckInfo, then bucket ack ids by the
+    // resolved deadline because ModifyAckDeadline only accepts one deadline per request.
+    Duration subscriptionDefault = getNackVisibilityTimeout();
     Map<Integer, List<String>> ackIdsByDeadline = new LinkedHashMap<>();
     for (AckInfo nack : nacks) {
-      Duration effective =
-          nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : defaultTimeout;
+      // Per-message override wins; otherwise fall back to the subscription default.
+      Duration timeoutToApply =
+          nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : subscriptionDefault;
+      // Pub/Sub only accepts 0 (immediate redelivery) ... 600s (10 minutes).
       int ackDeadlineSeconds =
           (int)
-              Math.max(0, Math.min(effective.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS));
+              Math.max(0, Math.min(timeoutToApply.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS));
       ackIdsByDeadline
           .computeIfAbsent(ackDeadlineSeconds, k -> new ArrayList<>())
           .add(nack.getAckID().toString());
     }
 
     SubscriptionAdminClient client = getOrCreateSubscriptionAdminClient();
-    for (Map.Entry<Integer, List<String>> entry : ackIdsByDeadline.entrySet()) {
+    for (Map.Entry<Integer, List<String>> deadlineGroup : ackIdsByDeadline.entrySet()) {
+      int deadlineSeconds = deadlineGroup.getKey();
+      List<String> ackIdsForThisDeadline = deadlineGroup.getValue();
       ModifyAckDeadlineRequest request =
           ModifyAckDeadlineRequest.newBuilder()
               .setSubscription(subscriptionName)
-              .addAllAckIds(entry.getValue())
-              .setAckDeadlineSeconds(entry.getKey())
+              .addAllAckIds(ackIdsForThisDeadline)
+              .setAckDeadlineSeconds(deadlineSeconds)
               .build();
       client.modifyAckDeadlineCallable().call(request);
     }

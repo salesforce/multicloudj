@@ -125,21 +125,25 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
       return;
     }
 
-    // Subscription-level default, used whenever an AckInfo does not supply its own override.
-    Duration defaultTimeout = getNackVisibilityTimeout();
+    // Two layers of nack visibility timeout:
+    //   1) subscription-level default (set on the SubscriptionClient builder)
+    //   2) per-message override (passed via nack(ackId, duration))
+    // For each AckInfo below we resolve per-message > subscription default.
+    Duration subscriptionDefault = getNackVisibilityTimeout();
 
     for (int i = 0; i < nacks.size(); i += 10) {
       int endIndex = Math.min(i + 10, nacks.size());
       List<ChangeMessageVisibilityBatchRequestEntry> entries = new ArrayList<>();
       for (int j = i; j < endIndex; j++) {
         AckInfo nack = nacks.get(j);
-        Duration effective =
-            nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : defaultTimeout;
-        // Clamp to SQS's supported range: 0 (immediate) to 43200 (12 hours).
+        // Per-message override wins; otherwise fall back to the subscription default.
+        Duration timeoutToApply =
+            nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : subscriptionDefault;
+        // SQS accepts 0 (immediate redelivery) ... 43200s (12 hours).
         int visibilityTimeout =
             (int)
                 Math.max(
-                    0, Math.min(effective.getSeconds(), SQS_MAX_VISIBILITY_TIMEOUT_SECONDS));
+                    0, Math.min(timeoutToApply.getSeconds(), SQS_MAX_VISIBILITY_TIMEOUT_SECONDS));
         entries.add(
             ChangeMessageVisibilityBatchRequestEntry.builder()
                 .id(String.valueOf(j - i))

@@ -35,10 +35,6 @@ public class AckInfo {
     return isAck;
   }
 
-  /**
-   * Per-nack visibility timeout, or {@code null} to use the subscription default. Only relevant on
-   * the nack path.
-   */
   public Duration getVisibilityTimeout() {
     return visibilityTimeout;
   }
