@@ -13,6 +13,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -128,7 +129,7 @@ public class AbstractSubscriptionTest {
     protected void doSendAcks(List<AckID> ackIDs) {}
 
     @Override
-    protected void doSendNacks(List<AckID> ackIDs) {}
+    protected void doSendNacks(List<AckInfo> nacks) {}
 
     @Override
     protected Batcher.Options createAckBatcherOptions() {
@@ -357,13 +358,42 @@ public class AbstractSubscriptionTest {
         .withRegion("us-west-2")
         .withEndpoint(URI.create("https://custom-endpoint.example.com"))
         .withProxyEndpoint(URI.create("https://proxy.example.com:8080"))
-        .withCredentialsOverrider(null); // Use default credentials
+        .withCredentialsOverrider(null) // Use default credentials
+        .withNackVisibilityTimeout(Duration.ofSeconds(30));
 
     // Verify builder stores values
     assertEquals("test-sub", builder.subscriptionName);
     assertEquals("us-west-2", builder.region);
     assertEquals(URI.create("https://custom-endpoint.example.com"), builder.endpoint);
     assertEquals(URI.create("https://proxy.example.com:8080"), builder.proxyEndpoint);
+    assertEquals(Duration.ofSeconds(30), builder.nackVisibilityTimeout);
+  }
+
+  @Test
+  void testNackVisibilityTimeoutDefaultsToZero() {
+    // No-arg style constructor used by tests -> default should be ZERO
+    TestSubscription sub = new TestSubscription();
+    assertEquals(Duration.ZERO, sub.getNackVisibilityTimeout());
+  }
+
+  @Test
+  void testNackVisibilityTimeoutNullOnBuilderTreatedAsZero() {
+    TestSubscription.Builder builder = new TestSubscription.Builder();
+    builder.withSubscriptionName("sub").withRegion("us-west1").withNackVisibilityTimeout(null);
+    TestSubscription sub = builder.build();
+    assertEquals(Duration.ZERO, sub.getNackVisibilityTimeout());
+  }
+
+  @Test
+  void testNackVisibilityTimeoutPositiveValueOnBuilder() {
+    TestSubscription.Builder builder = new TestSubscription.Builder();
+    Duration timeout = Duration.ofSeconds(45);
+    builder
+        .withSubscriptionName("sub")
+        .withRegion("us-west1")
+        .withNackVisibilityTimeout(timeout);
+    TestSubscription sub = builder.build();
+    assertEquals(timeout, sub.getNackVisibilityTimeout());
   }
 
   @Test

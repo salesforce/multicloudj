@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -109,6 +110,27 @@ public class SubscriptionClient implements AutoCloseable {
   }
 
   /**
+   * Negatively acknowledges a single message, overriding the subscription's default nack
+   * visibility timeout for this call.
+   *
+   * <p>This allows callers to request a specific redelivery delay for individual messages without
+   * reconfiguring the subscription. 
+   *
+   * @param ackID The acknowledgment ID of the message to nack
+   * @param visibilityTimeout The visibility timeout to apply for this nack.
+   * @throws SubstrateSdkException If the nack operation fails
+   * @throws UnsupportedOperationException If the provider doesn't support nacking
+   */
+  public void sendNack(AckID ackID, Duration visibilityTimeout) {
+    try {
+      subscription.sendNack(ackID, visibilityTimeout);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
+  }
+
+  /**
    * Negatively acknowledges multiple messages in a batch.
    *
    * <p>This is more efficient than calling sendNack multiple times. Nacked messages will be
@@ -121,6 +143,26 @@ public class SubscriptionClient implements AutoCloseable {
   public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
     try {
       return subscription.sendNacks(ackIDs);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return CompletableFuture.failedFuture(t);
+    }
+  }
+
+  /**
+   * Negatively acknowledges multiple messages in a batch, overriding the subscription's default
+   * nack visibility timeout for the entire batch.
+   *
+   * @param ackIDs The list of acknowledgment IDs to nack
+   * @param visibilityTimeout The visibility timeout to apply to every nack in this batch. When
+   *     {@code null}, the subscription's default nack visibility timeout is used.
+   * @return A CompletableFuture that completes when all nacks are sent
+   * @throws UnsupportedOperationException If the provider doesn't support nacking
+   */
+  public CompletableFuture<Void> sendNacks(List<AckID> ackIDs, Duration visibilityTimeout) {
+    try {
+      return subscription.sendNacks(ackIDs, visibilityTimeout);
     } catch (Throwable t) {
       Class<? extends SubstrateSdkException> exception = subscription.getException(t);
       ExceptionHandler.handleAndPropagate(exception, t);
@@ -249,6 +291,26 @@ public class SubscriptionClient implements AutoCloseable {
     public SubscriptionClientBuilder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.subscriptionBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the visibility timeout applied when a message is negatively acknowledged (nacked).
+     *
+     * <p>When set to {@link Duration#ZERO} (the default), nacked messages are made immediately
+     * available for redelivery. A positive duration delays redelivery by that amount, giving
+     * downstream consumers time before the provider re-queues the message. A negative or null
+     * value is treated as zero (immediate redelivery).
+     *
+     * <p>This option is ignored by providers that do not expose a configurable nack visibility
+     * timeout. Per-call timeouts passed to {@link SubscriptionClient#sendNack(AckID, Duration)}
+     * or {@link SubscriptionClient#sendNacks(List, Duration)} take precedence over this default.
+     *
+     * @param nackVisibilityTimeout the visibility timeout to apply on nack
+     * @return This builder instance
+     */
+    public SubscriptionClientBuilder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      this.subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);
       return this;
     }
 

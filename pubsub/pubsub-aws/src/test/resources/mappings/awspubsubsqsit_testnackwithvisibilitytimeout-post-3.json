@@ -1,0 +1,30 @@
+{
+  "id" : "ae202cdb-3ed7-42e8-bbe2-47d7351141e6",
+  "name" : "AwsPubsubSqsIT_testNackWithVisibilityTimeout-POST-3",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "AmazonSQS.GetQueueAttributes"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"QueueUrl\":\"https://sqs.us-west-2.amazonaws.com/654654370895/test-sqs-testNackWithVisibilityTimeout\",\"AttributeNames\":[\"QueueArn\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Attributes\":{\"QueueArn\":\"arn:aws:sqs:us-west-2:654654370895:test-sqs-testNackWithVisibilityTimeout\"}}",
+    "headers" : {
+      "x-amzn-RequestId" : "92b80d28-2a60-54e1-a6a9-6f748c42bae8",
+      "Date" : "Fri, 17 Apr 2026 21:19:30 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "ae202cdb-3ed7-42e8-bbe2-47d7351141e6",
+  "persistent" : true,
+  "insertionIndex" : 42
+}

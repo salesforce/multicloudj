@@ -13,8 +13,10 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -45,6 +47,12 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
 
   private static final String BASE64_ENCODED_KEY = "base64encoded";
   private static final long NO_MESSAGES_POLL_DURATION_MS = 250;
+
+  /**
+   * Maximum visibility timeout supported by AWS SQS for ChangeMessageVisibility: 12 hours = 43200
+   * seconds.
+   */
+  private static final int SQS_MAX_VISIBILITY_TIMEOUT_SECONDS = 43200;
 
   private final SqsClient sqsClient;
   private final boolean nackLazy;
@@ -106,31 +114,37 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
   }
 
   @Override
-  protected void doSendNacks(List<AckID> ackIDs) {
+  protected void doSendNacks(List<AckInfo> nacks) {
     // NackLazy mode: bypass ChangeMessageVisibility call
     // Messages will be redelivered after existing visibility timeout expires
     if (nackLazy) {
       return;
     }
 
-    if (ackIDs.isEmpty()) {
+    if (nacks.isEmpty()) {
       return;
     }
 
-    List<String> receiptHandles = new ArrayList<>();
-    for (AckID ackID : ackIDs) {
-      receiptHandles.add(ackID.toString());
-    }
+    // Subscription-level default, used whenever an AckInfo does not supply its own override.
+    Duration defaultTimeout = getNackVisibilityTimeout();
 
-    for (int i = 0; i < receiptHandles.size(); i += 10) {
-      int endIndex = Math.min(i + 10, receiptHandles.size());
+    for (int i = 0; i < nacks.size(); i += 10) {
+      int endIndex = Math.min(i + 10, nacks.size());
       List<ChangeMessageVisibilityBatchRequestEntry> entries = new ArrayList<>();
       for (int j = i; j < endIndex; j++) {
+        AckInfo nack = nacks.get(j);
+        Duration effective =
+            nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : defaultTimeout;
+        // Clamp to SQS's supported range: 0 (immediate) to 43200 (12 hours).
+        int visibilityTimeout =
+            (int)
+                Math.max(
+                    0, Math.min(effective.getSeconds(), SQS_MAX_VISIBILITY_TIMEOUT_SECONDS));
         entries.add(
             ChangeMessageVisibilityBatchRequestEntry.builder()
                 .id(String.valueOf(j - i))
-                .receiptHandle(receiptHandles.get(j))
-                .visibilityTimeout(0) // 0 means immediate redelivery
+                .receiptHandle(nack.getAckID().toString())
+                .visibilityTimeout(visibilityTimeout)
                 .build());
       }
       ChangeMessageVisibilityBatchRequest request =

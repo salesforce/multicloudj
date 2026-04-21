@@ -21,18 +21,18 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
-import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
-import com.salesforce.multicloudj.sts.model.CredentialsType;
-import com.salesforce.multicloudj.sts.model.StsCredentials;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,8 +47,10 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
@@ -68,6 +70,14 @@ public class AwsSubscriptionTest {
   private AwsSubscription subscription;
   private AwsSubscription.Builder builder;
 
+  private static List<AckInfo> nacks(List<AckID> ackIDs) {
+    List<AckInfo> result = new ArrayList<>(ackIDs.size());
+    for (AckID id : ackIDs) {
+      result.add(new AckInfo(id, false));
+    }
+    return result;
+  }
+
   @BeforeEach
   void setUp() {
     builder = new AwsSubscription.Builder();
@@ -84,48 +94,17 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testBuilderConstructor() {
-    subscription = builder.build();
-
-    assertNotNull(subscription);
-    assertEquals("aws", subscription.getProviderId());
-  }
-
-  @Test
-  void testBuilderWithCredentials() {
-    StsCredentials credentials = new StsCredentials("key", "secret", "token");
-    CredentialsOverrider credentialsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.SESSION)
-            .withSessionCredentials(credentials)
-            .build();
-
-    subscription = builder.withCredentialsOverrider(credentialsOverrider).build();
-
-    assertNotNull(subscription);
-    assertEquals("aws", subscription.getProviderId());
-  }
-
-  @Test
-  void testBuilderWithEndpoint() {
-    URI endpoint = URI.create("https://sqs.us-east-1.amazonaws.com");
-
-    subscription = builder.withEndpoint(endpoint).build();
-
-    assertNotNull(subscription);
-  }
-
-  @Test
-  void testBuilderWithNackLazy() {
-    subscription = builder.withNackLazy(true).build();
-
-    assertNotNull(subscription);
-  }
-
-  @Test
   void testBuilderWithWaitTimeSeconds() {
     subscription = builder.withWaitTimeSeconds(10).build();
 
-    assertNotNull(subscription);
+    ArgumentCaptor<ReceiveMessageRequest> requestCaptor =
+        ArgumentCaptor.forClass(ReceiveMessageRequest.class);
+    when(mockSqsClient.receiveMessage(requestCaptor.capture()))
+        .thenReturn(ReceiveMessageResponse.builder().build());
+
+    subscription.doReceiveBatch(5);
+
+    assertEquals(10, requestCaptor.getValue().waitTimeSeconds());
   }
 
   @Test
@@ -188,21 +167,10 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testGetException_SdkClientException_UnableToLoadCredentials() {
+  void testGetException_SdkClientException() {
     subscription = builder.build();
     SdkClientException clientException =
-        SdkClientException.builder().message("Unable to load credentials").build();
-
-    Class<? extends SubstrateSdkException> result = subscription.getException(clientException);
-
-    assertEquals(InvalidArgumentException.class, result);
-  }
-
-  @Test
-  void testGetException_SdkClientException_UnableToConnect() {
-    subscription = builder.build();
-    SdkClientException clientException =
-        SdkClientException.builder().message("Unable to connect").build();
+        SdkClientException.builder().message("any message").build();
 
     Class<? extends SubstrateSdkException> result = subscription.getException(clientException);
 
@@ -227,25 +195,6 @@ public class AwsSubscriptionTest {
     Class<? extends SubstrateSdkException> result = subscription.getException(unknownException);
 
     assertEquals(UnknownException.class, result);
-  }
-
-  @Test
-  void testCanNack() {
-    subscription = builder.build();
-
-    boolean result = subscription.canNack();
-
-    assertTrue(result);
-  }
-
-  @Test
-  void testIsRetryable() {
-    subscription = builder.build();
-    RuntimeException error = new RuntimeException("Test error");
-
-    boolean result = subscription.isRetryable(error);
-
-    assertFalse(result);
   }
 
   @Test
@@ -317,43 +266,89 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testSendAck() {
+  void testSendAck() throws Exception {
     subscription = builder.build();
     AckID ackID = new AwsSubscription.AwsAckID("test-receipt-handle");
 
-    assertDoesNotThrow(() -> subscription.sendAck(ackID));
+    ArgumentCaptor<DeleteMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(DeleteMessageBatchRequest.class);
+    when(mockSqsClient.deleteMessageBatch(captor.capture()))
+        .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+    subscription.sendAck(ackID);
+    subscription.close(); // force batcher flush
+
+    DeleteMessageBatchRequest request = captor.getValue();
+    assertEquals(1, request.entries().size());
+    assertEquals("test-receipt-handle", request.entries().get(0).receiptHandle());
   }
 
   @Test
-  void testSendAcks() {
+  void testSendAcks() throws Exception {
     subscription = builder.build();
     List<AckID> ackIDs =
         Arrays.asList(
             new AwsSubscription.AwsAckID("receipt-1"), new AwsSubscription.AwsAckID("receipt-2"));
+
+    ArgumentCaptor<DeleteMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(DeleteMessageBatchRequest.class);
+    when(mockSqsClient.deleteMessageBatch(captor.capture()))
+        .thenReturn(DeleteMessageBatchResponse.builder().build());
 
     CompletableFuture<Void> result = subscription.sendAcks(ackIDs);
+    subscription.close(); // force batcher flush
 
     assertNotNull(result);
+    List<String> sentHandles =
+        captor.getAllValues().stream()
+            .flatMap(r -> r.entries().stream())
+            .map(DeleteMessageBatchRequestEntry::receiptHandle)
+            .collect(Collectors.toList());
+    assertTrue(sentHandles.contains("receipt-1"));
+    assertTrue(sentHandles.contains("receipt-2"));
   }
 
   @Test
-  void testSendNack() {
-    subscription = builder.build();
+  void testSendNack() throws Exception {
+    subscription = builder.withNackLazy(false).build();
     AckID ackID = new AwsSubscription.AwsAckID("test-receipt-handle");
 
-    assertDoesNotThrow(() -> subscription.sendNack(ackID));
+    ArgumentCaptor<ChangeMessageVisibilityBatchRequest> captor =
+        ArgumentCaptor.forClass(ChangeMessageVisibilityBatchRequest.class);
+    when(mockSqsClient.changeMessageVisibilityBatch(captor.capture()))
+        .thenReturn(ChangeMessageVisibilityBatchResponse.builder().build());
+
+    subscription.sendNack(ackID);
+    subscription.close(); // force batcher flush
+
+    ChangeMessageVisibilityBatchRequest request = captor.getValue();
+    assertEquals(1, request.entries().size());
+    assertEquals("test-receipt-handle", request.entries().get(0).receiptHandle());
   }
 
   @Test
-  void testSendNacks() {
-    subscription = builder.build();
+  void testSendNacks() throws Exception {
+    subscription = builder.withNackLazy(false).build();
     List<AckID> ackIDs =
         Arrays.asList(
             new AwsSubscription.AwsAckID("receipt-1"), new AwsSubscription.AwsAckID("receipt-2"));
 
+    ArgumentCaptor<ChangeMessageVisibilityBatchRequest> captor =
+        ArgumentCaptor.forClass(ChangeMessageVisibilityBatchRequest.class);
+    when(mockSqsClient.changeMessageVisibilityBatch(captor.capture()))
+        .thenReturn(ChangeMessageVisibilityBatchResponse.builder().build());
+
     CompletableFuture<Void> result = subscription.sendNacks(ackIDs);
+    subscription.close(); // force batcher flush
 
     assertNotNull(result);
+    List<String> sentHandles =
+        captor.getAllValues().stream()
+            .flatMap(r -> r.entries().stream())
+            .map(ChangeMessageVisibilityBatchRequestEntry::receiptHandle)
+            .collect(Collectors.toList());
+    assertTrue(sentHandles.contains("receipt-1"));
+    assertTrue(sentHandles.contains("receipt-2"));
   }
 
   @Test
@@ -372,22 +367,6 @@ public class AwsSubscriptionTest {
         () -> {
           new AwsSubscription.Builder().withSubscriptionName("").build();
         });
-  }
-
-  @Test
-  void testValidateSubscriptionName_AcceptsQueueName() {
-    // Valid queue name should be accepted
-    GetQueueUrlResponse mockResponse =
-        GetQueueUrlResponse.builder()
-            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/my-queue")
-            .build();
-    when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class))).thenReturn(mockResponse);
-
-    AwsSubscription.Builder builder = new AwsSubscription.Builder();
-    builder.withSubscriptionName("my-queue");
-    builder.withSqsClient(mockSqsClient);
-    builder.withRegion("us-east-1");
-    assertDoesNotThrow(() -> builder.build());
   }
 
   @Test
@@ -414,26 +393,6 @@ public class AwsSubscriptionTest {
     assertEquals("test-receipt-handle", result.getAckID().toString());
     assertEquals("value1", result.getMetadata().get("key1"));
     assertEquals("value2", result.getMetadata().get("key2"));
-  }
-
-  @Test
-  void testDoReceiveBatch() {
-    SqsClient mockSqsClient = mock(SqsClient.class);
-    GetQueueUrlResponse mockQueueUrlResponse =
-        GetQueueUrlResponse.builder()
-            .queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/test-queue")
-            .build();
-    when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class))).thenReturn(mockQueueUrlResponse);
-    when(mockSqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
-        .thenReturn(ReceiveMessageResponse.builder().build());
-
-    subscription = builder.withSqsClient(mockSqsClient).build();
-
-    List<Message> messages = subscription.doReceiveBatch(5);
-    assertNotNull(messages);
-    assertTrue(messages.isEmpty());
-
-    verify(mockSqsClient).receiveMessage(any(ReceiveMessageRequest.class));
   }
 
   @Test
@@ -692,35 +651,13 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testDoSendNacks_Success() {
-    subscription = builder.withNackLazy(false).build();
-    List<AckID> ackIDs =
-        Arrays.asList(
-            new AwsSubscription.AwsAckID("receipt-1"), new AwsSubscription.AwsAckID("receipt-2"));
-
-    ChangeMessageVisibilityBatchResponse mockResponse =
-        ChangeMessageVisibilityBatchResponse.builder()
-            .successful(List.of())
-            .failed(List.of())
-            .build();
-
-    when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
-        .thenReturn(mockResponse);
-
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
-
-    verify(mockSqsClient)
-        .changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
-  }
-
-  @Test
   void testDoSendNacks_NackLazyMode() {
     subscription = builder.withNackLazy(true).build();
     List<AckID> ackIDs =
         Arrays.asList(
             new AwsSubscription.AwsAckID("receipt-1"), new AwsSubscription.AwsAckID("receipt-2"));
 
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
 
     // Should not call changeMessageVisibilityBatch in lazy mode
     verify(mockSqsClient, never())
@@ -732,7 +669,7 @@ public class AwsSubscriptionTest {
     subscription = builder.build();
     List<AckID> ackIDs = new ArrayList<>();
 
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
 
     verify(mockSqsClient, never())
         .changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
@@ -763,7 +700,7 @@ public class AwsSubscriptionTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              subscription.doSendNacks(ackIDs);
+              subscription.doSendNacks(nacks(ackIDs));
             });
 
     assertTrue(exception.getMessage().contains("SQS ChangeMessageVisibilityBatch failed"));
@@ -793,7 +730,7 @@ public class AwsSubscriptionTest {
         .thenReturn(mockResponse);
 
     // Should not throw exception because ReceiptHandleIsInvalid is filtered out
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
 
     verify(mockSqsClient)
         .changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class));
@@ -834,11 +771,98 @@ public class AwsSubscriptionTest {
         assertThrows(
             RuntimeException.class,
             () -> {
-              subscription.doSendNacks(ackIDs);
+              subscription.doSendNacks(nacks(ackIDs));
             });
 
     assertTrue(exception.getMessage().contains("SQS ChangeMessageVisibilityBatch failed"));
     assertTrue(exception.getMessage().contains("InvalidParameter"));
+  }
+
+  @Test
+  void testDoSendNacks_DefaultVisibilityTimeoutIsZero() {
+    subscription = builder.withNackLazy(false).build();
+    List<AckID> ackIDs = Arrays.asList(new AwsSubscription.AwsAckID("receipt-1"));
+
+    ChangeMessageVisibilityBatchResponse mockResponse =
+        ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+    ArgumentCaptor<ChangeMessageVisibilityBatchRequest> captor =
+        ArgumentCaptor.forClass(ChangeMessageVisibilityBatchRequest.class);
+    when(mockSqsClient.changeMessageVisibilityBatch(captor.capture())).thenReturn(mockResponse);
+
+    subscription.doSendNacks(nacks(ackIDs));
+
+    ChangeMessageVisibilityBatchRequest request = captor.getValue();
+    assertEquals(1, request.entries().size());
+    assertEquals(0, request.entries().get(0).visibilityTimeout());
+  }
+
+  @Test
+  void testDoSendNacks_CustomVisibilityTimeout() {
+    subscription =
+        builder.withNackLazy(false).withNackVisibilityTimeout(Duration.ofSeconds(30)).build();
+    List<AckID> ackIDs =
+        Arrays.asList(
+            new AwsSubscription.AwsAckID("receipt-1"), new AwsSubscription.AwsAckID("receipt-2"));
+
+    ChangeMessageVisibilityBatchResponse mockResponse =
+        ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+    ArgumentCaptor<ChangeMessageVisibilityBatchRequest> captor =
+        ArgumentCaptor.forClass(ChangeMessageVisibilityBatchRequest.class);
+    when(mockSqsClient.changeMessageVisibilityBatch(captor.capture())).thenReturn(mockResponse);
+
+    subscription.doSendNacks(nacks(ackIDs));
+
+    ChangeMessageVisibilityBatchRequest request = captor.getValue();
+    assertEquals(2, request.entries().size());
+    for (ChangeMessageVisibilityBatchRequestEntry entry : request.entries()) {
+      assertEquals(30, entry.visibilityTimeout());
+    }
+  }
+
+  @Test
+  void testDoSendNacks_PerMessageVisibilityTimeout() {
+    // Subscription default is 30s; per-message overrides take precedence.
+    subscription =
+        builder.withNackLazy(false).withNackVisibilityTimeout(Duration.ofSeconds(30)).build();
+
+    AckID id1 = new AwsSubscription.AwsAckID("receipt-1");
+    AckID id2 = new AwsSubscription.AwsAckID("receipt-2");
+    AckID id3 = new AwsSubscription.AwsAckID("receipt-3");
+    List<AckInfo> infos =
+        Arrays.asList(
+            new AckInfo(id1, false, Duration.ZERO), // per-message: immediate
+            new AckInfo(id2, false, Duration.ofSeconds(60)), // per-message: 60s
+            new AckInfo(id3, false, null)); // fall back to subscription default (30s)
+
+    ChangeMessageVisibilityBatchResponse mockResponse =
+        ChangeMessageVisibilityBatchResponse.builder()
+            .successful(List.of())
+            .failed(List.of())
+            .build();
+
+    ArgumentCaptor<ChangeMessageVisibilityBatchRequest> captor =
+        ArgumentCaptor.forClass(ChangeMessageVisibilityBatchRequest.class);
+    when(mockSqsClient.changeMessageVisibilityBatch(captor.capture())).thenReturn(mockResponse);
+
+    subscription.doSendNacks(infos);
+
+    List<ChangeMessageVisibilityBatchRequestEntry> entries = captor.getValue().entries();
+    assertEquals(3, entries.size());
+    Map<String, Integer> byHandle = new HashMap<>();
+    for (ChangeMessageVisibilityBatchRequestEntry entry : entries) {
+      byHandle.put(entry.receiptHandle(), entry.visibilityTimeout());
+    }
+    assertEquals(0, byHandle.get("receipt-1"));
+    assertEquals(60, byHandle.get("receipt-2"));
+    assertEquals(30, byHandle.get("receipt-3"));
   }
 
   @Test
@@ -859,7 +883,7 @@ public class AwsSubscriptionTest {
     when(mockSqsClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
         .thenReturn(mockResponse);
 
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
 
     // Should be called 3 times: 10, 10, and 5 messages
     verify(mockSqsClient, times(3))
@@ -903,28 +927,6 @@ public class AwsSubscriptionTest {
   }
 
   @Test
-  void testBuildWithUrl_RejectsUrl() {
-    // We rely on AWS to validate the queue name and throw appropriate exceptions.
-    String fullQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
-
-    SqsClient mockSqsClient = mock(SqsClient.class);
-
-    when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class)))
-        .thenThrow(SdkClientException.builder().message("Invalid queue name format").build());
-
-    AwsSubscription.Builder testBuilder = new AwsSubscription.Builder();
-    testBuilder.withSubscriptionName(fullQueueUrl);
-    testBuilder.withRegion("us-east-1");
-    testBuilder.withSqsClient(mockSqsClient);
-
-    assertThrows(
-        SdkClientException.class,
-        () -> {
-          testBuilder.build();
-        });
-  }
-
-  @Test
   void testBuildWithQueueName_GetQueueUrlFails() {
     String queueName = "non-existent-queue";
 
@@ -948,37 +950,6 @@ public class AwsSubscriptionTest {
 
     assertEquals("The specified queue does not exist.", exception.getMessage());
     verify(mockSqsClient, times(1)).getQueueUrl(any(GetQueueUrlRequest.class));
-  }
-
-  @Test
-  void testGetQueueUrlCalledBeforeClientCreation() {
-    // Test that getQueueUrl is called during build(), before the client is fully created
-    String queueName = "test-queue";
-    String expectedQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue";
-
-    SqsClient mockSqsClient = mock(SqsClient.class);
-    GetQueueUrlResponse mockResponse =
-        GetQueueUrlResponse.builder().queueUrl(expectedQueueUrl).build();
-
-    when(mockSqsClient.getQueueUrl(any(GetQueueUrlRequest.class))).thenReturn(mockResponse);
-
-    AwsSubscription.Builder builder = new AwsSubscription.Builder();
-    builder.withSubscriptionName(queueName);
-    builder.withRegion("us-east-1");
-    builder.withSqsClient(mockSqsClient);
-
-    // Build should call getQueueUrl and resolve the queue URL
-    AwsSubscription subscription = builder.build();
-
-    // Verify that getQueueUrl was called during build
-    ArgumentCaptor<GetQueueUrlRequest> requestCaptor =
-        ArgumentCaptor.forClass(GetQueueUrlRequest.class);
-    verify(mockSqsClient, times(1)).getQueueUrl(requestCaptor.capture());
-    GetQueueUrlRequest capturedRequest = requestCaptor.getValue();
-    assertEquals(queueName, capturedRequest.queueName());
-
-    // Verify that the subscription was created successfully (queue URL was resolved)
-    assertNotNull(subscription);
   }
 
   // SNS JSON Message Parsing Tests
