@@ -46,9 +46,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 @AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
-  /**
-   * Maximum ack deadline supported by GCP Pub/Sub's ModifyAckDeadline: 600 seconds (10 minutes).
-   */
+  // Pub/Sub caps ModifyAckDeadline at 600s.
+  // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/modifyAckDeadline
   private static final int PUBSUB_MAX_ACK_DEADLINE_SECONDS = 600;
 
   private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
@@ -144,8 +143,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
 
   @Override
   protected void doSendNacks(List<AckInfo> nacks) {
-    // NackLazy mode: bypass ModifyAckDeadline call
-    // Messages will be redelivered after existing ack deadline expires
+    // Lazy mode waits for the existing deadline to expire instead of calling ModifyAckDeadline.
     if (nackLazy) {
       return;
     }
@@ -153,11 +151,8 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
       return;
     }
 
-    // Pub/Sub's ModifyAckDeadline accepts one deadline per request, so we group ack ids by their
-    // effective (clamped) visibility timeout and issue one call per distinct timeout value.
-    // Clamp to Pub/Sub's supported range: 0 (immediate redelivery) to 600 seconds (10 minutes).
-    // See:
-    // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/modifyAckDeadline
+    // ModifyAckDeadline accepts one deadline per request, so group ack ids that share the same
+    // deadline (per-message timeout if set, otherwise the subscription default).
     Duration defaultTimeout = getNackVisibilityTimeout();
     Map<Integer, List<String>> ackIdsByDeadline = new LinkedHashMap<>();
     for (AckInfo nack : nacks) {
@@ -369,8 +364,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     }
 
     @Override
-    public GcpSubscription.Builder withNackVisibilityTimeout(
-        java.time.Duration nackVisibilityTimeout) {
+    public GcpSubscription.Builder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
       super.withNackVisibilityTimeout(nackVisibilityTimeout);
       return this;
     }
