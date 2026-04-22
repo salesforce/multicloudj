@@ -57,13 +57,13 @@ public abstract class AbstractPubsubBenchmarkTest {
 
   // Benchmark iteration and pre-population constants
   protected static final int ITERATIONS_PER_BENCHMARK = 10; // Operations per benchmark iteration
-  protected static final int ITERATIONS_NACK_BENCHMARK = 5; // Reduced for NACK (has redelivery overhead)
+  protected static final int ITERATIONS_NACK_BENCHMARK = 5; // Reduced for NACK (redelivery overhead)
   protected static final int PREPOPULATE_SMALL = 100; // Small pre-population for basic benchmarks
   protected static final int PREPOPULATE_BATCH = 200; // For batch ack benchmarks
   protected static final int PREPOPULATE_HIGH_THROUGHPUT = 500; // For high throughput tests
   protected static final int PREPOPULATE_BACKLOG = 5000; // Large backlog simulation
   protected static final int PROPAGATION_DELAY_MS = 10000; // Wait for messages to propagate (10s)
-  protected static final int MESSAGE_AVAILABILITY_DELAY_MS = 1000; // Wait for messages to be available (1s)
+  protected static final int MESSAGE_AVAILABILITY_DELAY_MS = 1000; // Wait for message availability
 
   // Test infrastructure
   protected TopicClient topicClient;
