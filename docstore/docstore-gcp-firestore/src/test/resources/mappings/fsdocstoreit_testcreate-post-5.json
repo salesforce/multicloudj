@@ -1,5 +1,5 @@
 {
-  "id" : "b6e48ded-6196-40bb-beaa-9acb3aab42fd",
+  "id" : "d4ae0cf0-b096-4dc8-895b-c34a6088b57c",
   "name" : "FSDocstoreIT_testCreate-POST-5",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,7 +17,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomStringMap\"},\"pName\":{\"stringValue\":\"JohnMap\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"111\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomStringMap\"},\"pName\":{\"stringValue\":\"JohnMap\"},\"bytes\":{\"bytesValue\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"111\"}}},\"currentDocument\":{\"exists\":false}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -29,15 +29,15 @@
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "17560234044148175570;o=1",
+      "X-Debug-Tracking-ID" : "12112626533972052834;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:59 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:30 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "b6e48ded-6196-40bb-beaa-9acb3aab42fd",
+  "uuid" : "d4ae0cf0-b096-4dc8-895b-c34a6088b57c",
   "persistent" : true,
-  "insertionIndex" : 102
+  "insertionIndex" : 225
 }

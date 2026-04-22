@@ -1,5 +1,5 @@
 {
-  "id" : "3676b6cb-32ae-45ff-8a8b-e908af1c199f",
+  "id" : "3962b4cf-4be8-4d86-892f-41b45b04ad69",
   "name" : "FSDocstoreIT_testReplace-POST-0",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,7 +17,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentMapReplace\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"replacedString\"},\"pName\":{\"stringValue\":\"NonExistentMapReplace\"},\"f\":{\"doubleValue\":12.34000015258789},\"i\":{\"integerValue\":\"99\"},\"DocstoreRevision\":{\"nullValue\":null}}},\"currentDocument\":{\"exists\":true}}]}",
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentMapReplace\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"replacedString\"},\"pName\":{\"stringValue\":\"NonExistentMapReplace\"},\"bytes\":{\"bytesValue\":\"cmVwbGFjZWRTdHJpbmc=\"},\"f\":{\"doubleValue\":12.34000015258789},\"i\":{\"integerValue\":\"99\"},\"DocstoreRevision\":{\"nullValue\":null}}},\"currentDocument\":{\"exists\":true}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -29,15 +29,15 @@
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "1680103643758010689;o=1",
+      "X-Debug-Tracking-ID" : "6402149987736545128;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:56 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:29 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "3676b6cb-32ae-45ff-8a8b-e908af1c199f",
+  "uuid" : "3962b4cf-4be8-4d86-892f-41b45b04ad69",
   "persistent" : true,
-  "insertionIndex" : 78
+  "insertionIndex" : 201
 }
