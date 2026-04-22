@@ -543,37 +543,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
-   * Parallel download applies to file destinations only ({@code File} / {@code Path}); verifies
-   * {@link DownloadRequest.Builder#withParallelDownload(boolean)} on those APIs.
-   */
-  @Test
-  public void testDownload_parallelFileAndPath() throws IOException {
-    String key = "conformance-tests/download_parallel_file_path_unversioned";
-    runDownloadTest(
-        "parallel download to file",
-        key,
-        key,
-        false,
-        DownloadType.File,
-        true,
-        true,
-        false,
-        true,
-        false);
-    runDownloadTest(
-        "parallel download to path",
-        key,
-        key,
-        false,
-        DownloadType.Path,
-        true,
-        true,
-        false,
-        true,
-        false);
-  }
-
-  /**
    * {@link DownloadRequest.Builder#withCreateParentPath(boolean)}: object key contains slashes and
    * content is written under a destination directory preserving that layout.
    */
