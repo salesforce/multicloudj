@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.pubsub.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
@@ -297,7 +298,7 @@ public class SubscriptionClient implements AutoCloseable {
     /**
      * Sets the default visibility timeout applied when a message is nacked.
      *
-     * <p>{@link Duration#ZERO} (the default), or a negative/null value, makes nacked messages
+     * <p>{@link Duration#ZERO} (the default), or a null value, makes nacked messages
      * immediately available for redelivery. A positive value delays redelivery by that amount.
      *
      * <p>Overridden per-call by {@link SubscriptionClient#sendNack(AckID, Duration)} and
@@ -305,6 +306,7 @@ public class SubscriptionClient implements AutoCloseable {
      *
      * @param nackVisibilityTimeout the visibility timeout to apply on nack
      * @return This builder instance
+     * @throws InvalidArgumentException if {@code nackVisibilityTimeout} is negative
      */
     public SubscriptionClientBuilder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
       this.subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);

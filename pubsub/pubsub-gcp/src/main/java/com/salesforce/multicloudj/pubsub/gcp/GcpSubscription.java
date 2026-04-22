@@ -164,8 +164,7 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
           nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : subscriptionDefault;
       // Pub/Sub only accepts 0 (immediate redelivery) ... 600s (10 minutes).
       int ackDeadlineSeconds =
-          (int)
-              Math.max(0, Math.min(timeoutToApply.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS));
+          (int) Math.min(timeoutToApply.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS);
       ackIdsByDeadline
           .computeIfAbsent(ackDeadlineSeconds, k -> new ArrayList<>())
           .add(nack.getAckID().toString());

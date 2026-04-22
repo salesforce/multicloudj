@@ -507,6 +507,31 @@ public class AbstractSubscriptionTest {
   }
 
   @Test
+  void testSendNackThrowsOnNegativeVisibilityTimeout() {
+    TestSubscription testSubscription = new TestSubscription();
+    AckID ackID = new TestAckID("test-ack-id");
+
+    InvalidArgumentException exception =
+        assertThrows(
+            InvalidArgumentException.class,
+            () -> testSubscription.sendNack(ackID, Duration.ofSeconds(-1)));
+    assertTrue(exception.getMessage().startsWith("Nack visibility timeout cannot be negative"));
+  }
+
+  @Test
+  void testBuilderRejectsNegativeNackVisibilityTimeout() {
+    TestBuilder builder = new TestBuilder();
+    InvalidArgumentException exception =
+        assertThrows(
+            InvalidArgumentException.class,
+            () -> builder.withNackVisibilityTimeout(Duration.ofSeconds(-5)));
+    assertTrue(exception.getMessage().startsWith("Nack visibility timeout cannot be negative"));
+
+    // Boundary: zero remain accepted (guards against an accidental `<= 0` check).
+    assertDoesNotThrow(() -> builder.withNackVisibilityTimeout(Duration.ZERO));
+  }
+
+  @Test
   void testSendNacksWithSingleAckID() {
     TestSubscription testSubscription = new TestSubscription();
     List<AckID> ackIDs = Arrays.asList(new TestAckID("test-ack-id"));

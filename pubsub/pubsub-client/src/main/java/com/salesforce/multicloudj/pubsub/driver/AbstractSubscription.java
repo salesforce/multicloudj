@@ -370,9 +370,9 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
    *
    * @param ackID the acknowledgment ID to negatively acknowledge
    * @param visibilityTimeout the visibility timeout to apply to this nack. When {@code null}, the
-   *     subscription's default {@link #getNackVisibilityTimeout()} is used. Providers will clamp
-   *     the value to their supported range.
-   * @throws InvalidArgumentException if ackID is null
+   *     subscription's default {@link #getNackVisibilityTimeout()} is used. Must be non-negative;
+   *     providers will clamp the upper bound to their supported maximum.
+   * @throws InvalidArgumentException if ackID is null or visibilityTimeout is negative
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public void sendNack(AckID ackID, Duration visibilityTimeout) {
@@ -382,6 +382,14 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
     if (ackID == null) {
       RuntimeException error = new InvalidArgumentException("AckID cannot be null");
+      permanentError.set(error);
+      throw error;
+    }
+
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
       permanentError.set(error);
       throw error;
     }
@@ -409,9 +417,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
    * @param ackIDs the list of acknowledgment IDs to negatively acknowledge
    * @param visibilityTimeout the visibility timeout to apply to every nack in this batch. When
    *     {@code null}, the subscription's default {@link #getNackVisibilityTimeout()} is used.
-   *     Providers will clamp the value to their supported range.
+   *     Must be non-negative; providers will clamp the upper bound to their supported maximum.
    * @return a CompletableFuture that completes when the nack is queued
-   * @throws InvalidArgumentException if ackIDs is null or contains null elements
+   * @throws InvalidArgumentException if ackIDs is null, contains null elements, or
+   *     visibilityTimeout is negative
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public CompletableFuture<Void> sendNacks(List<AckID> ackIDs, Duration visibilityTimeout) {
@@ -436,6 +445,14 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
         permanentError.set(error);
         throw error;
       }
+    }
+
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
+      permanentError.set(error);
+      throw error;
     }
 
     for (AckID ackID : ackIDs) {
@@ -754,6 +771,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
 
     public Builder<T> withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      if (nackVisibilityTimeout != null && nackVisibilityTimeout.isNegative()) {
+        throw new InvalidArgumentException(
+            "Nack visibility timeout cannot be negative: " + nackVisibilityTimeout);
+      }
       this.nackVisibilityTimeout = nackVisibilityTimeout;
       return this;
     }

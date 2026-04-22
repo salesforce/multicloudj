@@ -141,9 +141,7 @@ public class AwsSubscription extends AbstractSubscription<AwsSubscription> {
             nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : subscriptionDefault;
         // SQS accepts 0 (immediate redelivery) ... 43200s (12 hours).
         int visibilityTimeout =
-            (int)
-                Math.max(
-                    0, Math.min(timeoutToApply.getSeconds(), SQS_MAX_VISIBILITY_TIMEOUT_SECONDS));
+            (int) Math.min(timeoutToApply.getSeconds(), SQS_MAX_VISIBILITY_TIMEOUT_SECONDS);
         entries.add(
             ChangeMessageVisibilityBatchRequestEntry.builder()
                 .id(String.valueOf(j - i))
