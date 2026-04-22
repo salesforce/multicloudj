@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -644,7 +645,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
         baseValue,
         (float) (baseValue + random.nextFloat() * 100),
         baseValue % 2 == 0,
-        largeString);
+        largeString,
+        "randomString".getBytes(StandardCharsets.UTF_8));
   }
 
   /** Get a random player key from pre-populated test data */
