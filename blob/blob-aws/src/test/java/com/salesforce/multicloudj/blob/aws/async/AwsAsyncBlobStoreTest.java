@@ -635,8 +635,7 @@ public class AwsAsyncBlobStoreTest {
           aws.doDownload(generateTestDownloadRequest(), path.toFile()).get();
       ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor =
           ArgumentCaptor.forClass(GetObjectRequest.class);
-      verify(mockS3Client, times(1))
-          .getObject(getObjectRequestCaptor.capture(), any(AsyncResponseTransformer.class));
+      verify(mockS3Client, times(1)).getObject(getObjectRequestCaptor.capture(), any(Path.class));
       verifyDownloadTestResults(response, getObjectRequestCaptor, now);
     } finally {
       try {

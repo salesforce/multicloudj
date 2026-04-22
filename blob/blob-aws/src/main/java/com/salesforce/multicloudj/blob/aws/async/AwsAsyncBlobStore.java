@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -78,6 +79,7 @@ import software.amazon.awssdk.services.s3.multipart.MultipartConfiguration;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 
 /** AWS implementation of AsyncBlobStore */
 public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkService {
@@ -168,9 +170,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, File file) {
-    return client
-        .getObject(transformer.toRequest(request), AsyncResponseTransformer.toFile(file))
-        .thenApply(response -> transformer.toDownloadResponse(request, response));
+    return doDownload(request, file.toPath());
   }
 
   /**
@@ -182,9 +182,43 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
    */
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path) {
+    Path destinationPath = resolveDownloadDestinationPath(request, path);
+    GetObjectRequest getObjectRequest = transformer.toRequest(request);
+    if (request.isParallelDownload()) {
+      DownloadFileRequest downloadFileRequest =
+          DownloadFileRequest.builder()
+              .getObjectRequest(getObjectRequest)
+              .destination(destinationPath)
+              .build();
+      return transferManager
+          .downloadFile(downloadFileRequest)
+          .completionFuture()
+          .thenApply(
+              completed -> transformer.toDownloadResponse(request, completed.response()));
+    }
     return client
-        .getObject(transformer.toRequest(request), path)
+        .getObject(getObjectRequest, destinationPath)
         .thenApply(response -> transformer.toDownloadResponse(request, response));
+  }
+
+  /**
+   * When createParentPath is enabled, resolves the final file path by appending
+   * the object key to the destination root and creating any missing parent directories.
+   */
+  private static Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   /**

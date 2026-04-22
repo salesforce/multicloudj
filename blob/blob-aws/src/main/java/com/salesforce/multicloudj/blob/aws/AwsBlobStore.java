@@ -57,7 +57,6 @@ import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -87,14 +86,11 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 
 /** AWS implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class AwsBlobStore extends AbstractBlobStore {
   private final S3Client s3Client;
-  private final S3TransferManager s3DownloadTransferMgr;
   private final AwsTransformer transformer;
 
   public AwsBlobStore() {
@@ -104,7 +100,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   public AwsBlobStore(Builder builder, S3Client s3Client) {
     super(builder);
     this.s3Client = s3Client;
-    this.s3DownloadTransferMgr = builder.getTransferManager();
     this.transformer = builder.getTransformerSupplier().get(bucket);
   }
 
@@ -210,8 +205,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    // Parallel download uses the transfer manager file API only; OutputStream downloads always
-    // stream via GetObject (parallelDownload is ignored for this overload).
     GetObjectResponse response =
         s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
     return transformer.toDownloadResponse(downloadRequest, response);
@@ -246,9 +239,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
     Path destinationPath = resolveDownloadDestinationPath(downloadRequest, file.toPath());
     GetObjectResponse response =
-        downloadRequest.isParallelDownload()
-            ? doParallelDownload(request, destinationPath)
-            : s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
@@ -264,9 +255,7 @@ public class AwsBlobStore extends AbstractBlobStore {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
     Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
     GetObjectResponse response =
-        downloadRequest.isParallelDownload()
-            ? doParallelDownload(request, destinationPath)
-            : s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
@@ -289,17 +278,6 @@ public class AwsBlobStore extends AbstractBlobStore {
       }
     }
     return resolved;
-  }
-
-  private GetObjectResponse doParallelDownload(GetObjectRequest request, Path destination) {
-    DownloadFileRequest downloadFileRequest =
-        DownloadFileRequest.builder().getObjectRequest(request).destination(destination).build();
-    // Block until the async multi-part download completes, since doDownload is a synchronous API.
-    return s3DownloadTransferMgr
-        .downloadFile(downloadFileRequest)
-        .completionFuture()
-        .join()
-        .response();
   }
 
   /**
@@ -623,9 +601,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   /** Closes the underlying S3 client and releases any resources. */
   @Override
   public void close() {
-    if (s3DownloadTransferMgr != null) {
-      s3DownloadTransferMgr.close();
-    }
     if (s3Client != null) {
       s3Client.close();
     }
@@ -635,7 +610,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   public static class Builder extends AbstractBlobStore.Builder<AwsBlobStore, Builder> {
 
     private S3Client s3Client;
-    private S3TransferManager transferManager;
     private AwsTransformerSupplier transformerSupplier = new AwsTransformerSupplier();
 
     public Builder() {
@@ -685,26 +659,6 @@ public class AwsBlobStore extends AbstractBlobStore {
       return b.build();
     }
 
-    /**
-     * S3TransferManager requires an S3AsyncClient; this is an AWS SDK
-     * constraint, not an async API choice.
-     */
-    private static S3TransferManager buildTransferManager(Builder builder) {
-      Region regionObj = Region.of(builder.getRegion());
-      var asyncBuilder = S3AsyncClient.builder().region(regionObj);
-
-      AwsCredentialsProvider credentialsProvider =
-          CredentialsProvider.getCredentialsProvider(builder.getCredentialsOverrider(), regionObj);
-      if (credentialsProvider != null) {
-        asyncBuilder.credentialsProvider(credentialsProvider);
-      }
-      if (builder.getEndpoint() != null) {
-        asyncBuilder.endpointOverride(builder.getEndpoint());
-      }
-
-      return S3TransferManager.builder().s3Client(asyncBuilder.build()).build();
-    }
-
     /** Helper function to generate the HttpClient */
     private static SdkHttpClient generateHttpClient(Builder builder) {
       ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
@@ -746,18 +700,10 @@ public class AwsBlobStore extends AbstractBlobStore {
       return this;
     }
 
-    public Builder withTransferManager(S3TransferManager transferManager) {
-      this.transferManager = transferManager;
-      return this;
-    }
-
     @Override
     public AwsBlobStore build() {
       if (s3Client == null) {
         s3Client = buildS3Client(this);
-      }
-      if (transferManager == null) {
-        transferManager = buildTransferManager(this);
       }
 
       return new AwsBlobStore(this, s3Client);

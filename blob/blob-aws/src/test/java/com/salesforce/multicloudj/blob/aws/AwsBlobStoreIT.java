@@ -13,10 +13,8 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 public class AwsBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -89,26 +87,9 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
                       .build())
               .build();
 
-      S3AsyncClient asyncClient =
-          S3AsyncClient.builder()
-              .region(Region.US_WEST_2)
-              .httpClientBuilder(TestsUtilAws.getAsyncProxyClientBuilder("https", port))
-              .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-              .endpointOverride(URI.create(endpoint))
-              .serviceConfiguration(
-                  S3Configuration.builder()
-                      .pathStyleAccessEnabled(true)
-                      .chunkedEncodingEnabled(false)
-                      .build())
-              .build();
-
-      S3TransferManager transferManager =
-          S3TransferManager.builder().s3Client(asyncClient).build();
-
       AwsBlobStore.Builder builder = new AwsBlobStore.Builder();
       builder
           .withS3Client(client)
-          .withTransferManager(transferManager)
           .withEndpoint(URI.create(endpoint))
           .withBucket(bucketName)
           .withRegion(region)
