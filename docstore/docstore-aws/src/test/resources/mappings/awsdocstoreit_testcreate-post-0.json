@@ -1,5 +1,5 @@
 {
-  "id" : "a905db87-3eb6-4559-b517-166bb3541d1a",
+  "id" : "a648eae9-07ed-4afe-9e1a-828a3b58f3e7",
   "name" : "AwsDocstoreIT_testCreate-POST-0",
   "request" : {
     "url" : "/",
@@ -17,16 +17,16 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}}]},\"UnprocessedKeys\":{}}",
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "UDIKQBL116UFFN7ULMIFBKBMPVVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "3109718115",
-      "Date" : "Wed, 04 Mar 2026 21:13:08 GMT",
+      "x-amzn-requestid" : "T4GG9C48DAQF7S3JM4B9642OKRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2166185439",
+      "Date" : "Wed, 22 Apr 2026 22:58:11 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "a905db87-3eb6-4559-b517-166bb3541d1a",
+  "uuid" : "a648eae9-07ed-4afe-9e1a-828a3b58f3e7",
   "persistent" : true,
-  "insertionIndex" : 109
+  "insertionIndex" : 290
 }
