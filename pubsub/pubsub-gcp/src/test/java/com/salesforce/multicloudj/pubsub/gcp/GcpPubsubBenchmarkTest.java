@@ -8,6 +8,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 

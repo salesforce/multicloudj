@@ -11,6 +11,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
+@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsSnsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 

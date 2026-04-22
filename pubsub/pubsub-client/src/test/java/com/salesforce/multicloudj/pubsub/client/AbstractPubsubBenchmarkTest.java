@@ -57,7 +57,7 @@ public abstract class AbstractPubsubBenchmarkTest {
 
   // Benchmark iteration and pre-population constants
   protected static final int ITERATIONS_PER_BENCHMARK = 10; // Operations per benchmark iteration
-  protected static final int ITERATIONS_NACK_BENCHMARK = 5; // Reduced for NACK (redelivery overhead)
+  protected static final int ITERATIONS_NACK_BENCHMARK = 5; // Reduced for NACK overhead
   protected static final int PREPOPULATE_SMALL = 100; // Small pre-population for basic benchmarks
   protected static final int PREPOPULATE_BATCH = 200; // For batch ack benchmarks
   protected static final int PREPOPULATE_HIGH_THROUGHPUT = 500; // For high throughput tests
@@ -595,7 +595,7 @@ public abstract class AbstractPubsubBenchmarkTest {
    * @param count Number of messages to pre-populate
    * @param messageSize Size of each message in bytes
    */
-  private void ensurePrePopulated(
+  protected void ensurePrePopulated(
       java.util.function.BooleanSupplier isPopulated,
       Runnable markPopulated,
       String benchmarkName,
