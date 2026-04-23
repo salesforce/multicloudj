@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.blob.gcp;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.auth.Credentials;
+import com.google.auth.ServiceAccountSigner;
+import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.http.HttpTransportOptions;
@@ -17,6 +19,7 @@ import com.salesforce.multicloudj.common.gcp.util.MockGoogleCredentialsFactory;
 import com.salesforce.multicloudj.common.gcp.util.TestsUtilGcp;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -38,7 +41,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     Storage storage;
 
     private static class MockGoogleCredentialsWrapper extends GoogleCredentials
-        implements com.google.auth.ServiceAccountSigner {
+        implements ServiceAccountSigner {
       private final GoogleCredentials delegate;
 
       MockGoogleCredentialsWrapper(GoogleCredentials delegate) {
@@ -46,7 +49,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
       }
 
       @Override
-      public com.google.auth.oauth2.AccessToken refreshAccessToken() throws IOException {
+      public AccessToken refreshAccessToken() throws IOException {
         return delegate.refreshAccessToken();
       }
 
@@ -57,7 +60,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
       @Override
       public byte[] sign(byte[] toSign) {
-        return "mock-signature".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return "mock-signature".getBytes(StandardCharsets.UTF_8);
       }
     }
 
@@ -81,7 +84,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
           // we wrap them in a mock signer just so the test can generate the URL.
           // Note: The generated URL won't be valid for actual use unless we use IAM credentials
           // API, but this allows the test to proceed and wiremock to record the request/response.
-          if (!(credentials instanceof com.google.auth.ServiceAccountSigner)) {
+          if (!(credentials instanceof ServiceAccountSigner)) {
             credentials = new MockGoogleCredentialsWrapper((GoogleCredentials) credentials);
           }
           
