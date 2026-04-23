@@ -37,6 +37,30 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
 
     Storage storage;
 
+    private static class MockGoogleCredentialsWrapper extends GoogleCredentials
+        implements com.google.auth.ServiceAccountSigner {
+      private final GoogleCredentials delegate;
+
+      MockGoogleCredentialsWrapper(GoogleCredentials delegate) {
+        this.delegate = delegate;
+      }
+
+      @Override
+      public com.google.auth.oauth2.AccessToken refreshAccessToken() throws IOException {
+        return delegate.refreshAccessToken();
+      }
+
+      @Override
+      public String getAccount() {
+        return "mock-service-account@mock-project.iam.gserviceaccount.com";
+      }
+
+      @Override
+      public byte[] sign(byte[] toSign) {
+        return "mock-signature".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      }
+    }
+
     @Override
     public AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
@@ -52,6 +76,15 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         // Live recording path – rely on real ADC
         try {
           Credentials credentials = GoogleCredentials.getApplicationDefault();
+          
+          // If the credentials don't implement ServiceAccountSigner (e.g. UserCredentials),
+          // we wrap them in a mock signer just so the test can generate the URL.
+          // Note: The generated URL won't be valid for actual use unless we use IAM credentials
+          // API, but this allows the test to proceed and wiremock to record the request/response.
+          if (!(credentials instanceof com.google.auth.ServiceAccountSigner)) {
+            credentials = new MockGoogleCredentialsWrapper((GoogleCredentials) credentials);
+          }
+          
           return createBlobStore(bucketNameToUse, credentials);
         } catch (IOException e) {
           // Fallback to NoCredentials if unable to load application default credentials
