@@ -31,22 +31,14 @@ public final class MockGoogleCredentialsFactory {
   private static class MockGoogleCredentialsWithIdToken extends GoogleCredentials
       implements IdTokenProvider, ServiceAccountSigner {
     private final AccessToken staticToken;
-    private boolean refreshed = false;
 
     MockGoogleCredentialsWithIdToken(AccessToken token) {
       this.staticToken = token;
     }
 
     @Override
-    public AccessToken refreshAccessToken() throws IOException {
-      // If called again, throw an exception to prevent infinite retry loops in GCP SDK on 401s
-      if (refreshed) {
-        throw new com.google.api.client.http.HttpResponseException.Builder(
-                401, "Unauthorized", new com.google.api.client.http.HttpHeaders())
-            .setMessage("Mock credentials cannot be refreshed multiple times")
-            .build();
-      }
-      refreshed = true;
+    public AccessToken refreshAccessToken() {
+      // Always return the pre-generated token; no external call needed.
       return staticToken;
     }
 

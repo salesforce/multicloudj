@@ -281,38 +281,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
             .collect(Collectors.toList());
-    
-    // storage.delete(Iterable<BlobId>) returns a List<Boolean> representing success/failure 
-    // for each deletion. If any of the deletions fail (e.g. due to invalid credentials),
-    // it doesn't throw an exception, it just returns false in the list.
-    // We need to check the results and throw an exception if any failed.
-    try {
-      Iterable<Boolean> results = storage.delete(blobIds);
-      for (Boolean result : results) {
-        if (result == null || !result) {
-          throw new SubstrateSdkException(
-              "Failed to delete one or more blobs in bulk delete operation");
-        }
-      }
-    } catch (Exception e) {
-      if (e instanceof SubstrateSdkException) {
-        throw (SubstrateSdkException) e;
-      }
-      Class<? extends SubstrateSdkException> clazz = getException(e);
-      if (clazz.equals(
-          com.salesforce.multicloudj.common.exceptions.UnknownException.class)) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnknownException(
-            "Failed to delete one or more blobs in bulk delete operation", e);
-      }
-      try {
-        throw clazz
-            .getConstructor(String.class, Throwable.class)
-            .newInstance("Failed to delete one or more blobs in bulk delete operation", e);
-      } catch (Exception ex) {
-        throw new SubstrateSdkException(
-            "Failed to delete one or more blobs in bulk delete operation", e);
-      }
-    }
+    storage.delete(blobIds);
   }
 
   @Override
@@ -431,39 +400,20 @@ public class GcpBlobStore extends AbstractBlobStore {
       createRequestBuilder.contentType(request.getContentType());
     }
 
-    try {
-      CreateMultipartUploadResponse gcpMultipartUpload =
-          multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
+    CreateMultipartUploadResponse gcpMultipartUpload =
+        multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
-      return MultipartUpload.builder()
-          .bucket(getBucket())
-          .key(request.getKey())
-          .id(gcpMultipartUpload.uploadId())
-          .metadata(request.getMetadata())
-          .tags(request.getTags())
-          .kmsKeyId(request.getKmsKeyId())
-          .checksumEnabled(request.isChecksumEnabled())
-          .checksumAlgorithm(request.getChecksumAlgorithm())
-          .contentType(request.getContentType())
-          .build();
-    } catch (Exception e) {
-      if (e instanceof SubstrateSdkException) {
-        throw (SubstrateSdkException) e;
-      }
-      Class<? extends SubstrateSdkException> clazz = getException(e);
-      if (clazz.equals(
-          com.salesforce.multicloudj.common.exceptions.UnknownException.class)) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnknownException(
-            "Failed to perform multipart upload operation", e);
-      }
-      try {
-        throw clazz
-            .getConstructor(String.class, Throwable.class)
-            .newInstance("Failed to perform multipart upload operation", e);
-      } catch (Exception ex) {
-        throw new SubstrateSdkException("Failed to perform multipart upload operation", e);
-      }
-    }
+    return MultipartUpload.builder()
+        .bucket(getBucket())
+        .key(request.getKey())
+        .id(gcpMultipartUpload.uploadId())
+        .metadata(request.getMetadata())
+        .tags(request.getTags())
+        .kmsKeyId(request.getKmsKeyId())
+        .checksumEnabled(request.isChecksumEnabled())
+        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .contentType(request.getContentType())
+        .build();
   }
 
   @Override
@@ -588,23 +538,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
       }
       throw new UnknownException("Failed to check bucket existence", e);
-    } catch (Exception e) {
-      if (e instanceof SubstrateSdkException) {
-        throw (SubstrateSdkException) e;
-      }
-      Class<? extends SubstrateSdkException> clazz = getException(e);
-      if (clazz.equals(
-          com.salesforce.multicloudj.common.exceptions.UnknownException.class)) {
-        throw new com.salesforce.multicloudj.common.exceptions.UnknownException(
-            "Failed to check bucket existence", e);
-      }
-      try {
-        throw clazz
-            .getConstructor(String.class, Throwable.class)
-            .newInstance("Failed to check bucket existence", e);
-      } catch (Exception ex) {
-        throw new SubstrateSdkException("Failed to check bucket existence", e);
-      }
     }
   }
 
