@@ -210,7 +210,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testInvalidCredentials() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+    // Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
     AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
     BucketClient bucketClient = new BucketClient(blobStore);

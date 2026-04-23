@@ -92,7 +92,9 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         }
       } else {
         // Replay path - inject mock credentials
-        GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
+        Credentials mockCreds = useValidCredentials 
+            ? MockGoogleCredentialsFactory.createMockCredentials() 
+            : NoCredentials.getInstance();
         return createBlobStore(bucketNameToUse, mockCreds);
       }
     }
@@ -113,7 +115,10 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
               .getService();
 
       HttpStorageOptions.Builder storageOptionsBuilder =
-          HttpStorageOptions.http().setTransportOptions(transportOptions);
+          HttpStorageOptions.http()
+              .setTransportOptions(transportOptions)
+              .setCredentials(credentials)
+              .setHost(endpoint);
       MultipartUploadClient mpuClient =
           MultipartUploadClient.create(MultipartUploadSettings.of(storageOptionsBuilder.build()));
       return new GcpBlobStore.Builder()
