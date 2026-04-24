@@ -1,5 +1,5 @@
 {
-  "id" : "fa531adc-c783-46d7-a429-f323393105ff",
+  "id" : "b4319216-1fd5-4a7b-88eb-16bfe724604a",
   "name" : "FSDocstoreIT_testGet-POST-7",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidMap\"],\"mask\":{\"fieldPaths\":[\"b\",\"s\",\"pName\",\"f\",\"i\"]}}",
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidMap\"],\"mask\":{\"fieldPaths\":[\"b\",\"s\",\"pName\",\"f\",\"bytes\",\"i\"]}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidMap\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"random String\"\n      },\n      \"pName\": {\n        \"stringValue\": \"DavidMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:19:41.810186Z\",\n    \"updateTime\": \"2026-03-04T21:19:41.810186Z\"\n  },\n  \"readTime\": \"2026-03-04T21:19:41.810186Z\"\n}\n]",
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidMap\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": true\n      },\n      \"s\": {\n        \"stringValue\": \"random String\"\n      },\n      \"pName\": {\n        \"stringValue\": \"DavidMap\"\n      },\n      \"f\": {\n        \"doubleValue\": 12.659999847412109\n      },\n      \"bytes\": {\n        \"bytesValue\": \"cmFuZG9tU3RyaW5n\"\n      },\n      \"i\": {\n        \"integerValue\": \"121\"\n      }\n    },\n    \"createTime\": \"2026-04-22T22:41:18.838366Z\",\n    \"updateTime\": \"2026-04-22T22:41:18.838366Z\"\n  },\n  \"readTime\": \"2026-04-22T22:41:18.838366Z\"\n}\n]",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "16298182086561369064;o=1",
+      "X-Debug-Tracking-ID" : "7200184345318661429;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:42 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:19 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "fa531adc-c783-46d7-a429-f323393105ff",
+  "uuid" : "b4319216-1fd5-4a7b-88eb-16bfe724604a",
   "persistent" : true,
-  "insertionIndex" : 50
+  "insertionIndex" : 173
 }
