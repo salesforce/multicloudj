@@ -53,8 +53,39 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **Proxy Support** | ✅ Supported | ✅ Supported | ✅ Supported | HTTP proxy configuration |
 | **Credentials Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom credential providers via STS |
 
+### Performance Configuration
+
+| Configuration | GCP | AWS | ALI | Comments |
+|---------------|-----|-----|-----|----------|
+| **Parallel Uploads** | ✅ Supported | ✅ Supported | ✅ Supported | Multipart parallel uploads for large objects |
+| **Part Buffer Size** | ⚠️ Indirect | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload |
+| **Threshold Bytes** | 🔍 Under investigation | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload |
+| **Max Concurrency** | ✅ Supported | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads |
+| **Parallel Downloads** | ✅ Supported | ✅ Supported | ❌ Not supported | Parallel range-based downloads |
+| **Target Throughput (Gbps)** | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Network throughput hint |
+| **Max Native Memory Limit** | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
+
 ### Provider-Specific Notes
 
+#### AWS S3
+- **Parallel Uploads**: Enabled via `multipartEnabled(true)` on the S3 async client
+- **Parallel Downloads**: Uses CRT-based S3 client when enabled for high-throughput range-based downloads
+- **Part Buffer Size**: Maps to `minimumPartSizeInBytes` in `MultipartConfiguration`
+- **Threshold Bytes**: Maps to `thresholdInBytes` — default 150MB, configurable
+- **Max Concurrency**: Configured via `ExecutorService` or CRT client `maxConcurrency`
+- **Target Throughput / Max Native Memory**: Available only with the CRT-based client, activated when parallel downloads are enabled
+
+#### GCP GCS
+- **Parallel Uploads**: Automatic when file size exceeds SDK threshold; uses `ParallelCompositeUpload` (default threshold: 150MB, configurable via `isAllowParallelCompositeUpload`)
+- **Parallel Downloads**: Uses `AllowDivideAndConquerDownload(true)` for parallel range-based downloads (configurable via `isAllowDivideAndConquer`)
+- **Part Buffer Size**: Indirect support via `setPerWorkerBufferSize` in Transfer Manager
+- **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
+- **Threshold Bytes**: Default 150MB in the SDK; direct configuration API under investigation
+
+#### Alibaba OSS
+- **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
+- **Max Concurrency**: Manual thread pool configuration, similar to AWS approach
+- **Part Buffer Size**: Direct part size available in API but not as a builder config
 
 ---
 
@@ -80,6 +111,38 @@ bucketClient = BucketClient.builder("aws")
     .withProxyEndpoint(proxy)
     .build();
 ```
+
+---
+
+## Performance Tuning
+
+Configure parallel uploads, downloads, and throughput settings when building the client:
+
+```java
+BucketClient bucketClient = BucketClient.builder("aws")
+    .withRegion("us-west-2")
+    .withBucket("my-bucket")
+    .withParallelUploadsEnabled(true)
+    .withParallelDownloadsEnabled(true)
+    .withThresholdBytes(10 * 1024 * 1024L)            // 10MB multipart threshold
+    .withPartBufferSize(2 * 1024 * 1024L)              // 2MB per part
+    .withMaxConcurrency(50)
+    .withTargetThroughputInGbps(25.0)                   // CRT client only (AWS)
+    .withMaxNativeMemoryLimitInBytes(2L * 1024 * 1024 * 1024)  // 2GB (AWS CRT only)
+    .build();
+```
+
+| Parameter | Description | Default Behavior |
+|-----------|-------------|------------------|
+| `withParallelUploadsEnabled` | Enables multipart parallel uploads for large objects | Disabled |
+| `withParallelDownloadsEnabled` | Enables parallel range-based downloads | Disabled |
+| `withThresholdBytes` | File size above which multipart upload kicks in | Provider default (typically 150MB) |
+| `withPartBufferSize` | Size of each part in a multipart upload | Provider default |
+| `withMaxConcurrency` | Maximum number of concurrent transfer threads | Provider default |
+| `withTargetThroughputInGbps` | Network throughput hint for the transfer | AWS CRT client only |
+| `withMaxNativeMemoryLimitInBytes` | Caps native memory usage | AWS CRT client only |
+
+> **Note:** `withTargetThroughputInGbps` and `withMaxNativeMemoryLimitInBytes` only take effect on AWS when the CRT-based S3 client is activated (i.e., when parallel downloads are enabled). On GCP and Alibaba, these settings are ignored.
 
 ---
 
