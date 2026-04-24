@@ -1,0 +1,42 @@
+{
+  "id" : "ab8c16c5-7ea4-4422-bff4-82fa9db13183",
+  "name" : "GcpPubsubIT_testNackWithVisibilityTimeout-POST-2",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/topics/topic-testNackWithVisibilityTimeout:publish",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.messages"
+    }, {
+      "matchesJsonPath" : "$.messages[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"messageIds\": [\n    \"19243635672475912\"\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Fri, 17 Apr 2026 21:22:53 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "ab8c16c5-7ea4-4422-bff4-82fa9db13183",
+  "persistent" : true,
+  "insertionIndex" : 27
+}

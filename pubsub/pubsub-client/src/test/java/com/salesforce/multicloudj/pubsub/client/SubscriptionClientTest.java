@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -177,6 +178,7 @@ public class SubscriptionClientTest {
       when(mockBuilder.withEndpoint(any())).thenReturn(mockBuilder);
       when(mockBuilder.withProxyEndpoint(any())).thenReturn(mockBuilder);
       when(mockBuilder.withCredentialsOverrider(any())).thenReturn(mockBuilder);
+      when(mockBuilder.withNackVisibilityTimeout(any())).thenReturn(mockBuilder);
       when(mockBuilder.build()).thenReturn(mockSubscription);
 
       // Act
@@ -187,6 +189,7 @@ public class SubscriptionClientTest {
               .withEndpoint(URI.create("https://test.example.com"))
               .withProxyEndpoint(URI.create("https://proxy.example.com"))
               .withCredentialsOverrider(mock(CredentialsOverrider.class))
+              .withNackVisibilityTimeout(Duration.ofSeconds(30))
               .build();
 
       // Assert
@@ -196,7 +199,31 @@ public class SubscriptionClientTest {
       verify(mockBuilder).withEndpoint(URI.create("https://test.example.com"));
       verify(mockBuilder).withProxyEndpoint(URI.create("https://proxy.example.com"));
       verify(mockBuilder).withCredentialsOverrider(any(CredentialsOverrider.class));
+      verify(mockBuilder).withNackVisibilityTimeout(Duration.ofSeconds(30));
       verify(mockBuilder).build();
+    }
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testBuilderWithNackVisibilityTimeout() {
+    try (MockedStatic<ProviderSupplier> mockedStatic = mockStatic(ProviderSupplier.class)) {
+      // Arrange
+      mockedStatic
+          .when(() -> ProviderSupplier.findSubscriptionProviderBuilder("test-provider"))
+          .thenReturn(mockBuilder);
+      when(mockBuilder.withNackVisibilityTimeout(any())).thenReturn(mockBuilder);
+      when(mockBuilder.build()).thenReturn(mockSubscription);
+
+      // Act
+      SubscriptionClient result =
+          SubscriptionClient.builder("test-provider")
+              .withNackVisibilityTimeout(Duration.ofSeconds(60))
+              .build();
+
+      // Assert
+      assertNotNull(result);
+      verify(mockBuilder).withNackVisibilityTimeout(Duration.ofSeconds(60));
     }
   }
 
