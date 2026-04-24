@@ -27,20 +27,28 @@ import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 @SuppressWarnings("rawtypes")
 @AutoService(AbstractSubscription.class)
 public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
+
+  // Pub/Sub caps ModifyAckDeadline at 600s.
+  // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/modifyAckDeadline
+  private static final int PUBSUB_MAX_ACK_DEADLINE_SECONDS = 600;
 
   private final BlockingQueue<Message> messageQueue = new LinkedBlockingQueue<>();
   private Batcher.Options receiveBatcherOptions;
@@ -134,30 +142,46 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
   }
 
   @Override
-  protected void doSendNacks(List<AckID> ackIDs) {
-    // NackLazy mode: bypass ModifyAckDeadline call
-    // Messages will be redelivered after existing ack deadline expires
+  protected void doSendNacks(List<AckInfo> nacks) {
+    // Lazy mode waits for the existing deadline to expire instead of calling ModifyAckDeadline.
     if (nackLazy) {
       return;
     }
-    // Normal mode: immediate redelivery by setting deadline to 0
-    List<String> ackIds = new ArrayList<>();
-    for (AckID ackID : ackIDs) {
-      ackIds.add(ackID.toString());
-    }
-
-    if (ackIds.isEmpty()) {
+    if (nacks.isEmpty()) {
       return;
     }
 
-    ModifyAckDeadlineRequest request =
-        ModifyAckDeadlineRequest.newBuilder()
-            .setSubscription(subscriptionName)
-            .addAllAckIds(ackIds)
-            .setAckDeadlineSeconds(0) // 0 means nack (immediate redelivery)
-            .build();
+    // Two layers of nack visibility timeout:
+    //   1) subscription-level default (set on the SubscriptionClient builder)
+    //   2) per-message override (passed via nack(ackId, duration))
+    // Resolve per-message > subscription default for each AckInfo, then bucket ack ids by the
+    // resolved deadline because ModifyAckDeadline only accepts one deadline per request.
+    Duration subscriptionDefault = getNackVisibilityTimeout();
+    Map<Integer, List<String>> ackIdsByDeadline = new LinkedHashMap<>();
+    for (AckInfo nack : nacks) {
+      // Per-message override wins; otherwise fall back to the subscription default.
+      Duration timeoutToApply =
+          nack.getVisibilityTimeout() != null ? nack.getVisibilityTimeout() : subscriptionDefault;
+      // Pub/Sub only accepts 0 (immediate redelivery) ... 600s (10 minutes).
+      int ackDeadlineSeconds =
+          (int) Math.min(timeoutToApply.getSeconds(), PUBSUB_MAX_ACK_DEADLINE_SECONDS);
+      ackIdsByDeadline
+          .computeIfAbsent(ackDeadlineSeconds, k -> new ArrayList<>())
+          .add(nack.getAckID().toString());
+    }
 
-    getOrCreateSubscriptionAdminClient().modifyAckDeadlineCallable().call(request);
+    SubscriptionAdminClient client = getOrCreateSubscriptionAdminClient();
+    for (Map.Entry<Integer, List<String>> deadlineGroup : ackIdsByDeadline.entrySet()) {
+      int deadlineSeconds = deadlineGroup.getKey();
+      List<String> ackIdsForThisDeadline = deadlineGroup.getValue();
+      ModifyAckDeadlineRequest request =
+          ModifyAckDeadlineRequest.newBuilder()
+              .setSubscription(subscriptionName)
+              .addAllAckIds(ackIdsForThisDeadline)
+              .setAckDeadlineSeconds(deadlineSeconds)
+              .build();
+      client.modifyAckDeadlineCallable().call(request);
+    }
   }
 
   @Override
@@ -342,6 +366,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
     public GcpSubscription.Builder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       super.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    @Override
+    public GcpSubscription.Builder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      super.withNackVisibilityTimeout(nackVisibilityTimeout);
       return this;
     }
 

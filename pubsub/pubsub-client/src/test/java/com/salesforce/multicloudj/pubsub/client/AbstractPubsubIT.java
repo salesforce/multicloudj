@@ -6,6 +6,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,6 +47,19 @@ public abstract class AbstractPubsubIT {
     default AbstractSubscription createSubscriptionDriverWithIndex(int index) {
       // Default implementation: just create a subscription driver
       // Providers that need index-based naming should override this method
+      return createSubscriptionDriver();
+    }
+
+    /**
+     * Create a subscription driver, optionally configured with a specific nack visibility timeout.
+     * Pass {@code null} to use the provider default. Used for conformance tests that validate
+     * provider behavior when nacked messages must remain invisible for a configured duration
+     * before redelivery.
+     *
+     * <p>Providers should override this method to propagate the configured timeout to their
+     * subscription builder.
+     */
+    default AbstractSubscription createSubscriptionDriver(Duration nackVisibilityTimeout) {
       return createSubscriptionDriver();
     }
 
@@ -297,6 +311,41 @@ public abstract class AbstractPubsubIT {
           ackIDs.size(),
           "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
       subscription.sendNacks(ackIDs).join();
+    }
+  }
+
+  @Test
+  public void testNackWithVisibilityTimeout() throws Exception {
+    Duration nackVisibilityTimeout = Duration.ofSeconds(5);
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription =
+            harness.createSubscriptionDriver(nackVisibilityTimeout)) {
+
+      Assertions.assertEquals(
+          nackVisibilityTimeout,
+          subscription.getNackVisibilityTimeout(),
+          "Subscription should expose the configured nack visibility timeout");
+
+      Message toSend =
+          Message.builder()
+              .withBody("it-nack-visibility-timeout".getBytes())
+              .withMetadata(Map.of("case", "nack-visibility-timeout"))
+              .build();
+      topic.send(toSend);
+
+      Message received = null;
+      for (int i = 0; i < 50; i++) {
+        received = subscription.receive();
+        if (received != null) {
+          break;
+        }
+        TimeUnit.MILLISECONDS.sleep(200);
+      }
+
+      Assertions.assertNotNull(received, "Should receive a message to nack");
+      Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+
+      subscription.sendNacks(List.of(received.getAckID())).join();
     }
   }
 

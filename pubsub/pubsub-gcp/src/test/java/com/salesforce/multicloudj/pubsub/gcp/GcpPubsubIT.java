@@ -18,6 +18,7 @@ import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -130,6 +131,17 @@ public class GcpPubsubIT extends AbstractPubsubIT {
      */
     @Override
     public AbstractSubscription createSubscriptionDriverWithIndex(int index) {
+      return buildSubscription(index, null);
+    }
+
+    @Override
+    public AbstractSubscription createSubscriptionDriver(Duration nackVisibilityTimeout) {
+      return buildSubscription(0, nackVisibilityTimeout);
+    }
+
+    // Shared factory for both createSubscriptionDriver overloads. Pass null to use the provider's
+    // default nack visibility timeout.
+    private AbstractSubscription buildSubscription(int index, Duration nackVisibilityTimeout) {
       boolean isRecordingEnabled = System.getProperty("record") != null;
 
       TransportChannelProvider channelProvider = TestsUtilGcp.getTransportChannelProvider(port);
@@ -154,6 +166,9 @@ public class GcpPubsubIT extends AbstractPubsubIT {
 
         GcpSubscription.Builder subscriptionBuilder =
             new GcpSubscription.Builder().withSubscriptionName(fullSubscriptionName);
+        if (nackVisibilityTimeout != null) {
+          subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);
+        }
         GcpSubscription sub = new GcpSubscription(subscriptionBuilder, client) {
           @Override
           protected Batcher.Options createReceiveBatcherOptions() {
