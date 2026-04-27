@@ -33,25 +33,13 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 /**
- * Abstract JMH benchmark class for async directory upload/download operations via {@link
- * AsyncBucketClient}, which is the user-facing entry point that exposes directory APIs.
+ * JMH benchmarks for async directory upload/download via {@link AsyncBucketClient}.
  *
- * <p>Runs {@link Mode#SingleShotTime} and {@link Mode#SampleTime} for every method so each
- * file size can be read from the report that fits it best:
- * <ul>
- *   <li>SampleTime is the primary signal for small/medium sizes (the 60s window admits many
- *       ops per iteration, giving a meaningful latency distribution).
- *   <li>SingleShotTime is the primary signal for large sizes (where the SampleTime window
- *       only fits a handful of ops).
- * </ul>
+ * <p>Runs in {@link Mode#SampleTime}, {@link Mode#SingleShotTime} and {@link Mode#Throughput}.
  *
- * <p>Per-invocation setup/teardown (new upload prefix, new local download directory, cleanup)
- * runs via {@link Level#Invocation}.
- *
- * <p>Corpus: 100 x 1KB, 50 x 1MB, 10 x 10MB. Sized well below AWS/GCS per-prefix and
- * per-bucket rate limits — re-check provider quotas if sizes or parallelism change.
+ * <p>Corpus: 100 x 1KB, 50 x 1MB, 10 x 10MB — kept under AWS/GCS rate limits.
  */
-@BenchmarkMode({Mode.SingleShotTime, Mode.SampleTime})
+@BenchmarkMode({Mode.SingleShotTime, Mode.SampleTime, Mode.Throughput})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
@@ -94,7 +82,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   protected abstract Harness createHarness();
 
-  /** Returns provider ID for JMH result file naming (e.g., "aws", "gcp"). */
+  /** Returns provider ID for JMH result file naming, e.g., "aws", "gcp". */
   protected abstract String getProviderId();
 
   @Setup(Level.Trial)
@@ -118,7 +106,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
         try {
           harness.close();
         } catch (Exception ignored) {
-          // Best-effort close.
+          // Trial already ran; swallow so cleanup failure can't mask earlier errors.
         }
       }
     }
