@@ -419,6 +419,30 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoDownload_WithOutputStream_ParallelDownloadIgnoredUsesReader() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      DownloadRequest downloadRequest =
+          DownloadRequest.builder().withKey(TEST_KEY).withParallelDownload(true).build();
+      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
+      doReturn(new ImmutablePair<>(null, null))
+          .when(mockTransformer)
+          .computeRange(any(), any(), anyLong());
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, outputStream);
+
+      assertEquals(expectedResponse, response);
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).downloadTo(any(Path.class));
+    }
+  }
+
+  @Test
   void testDoDownload_BlobNotFound() {
     try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
       // Given
@@ -574,6 +598,89 @@ class GcpBlobStoreTest {
 
       // Then
       assertEquals(expectedResponse, response);
+    }
+  }
+
+  @Test
+  void testDoDownload_WithPathAndCreateParentPath() {
+    try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      Path destinationRoot = tempDir.resolve("download-root");
+      DownloadRequest downloadRequest =
+          DownloadRequest.builder()
+              .withKey("prefix-a/prefix-b/test.txt")
+              .withCreateParentPath(true)
+              .build();
+
+      DownloadResponse expectedResponse =
+          DownloadResponse.builder().key("prefix-a/prefix-b/test.txt").build();
+
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
+      doReturn(new ImmutablePair<>(null, null))
+          .when(mockTransformer)
+          .computeRange(any(), any(), anyLong());
+
+      // When
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, destinationRoot);
+
+      // Then
+      assertEquals(expectedResponse, response);
+      assertTrue(Files.exists(destinationRoot.resolve("prefix-a/prefix-b")));
+    }
+  }
+
+  @Test
+  void testDoDownload_WithPathAndParallelDownload() {
+    // Given
+    Path testFile = tempDir.resolve("download.txt");
+    DownloadRequest downloadRequest =
+        DownloadRequest.builder().withKey(TEST_KEY).withParallelDownload(true).build();
+    DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+
+    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+    when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
+
+    // When
+    DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, testFile);
+
+    // Then
+    assertEquals(expectedResponse, response);
+    verify(mockBlob).downloadTo(testFile);
+    verify(mockStorage, never()).reader(mockBlobId);
+  }
+
+  @Test
+  void testDoDownload_WithPathAndParallelDownloadWithRangeFallsBackToStream() {
+    try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      Path testFile = tempDir.resolve("download.txt");
+      DownloadRequest downloadRequest =
+          DownloadRequest.builder()
+              .withKey(TEST_KEY)
+              .withParallelDownload(true)
+              .withRange(10L, 20L)
+              .build();
+      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
+      doReturn(new ImmutablePair<>(10L, 20L))
+          .when(mockTransformer)
+          .computeRange(any(), any(), anyLong());
+
+      // When
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, testFile);
+
+      // Then
+      assertEquals(expectedResponse, response);
+      verify(mockStorage).reader(mockBlobId);
+      verify(mockBlob, never()).downloadTo(any(Path.class));
     }
   }
 

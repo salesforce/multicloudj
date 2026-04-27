@@ -235,7 +235,9 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(file));
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, file.toPath());
+    GetObjectResponse response =
+        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 
@@ -249,7 +251,9 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(path));
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+    GetObjectResponse response =
+        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
   }
 

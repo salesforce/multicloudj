@@ -183,27 +183,25 @@ public class AwsBlobStoreTest {
             .withSessionCredentials(sessionCreds)
             .build();
 
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .withEndpoint(URI.create("https://blob.endpoint.com"))
-            .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
-            .withSocketTimeout(Duration.ofMinutes(1))
-            .withIdleConnectionTimeout(Duration.ofMinutes(5))
-            .withMaxConnections(100)
-            .build();
+    AwsBlobStore.Builder builder1 = new AwsBlobStore.Builder();
+    builder1.withTransformerSupplier(transformerSupplier);
+    builder1.withCredentialsOverrider(credsOverrider);
+    builder1.withBucket("bucket-1");
+    builder1.withRegion("us-east-2");
+    builder1.withEndpoint(URI.create("https://blob.endpoint.com"));
+    builder1.withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"));
+    builder1.withSocketTimeout(Duration.ofMinutes(1));
+    builder1.withIdleConnectionTimeout(Duration.ofMinutes(5));
+    builder1.withMaxConnections(100);
+    aws = builder1.build();
     credsOverrider =
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("some-role").build();
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .build();
+    AwsBlobStore.Builder builder2 = new AwsBlobStore.Builder();
+    builder2.withTransformerSupplier(transformerSupplier);
+    builder2.withCredentialsOverrider(credsOverrider);
+    builder2.withBucket("bucket-1");
+    builder2.withRegion("us-east-2");
+    aws = builder2.build();
   }
 
   @AfterEach
@@ -554,6 +552,33 @@ public class AwsBlobStoreTest {
       } catch (IOException e) {
         Assertions.fail();
       }
+    }
+  }
+
+  @Test
+  void testDoDownloadPath_WithCreateParentPath() throws IOException {
+    Instant now = Instant.now();
+    setupMockGetObjectResponse(now, false);
+
+    Path rootPath = Path.of("tempCreateParentRoot");
+    try {
+      Files.createDirectories(rootPath);
+      DownloadRequest request =
+          DownloadRequest.builder()
+              .withKey("prefix-a/prefix-b/object-1")
+              .withVersionId("version-1")
+              .withRange(10L, 110L)
+              .withCreateParentPath(true)
+              .build();
+      DownloadResponse response = aws.doDownload(request, rootPath);
+      assertEquals("prefix-a/prefix-b/object-1", response.getKey());
+      // Verify the intermediate parent directories were created.
+      assertTrue(Files.exists(rootPath.resolve("prefix-a/prefix-b")));
+    } finally {
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b/object-1"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a"));
+      Files.deleteIfExists(rootPath);
     }
   }
 

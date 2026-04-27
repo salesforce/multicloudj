@@ -11,6 +11,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
@@ -32,6 +33,12 @@ import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
+import com.google.cloud.storage.transfermanager.DownloadJob;
+import com.google.cloud.storage.transfermanager.DownloadResult;
+import com.google.cloud.storage.transfermanager.ParallelDownloadConfig;
+import com.google.cloud.storage.transfermanager.TransferManager;
+import com.google.cloud.storage.transfermanager.TransferManagerConfig;
+import com.google.cloud.storage.transfermanager.TransferStatus;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -87,6 +94,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -108,9 +116,14 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
+  private static final int PARALLEL_LARGE_FILE_DOWNLOAD_MAX_WORKERS = 8;
+
+  private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
+
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
   private final GcpTransformer transformer;
+  private final TransferManager transferManager;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
@@ -122,6 +135,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     super(builder);
     this.storage = storage;
     this.multipartUploadClient = mpuClient;
+    this.transferManager = builder.getTransferManager();
     this.transformer = builder.transformerSupplier.get(bucket);
   }
 
@@ -189,6 +203,8 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
+    // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
+    // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
 
@@ -223,13 +239,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     return doDownload(downloadRequest, file.toPath());
   }
 
-  /**
-   * Performs Blob download and returns an InputStream
-   *
-   * @param downloadRequest Wrapper object containing download data
-   * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
-   */
+  // parallelDownload not supported: TransferManager writes to disk,
+  // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
@@ -261,10 +272,167 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    try (OutputStream outputStream = Files.newOutputStream(path)) {
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+    // GCP TransferManager only supports full-file downloads;
+    // fall back to ReadChannel for range requests.
+    if (downloadRequest.isParallelDownload()
+        && downloadRequest.getStart() == null
+        && downloadRequest.getEnd() == null) {
+      return doParallelDownload(downloadRequest, destinationPath);
+    }
+    try (OutputStream outputStream = Files.newOutputStream(destinationPath)) {
       return doDownload(downloadRequest, outputStream);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while saving content to path", e);
+    }
+  }
+
+  /**
+   * Parallel download using the GCS transfer manager when available (divide-and-conquer / sliced
+   * Range GETs for large objects); otherwise {@link Blob#downloadTo(Path)}. Matches the shape of
+   * {@code AwsBlobStore#doParallelDownload(GetObjectRequest, Path)}: request + resolved file path
+   * only.
+   */
+  private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlob(blobId);
+    ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
+    if (transferManager == null || tmPaths == null) {
+      return downloadBlobToPath(blob, destination);
+    }
+    executeTransferManagerDownload(blobId, downloadRequest.getKey(), tmPaths);
+    return transformer.toDownloadResponse(blob);
+  }
+
+  private void executeTransferManagerDownload(
+      BlobId blobId, String objectKey, ParallelTmPaths tmPaths) {
+    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+    ParallelDownloadConfig parallelDownloadConfig =
+        ParallelDownloadConfig.newBuilder()
+            .setBucketName(getBucket())
+            .setDownloadDirectory(tmPaths.downloadDirectory)
+            .setStripPrefix(tmPaths.stripPrefix)
+            .build();
+    DownloadJob job =
+        transferManager.downloadBlobs(
+            Collections.singletonList(blobInfo), parallelDownloadConfig);
+    DownloadResult result = job.getDownloadResults().get(0);
+    if (result.getStatus() != TransferStatus.SUCCESS) {
+      Exception failure = result.getException();
+      throw new SubstrateSdkException(
+          "Parallel download failed",
+          failure != null ? failure : new IllegalStateException(result.getStatus().name()));
+    }
+    Path expected = tmPaths.expectedOutputPath(objectKey);
+    Path actual = result.getOutputDestination().normalize();
+    if (!actual.equals(expected.normalize())) {
+      throw new SubstrateSdkException(
+          "Parallel download wrote unexpected path (expected "
+              + expected
+              + ", got "
+              + actual
+              + ")");
+    }
+  }
+
+  private DownloadResponse downloadBlobToPath(Blob blob, Path destinationPath) {
+    blob.downloadTo(destinationPath);
+    return transformer.toDownloadResponse(blob);
+  }
+
+  /**
+   * Derives {@link ParallelDownloadConfig} directory and strip-prefix so the transfer manager
+   * destination matches {@code destinationPath}, when that layout is expressible (otherwise {@code
+   * null} and we fall back to {@link Blob#downloadTo(Path)}).
+   *
+   * <p>Unlike AWS S3's transfer manager, which takes an explicit per-download file {@link Path}
+   * ({@code DownloadFileRequest#destination}), GCS {@link TransferManager} only places files
+   * under a {@linkplain ParallelDownloadConfig#getDownloadDirectory() download directory} using
+   * the object key (optionally {@linkplain ParallelDownloadConfig#getStripPrefix()
+   * strip-prefixed}). We need this mapping so the same resolved {@code destinationPath} as
+   * {@link #createDownloadDestinationPath} is honored when parallel download is enabled.
+   */
+  private static ParallelTmPaths computeParallelTmPaths(
+      DownloadRequest request, Path destinationPath) {
+    String key = request.getKey();
+    Path normalizedDest = destinationPath.normalize();
+    ParallelTmPaths paths;
+    if (request.isCreateParentPath()) {
+      Path downloadRoot = inferDownloadRootFromResolvedKeyPath(destinationPath, key);
+      if (downloadRoot == null) {
+        return null;
+      }
+      paths = new ParallelTmPaths(downloadRoot, "");
+    } else {
+      Path parent = destinationPath.getParent();
+      Path downloadDir = parent != null ? parent.normalize() : Paths.get(".");
+      Path name = destinationPath.getFileName();
+      if (name == null) {
+        return null;
+      }
+      String destFileName = name.toString();
+      if (key.indexOf('/') < 0) {
+        if (!key.equals(destFileName)) {
+          return null;
+        }
+        paths = new ParallelTmPaths(downloadDir, "");
+      } else {
+        String suffix = key.replaceFirst(OBJECT_KEY_DIRECTORY_PREFIX_REGEX, "");
+        if (!suffix.equals(destFileName)) {
+          return null;
+        }
+        paths = new ParallelTmPaths(downloadDir, OBJECT_KEY_DIRECTORY_PREFIX_REGEX);
+      }
+    }
+    if (!paths.expectedOutputPath(key).equals(normalizedDest)) {
+      return null;
+    }
+    return paths;
+  }
+
+  /**
+   * For {@code createParentPath}, {@code destinationPath} is {@code root.resolve(key)}; recover
+   * {@code root} by walking parents and matching object key segments (same layout as {@link
+   * #createDownloadDestinationPath}).
+   */
+  private static Path inferDownloadRootFromResolvedKeyPath(
+      Path destinationPath, String objectKey) {
+    List<String> segments =
+        Arrays.stream(objectKey.split("/"))
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.toList());
+    if (segments.isEmpty()) {
+      return null;
+    }
+    Path current = destinationPath.normalize();
+    for (int i = segments.size() - 1; i >= 0; i--) {
+      Path fileName = current.getFileName();
+      if (fileName == null || !fileName.toString().equals(segments.get(i))) {
+        return null;
+      }
+      current = current.getParent();
+      if (current == null && i > 0) {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  private static final class ParallelTmPaths {
+    private final Path downloadDirectory;
+    private final String stripPrefix;
+
+    private ParallelTmPaths(Path downloadDirectory, String stripPrefix) {
+      this.downloadDirectory = downloadDirectory;
+      this.stripPrefix = stripPrefix;
+    }
+
+    private Path expectedOutputPath(String objectKey) {
+      String relative =
+          stripPrefix.isEmpty()
+              ? objectKey
+              : objectKey.replaceFirst(stripPrefix, "");
+      return downloadDirectory.resolve(relative).normalize();
     }
   }
 
@@ -941,6 +1109,9 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   public void close() {
     try {
+      if (transferManager != null) {
+        transferManager.close();
+      }
       if (storage != null) {
         storage.close();
       }
@@ -954,6 +1125,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
+    private TransferManager transferManager;
     private GcpTransformerSupplier transformerSupplier = new GcpTransformerSupplier();
 
     public Builder() {
@@ -972,6 +1144,11 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     public Builder withMultipartUploadClient(MultipartUploadClient mpuClient) {
       this.mpuClient = mpuClient;
+      return this;
+    }
+
+    public Builder withTransferManager(TransferManager transferManager) {
+      this.transferManager = transferManager;
       return this;
     }
 
@@ -1143,7 +1320,23 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (mpuClient == null) {
         mpuClient = buildMultipartUploadClient(this);
       }
+      if (transferManager == null) {
+        transferManager = buildParallelDownloadTransferManager(storage);
+      }
       return new GcpBlobStore(this, storage, mpuClient);
+    }
+
+    private static TransferManager buildParallelDownloadTransferManager(Storage storage) {
+      if (storage == null || storage.getOptions() == null) {
+        return null;
+      }
+      TransferManagerConfig config =
+          TransferManagerConfig.newBuilder()
+              .setStorageOptions(storage.getOptions())
+              .setMaxWorkers(GcpBlobStore.PARALLEL_LARGE_FILE_DOWNLOAD_MAX_WORKERS)
+              .setAllowDivideAndConquerDownload(true)
+              .build();
+      return config.getService();
     }
   }
 }
