@@ -116,14 +116,9 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
-  /**
-   * Worker count for {@link TransferManager} divide-and-conquer downloads, analogous to tuning
-   * gsutil sliced / parallel Range GET downloads for large objects (see Google Cloud Performance
-   * Atlas: Optimizing your Cloud Storage performance).
-   */
   private static final int PARALLEL_LARGE_FILE_DOWNLOAD_MAX_WORKERS = 8;
 
-  private static final String PARALLEL_STRIP_PREFIX_TO_BASENAME = "^.*/";
+  private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
 
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
@@ -231,8 +226,6 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
   }
 
-  // parallelDownload not supported: delegates to OutputStream which
-  // cannot accept parallel range-GET writes.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -279,7 +272,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
     // GCP TransferManager only supports full-file downloads;
     // fall back to ReadChannel for range requests.
     if (downloadRequest.isParallelDownload()
@@ -292,23 +285,6 @@ public class GcpBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while saving content to path", e);
     }
-  }
-
-  private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
-    if (!request.isCreateParentPath()) {
-      return destination;
-    }
-    // Keep key parent structure under the provided local destination root when requested.
-    Path resolved = destination.resolve(request.getKey()).normalize();
-    Path parent = resolved.getParent();
-    if (parent != null) {
-      try {
-        Files.createDirectories(parent);
-      } catch (IOException e) {
-        throw new SubstrateSdkException("Failed to create destination directories", e);
-      }
-    }
-    return resolved;
   }
 
   /**
@@ -374,7 +350,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    * under a {@linkplain ParallelDownloadConfig#getDownloadDirectory() download directory} using
    * the object key (optionally {@linkplain ParallelDownloadConfig#getStripPrefix()
    * strip-prefixed}). We need this mapping so the same resolved {@code destinationPath} as
-   * {@link #resolveDownloadDestinationPath} is honored when parallel download is enabled.
+   * {@link #createDownloadDestinationPath} is honored when parallel download is enabled.
    */
   private static ParallelTmPaths computeParallelTmPaths(
       DownloadRequest request, Path destinationPath) {
@@ -401,11 +377,11 @@ public class GcpBlobStore extends AbstractBlobStore {
         }
         paths = new ParallelTmPaths(downloadDir, "");
       } else {
-        String suffix = key.replaceFirst(PARALLEL_STRIP_PREFIX_TO_BASENAME, "");
+        String suffix = key.replaceFirst(OBJECT_KEY_DIRECTORY_PREFIX_REGEX, "");
         if (!suffix.equals(destFileName)) {
           return null;
         }
-        paths = new ParallelTmPaths(downloadDir, PARALLEL_STRIP_PREFIX_TO_BASENAME);
+        paths = new ParallelTmPaths(downloadDir, OBJECT_KEY_DIRECTORY_PREFIX_REGEX);
       }
     }
     if (!paths.expectedOutputPath(key).equals(normalizedDest)) {
@@ -417,7 +393,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   /**
    * For {@code createParentPath}, {@code destinationPath} is {@code root.resolve(key)}; recover
    * {@code root} by walking parents and matching object key segments (same layout as {@link
-   * #resolveDownloadDestinationPath}).
+   * #createDownloadDestinationPath}).
    */
   private static Path inferDownloadRootFromResolvedKeyPath(
       Path destinationPath, String objectKey) {

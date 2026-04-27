@@ -31,11 +31,9 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -237,7 +235,7 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, file.toPath());
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, file.toPath());
     GetObjectResponse response =
         s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
@@ -253,31 +251,10 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     GetObjectRequest request = transformer.toRequest(downloadRequest);
-    Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
     GetObjectResponse response =
         s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
     return transformer.toDownloadResponse(downloadRequest, response);
-  }
-
-  /**
-   * When createParentPath is enabled, resolves the final file path by appending
-   * the object key to the destination root and creating any missing parent directories.
-   */
-  private Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
-    if (!request.isCreateParentPath()) {
-      return destination;
-    }
-    // When requested, keep the key's parent path structure under the provided destination root.
-    Path resolved = destination.resolve(request.getKey()).normalize();
-    Path parent = resolved.getParent();
-    if (parent != null) {
-      try {
-        Files.createDirectories(parent);
-      } catch (IOException e) {
-        throw new SubstrateSdkException("Failed to create destination directories", e);
-      }
-    }
-    return resolved;
   }
 
   /**

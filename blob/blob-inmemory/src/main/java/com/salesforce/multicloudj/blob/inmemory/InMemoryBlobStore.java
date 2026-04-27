@@ -275,7 +275,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] data =
           extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
-      Path destinationPath = resolveDownloadDestinationPath(downloadRequest, path);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
       Files.write(destinationPath, data);
       return buildDownloadResponse(downloadRequest.getKey(), blob, data.length);
     } catch (Exception e) {
@@ -283,7 +283,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
   }
 
-  private static Path resolveDownloadDestinationPath(DownloadRequest request, Path destination) {
+  @Override
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
     if (!request.isCreateParentPath()) {
       return destination;
     }
