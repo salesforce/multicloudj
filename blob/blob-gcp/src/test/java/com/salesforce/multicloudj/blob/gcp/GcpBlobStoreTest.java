@@ -3785,4 +3785,30 @@ class GcpBlobStoreTest {
     assertNotNull(store);
     assertEquals(TEST_BUCKET, store.getBucket());
   }
+
+  @Test
+  void testBuild_WithQuotaProjectId() {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withQuotaProjectId("my-quota-project");
+
+    assertEquals("my-quota-project", builder.getQuotaProjectId());
+
+    GcpBlobStore store = builder.build();
+    assertNotNull(store);
+    assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
+  void testBuild_WithoutQuotaProjectId() {
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder) new GcpBlobStore.Builder().withBucket(TEST_BUCKET);
+
+    assertNull(builder.getQuotaProjectId());
+
+    GcpBlobStore store = builder.build();
+    assertNotNull(store);
+  }
 }

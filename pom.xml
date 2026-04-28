@@ -55,7 +55,7 @@
         <slf4j.version>2.0.15</slf4j.version>
         <commons-logging.version>1.3.4</commons-logging.version>
         <guava.version>33.2.1-jre</guava.version>
-        <guice.version>4.2.3</guice.version>
+        <guice.version>7.0.0</guice.version>
         <junit.version>5.12.1</junit.version>
         <mockito.version>5.16.1</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
@@ -70,7 +70,7 @@
         <jmh.version>1.37</jmh.version>
         <netty.version>4.1.132.Final</netty.version>
         <jackson.version>2.18.6</jackson.version>
-        <aws-sdk.version>2.35.0</aws-sdk.version>
+        <aws-sdk.version>2.42.40</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

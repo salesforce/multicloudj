@@ -1,5 +1,5 @@
 {
-  "id" : "05904231-426e-4040-997e-1a928b98993e",
+  "id" : "0fc522ce-1272-41eb-a8ae-a9a11e27aa8d",
   "name" : "AwsDocstoreIT_testGet-POST-16",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"BishopPlayer\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"BishopPlayer\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "PVD4CIAFKHJQQ58DTJCMB23B5RVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-RequestId" : "2THJPG7KCOFT3PDB5G0V4SHDPFVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 04 Mar 2026 21:12:37 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:57:51 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "05904231-426e-4040-997e-1a928b98993e",
+  "uuid" : "0fc522ce-1272-41eb-a8ae-a9a11e27aa8d",
   "persistent" : true,
-  "insertionIndex" : 57
+  "insertionIndex" : 238
 }

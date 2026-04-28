@@ -1,5 +1,5 @@
 {
-  "id" : "ea6d368e-ee96-495b-a815-916b6c6c1139",
+  "id" : "059867d4-26d9-498e-8930-784257be45b1",
   "name" : "AwsDocstoreIT_testGet-POST-11",
   "request" : {
     "url" : "/",
@@ -10,23 +10,23 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"EdwardPlayer\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2,#attr3,#attr4\",\"ExpressionAttributeNames\":{\"#attr4\":\"pName\",\"#attr3\":\"s\",\"#attr2\":\"b\",\"#attr1\":\"f\",\"#attr0\":\"i\"}}}}",
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"EdwardPlayer\"}}],\"ConsistentRead\":false,\"ProjectionExpression\":\"#attr0,#attr1,#attr2,#attr3,#attr4,#attr5\",\"ExpressionAttributeNames\":{\"#attr5\":\"pName\",\"#attr4\":\"bytes\",\"#attr3\":\"s\",\"#attr2\":\"b\",\"#attr1\":\"f\",\"#attr0\":\"i\"}}}}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"b\":{\"BOOL\":true},\"f\":{\"N\":\"32.29999923706055\"},\"i\":{\"N\":\"95\"},\"pName\":{\"S\":\"EdwardPlayer\"},\"s\":{\"S\":\"random String\"}}]},\"UnprocessedKeys\":{}}",
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"b\":{\"BOOL\":true},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"N\":\"32.29999923706055\"},\"i\":{\"N\":\"95\"},\"pName\":{\"S\":\"EdwardPlayer\"},\"s\":{\"S\":\"random String\"}}]},\"UnprocessedKeys\":{}}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-requestid" : "ST9I0BOFD5TEBA5JVCNQVJ3JCNVV4KQNSO5AEMVJF66Q9ASUAAJG",
-      "x-amz-crc32" : "3943058141",
-      "Date" : "Wed, 04 Mar 2026 21:12:40 GMT",
+      "x-amzn-requestid" : "45H8IRLV41TKSTBOT7SQV5HOM3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "191645684",
+      "Date" : "Wed, 22 Apr 2026 22:57:53 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "ea6d368e-ee96-495b-a815-916b6c6c1139",
+  "uuid" : "059867d4-26d9-498e-8930-784257be45b1",
   "persistent" : true,
-  "insertionIndex" : 52
+  "insertionIndex" : 233
 }

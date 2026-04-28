@@ -3930,7 +3930,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/kms/presigned-url-null-key";
     Map<String, String> metadata = Map.of("key2", "value2");
     byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
