@@ -55,15 +55,15 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 
 ### Performance Configuration
 
-| Configuration | GCP | AWS | ALI | Comments |
-|---------------|-----|-----|-----|----------|
-| **Parallel Uploads** | ✅ Supported | ✅ Supported | ✅ Supported | Multipart parallel uploads for large objects |
-| **Part Buffer Size** | ⚠️ Indirect | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload |
-| **Threshold Bytes** | 🔍 Under investigation | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload |
-| **Max Concurrency** | ✅ Supported | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads |
-| **Parallel Downloads** | ✅ Supported | ✅ Supported | ❌ Not supported | Parallel range-based downloads |
-| **Target Throughput (Gbps)** | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Network throughput hint |
-| **Max Native Memory Limit** | ❌ Not supported | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
+| Configuration | GCP                                  | AWS | ALI | Comments |
+|---------------|--------------------------------------|-----|-----|----------|
+| **Parallel Uploads** | ✅ Supported                          | ✅ Supported | ✅ Supported | Multipart parallel uploads for large objects |
+| **Part Buffer Size** | ⚠️ Indirect                          | ✅ Supported | ⚠️ API-level only | Size of each part in multipart upload |
+| **Threshold Bytes** | ⚠️ Indirect through part buffer size | ✅ Supported | ❌ Not supported | File size threshold to trigger multipart upload |
+| **Max Concurrency** | ✅ Supported                          | ✅ Supported | ✅ Supported | Maximum concurrent transfer threads |
+| **Parallel Downloads** | ✅ Supported                          | ✅ Supported | ❌ Not supported | Parallel range-based downloads |
+| **Target Throughput (Gbps)** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Network throughput hint |
+| **Max Native Memory Limit** | ❌ Not supported                      | ✅ CRT client only | ❌ Not supported | Caps native memory for CRT client |
 
 ### Provider-Specific Notes
 
@@ -80,7 +80,7 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 - **Parallel Downloads**: Uses `AllowDivideAndConquerDownload(true)` for parallel range-based downloads (configurable via `isAllowDivideAndConquer`)
 - **Part Buffer Size**: Indirect support via `setPerWorkerBufferSize` in Transfer Manager
 - **Max Concurrency**: Configured via `setMaxWorkers()` on the Transfer Manager
-- **Threshold Bytes**: Default 150MB in the SDK; direct configuration API under investigation
+- **Threshold Bytes**: 4*`setPerWorkerBufferSize`, defaults to 64MiB
 
 #### Alibaba OSS
 - **Parallel Uploads**: Via `InitiateMultipartUpload` and `UploadPart` APIs
