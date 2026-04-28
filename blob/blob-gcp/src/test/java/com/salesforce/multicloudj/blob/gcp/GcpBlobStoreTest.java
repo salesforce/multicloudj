@@ -2521,7 +2521,9 @@ class GcpBlobStoreTest {
     Blob fileBlob = mock(Blob.class);
     Blob dirMarker = mock(Blob.class);
     when(fileBlob.getName()).thenReturn("uploads/file1.txt");
+    when(fileBlob.getSize()).thenReturn(16L);
     when(dirMarker.getName()).thenReturn("uploads/subdir/"); // Directory marker
+    when(dirMarker.getSize()).thenReturn(0L); // 0-byte marker matches AWS folder filter
 
     Page<Blob> mockPage = mock(Page.class);
     when(mockPage.iterateAll()).thenReturn(List.of(fileBlob, dirMarker));
@@ -2772,9 +2774,11 @@ class GcpBlobStoreTest {
 
     Blob folderMarker = mock(Blob.class);
     when(folderMarker.getName()).thenReturn("test-prefix/subdir/");
+    when(folderMarker.getSize()).thenReturn(0L); // 0-byte marker matches AWS folder filter
 
     Blob realFile = mock(Blob.class);
     when(realFile.getName()).thenReturn("test-prefix/file.txt");
+    when(realFile.getSize()).thenReturn(8L);
 
     Page<Blob> mockPage = mock(Page.class);
     when(mockPage.iterateAll()).thenReturn(List.of(folderMarker, realFile));

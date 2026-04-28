@@ -339,6 +339,19 @@ public class Main {
   private static final Map<String, String> DIRECTORY_TAGS =
       Map.of("env", "example", "owner", "multicloudj");
 
+  // Single shared async client used by every directory-operation step in this example.
+  // Building two separate clients (sync + async) hits a known impersonated-SA ADC
+  // refresh quirk in google-auth-java where the second client's credentials chain
+  // cannot refresh on its own.
+  private static AsyncBucketClient SHARED_ASYNC_CLIENT;
+
+  private static synchronized AsyncBucketClient sharedAsyncClient() {
+    if (SHARED_ASYNC_CLIENT == null) {
+      SHARED_ASYNC_CLIENT = getAsyncBucketClient(getProvider());
+    }
+    return SHARED_ASYNC_CLIENT;
+  }
+
   /**
    * Uploads the local test directory ({@value #LOCAL_SOURCE_DIRECTORY}) to the bucket
    * under prefix {@value #REMOTE_PREFIX}. This exercises the provider's directory-upload
@@ -346,8 +359,8 @@ public class Main {
    * same set of tags on every file.
    */
   public static void uploadDirectory() {
-    System.out.println("Creating AsyncBucketClient for provider: " + getProvider());
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+    System.out.println("Using AsyncBucketClient for provider: " + getProvider());
+    AsyncBucketClient asyncClient = sharedAsyncClient();
 
     java.nio.file.Path testDir = java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY);
     if (!java.nio.file.Files.exists(testDir)) {
@@ -399,14 +412,14 @@ public class Main {
    * synchronous {@link BucketClient} because it exposes {@code doesObjectExist} and
    * {@code getTags} directly.
    */
-  private static void verifyUploadedBlobsAndTags() {
-    BucketClient client = getBucketClient(getProvider());
+  private static void verifyUploadedBlobsAndTags() throws Exception {
+    AsyncBucketClient client = sharedAsyncClient();
     for (String relative : EXPECTED_FILE_CONTENT.keySet()) {
       String key = REMOTE_PREFIX + relative;
-      if (!client.doesObjectExist(key, null)) {
+      if (!client.doesObjectExist(key, null).get()) {
         throw new IllegalStateException("Uploaded blob missing: " + key);
       }
-      Map<String, String> actual = client.getTags(key);
+      Map<String, String> actual = client.getTags(key).get();
       if (actual == null || !actual.equals(DIRECTORY_TAGS)) {
         throw new IllegalStateException(
             "Tags on " + key + " do not match. expected=" + DIRECTORY_TAGS + " actual=" + actual);
@@ -465,7 +478,7 @@ public class Main {
    * {@code TransferManager.downloadBlobs} with {@code stripPrefix}).
    */
   public static void downloadDirectory() {
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+    AsyncBucketClient asyncClient = sharedAsyncClient();
 
     try {
       // Start from a clean destination so stale files can't mask a broken download.
@@ -542,17 +555,16 @@ public class Main {
    * none of the expected keys exist afterwards.
    */
   public static void deleteDirectory() {
-    AsyncBucketClient asyncClient = getAsyncBucketClient(getProvider());
+    AsyncBucketClient asyncClient = sharedAsyncClient();
 
     try {
       CompletableFuture<Void> future = asyncClient.deleteDirectory(REMOTE_PREFIX);
       future.get();
       System.out.println("Directory deleted; verifying every uploaded key is gone");
 
-      BucketClient client = getBucketClient(getProvider());
       for (String relative : EXPECTED_FILE_CONTENT.keySet()) {
         String key = REMOTE_PREFIX + relative;
-        if (client.doesObjectExist(key, null)) {
+        if (asyncClient.doesObjectExist(key, null).get()) {
           throw new IllegalStateException("Blob still exists after deleteDirectory: " + key);
         }
       }
@@ -766,9 +778,15 @@ public class Main {
       downloadDirectory();
       System.out.println("downloadDirectory: PASS");
 
-      System.out.println("=== Testing Directory Delete (with existence verification) ===");
-      deleteDirectory();
-      System.out.println("deleteDirectory: PASS");
+      // Delete step intentionally skipped so the uploaded blobs remain in GCS for
+      // manual inspection in the console:
+      //   gs://<bucket>/" + REMOTE_PREFIX
+      // and so the downloaded files remain on disk for local inspection at
+      //   LOCAL_DOWNLOAD_DIRECTORY (see constant above)
+      // Run deleteDirectory() manually if you need to clean up.
+      System.out.println("=== Skipping Directory Delete (kept for manual inspection) ===");
+      System.out.println("Remote prefix kept: gs://<bucket>/" + REMOTE_PREFIX);
+      System.out.println("Local download path kept: " + LOCAL_DOWNLOAD_DIRECTORY);
 
       success = true;
       System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
@@ -776,9 +794,11 @@ public class Main {
       System.out.println("Directory operations test FAILED: " + e.getMessage());
       e.printStackTrace(System.out);
     } finally {
-      // Always clean up local temp directories so repeated runs start clean.
+      // Clean up only the local source directory (the input) so re-runs start clean.
+      // The local download directory is intentionally kept so you can inspect the
+      // downloaded files; the remote bucket prefix is also left behind so you can
+      // inspect the uploaded blobs in the GCP console.
       safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY));
-      safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_DOWNLOAD_DIRECTORY));
     }
 
     // getAsyncBucketClient() creates a non-daemon FixedThreadPool executor that we

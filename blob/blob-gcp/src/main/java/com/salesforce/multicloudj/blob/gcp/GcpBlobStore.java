@@ -108,7 +108,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
@@ -677,7 +676,6 @@ public class GcpBlobStore extends AbstractBlobStore {
 
       final String prefix = directoryUploadRequest.getPrefix();
       final Map<String, String> metadata = buildTagMetadata(directoryUploadRequest);
-      createDirectoryMarker(prefix);
 
       // The factory populates this map (key -> absolute source path) as it builds each
       // BlobInfo, so failures returned by the TransferManager can be attributed back
@@ -710,23 +708,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Best-effort creation of an empty zero-byte "directory marker" object so virtual
-   * folders are visible to tooling. Swallows failures because the marker is advisory.
-   */
-  private void createDirectoryMarker(String prefix) {
-    if (StringUtils.isEmpty(prefix)) {
-      return;
-    }
-    try {
-      String dirMarkerKey = prefix.endsWith("/") ? prefix : prefix + "/";
-      BlobInfo dirMarkerInfo = BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
-      storage.create(dirMarkerInfo, new byte[0]);
-    } catch (Exception ignored) {
-      // best-effort: don't fail the entire upload if directory marker creation fails
-    }
-  }
-
-  /**
    * Builds the {@link ParallelUploadConfig.UploadBlobInfoFactory} the TransferManager
    * uses to derive each upload's destination {@code BlobInfo}, and records the
    * {@code blobKey -> sourcePath} mapping into {@code keyToSource} for failure
@@ -746,9 +727,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     };
   }
 
+  // True when this blob is a folder marker (a 0-byte object whose key ends with "/").
+  // Mirrors AWS S3TransferManager's default DownloadFilter.allObjects() definition.
+  private static boolean isFolderMarker(Blob blob) {
+    Long size = blob.getSize();
+    return blob.getName().endsWith("/") && size != null && size == 0L;
+  }
+
   // Translates GCS UploadResult -> portable FailedBlobUpload: keeps non-SUCCESS only,
-  // recovers the source path from keyToSource (UploadResult only carries the blob key),
-  // and synthesizes an exception when the SDK did not attach one.
+  // recovers the source path from keyToSource (UploadResult only carries the blob key).
+  // The GCS SDK guarantees a non-null exception for FAILED_TO_START / FAILED_TO_FINISH
+  // (verified via UploadResult.Builder#build), and we never enable SKIPPED, so we pass
+  // result.getException() through directly (matching the AWS implementation).
   private static List<FailedBlobUpload> collectFailedUploads(
       UploadJob job, Path sourceDir, Map<String, Path> keyToSource) {
     List<FailedBlobUpload> failedUploads = new ArrayList<>();
@@ -756,13 +746,8 @@ public class GcpBlobStore extends AbstractBlobStore {
       if (result.getStatus() != TransferStatus.SUCCESS) {
         String blobKey = result.getInput().getName();
         Path source = keyToSource.getOrDefault(blobKey, sourceDir.resolve(blobKey));
-        Exception ex = result.getException();
-        if (ex == null) {
-          ex =
-              new SubstrateSdkException(
-                  "Upload failed with status: " + result.getStatus() + " for key: " + blobKey);
-        }
-        failedUploads.add(FailedBlobUpload.builder().source(source).exception(ex).build());
+        failedUploads.add(
+            FailedBlobUpload.builder().source(source).exception(result.getException()).build());
       }
     }
     return failedUploads;
@@ -780,22 +765,25 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? rawPrefix + "/"
               : rawPrefix;
 
-      // Fetch minimal metadata (name only) to build the list of blobs to download.
+      // Fetch name + size: name to build the destination, size to identify folder
+      // markers (matches AWS S3TransferManager DownloadFilter.allObjects, which is
+      // the default filter on AWS).
       List<Storage.BlobListOption> listOptions = new ArrayList<>();
       if (prefix != null) {
         listOptions.add(Storage.BlobListOption.prefix(prefix));
       }
-      listOptions.add(Storage.BlobListOption.fields(Storage.BlobField.NAME));
+      listOptions.add(
+          Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE));
 
       List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
               .iterateAll()) {
-        final String name = blob.getName();
-        // Skip directory markers (keys ending with "/"), which have no content to download
-        // and would cause the TransferManager to create unwanted zero-byte files.
-        if (!name.endsWith("/")) {
-          blobInfos.add(BlobInfo.newBuilder(getBucket(), name).build());
+        // Skip folder markers (matches AWS default). GCS TransferManager has no
+        // built-in filter and would otherwise create a 0-byte file at the marker's
+        // path, blocking the real files inside that virtual folder.
+        if (!isFolderMarker(blob)) {
+          blobInfos.add(BlobInfo.newBuilder(getBucket(), blob.getName()).build());
         }
       }
 
@@ -824,14 +812,11 @@ public class GcpBlobStore extends AbstractBlobStore {
                   ? name.substring(prefix.length())
                   : name;
           Path destination = targetDir.resolve(relative).normalize();
-          Exception ex = result.getException();
-          if (ex == null) {
-            ex =
-                new SubstrateSdkException(
-                    "Download failed with status: " + result.getStatus() + " for key: " + name);
-          }
           failed.add(
-              FailedBlobDownload.builder().destination(destination).exception(ex).build());
+              FailedBlobDownload.builder()
+                  .destination(destination)
+                  .exception(result.getException())
+                  .build());
         }
       }
 
