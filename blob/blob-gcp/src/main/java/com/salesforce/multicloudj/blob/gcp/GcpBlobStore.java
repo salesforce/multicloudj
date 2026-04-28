@@ -11,6 +11,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.HttpMethod;
@@ -718,8 +719,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
     try {
       String dirMarkerKey = prefix.endsWith("/") ? prefix : prefix + "/";
-      com.google.cloud.storage.BlobInfo dirMarkerInfo =
-          com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
+      BlobInfo dirMarkerInfo = BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
       storage.create(dirMarkerInfo, new byte[0]);
     } catch (Exception ignored) {
       // best-effort: don't fail the entire upload if directory marker creation fails
@@ -738,8 +738,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       Path filePath = Paths.get(filename);
       String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
       keyToSource.put(blobKey, filePath);
-      com.google.cloud.storage.BlobInfo.Builder b =
-          com.google.cloud.storage.BlobInfo.newBuilder(bucketName, blobKey);
+      BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
       if (!metadata.isEmpty()) {
         b.setMetadata(metadata);
       }
@@ -747,11 +746,9 @@ public class GcpBlobStore extends AbstractBlobStore {
     };
   }
 
-  /**
-   * Builds a {@link FailedBlobUpload} for every non-SUCCESS upload result, recovering
-   * the source path from the factory-populated map (falling back to {@code
-   * sourceDir.resolve(blobKey)}) and synthesizing an exception if none was attached.
-   */
+  // Translates GCS UploadResult -> portable FailedBlobUpload: keeps non-SUCCESS only,
+  // recovers the source path from keyToSource (UploadResult only carries the blob key),
+  // and synthesizes an exception when the SDK did not attach one.
   private static List<FailedBlobUpload> collectFailedUploads(
       UploadJob job, Path sourceDir, Map<String, Path> keyToSource) {
     List<FailedBlobUpload> failedUploads = new ArrayList<>();
@@ -790,7 +787,7 @@ public class GcpBlobStore extends AbstractBlobStore {
       }
       listOptions.add(Storage.BlobListOption.fields(Storage.BlobField.NAME));
 
-      List<com.google.cloud.storage.BlobInfo> blobInfos = new ArrayList<>();
+      List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
               .iterateAll()) {
@@ -798,7 +795,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         // Skip directory markers (keys ending with "/"), which have no content to download
         // and would cause the TransferManager to create unwanted zero-byte files.
         if (!name.endsWith("/")) {
-          blobInfos.add(com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), name).build());
+          blobInfos.add(BlobInfo.newBuilder(getBucket(), name).build());
         }
       }
 
@@ -972,7 +969,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
             .build();
 
-    com.google.cloud.storage.BlobInfo updatedBlobInfo =
+    BlobInfo updatedBlobInfo =
         blob.toBuilder().setRetention(updatedRetention).build();
 
     // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
@@ -1004,7 +1001,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     Boolean existingEventHold = blob.getEventBasedHold();
     boolean useEventBased = existingEventHold != null && existingEventHold;
 
-    com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+    BlobInfo.Builder builder = blob.toBuilder();
     if (useEventBased) {
       builder.setEventBasedHold(legalHold);
     } else {
