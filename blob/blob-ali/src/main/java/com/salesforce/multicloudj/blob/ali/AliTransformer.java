@@ -148,6 +148,7 @@ public class AliTransformer {
                 .versionId(ossObject.getObjectMetadata().getVersionId())
                 .eTag(ossObject.getObjectMetadata().getETag())
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
                 .contentType(ossObject.getObjectMetadata().getContentType())
@@ -164,6 +165,7 @@ public class AliTransformer {
                 .versionId(ossObject.getObjectMetadata().getVersionId())
                 .eTag(ossObject.getObjectMetadata().getETag())
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
                 .contentType(ossObject.getObjectMetadata().getContentType())
@@ -227,6 +229,7 @@ public class AliTransformer {
         .objectSize(objectSize)
         .metadata(rawMetadata)
         .lastModified(metadata.getLastModified().toInstant())
+        .createdTime(metadata.getLastModified().toInstant())
         .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
         .contentType(metadata.getContentType())
         .build();

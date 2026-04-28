@@ -489,6 +489,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .objectSize((long) blob.getData().length)
         .metadata(blob.getMetadata())
         .lastModified(blob.getLastModified())
+        .createdTime(blob.getLastModified())
         .contentType(blob.getContentType())
         .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
         .build();
@@ -929,6 +930,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
@@ -948,6 +950,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
                 .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
