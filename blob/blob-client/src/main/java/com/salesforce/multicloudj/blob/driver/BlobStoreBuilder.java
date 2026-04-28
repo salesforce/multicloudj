@@ -38,6 +38,7 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private RetryConfig retryConfig;
   private Boolean useSystemPropertyProxyValues;
   private Boolean useEnvironmentVariableProxyValues;
+  private String quotaProjectId;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -318,6 +319,18 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   public BlobStoreBuilder<T> withUseEnvironmentVariableProxyValues(
       Boolean useEnvironmentVariableProxyValues) {
     this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
+    return this;
+  }
+
+  /**
+   * Method to supply a quota project ID. For GCP, this is the project ID used for billing and quota
+   * attribution. Other providers may ignore this setting.
+   *
+   * @param quotaProjectId The project ID to use for quota and billing
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withQuotaProjectId(String quotaProjectId) {
+    this.quotaProjectId = quotaProjectId;
     return this;
   }
 }
