@@ -2401,8 +2401,11 @@ class GcpBlobStoreTest {
     // When
     DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
 
-    // Then
+    // Then - failedTransfers must be a non-null empty list (matches AWS contract).
     assertNotNull(response);
+    assertNotNull(
+        response.getFailedTransfers(),
+        "failedTransfers must be a non-null empty list when nothing failed");
     assertTrue(response.getFailedTransfers().isEmpty());
     verify(mockTransferManager, never())
         .uploadFiles(anyList(), any(ParallelUploadConfig.class));
@@ -2727,6 +2730,33 @@ class GcpBlobStoreTest {
     assertEquals(0, response.getFailedTransfers().size());
     verify(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
     verify(mockTransferManager).downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
+  }
+
+  @Test
+  void testDoDownloadDirectory_NoBlobsReturnsEmptyFailedTransfers() throws Exception {
+    // Verifies the failedTransfers contract: when there's nothing to download, the
+    // response must contain a non-null empty list (matches AWS semantics).
+    String localDir = tempDir.toString();
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload("test-prefix/")
+            .localDestinationDirectory(localDir)
+            .build();
+
+    Page<Blob> mockPage = mock(Page.class);
+    when(mockPage.iterateAll()).thenReturn(List.of());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+        .thenReturn(mockPage);
+
+    DirectoryDownloadResponse response = gcpBlobStore.doDownloadDirectory(request);
+
+    assertNotNull(response);
+    assertNotNull(
+        response.getFailedTransfers(),
+        "failedTransfers must be a non-null empty list when nothing failed");
+    assertTrue(response.getFailedTransfers().isEmpty());
+    verify(mockTransferManager, never())
+        .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
   }
 
   @Test
