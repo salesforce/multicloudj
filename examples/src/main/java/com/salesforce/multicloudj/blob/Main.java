@@ -778,15 +778,9 @@ public class Main {
       downloadDirectory();
       System.out.println("downloadDirectory: PASS");
 
-      // Delete step intentionally skipped so the uploaded blobs remain in GCS for
-      // manual inspection in the console:
-      //   gs://<bucket>/" + REMOTE_PREFIX
-      // and so the downloaded files remain on disk for local inspection at
-      //   LOCAL_DOWNLOAD_DIRECTORY (see constant above)
-      // Run deleteDirectory() manually if you need to clean up.
-      System.out.println("=== Skipping Directory Delete (kept for manual inspection) ===");
-      System.out.println("Remote prefix kept: gs://<bucket>/" + REMOTE_PREFIX);
-      System.out.println("Local download path kept: " + LOCAL_DOWNLOAD_DIRECTORY);
+      System.out.println("=== Testing Directory Delete (with existence verification) ===");
+      deleteDirectory();
+      System.out.println("deleteDirectory: PASS");
 
       success = true;
       System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
@@ -794,11 +788,9 @@ public class Main {
       System.out.println("Directory operations test FAILED: " + e.getMessage());
       e.printStackTrace(System.out);
     } finally {
-      // Clean up only the local source directory (the input) so re-runs start clean.
-      // The local download directory is intentionally kept so you can inspect the
-      // downloaded files; the remote bucket prefix is also left behind so you can
-      // inspect the uploaded blobs in the GCP console.
+      // Always clean up local temp directories so repeated runs start clean.
       safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_SOURCE_DIRECTORY));
+      safeDeleteLocalDirectory(java.nio.file.Paths.get(LOCAL_DOWNLOAD_DIRECTORY));
     }
 
     // getAsyncBucketClient() creates a non-daemon FixedThreadPool executor that we
