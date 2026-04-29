@@ -24,7 +24,8 @@ The `StsClient` is built on top of provider-specific implementations of `Abstrac
 |--------------|-----|-----|-----|----------|
 | **Assume Role** | ✅ Supported | ✅ Supported | ✅ Supported | Core feature for temporary credentials for role/service account |
 | **Get Caller Identity** | ✅ Supported | ✅ Supported | ✅ Supported | Returns identity information of the current caller |
-| **Get Access Token** | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs|
+| **Get Access Token** | ✅ Supported | ✅ Supported | ✅ Supported | Get credentials using default env configs |
+| **Assume Role with Web Identity** | ✅ Supported | ✅ Supported | ❌ Not Supported | Federated identity via OIDC/web identity token |
 
 ### Configuration Options
 
@@ -36,7 +37,8 @@ The `StsClient` is built on top of provider-specific implementations of `Abstrac
 ### Provider-Specific Notes
 
 **GCP (Google Cloud Platform)**
-- Uses Google's OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity
+- Uses Google's OAuth 2.0 access tokens for credentials and ID tokens for Caller Identity.
+- `getCallerIdentity(GetCallerIdentityRequest)` accepts an optional `aud` field to set the target audience for the identity token.
 
 ---
 
@@ -69,6 +71,15 @@ CallerIdentity identity = stsClient.getCallerIdentity();
 System.out.println("Caller: " + identity.getArn());
 ```
 
+You can also pass an explicit request — useful on GCP to specify the token audience:
+
+```java
+GetCallerIdentityRequest request = GetCallerIdentityRequest.builder()
+    .aud("https://my-service.example.com")
+    .build();
+CallerIdentity identity = stsClient.getCallerIdentity(request);
+```
+
 ---
 
 ## Getting an Access Token
@@ -93,6 +104,56 @@ request.setRoleArn("arn:aws:iam::123456789012:role/example-role");
 request.setSessionName("example-session");
 StsCredentials credentials = stsClient.getAssumeRoleCredentials(request);
 System.out.println("Temporary Credentials: " + credentials.getAccessKeyId());
+```
+
+---
+
+## Assuming a Role with Web Identity
+
+Use this to exchange a web identity token (OIDC) for temporary cloud credentials. Supported on AWS and GCP; not supported on ALI.
+
+```java
+AssumeRoleWebIdentityRequest request = AssumeRoleWebIdentityRequest.builder()
+    .role("arn:aws:iam::123456789012:role/federated-role")
+    .webIdentityToken("<oidc-token>")
+    .sessionName("federated-session")
+    .expiration(3600)
+    .build();
+
+StsCredentials credentials = stsClient.getAssumeRoleWithWebIdentityCredentials(request);
+System.out.println("Access Key: " + credentials.getAccessKeyId());
+```
+
+---
+
+## StsUtilities
+
+`StsUtilities` provides portable **offline** helper functions that use provider credentials to sign HTTP requests for cloud-native authentication. Unlike `StsClient`, it does not make calls to the STS endpoint.
+
+```java
+StsUtilities stsUtilities = StsUtilities.builder("aws")
+    .withRegion("us-west-2")
+    .withCredentialsOverrider(credentialsOverrider)
+    .build();
+```
+
+### Signing an HTTP request for cloud-native auth
+
+Use `newCloudNativeAuthSignedRequest` to sign an outbound `HttpRequest` with provider credentials. The returned `SignedAuthRequest` carries both the signed request and the associated `StsCredentials`.
+
+```java
+HttpRequest httpRequest = HttpRequest.newBuilder()
+    .uri(URI.create("https://internal-service.example.com/api/resource"))
+    .GET()
+    .build();
+
+SignedAuthRequest signedRequest = stsUtilities.newCloudNativeAuthSignedRequest(httpRequest);
+
+HttpClient httpClient = HttpClient.newHttpClient();
+HttpResponse<String> response = httpClient.send(
+    signedRequest.getRequest(),
+    HttpResponse.BodyHandlers.ofString()
+);
 ```
 
 ---

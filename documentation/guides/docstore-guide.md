@@ -6,8 +6,7 @@ parent: Usage Guides
 ---
 # Docstore
 
-The `DocStoreClient` class in the `multicloudj` library provides a portable document store like abstraction over NoSQSL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing.
-
+The `DocStoreClient` class in the `multicloudj` library provides a portable document store abstraction over NoSQL database providers like Amazon DynamoDB, Alibaba Tablestore, and Google Firestore. It supports core document operations like create, read, update, delete (CRUD), batching, and querying with the support of indexing.
 
 Internally, each provider is implemented via a driver extending `AbstractDocStore`.
 
@@ -20,9 +19,9 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 | **Create Document** | ✅ Supported | ✅ Supported | ✅ Supported | Insert new documents |
 | **Get Document** | ✅ Supported | ✅ Supported | ✅ Supported | Get the document by key |
 | **Put Document** | ✅ Supported | ✅ Supported | ✅ Supported | Insert or replace document |
-| **Replace Document** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Replace existing document |
+| **Replace Document** | ✅ Supported | ✅ Supported | ✅ Supported | Replace existing document |
 | **Delete Document** | ✅ Supported | ✅ Supported | ✅ Supported | Remove document by key |
-| **Update Document** | ⏱️ End of June'25 | ⏱️ Coming Soon | ⏱️ Coming Soon | Update operations not yet implemented in any provider |
+| **Update Document** | ✅ Supported | ✅ Supported | ✅ Supported | Update specific fields of a document |
 
 ### Batch Operations
 
@@ -30,19 +29,21 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 |--------------|---------------|--------------|----------------|----------|
 | **Batch Get** | ✅ Supported | ✅ Supported | ✅ Supported | Retrieve multiple documents in one call |
 | **Batch Write** | ✅ Supported | ✅ Supported | ✅ Supported | Write multiple documents atomically |
-| **Atommic Writes** | ⏱️ End of June'25 | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents |
+| **Atomic Writes** | ✅ Supported | ✅ Supported | ✅ Supported | Atomic write operations across multiple documents |
 
 ### Query Features
 
 | Feature Name | GCP Firestore | AWS DynamoDB | ALI Tablestore | Comments |
 |--------------|---------------|--------------|----------------|----------|
 | **Basic Queries** | ✅ Supported | ✅ Supported | ✅ Supported | Filter and projection queries |
-| **Compound Filters** | ✅ Supported | ✅ Supported | ✅ Supported | Multiple filter conditions |
+| **Compound Filters** | ✅ Supported | ✅ Supported | ✅ Supported | Multiple filter conditions (AND logic) |
 | **Order By** | ✅ Supported | ✅ Supported | ✅ Supported | Sort query results |
-| **Order By in Full Scan** | ❌ **Not Supported** | ❌ **Not Supported** | ❌ **Not Supported** | ** It's too expensive ** |
+| **Order By in Full Scan** | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported | Too expensive across providers |
 | **Limit/Offset** | ✅ Supported | ✅ Supported | ✅ Supported | Pagination support |
+| **Pagination Token** | ✅ Supported | ✅ Supported | ✅ Supported | Resume queries from a previous position |
 | **Index-based Queries** | ✅ Supported | ✅ Supported | ✅ Supported | Query using secondary indexes |
 | **Query Planning** | ✅ Supported | ✅ Supported | ✅ Supported | Explain query execution plans |
+| **IN / NOT_IN Filters** | ✅ Supported | ✅ Supported | ✅ Supported | Membership testing with collections |
 
 ### Advanced Features
 
@@ -50,7 +51,7 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 |--------------|---------------|--------------|----------------|----------|
 | **Revision/Versioning** | ✅ Supported | ✅ Supported | ✅ Supported | Optimistic concurrency control |
 | **Single Key Collections** | ✅ Supported | ✅ Supported | ✅ Supported | Collections with only partition key |
-| **Two Key Collections** | ✅ Supported | ✅ Supported | ✅ Supported | Collections with partition + sort key(uses indexes in firestore) |
+| **Two Key Collections** | ✅ Supported | ✅ Supported | ✅ Supported | Collections with partition + sort key (uses indexes in Firestore) |
 
 ### Configuration Options
 
@@ -58,8 +59,9 @@ Internally, each provider is implemented via a driver extending `AbstractDocStor
 |---------------|---------------|--------------|----------------|----------|
 | **Regional Support** | ✅ Supported | ✅ Supported | ✅ Supported | Region-specific operations |
 | **Custom Endpoints** | ✅ Supported | ✅ Supported | ✅ Supported | Override default service endpoints |
-| **Credentials Override** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Custom credential providers via STS |
+| **Credentials Override** | ✅ Supported | ✅ Supported | ✅ Supported | Custom credential providers via STS |
 | **Collection Options** | ✅ Supported | ✅ Supported | ✅ Supported | Table/collection configuration |
+| **Instance ID** | ❌ Not Applicable | ❌ Not Applicable | ✅ Supported | Required for Alibaba Tablestore |
 
 
 ## Creating a Client
@@ -74,8 +76,28 @@ CollectionOptions collectionOptions = new CollectionOptions.CollectionOptionsBui
         .withRevisionField("docRevision")
         .build();
 
-DocStoreClient client  = DocStoreClient.builder("aws")
+DocStoreClient client = DocStoreClient.builder("aws")
         .withRegion("us-west-2")
+        .withCollectionOptions(collectionOptions)
+        .build();
+```
+
+For GCP Firestore, the provider ID is `"gcp-firestore"`:
+
+```java
+DocStoreClient client = DocStoreClient.builder("gcp-firestore")
+        .withRegion("us-central1")
+        .withCollectionOptions(collectionOptions)
+        .withCredentialsOverrider(credentialsOverrider)
+        .build();
+```
+
+For Alibaba Tablestore, use `withInstanceId` to specify the Tablestore instance:
+
+```java
+DocStoreClient client = DocStoreClient.builder("ali")
+        .withRegion("cn-hangzhou")
+        .withInstanceId("my-tablestore-instance")
         .withCollectionOptions(collectionOptions)
         .build();
 ```
@@ -115,6 +137,8 @@ map.put("s", "metadata");
 Document doc = new Document(map);
 ```
 
+The SDK supports the following standard types: `String`, `Number`, `Boolean`, `Date`, `List`, and `Map`. Note that `List` and `Map` are not supported for Alibaba Tablestore.
+
 ## Actions
 
 Once you have initialized a docstore client, you can call action methods on it to read, modify, and write documents. These are referred to as **actions**, and can be executed individually or as part of a batch using an action list.
@@ -125,7 +149,7 @@ DocStore supports the following types of actions:
 - **Create** creates a new document.
 - **Replace** replaces an existing document.
 - **Put** puts a document whether or not it already exists.
-- **Update** applies modifications to a document (not supported yet).
+- **Update** applies field-level modifications to a document.
 - **Delete** deletes a document.
 
 Each of the following examples illustrates one of these actions.
@@ -133,7 +157,7 @@ Each of the following examples illustrates one of these actions.
 ## Basic Operations
 
 ### Create
-Create will throw an exception `ResourceAlreadyExists` if the document already exists.
+Create will throw a `ResourceAlreadyExists` exception if the document already exists.
 
 ```java
 client.create(doc);
@@ -158,22 +182,29 @@ client.get(new Document(player), "pName", "f");
 ```
 
 ### Replace
-Replaces the existing doc, will throw `ResourceNotFound` is the document doesn't exist.
+Replaces the existing doc. Throws `ResourceNotFound` if the document doesn't exist.
 
 ```java
 client.replace(doc);
 ```
 
 ### Put
-Put is similar to create but will not throw in case the document doesn't exist.
+Put is similar to replace but will not throw an exception if the document doesn't exist — it will create it.
 
 ```java
 client.put(doc);
 ```
 
+### Update
+Updates specific fields of an existing document without replacing the entire document.
+
+```java
+client.update(doc, Map.of("f", 120.0f, "b", false));
+```
+
 ### Delete
 
-To delete a document, the input must also have the required key fields populated:
+To delete a document, the input must have the required key fields populated:
 
 ```java
 Player player = new Player();
@@ -181,12 +212,6 @@ player.setPName("Alice");
 player.setS("metadata");
 
 client.delete(new Document(player));
-```
-
-### Update (Not Supported)
-
-```java
-client.update(doc, Map.of("f", 120.0f)); // Throws UnSupportedOperationException
 ```
 
 ## Batch Operations
@@ -219,22 +244,78 @@ Queries allow you to:
 - Retrieve all documents that match specific conditions.
 - Delete or update documents in bulk based on criteria.
 
-The query interface is chainable and supports filtering and sorting (depending on driver support).
+The query interface is chainable and supports filtering and sorting across all providers.
 
-DocStore can also optimize queries automatically. Based on your filter conditions, it attempts to determine whether a global secondary index (GSI) or a local secondary index (LSI) can be used to execute the query more efficiently. This helps reduce latency and improves performance.
+DocStore can also optimize queries automatically. Based on your filter conditions, it attempts to determine whether a global secondary index (GSI) or a local secondary index (LSI) can be used to execute the query more efficiently.
 
-Queries support the following methods:
+### Filter Operations
 
-- **Where**: Describes a condition on a document. You can ask whether a field is equal to, greater than, or less than a value. The "not equals" comparison isn't supported, because it isn't portable across providers.
-- **OrderBy**: Specifies the order of the resulting documents, by field and direction. For portability, you can specify at most one OrderBy, and its field must also be mentioned in a Where clause.
-- **Limit**: Limits the number of documents in the result.
+| Operation | Description |
+|-----------|-------------|
+| `EQUAL` | Exact match for strings and numbers |
+| `GREATER_THAN` | Strict greater-than comparison |
+| `LESS_THAN` | Strict less-than comparison |
+| `GREATER_THAN_OR_EQUAL_TO` | Inclusive greater-than comparison |
+| `LESS_THAN_OR_EQUAL_TO` | Inclusive less-than comparison |
+| `IN` | Field value is in a provided collection |
+| `NOT_IN` | Field value is not in a provided collection |
+
+> **Note:** The "not equals" comparison is not supported because it is not portable across providers.
+
+### Query Methods
+
+- **Where**: Adds a filter condition. Multiple `where` clauses are combined with AND logic.
+- **OrderBy**: Specifies sort field and direction (`true` = ascending, `false` = descending). The order field must also appear in a `where` clause.
+- **Limit**: Limits the number of results returned.
+- **Offset**: Skips the first N results.
+- **PaginationToken**: Resumes from a previous query's position.
+- **Get**: Executes the query and returns a `DocumentIterator`.
+
+### Basic Query Example
 
 ```java
-Query query = client.query();
-// Apply filtering, sorting, etc.
+DocumentIterator iter = client.query()
+    .where("i", FilterOperation.GREATER_THAN, 10)
+    .where("b", FilterOperation.EQUAL, true)
+    .orderBy("i", true)   // ascending
+    .limit(20)
+    .get();
+
+Player p = new Player();
+while (iter.hasNext()) {
+    iter.next(new Document(p));
+    System.out.println(p);
+}
 ```
 
-(Depends on driver implementation.)
+### Pagination with Token
+
+```java
+// First page
+DocumentIterator firstPage = client.query()
+    .where("s", FilterOperation.EQUAL, "metadata")
+    .limit(10)
+    .get();
+
+PaginationToken token = firstPage.getPaginationToken();
+
+// Next page — use the token from the previous result
+if (token != null) {
+    DocumentIterator nextPage = client.query()
+        .where("s", FilterOperation.EQUAL, "metadata")
+        .limit(10)
+        .paginationToken(token)
+        .get();
+}
+```
+
+### IN Filter Example
+
+```java
+DocumentIterator iter = client.query()
+    .where("s", FilterOperation.IN, List.of("metadata", "stats", "profile"))
+    .get();
+```
 
 ## Advanced Usage
 
@@ -259,9 +340,10 @@ client.getActions()
     .create(new Document(new Player("Frank", 6, 3.99f, true, "NJ")))
     .run();
 ```
-### Atomic Writes:
-If you want to write your documents atomically, just use the `enableAtomicWrites` as above
-and all the writes are this will be executed atomically.
+
+### Atomic Writes
+
+If you want to write your documents atomically, use `enableAtomicWrites()` as shown above — all writes after that call are executed atomically as a single transaction.
 
 ### Close the Client
 
