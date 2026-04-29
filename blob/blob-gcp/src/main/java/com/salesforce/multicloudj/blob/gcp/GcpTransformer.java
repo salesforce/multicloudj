@@ -205,6 +205,10 @@ public class GcpTransformer {
             blob.getUpdateTimeOffsetDateTime() != null
                 ? blob.getUpdateTimeOffsetDateTime().toInstant()
                 : null)
+        .createdTime(
+            blob.getCreateTimeOffsetDateTime() != null
+                ? blob.getCreateTimeOffsetDateTime().toInstant()
+                : null)
         .md5(HexUtil.convertToBytes(blob.getMd5()))
         .contentType(blob.getContentType())
         .objectLockInfo(objectLockInfo)

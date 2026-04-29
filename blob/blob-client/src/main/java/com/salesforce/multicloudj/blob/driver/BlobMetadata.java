@@ -27,6 +27,10 @@ public class BlobMetadata {
   private final Map<String, String> metadata;
 
   private final Instant lastModified;
+
+  /** The creation time of the blob. This represents when the blob was originally created. */
+  private final Instant createdTime;
+
   private final byte[] md5;
 
   /** The content type of the blob (e.g., "application/octet-stream", "application/x-directory") */
