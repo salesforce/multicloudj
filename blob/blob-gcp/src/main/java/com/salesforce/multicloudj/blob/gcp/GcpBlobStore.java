@@ -126,7 +126,6 @@ public class GcpBlobStore extends AbstractBlobStore {
   private final MultipartUploadClient multipartUploadClient;
   private final TransferManager transferManager;
   private final GcpTransformer transformer;
-  private final TransferManager transferManager;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
