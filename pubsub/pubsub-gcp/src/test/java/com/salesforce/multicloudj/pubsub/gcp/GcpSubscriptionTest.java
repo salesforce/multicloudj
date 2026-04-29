@@ -38,16 +38,20 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
+import com.salesforce.multicloudj.pubsub.driver.AckInfo;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -62,6 +66,14 @@ public class GcpSubscriptionTest {
   @Mock private CredentialsOverrider mockCredentialsOverrider;
 
   private GcpSubscription subscription;
+
+  private static List<AckInfo> nacks(List<AckID> ackIDs) {
+    List<AckInfo> result = new ArrayList<>(ackIDs.size());
+    for (AckID id : ackIDs) {
+      result.add(new AckInfo(id, false));
+    }
+    return result;
+  }
 
   @BeforeEach
   void setUp() {
@@ -655,7 +667,7 @@ public class GcpSubscriptionTest {
     AckID mockAckID = new GcpSubscription.GcpAckID("test-ack-id");
     List<AckID> ackIDs = List.of(mockAckID);
 
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
     verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
   }
 
@@ -741,7 +753,7 @@ public class GcpSubscriptionTest {
     AckID mockAckID2 = new GcpSubscription.GcpAckID("test-ack-id-2");
     List<AckID> ackIDs = List.of(mockAckID1, mockAckID2);
 
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
     verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
   }
 
@@ -760,7 +772,7 @@ public class GcpSubscriptionTest {
   @Test
   void testDoSendNacksWithEmptyAckIDs() {
     List<AckID> emptyAckIDs = List.of();
-    assertDoesNotThrow(() -> subscription.doSendNacks(emptyAckIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(emptyAckIDs)));
   }
 
   @Test
@@ -784,7 +796,7 @@ public class GcpSubscriptionTest {
     List<AckID> ackIDs = List.of(mockAckID);
 
     // In lazy mode, doSendNacks should return directly without calling ModifyAckDeadline
-    assertDoesNotThrow(() -> lazySubscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> lazySubscription.doSendNacks(nacks(ackIDs)));
   }
 
   @Test
@@ -796,7 +808,7 @@ public class GcpSubscriptionTest {
     List<AckID> ackIDs = List.of(mockAckID);
 
     // In non-lazy mode, doSendNacks should call ModifyAckDeadline
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
     verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
   }
 
@@ -809,8 +821,69 @@ public class GcpSubscriptionTest {
     List<AckID> ackIDs = List.of(mockAckID);
 
     // In default mode, doSendNacks should call ModifyAckDeadline
-    assertDoesNotThrow(() -> subscription.doSendNacks(ackIDs));
+    assertDoesNotThrow(() -> subscription.doSendNacks(nacks(ackIDs)));
     verify(mockCallable).call(any(ModifyAckDeadlineRequest.class));
+  }
+
+  @Test
+  void testDoSendNacks_CustomAckDeadlineFromNackVisibilityTimeout() {
+    GcpSubscription.Builder builder =
+        new GcpSubscription.Builder()
+            .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+            .withCredentialsOverrider(mockCredentialsOverrider)
+            .withNackVisibilityTimeout(java.time.Duration.ofSeconds(45));
+    GcpSubscription customSubscription =
+        new GcpSubscription(builder, mockSubscriptionAdminClient);
+
+    UnaryCallable<ModifyAckDeadlineRequest, Empty> mockCallable = mock(UnaryCallable.class);
+    when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
+
+    ArgumentCaptor<ModifyAckDeadlineRequest> captor =
+        ArgumentCaptor.forClass(ModifyAckDeadlineRequest.class);
+    when(mockCallable.call(captor.capture())).thenReturn(Empty.getDefaultInstance());
+
+    List<AckID> ackIDs = List.of(new GcpSubscription.GcpAckID("test-ack-id"));
+    customSubscription.doSendNacks(nacks(ackIDs));
+
+    assertEquals(45, captor.getValue().getAckDeadlineSeconds());
+  }
+
+  @Test
+  void testDoSendNacks_PerMessageVisibilityTimeout() {
+    GcpSubscription.Builder builder =
+        new GcpSubscription.Builder()
+            .withSubscriptionName(VALID_SUBSCRIPTION_NAME)
+            .withCredentialsOverrider(mockCredentialsOverrider)
+            .withNackVisibilityTimeout(java.time.Duration.ofSeconds(30));
+    GcpSubscription customSubscription =
+        new GcpSubscription(builder, mockSubscriptionAdminClient);
+
+    UnaryCallable<ModifyAckDeadlineRequest, Empty> mockCallable = mock(UnaryCallable.class);
+    when(mockSubscriptionAdminClient.modifyAckDeadlineCallable()).thenReturn(mockCallable);
+
+    ArgumentCaptor<ModifyAckDeadlineRequest> captor =
+        ArgumentCaptor.forClass(ModifyAckDeadlineRequest.class);
+    when(mockCallable.call(captor.capture())).thenReturn(Empty.getDefaultInstance());
+
+    AckID id1 = new GcpSubscription.GcpAckID("ack-1");
+    AckID id2 = new GcpSubscription.GcpAckID("ack-2");
+    AckID id3 = new GcpSubscription.GcpAckID("ack-3");
+    List<AckInfo> infos =
+        List.of(
+            new AckInfo(id1, false, java.time.Duration.ZERO),
+            new AckInfo(id2, false, java.time.Duration.ofSeconds(60)),
+            new AckInfo(id3, false, null));
+
+    customSubscription.doSendNacks(infos);
+
+    // Expect one ModifyAckDeadline call per distinct deadline (0, 60, 30 → subscription default).
+    Map<Integer, List<String>> ackIdsByDeadline = new HashMap<>();
+    for (ModifyAckDeadlineRequest request : captor.getAllValues()) {
+      ackIdsByDeadline.put(request.getAckDeadlineSeconds(), request.getAckIdsList());
+    }
+    assertEquals(List.of("ack-1"), ackIdsByDeadline.get(0));
+    assertEquals(List.of("ack-2"), ackIdsByDeadline.get(60));
+    assertEquals(List.of("ack-3"), ackIdsByDeadline.get(30));
   }
 
   @Test

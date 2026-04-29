@@ -825,6 +825,8 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getMetadata().getETag(), testName + ": etag was missing");
       Assertions.assertNotNull(
           response.getMetadata().getLastModified(), testName + ": lastModified was missing");
+      Assertions.assertNotNull(
+          response.getMetadata().getCreatedTime(), testName + ": createdTime was missing");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, uploadKey);
@@ -2534,6 +2536,7 @@ public abstract class AbstractBlobStoreIT {
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
+        Assertions.assertNotNull(blobMetadata.getCreatedTime());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -3648,6 +3651,7 @@ public abstract class AbstractBlobStoreIT {
             metadataForUrlGeneration, downloadResponse.getMetadata().getMetadata());
         Assertions.assertNotNull(downloadResponse.getMetadata().getETag());
         Assertions.assertNotNull(downloadResponse.getMetadata().getLastModified());
+        Assertions.assertNotNull(downloadResponse.getMetadata().getCreatedTime());
 
         // Check the metadata on the object
         BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
@@ -4065,7 +4069,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/kms/presigned-url-null-key";
     Map<String, String> metadata = Map.of("key2", "value2");
     byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);

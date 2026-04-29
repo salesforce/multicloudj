@@ -36,9 +36,12 @@ import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.cloud.storage.transfermanager.DownloadJob;
 import com.google.cloud.storage.transfermanager.DownloadResult;
 import com.google.cloud.storage.transfermanager.ParallelDownloadConfig;
+import com.google.cloud.storage.transfermanager.ParallelUploadConfig;
 import com.google.cloud.storage.transfermanager.TransferManager;
 import com.google.cloud.storage.transfermanager.TransferManagerConfig;
 import com.google.cloud.storage.transfermanager.TransferStatus;
+import com.google.cloud.storage.transfermanager.UploadJob;
+import com.google.cloud.storage.transfermanager.UploadResult;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -102,6 +105,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -116,26 +120,29 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
-  private static final int PARALLEL_LARGE_FILE_DOWNLOAD_MAX_WORKERS = 8;
-
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
 
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
+  private final TransferManager transferManager;
   private final GcpTransformer transformer;
   private final TransferManager transferManager;
   private static final String TAG_PREFIX = "gcp-tag-";
   private static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
 
   public GcpBlobStore() {
-    this(new Builder(), null, null);
+    this(new Builder(), null, null, null);
   }
 
-  public GcpBlobStore(Builder builder, Storage storage, MultipartUploadClient mpuClient) {
+  public GcpBlobStore(
+      Builder builder,
+      Storage storage,
+      MultipartUploadClient mpuClient,
+      TransferManager transferManager) {
     super(builder);
     this.storage = storage;
     this.multipartUploadClient = mpuClient;
-    this.transferManager = builder.getTransferManager();
+    this.transferManager = transferManager;
     this.transformer = builder.transformerSupplier.get(bucket);
   }
 
@@ -816,56 +823,92 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DirectoryUploadResponse doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     try {
-      Path sourceDir = Paths.get(directoryUploadRequest.getLocalSourceDirectory());
+      // Resolve sourceDir to absolute form so Path#relativize works in the factory:
+      // the TransferManager always passes us an absolute filename per file.
+      final Path sourceDir =
+          Paths.get(directoryUploadRequest.getLocalSourceDirectory()).toAbsolutePath();
       List<Path> filePaths = transformer.toFilePaths(directoryUploadRequest);
-      List<FailedBlobUpload> failedUploads = new ArrayList<>();
-      // Create directory marker object if prefix is specified
-      if (directoryUploadRequest.getPrefix() != null
-          && !directoryUploadRequest.getPrefix().isEmpty()) {
-        try {
-          String dirMarkerKey = directoryUploadRequest.getPrefix();
-          if (!dirMarkerKey.endsWith("/")) {
-            dirMarkerKey += "/";
-          }
-          com.google.cloud.storage.BlobInfo dirMarkerInfo =
-              com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), dirMarkerKey).build();
-          storage.create(dirMarkerInfo, new byte[0]); // Create empty object as directory marker
-        } catch (Exception e) {
-          // Don't fail the entire upload if directory marker creation fails
-        }
+      if (filePaths.isEmpty()) {
+        return DirectoryUploadResponse.builder().failedTransfers(new ArrayList<>()).build();
       }
 
-      for (Path filePath : filePaths) {
-        try {
-          // Generate blob key
-          String blobKey =
-              transformer.toBlobKey(sourceDir, filePath, directoryUploadRequest.getPrefix());
+      final String prefix = directoryUploadRequest.getPrefix();
+      final Map<String, String> metadata = buildTagMetadata(directoryUploadRequest);
 
-          // Build metadata map with tags if provided
-          Map<String, String> metadata = new HashMap<>();
-          if (directoryUploadRequest.getTags() != null
-              && !directoryUploadRequest.getTags().isEmpty()) {
-            directoryUploadRequest
-                .getTags()
-                .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
-          }
+      // The factory populates this map (key -> absolute source path) as it builds each
+      // BlobInfo, so failures returned by the TransferManager can be attributed back
+      // to the originating file.
+      final Map<String, Path> keyToSource = new ConcurrentHashMap<>();
+      ParallelUploadConfig uploadConfig =
+          ParallelUploadConfig.newBuilder()
+              .setBucketName(getBucket())
+              .setUploadBlobInfoFactory(
+                  buildUploadFactory(sourceDir, prefix, metadata, keyToSource))
+              .build();
 
-          // Upload file to GCS with tags applied
-          com.google.cloud.storage.BlobInfo blobInfo =
-              com.google.cloud.storage.BlobInfo.newBuilder(getBucket(), blobKey)
-                  .setMetadata(metadata.isEmpty() ? null : metadata)
-                  .build();
-          storage.createFrom(blobInfo, filePath);
-        } catch (Exception e) {
-          failedUploads.add(FailedBlobUpload.builder().source(filePath).exception(e).build());
-        }
-      }
-
-      return DirectoryUploadResponse.builder().failedTransfers(failedUploads).build();
-
+      UploadJob job = transferManager.uploadFiles(filePaths, uploadConfig);
+      return DirectoryUploadResponse.builder()
+          .failedTransfers(collectFailedUploads(job, sourceDir, keyToSource))
+          .build();
     } catch (Exception e) {
       throw new SubstrateSdkException("Failed to upload directory", e);
     }
+  }
+
+  // Build metadata map with tags if provided; the same tags are applied to every
+  // file in the directory.
+  private static Map<String, String> buildTagMetadata(DirectoryUploadRequest request) {
+    Map<String, String> metadata = new HashMap<>();
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      request.getTags().forEach((name, value) -> metadata.put(TAG_PREFIX + name, value));
+    }
+    return metadata;
+  }
+
+  /**
+   * Builds the {@link ParallelUploadConfig.UploadBlobInfoFactory} the TransferManager
+   * uses to derive each upload's destination {@code BlobInfo}, and records the
+   * {@code blobKey -> sourcePath} mapping into {@code keyToSource} for failure
+   * attribution.
+   */
+  private ParallelUploadConfig.UploadBlobInfoFactory buildUploadFactory(
+      Path sourceDir, String prefix, Map<String, String> metadata, Map<String, Path> keyToSource) {
+    return (bucketName, filename) -> {
+      Path filePath = Paths.get(filename);
+      String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
+      keyToSource.put(blobKey, filePath);
+      BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
+      if (!metadata.isEmpty()) {
+        b.setMetadata(metadata);
+      }
+      return b.build();
+    };
+  }
+
+  // True when this blob is a folder marker (a 0-byte object whose key ends with "/").
+  // Mirrors AWS S3TransferManager's default DownloadFilter.allObjects() definition.
+  private static boolean isFolderMarker(Blob blob) {
+    Long size = blob.getSize();
+    return blob.getName().endsWith("/") && size != null && size == 0L;
+  }
+
+  // Translates GCS UploadResult -> portable FailedBlobUpload: keeps non-SUCCESS only,
+  // recovers the source path from keyToSource (UploadResult only carries the blob key).
+  // The GCS SDK guarantees a non-null exception for FAILED_TO_START / FAILED_TO_FINISH
+  // (verified via UploadResult.Builder#build), and we never enable SKIPPED, so we pass
+  // result.getException() through directly (matching the AWS implementation).
+  private static List<FailedBlobUpload> collectFailedUploads(
+      UploadJob job, Path sourceDir, Map<String, Path> keyToSource) {
+    List<FailedBlobUpload> failedUploads = new ArrayList<>();
+    for (UploadResult result : job.getUploadResults()) {
+      if (result.getStatus() != TransferStatus.SUCCESS) {
+        String blobKey = result.getInput().getName();
+        Path source = keyToSource.getOrDefault(blobKey, sourceDir.resolve(blobKey));
+        failedUploads.add(
+            FailedBlobUpload.builder().source(source).exception(result.getException()).build());
+      }
+    }
+    return failedUploads;
   }
 
   @Override
@@ -880,36 +923,58 @@ public class GcpBlobStore extends AbstractBlobStore {
               ? rawPrefix + "/"
               : rawPrefix;
 
-      // This can optimize performance by fetching minimal metadata instead of full blob details.
-      Storage.BlobListOption[] options =
-          (prefix != null)
-              ? new Storage.BlobListOption[] {
-                Storage.BlobListOption.prefix(prefix),
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              }
-              : new Storage.BlobListOption[] {
-                Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE)
-              };
+      // Fetch name + size: name to build the destination, size to identify folder
+      // markers (matches AWS S3TransferManager DownloadFilter.allObjects, which is
+      // the default filter on AWS).
+      List<Storage.BlobListOption> listOptions = new ArrayList<>();
+      if (prefix != null) {
+        listOptions.add(Storage.BlobListOption.prefix(prefix));
+      }
+      listOptions.add(
+          Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE, Storage.BlobField.GENERATION));
+
+      List<BlobInfo> blobInfos = new ArrayList<>();
+      for (Blob blob :
+          storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
+              .iterateAll()) {
+        // Skip folder markers (matches AWS default). GCS TransferManager has no
+        // built-in filter and would otherwise create a 0-byte file at the marker's
+        // path, blocking the real files inside that virtual folder.
+        if (!isFolderMarker(blob)) {
+          blobInfos.add(blob);
+        }
+      }
 
       List<FailedBlobDownload> failed = new ArrayList<>();
+      if (blobInfos.isEmpty()) {
+        return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
+      }
 
-      for (Blob blob : storage.list(getBucket(), options).iterateAll()) {
-        final String name = blob.getName();
+      ParallelDownloadConfig.Builder downloadConfigBuilder =
+          ParallelDownloadConfig.newBuilder()
+              .setBucketName(getBucket())
+              .setDownloadDirectory(targetDir);
+      if (prefix != null) {
+        downloadConfigBuilder.setStripPrefix(prefix);
+      }
 
-        String relativePath = (prefix != null) ? name.substring(prefix.length()) : name;
-        if (relativePath.isEmpty()) {
-          continue;
-        }
+      DownloadJob job = transferManager.downloadBlobs(blobInfos, downloadConfigBuilder.build());
 
-        Path localFilePath = targetDir.resolve(relativePath).normalize();
-
-        try {
-          Path parent = localFilePath.getParent();
-
-          Files.createDirectories(parent);
-          blob.downloadTo(localFilePath);
-        } catch (Exception e) {
-          failed.add(FailedBlobDownload.builder().destination(localFilePath).exception(e).build());
+      for (DownloadResult result : job.getDownloadResults()) {
+        if (result.getStatus() != TransferStatus.SUCCESS) {
+          // DownloadResult#getOutputDestination() throws when status is not SUCCESS,
+          // so we always compute the destination from the blob name for failed transfers.
+          String name = result.getInput().getName();
+          String relative =
+              (prefix != null && name.startsWith(prefix))
+                  ? name.substring(prefix.length())
+                  : name;
+          Path destination = targetDir.resolve(relative).normalize();
+          failed.add(
+              FailedBlobDownload.builder()
+                  .destination(destination)
+                  .exception(result.getException())
+                  .build());
         }
       }
 
@@ -1047,7 +1112,7 @@ public class GcpBlobStore extends AbstractBlobStore {
                 java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
             .build();
 
-    com.google.cloud.storage.BlobInfo updatedBlobInfo =
+    BlobInfo updatedBlobInfo =
         blob.toBuilder().setRetention(updatedRetention).build();
 
     // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
@@ -1079,7 +1144,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     Boolean existingEventHold = blob.getEventBasedHold();
     boolean useEventBased = existingEventHold != null && existingEventHold;
 
-    com.google.cloud.storage.BlobInfo.Builder builder = blob.toBuilder();
+    BlobInfo.Builder builder = blob.toBuilder();
     if (useEventBased) {
       builder.setEventBasedHold(legalHold);
     } else {
@@ -1105,7 +1170,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     return UnknownException.class;
   }
 
-  /** Closes the underlying GCP Storage client and releases any resources. */
+  /** Closes the underlying GCP Storage clients and releases any resources. */
   @Override
   public void close() {
     try {
@@ -1116,7 +1181,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         storage.close();
       }
     } catch (Exception e) {
-      throw new SubstrateSdkException("Failed to close storage client", e);
+      throw new SubstrateSdkException("Failed to close GCP storage clients", e);
     }
   }
 
@@ -1269,8 +1334,34 @@ public class GcpBlobStore extends AbstractBlobStore {
             transformer.toGcpRetrySettings(builder.getRetryConfig()));
       }
 
+      if (builder.getQuotaProjectId() != null) {
+        storageOptionsBuilder.setQuotaProjectId(builder.getQuotaProjectId());
+      }
+
       return MultipartUploadClient.create(
           MultipartUploadSettings.of(storageOptionsBuilder.build()));
+    }
+
+    /**
+     * Helper function for generating the TransferManager, which is used for parallelized
+     * directory upload and download operations. It reuses the {@link StorageOptions} of the
+     * provided {@link Storage} client so that transport, credentials, endpoint, and retry
+     * settings are consistent between single-object and directory operations. Returns {@code
+     * null} if the provided {@link Storage} does not expose {@link StorageOptions} (for
+     * example, a test mock without stubbing); in that case directory operations will not be
+     * supported unless a {@link TransferManager} is supplied explicitly via {@link
+     * #withTransferManager(TransferManager)}.
+     */
+    private static TransferManager buildTransferManager(Storage storage) {
+      StorageOptions options = storage.getOptions();
+      if (options == null) {
+        return null;
+      }
+      return TransferManagerConfig.newBuilder()
+          .setStorageOptions(options)
+          .setAllowDivideAndConquerDownload(true)
+          .build()
+          .getService();
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
@@ -1314,6 +1405,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     public GcpBlobStore build() {
       Storage storage = this.storage;
       MultipartUploadClient mpuClient = this.mpuClient;
+      TransferManager transferManager = this.transferManager;
       if (storage == null) {
         storage = buildStorage(this);
       }
@@ -1321,22 +1413,9 @@ public class GcpBlobStore extends AbstractBlobStore {
         mpuClient = buildMultipartUploadClient(this);
       }
       if (transferManager == null) {
-        transferManager = buildParallelDownloadTransferManager(storage);
+        transferManager = buildTransferManager(storage);
       }
-      return new GcpBlobStore(this, storage, mpuClient);
-    }
-
-    private static TransferManager buildParallelDownloadTransferManager(Storage storage) {
-      if (storage == null || storage.getOptions() == null) {
-        return null;
-      }
-      TransferManagerConfig config =
-          TransferManagerConfig.newBuilder()
-              .setStorageOptions(storage.getOptions())
-              .setMaxWorkers(GcpBlobStore.PARALLEL_LARGE_FILE_DOWNLOAD_MAX_WORKERS)
-              .setAllowDivideAndConquerDownload(true)
-              .build();
-      return config.getService();
+      return new GcpBlobStore(this, storage, mpuClient, transferManager);
     }
   }
 }

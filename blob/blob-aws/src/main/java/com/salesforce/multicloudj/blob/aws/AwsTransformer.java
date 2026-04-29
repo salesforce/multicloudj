@@ -313,6 +313,8 @@ public class AwsTransformer {
     return "bytes=" + (start == null ? "" : start) + "-" + (end == null ? "" : end);
   }
 
+  // S3 does not expose a separate creation timestamp
+  // objects are immutable, lastModified is the best available value
   public DownloadResponse toDownloadResponse(
       DownloadRequest downloadRequest, GetObjectResponse response) {
     return DownloadResponse.builder()
@@ -323,6 +325,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -342,6 +345,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -418,6 +422,7 @@ public class AwsTransformer {
         .objectSize(objectSize)
         .metadata(metadata)
         .lastModified(response.lastModified())
+        .createdTime(response.lastModified())
         .md5(eTagToMD5(eTag))
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)

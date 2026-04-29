@@ -139,6 +139,7 @@ public class AliTransformer {
     return new ImmutablePair<>(start == null ? -1 : start, end == null ? -1 : end);
   }
 
+  // OSS does not expose a separate creation timestamp, lastModified is the best available value
   public DownloadResponse toDownloadResponse(OSSObject ossObject) {
     return DownloadResponse.builder()
         .key(ossObject.getKey())
@@ -148,6 +149,7 @@ public class AliTransformer {
                 .versionId(ossObject.getObjectMetadata().getVersionId())
                 .eTag(ossObject.getObjectMetadata().getETag())
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
                 .contentType(ossObject.getObjectMetadata().getContentType())
@@ -164,6 +166,7 @@ public class AliTransformer {
                 .versionId(ossObject.getObjectMetadata().getVersionId())
                 .eTag(ossObject.getObjectMetadata().getETag())
                 .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
+                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
                 .contentType(ossObject.getObjectMetadata().getContentType())
@@ -227,6 +230,7 @@ public class AliTransformer {
         .objectSize(objectSize)
         .metadata(rawMetadata)
         .lastModified(metadata.getLastModified().toInstant())
+        .createdTime(metadata.getLastModified().toInstant())
         .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
         .contentType(metadata.getContentType())
         .build();
