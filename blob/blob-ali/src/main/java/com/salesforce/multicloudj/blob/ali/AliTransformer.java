@@ -139,6 +139,7 @@ public class AliTransformer {
     return new ImmutablePair<>(start == null ? -1 : start, end == null ? -1 : end);
   }
 
+  // OSS does not expose a separate creation timestamp; lastModified is the best available value
   public DownloadResponse toDownloadResponse(OSSObject ossObject) {
     return DownloadResponse.builder()
         .key(ossObject.getKey())

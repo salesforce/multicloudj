@@ -303,6 +303,7 @@ public class AwsTransformer {
     return "bytes=" + (start == null ? "" : start) + "-" + (end == null ? "" : end);
   }
 
+  // S3 has no separate creation timestamp; objects are immutable so lastModified == creation time
   public DownloadResponse toDownloadResponse(
       DownloadRequest downloadRequest, GetObjectResponse response) {
     return DownloadResponse.builder()
