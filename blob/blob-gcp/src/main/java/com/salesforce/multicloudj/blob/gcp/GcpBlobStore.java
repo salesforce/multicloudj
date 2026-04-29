@@ -1092,6 +1092,10 @@ public class GcpBlobStore extends AbstractBlobStore {
             transformer.toGcpRetrySettings(builder.getRetryConfig()));
       }
 
+      if (builder.getQuotaProjectId() != null) {
+        storageOptionsBuilder.setQuotaProjectId(builder.getQuotaProjectId());
+      }
+
       return MultipartUploadClient.create(
           MultipartUploadSettings.of(storageOptionsBuilder.build()));
     }
