@@ -931,7 +931,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         listOptions.add(Storage.BlobListOption.prefix(prefix));
       }
       listOptions.add(
-          Storage.BlobListOption.fields(Storage.BlobField.NAME, Storage.BlobField.SIZE, Storage.BlobField.GENERATION));
+          Storage.BlobListOption.fields(
+              Storage.BlobField.NAME,
+              Storage.BlobField.SIZE,
+              Storage.BlobField.GENERATION));
 
       List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
