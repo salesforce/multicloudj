@@ -711,6 +711,18 @@ public class BucketClient implements AutoCloseable {
     }
 
     /**
+     * Method to supply a quota project ID. This method is not applicable
+     * to all providers
+     *
+     * @param quotaProjectId The project ID to use for quota and billing
+     * @return An instance of self
+     */
+    public BlobBuilder withQuotaProjectId(String quotaProjectId) {
+      this.blobStoreBuilder.withQuotaProjectId(quotaProjectId);
+      return this;
+    }
+
+    /**
      * Builds and returns an instance of BucketClient.
      *
      * @return An instance of BucketClient.

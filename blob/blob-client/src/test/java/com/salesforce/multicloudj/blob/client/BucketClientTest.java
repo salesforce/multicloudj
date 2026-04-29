@@ -699,6 +699,29 @@ public class BucketClientTest {
   }
 
   @Test
+  void testBucketClientBuilderWithQuotaProjectId() {
+    AbstractBlobStore.Builder mockBuilder2 = mock(AbstractBlobStore.Builder.class);
+    when(mockBuilder2.withBucket(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withRegion(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.withQuotaProjectId(any())).thenReturn(mockBuilder2);
+    when(mockBuilder2.build()).thenReturn(mockBlobStore);
+
+    providerSupplier
+        .when(() -> ProviderSupplier.findProviderBuilder("test6"))
+        .thenReturn(mockBuilder2);
+
+    BucketClient testClient =
+        BucketClient.builder("test6")
+            .withBucket("test-bucket")
+            .withRegion("us-east-1")
+            .withQuotaProjectId("my-quota-project")
+            .build();
+
+    verify(mockBuilder2, times(1)).withQuotaProjectId("my-quota-project");
+    assertNotNull(testClient);
+  }
+
+  @Test
   void testClose() throws Exception {
     // Test that close() calls blobStore.close()
     client.close();
