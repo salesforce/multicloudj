@@ -33,14 +33,37 @@ Work with document-oriented databases using a consistent interface.
 
 - [Docstore](docstore-guide.html)
 
-
 ---
 
 ## 📬 Pub/Sub
 
 Use publish/subscribe systems to send and receive messages.
 
-- [Pubsub](pubsub-guide.md)
+- [PubSub](pubsub-guide.html)
+
+---
+
+## 🔐 IAM
+
+Manage cloud identities (roles and service accounts) and their access policies.
+
+- [IAM](iam-guide.html)
+
+---
+
+## 💾 DB Backup & Restore
+
+Back up and restore cloud databases across AWS DynamoDB, GCP Firestore, and Alibaba Tablestore.
+
+- [DB Backup & Restore](dbbackuprestore-guide.html)
+
+---
+
+## 🐳 Container Registry
+
+Pull container images and extract their filesystems from cloud container registries.
+
+- [Container Registry](registry-guide.html)
 
 ---
 
