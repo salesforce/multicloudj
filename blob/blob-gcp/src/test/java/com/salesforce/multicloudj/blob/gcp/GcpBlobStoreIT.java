@@ -30,6 +30,9 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
   private static final String bucketName = "substrate-sdk-gcp-poc1-test-bucket";
   private static final String versionedBucketName = "substrate-sdk-gcp-poc1-test-bucket-versioned";
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
+  // Dedicated bucket name for testInvalidCredentials. Using a unique name ensures its
+  // WireMock scenario names don't collide with other tests that share the main bucket URL.
+  private static final String invalidCredsBucketName = "invalid-credentials-test-bucket";
 
   @Override
   protected Harness createHarness() {
@@ -69,10 +72,15 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     public AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
 
+      // When credentials are intentionally invalid, use a dedicated bucket name so that
+      // WireMock scenario names (which embed the bucket path) are unique to this test
+      // and cannot collide with stubs from other tests that share the main bucket.
       String bucketNameToUse =
-          useValidBucket
-              ? (useVersionedBucket ? versionedBucketName : bucketName)
-              : nonExistentBucketName;
+          !useValidCredentials
+              ? invalidCredsBucketName
+              : useValidBucket
+                  ? (useVersionedBucket ? versionedBucketName : bucketName)
+                  : nonExistentBucketName;
 
       boolean isRecordingEnabled = System.getProperty("record") != null;
 

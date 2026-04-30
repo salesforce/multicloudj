@@ -20,8 +20,6 @@ import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.recording.RecordSpecBuilder;
-import com.github.tomakehurst.wiremock.recording.SnapshotRecordResult;
-import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import java.security.KeyManagementException;
@@ -29,14 +27,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -115,8 +111,6 @@ public class TestsUtil {
       if (currentTestPrefix != null) {
         String method = stubMapping.getRequest().getMethod().value();
         stubMapping.setName(currentTestPrefix + "-" + method + "-" + stubCounter.getAndIncrement());
-        // No scenario renaming here; scenarios aren't assigned until after this transformer runs.
-        // Scenario renaming happens in stopWireMockRecording() via renameScenarios().
       }
       return stubMapping;
     }
@@ -278,21 +272,6 @@ public class TestsUtil {
                 .extensions(extensions.toArray(new Extension[0]))
                 .enableBrowserProxying(true));
     wireMockServer.start();
-    // Disable all test-specific (priority=1) scenarios so their stubs don't interfere
-    // with other tests. They will be re-enabled (reset to "Started") when their test runs.
-    disableAllPriorityOneScenarios();
-  }
-
-  private static void disableAllPriorityOneScenarios() {
-    // Scenarios belonging to test-specific stubs (priority=1) should start "Done"
-    // so they don't interfere with other tests. They are enabled (reset to "Started")
-    // when their specific test runs.
-    wireMockServer.getStubMappings().stream()
-        .filter(stub -> stub.getPriority() != null && stub.getPriority() == 1)
-        .map(StubMapping::getScenarioName)
-        .filter(name -> name != null)
-        .distinct()
-        .forEach(name -> wireMockServer.setScenarioState(name, name + "-done"));
   }
 
   public static void stopWireMockServer() {
@@ -303,7 +282,6 @@ public class TestsUtil {
       String targetEndpoint, String testClassName, String testMethodName) {
     currentTestPrefix = testClassName + "_" + testMethodName;
     stubCounter.set(0);
-    resetCurrentTestScenarios(testClassName, testMethodName);
 
     boolean isRecordingEnabled = System.getProperty("record") != null;
     RecordSpecBuilder recordSpec =
@@ -335,80 +313,7 @@ public class TestsUtil {
   public static void stopWireMockRecording() {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     if (isRecordingEnabled) {
-      SnapshotRecordResult result = wireMockServer.stopRecording();
-      renameScenarios(result.getStubMappings());
-    }
-    disableCurrentTestScenarios();
-  }
-
-  /**
-   * Advances all current-test scenarios to "Done" state so their stubs don't match during other
-   * tests. Terminal stubs in test-specific scenarios include a "Done" newScenarioState for this.
-   */
-  private static void disableCurrentTestScenarios() {
-    if (currentTestPrefix == null) {
-      return;
-    }
-    String testKey =
-        currentTestPrefix.toLowerCase().replace("_", "").replace("-", "");
-    wireMockServer.getAllScenarios().getScenarios().stream()
-        .filter(s -> s.getName().startsWith(testKey + "-"))
-        .forEach(s -> wireMockServer.setScenarioState(s.getName(), s.getName() + "-done"));
-  }
-
-  /**
-   * Resets only the WireMock scenarios that belong to the current test (identified by the
-   * test-prefixed scenario name). This avoids resetting other tests' scenarios which would
-   * cause cross-test interference.
-   */
-  private static void resetCurrentTestScenarios(String testClassName, String testMethodName) {
-    String testKey =
-        (testClassName + testMethodName).toLowerCase().replace("_", "").replace("-", "");
-    wireMockServer.getAllScenarios().getScenarios().stream()
-        .filter(s -> s.getName().startsWith(testKey + "-"))
-        .forEach(s -> wireMockServer.resetScenario(s.getName()));
-  }
-
-  /**
-   * Prefixes scenario names in recorded stubs with the test name to prevent cross-test
-   * scenario state collisions during replay. Also sets priority=1 on all stubs so they take
-   * precedence over stubs from other tests when request patterns overlap, and adds a "Done"
-   * terminal state to terminal stubs so scenarios can be disabled after the test runs.
-   */
-  private static void renameScenarios(List<StubMapping> stubs) {
-    if (currentTestPrefix == null || stubs == null) {
-      return;
-    }
-    String testKey = currentTestPrefix.toLowerCase().replace("_", "").replace("-", "");
-    // Build a map of old scenario name → new scenario name
-    Map<String, String> renames = new HashMap<>();
-    for (StubMapping stub : stubs) {
-      String scenarioName = stub.getScenarioName();
-      if (scenarioName != null && !renames.containsKey(scenarioName)) {
-        renames.put(scenarioName, testKey + "-" + scenarioName);
-      }
-    }
-    // Apply renames, set priority, add Done terminal state, and update stubs in WireMock
-    for (StubMapping stub : stubs) {
-      String scenarioName = stub.getScenarioName();
-      if (scenarioName != null) {
-        String newScenarioName = renames.get(scenarioName);
-        stub.setScenarioName(newScenarioName);
-        String reqState = stub.getRequiredScenarioState();
-        if (reqState != null && !reqState.equals("Started")) {
-          stub.setRequiredScenarioState(reqState.replace(scenarioName, newScenarioName));
-        }
-        String newState = stub.getNewScenarioState();
-        if (newState != null) {
-          stub.setNewScenarioState(newState.replace(scenarioName, newScenarioName));
-        } else {
-          // Terminal stub: add a "Done" state so the scenario can be disabled after test.
-          stub.setNewScenarioState(newScenarioName + "-done");
-        }
-        // Priority=1 so these stubs win over default-priority stubs from other tests.
-        stub.setPriority(1);
-        wireMockServer.editStubMapping(stub);
-      }
+      wireMockServer.stopRecording();
     }
   }
 }
