@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -593,6 +594,18 @@ public class AsyncBucketClient implements AutoCloseable {
     public Builder withUseEnvironmentVariableProxyValues(
         Boolean useEnvironmentVariableProxyValues) {
       super.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+      return this;
+    }
+
+    /**
+     * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
+     *
+     * @param tracingPolicy the tracing policy
+     * @return An instance of self
+     */
+    @Override
+    public Builder withTracingPolicy(TracingPolicy tracingPolicy) {
+      super.withTracingPolicy(tracingPolicy);
       return this;
     }
 

@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
@@ -121,6 +122,17 @@ public class BlobClient implements AutoCloseable {
      */
     public BlobClientBuilder withRetryConfig(RetryConfig retryConfig) {
       this.blobClientBuilder.withRetryConfig(retryConfig);
+      return this;
+    }
+
+    /**
+     * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
+     *
+     * @param tracingPolicy the tracing policy
+     * @return An instance of self
+     */
+    public BlobClientBuilder withTracingPolicy(TracingPolicy tracingPolicy) {
+      this.blobClientBuilder.withTracingPolicy(tracingPolicy);
       return this;
     }
 

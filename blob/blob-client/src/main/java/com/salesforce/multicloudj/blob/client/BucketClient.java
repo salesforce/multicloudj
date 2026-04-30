@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -719,6 +720,17 @@ public class BucketClient implements AutoCloseable {
      */
     public BlobBuilder withQuotaProjectId(String quotaProjectId) {
       this.blobStoreBuilder.withQuotaProjectId(quotaProjectId);
+      return this;
+    }
+
+    /**
+     * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
+     *
+     * @param tracingPolicy the tracing policy
+     * @return An instance of self
+     */
+    public BlobBuilder withTracingPolicy(TracingPolicy tracingPolicy) {
+      this.blobStoreBuilder.withTracingPolicy(tracingPolicy);
       return this;
     }
 

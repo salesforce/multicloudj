@@ -19,4 +19,10 @@ public class CopyResponse {
 
   private final String eTag;
   private final Instant lastModified;
+
+  /**
+   * The correlation ID associated with this copy. Echoes the application-supplied value when
+   * provided via {@code OperationContext}, or the SDK-generated UUID when not.
+   */
+  private final String correlationId;
 }
