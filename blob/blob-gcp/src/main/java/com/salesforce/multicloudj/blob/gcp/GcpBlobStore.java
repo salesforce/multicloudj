@@ -346,18 +346,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     return transformer.toDownloadResponse(blob);
   }
 
-  /**
-   * Derives {@link ParallelDownloadConfig} directory and strip-prefix so the transfer manager
-   * destination matches {@code destinationPath}, when that layout is expressible (otherwise {@code
-   * null} and we fall back to {@link Blob#downloadTo(Path)}).
-   *
-   * <p>Unlike AWS S3's transfer manager, which takes an explicit per-download file {@link Path}
-   * ({@code DownloadFileRequest#destination}), GCS {@link TransferManager} only places files
-   * under a {@linkplain ParallelDownloadConfig#getDownloadDirectory() download directory} using
-   * the object key (optionally {@linkplain ParallelDownloadConfig#getStripPrefix()
-   * strip-prefixed}). We need this mapping so the same resolved {@code destinationPath} as
-   * {@link #createDownloadDestinationPath} is honored when parallel download is enabled.
-   */
+  /** Derives the download directory and strip-prefix so the resolved destination is honored. */
   private static ParallelTmPaths computeParallelTmPaths(
       DownloadRequest request, Path destinationPath) {
     String key = request.getKey();
