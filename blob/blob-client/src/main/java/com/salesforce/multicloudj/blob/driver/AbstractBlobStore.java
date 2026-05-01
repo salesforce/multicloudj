@@ -1,11 +1,14 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -319,6 +322,27 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected void doDeleteDirectory(String prefix) {
     throw new UnsupportedOperationException(
         "Directory delete is not supported by this substrate implementation");
+  }
+
+  /**
+   * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
+   * true, appends the object key and creates any missing parent directories. Subclasses may
+   * override to change the exception type thrown on directory-creation failure.
+   */
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   public abstract static class Builder<A extends AbstractBlobStore, T extends Builder<A, T>>

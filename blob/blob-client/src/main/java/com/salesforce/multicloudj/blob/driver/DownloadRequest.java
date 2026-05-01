@@ -11,6 +11,8 @@ public class DownloadRequest {
   private final Long start;
   private final Long end;
   private final String kmsKeyId;
+  private final boolean parallelDownload;
+  private final boolean createParentPath;
 
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
@@ -18,6 +20,8 @@ public class DownloadRequest {
     this.start = builder.start;
     this.end = builder.end;
     this.kmsKeyId = builder.kmsKeyId;
+    this.parallelDownload = builder.parallelDownload;
+    this.createParentPath = builder.createParentPath;
   }
 
   public static Builder builder() {
@@ -30,6 +34,8 @@ public class DownloadRequest {
     private Long start;
     private Long end;
     private String kmsKeyId;
+    private boolean parallelDownload;
+    private boolean createParentPath;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -87,6 +93,28 @@ public class DownloadRequest {
      */
     public Builder withKmsKeyId(String kmsKeyId) {
       this.kmsKeyId = kmsKeyId;
+      return this;
+    }
+
+    /**
+     * (Optional) Enables provider-specific parallel download optimization when supported for
+     * file-based destinations ({@code Path} / {@code File}). Ignored for {@code OutputStream} and
+     * related streaming-style downloads so content is not fully materialized to disk first.
+     * Defaults to false.
+     */
+    public Builder withParallelDownload(boolean parallelDownload) {
+      this.parallelDownload = parallelDownload;
+      return this;
+    }
+
+    /**
+     * (Optional) If true, the destination is treated as a root directory: the object key's parent
+     * path structure is preserved beneath it, and any missing parent directories are created on
+     * the local filesystem before the download is written. Only applies to file-based destinations
+     * ({@code File} / {@code Path}). Defaults to false.
+     */
+    public Builder withCreateParentPath(boolean createParentPath) {
+      this.createParentPath = createParentPath;
       return this;
     }
 
