@@ -1,5 +1,5 @@
 {
-  "id" : "299cc0ed-7817-48c8-a8ce-9bc6c5b0830f",
+  "id" : "a3453d8b-9686-406c-b6a1-dc1abc2c6590",
   "name" : "AwsDocstoreIT_testGet-POST-8",
   "request" : {
     "url" : "/",
@@ -10,7 +10,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"DavidMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"DavidMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
@@ -20,13 +20,13 @@
     "body" : "{}",
     "headers" : {
       "Server" : "Server",
-      "x-amzn-RequestId" : "QJTT6SLC5TACT6APPAVE8P2LSBVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amzn-RequestId" : "3S4PRD565JS2THLUDOMQ0JHCVJVV4KQNSO5AEMVJF66Q9ASUAAJG",
       "x-amz-crc32" : "2745614147",
-      "Date" : "Wed, 04 Mar 2026 21:12:41 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:57:54 GMT",
       "Content-Type" : "application/x-amz-json-1.0"
     }
   },
-  "uuid" : "299cc0ed-7817-48c8-a8ce-9bc6c5b0830f",
+  "uuid" : "a3453d8b-9686-406c-b6a1-dc1abc2c6590",
   "persistent" : true,
-  "insertionIndex" : 49
+  "insertionIndex" : 230
 }

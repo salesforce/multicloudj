@@ -1,5 +1,5 @@
 {
-  "id" : "75e7961b-7d76-49c9-b557-d77e77976fda",
+  "id" : "5c806260-ec6f-44f6-94de-9f5c089ee9eb",
   "name" : "FSDocstoreIT_testGet-POST-18",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PumaMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"random String\"},\"pName\":{\"stringValue\":\"PumaMap\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PumaMap\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"random String\"},\"pName\":{\"stringValue\":\"PumaMap\"},\"bytes\":{\"bytesValue\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-03-04T21:19:38.064805Z\"\n    }\n  ],\n  \"commitTime\": \"2026-03-04T21:19:38.064805Z\"\n}\n",
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-04-22T22:41:16.255060Z\"\n    }\n  ],\n  \"commitTime\": \"2026-04-22T22:41:16.255060Z\"\n}\n",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "3834926706610039095;o=1",
+      "X-Debug-Tracking-ID" : "17079395479975382202;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:38 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:16 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "75e7961b-7d76-49c9-b557-d77e77976fda",
+  "uuid" : "5c806260-ec6f-44f6-94de-9f5c089ee9eb",
   "persistent" : true,
-  "insertionIndex" : 61
+  "insertionIndex" : 184
 }

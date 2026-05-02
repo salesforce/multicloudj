@@ -171,9 +171,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, File file) {
-    return client
-        .getObject(transformer.toRequest(request), AsyncResponseTransformer.toFile(file))
-        .thenApply(response -> transformer.toDownloadResponse(request, response));
+    return doDownload(request, file.toPath());
   }
 
   /**
@@ -185,8 +183,16 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
    */
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path) {
+    Path destinationPath = createDownloadDestinationPath(request, path);
+    if (request.isParallelDownload()) {
+      return transferManager
+          .downloadFile(transformer.toRequest(request, destinationPath))
+          .completionFuture()
+          .thenApply(
+              completed -> transformer.toDownloadResponse(request, completed.response()));
+    }
     return client
-        .getObject(transformer.toRequest(request), path)
+        .getObject(transformer.toRequest(request), destinationPath)
         .thenApply(response -> transformer.toDownloadResponse(request, response));
   }
 

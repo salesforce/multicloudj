@@ -1,5 +1,5 @@
 {
-  "id" : "d203e917-d4c3-43a5-a2c1-2a8e7aa54faa",
+  "id" : "3a07c2aa-7943-4d4b-a2a2-ca3e93a21cab",
   "name" : "FSDocstoreIT_testReplace-POST-15",
   "request" : {
     "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
@@ -17,27 +17,27 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnReplace\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"originalString\"},\"pName\":{\"stringValue\":\"JohnReplace\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/JohnReplace\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"originalString\"},\"pName\":{\"stringValue\":\"JohnReplace\"},\"bytes\":{\"bytesValue\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
       "ignoreArrayOrder" : true,
       "ignoreExtraElements" : false
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-03-04T21:19:51.302300Z\"\n    }\n  ],\n  \"commitTime\": \"2026-03-04T21:19:51.302300Z\"\n}\n",
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-04-22T22:41:25.258660Z\"\n    }\n  ],\n  \"commitTime\": \"2026-04-22T22:41:25.258660Z\"\n}\n",
     "headers" : {
       "X-Frame-Options" : "SAMEORIGIN",
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "ESF",
-      "X-Debug-Tracking-ID" : "15438980101955200692;o=1",
+      "X-Debug-Tracking-ID" : "16968574622629999571;o=1",
       "X-Content-Type-Options" : "nosniff",
       "Vary" : [ "Origin", "X-Origin", "Referer" ],
       "X-XSS-Protection" : "0",
-      "Date" : "Wed, 04 Mar 2026 21:19:51 GMT",
+      "Date" : "Wed, 22 Apr 2026 22:41:25 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "d203e917-d4c3-43a5-a2c1-2a8e7aa54faa",
+  "uuid" : "3a07c2aa-7943-4d4b-a2a2-ca3e93a21cab",
   "persistent" : true,
-  "insertionIndex" : 93
+  "insertionIndex" : 216
 }

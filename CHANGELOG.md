@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.1...multicloudj-v0.3.2) (2026-04-28)
+
+
+### Blob Store
+
+* add an option to supply quota project id in bucket client ([#401](https://github.com/salesforce/multicloudj/issues/401)) ([98a6d91](https://github.com/salesforce/multicloudj/commit/98a6d915af2034eb3f6b26638049ff605f68b1b4))
+
+
+### PubSub
+
+* add nack visibility timeout ([#388](https://github.com/salesforce/multicloudj/issues/388)) ([ca3ce0e](https://github.com/salesforce/multicloudj/commit/ca3ce0e5054fcfb63d996a41da3092bdef42bdbe))
+
 ## [0.3.1](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.0...multicloudj-v0.3.1) (2026-04-16)
 
 

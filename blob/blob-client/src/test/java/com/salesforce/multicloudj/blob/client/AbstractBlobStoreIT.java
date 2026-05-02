@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -546,6 +547,37 @@ public abstract class AbstractBlobStoreIT {
         false);
   }
 
+  /**
+   * {@link DownloadRequest.Builder#withCreateParentPath(boolean)}: object key contains slashes and
+   * content is written under a destination directory preserving that layout.
+   */
+  @Test
+  public void testDownload_createParentPath() throws IOException {
+    String key = "conformance-tests/download_create_parent/nested/object_unversioned";
+    runDownloadTest(
+        "create parent path file download",
+        key,
+        key,
+        false,
+        DownloadType.File,
+        true,
+        true,
+        false,
+        false,
+        true);
+    runDownloadTest(
+        "create parent path path download",
+        key,
+        key,
+        false,
+        DownloadType.Path,
+        true,
+        true,
+        false,
+        false,
+        true);
+  }
+
   @Test
   public void testVersionedDownload_happy() throws IOException {
     runVersionedDownloadTests(
@@ -678,6 +710,55 @@ public abstract class AbstractBlobStoreIT {
       boolean useCorrectVersionId,
       boolean wantError)
       throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        false,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload)
+      throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        parallelDownload,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload,
+      boolean createParentPath)
+      throws IOException {
     // Test data
     String blobData = "This is test data";
     byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -712,11 +793,14 @@ public abstract class AbstractBlobStoreIT {
         requestBuilder.withVersionId(
             useCorrectVersionId ? uploadResponse.getVersionId() : "fakeVersionId");
       }
+      requestBuilder.withParallelDownload(parallelDownload);
+      requestBuilder.withCreateParentPath(createParentPath);
       DownloadRequest request = requestBuilder.build();
       DownloadResponse response;
       byte[] content;
       try {
-        Pair<DownloadResponse, byte[]> result = readContent(bucketClient, request, downloadType);
+        Pair<DownloadResponse, byte[]> result =
+            readContent(bucketClient, request, downloadType, createParentPath);
         response = result.getLeft();
         content = result.getRight();
         Assertions.assertEquals(
@@ -741,6 +825,8 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getMetadata().getETag(), testName + ": etag was missing");
       Assertions.assertNotNull(
           response.getMetadata().getLastModified(), testName + ": lastModified was missing");
+      Assertions.assertNotNull(
+          response.getMetadata().getCreatedTime(), testName + ": createdTime was missing");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, uploadKey);
@@ -855,6 +941,15 @@ public abstract class AbstractBlobStoreIT {
   private Pair<DownloadResponse, byte[]> readContent(
       BucketClient bucketClient, DownloadRequest request, DownloadType downloadType)
       throws IOException {
+    return readContent(bucketClient, request, downloadType, false);
+  }
+
+  private Pair<DownloadResponse, byte[]> readContent(
+      BucketClient bucketClient,
+      DownloadRequest request,
+      DownloadType downloadType,
+      boolean createParentPath)
+      throws IOException {
     byte[] content = null;
     DownloadResponse response = null;
     switch (downloadType) {
@@ -878,22 +973,64 @@ public abstract class AbstractBlobStoreIT {
         content = byteArray.getBytes();
         break;
       case File:
-        Path path = Files.createTempFile("tempFile", ".txt");
-        File file = path.toFile();
-        file.delete();
-        response = bucketClient.download(request, file);
-        content = Files.readAllBytes(path);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir.toFile());
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path = Files.createTempFile("tempFile", ".txt");
+          File file = path.toFile();
+          file.delete();
+          response = bucketClient.download(request, file);
+          content = Files.readAllBytes(path);
+        }
         break;
       case Path:
-        Path path2 = Files.createTempFile("tempPath", ".txt");
-        path2.toFile().delete();
-        response = bucketClient.download(request, path2);
-        content = Files.readAllBytes(path2);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir);
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path2 = Files.createTempFile("tempPath", ".txt");
+          path2.toFile().delete();
+          response = bucketClient.download(request, path2);
+          content = Files.readAllBytes(path2);
+        }
         break;
       default:
         throw new IllegalArgumentException("Unsupported download type: " + downloadType);
     }
     return new ImmutablePair<>(response, content);
+  }
+
+  private static void deleteRecursivelyQuietly(Path root) {
+    if (root == null || !Files.exists(root)) {
+      return;
+    }
+    try (var paths = Files.walk(root)) {
+      paths.sorted(Comparator.reverseOrder()).forEach(AbstractBlobStoreIT::deletePathQuietly);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class)
+          .debug("Failed to walk temp directory for cleanup: {}", root, e);
+    }
+  }
+
+  private static void deletePathQuietly(Path p) {
+    try {
+      Files.deleteIfExists(p);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class).debug("Failed to delete path: {}", p, e);
+    }
   }
 
   // Note: This tests delete for non-versioned buckets
@@ -2399,6 +2536,7 @@ public abstract class AbstractBlobStoreIT {
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
+        Assertions.assertNotNull(blobMetadata.getCreatedTime());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -3513,6 +3651,7 @@ public abstract class AbstractBlobStoreIT {
             metadataForUrlGeneration, downloadResponse.getMetadata().getMetadata());
         Assertions.assertNotNull(downloadResponse.getMetadata().getETag());
         Assertions.assertNotNull(downloadResponse.getMetadata().getLastModified());
+        Assertions.assertNotNull(downloadResponse.getMetadata().getCreatedTime());
 
         // Check the metadata on the object
         BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
@@ -3930,7 +4069,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/kms/presigned-url-null-key";
     Map<String, String> metadata = Map.of("key2", "value2");
     byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);

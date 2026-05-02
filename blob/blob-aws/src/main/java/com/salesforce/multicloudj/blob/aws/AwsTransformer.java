@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
@@ -100,6 +101,7 @@ import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 public class AwsTransformer {
@@ -293,6 +295,14 @@ public class AwsTransformer {
     return builder.build();
   }
 
+  /** Builds a {@link DownloadFileRequest} for use with {@code S3TransferManager.downloadFile}. */
+  public DownloadFileRequest toRequest(DownloadRequest request, Path destinationPath) {
+    return DownloadFileRequest.builder()
+        .getObjectRequest(toRequest(request))
+        .destination(destinationPath)
+        .build();
+  }
+
   /**
    * Reading the first 500 bytes - createRangeString(0, 500) - "bytes=0-500" Reading a middle 500
    * bytes - createRangeString(123, 623) - "bytes=123-623" Reading the last 500 bytes -
@@ -303,6 +313,8 @@ public class AwsTransformer {
     return "bytes=" + (start == null ? "" : start) + "-" + (end == null ? "" : end);
   }
 
+  // S3 does not expose a separate creation timestamp
+  // objects are immutable, lastModified is the best available value
   public DownloadResponse toDownloadResponse(
       DownloadRequest downloadRequest, GetObjectResponse response) {
     return DownloadResponse.builder()
@@ -313,6 +325,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -332,6 +345,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -408,6 +422,7 @@ public class AwsTransformer {
         .objectSize(objectSize)
         .metadata(metadata)
         .lastModified(response.lastModified())
+        .createdTime(response.lastModified())
         .md5(eTagToMD5(eTag))
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
