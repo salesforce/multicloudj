@@ -521,6 +521,39 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!--
+              Emit a secondary `-tests.jar` artifact for every module that has
+              src/test/java. Lets downstream services consume the shared
+              benchmark harnesses (AbstractBlobBenchmarkTest,
+              AbstractDocstoreBenchmarkTest, AbstractPubsubBenchmarkTest) and
+              their provider-specific subclasses as normal Maven dependencies:
+
+                <dependency>
+                  <groupId>com.salesforce.multicloudj</groupId>
+                  <artifactId>blob-gcp</artifactId>
+                  <version>${multicloudj.version}</version>
+                  <type>test-jar</type>
+                </dependency>
+
+              skipIfEmpty=true means modules without src/test/java emit nothing.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <id>package-tests</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <skipIfEmpty>true</skipIfEmpty>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
