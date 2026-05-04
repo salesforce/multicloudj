@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.2...multicloudj-v0.3.3) (2026-05-01)
+
+
+### Blob Store
+
+* addition of createdTime in the object metadata for all the… ([#400](https://github.com/salesforce/multicloudj/issues/400)) ([a284e81](https://github.com/salesforce/multicloudj/commit/a284e814432ffdfb3812ec15dbb76fd8b88a0e48))
+* support parallel download option and createParentPath option in AWS and GCP ([#377](https://github.com/salesforce/multicloudj/issues/377)) ([da86573](https://github.com/salesforce/multicloudj/commit/da86573679517e667c09eed354884cd28e4980ff))
+
 ## [0.3.2](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.1...multicloudj-v0.3.2) (2026-04-28)
 
 
