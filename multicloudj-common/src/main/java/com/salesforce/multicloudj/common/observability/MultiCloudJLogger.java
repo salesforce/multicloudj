@@ -38,11 +38,13 @@ public class MultiCloudJLogger {
   static final String MDC_CORRELATION_ID = "correlation_id";
   static final String MDC_SDK_SERVICE = "sdk_service";
   static final String MDC_SDK_PROVIDER = "sdk_provider";
+  static final String MDC_TENANT_ID = "tenant_id";
 
   static final String ATTR_BUCKET = "bucket";
   static final String ATTR_CORRELATION_ID = "correlation_id";
   static final String ATTR_SDK_SERVICE = "sdk_service";
   static final String ATTR_SDK_PROVIDER = "sdk_provider";
+  static final String ATTR_TENANT_ID = "tenant_id";
 
   private final TracingPolicy policy;
   private final String serviceName;
@@ -82,10 +84,15 @@ public class MultiCloudJLogger {
     OperationContext effectiveContext = resolveContext(operationContext);
     String bucket = bucketFrom(attributes);
 
+    // Policy decision matrix (see TracingPolicy):
+    //   DISABLED         | (any)        -> no span, quiet MDC only
+    //   JOIN_ONLY        | no parent    -> no span, quiet MDC only
+    //   JOIN_ONLY        | has parent   -> child span, full MDC
+    //   CHILD_AND_ROOT   | no parent    -> root span,  full MDC
+    //   CHILD_AND_ROOT   | has parent   -> child span, full MDC
     if (policy == TracingPolicy.DISABLED) {
       return executeQuietly(effectiveContext, bucket, operationName, operation);
     }
-
     boolean hasParent = Span.current().getSpanContext().isValid();
     if (!hasParent && policy == TracingPolicy.JOIN_ONLY) {
       return executeQuietly(effectiveContext, bucket, operationName, operation);
@@ -95,7 +102,7 @@ public class MultiCloudJLogger {
     long startTime = System.nanoTime();
 
     try (Scope ignored = span.makeCurrent()) {
-      setMdc(span, effectiveContext.getCorrelationId());
+      setMdc(span, effectiveContext);
       try {
         log.debug("{} started [bucket={}]", operationName, bucket);
         T result = operation.apply(effectiveContext);
@@ -164,7 +171,6 @@ public class MultiCloudJLogger {
     if (policy == TracingPolicy.DISABLED) {
       return executeAsyncQuietly(effectiveContext, bucket, operationName, operation);
     }
-
     boolean hasParent = Span.current().getSpanContext().isValid();
     if (!hasParent && policy == TracingPolicy.JOIN_ONLY) {
       return executeAsyncQuietly(effectiveContext, bucket, operationName, operation);
@@ -175,7 +181,7 @@ public class MultiCloudJLogger {
 
     CompletableFuture<T> future;
     try (Scope ignored = span.makeCurrent()) {
-      setMdc(span, effectiveContext.getCorrelationId());
+      setMdc(span, effectiveContext);
       try {
         log.debug("{} started [bucket={}]", operationName, bucket);
         future = operation.apply(effectiveContext);
@@ -200,7 +206,7 @@ public class MultiCloudJLogger {
         (result, throwable) -> {
           long durationMs = (System.nanoTime() - startTime) / 1_000_000;
           try (Scope ignored = span.makeCurrent()) {
-            setMdc(span, effectiveContext.getCorrelationId());
+            setMdc(span, effectiveContext);
             try {
               if (throwable != null) {
                 Throwable cause = unwrap(throwable);
@@ -239,6 +245,9 @@ public class MultiCloudJLogger {
     spanBuilder.setAttribute(ATTR_CORRELATION_ID, effectiveContext.getCorrelationId());
     spanBuilder.setAttribute(ATTR_SDK_SERVICE, serviceName);
     spanBuilder.setAttribute(ATTR_SDK_PROVIDER, providerId);
+    if (effectiveContext.getTenantId() != null) {
+      spanBuilder.setAttribute(ATTR_TENANT_ID, effectiveContext.getTenantId());
+    }
     return spanBuilder.startSpan();
   }
 
@@ -248,7 +257,7 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, T> operation) {
     long startTime = System.nanoTime();
-    setQuietMdc(effectiveContext.getCorrelationId());
+    setQuietMdc(effectiveContext);
     try {
       log.debug("{} started [bucket={}]", operationName, bucket);
       T result = operation.apply(effectiveContext);
@@ -270,7 +279,7 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, CompletableFuture<T>> operation) {
     long startTime = System.nanoTime();
-    setQuietMdc(effectiveContext.getCorrelationId());
+    setQuietMdc(effectiveContext);
     CompletableFuture<T> future;
     try {
       log.debug("{} started [bucket={}]", operationName, bucket);
@@ -288,7 +297,7 @@ public class MultiCloudJLogger {
     return future.whenComplete(
         (result, throwable) -> {
           long durationMs = (System.nanoTime() - startTime) / 1_000_000;
-          setQuietMdc(effectiveContext.getCorrelationId());
+          setQuietMdc(effectiveContext);
           try {
             if (throwable != null) {
               Throwable cause = unwrap(throwable);
@@ -329,12 +338,15 @@ public class MultiCloudJLogger {
     return (t instanceof CompletionException && t.getCause() != null) ? t.getCause() : t;
   }
 
-  private void setMdc(Span span, String effectiveCorrelationId) {
+  private void setMdc(Span span, OperationContext effectiveContext) {
     MDC.put(MDC_TRACE_ID, span.getSpanContext().getTraceId());
     MDC.put(MDC_SPAN_ID, span.getSpanContext().getSpanId());
-    MDC.put(MDC_CORRELATION_ID, effectiveCorrelationId);
+    MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
+    if (effectiveContext.getTenantId() != null) {
+      MDC.put(MDC_TENANT_ID, effectiveContext.getTenantId());
+    }
   }
 
   private void clearMdc() {
@@ -343,17 +355,22 @@ public class MultiCloudJLogger {
     MDC.remove(MDC_CORRELATION_ID);
     MDC.remove(MDC_SDK_SERVICE);
     MDC.remove(MDC_SDK_PROVIDER);
+    MDC.remove(MDC_TENANT_ID);
   }
 
-  private void setQuietMdc(String effectiveCorrelationId) {
-    MDC.put(MDC_CORRELATION_ID, effectiveCorrelationId);
+  private void setQuietMdc(OperationContext effectiveContext) {
+    MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
     MDC.put(MDC_SDK_PROVIDER, providerId);
+    if (effectiveContext.getTenantId() != null) {
+      MDC.put(MDC_TENANT_ID, effectiveContext.getTenantId());
+    }
   }
 
   private void clearQuietMdc() {
     MDC.remove(MDC_CORRELATION_ID);
     MDC.remove(MDC_SDK_SERVICE);
     MDC.remove(MDC_SDK_PROVIDER);
+    MDC.remove(MDC_TENANT_ID);
   }
 }

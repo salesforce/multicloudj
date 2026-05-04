@@ -72,7 +72,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, InputStream inputStream) {
     return multiCloudJLogger.traceOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -85,7 +85,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, byte[] content) {
     return multiCloudJLogger.traceOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -98,7 +98,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, File file) {
     return multiCloudJLogger.traceOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -111,7 +111,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, Path path) {
     return multiCloudJLogger.traceOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -124,7 +124,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, OutputStream outputStream) {
     return multiCloudJLogger.traceOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -137,7 +137,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, ByteArray byteArray) {
     return multiCloudJLogger.traceOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -150,7 +150,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, File file) {
     return multiCloudJLogger.traceOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -163,7 +163,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, Path path) {
     return multiCloudJLogger.traceOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -176,7 +176,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest) {
     return multiCloudJLogger.traceOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -189,7 +189,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void delete(String key, String versionId) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.delete",
+        BlobSpanNames.DELETE,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -202,7 +202,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void delete(Collection<BlobIdentifier> objects) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.delete",
+        BlobSpanNames.DELETE,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -215,7 +215,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public CopyResponse copy(CopyRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.copy",
+        BlobSpanNames.COPY,
         Map.of("bucket", bucket),
         request.getOperationContext(),
         ctx -> {
@@ -228,7 +228,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public CopyResponse copyFrom(CopyFromRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.copyFrom",
+        BlobSpanNames.COPY_FROM,
         Map.of("bucket", bucket),
         request.getOperationContext(),
         ctx -> {
@@ -241,7 +241,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public BlobMetadata getMetadata(String key, String versionId) {
     return multiCloudJLogger.traceOperation(
-        "blob.getMetadata",
+        BlobSpanNames.GET_METADATA,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -254,21 +254,21 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public Iterator<BlobInfo> list(ListBlobsRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.list", Map.of("bucket", bucket), null, ctx -> doList(request));
+        BlobSpanNames.LIST, Map.of("bucket", bucket), null, ctx -> doList(request));
   }
 
   /** {@inheritDoc} */
   @Override
   public ListBlobsPageResponse listPage(ListBlobsPageRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.listPage", Map.of("bucket", bucket), null, ctx -> doListPage(request));
+        BlobSpanNames.LIST_PAGE, Map.of("bucket", bucket), null, ctx -> doListPage(request));
   }
 
   /** {@inheritDoc} */
   @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.initiateMultipartUpload",
+        BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> doInitiateMultipartUpload(request));
@@ -278,7 +278,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public UploadPartResponse uploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
     return multiCloudJLogger.traceOperation(
-        "blob.uploadMultipartPart",
+        BlobSpanNames.UPLOAD_MULTIPART_PART,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -292,7 +292,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   public MultipartUploadResponse completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
     return multiCloudJLogger.traceOperation(
-        "blob.completeMultipartUpload",
+        BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -305,7 +305,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public List<UploadPartResponse> listMultipartUpload(MultipartUpload mpu) {
     return multiCloudJLogger.traceOperation(
-        "blob.listMultipartUpload",
+        BlobSpanNames.LIST_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -318,7 +318,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void abortMultipartUpload(MultipartUpload mpu) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.abortMultipartUpload",
+        BlobSpanNames.ABORT_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -331,7 +331,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public Map<String, String> getTags(String key) {
     return multiCloudJLogger.traceOperation(
-        "blob.getTags",
+        BlobSpanNames.GET_TAGS,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -344,7 +344,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void setTags(String key, Map<String, String> tags) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.setTags",
+        BlobSpanNames.SET_TAGS,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -358,7 +358,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     return multiCloudJLogger.traceOperation(
-        "blob.generatePresignedUrl",
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
         Map.of("bucket", bucket),
         request.getOperationContext(),
         ctx -> {
@@ -371,7 +371,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public boolean doesObjectExist(String key, String versionId) {
     return multiCloudJLogger.traceOperation(
-        "blob.doesObjectExist",
+        BlobSpanNames.DOES_OBJECT_EXIST,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -384,7 +384,8 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public boolean doesBucketExist() {
     return multiCloudJLogger.traceOperation(
-        "blob.doesBucketExist", Map.of("bucket", bucket), null, ctx -> doDoesBucketExist());
+        BlobSpanNames.DOES_BUCKET_EXIST,
+        Map.of("bucket", bucket), null, ctx -> doDoesBucketExist());
   }
 
   /** {@inheritDoc} */
@@ -392,7 +393,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     return multiCloudJLogger.traceOperation(
-        "blob.downloadDirectory",
+        BlobSpanNames.DOWNLOAD_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -405,7 +406,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
     return multiCloudJLogger.traceOperation(
-        "blob.uploadDirectory",
+        BlobSpanNames.UPLOAD_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -418,7 +419,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public void deleteDirectory(String prefix) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.deleteDirectory",
+        BlobSpanNames.DELETE_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> doDeleteDirectory(prefix));

@@ -39,4 +39,39 @@ class OperationContextTest {
     assertEquals(a.hashCode(), b.hashCode());
     assertNotEquals(a, c);
   }
+
+  @Test
+  void builder_setsTenantId() {
+    OperationContext ctx = OperationContext.builder().tenantId("tenant-42").build();
+    assertEquals("tenant-42", ctx.getTenantId());
+    assertNull(ctx.getCorrelationId());
+  }
+
+  @Test
+  void builder_setsBothCorrelationAndTenant() {
+    OperationContext ctx =
+        OperationContext.builder().correlationId("req-1").tenantId("tenant-42").build();
+    assertEquals("req-1", ctx.getCorrelationId());
+    assertEquals("tenant-42", ctx.getTenantId());
+  }
+
+  @Test
+  void toBuilder_preservesTenantId() {
+    OperationContext original =
+        OperationContext.builder().correlationId("req-1").tenantId("tenant-42").build();
+    OperationContext updated = original.toBuilder().correlationId("req-2").build();
+
+    assertEquals("req-2", updated.getCorrelationId());
+    assertEquals("tenant-42", updated.getTenantId());
+  }
+
+  @Test
+  void valueSemantics_tenantIdParticipatesInEquals() {
+    OperationContext a = OperationContext.builder().correlationId("x").tenantId("t1").build();
+    OperationContext b = OperationContext.builder().correlationId("x").tenantId("t1").build();
+    OperationContext c = OperationContext.builder().correlationId("x").tenantId("t2").build();
+
+    assertEquals(a, b);
+    assertNotEquals(a, c);
+  }
 }

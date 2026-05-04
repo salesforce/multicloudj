@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.async.driver;
 
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -84,7 +85,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<UploadResponse> upload(
       UploadRequest uploadRequest, InputStream inputStream) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -97,7 +98,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, byte[] content) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -110,7 +111,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, File file) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -123,7 +124,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, Path path) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.upload",
+        BlobSpanNames.UPLOAD,
         Map.of("bucket", bucket),
         uploadRequest.getOperationContext(),
         ctx -> {
@@ -137,7 +138,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<DownloadResponse> download(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -152,7 +153,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<DownloadResponse> download(
       DownloadRequest downloadRequest, ByteArray byteArray) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -165,7 +166,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, File file) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -178,7 +179,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -191,7 +192,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.download",
+        BlobSpanNames.DOWNLOAD,
         Map.of("bucket", bucket),
         downloadRequest.getOperationContext(),
         ctx -> {
@@ -204,7 +205,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> delete(String key, String versionId) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.delete",
+        BlobSpanNames.DELETE,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -217,7 +218,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> delete(Collection<BlobIdentifier> objects) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.delete",
+        BlobSpanNames.DELETE,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -230,7 +231,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<CopyResponse> copy(CopyRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.copy",
+        BlobSpanNames.COPY,
         Map.of("bucket", bucket),
         request.getOperationContext(),
         ctx -> {
@@ -243,7 +244,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<BlobMetadata> getMetadata(String key, String versionId) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.getMetadata",
+        BlobSpanNames.GET_METADATA,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -256,14 +257,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> list(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.list", Map.of("bucket", bucket), null, ctx -> doList(request, consumer));
+        BlobSpanNames.LIST, Map.of("bucket", bucket), null, ctx -> doList(request, consumer));
   }
 
   /** {@inheritDoc} */
   @Override
   public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.listPage", Map.of("bucket", bucket), null, ctx -> doListPage(request));
+        BlobSpanNames.LIST_PAGE, Map.of("bucket", bucket), null, ctx -> doListPage(request));
   }
 
   /** {@inheritDoc} */
@@ -271,7 +272,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<MultipartUpload> initiateMultipartUpload(
       MultipartUploadRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.initiateMultipartUpload",
+        BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> doInitiateMultipartUpload(request));
@@ -282,7 +283,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<UploadPartResponse> uploadMultipartPart(
       MultipartUpload mpu, MultipartPart mpp) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.uploadMultipartPart",
+        BlobSpanNames.UPLOAD_MULTIPART_PART,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -296,7 +297,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<MultipartUploadResponse> completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.completeMultipartUpload",
+        BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -309,7 +310,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<List<UploadPartResponse>> listMultipartUpload(MultipartUpload mpu) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.listMultipartUpload",
+        BlobSpanNames.LIST_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -322,7 +323,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> abortMultipartUpload(MultipartUpload mpu) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.abortMultipartUpload",
+        BlobSpanNames.ABORT_MULTIPART_UPLOAD,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -335,7 +336,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Map<String, String>> getTags(String key) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.getTags",
+        BlobSpanNames.GET_TAGS,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -348,7 +349,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> setTags(String key, Map<String, String> tags) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.setTags",
+        BlobSpanNames.SET_TAGS,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -362,7 +363,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.generatePresignedUrl",
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
         Map.of("bucket", bucket),
         request.getOperationContext(),
         ctx -> {
@@ -375,7 +376,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Boolean> doesObjectExist(String key, String versionId) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.doesObjectExist",
+        BlobSpanNames.DOES_OBJECT_EXIST,
         Map.of("bucket", bucket),
         null,
         ctx -> {
@@ -388,7 +389,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Boolean> doesBucketExist() {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.doesBucketExist", Map.of("bucket", bucket), null, ctx -> doDoesBucketExist());
+        BlobSpanNames.DOES_BUCKET_EXIST,
+        Map.of("bucket", bucket), null, ctx -> doDoesBucketExist());
   }
 
   /** {@inheritDoc} */
@@ -396,7 +398,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.downloadDirectory",
+        BlobSpanNames.DOWNLOAD_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> doDownloadDirectory(directoryDownloadRequest));
@@ -407,7 +409,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   public CompletableFuture<DirectoryUploadResponse> uploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.uploadDirectory",
+        BlobSpanNames.UPLOAD_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> doUploadDirectory(directoryUploadRequest));
@@ -417,7 +419,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<Void> deleteDirectory(String prefix) {
     return multiCloudJLogger.traceAsyncOperation(
-        "blob.deleteDirectory",
+        BlobSpanNames.DELETE_DIRECTORY,
         Map.of("bucket", bucket),
         null,
         ctx -> doDeleteDirectory(prefix));

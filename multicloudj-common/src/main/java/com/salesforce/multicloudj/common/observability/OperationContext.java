@@ -20,4 +20,11 @@ public class OperationContext {
    * returns it via the response object so the caller can correlate logs and traces.
    */
   String correlationId;
+
+  /**
+   * Application-supplied tenant ID. Optional; never auto-generated. When provided, it is set as
+   * a {@code tenant_id} span attribute and MDC entry for the duration of the operation, and is
+   * not echoed back in responses.
+   */
+  String tenantId;
 }

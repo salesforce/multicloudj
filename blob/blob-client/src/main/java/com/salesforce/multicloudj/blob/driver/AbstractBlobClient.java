@@ -53,7 +53,8 @@ public abstract class AbstractBlobClient<T extends AbstractBlobClient<T>>
 
   /** Passes the call to the substrate-specific listBuckets methods */
   public ListBucketsResponse listBuckets() {
-    return multiCloudJLogger.traceOperation("blob.listBuckets", null, null, ctx -> doListBuckets());
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_BUCKETS, null, null, ctx -> doListBuckets());
   }
 
   /**
@@ -63,7 +64,7 @@ public abstract class AbstractBlobClient<T extends AbstractBlobClient<T>>
    */
   public void createBucket(String bucketName) {
     multiCloudJLogger.traceVoidOperation(
-        "blob.createBucket",
+        BlobSpanNames.CREATE_BUCKET,
         bucketName != null ? Map.of("bucket", bucketName) : null,
         null,
         ctx -> doCreateBucket(bucketName));
