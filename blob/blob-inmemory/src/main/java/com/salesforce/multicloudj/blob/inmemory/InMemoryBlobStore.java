@@ -33,6 +33,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
@@ -274,11 +275,29 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] data =
           extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
-      Files.write(path, data);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+      Files.write(destinationPath, data);
       return buildDownloadResponse(downloadRequest.getKey(), blob, data.length);
     } catch (Exception e) {
       throw new UnknownException("Failed to download blob to path", e);
     }
+  }
+
+  @Override
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new UnknownException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   @Override

@@ -120,7 +120,7 @@ public class DownloadRequest {
      * (Optional) If true, the destination is treated as a root directory: the object key's parent
      * path structure is preserved beneath it, and any missing parent directories are created on
      * the local filesystem before the download is written. Only applies to file-based destinations
-     * Defaults to false.
+     * ({@code File} / {@code Path}). Defaults to false.
      */
     public Builder withCreateParentPath(boolean createParentPath) {
       this.createParentPath = createParentPath;

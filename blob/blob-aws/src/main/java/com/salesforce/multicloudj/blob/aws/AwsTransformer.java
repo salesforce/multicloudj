@@ -35,6 +35,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
@@ -100,6 +101,7 @@ import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 public class AwsTransformer {
@@ -291,6 +293,14 @@ public class AwsTransformer {
       builder.range(createRangeString(request.getStart(), request.getEnd()));
     }
     return builder.build();
+  }
+
+  /** Builds a {@link DownloadFileRequest} for use with {@code S3TransferManager.downloadFile}. */
+  public DownloadFileRequest toRequest(DownloadRequest request, Path destinationPath) {
+    return DownloadFileRequest.builder()
+        .getObjectRequest(toRequest(request))
+        .destination(destinationPath)
+        .build();
   }
 
   /**
