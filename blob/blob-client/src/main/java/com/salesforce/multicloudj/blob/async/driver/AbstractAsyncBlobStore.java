@@ -24,10 +24,10 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.IOException;
@@ -248,7 +248,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         null,
         ctx -> {
           validator.validateKey(key);
-          return doGetMetadata(key, versionId);
+          return blobMetadataWithCorrelationId(doGetMetadata(key, versionId), ctx);
         });
   }
 
@@ -511,6 +511,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     return future.thenApply(r -> withCorrelationId(r, ctx));
   }
 
+  private static CompletableFuture<BlobMetadata> blobMetadataWithCorrelationId(
+      CompletableFuture<BlobMetadata> future, OperationContext ctx) {
+    if (future == null) {
+      return null;
+    }
+    return future.thenApply(m -> withCorrelationId(m, ctx));
+  }
+
   private static CompletableFuture<CopyResponse> copyResponseWithCorrelationId(
       CompletableFuture<CopyResponse> future, OperationContext ctx) {
     if (future == null) {
@@ -538,8 +546,27 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
     }
     return DownloadResponse.builder()
         .key(r.getKey())
-        .metadata(r.getMetadata())
+        .metadata(withCorrelationId(r.getMetadata(), ctx))
         .inputStream(r.getInputStream())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static BlobMetadata withCorrelationId(BlobMetadata m, OperationContext ctx) {
+    if (m == null) {
+      return null;
+    }
+    return BlobMetadata.builder()
+        .key(m.getKey())
+        .versionId(m.getVersionId())
+        .eTag(m.getETag())
+        .objectSize(m.getObjectSize())
+        .metadata(m.getMetadata())
+        .lastModified(m.getLastModified())
+        .createdTime(m.getCreatedTime())
+        .md5(m.getMd5())
+        .contentType(m.getContentType())
+        .objectLockInfo(m.getObjectLockInfo())
         .correlationId(ctx.getCorrelationId())
         .build();
   }
@@ -555,7 +582,8 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
         .lastModified(r.getLastModified())
         .correlationId(ctx.getCorrelationId())
         .build();
-    
+  }
+
   /**
    * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
    * true, appends the object key and creates any missing parent directories. Subclasses may

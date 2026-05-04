@@ -1,9 +1,9 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
-import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -246,7 +246,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
         null,
         ctx -> {
           validator.validateKey(key);
-          return doGetMetadata(key, versionId);
+          return withCorrelationId(doGetMetadata(key, versionId), ctx);
         });
   }
 
@@ -516,8 +516,27 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
     }
     return DownloadResponse.builder()
         .key(r.getKey())
-        .metadata(r.getMetadata())
+        .metadata(withCorrelationId(r.getMetadata(), ctx))
         .inputStream(r.getInputStream())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static BlobMetadata withCorrelationId(BlobMetadata m, OperationContext ctx) {
+    if (m == null) {
+      return null;
+    }
+    return BlobMetadata.builder()
+        .key(m.getKey())
+        .versionId(m.getVersionId())
+        .eTag(m.getETag())
+        .objectSize(m.getObjectSize())
+        .metadata(m.getMetadata())
+        .lastModified(m.getLastModified())
+        .createdTime(m.getCreatedTime())
+        .md5(m.getMd5())
+        .contentType(m.getContentType())
+        .objectLockInfo(m.getObjectLockInfo())
         .correlationId(ctx.getCorrelationId())
         .build();
   }
@@ -533,6 +552,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
         .lastModified(r.getLastModified())
         .correlationId(ctx.getCorrelationId())
         .build();
+  }
 
   /**
    * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
