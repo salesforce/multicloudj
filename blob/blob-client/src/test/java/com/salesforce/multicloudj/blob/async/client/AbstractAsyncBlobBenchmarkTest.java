@@ -39,7 +39,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 /**
  * JMH benchmarks for async directory upload/download via {@link AsyncBucketClient}.
  *
- * <p>Corpus: 100 x 1KB, 10 x 1MB, 5 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
+ * <p>Corpus: 100 x 1KB, 50 x 1MB, 10 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
  * distinct prefixes to spread concurrent GETs and stay under per-prefix rate limits.
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
@@ -63,8 +63,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // Sized to keep per-invocation request rate under S3/GCS per-prefix limits at THREAD_COUNT=4.
   protected static final int DIR_SMALL_COUNT = 100;
-  protected static final int DIR_MEDIUM_COUNT = 10;
-  protected static final int DIR_LARGE_COUNT = 5;
+  protected static final int DIR_MEDIUM_COUNT = 50;
+  protected static final int DIR_LARGE_COUNT = 10;
 
   static final int THREAD_COUNT = 4;
 
