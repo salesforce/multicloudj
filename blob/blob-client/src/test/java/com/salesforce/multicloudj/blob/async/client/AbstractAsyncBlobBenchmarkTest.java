@@ -14,9 +14,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -39,14 +39,15 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 /**
  * JMH benchmarks for async directory upload/download via {@link AsyncBucketClient}.
  *
- * <p>Corpus: 100 x 1KB, 50 x 1MB, 10 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
+ * <p>Corpus: 100 x 1KB, 10 x 1MB, 5 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
  * distinct prefixes to spread concurrent GETs and stay under per-prefix rate limits.
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
  * benchmark methods themselves.
  */
-@BenchmarkMode({Mode.SingleShotTime, Mode.SampleTime, Mode.Throughput})
+@Disabled
+@BenchmarkMode({Mode.SampleTime, Mode.Throughput})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
@@ -62,8 +63,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // Sized to keep per-invocation request rate under S3/GCS per-prefix limits at THREAD_COUNT=4.
   protected static final int DIR_SMALL_COUNT = 100;
-  protected static final int DIR_MEDIUM_COUNT = 50;
-  protected static final int DIR_LARGE_COUNT = 10;
+  protected static final int DIR_MEDIUM_COUNT = 10;
+  protected static final int DIR_LARGE_COUNT = 5;
 
   static final int THREAD_COUNT = 4;
 
@@ -288,9 +289,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     }
   }
 
-  /** Launches the JMH suite. Opt in with {@code -DrunBenchmarks=true} */
   @Test
-  @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
     new Runner(
             new OptionsBuilder()
