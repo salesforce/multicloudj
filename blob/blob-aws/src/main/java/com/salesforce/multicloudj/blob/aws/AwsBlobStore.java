@@ -25,8 +25,10 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -72,11 +74,14 @@ import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -202,10 +207,15 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response =
-        s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -217,12 +227,17 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    ResponseBytes<GetObjectResponse> responseBytes =
-        s3Client.getObject(request, ResponseTransformer.toBytes());
-    byteArray.setBytes(responseBytes.asByteArray());
-    GetObjectResponse response = responseBytes.response();
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      ResponseBytes<GetObjectResponse> responseBytes =
+          s3Client.getObject(request, ResponseTransformer.toBytes());
+      byteArray.setBytes(responseBytes.asByteArray());
+      GetObjectResponse response = responseBytes.response();
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -234,11 +249,16 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    Path destinationPath = createDownloadDestinationPath(downloadRequest, file.toPath());
-    GetObjectResponse response =
-        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, file.toPath());
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -250,11 +270,16 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
-    GetObjectResponse response =
-        s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -266,10 +291,45 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
-    return transformer.toDownloadResponse(
-        downloadRequest, responseInputStream.response(), responseInputStream);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
+      return transformer.toDownloadResponse(
+          downloadRequest, responseInputStream.response(), responseInputStream);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
+  }
+
+  private void handleArchivedObjects(DownloadRequest downloadRequest, S3Exception e) {
+    if (!downloadRequest.isCheckArchived() || e.statusCode() != 404) {
+      return;
+    }
+    boolean isDeleteMarker = e.awsErrorDetails().sdkHttpResponse()
+        .firstMatchingHeader("x-amz-delete-marker")
+        .map("true"::equals)
+        .orElse(false);
+    if (!isDeleteMarker) {
+      return;
+    }
+    String versionId = null;
+    ListObjectVersionsResponse versionsResponse = s3Client.listObjectVersions(
+        ListObjectVersionsRequest.builder()
+            .bucket(bucket)
+            .prefix(downloadRequest.getKey())
+            .maxKeys(2) // one for delete marker + one for actual object in stack
+            .build());
+    for (ObjectVersion version : versionsResponse.versions()) {
+      if (version.key().equals(downloadRequest.getKey())) {
+        versionId = version.versionId();
+        break;
+      }
+    }
+    throw new ResourceNotFoundException(
+        "Object is archived (delete marker): " + downloadRequest.getKey(),
+        e,
+        ArchiveInfo.builder().archived(true).versionId(versionId).build());
   }
 
   /**

@@ -1,0 +1,39 @@
+{
+  "id" : "9f92e641-855d-4d31-afde-2b445bd379eb",
+  "name" : "AwsBlobStoreIT_testGetLatestArchivedObject-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/archivedObject/latest"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/archivedObject/latest</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><DeleteMarker><Key>conformance-tests/archivedObject/latest</Key><VersionId>AnEArjouHewqXIgMtGYY2y1NopcKMHSD</VersionId><IsLatest>true</IsLatest><LastModified>2026-05-05T21:00:57.000Z</LastModified><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner></DeleteMarker><Version><Key>conformance-tests/archivedObject/latest</Key><VersionId>qzLkVzm06WPNOuHrpCRru9jVP99Qz2GJ</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-05T21:00:57.000Z</LastModified><ETag>&quot;097d4c7242777242db0a289d012bfa3e&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>25</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><DeleteMarker><Key>conformance-tests/archivedObject/latest</Key><VersionId>KD99ruhNnZ635bTN6zy_oDxmSkiCYjb9</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-05T19:40:51.000Z</LastModified><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner></DeleteMarker><DeleteMarker><Key>conformance-tests/archivedObject/latest</Key><VersionId>nSK_Ageq7CO_kwNfZjlQ8Hmw75.n5IU6</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-05T19:40:50.000Z</LastModified><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner></DeleteMarker><Version><Key>conformance-tests/archivedObject/latest</Key><VersionId>czjpeaC4GIGFsj1Pewi2fT5KBAhwoGIe</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-05T19:40:49.000Z</LastModified><ETag>&quot;097d4c7242777242db0a289d012bfa3e&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>25</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "ZBSCMEF014RR2QEK",
+      "x-amz-id-2" : "VDIIE3kUzfjn0cQOQA2WXvFYWke30s9gsH1X0U8KC0WKwcmI3OsW6aMmFgEE/DgGzJvuhMLQvvoKhKSPY/MMlqqOEZGxWOMc",
+      "Date" : "Tue, 05 May 2026 21:00:58 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "9f92e641-855d-4d31-afde-2b445bd379eb",
+  "persistent" : true,
+  "insertionIndex" : 680
+}

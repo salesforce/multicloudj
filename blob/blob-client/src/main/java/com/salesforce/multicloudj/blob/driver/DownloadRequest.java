@@ -13,6 +13,7 @@ public class DownloadRequest {
   private final String kmsKeyId;
   private final boolean parallelDownload;
   private final boolean createParentPath;
+  private final boolean checkArchived;
 
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
@@ -22,6 +23,7 @@ public class DownloadRequest {
     this.kmsKeyId = builder.kmsKeyId;
     this.parallelDownload = builder.parallelDownload;
     this.createParentPath = builder.createParentPath;
+    this.checkArchived = builder.checkArchived;
   }
 
   public static Builder builder() {
@@ -36,6 +38,7 @@ public class DownloadRequest {
     private String kmsKeyId;
     private boolean parallelDownload;
     private boolean createParentPath;
+    private boolean checkArchived;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -115,6 +118,18 @@ public class DownloadRequest {
      */
     public Builder withCreateParentPath(boolean createParentPath) {
       this.createParentPath = createParentPath;
+      return this;
+    }
+
+    /**
+     * (Optional) If true and the object is not found, the provider will check whether
+     * the object was archived (soft-deleted via delete marker or GCP soft delete). When
+     * an archived object is detected, the thrown ResourceNotFoundException will have a
+     * non-null ArchiveInfo with archived=true and, where available, the versionId of
+     * the latest archived version. Defaults to false.
+     */
+    public Builder withCheckArchived(boolean checkArchived) {
+      this.checkArchived = checkArchived;
       return this;
     }
 

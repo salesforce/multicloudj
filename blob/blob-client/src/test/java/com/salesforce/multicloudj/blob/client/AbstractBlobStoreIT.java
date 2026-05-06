@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -4320,6 +4321,72 @@ public abstract class AbstractBlobStoreIT {
 
     } finally {
       safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/check-archived/archived-blob";
+
+    try {
+      byte[] blobBytes = "archived content".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      bucketClient.delete(key, null);
+
+      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        bucketClient.download(
+            new DownloadRequest.Builder().withKey(key).withCheckArchived(true).build(),
+            outputStream);
+        Assertions.fail("Should have thrown ResourceNotFoundException");
+      } catch (ResourceNotFoundException e) {
+        ArchiveInfo archiveInfo = e.getArchiveInfo();
+        Assertions.assertNotNull(archiveInfo, "ArchiveInfo should be non-null for archived blob");
+        Assertions.assertTrue(archiveInfo.isArchived(), "archived flag should be true");
+        Assertions.assertFalse(archiveInfo.getVersionId().isEmpty(),
+            "versionId should not be empty");
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+          bucketClient.download(
+              new DownloadRequest.Builder()
+                  .withKey(key)
+                  .withVersionId(archiveInfo.getVersionId())
+                  .build(),
+              outputStream);
+          Assertions.assertArrayEquals(blobBytes, outputStream.toByteArray(),
+              "Should be able to download archived version by versionId");
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived_neverExisted() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      bucketClient.download(
+          new DownloadRequest.Builder()
+              .withKey("conformance-tests/check-archived/never-existed")
+              .withCheckArchived(true)
+              .build(),
+          outputStream);
+      Assertions.fail("Should have thrown ResourceNotFoundException");
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo != null) {
+        Assertions.assertFalse(archiveInfo.isArchived(),
+            "archived flag should be false for never-existed blob");
+      }
     }
   }
 }

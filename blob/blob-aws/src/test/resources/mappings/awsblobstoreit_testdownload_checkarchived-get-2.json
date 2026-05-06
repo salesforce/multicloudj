@@ -1,0 +1,44 @@
+{
+  "id" : "eea286e0-67f2-46bd-92bb-5e2fd2c99628",
+  "name" : "AwsBlobStoreIT_testDownload_checkArchived-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/check-archived/archived-blob"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/check-archived/archived-blob</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><NextKeyMarker>conformance-tests/check-archived/archived-blob</NextKeyMarker><NextVersionIdMarker>cXHlcE8jYkwBDB9THW35QT1RFAn11DT2</NextVersionIdMarker><MaxKeys>2</MaxKeys><IsTruncated>true</IsTruncated><DeleteMarker><Key>conformance-tests/check-archived/archived-blob</Key><VersionId>VzVeV7LhiYIFIeIdJUoI.xKYH.U5uXnu</VersionId><IsLatest>true</IsLatest><LastModified>2026-05-06T19:59:51.000Z</LastModified><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner></DeleteMarker><Version><Key>conformance-tests/check-archived/archived-blob</Key><VersionId>cXHlcE8jYkwBDB9THW35QT1RFAn11DT2</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-06T19:59:50.000Z</LastModified><ETag>&quot;a98871894645d06a06364efe6b42af9d&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>16</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "KGHKXNWD1SCSGXA1",
+      "x-amz-id-2" : "nkbPidNM/V/oTmWZUEDvEqpwMFDrIeA4NaW+GiyzM/pyj3Q6hAeu0hOIzrxyhbbiQdtkfbOZc5k=",
+      "Date" : "Wed, 06 May 2026 19:59:52 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "eea286e0-67f2-46bd-92bb-5e2fd2c99628",
+  "persistent" : true,
+  "insertionIndex" : 686
+}
