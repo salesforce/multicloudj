@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.gcp;
 
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.auth.Credentials;
 import com.google.auth.ServiceAccountSigner;
@@ -29,6 +30,9 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
   private static final String bucketName = "substrate-sdk-gcp-poc1-test-bucket";
   private static final String versionedBucketName = "substrate-sdk-gcp-poc1-test-bucket-versioned";
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
+  // Dedicated bucket name for testInvalidCredentials. Using a unique name ensures its
+  // WireMock scenario names don't collide with other tests that share the main bucket URL.
+  private static final String invalidCredsBucketName = "invalid-credentials-test-bucket";
 
   @Override
   protected Harness createHarness() {
@@ -68,10 +72,15 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     public AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
 
+      // When credentials are intentionally invalid, use a dedicated bucket name so that
+      // WireMock scenario names (which embed the bucket path) are unique to this test
+      // and cannot collide with stubs from other tests that share the main bucket.
       String bucketNameToUse =
-          useValidBucket
-              ? (useVersionedBucket ? versionedBucketName : bucketName)
-              : nonExistentBucketName;
+          !useValidCredentials
+              ? invalidCredsBucketName
+              : useValidBucket
+                  ? (useVersionedBucket ? versionedBucketName : bucketName)
+                  : nonExistentBucketName;
 
       boolean isRecordingEnabled = System.getProperty("record") != null;
 
@@ -79,7 +88,7 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
         // Live recording path – rely on real ADC
         try {
           Credentials credentials = GoogleCredentials.getApplicationDefault();
-          
+
           // If the credentials don't implement ServiceAccountSigner (e.g. UserCredentials),
           // we wrap them in a mock signer just so the test can generate the URL.
           // Note: The generated URL won't be valid for actual use unless we use IAM credentials
@@ -87,33 +96,58 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
           if (!(credentials instanceof ServiceAccountSigner)) {
             credentials = new MockGoogleCredentialsWrapper((GoogleCredentials) credentials);
           }
-          
-          return createBlobStore(bucketNameToUse, credentials);
+
+          return createBlobStore(bucketNameToUse, credentials, false);
         } catch (IOException e) {
           // Fallback to NoCredentials if unable to load application default credentials
-          return createBlobStore(bucketNameToUse, NoCredentials.getInstance());
+          return createBlobStore(bucketNameToUse, NoCredentials.getInstance(), false);
         }
       } else {
-        // Replay path - inject mock credentials
+        // Replay path - inject mock credentials. When credentials are intentionally invalid,
+        // disable HTTP-level retries so each operation produces exactly one WireMock recording
+        // instead of 11 (1 original + 10 default retries on 401).
         GoogleCredentials mockCreds = MockGoogleCredentialsFactory.createMockCredentials();
-        return createBlobStore(bucketNameToUse, mockCreds);
+        return createBlobStore(bucketNameToUse, mockCreds, !useValidCredentials);
       }
     }
 
     private AbstractBlobStore createBlobStore(
-        final String bucketName, final Credentials credentials) {
+        final String bucketName, final Credentials credentials, final boolean disableRetries) {
 
       HttpTransport httpTransport = TestsUtilGcp.getHttpTransport(port);
       HttpTransportOptions transportOptions =
           HttpTransportOptions.newBuilder().setHttpTransportFactory(() -> httpTransport).build();
 
-      Storage storage =
+      StorageOptions.Builder storageBuilder =
           StorageOptions.newBuilder()
               .setTransportOptions(transportOptions)
               .setCredentials(credentials)
-              .setHost(endpoint)
-              .build()
-              .getService();
+              .setHost(endpoint);
+
+      if (disableRetries) {
+        // Wrap the transport options to set numRetries=0 on every HTTP request, preventing
+        // the google-http-client from retrying 401 responses due to credential refresh attempts.
+        HttpTransportOptions noRetryTransportOptions =
+            new HttpTransportOptions(
+                HttpTransportOptions.newBuilder()
+                    .setHttpTransportFactory(() -> httpTransport)) {
+              @Override
+              public HttpRequestInitializer getHttpRequestInitializer(
+                  com.google.cloud.ServiceOptions<?, ?> serviceOptions) {
+                HttpRequestInitializer delegate =
+                    super.getHttpRequestInitializer(serviceOptions);
+                return request -> {
+                  if (delegate != null) {
+                    delegate.initialize(request);
+                  }
+                  request.setNumberOfRetries(0);
+                };
+              }
+            };
+        storageBuilder.setTransportOptions(noRetryTransportOptions);
+      }
+
+      Storage storage = storageBuilder.build().getService();
 
       HttpStorageOptions.Builder storageOptionsBuilder =
           HttpStorageOptions.http().setTransportOptions(transportOptions);
