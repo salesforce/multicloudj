@@ -14,9 +14,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -46,7 +46,6 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
  * benchmark methods themselves.
  */
-@Disabled
 @BenchmarkMode({Mode.SampleTime, Mode.Throughput})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
@@ -290,6 +289,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Test
+  @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
     new Runner(
             new OptionsBuilder()
