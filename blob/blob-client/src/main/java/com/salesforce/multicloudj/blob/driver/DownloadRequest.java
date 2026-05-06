@@ -13,15 +13,6 @@ public class DownloadRequest {
   private final String kmsKeyId;
   private final boolean parallelDownload;
   private final boolean createParentPath;
-  /**
-   * When true and the object is not found (404), the provider checks whether the object was
-   * archived (e.g., soft-deleted via a delete marker on AWS or soft-delete on GCP). If an archived
-   * version is detected, the thrown {@link
-   * com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException} will contain a non-null
-   * {@link com.salesforce.multicloudj.common.exceptions.ArchiveInfo} with {@code archived=true} and
-   * the {@code versionId} of the latest archived version. The caller can then retry the download
-   * using that versionId to recover the archived content. Defaults to false.
-   */
   private final boolean checkArchived;
 
   private DownloadRequest(Builder builder) {
