@@ -313,19 +313,14 @@ public class AwsBlobStore extends AbstractBlobStore {
     if (!isDeleteMarker) {
       return;
     }
-    String versionId = null;
     ListObjectVersionsResponse versionsResponse = s3Client.listObjectVersions(
         ListObjectVersionsRequest.builder()
             .bucket(bucket)
             .prefix(downloadRequest.getKey())
             .maxKeys(2) // one for delete marker + one for actual object in stack
             .build());
-    for (ObjectVersion version : versionsResponse.versions()) {
-      if (version.key().equals(downloadRequest.getKey())) {
-        versionId = version.versionId();
-        break;
-      }
-    }
+    Iterator<ObjectVersion> it = versionsResponse.versions().iterator();
+    String versionId = it.hasNext() ? it.next().versionId() : null;
     throw new ResourceNotFoundException(
         "Object is archived (delete marker): " + downloadRequest.getKey(),
         e,
