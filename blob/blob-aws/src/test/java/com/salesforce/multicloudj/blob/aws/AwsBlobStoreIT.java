@@ -129,6 +129,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isDirectoryUploadSupported() {
+      return false;
+    }
+
+    @Override
     public void close() {
       client.close();
       httpClient.close();
