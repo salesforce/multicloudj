@@ -419,7 +419,7 @@ public class GcpTransformer {
    * @return list of file paths to upload
    */
   public List<Path> toFilePaths(DirectoryUploadRequest request) {
-    Path sourceDir = Paths.get(request.getLocalSourceDirectory());
+    Path sourceDir = Paths.get(request.getLocalSourceDirectory()).toAbsolutePath().normalize();
     List<Path> filePaths = new ArrayList<>();
 
     try (Stream<Path> paths =
