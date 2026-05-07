@@ -4,6 +4,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -24,6 +25,8 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -43,10 +46,20 @@ import java.util.Map;
 /** Entry point for Client code to interact with the Blob storage. */
 public class BucketClient implements AutoCloseable {
 
+  private static final String SDK_SERVICE = "blob";
+
   protected AbstractBlobStore blobStore;
+  protected final MultiCloudJLogger multiCloudJLogger;
 
   protected BucketClient(AbstractBlobStore blobStore) {
+    this(blobStore, null);
+  }
+
+  protected BucketClient(AbstractBlobStore blobStore, TracingPolicy tracingPolicy) {
     this.blobStore = blobStore;
+    this.multiCloudJLogger =
+        new MultiCloudJLogger(
+            tracingPolicy, SDK_SERVICE, blobStore != null ? blobStore.getProviderId() : null);
   }
 
   public static BlobBuilder builder(String providerId) {
@@ -68,13 +81,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadResponse upload(UploadRequest uploadRequest, InputStream inputStream) {
-    try {
-      return blobStore.upload(uploadRequest, inputStream);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.upload(uploadRequest, inputStream), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -86,13 +104,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadResponse upload(UploadRequest uploadRequest, byte[] content) {
-    try {
-      return blobStore.upload(uploadRequest, content);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.upload(uploadRequest, content), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -104,13 +127,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadResponse upload(UploadRequest uploadRequest, File file) {
-    try {
-      return blobStore.upload(uploadRequest, file);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.upload(uploadRequest, file), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -122,13 +150,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadResponse upload(UploadRequest uploadRequest, Path path) {
-    try {
-      return blobStore.upload(uploadRequest, path);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.upload(uploadRequest, path), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -140,13 +173,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public DownloadResponse download(DownloadRequest downloadRequest, OutputStream outputStream) {
-    try {
-      return blobStore.download(downloadRequest, outputStream);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.download(downloadRequest, outputStream), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -158,13 +196,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public DownloadResponse download(DownloadRequest downloadRequest, ByteArray byteArray) {
-    try {
-      return blobStore.download(downloadRequest, byteArray);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.download(downloadRequest, byteArray), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -177,13 +220,18 @@ public class BucketClient implements AutoCloseable {
    *     already exists.
    */
   public DownloadResponse download(DownloadRequest downloadRequest, File file) {
-    try {
-      return blobStore.download(downloadRequest, file);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.download(downloadRequest, file), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -196,13 +244,18 @@ public class BucketClient implements AutoCloseable {
    *     already exists at the path location.
    */
   public DownloadResponse download(DownloadRequest downloadRequest, Path path) {
-    try {
-      return blobStore.download(downloadRequest, path);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.download(downloadRequest, path), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -214,13 +267,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public DownloadResponse download(DownloadRequest downloadRequest) {
-    try {
-      return blobStore.download(downloadRequest);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.download(downloadRequest), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -233,12 +291,17 @@ public class BucketClient implements AutoCloseable {
    *     blob does not exist.
    */
   public void delete(String key, String versionId) {
-    try {
-      blobStore.delete(key, versionId);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.DELETE,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.delete(key, versionId);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**
@@ -249,12 +312,17 @@ public class BucketClient implements AutoCloseable {
    *     blob in the list does not exist.
    */
   public void delete(Collection<BlobIdentifier> objects) {
-    try {
-      blobStore.delete(objects);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.DELETE,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.delete(objects);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**
@@ -265,13 +333,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public CopyResponse copy(CopyRequest request) {
-    try {
-      return blobStore.copy(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.COPY,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.copy(request), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -283,13 +356,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public CopyResponse copyFrom(CopyFromRequest request) {
-    try {
-      return blobStore.copyFrom(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.COPY_FROM,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.copyFrom(request), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -304,13 +382,18 @@ public class BucketClient implements AutoCloseable {
    *     does not exist.
    */
   public BlobMetadata getMetadata(String key, String versionId) {
-    try {
-      return blobStore.getMetadata(key, versionId);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GET_METADATA,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return withCorrelationId(blobStore.getMetadata(key, versionId), ctx);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -320,13 +403,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public Iterator<BlobInfo> list(ListBlobsRequest request) {
-    try {
-      return blobStore.list(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.list(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -337,13 +425,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public ListBlobsPageResponse listPage(ListBlobsPageRequest request) {
-    try {
-      return blobStore.listPage(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_PAGE,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.listPage(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -353,13 +446,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
-    try {
-      return blobStore.initiateMultipartUpload(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.initiateMultipartUpload(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -370,13 +468,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public UploadPartResponse uploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
-    try {
-      return blobStore.uploadMultipartPart(mpu, mpp);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.UPLOAD_MULTIPART_PART,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.uploadMultipartPart(mpu, mpp);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -388,13 +491,18 @@ public class BucketClient implements AutoCloseable {
    */
   public MultipartUploadResponse completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
-    try {
-      return blobStore.completeMultipartUpload(mpu, parts);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.completeMultipartUpload(mpu, parts);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -404,13 +512,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public List<UploadPartResponse> listMultipartUpload(MultipartUpload mpu) {
-    try {
-      return blobStore.listMultipartUpload(mpu);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.listMultipartUpload(mpu);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -420,12 +533,17 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public void abortMultipartUpload(MultipartUpload mpu) {
-    try {
-      blobStore.abortMultipartUpload(mpu);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.ABORT_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.abortMultipartUpload(mpu);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**
@@ -437,13 +555,18 @@ public class BucketClient implements AutoCloseable {
    *     does not exist.
    */
   public Map<String, String> getTags(String key) {
-    try {
-      return blobStore.getTags(key);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GET_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.getTags(key);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -455,12 +578,17 @@ public class BucketClient implements AutoCloseable {
    *     does not exist.
    */
   public void setTags(String key, Map<String, String> tags) {
-    try {
-      blobStore.setTags(key, tags);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.SET_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.setTags(key, tags);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**
@@ -471,13 +599,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public URL generatePresignedUrl(PresignedUrlRequest request) {
-    try {
-      return blobStore.generatePresignedUrl(request);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> {
+          try {
+            return blobStore.generatePresignedUrl(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -490,13 +623,20 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public boolean doesObjectExist(String key, String versionId) {
-    try {
-      return blobStore.doesObjectExist(key, versionId);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return false;
-    }
+    Boolean result =
+        multiCloudJLogger.traceOperation(
+            BlobSpanNames.DOES_OBJECT_EXIST,
+            bucketAttrs(),
+            null,
+            ctx -> {
+              try {
+                return blobStore.doesObjectExist(key, versionId);
+              } catch (Throwable t) {
+                propagate(t);
+                return false;
+              }
+            });
+    return Boolean.TRUE.equals(result);
   }
 
   /**
@@ -506,13 +646,20 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public boolean doesBucketExist() {
-    try {
-      return blobStore.doesBucketExist();
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return false;
-    }
+    Boolean result =
+        multiCloudJLogger.traceOperation(
+            BlobSpanNames.DOES_BUCKET_EXIST,
+            bucketAttrs(),
+            null,
+            ctx -> {
+              try {
+                return blobStore.doesBucketExist();
+              } catch (Throwable t) {
+                propagate(t);
+                return false;
+              }
+            });
+    return Boolean.TRUE.equals(result);
   }
 
   /**
@@ -524,13 +671,18 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public ObjectLockInfo getObjectLock(String key, String versionId) {
-    try {
-      return blobStore.getObjectLock(key, versionId);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GET_OBJECT_LOCK,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.getObjectLock(key, versionId);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -542,12 +694,17 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
-    try {
-      blobStore.updateObjectRetention(key, versionId, retainUntilDate);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.UPDATE_OBJECT_RETENTION,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.updateObjectRetention(key, versionId, retainUntilDate);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /**
@@ -559,12 +716,17 @@ public class BucketClient implements AutoCloseable {
    * @throws SubstrateSdkException Thrown if the operation fails
    */
   public void updateLegalHold(String key, String versionId, boolean legalHold) {
-    try {
-      blobStore.updateLegalHold(key, versionId, legalHold);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.UPDATE_LEGAL_HOLD,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            blobStore.updateLegalHold(key, versionId, legalHold);
+          } catch (Throwable t) {
+            propagate(t);
+          }
+        });
   }
 
   /** Closes the underlying blob store and releases any resources. */
@@ -573,6 +735,75 @@ public class BucketClient implements AutoCloseable {
     if (blobStore != null) {
       blobStore.close();
     }
+  }
+
+  // ---- helpers ------------------------------------------------------------
+
+  private Map<String, String> bucketAttrs() {
+    String b = blobStore.getBucket();
+    return b != null ? Map.of("bucket", b) : null;
+  }
+
+  private void propagate(Throwable t) {
+    Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+    ExceptionHandler.handleAndPropagate(exception, t);
+  }
+
+  private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return UploadResponse.builder()
+        .key(r.getKey())
+        .versionId(r.getVersionId())
+        .eTag(r.getETag())
+        .checksumValue(r.getChecksumValue())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return DownloadResponse.builder()
+        .key(r.getKey())
+        .metadata(withCorrelationId(r.getMetadata(), ctx))
+        .inputStream(r.getInputStream())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static BlobMetadata withCorrelationId(BlobMetadata m, OperationContext ctx) {
+    if (m == null) {
+      return null;
+    }
+    return BlobMetadata.builder()
+        .key(m.getKey())
+        .versionId(m.getVersionId())
+        .eTag(m.getETag())
+        .objectSize(m.getObjectSize())
+        .metadata(m.getMetadata())
+        .lastModified(m.getLastModified())
+        .createdTime(m.getCreatedTime())
+        .md5(m.getMd5())
+        .contentType(m.getContentType())
+        .objectLockInfo(m.getObjectLockInfo())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return CopyResponse.builder()
+        .key(r.getKey())
+        .versionId(r.getVersionId())
+        .eTag(r.getETag())
+        .lastModified(r.getLastModified())
+        .correlationId(ctx.getCorrelationId())
+        .build();
   }
 
   public static class BlobBuilder {
@@ -740,7 +971,7 @@ public class BucketClient implements AutoCloseable {
      * @return An instance of BucketClient.
      */
     public BucketClient build() {
-      return new BucketClient(blobStoreBuilder.build());
+      return new BucketClient(blobStoreBuilder.build(), blobStoreBuilder.getTracingPolicy());
     }
   }
 }

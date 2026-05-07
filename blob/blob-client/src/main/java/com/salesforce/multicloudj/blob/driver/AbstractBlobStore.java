@@ -1,9 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
-import com.salesforce.multicloudj.common.observability.OperationContext;
-import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -25,14 +22,11 @@ import lombok.Getter;
  */
 public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
-  private static final String SDK_SERVICE = "blob";
-
   @Getter private final String providerId;
   @Getter protected final String bucket;
   @Getter protected final String region;
   protected final CredentialsOverrider credentialsOverrider;
   protected final BlobStoreValidator validator;
-  protected final MultiCloudJLogger multiCloudJLogger;
 
   protected AbstractBlobStore(Builder<?, ?> builder) {
     this(
@@ -40,8 +34,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
         builder.getBucket(),
         builder.getRegion(),
         builder.getCredentialsOverrider(),
-        builder.getValidator(),
-        builder.getTracingPolicy());
+        builder.getValidator());
   }
 
   public AbstractBlobStore(
@@ -50,379 +43,212 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
       String region,
       CredentialsOverrider credentials,
       BlobStoreValidator validator) {
-    this(providerId, bucket, region, credentials, validator, null);
-  }
-
-  public AbstractBlobStore(
-      String providerId,
-      String bucket,
-      String region,
-      CredentialsOverrider credentials,
-      BlobStoreValidator validator,
-      TracingPolicy tracingPolicy) {
     this.providerId = providerId;
     this.bucket = bucket;
     this.region = region;
     this.credentialsOverrider = credentials;
     this.validator = validator;
-    this.multiCloudJLogger = new MultiCloudJLogger(tracingPolicy, SDK_SERVICE, providerId);
   }
 
   /** {@inheritDoc} */
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, InputStream inputStream) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD,
-        Map.of("bucket", bucket),
-        uploadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(uploadRequest);
-          return withCorrelationId(doUpload(uploadRequest, inputStream), ctx);
-        });
+    validator.validate(uploadRequest);
+    return doUpload(uploadRequest, inputStream);
   }
 
   /** {@inheritDoc} */
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, byte[] content) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD,
-        Map.of("bucket", bucket),
-        uploadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(uploadRequest);
-          return withCorrelationId(doUpload(uploadRequest, content), ctx);
-        });
+    validator.validate(uploadRequest);
+    return doUpload(uploadRequest, content);
   }
 
   /** {@inheritDoc} */
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, File file) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD,
-        Map.of("bucket", bucket),
-        uploadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(uploadRequest);
-          return withCorrelationId(doUpload(uploadRequest, file), ctx);
-        });
+    validator.validate(uploadRequest);
+    return doUpload(uploadRequest, file);
   }
 
   /** {@inheritDoc} */
   @Override
   public UploadResponse upload(UploadRequest uploadRequest, Path path) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD,
-        Map.of("bucket", bucket),
-        uploadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(uploadRequest);
-          return withCorrelationId(doUpload(uploadRequest, path), ctx);
-        });
+    validator.validate(uploadRequest);
+    return doUpload(uploadRequest, path);
   }
 
   /** {@inheritDoc} */
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, OutputStream outputStream) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD,
-        Map.of("bucket", bucket),
-        downloadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(downloadRequest);
-          return withCorrelationId(doDownload(downloadRequest, outputStream), ctx);
-        });
+    validator.validate(downloadRequest);
+    return doDownload(downloadRequest, outputStream);
   }
 
   /** {@inheritDoc} */
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, ByteArray byteArray) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD,
-        Map.of("bucket", bucket),
-        downloadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(downloadRequest);
-          return withCorrelationId(doDownload(downloadRequest, byteArray), ctx);
-        });
+    validator.validate(downloadRequest);
+    return doDownload(downloadRequest, byteArray);
   }
 
   /** {@inheritDoc} */
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, File file) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD,
-        Map.of("bucket", bucket),
-        downloadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(downloadRequest);
-          return withCorrelationId(doDownload(downloadRequest, file), ctx);
-        });
+    validator.validate(downloadRequest);
+    return doDownload(downloadRequest, file);
   }
 
   /** {@inheritDoc} */
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest, Path path) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD,
-        Map.of("bucket", bucket),
-        downloadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(downloadRequest);
-          return withCorrelationId(doDownload(downloadRequest, path), ctx);
-        });
+    validator.validate(downloadRequest);
+    return doDownload(downloadRequest, path);
   }
 
   /** {@inheritDoc} */
   @Override
   public DownloadResponse download(DownloadRequest downloadRequest) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD,
-        Map.of("bucket", bucket),
-        downloadRequest.getOperationContext(),
-        ctx -> {
-          validator.validate(downloadRequest);
-          return withCorrelationId(doDownload(downloadRequest), ctx);
-        });
+    validator.validate(downloadRequest);
+    return doDownload(downloadRequest);
   }
 
   /** {@inheritDoc} */
   @Override
   public void delete(String key, String versionId) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.DELETE,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateDelete(key);
-          doDelete(key, versionId);
-        });
+    validator.validateDelete(key);
+    doDelete(key, versionId);
   }
 
   /** {@inheritDoc} */
   @Override
   public void delete(Collection<BlobIdentifier> objects) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.DELETE,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateBlobIdentifiers(objects);
-          doDelete(objects);
-        });
+    validator.validateBlobIdentifiers(objects);
+    doDelete(objects);
   }
 
   /** {@inheritDoc} */
   @Override
   public CopyResponse copy(CopyRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.COPY,
-        Map.of("bucket", bucket),
-        request.getOperationContext(),
-        ctx -> {
-          validator.validate(request);
-          return withCorrelationId(doCopy(request), ctx);
-        });
+    validator.validate(request);
+    return doCopy(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public CopyResponse copyFrom(CopyFromRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.COPY_FROM,
-        Map.of("bucket", bucket),
-        request.getOperationContext(),
-        ctx -> {
-          validator.validate(request);
-          return withCorrelationId(doCopyFrom(request), ctx);
-        });
+    validator.validate(request);
+    return doCopyFrom(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public BlobMetadata getMetadata(String key, String versionId) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.GET_METADATA,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateKey(key);
-          return withCorrelationId(doGetMetadata(key, versionId), ctx);
-        });
+    validator.validateKey(key);
+    return doGetMetadata(key, versionId);
   }
 
   /** {@inheritDoc} */
   @Override
   public Iterator<BlobInfo> list(ListBlobsRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.LIST, Map.of("bucket", bucket), null, ctx -> doList(request));
+    return doList(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public ListBlobsPageResponse listPage(ListBlobsPageRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.LIST_PAGE, Map.of("bucket", bucket), null, ctx -> doListPage(request));
+    return doListPage(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> doInitiateMultipartUpload(request));
+    return doInitiateMultipartUpload(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public UploadPartResponse uploadMultipartPart(MultipartUpload mpu, MultipartPart mpp) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD_MULTIPART_PART,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(mpu, getBucket());
-          return doUploadMultipartPart(mpu, mpp);
-        });
+    validator.validate(mpu, getBucket());
+    return doUploadMultipartPart(mpu, mpp);
   }
 
   /** {@inheritDoc} */
   @Override
   public MultipartUploadResponse completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(mpu, getBucket());
-          return doCompleteMultipartUpload(mpu, parts);
-        });
+    validator.validate(mpu, getBucket());
+    return doCompleteMultipartUpload(mpu, parts);
   }
 
   /** {@inheritDoc} */
   @Override
   public List<UploadPartResponse> listMultipartUpload(MultipartUpload mpu) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.LIST_MULTIPART_UPLOAD,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(mpu, getBucket());
-          return doListMultipartUpload(mpu);
-        });
+    validator.validate(mpu, getBucket());
+    return doListMultipartUpload(mpu);
   }
 
   /** {@inheritDoc} */
   @Override
   public void abortMultipartUpload(MultipartUpload mpu) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.ABORT_MULTIPART_UPLOAD,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(mpu, getBucket());
-          doAbortMultipartUpload(mpu);
-        });
+    validator.validate(mpu, getBucket());
+    doAbortMultipartUpload(mpu);
   }
 
   /** {@inheritDoc} */
   @Override
   public Map<String, String> getTags(String key) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.GET_TAGS,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateKey(key);
-          return doGetTags(key);
-        });
+    validator.validateKey(key);
+    return doGetTags(key);
   }
 
   /** {@inheritDoc} */
   @Override
   public void setTags(String key, Map<String, String> tags) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.SET_TAGS,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateKey(key);
-          validator.validateTags(tags);
-          doSetTags(key, tags);
-        });
+    validator.validateKey(key);
+    validator.validateTags(tags);
+    doSetTags(key, tags);
   }
 
   /** {@inheritDoc} */
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.GENERATE_PRESIGNED_URL,
-        Map.of("bucket", bucket),
-        request.getOperationContext(),
-        ctx -> {
-          validator.validate(request);
-          return doGeneratePresignedUrl(request);
-        });
+    validator.validate(request);
+    return doGeneratePresignedUrl(request);
   }
 
   /** {@inheritDoc} */
   @Override
   public boolean doesObjectExist(String key, String versionId) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOES_OBJECT_EXIST,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validateKey(key);
-          return doDoesObjectExist(key, versionId);
-        });
+    validator.validateKey(key);
+    return doDoesObjectExist(key, versionId);
   }
 
   /** {@inheritDoc} */
   @Override
   public boolean doesBucketExist() {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOES_BUCKET_EXIST,
-        Map.of("bucket", bucket), null, ctx -> doDoesBucketExist());
+    return doDoesBucketExist();
   }
 
   /** {@inheritDoc} */
   @Override
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.DOWNLOAD_DIRECTORY,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(directoryDownloadRequest);
-          return doDownloadDirectory(directoryDownloadRequest);
-        });
+    validator.validate(directoryDownloadRequest);
+    return doDownloadDirectory(directoryDownloadRequest);
   }
 
   /** {@inheritDoc} */
   @Override
   public DirectoryUploadResponse uploadDirectory(DirectoryUploadRequest directoryUploadRequest) {
-    return multiCloudJLogger.traceOperation(
-        BlobSpanNames.UPLOAD_DIRECTORY,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> {
-          validator.validate(directoryUploadRequest);
-          return doUploadDirectory(directoryUploadRequest);
-        });
+    validator.validate(directoryUploadRequest);
+    return doUploadDirectory(directoryUploadRequest);
   }
 
   /** {@inheritDoc} Allow null/empty prefix for deleting all objects in bucket */
   @Override
   public void deleteDirectory(String prefix) {
-    multiCloudJLogger.traceVoidOperation(
-        BlobSpanNames.DELETE_DIRECTORY,
-        Map.of("bucket", bucket),
-        null,
-        ctx -> doDeleteDirectory(prefix));
+    doDeleteDirectory(prefix);
   }
 
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
@@ -496,63 +322,6 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected void doDeleteDirectory(String prefix) {
     throw new UnsupportedOperationException(
         "Directory delete is not supported by this substrate implementation");
-  }
-
-  private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {
-    if (r == null) {
-      return null;
-    }
-    return UploadResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .checksumValue(r.getChecksumValue())
-        .correlationId(ctx.getCorrelationId())
-        .build();
-  }
-
-  private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
-    if (r == null) {
-      return null;
-    }
-    return DownloadResponse.builder()
-        .key(r.getKey())
-        .metadata(withCorrelationId(r.getMetadata(), ctx))
-        .inputStream(r.getInputStream())
-        .correlationId(ctx.getCorrelationId())
-        .build();
-  }
-
-  private static BlobMetadata withCorrelationId(BlobMetadata m, OperationContext ctx) {
-    if (m == null) {
-      return null;
-    }
-    return BlobMetadata.builder()
-        .key(m.getKey())
-        .versionId(m.getVersionId())
-        .eTag(m.getETag())
-        .objectSize(m.getObjectSize())
-        .metadata(m.getMetadata())
-        .lastModified(m.getLastModified())
-        .createdTime(m.getCreatedTime())
-        .md5(m.getMd5())
-        .contentType(m.getContentType())
-        .objectLockInfo(m.getObjectLockInfo())
-        .correlationId(ctx.getCorrelationId())
-        .build();
-  }
-
-  private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
-    if (r == null) {
-      return null;
-    }
-    return CopyResponse.builder()
-        .key(r.getKey())
-        .versionId(r.getVersionId())
-        .eTag(r.getETag())
-        .lastModified(r.getLastModified())
-        .correlationId(ctx.getCorrelationId())
-        .build();
   }
 
   /**

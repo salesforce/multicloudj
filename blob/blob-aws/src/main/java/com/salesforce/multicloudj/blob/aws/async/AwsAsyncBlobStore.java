@@ -35,7 +35,6 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.IOException;
@@ -100,33 +99,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
       S3AsyncClient client,
       S3TransferManager transferManager,
       AwsTransformerSupplier transformerSupplier) {
-    this(
-        bucket,
-        region,
-        credentialsOverrider,
-        validator,
-        client,
-        transferManager,
-        transformerSupplier,
-        null);
-  }
-
-  public AwsAsyncBlobStore(
-      String bucket,
-      String region,
-      CredentialsOverrider credentialsOverrider,
-      BlobStoreValidator validator,
-      S3AsyncClient client,
-      S3TransferManager transferManager,
-      AwsTransformerSupplier transformerSupplier,
-      TracingPolicy tracingPolicy) {
-    super(
-        AwsConstants.PROVIDER_ID,
-        bucket,
-        region,
-        credentialsOverrider,
-        validator,
-        tracingPolicy);
+    super(AwsConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.client = client;
     this.transferManager = transferManager;
     this.transformer = transformerSupplier.get(bucket);
@@ -785,8 +758,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
           getValidator(),
           client,
           tm,
-          getTransformerSupplier(),
-          getTracingPolicy());
+          getTransformerSupplier());
     }
   }
 }

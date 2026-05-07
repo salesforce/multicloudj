@@ -1,13 +1,16 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
+import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
 import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
+import java.util.Map;
 
 /**
  * Entry point for Client code to interact with the Blob service. This is a Service client, which
@@ -19,10 +22,20 @@ import java.net.URI;
  */
 public class BlobClient implements AutoCloseable {
 
+  private static final String SDK_SERVICE = "blob";
+
   protected AbstractBlobClient<?> blobClient;
+  protected final MultiCloudJLogger multiCloudJLogger;
 
   protected BlobClient(AbstractBlobClient<?> blobClient) {
+    this(blobClient, null);
+  }
+
+  protected BlobClient(AbstractBlobClient<?> blobClient, TracingPolicy tracingPolicy) {
     this.blobClient = blobClient;
+    this.multiCloudJLogger =
+        new MultiCloudJLogger(
+            tracingPolicy, SDK_SERVICE, blobClient != null ? blobClient.getProviderId() : null);
   }
 
   public static BlobClientBuilder builder(String providerId) {
@@ -31,13 +44,19 @@ public class BlobClient implements AutoCloseable {
 
   /** Lists the buckets associated with the authenticated account in the substrate. */
   public ListBucketsResponse listBuckets() {
-    try {
-      return blobClient.listBuckets();
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
-    }
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_BUCKETS,
+        null,
+        null,
+        ctx -> {
+          try {
+            return blobClient.listBuckets();
+          } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+            return null;
+          }
+        });
   }
 
   /**
@@ -46,12 +65,18 @@ public class BlobClient implements AutoCloseable {
    * @param bucketName The name of the bucket to create
    */
   public void createBucket(String bucketName) {
-    try {
-      blobClient.createBucket(bucketName);
-    } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-    }
+    multiCloudJLogger.traceVoidOperation(
+        BlobSpanNames.CREATE_BUCKET,
+        bucketName != null ? Map.of("bucket", bucketName) : null,
+        null,
+        ctx -> {
+          try {
+            blobClient.createBucket(bucketName);
+          } catch (Throwable t) {
+            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
+            ExceptionHandler.handleAndPropagate(exception, t);
+          }
+        });
   }
 
   /** Closes the underlying blob client and releases any resources. */
@@ -142,7 +167,7 @@ public class BlobClient implements AutoCloseable {
      * @return An instance of BlobClient.
      */
     public BlobClient build() {
-      return new BlobClient(blobClientBuilder.build());
+      return new BlobClient(blobClientBuilder.build(), blobClientBuilder.getTracingPolicy());
     }
   }
 }

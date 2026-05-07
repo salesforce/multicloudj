@@ -38,4 +38,9 @@ public final class BlobSpanNames {
   public static final String UPLOAD_DIRECTORY = "blob.uploadDirectory";
   public static final String DOWNLOAD_DIRECTORY = "blob.downloadDirectory";
   public static final String DELETE_DIRECTORY = "blob.deleteDirectory";
+
+  // Object-lock operations.
+  public static final String GET_OBJECT_LOCK = "blob.getObjectLock";
+  public static final String UPDATE_OBJECT_RETENTION = "blob.updateObjectRetention";
+  public static final String UPDATE_LEGAL_HOLD = "blob.updateLegalHold";
 }
