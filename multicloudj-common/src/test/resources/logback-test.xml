@@ -8,14 +8,14 @@
     </appender>
 
     <!-- WireMock logger -->
-    <logger name="com.github.tomakehurst.wiremock" level="DEBUG"/>
+    <logger name="com.github.tomakehurst.wiremock" level="INFO"/>
 
     <!-- Disable Jetty and HTTP Wire logs -->
     <logger name="org.eclipse.jetty" level="OFF"/>
     <logger name="org.apache.http.wire" level="OFF"/>
 
     <!-- Root logger -->
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
