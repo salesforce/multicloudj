@@ -106,6 +106,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -1400,10 +1401,10 @@ public class GcpBlobStore extends AbstractBlobStore {
         configBuilder.setPerWorkerBufferSize((int) partBufferSize);
       }
 
-      // Map parallelDownloadsEnabled -> setAllowDivideAndConquerDownload (default true).
+      // Map parallelDownloadsEnabled -> setAllowDivideAndConquerDownload.
+      // multicloudj defaults this to TRUE; the underlying GCS SDK defaults to FALSE.
       configBuilder.setAllowDivideAndConquerDownload(
-          builder.getParallelDownloadsEnabled() == null
-              || builder.getParallelDownloadsEnabled());
+          Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
 
       // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
       if (builder.getParallelUploadsEnabled() != null) {
