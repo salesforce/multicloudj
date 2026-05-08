@@ -6,6 +6,7 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -100,6 +101,7 @@ public class MultiCloudJLogger {
 
     Span span = startSpan(operationName, attributes, effectiveContext, hasParent);
     long startTime = System.nanoTime();
+    Map<String, String> previousMdc = snapshotMdc();
 
     try (Scope ignored = span.makeCurrent()) {
       setMdc(span, effectiveContext);
@@ -116,7 +118,7 @@ public class MultiCloudJLogger {
         log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
         throw e;
       } finally {
-        clearMdc();
+        restoreMdc(previousMdc);
       }
     } finally {
       span.end();
@@ -178,6 +180,7 @@ public class MultiCloudJLogger {
 
     Span span = startSpan(operationName, attributes, effectiveContext, hasParent);
     long startTime = System.nanoTime();
+    Map<String, String> previousMdc = snapshotMdc();
 
     CompletableFuture<T> future;
     try (Scope ignored = span.makeCurrent()) {
@@ -193,7 +196,7 @@ public class MultiCloudJLogger {
         span.end();
         throw e;
       } finally {
-        clearMdc();
+        restoreMdc(previousMdc);
       }
     }
 
@@ -205,6 +208,10 @@ public class MultiCloudJLogger {
     return future.whenComplete(
         (result, throwable) -> {
           long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+          // Snapshot the completing thread's MDC; whenComplete may run on a different
+          // thread than the one that called traceAsyncOperation, so the snapshot taken
+          // above is irrelevant here.
+          Map<String, String> completionPreviousMdc = snapshotMdc();
           try (Scope ignored = span.makeCurrent()) {
             setMdc(span, effectiveContext);
             try {
@@ -221,7 +228,7 @@ public class MultiCloudJLogger {
                     operationName, bucket, durationMs);
               }
             } finally {
-              clearMdc();
+              restoreMdc(completionPreviousMdc);
             }
           } finally {
             span.end();
@@ -257,6 +264,7 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, T> operation) {
     long startTime = System.nanoTime();
+    Map<String, String> previousMdc = snapshotMdc();
     setQuietMdc(effectiveContext);
     try {
       log.debug("{} started [bucket={}]", operationName, bucket);
@@ -269,7 +277,7 @@ public class MultiCloudJLogger {
       log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
       throw e;
     } finally {
-      clearQuietMdc();
+      restoreMdc(previousMdc);
     }
   }
 
@@ -279,6 +287,7 @@ public class MultiCloudJLogger {
       String operationName,
       Function<OperationContext, CompletableFuture<T>> operation) {
     long startTime = System.nanoTime();
+    Map<String, String> previousMdc = snapshotMdc();
     setQuietMdc(effectiveContext);
     CompletableFuture<T> future;
     try {
@@ -289,7 +298,7 @@ public class MultiCloudJLogger {
       log.error("{} failed [bucket={}, duration={}ms]", operationName, bucket, durationMs, e);
       throw e;
     } finally {
-      clearQuietMdc();
+      restoreMdc(previousMdc);
     }
     if (future == null) {
       return null;
@@ -297,6 +306,8 @@ public class MultiCloudJLogger {
     return future.whenComplete(
         (result, throwable) -> {
           long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+          // Fresh snapshot for the completing thread; see traceAsyncOperation for rationale.
+          Map<String, String> completionPreviousMdc = snapshotMdc();
           setQuietMdc(effectiveContext);
           try {
             if (throwable != null) {
@@ -310,7 +321,7 @@ public class MultiCloudJLogger {
                   operationName, bucket, durationMs);
             }
           } finally {
-            clearQuietMdc();
+            restoreMdc(completionPreviousMdc);
           }
         });
   }
@@ -349,15 +360,6 @@ public class MultiCloudJLogger {
     }
   }
 
-  private void clearMdc() {
-    MDC.remove(MDC_TRACE_ID);
-    MDC.remove(MDC_SPAN_ID);
-    MDC.remove(MDC_CORRELATION_ID);
-    MDC.remove(MDC_SDK_SERVICE);
-    MDC.remove(MDC_SDK_PROVIDER);
-    MDC.remove(MDC_TENANT_ID);
-  }
-
   private void setQuietMdc(OperationContext effectiveContext) {
     MDC.put(MDC_CORRELATION_ID, effectiveContext.getCorrelationId());
     MDC.put(MDC_SDK_SERVICE, serviceName);
@@ -367,10 +369,37 @@ public class MultiCloudJLogger {
     }
   }
 
-  private void clearQuietMdc() {
-    MDC.remove(MDC_CORRELATION_ID);
-    MDC.remove(MDC_SDK_SERVICE);
-    MDC.remove(MDC_SDK_PROVIDER);
-    MDC.remove(MDC_TENANT_ID);
+  /** MDC keys this class manages. Snapshot/restore touches only these. */
+  private static final String[] SDK_MDC_KEYS = {
+    MDC_TRACE_ID, MDC_SPAN_ID, MDC_CORRELATION_ID,
+    MDC_SDK_SERVICE, MDC_SDK_PROVIDER, MDC_TENANT_ID
+  };
+
+  /**
+   * Captures the prior values of the SDK-managed MDC keys so they can be restored after the
+   * traced operation returns. As a library wrapper we must not unconditionally remove these
+   * keys: the caller may already have, e.g. {@code correlation_id} populated from an outer
+   * request context, and clobbering it would leak across the SDK call boundary.
+   *
+   * <p>Only SDK-managed keys are touched; any other MDC entries (including ones the lambda
+   * itself sets) pass through unchanged.
+   */
+  private static Map<String, String> snapshotMdc() {
+    Map<String, String> snapshot = new HashMap<>();
+    for (String key : SDK_MDC_KEYS) {
+      snapshot.put(key, MDC.get(key));
+    }
+    return snapshot;
+  }
+
+  /** Restores the SDK-managed MDC keys to their pre-call values. */
+  private static void restoreMdc(Map<String, String> previousMdc) {
+    for (Map.Entry<String, String> entry : previousMdc.entrySet()) {
+      if (entry.getValue() == null) {
+        MDC.remove(entry.getKey());
+      } else {
+        MDC.put(entry.getKey(), entry.getValue());
+      }
+    }
   }
 }

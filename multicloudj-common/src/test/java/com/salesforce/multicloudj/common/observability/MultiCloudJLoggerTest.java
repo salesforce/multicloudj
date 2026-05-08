@@ -523,4 +523,160 @@ class MultiCloudJLoggerTest {
     assertNotNull(resolved.get().getCorrelationId(), "correlation_id is always generated");
     assertNull(resolved.get().getTenantId(), "tenant_id must NOT be auto-generated");
   }
+
+  // --- prior MDC preservation ---------------------------------------------
+  // Library-hygiene: callers may already have these keys populated from an outer
+  // request context. The SDK must restore them after the traced call returns
+  // (rather than hard-removing) so the outer scope is not corrupted.
+
+  @Test
+  void priorSdkMdc_isRestoredAfterTrace_underTracedPolicy() {
+    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+    MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
+    MDC.put(MultiCloudJLogger.MDC_SDK_SERVICE, "outer-svc");
+    MDC.put(MultiCloudJLogger.MDC_SDK_PROVIDER, "outer-provider");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+    AtomicReference<String> insideCorrelation = new AtomicReference<>();
+    AtomicReference<String> insideTenant = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        Map.of("bucket", "b1"),
+        OperationContext.builder()
+            .correlationId("inner-correlation")
+            .tenantId("inner-tenant")
+            .build(),
+        ctx -> {
+          insideCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          insideTenant.set(MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+          return null;
+        });
+
+    assertEquals(
+        "inner-correlation",
+        insideCorrelation.get(),
+        "SDK's correlation_id must be visible inside the lambda");
+    assertEquals(
+        "inner-tenant", insideTenant.get(), "SDK's tenant_id must be visible inside the lambda");
+
+    assertEquals(
+        "outer-correlation",
+        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        "prior correlation_id must be restored after the trace");
+    assertEquals(
+        "outer-tenant",
+        MDC.get(MultiCloudJLogger.MDC_TENANT_ID),
+        "prior tenant_id must be restored");
+    assertEquals(
+        "outer-svc",
+        MDC.get(MultiCloudJLogger.MDC_SDK_SERVICE),
+        "prior sdk_service must be restored");
+    assertEquals(
+        "outer-provider",
+        MDC.get(MultiCloudJLogger.MDC_SDK_PROVIDER),
+        "prior sdk_provider must be restored");
+  }
+
+  @Test
+  void priorSdkMdc_isRestoredAfterTrace_underDisabledPolicy() {
+    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+    MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
+    AtomicReference<String> insideCorrelation = new AtomicReference<>();
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        OperationContext.builder().correlationId("inner-correlation").build(),
+        ctx -> {
+          insideCorrelation.set(MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID));
+          return null;
+        });
+
+    assertEquals("inner-correlation", insideCorrelation.get());
+    assertEquals(
+        "outer-correlation",
+        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        "DISABLED-policy quiet path must also restore prior MDC values");
+    assertEquals("outer-tenant", MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+  }
+
+  @Test
+  void priorSdkMdc_isRestoredAfterTrace_evenOnException() {
+    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            logger.traceOperation(
+                "blob.test",
+                null,
+                OperationContext.builder().correlationId("inner-correlation").build(),
+                ctx -> {
+                  throw new IllegalStateException("boom");
+                }));
+
+    assertEquals(
+        "outer-correlation",
+        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        "prior MDC values must be restored even when the operation throws");
+  }
+
+  @Test
+  void nonSdkMdcKeys_arePassedThroughUnchanged() {
+    MDC.put("custom_key", "custom_value");
+    MDC.put("request_id", "req-42");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+
+    logger.traceOperation(
+        "blob.test",
+        null,
+        null,
+        ctx -> {
+          assertEquals(
+              "custom_value",
+              MDC.get("custom_key"),
+              "non-SDK keys must remain visible inside the lambda");
+          MDC.put("set_inside_lambda", "yes");
+          return null;
+        });
+
+    assertEquals(
+        "custom_value", MDC.get("custom_key"), "non-SDK keys must remain after the trace returns");
+    assertEquals("req-42", MDC.get("request_id"));
+    assertEquals(
+        "yes",
+        MDC.get("set_inside_lambda"),
+        "non-SDK keys set inside the lambda must persist past the trace");
+  }
+
+  @Test
+  void priorSdkMdc_isRestoredAfterAsyncTrace_successPath() {
+    MDC.put(MultiCloudJLogger.MDC_CORRELATION_ID, "outer-correlation");
+    MDC.put(MultiCloudJLogger.MDC_TENANT_ID, "outer-tenant");
+
+    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
+
+    CompletableFuture<String> future =
+        logger.traceAsyncOperation(
+            "blob.test.async",
+            Map.of("bucket", "b1"),
+            OperationContext.builder()
+                .correlationId("inner-correlation")
+                .tenantId("inner-tenant")
+                .build(),
+            ctx -> CompletableFuture.completedFuture("ok"));
+
+    assertEquals("ok", future.join());
+    assertEquals(
+        "outer-correlation",
+        MDC.get(MultiCloudJLogger.MDC_CORRELATION_ID),
+        "prior MDC must be restored after async trace");
+    assertEquals("outer-tenant", MDC.get(MultiCloudJLogger.MDC_TENANT_ID));
+  }
 }
