@@ -12,39 +12,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * AWS SNS→SQS JMH benchmark.
+ * AWS SQS-direct JMH benchmark (no SNS fan-out).
  *
  * <p>Required environment variables:
  * <ul>
- *   <li>{@code PUBSUB_BENCHMARK_AWS_SNS_TOPIC_ARN} — full SNS topic ARN</li>
  *   <li>{@code PUBSUB_BENCHMARK_AWS_SQS_QUEUE_NAME} — SQS queue name (not URL)</li>
- *   <li>{@code PUBSUB_BENCHMARK_AWS_REGION} — AWS region, e.g. {@code ap-south-1}</li>
+ *   <li>{@code PUBSUB_BENCHMARK_AWS_SQS_REGION} — AWS region, e.g. {@code ap-south-1}</li>
  * </ul>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class AwsSnsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
+public class AwsSqsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 
   private static final Logger logger =
-      LoggerFactory.getLogger(AwsSnsPubsubBenchmarkTest.class);
+      LoggerFactory.getLogger(AwsSqsPubsubBenchmarkTest.class);
 
   @Override
   protected Harness createHarness() {
     return new HarnessImpl(
-        requireEnv("PUBSUB_BENCHMARK_AWS_SNS_TOPIC_ARN"),
         requireEnv("PUBSUB_BENCHMARK_AWS_SQS_QUEUE_NAME"),
-        requireEnv("PUBSUB_BENCHMARK_AWS_REGION"));
+        requireEnv("PUBSUB_BENCHMARK_AWS_SQS_REGION"));
   }
 
   @Override
   protected String getProviderId() {
-    return "aws-sns";
+    return "awssqs";
   }
 
   /**
-   * AWS NACK-and-redelivery benchmark.
+   * AWS NACK-and-redelivery benchmark for the SQS-direct path.
    *
-   * <p>Receives a message, NACKs it (visibility timeout = 0), then receives it again as a
-   * redelivery before acking. Validates the NACK path and measures redelivery latency.
+   * <p>Receives a message, NACKs it (visibility timeout = 0), then receives the redelivery before
+   * acking. Validates the NACK path and measures redelivery latency.
    */
   @Benchmark
   @Threads(2)
@@ -64,24 +62,22 @@ public class AwsSnsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
   }
 
   static class HarnessImpl implements Harness {
-    private final String snsTopicArn;
     private final String sqsQueueName;
-    private final String awsRegion;
+    private final String sqsRegion;
 
-    HarnessImpl(String snsTopicArn, String sqsQueueName, String awsRegion) {
-      this.snsTopicArn = snsTopicArn;
+    HarnessImpl(String sqsQueueName, String sqsRegion) {
       this.sqsQueueName = sqsQueueName;
-      this.awsRegion = awsRegion;
+      this.sqsRegion = sqsRegion;
     }
 
     @Override
     public AbstractTopic<?> createTopic() {
-      logger.info("Creating AWS SNS topic with ARN: {}", snsTopicArn);
+      logger.info("Creating AWS SQS topic with queue name: {}", sqsQueueName);
       try {
-        return new AwsSnsTopic.Builder().withTopicName(snsTopicArn).withRegion(awsRegion).build();
+        return new AwsSqsTopic.Builder().withTopicName(sqsQueueName).withRegion(sqsRegion).build();
       } catch (Exception e) {
-        logger.error("Failed to create AWS SNS topic", e);
-        throw new RuntimeException("Failed to create AWS SNS topic", e);
+        logger.error("Failed to create AWS SQS topic", e);
+        throw new RuntimeException("Failed to create AWS SQS topic", e);
       }
     }
 
@@ -91,7 +87,7 @@ public class AwsSnsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
       try {
         return new AwsSubscription.Builder()
             .withSubscriptionName(sqsQueueName)
-            .withRegion(awsRegion)
+            .withRegion(sqsRegion)
             .build();
       } catch (Exception e) {
         logger.error("Failed to create AWS SQS subscription", e);
@@ -101,7 +97,7 @@ public class AwsSnsPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 
     @Override
     public String getTopicName() {
-      return snsTopicArn;
+      return sqsQueueName;
     }
 
     @Override

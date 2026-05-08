@@ -3,30 +3,35 @@ package com.salesforce.multicloudj.pubsub.gcp;
 import com.salesforce.multicloudj.pubsub.client.AbstractPubsubBenchmarkTest;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
-import org.junit.jupiter.api.Disabled;
+import com.salesforce.multicloudj.pubsub.driver.Message;
 import org.junit.jupiter.api.TestInstance;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.infra.Blackhole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Disabled
+/**
+ * GCP Pub/Sub JMH benchmark.
+ *
+ * <p>Required environment variables:
+ * <ul>
+ *   <li>{@code PUBSUB_BENCHMARK_GCP_TOPIC_NAME} — full topic name,
+ *       e.g. {@code projects/my-project/topics/my-topic}</li>
+ *   <li>{@code PUBSUB_BENCHMARK_GCP_SUBSCRIPTION_NAME} — full subscription name,
+ *       e.g. {@code projects/my-project/subscriptions/my-sub}</li>
+ * </ul>
+ */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 
   private static final Logger logger = LoggerFactory.getLogger(GcpPubsubBenchmarkTest.class);
 
-  // GCP Project and resource names
-  private static final String PROJECT_ID = "substrate-sdk-gcp-poc1";
-  private static final String TOPIC_NAME =
-      "projects/substrate-sdk-gcp-poc1/topics/multicloudj-pubsub-benchmark-topic";
-  private static final String SUBSCRIPTION_NAME =
-      "projects/substrate-sdk-gcp-poc1/subscriptions/multicloudj-pubsub-benchmark-subscription";
-
-  // Instance flag for NACK benchmark pre-population
-  private volatile boolean nackMessagesPrePopulated = false;
-
   @Override
   protected Harness createHarness() {
-    return new HarnessImpl();
+    return new HarnessImpl(
+        requireEnv("PUBSUB_BENCHMARK_GCP_TOPIC_NAME"),
+        requireEnv("PUBSUB_BENCHMARK_GCP_SUBSCRIPTION_NAME"));
   }
 
   @Override
@@ -41,62 +46,42 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
   }
 
   /**
-   * GCP-specific NACK and redelivery benchmark.
+   * GCP NACK-and-redelivery benchmark.
    *
-   * Measures NACK performance and redelivery latency - GCP-specific feature.
-   * Receives message, sends NACK, then receives again (redelivered message).
+   * <p>Receives a message, NACKs it, then receives the redelivered copy before acking. Measures
+   * NACK performance and redelivery latency — a GCP-specific flow.
    */
-  @org.openjdk.jmh.annotations.Benchmark
-  @org.openjdk.jmh.annotations.Threads(2)
-  public void benchmarkNackAndRedelivery(org.openjdk.jmh.infra.Blackhole bh) {
-    // Pre-populate messages once per benchmark run
-    ensurePrePopulated(
-        () -> nackMessagesPrePopulated,
-        () -> nackMessagesPrePopulated = true,
-        "NACK",
-        PREPOPULATE_SMALL,
-        SMALL_MESSAGE);
-
+  @Benchmark
+  @Threads(2)
+  public void benchmarkNackAndRedelivery(Blackhole bh) {
     try {
-      for (int i = 0; i < ITERATIONS_NACK_BENCHMARK; i++) {
-        // Publish one to replenish
-        com.salesforce.multicloudj.pubsub.driver.Message msgToPublish =
-            createMessage(SMALL_MESSAGE);
-        topicClient.send(msgToPublish);
-
-        // Receive a message
-        com.salesforce.multicloudj.pubsub.driver.Message msg = subscriptionClient.receive();
-        bh.consume(msg);
-
-        // NACK the message (GCP-specific)
-        subscriptionClient.sendNack(msg.getAckID());
-
-        // Receive the redelivered message
-        com.salesforce.multicloudj.pubsub.driver.Message redeliveredMsg =
-            subscriptionClient.receive();
-        bh.consume(redeliveredMsg);
-
-        // Ack the redelivered message
-        subscriptionClient.sendAck(redeliveredMsg.getAckID());
-      }
+      topicClient.send(createMessage(SMALL_MESSAGE));
+      Message msg = subscriptionClient.receive();
+      bh.consume(msg);
+      subscriptionClient.sendNack(msg.getAckID());
+      Message redelivered = subscriptionClient.receive();
+      bh.consume(redelivered);
+      subscriptionClient.sendAck(redelivered.getAckID());
     } catch (Exception e) {
-      System.err.println(">>> Benchmark NACK FAILED: " + e.getMessage());
+      logger.error(">>> Benchmark NACK FAILED: {}", e.getMessage());
       throw new RuntimeException("Benchmark NACK failed", e);
     }
   }
 
-  public static class HarnessImpl implements Harness {
+  static class HarnessImpl implements Harness {
+    private final String topicName;
+    private final String subscriptionName;
+
+    HarnessImpl(String topicName, String subscriptionName) {
+      this.topicName = topicName;
+      this.subscriptionName = subscriptionName;
+    }
 
     @Override
     public AbstractTopic<?> createTopic() {
-      logger.info("Creating GCP Pub/Sub topic: {}", TOPIC_NAME);
-
+      logger.info("Creating GCP Pub/Sub topic: {}", topicName);
       try {
-        GcpTopic.Builder builder = new GcpTopic.Builder();
-        builder.withTopicName(TOPIC_NAME);
-
-        return builder.build();
-
+        return new GcpTopic.Builder().withTopicName(topicName).build();
       } catch (Exception e) {
         logger.error("Failed to create GCP Pub/Sub topic", e);
         throw new RuntimeException("Failed to create GCP Pub/Sub topic", e);
@@ -105,14 +90,9 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 
     @Override
     public AbstractSubscription<?> createSubscription() {
-      logger.info("Creating GCP Pub/Sub subscription: {}", SUBSCRIPTION_NAME);
-
+      logger.info("Creating GCP Pub/Sub subscription: {}", subscriptionName);
       try {
-        GcpSubscription.Builder builder = new GcpSubscription.Builder();
-        builder.withSubscriptionName(SUBSCRIPTION_NAME);
-
-        return builder.build();
-
+        return new GcpSubscription.Builder().withSubscriptionName(subscriptionName).build();
       } catch (Exception e) {
         logger.error("Failed to create GCP Pub/Sub subscription", e);
         throw new RuntimeException("Failed to create GCP Pub/Sub subscription", e);
@@ -121,16 +101,16 @@ public class GcpPubsubBenchmarkTest extends AbstractPubsubBenchmarkTest {
 
     @Override
     public String getTopicName() {
-      return TOPIC_NAME;
+      return topicName;
     }
 
     @Override
     public String getSubscriptionName() {
-      return SUBSCRIPTION_NAME;
+      return subscriptionName;
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
       // GCP clients are closed within the Topic/Subscription implementations
     }
   }
