@@ -15,7 +15,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -35,16 +34,22 @@ import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * JMH benchmarks for async directory upload/download via {@link AsyncBucketClient}.
  *
- * <p>Corpus: 100 x 1KB, 50 x 1MB, 10 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
+ * <p>Corpus: 50 x 1KB, 25 x 1MB, 5 x 10MB. Each size is uploaded to {@value #THREAD_COUNT}
  * distinct prefixes to spread concurrent GETs and stay under per-prefix rate limits.
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
  * benchmark methods themselves.
+ *
+ * <p>Uses 1 warmup + 5 measurement iterations of 60s each: each op can take seconds to
+ * minutes, so the window must be long enough for stable P99 samples but short enough to keep
+ * total benchmark wall-clock time bounded.
  */
 @BenchmarkMode({Mode.SampleTime, Mode.Throughput})
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -53,19 +58,21 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
 @Threads(AbstractAsyncBlobBenchmarkTest.THREAD_COUNT)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractAsyncBlobBenchmarkTest {
+
+  private static final Logger log = LoggerFactory.getLogger(AbstractAsyncBlobBenchmarkTest.class);
 
   protected static final int SMALL_FILE = 1024; // 1KB
   protected static final int MEDIUM_FILE = 1024 * 1024; // 1MB
   protected static final int LARGE_FILE = 10 * 1024 * 1024; // 10MB
 
   // Sized to keep per-invocation request rate under S3/GCS per-prefix limits at THREAD_COUNT=4.
-  protected static final int DIR_SMALL_COUNT = 100;
-  protected static final int DIR_MEDIUM_COUNT = 50;
-  protected static final int DIR_LARGE_COUNT = 10;
+  protected static final int DIR_SMALL_COUNT = 50;
+  protected static final int DIR_MEDIUM_COUNT = 25;
+  protected static final int DIR_LARGE_COUNT = 5;
 
   static final int THREAD_COUNT = 4;
+  private static final long OP_TIMEOUT_SECONDS = 600;
 
   protected AsyncBucketClient asyncClient;
 
@@ -89,6 +96,33 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     AsyncBlobStore createAsyncBlobStore();
   }
 
+  protected abstract static class BaseHarnessImpl implements Harness {
+    private AsyncBlobStore store;
+
+    protected abstract AsyncBlobStore buildStore();
+
+    @Override
+    public final AsyncBlobStore createAsyncBlobStore() {
+      try {
+        store = buildStore();
+        return store;
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to create async blob store", e);
+      }
+    }
+
+    @Override
+    public final void close() {
+      if (store != null) {
+        try {
+          store.close();
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to close async blob store", e);
+        }
+      }
+    }
+  }
+
   protected abstract Harness createHarness();
 
   /** Returns provider ID for JMH result file naming, e.g., "aws", "gcp". */
@@ -96,6 +130,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   @Setup(Level.Trial)
   public void setupBenchmark() {
+    log.info("Creating {} async blob store", getProviderId());
     try {
       harness = createHarness();
       AsyncBlobStore store = harness.createAsyncBlobStore();
@@ -114,8 +149,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       if (harness != null) {
         try {
           harness.close();
-        } catch (Exception ignored) {
-          // Trial already ran; swallow so cleanup failure can't mask earlier errors.
+        } catch (Exception e) {
+          log.warn("Failed to close {} async blob store", getProviderId(), e);
         }
       }
     }
@@ -158,7 +193,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
             .prefix(threadUploadPrefix())
             .includeSubFolders(true)
             .build();
-    bh.consume(asyncClient.uploadDirectory(req).join());
+    bh.consume(
+        asyncClient.uploadDirectory(req).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join());
   }
 
   private void runDirectoryDownload(Blackhole bh, String prefix) throws IOException {
@@ -169,7 +205,11 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
               .prefixToDownload(prefix)
               .localDestinationDirectory(dest.toString())
               .build();
-      bh.consume(asyncClient.downloadDirectory(req).join());
+      bh.consume(
+          asyncClient
+              .downloadDirectory(req)
+              .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+              .join());
     } finally {
       deleteLocalRecursive(dest);
     }
@@ -257,9 +297,10 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       return;
     }
     try {
-      asyncClient.deleteDirectory(prefix).join();
-    } catch (Exception ignored) {
-      // Best-effort cleanup; residual objects are acceptable for a benchmark run.
+      asyncClient.deleteDirectory(prefix).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+    } catch (Exception e) {
+      // Best-effort cleanup.
+      log.warn("Failed to delete benchmark prefix {}", prefix, e);
     }
   }
 
@@ -278,13 +319,13 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
                 p -> {
                   try {
                     Files.deleteIfExists(p);
-                  } catch (IOException ignored) {
-                    // Best-effort cleanup of per-file delete.
+                  } catch (IOException e) {
+                    log.warn("Failed to delete local benchmark file {}", p, e);
                   }
                 });
       }
-    } catch (IOException ignored) {
-      // Best-effort cleanup of temp tree walk.
+    } catch (IOException e) {
+      log.warn("Failed to walk local benchmark directory {} during cleanup", root, e);
     }
   }
 
@@ -294,7 +335,6 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     new Runner(
             new OptionsBuilder()
                 .include(".*" + this.getClass().getName() + ".*")
-                .forks(1)
                 .resultFormat(ResultFormatType.JSON)
                 .result("target/jmh-async-directory-results-" + getProviderId() + ".json")
                 .build())
