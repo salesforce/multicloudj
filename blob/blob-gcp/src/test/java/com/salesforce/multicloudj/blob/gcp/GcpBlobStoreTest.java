@@ -87,6 +87,7 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStore;
 import com.salesforce.multicloudj.blob.gcp.async.GcpAsyncBlobStoreProvider;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -460,10 +461,7 @@ class GcpBlobStoreTest {
       // Given
       DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
-      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
-
       when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
       when(mockStorage.get(mockBlobId)).thenReturn(null);
 
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -3921,5 +3919,92 @@ class GcpBlobStoreTest {
 
     GcpBlobStore store = builder.build();
     assertNotNull(store);
+  }
+
+  @Test
+  void testDoDownload_checkArchived_archivedObject() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      DownloadRequest downloadRequest = DownloadRequest.builder()
+          .withKey(TEST_KEY)
+          .withCheckArchived(true)
+          .build();
+
+      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+      when(mockStorage.get(blobId)).thenReturn(null);
+
+      Blob archivedBlob = mock(Blob.class);
+      when(archivedBlob.getName()).thenReturn(TEST_KEY);
+      when(archivedBlob.getGeneration()).thenReturn(98765L);
+
+      @SuppressWarnings("unchecked")
+      Page<Blob> versionsPage = mock(Page.class);
+      when(versionsPage.iterateAll()).thenReturn(List.of(archivedBlob));
+      when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+          .thenReturn(versionsPage);
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+      ResourceNotFoundException thrown = assertThrows(
+          ResourceNotFoundException.class,
+          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+
+      ArchiveInfo archiveInfo = thrown.getArchiveInfo();
+      assertNotNull(archiveInfo);
+      assertTrue(archiveInfo.isArchived());
+      assertEquals("98765", archiveInfo.getVersionId());
+    }
+  }
+
+  @Test
+  void testDoDownload_checkArchived_neverExisted() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      DownloadRequest downloadRequest = DownloadRequest.builder()
+          .withKey(TEST_KEY)
+          .withCheckArchived(true)
+          .build();
+
+      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+      when(mockStorage.get(blobId)).thenReturn(null);
+
+      @SuppressWarnings("unchecked")
+      Page<Blob> versionsPage = mock(Page.class);
+      when(versionsPage.iterateAll()).thenReturn(Collections.emptyList());
+      when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class)))
+          .thenReturn(versionsPage);
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+      ResourceNotFoundException thrown = assertThrows(
+          ResourceNotFoundException.class,
+          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+
+      assertNull(thrown.getArchiveInfo());
+      assertTrue(thrown.getMessage().startsWith("Blob not found"));
+    }
+  }
+
+  @Test
+  void testDoDownload_checkArchivedFalse_noListCall() {
+    try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
+      DownloadRequest downloadRequest = DownloadRequest.builder()
+          .withKey(TEST_KEY)
+          .withCheckArchived(false)
+          .build();
+
+      BlobId blobId = BlobId.of(TEST_BUCKET, TEST_KEY);
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(blobId);
+      when(mockStorage.get(blobId)).thenReturn(null);
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+      ResourceNotFoundException thrown = assertThrows(
+          ResourceNotFoundException.class,
+          () -> gcpBlobStore.doDownload(downloadRequest, outputStream));
+
+      assertNull(thrown.getArchiveInfo());
+      verify(mockStorage, never()).list(anyString(), any(Storage.BlobListOption[].class));
+    }
   }
 }

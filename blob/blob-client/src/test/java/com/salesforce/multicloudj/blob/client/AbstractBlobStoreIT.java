@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -163,7 +164,9 @@ public abstract class AbstractBlobStoreIT {
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
 
-  /** Initializes the WireMock server before all tests. */
+  /**
+   * Initializes the WireMock server before all tests.
+   */
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
@@ -173,14 +176,18 @@ public abstract class AbstractBlobStoreIT {
         harness.getWiremockExtensions().toArray(new String[0]));
   }
 
-  /** Shuts down the WireMock server after all tests. */
+  /**
+   * Shuts down the WireMock server after all tests.
+   */
   @AfterAll
   public void shutdownWireMockServer() throws Exception {
     TestsUtil.stopWireMockServer();
     harness.close();
   }
 
-  /** Initialize the harness and */
+  /**
+   * Initialize the harness and
+   */
   @BeforeEach
   public void setupTestEnvironment(TestInfo testInfo) {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
@@ -189,7 +196,9 @@ public abstract class AbstractBlobStoreIT {
     TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
   }
 
-  /** Cleans up the test environment after each test. */
+  /**
+   * Cleans up the test environment after each test.
+   */
   @AfterEach
   public void cleanupTestEnvironment() {
     TestsUtil.stopWireMockRecording();
@@ -211,7 +220,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testInvalidCredentials() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
     AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -937,7 +945,9 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading content using the overloaded download() types */
+  /**
+   * Helper function for downloading content using the overloaded download() types
+   */
   private Pair<DownloadResponse, byte[]> readContent(
       BucketClient bucketClient, DownloadRequest request, DownloadType downloadType)
       throws IOException {
@@ -957,7 +967,7 @@ public abstract class AbstractBlobStoreIT {
         response = bucketClient.download(request);
         if (response.getInputStream() != null) {
           try (InputStream inputStream = response.getInputStream();
-              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+               ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -1242,7 +1252,7 @@ public abstract class AbstractBlobStoreIT {
       UploadResponse uploadResponse1;
       UploadResponse uploadResponse2;
       try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-          InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+           InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
         UploadRequest request1 =
             new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
         uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -1620,7 +1630,7 @@ public abstract class AbstractBlobStoreIT {
 
     // Verify the copied contents are the same
     try (ByteArrayOutputStream originalOutputStream = new ByteArrayOutputStream();
-        ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
+         ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
 
       bucketClient.download(
           new DownloadRequest.Builder()
@@ -1932,13 +1942,13 @@ public abstract class AbstractBlobStoreIT {
     String prefixKey = baseKey + "/prefix";
     String[] keys =
         new String[] {
-          baseKey,
-          prefixKey + "-1",
-          prefixKey + "-2",
-          prefixKey + "_3",
-          prefixKey + "-4",
-          prefixKey + "-5",
-          prefixKey + "_6"
+            baseKey,
+            prefixKey + "-1",
+            prefixKey + "-2",
+            prefixKey + "_3",
+            prefixKey + "-4",
+            prefixKey + "-5",
+            prefixKey + "_6"
         };
     byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
 
@@ -2063,10 +2073,10 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-basic/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2110,10 +2120,10 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-nested/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2152,8 +2162,8 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-all-dirs/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir2/b.txt"
+        base + "dir1/a.txt",
+        base + "dir2/b.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2194,10 +2204,10 @@ public abstract class AbstractBlobStoreIT {
     // 3 virtual dirs + 1 top-level blob = 4 total entries; maxResults=2 forces 2 pages
     String base = "conformance-tests/common-prefix-multipage/";
     String[] keys = {
-      base + "a/file.txt",
-      base + "b/file.txt",
-      base + "c/file.txt",
-      base + "root.txt"
+        base + "a/file.txt",
+        base + "b/file.txt",
+        base + "c/file.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2556,7 +2566,9 @@ public abstract class AbstractBlobStoreIT {
         () -> bucketClient.getMetadata("conformance-tests/non-existent-blob", null));
   }
 
-  /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
+  /**
+   * Fixed retainUntil for object lock tests so WireMock replay matches recorded request body.
+   */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
       Instant.parse("2026-03-11T15:47:28.252Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
@@ -3779,7 +3791,7 @@ public abstract class AbstractBlobStoreIT {
     UploadResponse uploadResponse2;
 
     try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-        InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+         InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
       UploadRequest request1 =
           new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
       uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -3819,7 +3831,9 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertFalse(bucketClient.doesBucketExist());
   }
 
-  /** Helper function for uploading to a presignedUrl */
+  /**
+   * Helper function for uploading to a presignedUrl
+   */
   void useHttpUrlConnectionToPut(
       Harness harness,
       URL presignedUrl,
@@ -3844,7 +3858,7 @@ public abstract class AbstractBlobStoreIT {
     connection.setRequestMethod("PUT");
 
     try (InputStream inputStream = new ByteArrayInputStream(blobBytes);
-        OutputStream out = connection.getOutputStream()) {
+         OutputStream out = connection.getOutputStream()) {
       byte[] buffer = new byte[1024];
       int bytesRead;
       while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -3857,7 +3871,9 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading from a presignedUrl */
+  /**
+   * Helper function for downloading from a presignedUrl
+   */
   public byte[] useHttpUrlConnectionToGet(URL presignedUrl) throws IOException {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
@@ -3872,7 +3888,9 @@ public abstract class AbstractBlobStoreIT {
     return byteArrayOutputStream.toByteArray();
   }
 
-  /** Helper function to generate the tag header value of the format tag1=value1&tag2=value2 */
+  /**
+   * Helper function to generate the tag header value of the format tag1=value1&tag2=value2
+   */
   protected String generateTagsValue(Map<String, String> tags) {
     if (tags == null || tags.isEmpty()) {
       return null;
@@ -4321,6 +4339,72 @@ public abstract class AbstractBlobStoreIT {
 
     } finally {
       safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/check-archived/archived-blob";
+
+    try {
+      byte[] blobBytes = "archived content".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      bucketClient.delete(key, null);
+
+      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        bucketClient.download(
+            new DownloadRequest.Builder().withKey(key).withCheckArchived(true).build(),
+            outputStream);
+        Assertions.fail("Should have thrown ResourceNotFoundException");
+      } catch (ResourceNotFoundException e) {
+        ArchiveInfo archiveInfo = e.getArchiveInfo();
+        Assertions.assertNotNull(archiveInfo, "ArchiveInfo should be non-null for archived blob");
+        Assertions.assertTrue(archiveInfo.isArchived(), "archived flag should be true");
+        Assertions.assertFalse(archiveInfo.getVersionId().isEmpty(),
+            "versionId should not be empty");
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+          bucketClient.download(
+              new DownloadRequest.Builder()
+                  .withKey(key)
+                  .withVersionId(archiveInfo.getVersionId())
+                  .build(),
+              outputStream);
+          Assertions.assertArrayEquals(blobBytes, outputStream.toByteArray(),
+              "Should be able to download archived version by versionId");
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived_neverExisted() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      bucketClient.download(
+          new DownloadRequest.Builder()
+              .withKey("conformance-tests/check-archived/never-existed")
+              .withCheckArchived(true)
+              .build(),
+          outputStream);
+      Assertions.fail("Should have thrown ResourceNotFoundException");
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo != null) {
+        Assertions.assertFalse(archiveInfo.isArchived(),
+            "archived flag should be false for never-existed blob");
+      }
     }
   }
 }

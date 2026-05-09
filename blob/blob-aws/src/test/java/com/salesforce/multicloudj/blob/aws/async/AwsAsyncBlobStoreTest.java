@@ -43,7 +43,9 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -67,6 +69,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -90,6 +93,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
@@ -116,11 +120,14 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -1844,5 +1851,95 @@ public class AwsAsyncBlobStoreTest {
     assertNotNull(store);
     assertInstanceOf(AwsAsyncBlobStore.class, store);
     assertEquals(BUCKET, store.getBucket());
+  }
+
+  @Test
+  void testHandleArchivedObjects_archivedObject() throws Exception {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    when(mockS3Client.getObject(any(GetObjectRequest.class), any(AsyncResponseTransformer.class)))
+        .thenReturn(CompletableFuture.failedFuture(s3Exception));
+
+    ObjectVersion objectVersion = mock(ObjectVersion.class);
+    when(objectVersion.key()).thenReturn("archived-key");
+    when(objectVersion.versionId()).thenReturn("v123");
+
+    ListObjectVersionsResponse versionsResponse = mock(ListObjectVersionsResponse.class);
+    when(versionsResponse.versions()).thenReturn(List.of(objectVersion));
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(CompletableFuture.completedFuture(versionsResponse));
+
+    CompletableFuture<DownloadResponse> future = aws.doDownload(
+        request, new java.io.ByteArrayOutputStream());
+
+    ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+    assertInstanceOf(ResourceNotFoundException.class, ex.getCause());
+    ResourceNotFoundException rnfe = (ResourceNotFoundException) ex.getCause();
+    ArchiveInfo archiveInfo = rnfe.getArchiveInfo();
+    assertNotNull(archiveInfo);
+    assertTrue(archiveInfo.isArchived());
+    assertEquals("v123", archiveInfo.getVersionId());
+  }
+
+  @Test
+  void testHandleArchivedObjects_noDeleteMarkerHeader() throws Exception {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("missing-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(false);
+
+    when(mockS3Client.getObject(any(GetObjectRequest.class), any(AsyncResponseTransformer.class)))
+        .thenReturn(CompletableFuture.failedFuture(s3Exception));
+
+    CompletableFuture<DownloadResponse> future = aws.doDownload(
+        request, new java.io.ByteArrayOutputStream());
+
+    ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+    assertInstanceOf(S3Exception.class, ex.getCause());
+  }
+
+  @Test
+  void testHandleArchivedObjects_checkArchivedFalse() throws Exception {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(false)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    when(mockS3Client.getObject(any(GetObjectRequest.class), any(AsyncResponseTransformer.class)))
+        .thenReturn(CompletableFuture.failedFuture(s3Exception));
+
+    CompletableFuture<DownloadResponse> future = aws.doDownload(
+        request, new java.io.ByteArrayOutputStream());
+
+    ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+    assertInstanceOf(S3Exception.class, ex.getCause());
+  }
+
+  private S3Exception mockS3ExceptionWithDeleteMarkerHeader(boolean includeHeader) {
+    SdkHttpResponse sdkHttpResponse = mock(SdkHttpResponse.class);
+    if (includeHeader) {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.of("true"));
+    } else {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.empty());
+    }
+
+    AwsErrorDetails errorDetails = mock(AwsErrorDetails.class);
+    when(errorDetails.sdkHttpResponse()).thenReturn(sdkHttpResponse);
+
+    S3Exception s3Exception = mock(S3Exception.class);
+    when(s3Exception.statusCode()).thenReturn(404);
+    when(s3Exception.awsErrorDetails()).thenReturn(errorDetails);
+    return s3Exception;
   }
 }

@@ -74,6 +74,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -209,12 +210,12 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
+    Blob blob = getRequiredBlobForDownload(downloadRequest);
     // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
     // ReadChannel streaming (parallelDownload is ignored for this overload).
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
 
-      Blob blob = getRequiredBlob(blobId);
       var range =
           transformer.computeRange(
               downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
@@ -249,8 +250,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlob(blobId);
+    Blob blob = getRequiredBlobForDownload(downloadRequest);
     try {
       ReadChannel reader = blob.reader();
       var range =
@@ -301,7 +301,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   private DownloadResponse doParallelDownload(DownloadRequest downloadRequest, Path destination) {
     BlobId blobId = transformer.toBlobId(downloadRequest);
-    Blob blob = getRequiredBlob(blobId);
+    Blob blob = getRequiredBlobForDownload(downloadRequest);
     ParallelTmPaths tmPaths = computeParallelTmPaths(downloadRequest, destination);
     if (transferManager == null || tmPaths == null) {
       return downloadBlobToPath(blob, destination);
@@ -684,6 +684,38 @@ public class GcpBlobStore extends AbstractBlobStore {
           "Blob not found: " + blobId.getBucket() + "/" + blobId.getName());
     }
     return blob;
+  }
+
+  private Blob getRequiredBlobForDownload(DownloadRequest downloadRequest) {
+    BlobId getBlob = transformer.toBlobId(downloadRequest);
+    Blob blob = storage.get(getBlob);
+    if (blob != null) {
+      return blob;
+    }
+    if (downloadRequest.isCheckArchived()) {
+      handleArchived(getBlob);
+    }
+    throw new ResourceNotFoundException(
+        "Blob not found: " + getBlob.getBucket() + "/" + getBlob.getName());
+  }
+
+  private void handleArchived(BlobId blobId) {
+    Page<Blob> versions = storage.list(
+        blobId.getBucket(),
+        Storage.BlobListOption.prefix(blobId.getName()),
+        Storage.BlobListOption.versions(true),
+        Storage.BlobListOption.pageSize(1));
+    for (Blob archivedBlob : versions.iterateAll()) {
+      if (archivedBlob.getName().equals(blobId.getName())) {
+        throw new ResourceNotFoundException(
+            "Object is archived: " + blobId.getName(),
+            null,
+            ArchiveInfo.builder()
+                .archived(true)
+                .versionId(archivedBlob.getGeneration().toString())
+                .build());
+      }
+    }
   }
 
   /**
