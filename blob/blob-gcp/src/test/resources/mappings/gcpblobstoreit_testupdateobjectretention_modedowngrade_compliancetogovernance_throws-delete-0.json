@@ -1,0 +1,25 @@
+{
+  "id" : "e084a916-2fe5-4555-9989-54cc713ccb6e",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-downgrade",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEisT3rhLqG9nLCBv5dUoJMteQSk6uCOKUVA2Rwt7RvURw6PaaQKUiseQHvW3Rt_LBQa",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 11 May 2026 11:07:00 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "e084a916-2fe5-4555-9989-54cc713ccb6e",
+  "persistent" : true,
+  "insertionIndex" : 1265
+}

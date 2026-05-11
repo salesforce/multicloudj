@@ -1,0 +1,48 @@
+{
+  "id" : "80be36e8-d2cf-4d51-9baa-0d127e933885",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withBypass_succeeds-POST-7",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/update/mode-upgrade"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/update/mode-upgrade\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2030-01-01T00:00:00.000Z\"},\"temporaryHold\":false}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEjpHI2zSuUxQMZKt391BlH-1uANNZYndTUC0Hcw6O961JXYlXiQH8vu6LLeJ02daMrvRypcD4M5YVTgf6GLLRyjbhfAZYoUn00tAOarvLg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 11 May 2026 11:06:50 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/objectlock/update/mode-upgrade&uploadType=resumable&upload_id=AAVLpEjpHI2zSuUxQMZKt391BlH-1uANNZYndTUC0Hcw6O961JXYlXiQH8vu6LLeJ02daMrvRypcD4M5YVTgf6GLLRyjbhfAZYoUn00tAOarvLg",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "80be36e8-d2cf-4d51-9baa-0d127e933885",
+  "persistent" : true,
+  "insertionIndex" : 1263
+}

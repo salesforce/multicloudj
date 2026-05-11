@@ -1,0 +1,41 @@
+{
+  "id" : "a1f38bf6-6dbd-4f4c-8453-88554731cd8b",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withBypass_succeeds-GET-4",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-upgrade",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/mode-upgrade/1778497610582343\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-upgrade\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fmode-upgrade?generation=1778497610582343&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/mode-upgrade\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778497610582343\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"65\",\n  \"md5Hash\": \"MLjk+GJKWHZkbJZ2dE1FeQ==\",\n  \"crc32c\": \"d5fzBw==\",\n  \"etag\": \"CMeSwPKLsZQDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-05-11T11:06:50.642Z\",\n  \"updated\": \"2026-05-11T11:06:50.642Z\",\n  \"timeStorageClassUpdated\": \"2026-05-11T11:06:50.642Z\",\n  \"timeFinalized\": \"2026-05-11T11:06:50.642Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CMeSwPKLsZQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEirxDCtCU_bK_XdBfbUxgJHm4wS1tHwsBHS2IfPVQjLDu9OcJ3M5y-VUN1kTP4dsvI",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 11 May 2026 11:06:51 GMT",
+      "Date" : "Mon, 11 May 2026 11:06:51 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a1f38bf6-6dbd-4f4c-8453-88554731cd8b",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-mode-upgrade",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-mode-upgrade-2",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-mode-upgrade-3",
+  "insertionIndex" : 1260
+}
