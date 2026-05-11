@@ -409,4 +409,56 @@ public class AbstractBlobStoreTest {
     verify(validator, times(1)).validateKey(any());
     verify(mockBlobStore, times(1)).doDoesObjectExist("object-1", "version-1");
   }
+
+  // ---- updateObjectRetention(key, versionId, ObjectRetentionConfig) -------------------
+
+  @Test
+  void updateObjectRetentionConfig_validatesAndDelegatesToHook() {
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(ObjectRetentionConfig.class));
+    // Stub the provider hook so the spy doesn't trip the default UnsupportedOperationException.
+    org.mockito.Mockito.doNothing()
+        .when(mockBlobStore)
+        .doUpdateObjectRetention(any(), any(), any());
+    java.time.Instant date = java.time.Instant.parse("2030-01-01T00:00:00Z");
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(date)
+            .build();
+
+    mockBlobStore.updateObjectRetention("object-1", "version-1", cfg);
+
+    verify(validator, times(1)).validate(cfg);
+    verify(mockBlobStore, times(1)).doUpdateObjectRetention("object-1", "version-1", cfg);
+  }
+
+  @Test
+  void updateObjectRetention_deprecatedPath_delegatesToNewMethodWithModeNullAndNoBypass() {
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(java.time.Instant.class));
+    doCallRealMethod()
+        .when(mockBlobStore)
+        .updateObjectRetention(any(), any(), any(ObjectRetentionConfig.class));
+    org.mockito.Mockito.doNothing()
+        .when(mockBlobStore)
+        .doUpdateObjectRetention(any(), any(), any());
+    java.time.Instant date = java.time.Instant.parse("2030-01-01T00:00:00Z");
+
+    mockBlobStore.updateObjectRetention("object-1", "version-1", date);
+
+    ArgumentCaptor<ObjectRetentionConfig> captor =
+        ArgumentCaptor.forClass(ObjectRetentionConfig.class);
+    verify(mockBlobStore, times(1))
+        .doUpdateObjectRetention(eq("object-1"), eq("version-1"), captor.capture());
+    ObjectRetentionConfig delegated = captor.getValue();
+    assertEquals(date, delegated.getRetainUntilDate());
+    // Deprecated path always delegates with mode=null (preserve current) and bypass=false (no
+    // bypass) — historical behavior of the Instant overload.
+    org.junit.jupiter.api.Assertions.assertNull(delegated.getMode());
+    org.junit.jupiter.api.Assertions.assertEquals(
+        Boolean.FALSE, delegated.getBypassGovernanceRetention());
+  }
 }

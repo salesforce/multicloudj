@@ -805,7 +805,7 @@ public class BucketClientTest {
     Instant retainUntil = Instant.now().plusSeconds(3600);
     doThrow(RuntimeException.class)
         .when(mockBlobStore)
-        .updateObjectRetention(anyString(), any(), any());
+        .updateObjectRetention(anyString(), any(), any(Instant.class));
     assertThrows(
         UnAuthorizedException.class,
         () -> {

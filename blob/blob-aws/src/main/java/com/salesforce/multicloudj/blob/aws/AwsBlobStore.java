@@ -19,7 +19,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -622,6 +625,58 @@ public class AwsBlobStore extends AbstractBlobStore {
 
     s3Client.putObjectRetention(
         transformer.toPutObjectRetentionRequest(key, versionId, currentMode, retainUntilDate));
+  }
+
+  /**
+   * Provider hook for {@link
+   * com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String, String,
+   * ObjectRetentionConfig)}.
+   *
+   * <p>Stateless validation has already run; this method enforces the state-dependent rules from
+   * {@link ObjectRetentionRules} (no-current-retention, mode-downgrade, shorten-with-bypass) so
+   * AWS surfaces the same {@code FailedPreconditionException} types and messages as GCP and the
+   * in-memory provider.
+   */
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    GetObjectRetentionResponse currentRetentionResponse =
+        s3Client.getObjectRetention(transformer.toGetObjectRetentionRequest(key, versionId));
+
+    RetentionMode currentMode = null;
+    Instant currentRetainUntil = null;
+    if (currentRetentionResponse != null && currentRetentionResponse.retention() != null) {
+      currentMode = toMulticloudMode(currentRetentionResponse.retention().mode());
+      currentRetainUntil = currentRetentionResponse.retention().retainUntilDate();
+    }
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
+    s3Client.putObjectRetention(
+        transformer.toPutObjectRetentionRequest(
+            key, versionId, toAwsRetentionMode(resolvedMode), config.getRetainUntilDate(), bypass));
+  }
+
+  /**
+   * Converts a MultiCloudJ {@link RetentionMode} to an AWS {@link ObjectLockRetentionMode}.
+   * Mapping: GOVERNANCE↔GOVERNANCE, COMPLIANCE↔COMPLIANCE.
+   */
+  private static ObjectLockRetentionMode toAwsRetentionMode(RetentionMode mode) {
+    return mode == RetentionMode.COMPLIANCE
+        ? ObjectLockRetentionMode.COMPLIANCE
+        : ObjectLockRetentionMode.GOVERNANCE;
+  }
+
+  /** Inverse of {@link #toAwsRetentionMode(RetentionMode)}. */
+  private static RetentionMode toMulticloudMode(ObjectLockRetentionMode mode) {
+    if (mode == null) {
+      return null;
+    }
+    return mode == ObjectLockRetentionMode.COMPLIANCE
+        ? RetentionMode.COMPLIANCE
+        : RetentionMode.GOVERNANCE;
   }
 
   /** Updates legal hold status on an object. */
