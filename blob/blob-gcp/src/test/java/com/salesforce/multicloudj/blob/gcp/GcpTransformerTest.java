@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
 import java.io.IOException;
@@ -230,6 +231,59 @@ class GcpTransformerTest {
     assertEquals(TEST_KEY, blobInfo.getName());
     assertNotNull(blobInfo.getMetadata());
     assertTrue(blobInfo.getMetadata().isEmpty());
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdInjectedIntoMetadata() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get("correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdNotInjectedWhenContextMissing() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertFalse(
+        blobInfo.getMetadata().containsKey("correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testToBlobInfo_userSuppliedCorrelationIdNotOverwritten() {
+    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get("correlation-id"),
+        "application's explicit correlation-id metadata value must take precedence");
   }
 
   @Test

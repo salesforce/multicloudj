@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -105,6 +106,13 @@ import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 public class AwsTransformer {
+
+  /**
+   * Object-metadata key under which the SDK persists the operation correlation id during upload,
+   * so the value is stored on the blob (as {@code x-amz-meta-correlation-id} in S3) and matches
+   * the correlation id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
 
   private final String bucket;
 
@@ -182,11 +190,23 @@ public class AwsTransformer {
         request.getTags().entrySet().stream()
             .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
             .collect(Collectors.toList());
+
+    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
+    // stored object so it persists in S3 alongside the user's metadata. Skipped when the
+    // request carries no operation context, or when the app has supplied the same key
+    // explicitly.
+    Map<String, String> metadata = new HashMap<>(request.getMetadata());
+    if (request.getOperationContext() != null
+        && request.getOperationContext().getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId());
+    }
+
     PutObjectRequest.Builder builder =
         PutObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(request.getMetadata())
+            .metadata(metadata)
             .tagging(Tagging.builder().tagSet(tags).build());
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {

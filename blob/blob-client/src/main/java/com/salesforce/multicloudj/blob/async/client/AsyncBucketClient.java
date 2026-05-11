@@ -90,7 +90,8 @@ public class AsyncBucketClient implements AutoCloseable {
         bucketAttrs(),
         uploadRequest.getOperationContext(),
         ctx ->
-            uploadResponseWithCorrelationId(blobStore.upload(uploadRequest, inputStream), ctx)
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), inputStream), ctx)
                 .exceptionally(this::handleException));
   }
 
@@ -101,7 +102,8 @@ public class AsyncBucketClient implements AutoCloseable {
         bucketAttrs(),
         uploadRequest.getOperationContext(),
         ctx ->
-            uploadResponseWithCorrelationId(blobStore.upload(uploadRequest, content), ctx)
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), content), ctx)
                 .exceptionally(this::handleException));
   }
 
@@ -112,7 +114,8 @@ public class AsyncBucketClient implements AutoCloseable {
         bucketAttrs(),
         uploadRequest.getOperationContext(),
         ctx ->
-            uploadResponseWithCorrelationId(blobStore.upload(uploadRequest, file), ctx)
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), file), ctx)
                 .exceptionally(this::handleException));
   }
 
@@ -123,7 +126,8 @@ public class AsyncBucketClient implements AutoCloseable {
         bucketAttrs(),
         uploadRequest.getOperationContext(),
         ctx ->
-            uploadResponseWithCorrelationId(blobStore.upload(uploadRequest, path), ctx)
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), path), ctx)
                 .exceptionally(this::handleException));
   }
 
@@ -472,6 +476,29 @@ public class AsyncBucketClient implements AutoCloseable {
         .eTag(r.getETag())
         .lastModified(r.getLastModified())
         .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  /**
+   * See {@link com.salesforce.multicloudj.blob.client.BucketClient#withResolvedContext}.
+   */
+  static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
+    if (ctx == req.getOperationContext()) {
+      return req;
+    }
+    return UploadRequest.builder()
+        .withKey(req.getKey())
+        .withContentLength(req.getContentLength())
+        .withMetadata(req.getMetadata())
+        .withTags(req.getTags())
+        .withStorageClass(req.getStorageClass())
+        .withKmsKeyId(req.getKmsKeyId())
+        .withUseKmsManagedKey(req.isUseKmsManagedKey())
+        .withObjectLock(req.getObjectLock())
+        .withChecksumValue(req.getChecksumValue())
+        .withChecksumAlgorithm(req.getChecksumAlgorithm())
+        .withContentType(req.getContentType())
+        .withOperationContext(ctx)
         .build();
   }
 
