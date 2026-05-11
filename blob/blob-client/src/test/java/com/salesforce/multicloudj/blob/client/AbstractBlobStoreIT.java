@@ -4436,8 +4436,13 @@ public abstract class AbstractBlobStoreIT {
             "archived flag should be false for never-existed blob");
       }
     }
+  }
 
+  @Test
   public void testUploadDirectory_WithObjectLock(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        GCP_PROVIDER_ID.equals(harness.getProviderId()),
+        "Directory upload with object lock conformance test runs only for GCP");
     Assumptions.assumeTrue(
         harness.isObjectLockSupported(), "Object lock not supported by this provider");
     Assumptions.assumeTrue(
