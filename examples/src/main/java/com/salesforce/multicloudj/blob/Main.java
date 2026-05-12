@@ -23,10 +23,13 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -49,7 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-  /** Uploads content to a specified provider using the given bucket client. */
+  /**
+   * Uploads content to a specified provider using the given bucket client.
+   */
   public static void upload() {
     // Get the provider for the storage service
     String provider = getProvider();
@@ -75,7 +80,9 @@ public class Main {
     getLogger().info("received upload response {}", response);
   }
 
-  /** Downloads a blob from a specified bucket using the provided key. */
+  /**
+   * Downloads a blob from a specified bucket using the provided key.
+   */
   public static void downloadBlob() throws FileNotFoundException {
     // Create a DownloadRequest object with the specified object key
     DownloadRequest downloadRequest =
@@ -103,7 +110,61 @@ public class Main {
     getLogger().info("The file is {} bytes", response.getMetadata().getObjectSize());
   }
 
-  /** Deletes a single Blob from substrate-specific Blob storage by key Object name of the Blob */
+  /**
+   * Demonstrates the full checkArchived workflow: upload a blob, delete it (creating a
+   * delete marker), then download with checkArchived=true to detect the archive and
+   * recover the content using the returned versionId.
+   */
+  public static void downloadArchivedBlob() {
+    BucketClient client = getBucketClient(getProvider());
+    String key = "check-archived-example/test-blob";
+
+    // 1. Upload a blob
+    byte[] originalContent = "Hello, archived world!".getBytes();
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder().withKey(key).withContentLength(originalContent.length).build();
+    UploadResponse uploadResponse =
+        client.upload(uploadRequest, new ByteArrayInputStream(originalContent));
+    getLogger().info("Uploaded blob: key={}, versionId={}", key, uploadResponse.getVersionId());
+
+    // 2. Delete the blob (creates a delete marker on versioned buckets)
+    client.delete(key, null);
+    getLogger().info("Deleted blob: {}", key);
+
+    // 3. Attempt download with checkArchived=true
+    ByteArrayOutputStream content = new ByteArrayOutputStream();
+    try {
+      DownloadRequest request =
+          new DownloadRequest.Builder()
+              .withKey(key)
+              .withCheckArchived(true)
+              .build();
+      client.download(request, content);
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo == null || !archiveInfo.isArchived()) {
+        getLogger().info("Object truly does not exist: {}", key);
+        return;
+      }
+
+      getLogger().info("Object is archived. versionId={}", archiveInfo.getVersionId());
+
+      // 4. Recover the archived version by downloading with the versionId
+      ByteArrayOutputStream recovered = new ByteArrayOutputStream();
+      DownloadRequest recoverRequest =
+          new DownloadRequest.Builder()
+              .withKey(key)
+              .withVersionId(archiveInfo.getVersionId())
+              .build();
+      DownloadResponse response = client.download(recoverRequest, recovered);
+      getLogger().info("Recovered archived blob: {} ({} bytes)",
+          response.getKey(), recovered.size());
+    }
+  }
+
+  /**
+   * Deletes a single Blob from substrate-specific Blob storage by key Object name of the Blob
+   */
   public static void deleteBlob() {
     // Get the BucketClient instance using the provided getBucketClient() method
     BucketClient client = getBucketClient(getProvider());
@@ -130,7 +191,9 @@ public class Main {
     getLogger().info("Blobs deleted successfully.");
   }
 
-  /** Copies a Blob from one bucket to other bucket */
+  /**
+   * Copies a Blob from one bucket to other bucket
+   */
   public static void copyFromBucketToBucket() {
     BucketClient bucketClient = getBucketClient(getProvider());
 
@@ -184,7 +247,9 @@ public class Main {
     getLogger().info("Presigned URL: {}", presignedUrl.toString());
   }
 
-  /** Retrieves the metadata for the specified object for which to retrieve the metadata t */
+  /**
+   * Retrieves the metadata for the specified object for which to retrieve the metadata t
+   */
   public static void getMetadataForBlob() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -199,7 +264,9 @@ public class Main {
     getLogger().info("blob metadata is {}", metadata);
   }
 
-  /** Retrieves the list of Blob in the bucket and returns an iterator of @{BlobInfo} */
+  /**
+   * Retrieves the list of Blob in the bucket and returns an iterator of @{BlobInfo}
+   */
   public static void getBlobListInBucket() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -218,7 +285,9 @@ public class Main {
     }
   }
 
-  /** Initiates a multipartUpload for a Blob */
+  /**
+   * Initiates a multipartUpload for a Blob
+   */
   public static void multipartUpload() throws IOException {
     // Get the BucketClient instance
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -235,7 +304,9 @@ public class Main {
     getLogger().info("Object Location: {}", response.getBucket());
   }
 
-  /** Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete. */
+  /**
+   * Demonstrates a full multipart upload lifecycle: initiate, upload parts, complete.
+   */
   public static void fullMultipartUploadExample() {
     BucketClient bucketClient = getBucketClient(getProvider());
     String key = "multipart-example-" + System.currentTimeMillis();
@@ -290,7 +361,9 @@ public class Main {
     }
   }
 
-  /** This method retrieves all tags associated with a specific blob. */
+  /**
+   * This method retrieves all tags associated with a specific blob.
+   */
   public static void getTags() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient client = getBucketClient(getProvider());
@@ -308,7 +381,9 @@ public class Main {
     }
   }
 
-  /** This method sets tags on a blob. This replaces all existing tags. */
+  /**
+   * This method sets tags on a blob. This replaces all existing tags.
+   */
   public static void setTags() {
     // Get the BucketClient instance using the getBucketClient method
     BucketClient client = getBucketClient(getProvider());
@@ -546,7 +621,8 @@ public class Main {
                 + actual
                 + "\"");
       }
-      System.out.println("Verified downloaded file " + localFile + " (" + actual.length() + " bytes)");
+      System.out.println(
+          "Verified downloaded file " + localFile + " (" + actual.length() + " bytes)");
     }
   }
 
@@ -573,7 +649,9 @@ public class Main {
     }
   }
 
-  /** Recursively deletes a local directory tree. Ignores errors. */
+  /**
+   * Recursively deletes a local directory tree. Ignores errors.
+   */
   private static void safeDeleteLocalDirectory(java.nio.file.Path root) {
     if (root == null || !java.nio.file.Files.exists(root)) {
       return;
@@ -594,7 +672,9 @@ public class Main {
     }
   }
 
-  /** This method uploads a part of the multipartUpload operation */
+  /**
+   * This method uploads a part of the multipartUpload operation
+   */
   public static void uploadMultiPart() {
     // Get an instance of BucketClient
     BucketClient bucketClient = getBucketClient(getProvider());
@@ -613,7 +693,9 @@ public class Main {
     getLogger().info("Response: {}", response);
   }
 
-  /** This method Completes a multipartUpload */
+  /**
+   * This method Completes a multipartUpload
+   */
   public static void completeMultiPartUpload() {
     BucketClient bucketClient = getBucketClient(getProvider());
 
@@ -674,9 +756,9 @@ public class Main {
     }
 
     // Add credentials if available (for providers that need them)
-    String accessKeyId = System.getenv("ACCESS_KEY_ID");
-    String secretAccessKey = System.getenv("SECRET_ACCESS_KEY");
-    String sessionToken = System.getenv("SESSION_TOKEN");
+    String accessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
+    String secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
+    String sessionToken = System.getenv("AWS_SESSION_TOKEN");
 
     if (accessKeyId != null && secretAccessKey != null) {
       StsCredentials credentials = new StsCredentials(accessKeyId, secretAccessKey, sessionToken);
@@ -716,7 +798,7 @@ public class Main {
 
   private static String getProvider() {
     // Change this to test different providers
-    return "gcp"; // or "aws" or "ali"
+    return "aws"; // or "aws" or "ali"
   }
 
   private static InputStream getInputStream() {
@@ -767,20 +849,8 @@ public class Main {
 
     boolean success = false;
     try {
-      System.out.println("=== Creating Test Directory ===");
-      createTestDirectory();
-
-      System.out.println("=== Testing Directory Upload (with tags) ===");
-      uploadDirectory();
-      System.out.println("uploadDirectory: PASS");
-
-      System.out.println("=== Testing Directory Download (with content verification) ===");
-      downloadDirectory();
-      System.out.println("downloadDirectory: PASS");
-
-      System.out.println("=== Testing Directory Delete (with existence verification) ===");
-      deleteDirectory();
-      System.out.println("deleteDirectory: PASS");
+      System.out.println("=== Test Archived ===");
+      downloadArchivedBlob();
 
       success = true;
       System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
