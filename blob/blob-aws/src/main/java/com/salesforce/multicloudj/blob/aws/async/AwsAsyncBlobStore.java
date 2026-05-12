@@ -33,7 +33,9 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -46,9 +48,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -69,8 +73,10 @@ import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.Tag;
@@ -143,7 +149,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, OutputStream outputStream) {
-    return client
+    CompletableFuture<DownloadResponse> future = client
         .getObject(transformer.toRequest(request), AsyncResponseTransformer.toBlockingInputStream())
         .thenApply(
             response -> {
@@ -155,18 +161,20 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
               }
               return transformer.toDownloadResponse(request, response.response());
             });
+    return handleArchivedObjects(request, future);
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, ByteArray byteArray) {
-    return client
+    CompletableFuture<DownloadResponse> future = client
         .getObject(transformer.toRequest(request), AsyncResponseTransformer.toBytes())
         .thenApply(
             responseBytes -> {
               byteArray.setBytes(responseBytes.asByteArray());
               return transformer.toDownloadResponse(request, responseBytes.response());
             });
+    return handleArchivedObjects(request, future);
   }
 
   @Override
@@ -184,16 +192,19 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request, Path path) {
     Path destinationPath = createDownloadDestinationPath(request, path);
+    CompletableFuture<DownloadResponse> future;
     if (request.isParallelDownload()) {
-      return transferManager
+      future = transferManager
           .downloadFile(transformer.toRequest(request, destinationPath))
           .completionFuture()
           .thenApply(
               completed -> transformer.toDownloadResponse(request, completed.response()));
+    } else {
+      future = client
+          .getObject(transformer.toRequest(request), destinationPath)
+          .thenApply(response -> transformer.toDownloadResponse(request, response));
     }
-    return client
-        .getObject(transformer.toRequest(request), destinationPath)
-        .thenApply(response -> transformer.toDownloadResponse(request, response));
+    return handleArchivedObjects(request, future);
   }
 
   /**
@@ -206,12 +217,56 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
     GetObjectRequest getObjectRequest = transformer.toRequest(request);
-    return client
+    CompletableFuture<DownloadResponse> future = client
         .getObject(getObjectRequest, AsyncResponseTransformer.toBlockingInputStream())
         .thenApply(
             responseInputStream ->
                 transformer.toDownloadResponse(
                     request, responseInputStream.response(), responseInputStream));
+    return handleArchivedObjects(request, future);
+  }
+
+  private CompletableFuture<DownloadResponse> handleArchivedObjects(
+      DownloadRequest request, CompletableFuture<DownloadResponse> future) {
+    if (!request.isCheckArchived()) {
+      return future;
+    }
+    return future.handle((result, throwable) -> {
+      if (throwable == null) {
+        return CompletableFuture.completedFuture(result);
+      }
+      Throwable cause = throwable instanceof CompletionException
+          ? throwable.getCause() : throwable;
+      if (!(cause instanceof S3Exception)) {
+        return CompletableFuture.<DownloadResponse>failedFuture(throwable);
+      }
+      S3Exception e = (S3Exception) cause;
+      if (e.statusCode() != 404) {
+        return CompletableFuture.<DownloadResponse>failedFuture(throwable);
+      }
+      boolean isDeleteMarker = e.awsErrorDetails().sdkHttpResponse()
+          .firstMatchingHeader("x-amz-delete-marker")
+          .map("true"::equals)
+          .orElse(false);
+      if (!isDeleteMarker) {
+        return CompletableFuture.<DownloadResponse>failedFuture(throwable);
+      }
+      return client.listObjectVersions(
+          ListObjectVersionsRequest.builder()
+              .bucket(bucket)
+              .prefix(request.getKey())
+              .maxKeys(2) // one for delete marker + one for actual object in stack
+              .build())
+          .thenCompose(versionsResponse -> {
+            Iterator<ObjectVersion> it = versionsResponse.versions().iterator();
+            String versionId = it.hasNext() ? it.next().versionId() : null;
+            return CompletableFuture.<DownloadResponse>failedFuture(
+                new ResourceNotFoundException(
+                    "Object is archived (delete marker): " + request.getKey(),
+                    e,
+                    ArchiveInfo.builder().archived(true).versionId(versionId).build()));
+          });
+    }).thenCompose(f -> f);
   }
 
   @Override

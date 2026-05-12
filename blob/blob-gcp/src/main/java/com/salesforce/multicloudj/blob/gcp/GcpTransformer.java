@@ -97,7 +97,7 @@ public class GcpTransformer {
         uploadRequest.getKey(),
         metadata,
         uploadRequest.getStorageClass(),
-        null,
+        uploadRequest.getChecksumValue(),
         uploadRequest.getObjectLock(),
         uploadRequest.getContentType());
   }

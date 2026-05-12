@@ -14,6 +14,7 @@ public class DownloadRequest {
   private final String kmsKeyId;
   private final boolean parallelDownload;
   private final boolean createParentPath;
+  private final boolean checkArchived;
 
   /**
    * (Optional) Per-call observability context carrying the correlation ID. If null or if its
@@ -30,6 +31,7 @@ public class DownloadRequest {
     this.parallelDownload = builder.parallelDownload;
     this.createParentPath = builder.createParentPath;
     this.operationContext = builder.operationContext;
+    this.checkArchived = builder.checkArchived;
   }
 
   public static Builder builder() {
@@ -45,6 +47,7 @@ public class DownloadRequest {
     private boolean parallelDownload;
     private boolean createParentPath;
     private OperationContext operationContext;
+    private boolean checkArchived;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -136,6 +139,18 @@ public class DownloadRequest {
      */
     public Builder withOperationContext(OperationContext operationContext) {
       this.operationContext = operationContext;
+      return this;
+    }
+    
+    /**
+     * (Optional) If true and the object is not found, the provider will check whether
+     * the object was archived (deletion without version id). When
+     * an archived object is detected, the thrown ResourceNotFoundException will have a
+     * non-null ArchiveInfo with archived=true and, where available, the versionId of
+     * the latest archived version. Defaults to false.
+     */
+    public Builder withCheckArchived(boolean checkArchived) {
+      this.checkArchived = checkArchived;
       return this;
     }
 

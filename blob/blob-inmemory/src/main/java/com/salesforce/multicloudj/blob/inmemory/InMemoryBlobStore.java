@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -208,6 +209,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -241,6 +243,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -279,6 +282,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -330,6 +334,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -365,28 +370,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         LATEST_VERSIONS.remove(baseKey);
       }
     } else {
-      // Delete all versions of this key
-      String latestVersion = LATEST_VERSIONS.get(baseKey);
-      if (latestVersion != null) {
-        String versionedKey = baseKey + ":" + latestVersion;
-        STORAGE.remove(versionedKey);
-        TAGS.remove(versionedKey);
-        OBJECT_LOCKS.remove(versionedKey);
-        LATEST_VERSIONS.remove(baseKey);
-      }
-
-      // Also delete any other versions
-      List<String> keysToDelete = new ArrayList<>();
-      for (String storageKey : STORAGE.keySet()) {
-        if (storageKey.startsWith(baseKey + ":")) {
-          keysToDelete.add(storageKey);
-        }
-      }
-      for (String storageKey : keysToDelete) {
-        STORAGE.remove(storageKey);
-        TAGS.remove(storageKey);
-        OBJECT_LOCKS.remove(storageKey);
-      }
+      // Simulate a delete marker: remove from LATEST_VERSIONS but keep data in STORAGE
+      LATEST_VERSIONS.remove(baseKey);
     }
   }
 
@@ -871,6 +856,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   // Helper methods
+
+  private void checkIfArchived(DownloadRequest downloadRequest) {
+    if (!downloadRequest.isCheckArchived()) {
+      return;
+    }
+    String baseKey = getStorageKey(downloadRequest.getKey());
+    for (String storageKey : STORAGE.keySet()) {
+      if (storageKey.startsWith(baseKey + ":")) {
+        String versionId = storageKey.substring((baseKey + ":").length());
+        throw new ResourceNotFoundException(
+            "Object is archived (delete marker): " + downloadRequest.getKey(),
+            null,
+            ArchiveInfo.builder().archived(true).versionId(versionId).build());
+      }
+    }
+  }
 
   private void validateBucketExists() {
     if (!BUCKETS.containsKey(bucket)) {
