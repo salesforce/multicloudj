@@ -19,7 +19,7 @@ public class GcpCloudBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
           "gcp.project.id",
           System.getenv().getOrDefault("GOOGLE_CLOUD_PROJECT", "substrate-sdk-gcp-poc1"));
   private static final String bucketName =
-      System.getProperty("gcp.bucket.name", "gcp-benchmark-test");
+      System.getProperty("gcp.bucket.name", "multicloudj-sync-client-benchmark-uswest1");
 
   @Override
   protected Harness createHarness() {

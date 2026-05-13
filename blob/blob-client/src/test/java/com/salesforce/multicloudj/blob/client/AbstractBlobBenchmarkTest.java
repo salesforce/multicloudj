@@ -1,9 +1,15 @@
 package com.salesforce.multicloudj.blob.client;
 
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -16,9 +22,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -66,7 +73,6 @@ public abstract class AbstractBlobBenchmarkTest {
   protected String bucketName;
   protected List<String> blobKeys;
   protected List<byte[]> testBlobs;
-  protected Random random;
   protected BucketClient bucketClient;
 
   private final AtomicInteger nextPutId = new AtomicInteger(0);
@@ -75,6 +81,8 @@ public abstract class AbstractBlobBenchmarkTest {
   private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
   private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
   private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
+  private final List<String> copyDestKeys =
+      java.util.Collections.synchronizedList(new ArrayList<>());
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -95,7 +103,6 @@ public abstract class AbstractBlobBenchmarkTest {
       bucketName = harness.getBucketName();
       blobKeys = new ArrayList<>();
       testBlobs = new ArrayList<>();
-      random = new Random(42);
 
       AbstractBlobStore blobStore = harness.createBlobStore();
       bucketClient = new BucketClient(blobStore);
@@ -164,15 +171,24 @@ public abstract class AbstractBlobBenchmarkTest {
 
   /** Cleanup test data */
   private void cleanupTestData() {
-    if (blobKeys == null || bucketClient == null) {
+    if (bucketClient == null) {
       return;
     }
-    for (String key : blobKeys) {
+    if (blobKeys != null) {
+      for (String key : blobKeys) {
+        try {
+          bucketClient.delete(key, null);
+        } catch (Exception expected) {
+        }
+      }
+    }
+    for (String key : copyDestKeys) {
       try {
         bucketClient.delete(key, null);
       } catch (Exception expected) {
       }
     }
+    copyDestKeys.clear();
   }
 
   @Benchmark
@@ -415,6 +431,61 @@ public abstract class AbstractBlobBenchmarkTest {
     }
   }
 
+  /** Benchmark server-side copy within the same bucket */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkCopy(Blackhole bh) {
+    try {
+      String srcKey = getRandomBlobKey();
+      String destKey = "copy-dest/" + UUID.randomUUID() + ".dat";
+
+      CopyRequest request =
+          CopyRequest.builder()
+              .srcKey(srcKey)
+              .destBucket(bucketName)
+              .destKey(destKey)
+              .build();
+      CopyResponse response = bucketClient.copy(request);
+      bh.consume(response);
+
+      copyDestKeys.add(destKey);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark copy failed", e);
+    }
+  }
+
+  /** Benchmark listing blobs using iterator */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkList(Blackhole bh) {
+    try {
+      ListBlobsRequest request = ListBlobsRequest.builder().withPrefix("small/").build();
+      Iterator<BlobInfo> iter = bucketClient.list(request);
+      int count = 0;
+      while (iter.hasNext()) {
+        bh.consume(iter.next());
+        count++;
+      }
+      bh.consume(count);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark list failed", e);
+    }
+  }
+
+  /** Benchmark paginated listing */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkListPage(Blackhole bh) {
+    try {
+      ListBlobsPageRequest request =
+          ListBlobsPageRequest.builder().withPrefix("small/").withMaxResults(20).build();
+      ListBlobsPageResponse response = bucketClient.listPage(request);
+      bh.consume(response.getBlobs().size());
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark list page failed", e);
+    }
+  }
+
   /** Benchmark small blob downloads using helper method */
   @Benchmark
   @Threads(4)
@@ -454,7 +525,7 @@ public abstract class AbstractBlobBenchmarkTest {
   /** Create a blob of specified size with random data */
   protected byte[] createBlob(int size) {
     byte[] blob = new byte[size];
-    random.nextBytes(blob);
+    ThreadLocalRandom.current().nextBytes(blob);
     return blob;
   }
 
@@ -468,8 +539,7 @@ public abstract class AbstractBlobBenchmarkTest {
     if (blobKeys.isEmpty()) {
       return generateUniqueBlobKey("fallback");
     }
-    int index = random.nextInt(blobKeys.size());
-    return blobKeys.get(index);
+    return blobKeys.get(ThreadLocalRandom.current().nextInt(blobKeys.size()));
   }
 
   /** Get a random blob key with specific prefix */
@@ -481,7 +551,7 @@ public abstract class AbstractBlobBenchmarkTest {
       return generateUniqueBlobKey(prefix);
     }
 
-    return filteredKeys.get(random.nextInt(filteredKeys.size()));
+    return filteredKeys.get(ThreadLocalRandom.current().nextInt(filteredKeys.size()));
   }
 
   /** Get random blob data from test blobs */
@@ -489,7 +559,7 @@ public abstract class AbstractBlobBenchmarkTest {
     if (testBlobs.isEmpty()) {
       return createBlob(SMALL_BLOB);
     }
-    return testBlobs.get(random.nextInt(testBlobs.size()));
+    return testBlobs.get(ThreadLocalRandom.current().nextInt(testBlobs.size()));
   }
 
   /** JUnit test method to run JMH benchmarks */
