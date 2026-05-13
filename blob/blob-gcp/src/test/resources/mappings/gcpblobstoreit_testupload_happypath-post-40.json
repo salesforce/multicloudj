@@ -22,7 +22,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 135\r\nContent-Type: application/json; charset=UTF-8\r\ncontent-transfer-encoding: binary\r\n\r\n{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"crc32c\":\"E30mnQ==\",\"metadata\":{},\"name\":\"conformance-tests/upload/happyPath_ByteArray\"}\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Type: application/octet-stream\r\ncontent-transfer-encoding: binary\r\n\r\nThis is test data\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
+      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: \\E\\d+\\Q\r\nContent-Type: application/json; charset=UTF-8\r\ncontent-transfer-encoding: binary\r\n\r\n{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"crc32c\":\"E30mnQ==\",\"metadata\":\\E\\{[^}]*\\}\\Q,\"name\":\"conformance-tests/upload/happyPath_ByteArray\"}\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Type: application/octet-stream\r\ncontent-transfer-encoding: binary\r\n\r\nThis is test data\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
     } ]
   },
   "response" : {

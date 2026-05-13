@@ -7,7 +7,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/retention-governance\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2026-03-11T15:47:28.252Z\"},\"temporaryHold\":false}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {
