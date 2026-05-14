@@ -49,11 +49,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Uses 1 warmup + 5 measurement iterations of 60s each: each op can take seconds to
  * minutes, so the window must be long enough for stable P99 samples but short enough to keep
- * total benchmark wall-clock time bounded.
+ * total benchmark wall-clock time bounded. Only 1 warmup iteration is used (vs JMH's
+ * recommended 3-5) because the bottleneck is network/cloud IO rather than JVM hot-path
+ * compilation — C2 optimizations save microseconds while each operation takes seconds.
  */
 @BenchmarkMode({Mode.SampleTime, Mode.Throughput})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
+// 1 warmup iteration trades C2 stabilization for manageable total runtime.
 @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
@@ -146,6 +149,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     try {
       teardownDirectoryData();
     } finally {
+      threadUploadPrefix.remove();
       if (harness != null) {
         try {
           harness.close();
