@@ -6,6 +6,7 @@ import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRe
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.common.FileSource;
+import com.github.tomakehurst.wiremock.common.Json;
 import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Extension;
@@ -27,12 +28,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -270,7 +274,8 @@ public class TestsUtil {
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{name}}.json")
                 .extensions(extensions.toArray(new Extension[0]))
-                .enableBrowserProxying(true));
+                .enableBrowserProxying(true)
+                .preserveHostHeader(true));
     wireMockServer.start();
   }
 
@@ -280,6 +285,15 @@ public class TestsUtil {
 
   public static void startWireMockRecording(
       String targetEndpoint, String testClassName, String testMethodName) {
+    startWireMockRecording(
+        targetEndpoint, testClassName, testMethodName, List.of());
+  }
+
+  public static void startWireMockRecording(
+      String targetEndpoint,
+      String testClassName,
+      String testMethodName,
+      List<String> captureHeaders) {
     currentTestPrefix = testClassName + "_" + testMethodName;
     stubCounter.set(0);
 
@@ -294,6 +308,10 @@ public class TestsUtil {
                 Parameters.from(Map.of(TRUNCATE_MATCHER_REQUEST_BODY_OVER, 4096 * 2)))
             .chooseBodyMatchTypeAutomatically(true, false, false)
             .makeStubsPersistent(true);
+
+    for (String header : captureHeaders) {
+      recordSpec = recordSpec.captureHeader(header);
+    }
 
     // Apply transformers during recording
     List<String> transformerNames = new ArrayList<>();
@@ -314,6 +332,68 @@ public class TestsUtil {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     if (isRecordingEnabled) {
       wireMockServer.stopRecording();
+      ensureScenarioChains();
+    }
+  }
+
+  /**
+   * Post-recording fixup: finds stubs that share the same URL + HTTP method
+   * but have no scenario assigned, and chains them into a scenario ordered
+   * by insertionIndex. This ensures correct replay ordering when body-pattern
+   * matching is unreliable (e.g. CONNECT-tunnel MITM proxied requests).
+   */
+  static void ensureScenarioChains() {
+    List<StubMapping> allStubs = wireMockServer.getStubMappings();
+
+    Map<String, List<StubMapping>> groups = allStubs.stream()
+        .filter(s -> s.getName() != null && s.getName().startsWith(currentTestPrefix))
+        .collect(Collectors.groupingBy(
+            s -> s.getRequest().getMethod().value()
+                + " " + s.getRequest().getUrl(),
+            LinkedHashMap::new,
+            Collectors.toList()));
+
+    for (Map.Entry<String, List<StubMapping>> entry : groups.entrySet()) {
+      List<StubMapping> stubs = entry.getValue();
+
+      boolean anyHasScenario =
+          stubs.stream().anyMatch(s -> s.getScenarioName() != null);
+      if (stubs.size() <= 1 || anyHasScenario) {
+        continue;
+      }
+
+      stubs.sort(Comparator.comparingLong(
+          StubMapping::getInsertionIndex).reversed());
+
+      String scenarioName = "scenario-" + entry.getKey()
+          .replace("/", "-").replace(" ", "-");
+
+      for (int i = 0; i < stubs.size(); i++) {
+        StubMapping stub = stubs.get(i);
+        stub.setScenarioName(scenarioName);
+
+        if (i == 0) {
+          stub.setRequiredScenarioState("Started");
+        } else {
+          stub.setRequiredScenarioState(scenarioName + "-" + i);
+        }
+
+        if (i < stubs.size() - 1) {
+          stub.setNewScenarioState(scenarioName + "-" + (i + 1));
+        }
+
+        wireMockServer.editStubMapping(stub);
+      }
+
+      logger.info(
+          "Assigned scenario chain '{}' to {} stubs",
+          scenarioName, stubs.size());
+
+      FileSource mappingsDir = wireMockServer.getOptions().filesRoot().child("mappings");
+      for (StubMapping stub : stubs) {
+        String json = Json.write(stub);
+        mappingsDir.writeTextFile(stub.getName().toLowerCase() + ".json", json);
+      }
     }
   }
 }

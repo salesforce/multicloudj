@@ -39,8 +39,10 @@ public class AliBlobClientTest {
         mock(OSSClientBuilder.OSSClientBuilderImpl.class);
 
     staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
+    when(mockBuilder.region(any())).thenReturn(mockBuilder);
     when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
     when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
+    when(mockBuilder.clientConfiguration(any())).thenReturn(mockBuilder);
     when(mockBuilder.build()).thenReturn(mockOssClient);
 
     StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
