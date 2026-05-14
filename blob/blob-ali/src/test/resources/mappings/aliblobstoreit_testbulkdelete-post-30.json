@@ -1,0 +1,41 @@
+{
+  "id" : "f198e023-2cd1-4d0b-8cfc-6ffd202aaafe",
+  "name" : "AliBlobStoreIT_testBulkDelete-POST-30",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key></Object></Delete>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_nonexisting</Key>\n  </Deleted>\n</DeleteResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649A41FB8DD3430461594",
+      "x-oss-server-time" : "15",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:16:04 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "f198e023-2cd1-4d0b-8cfc-6ffd202aaafe",
+  "persistent" : true,
+  "insertionIndex" : 51
+}

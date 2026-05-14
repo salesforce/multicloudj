@@ -1,0 +1,47 @@
+{
+  "id" : "6a2e8225-8345-45ff-8bf5-aae50cf51b85",
+  "name" : "AliBlobStoreIT_testListPage-GET-11",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page/prefix"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "-"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests/blob-for-list-page/prefix</Prefix>\n  <Marker></Marker>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter>-</Delimiter>\n  <IsTruncated>true</IsTruncated>\n  <NextMarker>conformance-tests/blob-for-list-page/prefix_3</NextMarker>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix_3</Key>\n    <LastModified>2026-05-14T22:24:26.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <CommonPrefixes>\n    <Prefix>conformance-tests/blob-for-list-page/prefix-</Prefix>\n  </CommonPrefixes>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064B9F26AA8C38342984D4",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:24:31 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "6a2e8225-8345-45ff-8bf5-aae50cf51b85",
+  "persistent" : true,
+  "insertionIndex" : 656
+}

@@ -1,0 +1,37 @@
+{
+  "id" : "be6e3646-bd4a-434a-96b0-63a6a08e15b4",
+  "name" : "AliBlobStoreIT_testRangedRead-GET-55",
+  "request" : {
+    "url" : "/conformance-tests/testRangedRead_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "IHRlc3QgZmlsZQ==",
+    "headers" : {
+      "x-oss-request-id" : "6A064B4A7F7A7635362008E6",
+      "x-oss-server-time" : "3",
+      "Server" : "AliyunOSS",
+      "Content-Range" : "bytes 37-46/47",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Thu, 14 May 2026 22:23:03 GMT",
+      "Date" : "Thu, 14 May 2026 22:23:06 GMT",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "15651652868027691141",
+      "ETag" : "\"4FE58D952A4F5588F32B30A5F9B62CDA\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "be6e3646-bd4a-434a-96b0-63a6a08e15b4",
+  "persistent" : true,
+  "scenarioName" : "scenario-8-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-8-conformance-tests-testRangedRead_unversioned-20",
+  "newScenarioState" : "scenario-8-conformance-tests-testRangedRead_unversioned-21",
+  "insertionIndex" : 579
+}

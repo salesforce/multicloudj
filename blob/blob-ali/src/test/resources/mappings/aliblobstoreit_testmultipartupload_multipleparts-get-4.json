@@ -1,0 +1,37 @@
+{
+  "id" : "cc5a21ba-2c98-46dd-a3b5-46982959a3a0",
+  "name" : "AliBlobStoreIT_testMultipartUpload_multipleParts-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-multipleParts",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "BCC7F7CE7BD74FEBB71BEB5EE9D5CC4C"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-multipleParts</Key>\n  <UploadId>BCC7F7CE7BD74FEBB71BEB5EE9D5CC4C</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>4</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>1</PartNumber>\n    <LastModified>2026-05-14T22:21:26.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-05-14T22:21:29.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>3</PartNumber>\n    <LastModified>2026-05-14T22:21:31.000Z</LastModified>\n    <ETag>\"FE9E522B589EF23E2C49B65C0522CE97\"</ETag>\n    <HashCrc64ecma>13592587331863467000</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>4</PartNumber>\n    <LastModified>2026-05-14T22:21:33.000Z</LastModified>\n    <ETag>\"00AD619297CCD041956FE69BE4251D30\"</ETag>\n    <HashCrc64ecma>1273867173178489956</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064AEE9670D23039D135F2",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:21:34 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "cc5a21ba-2c98-46dd-a3b5-46982959a3a0",
+  "persistent" : true,
+  "insertionIndex" : 431
+}

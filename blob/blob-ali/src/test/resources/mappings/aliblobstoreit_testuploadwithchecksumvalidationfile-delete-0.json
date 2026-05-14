@@ -1,0 +1,25 @@
+{
+  "id" : "cec145cf-3d89-42b7-850e-82f948ba8a16",
+  "name" : "AliBlobStoreIT_testUploadWithChecksumValidationFile-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/checksum/upload-file-checksum",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A4E7C04A336371312E5",
+      "x-oss-server-time" : "10",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:18:54 GMT"
+    }
+  },
+  "uuid" : "cec145cf-3d89-42b7-850e-82f948ba8a16",
+  "persistent" : true,
+  "insertionIndex" : 237
+}

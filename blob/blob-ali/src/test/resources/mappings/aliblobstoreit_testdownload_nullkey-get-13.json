@@ -1,0 +1,30 @@
+{
+  "id" : "00d2c168-9247-4e39-b4bd-3555aadc4f4e",
+  "name" : "AliBlobStoreIT_testDownload_nullKey-GET-13",
+  "request" : {
+    "url" : "/null_unversioned",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0649EE6AC38836365D5FC2</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>null_unversioned</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649EE6AC38836365D5FC2",
+      "x-oss-server-time" : "24",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Thu, 14 May 2026 22:17:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "00d2c168-9247-4e39-b4bd-3555aadc4f4e",
+  "persistent" : true,
+  "scenarioName" : "scenario-4-null_unversioned",
+  "requiredScenarioState" : "scenario-4-null_unversioned-4",
+  "insertionIndex" : 118
+}

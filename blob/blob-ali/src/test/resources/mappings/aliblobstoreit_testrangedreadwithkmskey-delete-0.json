@@ -1,0 +1,25 @@
+{
+  "id" : "a97e370a-3ec6-4ed3-9393-d05e499fa03d",
+  "name" : "AliBlobStoreIT_testRangedReadWithKmsKey-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/kms/ranged-read",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064AF789F0063133A4FAA9",
+      "x-oss-server-time" : "38",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:21:43 GMT"
+    }
+  },
+  "uuid" : "a97e370a-3ec6-4ed3-9393-d05e499fa03d",
+  "persistent" : true,
+  "insertionIndex" : 438
+}

@@ -1,0 +1,28 @@
+{
+  "id" : "283b5040-cd49-4f86-9697-a847d4102964",
+  "name" : "AliBlobStoreIT_testGetMetadataBlobNotExists-HEAD-0",
+  "request" : {
+    "url" : "/conformance-tests/non-existent-blob",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "x-oss-request-id" : "6A064AF8A791663330EB6DB6",
+      "x-oss-server-time" : "3",
+      "Server" : "AliyunOSS",
+      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaEtleTwvQ29kZT4KICA8TWVzc2FnZT5UaGUgc3BlY2lmaWVkIGtleSBkb2VzIG5vdCBleGlzdC48L01lc3NhZ2U+CiAgPFJlcXVlc3RJZD42QTA2NEFGOEE3OTE2NjMzMzBFQjZEQjY8L1JlcXVlc3RJZD4KICA8SG9zdElkPmNoYW1lbGVvbi1tdWx0aWNsb3Vkai10ZXN0Lm9zcy1jbi1zaGFuZ2hhaS5hbGl5dW5jcy5jb208L0hvc3RJZD4KICA8S2V5PmNvbmZvcm1hbmNlLXRlc3RzL25vbi1leGlzdGVudC1ibG9iPC9LZXk+CiAgPEVDPjAwMjYtMDAwMDAwMDE8L0VDPgogIDxSZWNvbW1lbmREb2M+aHR0cHM6Ly9hcGkuYWxpeXVuLmNvbS90cm91Ymxlc2hvb3Q/cT0wMDI2LTAwMDAwMDAxPC9SZWNvbW1lbmREb2M+CjwvRXJyb3I+Cg==",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Thu, 14 May 2026 22:21:44 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "283b5040-cd49-4f86-9697-a847d4102964",
+  "persistent" : true,
+  "insertionIndex" : 447
+}

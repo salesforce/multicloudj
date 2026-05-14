@@ -1,0 +1,43 @@
+{
+  "id" : "5155ba42-8537-4b9a-9111-3ab9f8c827c1",
+  "name" : "AliBlobStoreIT_testMultipartUpload_multipleParts-POST-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-multipleParts",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "BCC7F7CE7BD74FEBB71BEB5EE9D5CC4C"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>&quot;2B5C91AD399409EC9B409B66F5BB00FB&quot;</ETag></Part><Part><PartNumber>2</PartNumber><ETag>&quot;267C038CC2EC32FFD0EE2512FF5DA5A5&quot;</ETag></Part><Part><PartNumber>3</PartNumber><ETag>&quot;FE9E522B589EF23E2C49B65C0522CE97&quot;</ETag></Part><Part><PartNumber>4</PartNumber><ETag>&quot;00AD619297CCD041956FE69BE4251D30&quot;</ETag></Part></CompleteMultipartUpload>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-multipleParts</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-multipleParts</Key>\n  <ETag>\"BFA040D81294131557D89349E5E51658-4\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064AEF11D2913030149D73",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "11036478350852953674",
+      "ETag" : "\"BFA040D81294131557D89349E5E51658-4\"",
+      "Date" : "Thu, 14 May 2026 22:21:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5155ba42-8537-4b9a-9111-3ab9f8c827c1",
+  "persistent" : true,
+  "insertionIndex" : 430
+}

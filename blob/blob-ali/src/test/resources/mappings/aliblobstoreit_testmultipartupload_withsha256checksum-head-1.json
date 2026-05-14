@@ -1,0 +1,39 @@
+{
+  "id" : "663eb4e0-ee92-4e78-a1f1-d069b2b924d9",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withSha256Checksum-HEAD-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withSha256Checksum",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "objectMeta" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A064B26945E9F31360B213A",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "16941702395769382088",
+      "ETag" : "\"8C11B624ED7D61A26D45D7A28FE98349-2\"",
+      "x-oss-object-type" : "Multipart",
+      "Last-Modified" : "Thu, 14 May 2026 22:22:29 GMT",
+      "Date" : "Thu, 14 May 2026 22:22:30 GMT"
+    }
+  },
+  "uuid" : "663eb4e0-ee92-4e78-a1f1-d069b2b924d9",
+  "persistent" : true,
+  "insertionIndex" : 499
+}

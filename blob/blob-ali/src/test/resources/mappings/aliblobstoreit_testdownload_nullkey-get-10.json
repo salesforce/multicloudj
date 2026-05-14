@@ -1,0 +1,38 @@
+{
+  "id" : "e1bc23c9-17a1-45ef-9aa7-9b96e8453bce",
+  "name" : "AliBlobStoreIT_testDownload_nullKey-GET-10",
+  "request" : {
+    "urlPath" : "/null_versioned",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQigEYgYCAwNOhovEZIiBmNzJjMDY1ZjhjYTU0YWFmYjExMzg2OWFkYjc5MjQyYQ--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchVersion</Code>\n  <Message>The specified version does not exist.</Message>\n  <RequestId>6A0649F10265793836FE1F2A</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>null_versioned</Key>\n  <VersionId>CAEQigEYgYCAwNOhovEZIiBmNzJjMDY1ZjhjYTU0YWFmYjExMzg2OWFkYjc5MjQyYQ--</VersionId>\n  <EC>0012-00000203</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0012-00000203</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649F10265793836FE1F2A",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0012-00000203",
+      "Date" : "Thu, 14 May 2026 22:17:21 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e1bc23c9-17a1-45ef-9aa7-9b96e8453bce",
+  "persistent" : true,
+  "insertionIndex" : 115
+}

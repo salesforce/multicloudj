@@ -1,0 +1,37 @@
+{
+  "id" : "23629f9f-8bb4-4d74-9988-1d95f1022cce",
+  "name" : "AliBlobStoreIT_testMultipartUpload_badETag-GET-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-badETag",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "E46367894098439BBE0BF210AE126354"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-badETag</Key>\n  <UploadId>E46367894098439BBE0BF210AE126354</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>4</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-05-14T22:15:55.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>3</PartNumber>\n    <LastModified>2026-05-14T22:15:57.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>4</PartNumber>\n    <LastModified>2026-05-14T22:16:00.000Z</LastModified>\n    <ETag>\"FE9E522B589EF23E2C49B65C0522CE97\"</ETag>\n    <HashCrc64ecma>13592587331863467000</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649A11FE7723134F702C2",
+      "x-oss-server-time" : "29",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:16:01 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "23629f9f-8bb4-4d74-9988-1d95f1022cce",
+  "persistent" : true,
+  "insertionIndex" : 15
+}

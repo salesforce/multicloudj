@@ -1,0 +1,41 @@
+{
+  "id" : "9984e49c-01b8-4547-8599-20836afce10f",
+  "name" : "AliBlobStoreIT_testVersionedDownload_badVersionId-GET-7",
+  "request" : {
+    "urlPath" : "/conformance-tests/versioned_download_bad_versionId_versioned",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "fakeVersionId"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>InvalidArgument</Code>\n  <Message>Invalid version id specified</Message>\n  <RequestId>6A064AB3F30B893630D4BEE7</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ArgumentName>VersionId</ArgumentName>\n  <ArgumentValue>fakeVersionId</ArgumentValue>\n  <EC>0012-00000202</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0012-00000202</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064AB3F30B893630D4BEE7",
+      "x-oss-server-time" : "14",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0012-00000202",
+      "Date" : "Thu, 14 May 2026 22:20:35 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "9984e49c-01b8-4547-8599-20836afce10f",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-conformance-tests-versioned_download_bad_versionId_versioned",
+  "requiredScenarioState" : "scenario-2-conformance-tests-versioned_download_bad_versionId_versioned-2",
+  "newScenarioState" : "scenario-2-conformance-tests-versioned_download_bad_versionId_versioned-3",
+  "insertionIndex" : 373
+}

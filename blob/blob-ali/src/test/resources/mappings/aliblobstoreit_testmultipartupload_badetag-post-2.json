@@ -1,0 +1,42 @@
+{
+  "id" : "ee567122-2a39-46b2-a600-10b5c5b39b2f",
+  "name" : "AliBlobStoreIT_testMultipartUpload_badETag-POST-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-badETag",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "E46367894098439BBE0BF210AE126354"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>&quot;2B5C91AD399409EC9B409B66F5BB00FB&quot;</ETag></Part><Part><PartNumber>3</PartNumber><ETag>&quot;267C038CC2EC32FFD0EE2512FF5DA5A5fake&quot;</ETag></Part><Part><PartNumber>4</PartNumber><ETag>&quot;FE9E522B589EF23E2C49B65C0522CE97&quot;</ETag></Part></CompleteMultipartUpload>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>InvalidPart</Code>\n  <Message>One or more of the specified parts could not be found or the specified entity tag might not have matched the part's entity tag.</Message>\n  <RequestId>6A0649A19A6FD3343544C5E3</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ETag>267C038CC2EC32FFD0EE2512FF5DA5A5fake</ETag>\n  <PartNumber>3</PartNumber>\n  <UploadId>E46367894098439BBE0BF210AE126354</UploadId>\n  <EC>0042-00000212</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0042-00000212</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649A19A6FD3343544C5E3",
+      "x-oss-server-time" : "43",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0042-00000212",
+      "Date" : "Thu, 14 May 2026 22:16:01 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "ee567122-2a39-46b2-a600-10b5c5b39b2f",
+  "persistent" : true,
+  "insertionIndex" : 14
+}

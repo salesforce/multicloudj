@@ -1,0 +1,27 @@
+{
+  "id" : "c763404c-9bce-441b-911d-d3392fc6e498",
+  "name" : "AliBlobStoreIT_testCopy-PUT-14",
+  "request" : {
+    "url" : "/conformance-tests/copied-blob",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "bucketThatDoesntExist.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>InvalidBucketName</Code>\n  <Message>The specified bucket is not valid.</Message>\n  <RequestId>6A064A13F7D6923538BB796A</RequestId>\n  <HostId>bucketThatDoesntExist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>bucketThatDoesntExist</BucketName>\n  <EC>0015-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064A13F7D6923538BB796A",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0015-00000001",
+      "Date" : "Thu, 14 May 2026 22:17:55 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c763404c-9bce-441b-911d-d3392fc6e498",
+  "persistent" : true,
+  "insertionIndex" : 173
+}
