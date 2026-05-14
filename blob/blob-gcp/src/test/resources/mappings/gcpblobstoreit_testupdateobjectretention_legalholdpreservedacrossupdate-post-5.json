@@ -1,44 +1,51 @@
 {
-  "id" : "6bcb3869-053b-4643-84c2-767a8aaa349e",
-  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-POST-5",
-  "request" : {
-    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved",
-    "method" : "POST",
-    "headers" : {
-      "X-Query-Param-Count" : {
-        "equalTo" : "1"
+  "id": "5f438ec0-2cfc-4349-8550-2dc6fe9bb5ae",
+  "name": "GcpBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-POST-5",
+  "request": {
+    "urlPath": "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved",
+    "method": "POST",
+    "headers": {
+      "X-Query-Param-Count": {
+        "equalTo": "1"
       }
     },
-    "queryParameters" : {
-      "projection" : {
-        "hasExactly" : [ {
-          "equalTo" : "full"
-        } ]
+    "queryParameters": {
+      "projection": {
+        "hasExactly": [
+          {
+            "equalTo": "full"
+          }
+        ]
       }
     },
-    "bodyPatterns" : [ {
-      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1778497640721143\",\"name\":\"conformance-tests/objectlock/update/legalhold-preserved\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2030-06-01T00:00:00.000Z\"}}",
-      "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
-    } ]
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1778743864676321\",\"name\":\"conformance-tests/objectlock/update/legalhold-preserved\",\"retention\":{\"mode\":\"Unlocked\",\"retainUntilTime\":\"2030-06-01T00:00:00.000Z\"}}",
+        "ignoreArrayOrder": true,
+        "ignoreExtraElements": true
+      }
+    ]
   },
-  "response" : {
-    "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/legalhold-preserved/1778497640721143\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved?generation=1778497640721143&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/legalhold-preserved\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778497640721143\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"19\",\n  \"md5Hash\": \"8w7gd2cGXJ+cwx0XvNaVCA==\",\n  \"crc32c\": \"VXd1+w==\",\n  \"etag\": \"CPfV74CMsZQDEAI=\",\n  \"temporaryHold\": true,\n  \"retentionExpirationTime\": \"2030-06-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-06-01T00:00:00.000Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-05-11T11:07:20.779Z\",\n  \"updated\": \"2026-05-11T11:07:24.481Z\",\n  \"timeStorageClassUpdated\": \"2026-05-11T11:07:20.779Z\",\n  \"timeFinalized\": \"2026-05-11T11:07:20.779Z\"\n}\n",
-    "headers" : {
-      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
-      "Server" : "UploadServer",
-      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CPfV74CMsZQDEAI=",
-      "X-GUploader-UploadID" : "AAVLpEjRnNkfKjAZoZj7zWxQfZZLfiD4VhnqMGS95Nc_svGMy0r4HSTqybUJWRACncsa51c",
-      "Vary" : [ "Origin", "X-Origin" ],
-      "Pragma" : "no-cache",
-      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Mon, 11 May 2026 11:07:24 GMT",
-      "Content-Type" : "application/json; charset=UTF-8"
+  "response": {
+    "status": 200,
+    "body": "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/legalhold-preserved/1778743864676321\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Flegalhold-preserved?generation=1778743864676321&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/legalhold-preserved\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778743864676321\",\n  \"metageneration\": \"2\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"19\",\n  \"md5Hash\": \"8w7gd2cGXJ+cwx0XvNaVCA==\",\n  \"crc32c\": \"VXd1+w==\",\n  \"etag\": \"COGfzaGhuJQDEAI=\",\n  \"temporaryHold\": true,\n  \"retentionExpirationTime\": \"2030-06-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-06-01T00:00:00.000Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-05-14T07:31:04.733Z\",\n  \"updated\": \"2026-05-14T07:31:06.762Z\",\n  \"timeStorageClassUpdated\": \"2026-05-14T07:31:04.733Z\",\n  \"timeFinalized\": \"2026-05-14T07:31:04.733Z\",\n  \"metadata\": {\n    \"correlation-id\": \"f5d6ec96-d994-4774-afdb-3a6c6b9744d8\"\n  }\n}\n",
+    "headers": {
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "UploadServer",
+      "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag": "COGfzaGhuJQDEAI=",
+      "X-GUploader-UploadID": "AAVLpEgVhoH_YGringtYGIL67dpoYREyZXuBOp99zBdxqwgB3TC61duZCCup2r3_oSPkcfcENkcOZS4",
+      "Vary": [
+        "Origin",
+        "X-Origin"
+      ],
+      "Pragma": "no-cache",
+      "Expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date": "Thu, 14 May 2026 07:31:06 GMT",
+      "Content-Type": "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "6bcb3869-053b-4643-84c2-767a8aaa349e",
-  "persistent" : true,
-  "insertionIndex" : 1312
+  "uuid": "5f438ec0-2cfc-4349-8550-2dc6fe9bb5ae",
+  "persistent": true,
+  "insertionIndex": 1277
 }
