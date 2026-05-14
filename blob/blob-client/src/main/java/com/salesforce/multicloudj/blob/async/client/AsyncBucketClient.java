@@ -585,12 +585,8 @@ public class AsyncBucketClient implements AutoCloseable {
     }
 
     /**
-     * Method to enable/disable parallel uploads.
-     *
-     * <p><b>Cost note:</b> enabling parallel uploads can have non-trivial cost implications that
-     * vary by provider, including additional per-part request charges and, on non-standard
-     * storage tiers, possible early-deletion fees on intermediate parts. Review your provider's
-     * pricing documentation before opting in.
+     * Method to enable/disable parallel uploads. Enabling this may incur additional
+     * per-part request charges depending on the provider.
      *
      * @param parallelUploadsEnabled Whether to enable parallel uploads
      * @return An instance of self
