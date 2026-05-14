@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,8 +82,9 @@ public abstract class AbstractBlobBenchmarkTest {
   private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
   private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
   private final AtomicInteger nextMultipartUploadId = new AtomicInteger(0);
-  private final List<String> copyDestKeys =
-      java.util.Collections.synchronizedList(new ArrayList<>());
+  // Grows by one entry per copy invocation; pruned only at trial end. The memory overhead
+  // is negligible (a few KB) relative to the seconds-scale network IO being measured.
+  private final ConcurrentLinkedQueue<String> copyDestKeys = new ConcurrentLinkedQueue<>();
 
   // Harness interface
   public interface Harness extends AutoCloseable {
