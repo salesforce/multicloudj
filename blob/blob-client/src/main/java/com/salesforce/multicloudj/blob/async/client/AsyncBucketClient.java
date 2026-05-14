@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobClientBuilder;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -28,6 +29,9 @@ import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.observability.MultiCloudJLogger;
+import com.salesforce.multicloudj.common.observability.OperationContext;
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
@@ -48,10 +52,20 @@ import java.util.function.Consumer;
 /** Entry point for async Client code to interact with the Blob storage. */
 public class AsyncBucketClient implements AutoCloseable {
 
+  private static final String SDK_SERVICE = "blob";
+
   protected AsyncBlobStore blobStore;
+  protected final MultiCloudJLogger multiCloudJLogger;
 
   protected AsyncBucketClient(AsyncBlobStore blobStore) {
+    this(blobStore, null);
+  }
+
+  protected AsyncBucketClient(AsyncBlobStore blobStore, TracingPolicy tracingPolicy) {
     this.blobStore = blobStore;
+    this.multiCloudJLogger =
+        new MultiCloudJLogger(
+            tracingPolicy, SDK_SERVICE, blobStore != null ? blobStore.getProviderId() : null);
   }
 
   public static Builder builder(String providerId) {
@@ -68,343 +82,297 @@ public class AsyncBucketClient implements AutoCloseable {
    * Uploads the Blob content to substrate-specific Blob storage Note: Specifying the contentLength
    * in the UploadRequest can dramatically improve upload efficiency because the substrate SDKs do
    * not need to buffer the contents and calculate it themselves.
-   *
-   * @param uploadRequest Wrapper, containing upload data
-   * @param inputStream The input stream that contains the blob content
-   * @return Returns an UploadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
    */
   public CompletableFuture<UploadResponse> upload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    return blobStore.upload(uploadRequest, inputStream).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx ->
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), inputStream), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Uploads the Blob content to substrate-specific Blob storage
-   *
-   * @param uploadRequest Wrapper, containing upload data
-   * @param content The byte array that contains the blob content
-   * @return Returns an UploadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Uploads the Blob content to substrate-specific Blob storage */
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, byte[] content) {
-    return blobStore.upload(uploadRequest, content).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx ->
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), content), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Uploads the Blob content to substrate-specific Blob storage
-   *
-   * @param uploadRequest Wrapper, containing upload data
-   * @param file The File that contains the blob content
-   * @return Returns an UploadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Uploads the Blob content to substrate-specific Blob storage */
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, File file) {
-    return blobStore.upload(uploadRequest, file).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx ->
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), file), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Uploads the Blob content to substrate-specific Blob storage
-   *
-   * @param uploadRequest Wrapper, containing upload data
-   * @param path The Path that contains the blob content
-   * @return Returns an UploadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Uploads the Blob content to substrate-specific Blob storage */
   public CompletableFuture<UploadResponse> upload(UploadRequest uploadRequest, Path path) {
-    return blobStore.upload(uploadRequest, path).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD,
+        bucketAttrs(),
+        uploadRequest.getOperationContext(),
+        ctx ->
+            uploadResponseWithCorrelationId(
+                    blobStore.upload(withResolvedContext(uploadRequest, ctx), path), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the Blob content from substrate-specific Blob storage
-   *
-   * @param downloadRequest downloadRequest Wrapper, containing download data
-   * @param outputStream The output stream that the blob content will be written to
-   * @return Returns a DownloadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Downloads the Blob content from substrate-specific Blob storage */
   public CompletableFuture<DownloadResponse> download(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    return blobStore.download(downloadRequest, outputStream).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx ->
+            downloadResponseWithCorrelationId(
+                    blobStore.download(downloadRequest, outputStream), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the Blob content from substrate-specific Blob storage
-   *
-   * @param downloadRequest downloadRequest Wrapper, containing download data
-   * @param byteArray The byte array that blob content will be written to
-   * @return Returns a DownloadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Downloads the Blob content from substrate-specific Blob storage */
   public CompletableFuture<DownloadResponse> download(
       DownloadRequest downloadRequest, ByteArray byteArray) {
-    return blobStore.download(downloadRequest, byteArray).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx ->
+            downloadResponseWithCorrelationId(blobStore.download(downloadRequest, byteArray), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the Blob content from substrate-specific Blob storage. Throws an exception if the
-   * file already exists.
-   *
-   * @param downloadRequest downloadRequest Wrapper, containing download data
-   * @param file The File the blob content will be written to
-   * @return Returns a DownloadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file
-   *     already exists.
-   */
+  /** Downloads the Blob content from substrate-specific Blob storage. */
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, File file) {
-    return blobStore.download(downloadRequest, file).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx ->
+            downloadResponseWithCorrelationId(blobStore.download(downloadRequest, file), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the Blob content from substrate-specific Blob storage. Throws an exception if a file
-   * already exists at the path location.
-   *
-   * @param downloadRequest downloadRequest Wrapper, containing download data
-   * @param path The Path that blob content will be written to
-   * @return Returns a DownloadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if a file
-   *     already exists at the path location.
-   */
+  /** Downloads the Blob content from substrate-specific Blob storage. */
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest, Path path) {
-    return blobStore.download(downloadRequest, path).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx ->
+            downloadResponseWithCorrelationId(blobStore.download(downloadRequest, path), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the Blob content and returns an InputStream for reading the content
-   *
-   * @param downloadRequest downloadRequest Wrapper, containing download data
-   * @return Returns a DownloadResponse object that contains metadata about the blob and an
-   *     InputStream for reading the content
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Downloads the Blob content and returns an InputStream for reading the content */
   public CompletableFuture<DownloadResponse> download(DownloadRequest downloadRequest) {
-    return blobStore.download(downloadRequest).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD,
+        bucketAttrs(),
+        downloadRequest.getOperationContext(),
+        ctx ->
+            downloadResponseWithCorrelationId(blobStore.download(downloadRequest), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Deletes a single Blob from substrate-specific Blob storage
-   *
-   * @param key Object name of the Blob
-   * @param versionId The versionId of the blob
-   * @return a completable future
-   * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if the
-   *     blob does not exist.
-   */
+  /** Deletes a single Blob from substrate-specific Blob storage */
   public CompletableFuture<Void> delete(String key, String versionId) {
-    return blobStore.delete(key, versionId).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DELETE,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.delete(key, versionId).exceptionally(this::handleException));
   }
 
-  /**
-   * Deletes a collection of Blobs from a substrate-specific Blob storage.
-   *
-   * @param objects A collection of blob identifiers to delete
-   * @return a completable future
-   * @throws SubstrateSdkException Thrown if the operation fails. Will not throw an exception if a
-   *     blob in the list does not exist.
-   */
+  /** Deletes a collection of Blobs from a substrate-specific Blob storage. */
   public CompletableFuture<Void> delete(Collection<BlobIdentifier> objects) {
-    return blobStore.delete(objects).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DELETE,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.delete(objects).exceptionally(this::handleException));
   }
 
-  /**
-   * Copies the Blob to other bucket
-   *
-   * @param request request describing copy operation inputs
-   * @return a completable future of CopyResponse of the copied blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Copies the Blob to other bucket */
   public CompletableFuture<CopyResponse> copy(CopyRequest request) {
-    return blobStore.copy(request).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.COPY,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx ->
+            copyResponseWithCorrelationId(blobStore.copy(request), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Retrieves the metadata of the Blob
-   *
-   * @param key Name of the Blob, whose metadata is to be retrieved
-   * @param versionId The versionId of the blob. This field is optional and only used if your bucket
-   *     has versioning enabled. This value should be null unless you're targeting a specific
-   *     key/version blob.
-   * @return Metadata of the Blob
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
-   *     does not exist.
-   */
+  /** Retrieves the metadata of the Blob */
   public CompletableFuture<BlobMetadata> getMetadata(String key, String versionId) {
-    return blobStore.getMetadata(key, versionId).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.GET_METADATA,
+        bucketAttrs(),
+        null,
+        ctx ->
+            blobMetadataWithCorrelationId(blobStore.getMetadata(key, versionId), ctx)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Retrieves the list of Blob in the bucket
-   *
-   * @return future that will complete when all blobs have been read
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Retrieves the list of Blob in the bucket */
   public CompletableFuture<Void> list(ListBlobsRequest request, Consumer<ListBlobsBatch> consumer) {
-    return blobStore.list(request, consumer).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.LIST,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.list(request, consumer).exceptionally(this::handleException));
   }
 
-  /**
-   * Retrieves a single page of blobs from the bucket with pagination support
-   *
-   * @param request The pagination request containing filters, pagination token, and max results
-   * @return ListBlobsPageResponse containing the blobs, truncation status, and next page token
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Retrieves a single page of blobs from the bucket with pagination support */
   public CompletableFuture<ListBlobsPageResponse> listPage(ListBlobsPageRequest request) {
-    return blobStore.listPage(request).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.LIST_PAGE,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.listPage(request).exceptionally(this::handleException));
   }
 
-  /**
-   * Initiates a multipartUpload for a Blob
-   *
-   * @param request Contains information about the blob to upload
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Initiates a multipartUpload for a Blob */
   public CompletableFuture<MultipartUpload> initiateMultipartUpload(
       MultipartUploadRequest request) {
-    return blobStore.initiateMultipartUpload(request).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.INITIATE_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.initiateMultipartUpload(request).exceptionally(this::handleException));
   }
 
-  /**
-   * Uploads a part of the multipartUpload
-   *
-   * @param mpu The multipartUpload to use
-   * @param mpp The multipartPart data
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Uploads a part of the multipartUpload */
   public CompletableFuture<UploadPartResponse> uploadMultipartPart(
       MultipartUpload mpu, MultipartPart mpp) {
-    return blobStore.uploadMultipartPart(mpu, mpp).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD_MULTIPART_PART,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.uploadMultipartPart(mpu, mpp).exceptionally(this::handleException));
   }
 
-  /**
-   * Completes a multipartUpload
-   *
-   * @param mpu The multipartUpload to use
-   * @param parts A list of the parts contained in the multipartUpload
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Completes a multipartUpload */
   public CompletableFuture<MultipartUploadResponse> completeMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
-    return blobStore.completeMultipartUpload(mpu, parts).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.COMPLETE_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.completeMultipartUpload(mpu, parts).exceptionally(this::handleException));
   }
 
-  /**
-   * Returns a list of all uploaded parts for the given MultipartUpload
-   *
-   * @param mpu The multipartUpload to query against
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Returns a list of all uploaded parts for the given MultipartUpload */
   public CompletableFuture<List<UploadPartResponse>> listMultipartUpload(MultipartUpload mpu) {
-    return blobStore.listMultipartUpload(mpu).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.LIST_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.listMultipartUpload(mpu).exceptionally(this::handleException));
   }
 
-  /**
-   * Aborts a multipartUpload
-   *
-   * @param mpu The multipartUpload to abort
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Aborts a multipartUpload */
   public CompletableFuture<Void> abortMultipartUpload(MultipartUpload mpu) {
-    return blobStore.abortMultipartUpload(mpu).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.ABORT_MULTIPART_UPLOAD,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.abortMultipartUpload(mpu).exceptionally(this::handleException));
   }
 
-  /**
-   * Returns a map of all the tags associated with the blob
-   *
-   * @param key Name of the blob whose tags are to be retrieved
-   * @return The blob's tags
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
-   *     does not exist.
-   */
+  /** Returns a map of all the tags associated with the blob */
   public CompletableFuture<Map<String, String>> getTags(String key) {
-    return blobStore.getTags(key).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.GET_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.getTags(key).exceptionally(this::handleException));
   }
 
-  /**
-   * Sets tags on a blob
-   *
-   * @param key Name of the blob to set tags on
-   * @param tags The tags to set
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the blob
-   *     does not exist.
-   */
+  /** Sets tags on a blob */
   public CompletableFuture<Void> setTags(String key, Map<String, String> tags) {
-    return blobStore.setTags(key, tags).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.SET_TAGS,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.setTags(key, tags).exceptionally(this::handleException));
   }
 
-  /**
-   * Generates a presigned URL for uploading/downloading blobs
-   *
-   * @param request The presigned request
-   * @return Returns the presigned URL
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Generates a presigned URL for uploading/downloading blobs */
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
-    return blobStore.generatePresignedUrl(request).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> blobStore.generatePresignedUrl(request).exceptionally(this::handleException));
   }
 
-  /**
-   * Determines if an object exists for a given key/versionId
-   *
-   * @param key Name of the blob to check
-   * @param versionId The version of the blob to check. This field is optional and should be null
-   *     unless you're checking for the existence of a specific key/version blob.
-   * @return Returns true if the object exists. Returns false if it doesn't exist.
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Determines if an object exists for a given key/versionId */
   public CompletableFuture<Boolean> doesObjectExist(String key, String versionId) {
-    return blobStore.doesObjectExist(key, versionId).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOES_OBJECT_EXIST,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.doesObjectExist(key, versionId).exceptionally(this::handleException));
   }
 
-  /**
-   * Determines if the bucket exists
-   *
-   * @return Returns true if the bucket exists. Returns false if it doesn't exist.
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Determines if the bucket exists */
   public CompletableFuture<Boolean> doesBucketExist() {
-    return blobStore.doesBucketExist().exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOES_BUCKET_EXIST,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.doesBucketExist().exceptionally(this::handleException));
   }
 
-  /**
-   * Uploads the directory content to substrate-specific Blob storage Note: Specifying the
-   * contentLength in the UploadRequest can dramatically improve upload efficiency because the
-   * substrate SDKs do not need to buffer the contents and calculate it themselves.
-   *
-   * @param directoryUploadRequest Wrapper, containing directory upload data
-   * @return Returns an DirectoryUploadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails
-   */
+  /** Uploads the directory content to substrate-specific Blob storage */
   public CompletableFuture<DirectoryUploadResponse> uploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
-    return blobStore.uploadDirectory(directoryUploadRequest).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.UPLOAD_DIRECTORY,
+        bucketAttrs(),
+        null,
+        ctx ->
+            blobStore
+                .uploadDirectory(directoryUploadRequest)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Downloads the directory content from substrate-specific Blob storage. Throws an exception if
-   * the file already exists in the destination directory.
-   *
-   * @param directoryDownloadRequest downloadRequest Wrapper, containing directory download data
-   * @return Returns a DirectoryDownloadResponse object that contains metadata about the blob
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file
-   *     already exists.
-   */
+  /** Downloads the directory content from substrate-specific Blob storage. */
   public CompletableFuture<DirectoryDownloadResponse> downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
-    return blobStore
-        .downloadDirectory(directoryDownloadRequest)
-        .exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DOWNLOAD_DIRECTORY,
+        bucketAttrs(),
+        null,
+        ctx ->
+            blobStore
+                .downloadDirectory(directoryDownloadRequest)
+                .exceptionally(this::handleException));
   }
 
-  /**
-   * Deletes all blobs in the bucket which have keys that start with the given prefix.
-   *
-   * @param prefix The prefix of blobs that should be deleted (e.g. the directory)
-   * @throws SubstrateSdkException Thrown if the operation fails. Throws an exception if the file
-   *     already exists.
-   */
+  /** Deletes all blobs in the bucket which have keys that start with the given prefix. */
   public CompletableFuture<Void> deleteDirectory(String prefix) {
-    return blobStore.deleteDirectory(prefix).exceptionally(this::handleException);
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.DELETE_DIRECTORY,
+        bucketAttrs(),
+        null,
+        ctx -> blobStore.deleteDirectory(prefix).exceptionally(this::handleException));
   }
 
   /** Closes the underlying async blob store and releases any resources. */
@@ -413,6 +381,125 @@ public class AsyncBucketClient implements AutoCloseable {
     if (blobStore != null) {
       blobStore.close();
     }
+  }
+
+  // ---- helpers ------------------------------------------------------------
+
+  private Map<String, String> bucketAttrs() {
+    String b = blobStore.getBucket();
+    return b != null ? Map.of("bucket", b) : null;
+  }
+
+  private static CompletableFuture<UploadResponse> uploadResponseWithCorrelationId(
+      CompletableFuture<UploadResponse> future, OperationContext ctx) {
+    if (future == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return future.thenApply(r -> withCorrelationId(r, ctx));
+  }
+
+  private static CompletableFuture<DownloadResponse> downloadResponseWithCorrelationId(
+      CompletableFuture<DownloadResponse> future, OperationContext ctx) {
+    if (future == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return future.thenApply(r -> withCorrelationId(r, ctx));
+  }
+
+  private static CompletableFuture<BlobMetadata> blobMetadataWithCorrelationId(
+      CompletableFuture<BlobMetadata> future, OperationContext ctx) {
+    if (future == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return future.thenApply(m -> withCorrelationId(m, ctx));
+  }
+
+  private static CompletableFuture<CopyResponse> copyResponseWithCorrelationId(
+      CompletableFuture<CopyResponse> future, OperationContext ctx) {
+    if (future == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return future.thenApply(r -> withCorrelationId(r, ctx));
+  }
+
+  private static UploadResponse withCorrelationId(UploadResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return UploadResponse.builder()
+        .key(r.getKey())
+        .versionId(r.getVersionId())
+        .eTag(r.getETag())
+        .checksumValue(r.getChecksumValue())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static DownloadResponse withCorrelationId(DownloadResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return DownloadResponse.builder()
+        .key(r.getKey())
+        .metadata(withCorrelationId(r.getMetadata(), ctx))
+        .inputStream(r.getInputStream())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static BlobMetadata withCorrelationId(BlobMetadata m, OperationContext ctx) {
+    if (m == null) {
+      return null;
+    }
+    return BlobMetadata.builder()
+        .key(m.getKey())
+        .versionId(m.getVersionId())
+        .eTag(m.getETag())
+        .objectSize(m.getObjectSize())
+        .metadata(m.getMetadata())
+        .lastModified(m.getLastModified())
+        .createdTime(m.getCreatedTime())
+        .md5(m.getMd5())
+        .contentType(m.getContentType())
+        .objectLockInfo(m.getObjectLockInfo())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  private static CopyResponse withCorrelationId(CopyResponse r, OperationContext ctx) {
+    if (r == null) {
+      return null;
+    }
+    return CopyResponse.builder()
+        .key(r.getKey())
+        .versionId(r.getVersionId())
+        .eTag(r.getETag())
+        .lastModified(r.getLastModified())
+        .correlationId(ctx.getCorrelationId())
+        .build();
+  }
+
+  /**
+   * See {@link com.salesforce.multicloudj.blob.client.BucketClient#withResolvedContext}.
+   */
+  static UploadRequest withResolvedContext(UploadRequest req, OperationContext ctx) {
+    if (ctx == req.getOperationContext()) {
+      return req;
+    }
+    return UploadRequest.builder()
+        .withKey(req.getKey())
+        .withContentLength(req.getContentLength())
+        .withMetadata(req.getMetadata())
+        .withTags(req.getTags())
+        .withStorageClass(req.getStorageClass())
+        .withKmsKeyId(req.getKmsKeyId())
+        .withUseKmsManagedKey(req.isUseKmsManagedKey())
+        .withObjectLock(req.getObjectLock())
+        .withChecksumValue(req.getChecksumValue())
+        .withChecksumAlgorithm(req.getChecksumAlgorithm())
+        .withContentType(req.getContentType())
+        .withOperationContext(ctx)
+        .build();
   }
 
   public static class Builder extends BlobClientBuilder<AsyncBucketClient, AsyncBlobStore> {
@@ -485,110 +572,54 @@ public class AsyncBucketClient implements AutoCloseable {
       return this;
     }
 
-    /**
-     * Method to supply multipart threshold in bytes
-     *
-     * @param thresholdBytes The threshold in bytes above which multipart upload will be used
-     * @return An instance of self
-     */
     @Override
     public Builder withThresholdBytes(Long thresholdBytes) {
       super.withThresholdBytes(thresholdBytes);
       return this;
     }
 
-    /**
-     * Method to supply multipart part buffer size in bytes
-     *
-     * @param partBufferSize The buffer size in bytes for each part in a multipart upload
-     * @return An instance of self
-     */
     @Override
     public Builder withPartBufferSize(Long partBufferSize) {
       super.withPartBufferSize(partBufferSize);
       return this;
     }
 
-    /**
-     * Method to enable/disable parallel uploads
-     *
-     * @param parallelUploadsEnabled Whether to enable parallel uploads
-     * @return An instance of self
-     */
     @Override
     public Builder withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
       super.withParallelUploadsEnabled(parallelUploadsEnabled);
       return this;
     }
 
-    /**
-     * Method to enable/disable parallel downloads
-     *
-     * @param parallelDownloadsEnabled Whether to enable parallel downloads
-     * @return An instance of self
-     */
     @Override
     public Builder withParallelDownloadsEnabled(Boolean parallelDownloadsEnabled) {
       super.withParallelDownloadsEnabled(parallelDownloadsEnabled);
       return this;
     }
 
-    /**
-     * Method to set target throughput in Gbps
-     *
-     * @param targetThroughputInGbps The target throughput in Gbps
-     * @return An instance of self
-     */
     @Override
     public Builder withTargetThroughputInGbps(Double targetThroughputInGbps) {
       super.withTargetThroughputInGbps(targetThroughputInGbps);
       return this;
     }
 
-    /**
-     * Method to set maximum native memory limit in bytes
-     *
-     * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
-     * @return An instance of self
-     */
     @Override
     public Builder withMaxNativeMemoryLimitInBytes(Long maxNativeMemoryLimitInBytes) {
       super.withMaxNativeMemoryLimitInBytes(maxNativeMemoryLimitInBytes);
       return this;
     }
 
-    /**
-     * Method to supply retry configuration
-     *
-     * @param retryConfig The retry configuration to use for retrying failed requests
-     * @return An instance of self
-     */
     @Override
     public Builder withRetryConfig(RetryConfig retryConfig) {
       super.withRetryConfig(retryConfig);
       return this;
     }
 
-    /**
-     * Method to control whether system property values should be used for proxy configuration.
-     *
-     * @param useSystemPropertyProxyValues Whether to use system property values for proxy
-     *     configuration
-     * @return An instance of self
-     */
     @Override
     public Builder withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
       super.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
       return this;
     }
 
-    /**
-     * Method to control whether environment variable values should be used for proxy configuration.
-     *
-     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy
-     *     configuration
-     * @return An instance of self
-     */
     @Override
     public Builder withUseEnvironmentVariableProxyValues(
         Boolean useEnvironmentVariableProxyValues) {
@@ -597,11 +628,14 @@ public class AsyncBucketClient implements AutoCloseable {
     }
 
     /**
-     * Method to enable/disable transfer listeners for async directory operations.
-     *
-     * @param useTransferListener Whether to attach transfer listeners
-     * @return An instance of self
+     * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
      */
+    @Override
+    public Builder withTracingPolicy(TracingPolicy tracingPolicy) {
+      super.withTracingPolicy(tracingPolicy);
+      return this;
+    }
+
     public Builder withUseTransferListener(Boolean useTransferListener) {
       ((AsyncBlobStoreProvider.Builder) storeBuilder).withUseTransferListener(useTransferListener);
       return this;
@@ -610,7 +644,7 @@ public class AsyncBucketClient implements AutoCloseable {
     /** {@inheritDoc} */
     @Override
     public AsyncBucketClient build() {
-      return new AsyncBucketClient(storeBuilder.build());
+      return new AsyncBucketClient(storeBuilder.build(), storeBuilder.getTracingPolicy());
     }
   }
 }

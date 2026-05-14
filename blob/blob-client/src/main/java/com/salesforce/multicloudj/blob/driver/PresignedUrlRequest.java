@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
@@ -35,4 +36,10 @@ public class PresignedUrlRequest {
    * Optional: Specify the Content-Disposition header to override in a presigned download URL. 
    */
   private final String contentDisposition;
+
+  /**
+   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
+   * correlation ID is missing, the SDK auto-generates a UUID for log/trace correlation.
+   */
+  private final OperationContext operationContext;
 }

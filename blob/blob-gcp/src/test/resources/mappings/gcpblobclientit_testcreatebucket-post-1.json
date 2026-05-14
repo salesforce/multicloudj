@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"name\":\"test-bucket-create-multicloudj3\",\"retentionPolicy\":null}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {
