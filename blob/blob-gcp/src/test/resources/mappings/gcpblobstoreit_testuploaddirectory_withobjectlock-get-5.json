@@ -1,0 +1,47 @@
+{
+  "id" : "24e526e3-c32c-49d4-9ec1-00463694b456",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-GET-5",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "includeFoldersAsPrefixes" : {
+        "hasExactly" : [ {
+          "equalTo" : "false"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory-objectlock/upload-with-lock-v1"
+        } ]
+      },
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-with-lock-v1//1777675438275607\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2F\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2F?generation=1777675438275607&alt=media\",\n      \"name\": \"conformance-tests/directory-objectlock/upload-with-lock-v1/\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1777675438275607\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"0\",\n      \"md5Hash\": \"1B2M2Y8AsgTpgAmY7PhCfg==\",\n      \"crc32c\": \"AAAAAA==\",\n      \"etag\": \"CJf4mIiVmZQDEAE=\",\n      \"temporaryHold\": true,\n      \"retentionExpirationTime\": \"2030-04-30T00:00:00.000Z\",\n      \"retention\": {\n        \"retainUntilTime\": \"2030-04-30T00:00:00.000Z\",\n        \"mode\": \"Unlocked\"\n      },\n      \"timeCreated\": \"2026-05-01T22:43:58.318Z\",\n      \"updated\": \"2026-05-01T22:43:58.318Z\",\n      \"timeStorageClassUpdated\": \"2026-05-01T22:43:58.318Z\",\n      \"timeFinalized\": \"2026-05-01T22:43:58.318Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-with-lock-v1/file1.txt/1777675439198986\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Ffile1.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Ffile1.txt?generation=1777675439198986&alt=media\",\n      \"name\": \"conformance-tests/directory-objectlock/upload-with-lock-v1/file1.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1777675439198986\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"8\",\n      \"md5Hash\": \"flXbAB0xmpSwtxNSmnVmIw==\",\n      \"crc32c\": \"syeM0w==\",\n      \"etag\": \"CIqm0YiVmZQDEAE=\",\n      \"temporaryHold\": true,\n      \"retentionExpirationTime\": \"2030-04-30T00:00:00.000Z\",\n      \"retention\": {\n        \"retainUntilTime\": \"2030-04-30T00:00:00.000Z\",\n        \"mode\": \"Unlocked\"\n      },\n      \"timeCreated\": \"2026-05-01T22:43:59.239Z\",\n      \"updated\": \"2026-05-01T22:43:59.239Z\",\n      \"timeStorageClassUpdated\": \"2026-05-01T22:43:59.239Z\",\n      \"timeFinalized\": \"2026-05-01T22:43:59.239Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-with-lock-v1/subdir/file2.txt/1777675439243509\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Fsubdir%2Ffile2.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Fsubdir%2Ffile2.txt?generation=1777675439243509&alt=media\",\n      \"name\": \"conformance-tests/directory-objectlock/upload-with-lock-v1/subdir/file2.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n      \"generation\": \"1777675439243509\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"8\",\n      \"md5Hash\": \"7qZw9KyUHfcaO18mjr4+rA==\",\n      \"crc32c\": \"oHd/Jw==\",\n      \"etag\": \"CPWB1IiVmZQDEAE=\",\n      \"temporaryHold\": true,\n      \"retentionExpirationTime\": \"2030-04-30T00:00:00.000Z\",\n      \"retention\": {\n        \"retainUntilTime\": \"2030-04-30T00:00:00.000Z\",\n        \"mode\": \"Unlocked\"\n      },\n      \"timeCreated\": \"2026-05-01T22:43:59.285Z\",\n      \"updated\": \"2026-05-01T22:43:59.285Z\",\n      \"timeStorageClassUpdated\": \"2026-05-01T22:43:59.285Z\",\n      \"timeFinalized\": \"2026-05-01T22:43:59.285Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AAVLpEh0Ysw3ov4vxgSCcuLQ_ANRdjf_Xaof32IbvyXyy0RqoQJYx7j6jDKY2s9Las8ghQaL",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 01 May 2026 22:43:59 GMT",
+      "Date" : "Fri, 01 May 2026 22:43:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "24e526e3-c32c-49d4-9ec1-00463694b456",
+  "persistent" : true,
+  "insertionIndex" : 1221
+}

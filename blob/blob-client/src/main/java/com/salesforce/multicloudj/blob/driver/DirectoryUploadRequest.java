@@ -24,4 +24,10 @@ public class DirectoryUploadRequest {
    * directory
    */
   private final Map<String, String> tags;
+
+  /**
+   * Optional object lock (retention / legal hold) applied to each uploaded object, including the
+   * directory marker when a prefix is used.
+   */
+  private final ObjectLockConfiguration objectLock;
 }

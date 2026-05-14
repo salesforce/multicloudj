@@ -836,6 +836,75 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToUploadDirectoryRequest_WithObjectLock() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+    assertNotNull(request);
+    // Verify the per-file transformer applies object lock to each PutObjectRequest
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.GOVERNANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.OFF, putRequest.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithObjectLockAndTags() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(false)
+            .tags(Map.of("env", "prod"))
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.COMPLIANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, putRequest.objectLockLegalHoldStatus());
+    assertNotNull(putRequest.tagging());
+  }
+
+  @Test
   void testToDirectoryUploadResponse() {
     Exception exception1 = new RuntimeException("Exception1!");
     Path path1 = Paths.get("/home/documents/files/document1.txt");

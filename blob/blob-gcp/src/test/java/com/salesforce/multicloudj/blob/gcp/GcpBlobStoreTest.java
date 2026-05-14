@@ -12,7 +12,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -31,6 +34,7 @@ import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.MultipartUploadClient;
@@ -79,6 +83,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
@@ -105,6 +110,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -200,6 +206,25 @@ class GcpBlobStoreTest {
     // validateBucketExists
     Bucket mockBucket = mock(Bucket.class);
     lenient().when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+    // Default stub for toBlobInfo used in directory uploads - returns a simple BlobInfo
+    // Tests that need specific behavior can override this
+    lenient()
+        .when(mockTransformer.toBlobInfo(
+            anyString(),
+            anyMap(),
+            isNull(),
+            isNull(),
+            nullable(ObjectLockConfiguration.class),
+            isNull()))
+        .thenAnswer(invocation -> {
+          String key = invocation.getArgument(0);
+          @SuppressWarnings("unchecked")
+          Map<String, String> metadata = invocation.getArgument(1);
+          return BlobInfo.newBuilder(TEST_BUCKET, key)
+              .setMetadata(metadata.isEmpty() ? null : metadata)
+              .build();
+        });
 
     gcpBlobStore = new GcpBlobStore(builder, mockStorage, mpuClient, mockTransferManager);
   }
@@ -2456,6 +2481,69 @@ class GcpBlobStoreTest {
     BlobInfo produced =
         captor.getValue().getUploadBlobInfoFactory().apply(TEST_BUCKET, absoluteFile.toString());
     assertEquals("uploads/subdir/file.txt", produced.getName());
+  }
+
+  @Test
+  void testUploadDirectory_WithObjectLock() throws Exception {
+    Instant retainUntil = Instant.now().plusSeconds(86400);
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix("uploads/")
+            .includeSubFolders(true)
+            .objectLock(objectLock)
+            .build();
+
+    Path file1 = tempDir.resolve("file1.txt");
+    Files.write(file1, "content1".getBytes());
+    Path absoluteSourceDir = tempDir.toAbsolutePath();
+    Path absoluteFile1 = file1.toAbsolutePath();
+    List<Path> filePaths = List.of(file1);
+
+    when(mockTransformer.toFilePaths(request)).thenReturn(filePaths);
+    when(mockTransformer.toBlobKey(eq(absoluteSourceDir), eq(absoluteFile1), eq("uploads/")))
+        .thenReturn("uploads/file1.txt");
+
+    BlobInfo mockFileBlobInfo = mock(BlobInfo.class);
+    when(mockTransformer.toBlobInfo(
+            eq("uploads/file1.txt"),
+            anyMap(),
+            isNull(),
+            isNull(),
+            eq(objectLock),
+            isNull()))
+        .thenReturn(mockFileBlobInfo);
+
+    UploadJob mockJob = mock(UploadJob.class);
+    when(mockJob.getUploadResults())
+        .thenReturn(List.of(makeUploadResult("uploads/file1.txt", TransferStatus.SUCCESS, null)));
+    when(mockTransferManager.uploadFiles(anyList(), any(ParallelUploadConfig.class)))
+        .thenReturn(mockJob);
+
+    DirectoryUploadResponse response = gcpBlobStore.uploadDirectory(request);
+
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().isEmpty());
+
+    ArgumentCaptor<ParallelUploadConfig> configCaptor =
+        ArgumentCaptor.forClass(ParallelUploadConfig.class);
+    verify(mockTransferManager).uploadFiles(eq(filePaths), configCaptor.capture());
+    BlobInfo produced =
+        configCaptor
+            .getValue()
+            .getUploadBlobInfoFactory()
+            .apply(TEST_BUCKET, absoluteFile1.toString());
+    assertEquals(mockFileBlobInfo, produced);
+
+    verify(mockStorage, never()).createFrom(any(BlobInfo.class), any(Path.class));
   }
 
   @Test
