@@ -38,8 +38,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
@@ -1559,6 +1561,49 @@ public class AwsAsyncBlobStoreTest {
     UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
     assertEquals(BUCKET, capturedRequest.bucket());
     assertEquals(Paths.get("/tmp/test-upload-dir-tags"), capturedRequest.source());
+    assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
+    assertNotNull(capturedRequest.uploadFileRequestTransformer());
+  }
+
+  @Test
+  void doUploadDirectory_WithObjectLock() throws ExecutionException, InterruptedException {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+
+    DirectoryUpload mockDirectoryUpload = mock(DirectoryUpload.class);
+    CompletedDirectoryUpload mockCompletedUpload = mock(CompletedDirectoryUpload.class);
+    doReturn(mockDirectoryUpload)
+        .when(mockS3TransferManager)
+        .uploadDirectory(any(UploadDirectoryRequest.class));
+    doReturn(CompletableFuture.completedFuture(mockCompletedUpload))
+        .when(mockDirectoryUpload)
+        .completionFuture();
+    doReturn(List.of()).when(mockCompletedUpload).failedTransfers();
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/tmp/test-upload-dir-lock")
+            .prefix("files/")
+            .includeSubFolders(true)
+            .objectLock(lockConfig)
+            .build();
+
+    DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
+
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().isEmpty());
+
+    ArgumentCaptor<UploadDirectoryRequest> requestCaptor =
+        ArgumentCaptor.forClass(UploadDirectoryRequest.class);
+    verify(mockS3TransferManager, times(1)).uploadDirectory(requestCaptor.capture());
+    UploadDirectoryRequest capturedRequest = requestCaptor.getValue();
+    assertEquals(BUCKET, capturedRequest.bucket());
+    assertEquals(Paths.get("/tmp/test-upload-dir-lock"), capturedRequest.source());
     assertEquals("files/", capturedRequest.s3Prefix().orElse(null));
     assertNotNull(capturedRequest.uploadFileRequestTransformer());
   }

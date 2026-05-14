@@ -229,15 +229,7 @@ public class AwsTransformer {
 
     // Set object lock if provided
     if (request.getObjectLock() != null) {
-      ObjectLockConfiguration lockConfig = request.getObjectLock();
-      if (lockConfig.getMode() != null) {
-        builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
-      }
-      if (lockConfig.getRetainUntilDate() != null) {
-        builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
-      }
-      builder.objectLockLegalHoldStatus(
-          lockConfig.isLegalHold() ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF);
+      applyObjectLockToPutObjectBuilder(builder, request.getObjectLock());
     }
 
     // Set checksum if provided
@@ -270,6 +262,18 @@ public class AwsTransformer {
       default:
         throw new InvalidArgumentException("Unknown retention mode: " + mode);
     }
+  }
+
+  private void applyObjectLockToPutObjectBuilder(
+      PutObjectRequest.Builder builder, ObjectLockConfiguration lockConfig) {
+    if (lockConfig.getMode() != null) {
+      builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
+    }
+    if (lockConfig.getRetainUntilDate() != null) {
+      builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
+    }
+    builder.objectLockLegalHoldStatus(
+        lockConfig.isLegalHold() ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF);
   }
 
   /** Converts provider SDK ObjectLockMode to SDK RetentionMode */
@@ -688,18 +692,30 @@ public class AwsTransformer {
             .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
 
-    // Merge tags into the existing PutObjectRequest per file; putObjectRequest(Consumer) would
-    // replace it and drop bucket/key.
-    if (request.getTags() != null && !request.getTags().isEmpty()) {
+    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    boolean hasObjectLock = request.getObjectLock() != null;
+
+    // Merge tags / object lock into the existing PutObjectRequest per file;
+    // putObjectRequest(Consumer) would replace it and drop bucket/key.
+    if (hasTags || hasObjectLock) {
       List<Tag> tagSet =
-          request.getTags().entrySet().stream()
-              .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
-              .collect(Collectors.toList());
+          hasTags
+              ? request.getTags().entrySet().stream()
+                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                  .collect(Collectors.toList())
+              : null;
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
       builder.uploadFileRequestTransformer(
           fileRequestBuilder -> {
             PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
-            fileRequestBuilder.putObjectRequest(
-                existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
+            PutObjectRequest.Builder putBuilder = existing.toBuilder();
+            if (hasTags) {
+              putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
+            }
+            if (hasObjectLock) {
+              applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            fileRequestBuilder.putObjectRequest(putBuilder.build());
           });
     }
 
@@ -716,8 +732,9 @@ public class AwsTransformer {
             .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
     boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    boolean hasObjectLock = request.getObjectLock() != null;
     boolean transferStatusLoggingEnabled = request.isTransferStatusLoggingEnabled();
-    if (hasTags || transferStatusLoggingEnabled) {
+    if (hasTags || hasObjectLock || transferStatusLoggingEnabled) {
       S3LoggingTransferListener transferListener =
           transferStatusLoggingEnabled
               ? S3LoggingTransferListener.create(totalBytesTransferred)
@@ -728,13 +745,18 @@ public class AwsTransformer {
                   .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
                   .collect(Collectors.toList())
               : null;
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
       builder.uploadFileRequestTransformer(
           fileRequestBuilder -> {
+            PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+            PutObjectRequest.Builder putBuilder = existing.toBuilder();
             if (hasTags) {
-              PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
-              fileRequestBuilder.putObjectRequest(
-                  existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
+              putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
             }
+            if (hasObjectLock) {
+              applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            fileRequestBuilder.putObjectRequest(putBuilder.build());
             if (transferListener != null) {
               fileRequestBuilder.addTransferListener(transferListener);
             }

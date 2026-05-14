@@ -1,0 +1,53 @@
+{
+  "id" : "8e34a68c-7715-49b0-a7e0-2e70ff1c69e9",
+  "name" : "GcpBlobStoreIT_testUploadDirectory_WithObjectLock-PUT-6",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory-objectlock/upload-with-lock-v1/subdir/file2.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AAVLpEh8zzXuzB4vgpk3hus7JmoU2eCW4hpCgbsChmTzQp_GwzomFPDjRDv05nkJyf3ioDGdzGyped9bYAHi3HhFuMHVHrsZ4U3nHv8WF6JiunQ"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "content2",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-with-lock-v1/subdir/file2.txt/1777675439243509\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Fsubdir%2Ffile2.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdirectory-objectlock%2Fupload-with-lock-v1%2Fsubdir%2Ffile2.txt?generation=1777675439243509&alt=media\",\n  \"name\": \"conformance-tests/directory-objectlock/upload-with-lock-v1/subdir/file2.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1777675439243509\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"8\",\n  \"md5Hash\": \"7qZw9KyUHfcaO18mjr4+rA==\",\n  \"crc32c\": \"oHd/Jw==\",\n  \"etag\": \"CPWB1IiVmZQDEAE=\",\n  \"temporaryHold\": true,\n  \"retentionExpirationTime\": \"2030-04-30T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-04-30T00:00:00.000Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-05-01T22:43:59.285Z\",\n  \"updated\": \"2026-05-01T22:43:59.285Z\",\n  \"timeStorageClassUpdated\": \"2026-05-01T22:43:59.285Z\",\n  \"timeFinalized\": \"2026-05-01T22:43:59.285Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CPWB1IiVmZQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEh8zzXuzB4vgpk3hus7JmoU2eCW4hpCgbsChmTzQp_GwzomFPDjRDv05nkJyf3ioDGdzGyped9bYAHi3HhFuMHVHrsZ4U3nHv8WF6JiunQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Fri, 01 May 2026 22:43:59 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "8e34a68c-7715-49b0-a7e0-2e70ff1c69e9",
+  "persistent" : true,
+  "insertionIndex" : 1222
+}

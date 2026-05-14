@@ -68,6 +68,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
@@ -864,7 +865,12 @@ public class GcpBlobStore extends AbstractBlobStore {
           ParallelUploadConfig.newBuilder()
               .setBucketName(getBucket())
               .setUploadBlobInfoFactory(
-                  buildUploadFactory(sourceDir, prefix, metadata, keyToSource))
+                  buildUploadFactory(
+                      sourceDir,
+                      prefix,
+                      metadata,
+                      keyToSource,
+                      directoryUploadRequest.getObjectLock()))
               .build();
 
       UploadJob job = transferManager.uploadFiles(filePaths, uploadConfig);
@@ -893,11 +899,18 @@ public class GcpBlobStore extends AbstractBlobStore {
    * attribution.
    */
   private ParallelUploadConfig.UploadBlobInfoFactory buildUploadFactory(
-      Path sourceDir, String prefix, Map<String, String> metadata, Map<String, Path> keyToSource) {
+      Path sourceDir,
+      String prefix,
+      Map<String, String> metadata,
+      Map<String, Path> keyToSource,
+      ObjectLockConfiguration objectLock) {
     return (bucketName, filename) -> {
       Path filePath = Paths.get(filename);
       String blobKey = transformer.toBlobKey(sourceDir, filePath, prefix);
       keyToSource.put(blobKey, filePath);
+      if (objectLock != null) {
+        return transformer.toBlobInfo(blobKey, metadata, null, null, objectLock, null);
+      }
       BlobInfo.Builder b = BlobInfo.newBuilder(bucketName, blobKey);
       if (!metadata.isEmpty()) {
         b.setMetadata(metadata);
