@@ -31,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -158,6 +159,62 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.metadata());
     assertNull(actual.serverSideEncryptionAsString());
     assertNull(actual.ssekmsKeyId());
+  }
+
+  @Test
+  void testUpload_correlationIdInjectedIntoMetadata() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testUpload_correlationIdNotInjectedWhenContextMissing() {
+    var key = "some-key";
+    var metadata = Map.of("user-key", "user-value");
+
+    var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey("correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testUpload_userSuppliedCorrelationIdNotOverwritten() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("correlation-id"),
+        "application's explicit correlation-id metadata value must take precedence over the SDK's");
   }
 
   @Test

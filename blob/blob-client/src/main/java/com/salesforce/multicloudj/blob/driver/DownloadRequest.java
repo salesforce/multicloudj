@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import lombok.Getter;
 
 /** Wrapper object for download data */
@@ -15,6 +16,12 @@ public class DownloadRequest {
   private final boolean createParentPath;
   private final boolean checkArchived;
 
+  /**
+   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
+   * correlation ID is missing, the SDK auto-generates a UUID and returns it via the response.
+   */
+  private final OperationContext operationContext;
+
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
     this.versionId = builder.versionId;
@@ -23,6 +30,7 @@ public class DownloadRequest {
     this.kmsKeyId = builder.kmsKeyId;
     this.parallelDownload = builder.parallelDownload;
     this.createParentPath = builder.createParentPath;
+    this.operationContext = builder.operationContext;
     this.checkArchived = builder.checkArchived;
   }
 
@@ -38,6 +46,7 @@ public class DownloadRequest {
     private String kmsKeyId;
     private boolean parallelDownload;
     private boolean createParentPath;
+    private OperationContext operationContext;
     private boolean checkArchived;
 
     /** Specifies the key of the Blob to download. */
@@ -121,6 +130,18 @@ public class DownloadRequest {
       return this;
     }
 
+    /**
+     * Sets the per-call observability context carrying the correlation ID. If not set (or if the
+     * context's correlation ID is null/empty), the SDK auto-generates a UUID.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
+      return this;
+    }
+    
     /**
      * (Optional) If true and the object is not found, the provider will check whether
      * the object was archived (deletion without version id). When

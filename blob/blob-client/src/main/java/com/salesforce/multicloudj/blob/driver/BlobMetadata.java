@@ -38,4 +38,7 @@ public class BlobMetadata {
 
   /** Object lock information for this blob. null if object lock is not configured. */
   private final ObjectLockInfo objectLockInfo;
+
+  /** The correlation ID associated with the operation that produced this metadata. */
+  private final String correlationId;
 }
