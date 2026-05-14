@@ -7,7 +7,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"generation\":\"1773239462550974\",\"metadata\":{\"gcp-tag-tag1\":null,\"gcp-tag-tag3\":\"value3\"},\"name\":\"conformance-tests/blob-for-tagging-objectlock\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {

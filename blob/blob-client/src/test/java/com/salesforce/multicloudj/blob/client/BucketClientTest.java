@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -112,7 +113,8 @@ public class BucketClientTest {
     var content = mock(InputStream.class);
     UploadRequest request = new UploadRequest.Builder().withKey("object-1").build();
     UploadResponse actualResponse = client.upload(request, content);
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(content));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(content));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -124,7 +126,8 @@ public class BucketClientTest {
     byte[] content = "test data".getBytes();
     UploadRequest request = new UploadRequest.Builder().withKey("object-1").build();
     UploadResponse actualResponse = client.upload(request, content);
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(content));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(content));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -136,7 +139,8 @@ public class BucketClientTest {
     File content = new File("fake.txt");
     UploadRequest request = new UploadRequest.Builder().withKey("object-1").build();
     UploadResponse actualResponse = client.upload(request, content);
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(content));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(content));
     assertEquals(expectedResponse, actualResponse);
   }
 
@@ -148,8 +152,23 @@ public class BucketClientTest {
     Path content = Paths.get("fake.txt");
     UploadRequest request = new UploadRequest.Builder().withKey("object-1").build();
     UploadResponse actualResponse = client.upload(request, content);
-    verify(mockBlobStore, times(1)).upload(eq(request), eq(content));
+    verify(mockBlobStore, times(1))
+        .upload(argThat(uploadRequestEnrichedWith("object-1")), eq(content));
     assertEquals(expectedResponse, actualResponse);
+  }
+
+  /**
+   * Matches an {@link UploadRequest} whose key matches and whose {@link
+   * com.salesforce.multicloudj.common.observability.OperationContext} has been populated by the
+   * SDK with a non-null correlation id (so the provider's transformer can persist it on the
+   * blob's stored metadata under {@code BlobMetadataKeys.CORRELATION_ID}).
+   */
+  private static org.mockito.ArgumentMatcher<UploadRequest> uploadRequestEnrichedWith(String key) {
+    return req ->
+        req != null
+            && key.equals(req.getKey())
+            && req.getOperationContext() != null
+            && req.getOperationContext().getCorrelationId() != null;
   }
 
   @Test

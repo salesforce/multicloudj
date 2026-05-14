@@ -22,7 +22,7 @@
       }
     },
     "bodyPatterns" : [ {
-      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 113\r\nContent-Type: application/json; charset=UTF-8\r\ncontent-transfer-encoding: binary\r\n\r\n{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/upload/emptyContent_File\"}\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Type: application/octet-stream\r\ncontent-transfer-encoding: binary\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
+      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: \\E\\d+\\Q\r\nContent-Type: application/json; charset=UTF-8\r\ncontent-transfer-encoding: binary\r\n\r\n{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":\\E\\{[^}]*\\}\\Q,\"name\":\"conformance-tests/upload/emptyContent_File\"}\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Type: application/octet-stream\r\ncontent-transfer-encoding: binary\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
     } ]
   },
   "response" : {

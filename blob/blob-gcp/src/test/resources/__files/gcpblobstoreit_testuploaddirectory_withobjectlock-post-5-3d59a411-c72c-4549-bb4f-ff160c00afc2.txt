@@ -1,0 +1,226 @@
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-1
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 606
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-2
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 624
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-3
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 638
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777498929139/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-4
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 606
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-5
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 624
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-6
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 638
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload-1777499235260/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-7
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 578
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-8
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 596
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/file1.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6
+Content-Type: application/http
+Content-ID: response-9
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 29 Apr 2026 22:19:08 GMT
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Expires: Mon, 01 Jan 1990 00:00:00 GMT
+Content-Length: 610
+
+{
+  "error": {
+    "code": 403,
+    "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+    "errors": [
+      {
+        "message": "Object 'substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/directory-objectlock/upload/subdir/file2.txt' is under active Temporary hold and cannot be deleted, overwritten or archived until hold is removed.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ]
+  }
+}
+
+--batch_AlugvLfjbe1W9mVlH8zC53bQXeprUXQ6--

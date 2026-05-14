@@ -87,6 +87,11 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isDirectoryUploadSupported() {
+      return false;
+    }
+
+    @Override
     public void close() {
       // Nothing to close for in-memory implementation
     }

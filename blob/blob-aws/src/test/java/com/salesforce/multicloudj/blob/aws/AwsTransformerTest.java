@@ -31,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -158,6 +159,62 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.metadata());
     assertNull(actual.serverSideEncryptionAsString());
     assertNull(actual.ssekmsKeyId());
+  }
+
+  @Test
+  void testUpload_correlationIdInjectedIntoMetadata() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("req-abc-123").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("user-value", actual.metadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        actual.metadata().get("correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testUpload_correlationIdNotInjectedWhenContextMissing() {
+    var key = "some-key";
+    var metadata = Map.of("user-key", "user-value");
+
+    var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(metadata, actual.metadata());
+    assertFalse(
+        actual.metadata().containsKey("correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testUpload_userSuppliedCorrelationIdNotOverwritten() {
+    var key = "some-key";
+    var ctx = OperationContext.builder().correlationId("sdk-generated").build();
+
+    var request =
+        UploadRequest.builder()
+            .withKey(key)
+            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals(
+        "user-supplied",
+        actual.metadata().get("correlation-id"),
+        "application's explicit correlation-id metadata value must take precedence over the SDK's");
   }
 
   @Test
@@ -776,6 +833,75 @@ public class AwsTransformerTest {
     // Note: AWS SDK 2.35.0 doesn't support tagging in directory uploads via UploadDirectoryRequest
     // Tags would need to be applied post-upload or when AWS SDK is upgraded
     assertNotNull(request);
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithObjectLock() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(true)
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+    assertNotNull(request);
+    // Verify the per-file transformer applies object lock to each PutObjectRequest
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.GOVERNANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.OFF, putRequest.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_WithObjectLockAndTags() {
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .build();
+    DirectoryUploadRequest directoryUploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory("/home/documents")
+            .prefix("/files")
+            .includeSubFolders(false)
+            .tags(Map.of("env", "prod"))
+            .objectLock(lockConfig)
+            .build();
+
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+
+    assertNotNull(request);
+    UploadFileRequest.Builder fileBuilder =
+        UploadFileRequest.builder()
+            .source(Paths.get("/tmp/test.txt"))
+            .putObjectRequest(
+                PutObjectRequest.builder().bucket(BUCKET).key("/files/test.txt").build());
+    request.uploadFileRequestTransformer().accept(fileBuilder);
+    PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
+    assertEquals(ObjectLockMode.COMPLIANCE, putRequest.objectLockMode());
+    assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, putRequest.objectLockLegalHoldStatus());
+    assertNotNull(putRequest.tagging());
   }
 
   @Test

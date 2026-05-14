@@ -9,6 +9,8 @@ import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -73,6 +75,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +95,14 @@ public abstract class AbstractBlobStoreIT {
      * tests are skipped.
      */
     default boolean isObjectLockSupported() {
+      return true;
+    }
+
+    /**
+     * Whether this provider supports directory upload. When false, directory upload conformance
+     * tests are skipped.
+     */
+    default boolean isDirectoryUploadSupported() {
       return true;
     }
 
@@ -2541,7 +2552,7 @@ public abstract class AbstractBlobStoreIT {
             uploadResponse.getETag(),
             blobMetadata.getETag(),
             testConfig.testName + ": The metadata etag does not match the original");
-        Assertions.assertEquals(
+        assertUserMetadataEquals(
             testConfig.expectedMetadata,
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
@@ -2573,6 +2584,8 @@ public abstract class AbstractBlobStoreIT {
       Instant.parse("2026-03-11T15:47:28.252Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
       Instant.parse("2026-03-11T15:47:25.512Z");
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
+      Instant.parse("2030-04-30T00:00:00Z");
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
@@ -2750,14 +2763,14 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(v1Metadata);
       Assertions.assertEquals(v1Metadata.getKey(), uploadResponse1.getKey());
       Assertions.assertEquals(v1Metadata.getVersionId(), uploadResponse1.getVersionId());
-      Assertions.assertEquals(v1Metadata.getMetadata(), metadata1);
+      assertUserMetadataEquals(metadata1, v1Metadata.getMetadata(), "v1 metadata mismatch");
 
       // Now verify the metadata from v2
       BlobMetadata v2Metadata = bucketClient.getMetadata(key, uploadResponse2.getVersionId());
       Assertions.assertNotNull(v2Metadata);
       Assertions.assertEquals(v2Metadata.getKey(), uploadResponse2.getKey());
       Assertions.assertEquals(v2Metadata.getVersionId(), uploadResponse2.getVersionId());
-      Assertions.assertEquals(v2Metadata.getMetadata(), metadata2);
+      assertUserMetadataEquals(metadata2, v2Metadata.getMetadata(), "v2 metadata mismatch");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, key);
@@ -3924,6 +3937,23 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
+  /**
+   * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
+   * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
+   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
+   * span and logs of the upload that produced it; the value is non-deterministic per upload and is
+   * not user content, so it must not participate in user-metadata round-trip equality checks.
+   *
+   * <p>Keep this filter list in sync with the {@code CORRELATION_ID_METADATA_KEY} constants in the
+   * provider transformers.
+   */
+  private static void assertUserMetadataEquals(
+      Map<String, String> expected, Map<String, String> actual, String message) {
+    Map<String, String> filtered = new HashMap<>(actual);
+    filtered.remove("correlation-id");
+    Assertions.assertEquals(expected, filtered, message);
+  }
+
   @Test
   public void testUploadWithKmsKey_happyPath() {
     String key = "conformance-tests/kms/upload-happy-path";
@@ -4406,5 +4436,87 @@ public abstract class AbstractBlobStoreIT {
             "archived flag should be false for never-existed blob");
       }
     }
+  }
+
+  @Test
+  public void testUploadDirectory_WithObjectLock(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        GCP_PROVIDER_ID.equals(harness.getProviderId()),
+        "Directory upload with object lock conformance test runs only for GCP");
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+
+    // Create test files
+    Path file1 = tempDir.resolve("file1.txt");
+    Path file2 = tempDir.resolve("subdir");
+    Files.createDirectories(file2);
+    Path file2File = file2.resolve("file2.txt");
+    Files.write(file1, "content1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2File, "content2".getBytes(StandardCharsets.UTF_8));
+
+    // Fixed retainUntil to keep WireMock replay stable.
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD;
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    String prefix = "conformance-tests/directory-objectlock/upload-with-lock-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .objectLock(objectLock)
+            .build();
+
+    // Upload directory with object lock
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify uploaded files have object lock
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      int fileCount = 0;
+      while (blobs.hasNext()) {
+        BlobInfo blob = blobs.next();
+        fileCount++;
+
+        // Get object lock info for each file
+        ObjectLockInfo lockInfo = bucketClient.getObjectLock(blob.getKey(), null);
+        Assertions.assertNotNull(
+            lockInfo, "Object lock should be set on uploaded file: " + blob.getKey());
+        Assertions.assertEquals(
+            RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+        Assertions.assertTrue(lockInfo.isLegalHold(), "Legal hold should be enabled");
+        Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+      }
+
+      // Verify we found the files (at least 2 files were uploaded)
+      Assertions.assertTrue(fileCount >= 2, "Should have uploaded at least 2 files");
+    } finally {
+      ListBlobsRequest cleanupListRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> cleanupBlobs = blobStore.list(cleanupListRequest);
+      List<String> cleanupKeys = new ArrayList<>();
+      while (cleanupBlobs.hasNext()) {
+        cleanupKeys.add(cleanupBlobs.next().getKey());
+      }
+      safeDeleteBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
+    }
+
+    blobStore.close();
   }
 }

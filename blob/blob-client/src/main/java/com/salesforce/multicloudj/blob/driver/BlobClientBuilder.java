@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -286,6 +287,17 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   public BlobClientBuilder<C, S> withUseEnvironmentVariableProxyValues(
       Boolean useEnvironmentVariableProxyValues) {
     this.storeBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+    return this;
+  }
+
+  /**
+   * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
+   *
+   * @param tracingPolicy the tracing policy
+   * @return An instance of self
+   */
+  public BlobClientBuilder<C, S> withTracingPolicy(TracingPolicy tracingPolicy) {
+    this.storeBuilder.withTracingPolicy(tracingPolicy);
     return this;
   }
 
