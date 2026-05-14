@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -2967,6 +2968,39 @@ public abstract class AbstractBlobStoreIT {
               .build();
       Assertions.assertThrows(
           Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_noCurrentRetention_throws() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    // Upload WITHOUT retention config — object has no retention set.
+    String key = "conformance-tests/objectlock/update/no-current-retention";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      byte[] content = "no-retention".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build();
+      Assertions.assertThrows(
+          FailedPreconditionException.class,
+          () -> bucketClient.updateObjectRetention(key, null, cfg));
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }

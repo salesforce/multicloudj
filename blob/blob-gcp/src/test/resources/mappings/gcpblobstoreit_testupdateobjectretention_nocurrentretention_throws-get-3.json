@@ -1,0 +1,41 @@
+{
+  "id" : "f21ef992-597d-4fe3-8adf-1f03a90a66af",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_noCurrentRetention_throws-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fno-current-retention",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/no-current-retention/1778742507440258\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fno-current-retention\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fno-current-retention?generation=1778742507440258&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/no-current-retention\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778742507440258\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"12\",\n  \"md5Hash\": \"v+EInLN0kaig9+UrnwO0qw==\",\n  \"crc32c\": \"mD6zIg==\",\n  \"etag\": \"CIKRtpqcuJQDEAE=\",\n  \"timeCreated\": \"2026-05-14T07:08:27.518Z\",\n  \"updated\": \"2026-05-14T07:08:27.518Z\",\n  \"timeStorageClassUpdated\": \"2026-05-14T07:08:27.518Z\",\n  \"timeFinalized\": \"2026-05-14T07:08:27.518Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CIKRtpqcuJQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEjvqsXteBMtVlU3BbBTKv1TBrJg4mHp-eJ504OITUaMtMd9Ya63puQx__E_Qa04a7Jf",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 14 May 2026 07:08:27 GMT",
+      "Date" : "Thu, 14 May 2026 07:08:27 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f21ef992-597d-4fe3-8adf-1f03a90a66af",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-no-current-retention",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-objectlock-update-no-current-retention-2",
+  "insertionIndex" : 1325
+}

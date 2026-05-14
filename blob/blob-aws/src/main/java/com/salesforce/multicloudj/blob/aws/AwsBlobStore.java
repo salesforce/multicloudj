@@ -640,14 +640,21 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected void doUpdateObjectRetention(
       String key, String versionId, ObjectRetentionConfig config) {
-    GetObjectRetentionResponse currentRetentionResponse =
-        s3Client.getObjectRetention(transformer.toGetObjectRetentionRequest(key, versionId));
-
     RetentionMode currentMode = null;
     Instant currentRetainUntil = null;
-    if (currentRetentionResponse != null && currentRetentionResponse.retention() != null) {
-      currentMode = toMulticloudMode(currentRetentionResponse.retention().mode());
-      currentRetainUntil = currentRetentionResponse.retention().retainUntilDate();
+    try {
+      GetObjectRetentionResponse currentRetentionResponse =
+          s3Client.getObjectRetention(transformer.toGetObjectRetentionRequest(key, versionId));
+      if (currentRetentionResponse != null && currentRetentionResponse.retention() != null) {
+        currentMode = toMulticloudMode(currentRetentionResponse.retention().mode());
+        currentRetainUntil = currentRetentionResponse.retention().retainUntilDate();
+      }
+    } catch (S3Exception e) {
+      if (e.statusCode() != 404) {
+        throw e;
+      }
+      // 404 means no retention configured — fall through with nulls so ObjectRetentionRules
+      // rejects the request with FailedPreconditionException.
     }
 
     RetentionMode resolvedMode =

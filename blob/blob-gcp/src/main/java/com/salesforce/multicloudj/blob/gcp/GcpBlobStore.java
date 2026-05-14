@@ -1206,6 +1206,8 @@ public class GcpBlobStore extends AbstractBlobStore {
             .build();
     BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
 
+    // GCS has no dedicated retention-only API (unlike AWS s3Client.putObjectRetention).
+    // Storage.update(BlobInfo) is a field-level patch: only the retention field we set is written.
     boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
     if (bypass) {
       storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
