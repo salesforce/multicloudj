@@ -96,7 +96,7 @@ public class AliBlobStore extends AbstractBlobStore {
     } else if (t instanceof ServiceException) {
       String errorCode = ((ServiceException) t).getErrorCode();
       return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof ClientException) {
+    } else if (t instanceof ClientException || t instanceof IllegalArgumentException) {
       return InvalidArgumentException.class;
     }
     return UnknownException.class;
@@ -169,6 +169,7 @@ public class AliBlobStore extends AbstractBlobStore {
       DownloadRequest downloadRequest, OutputStream outputStream) {
     GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     try (OSSObject ossObject = ossClient.getObject(request)) {
+      validateRangeResponse(downloadRequest, ossObject);
       InputStream downloadedInputstream = ossObject.getObjectContent();
       copyStream(downloadedInputstream, outputStream);
       return transformer.toDownloadResponse(ossObject);
@@ -213,10 +214,13 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
+    Path destinationPath =
+        createDownloadDestinationPath(downloadRequest, path);
     GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     try (OSSObject ossObject = ossClient.getObject(request)) {
+      validateRangeResponse(downloadRequest, ossObject);
       InputStream downloadedInputstream = ossObject.getObjectContent();
-      Files.copy(downloadedInputstream, path);
+      Files.copy(downloadedInputstream, destinationPath);
       return transformer.toDownloadResponse(ossObject);
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
@@ -234,8 +238,40 @@ public class AliBlobStore extends AbstractBlobStore {
   public DownloadResponse doDownload(DownloadRequest downloadRequest) {
     GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     OSSObject ossObject = ossClient.getObject(request);
+    try {
+      validateRangeResponse(downloadRequest, ossObject);
+    } catch (RuntimeException e) {
+      try {
+        ossObject.close();
+      } catch (IOException ignored) {
+        // best-effort cleanup
+      }
+      throw e;
+    }
     InputStream downloadedInputstream = ossObject.getObjectContent();
     return transformer.toDownloadResponse(ossObject, downloadedInputstream);
+  }
+
+  // OSS returns the full object with HTTP status code of 200 when range start
+  // or end exceeds object size, unlike S3/GCS which return HTTP 416 in the
+  // case of range start exceeding object size. Detect and throw to make
+  // behavior consistent with other substrates.
+  private void validateRangeResponse(
+      DownloadRequest downloadRequest, OSSObject ossObject) {
+    if (downloadRequest.getStart() == null) {
+      return;
+    }
+    long objectSize =
+        ossObject.getObjectMetadata().getContentLength();
+    if (downloadRequest.getStart() >= objectSize
+        && ossObject.getResponse() != null
+        && ossObject.getResponse().getStatusCode() == 200) {
+      throw new InvalidArgumentException(
+          "The requested range start ("
+              + downloadRequest.getStart()
+              + ") is not satisfiable for object of size "
+              + objectSize);
+    }
   }
 
   private void copyStream(InputStream in, OutputStream out) {
@@ -568,7 +604,7 @@ public class AliBlobStore extends AbstractBlobStore {
     /** Helper function to produce the endpoint value */
     private static String getEndpoint(Builder builder) {
       if (builder.getEndpoint() != null) {
-        return builder.getEndpoint().getHost();
+        return builder.getEndpoint().toString();
       }
       return "https://oss-" + builder.getRegion() + ".aliyuncs.com";
     }

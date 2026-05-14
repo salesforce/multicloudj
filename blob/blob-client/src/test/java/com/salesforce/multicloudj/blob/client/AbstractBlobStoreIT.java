@@ -167,6 +167,10 @@ public abstract class AbstractBlobStoreIT {
     default List<String> getWiremockExtensions() {
       return List.of();
     }
+
+    default List<String> getRecordingCaptureHeaders() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -205,7 +209,11 @@ public abstract class AbstractBlobStoreIT {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
         testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
-    TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
+    TestsUtil.startWireMockRecording(
+        harness.getEndpoint(),
+        testClassName,
+        testMethodName,
+        harness.getRecordingCaptureHeaders());
   }
 
   /**
