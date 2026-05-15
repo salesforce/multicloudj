@@ -272,8 +272,9 @@ public class AwsTransformer {
     if (lockConfig.getRetainUntilDate() != null) {
       builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
     }
-    builder.objectLockLegalHoldStatus(
-        lockConfig.isLegalHold() ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF);
+    if (lockConfig.isLegalHold()) {
+      builder.objectLockLegalHoldStatus(ObjectLockLegalHoldStatus.ON);
+    }
   }
 
   /** Converts provider SDK ObjectLockMode to SDK RetentionMode */
@@ -493,6 +494,20 @@ public class AwsTransformer {
       ChecksumMethod algo = request.getChecksumAlgorithm() != null
           ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
       builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
+    }
+
+    // Set object lock if provided
+    if (request.getObjectLock() != null) {
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
+      if (lockConfig.getMode() != null) {
+        builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
+      }
+      if (lockConfig.getRetainUntilDate() != null) {
+        builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
+      }
+      if (lockConfig.isLegalHold()) {
+        builder.objectLockLegalHoldStatus(ObjectLockLegalHoldStatus.ON);
+      }
     }
 
     // Set content type if provided
@@ -831,6 +846,7 @@ public class AwsTransformer {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();
   }

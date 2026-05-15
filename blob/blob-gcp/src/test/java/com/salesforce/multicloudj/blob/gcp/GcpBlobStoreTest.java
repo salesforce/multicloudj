@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -49,6 +50,7 @@ import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadReque
 import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
 import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.ObjectLockMode;
 import com.google.cloud.storage.multipartupload.model.Part;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
@@ -111,6 +113,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -3227,6 +3231,40 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoInitiateMultipartUpload_WithObjectLock() {
+    Instant retainUntil = Instant.parse("2030-01-01T00:00:00Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(objectLock).build();
+
+    CreateMultipartUploadResponse mockGcpResponse =
+        CreateMultipartUploadResponse.builder().uploadId("test-upload-id-object-lock").build();
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+    assertNotNull(result);
+    assertEquals("test-upload-id-object-lock", result.getId());
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+
+    CreateMultipartUploadRequest capturedRequest = captor.getValue();
+    assertEquals(ObjectLockMode.GOVERNANCE, capturedRequest.objectLockMode());
+    assertEquals(
+        OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
+        capturedRequest.objectLockRetainUntilDate());
+  }
+
+  @Test
   void testDoUploadMultipartPart_Success() throws IOException {
     // Given
     MultipartUpload mpu =
@@ -3614,6 +3652,152 @@ class GcpBlobStoreTest {
     assertTrue(result.isChecksumEnabled());
     assertEquals(
         ChecksumMethod.CRC32C, result.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithObjectLockConfiguration() {
+    // Given
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(objectLock).build();
+
+    CreateMultipartUploadResponse mockGcpResponse =
+        CreateMultipartUploadResponse.builder().uploadId("test-upload-id").build();
+    when(mpuClient.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    // When
+    MultipartUpload result = gcpBlobStore.doInitiateMultipartUpload(request);
+
+    // Then
+    assertEquals(objectLock, result.getObjectLock());
+
+    ArgumentCaptor<CreateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(CreateMultipartUploadRequest.class);
+    verify(mpuClient).createMultipartUpload(captor.capture());
+    CreateMultipartUploadRequest capturedRequest = captor.getValue();
+    assertEquals(ObjectLockMode.GOVERNANCE, capturedRequest.objectLockMode());
+    assertEquals(
+        OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
+        capturedRequest.objectLockRetainUntilDate());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_AppliesEventBasedLegalHold() {
+    // Given
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+
+    CompleteMultipartUploadResponse mockGcpResponse =
+        CompleteMultipartUploadResponse.builder().etag("complete-etag").build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    Blob blob = mock(Blob.class);
+    Blob.Builder blobBuilder = mock(Blob.Builder.class);
+    Blob updatedBlobInfo = mock(Blob.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(blob);
+    when(blob.toBuilder()).thenReturn(blobBuilder);
+    when(blobBuilder.setEventBasedHold(true)).thenReturn(blobBuilder);
+    when(blobBuilder.setTemporaryHold(false)).thenReturn(blobBuilder);
+    when(blobBuilder.build()).thenReturn(updatedBlobInfo);
+    when(mockStorage.update(updatedBlobInfo)).thenReturn(updatedBlobInfo);
+
+    // When
+    gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+    // Then
+    verify(blobBuilder).setEventBasedHold(true);
+    verify(blobBuilder).setTemporaryHold(false);
+    verify(mockStorage).update(updatedBlobInfo);
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_AppliesTemporaryLegalHoldByDefault() {
+    // Given
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(null).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+
+    CompleteMultipartUploadResponse mockGcpResponse =
+        CompleteMultipartUploadResponse.builder().etag("complete-etag").build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    Blob blob = mock(Blob.class);
+    Blob.Builder blobBuilder = mock(Blob.Builder.class);
+    Blob updatedBlobInfo = mock(Blob.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(blob);
+    when(blob.toBuilder()).thenReturn(blobBuilder);
+    when(blobBuilder.setTemporaryHold(true)).thenReturn(blobBuilder);
+    when(blobBuilder.setEventBasedHold(false)).thenReturn(blobBuilder);
+    when(blobBuilder.build()).thenReturn(updatedBlobInfo);
+    when(mockStorage.update(updatedBlobInfo)).thenReturn(updatedBlobInfo);
+
+    // When
+    gcpBlobStore.doCompleteMultipartUpload(mpu, parts);
+
+    // Then
+    verify(blobBuilder).setTemporaryHold(true);
+    verify(blobBuilder).setEventBasedHold(false);
+    verify(mockStorage).update(updatedBlobInfo);
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_LegalHoldFailureDoesNotFailCompletion() {
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+    MultipartUpload mpu =
+        MultipartUpload.builder()
+            .bucket(TEST_BUCKET)
+            .key(TEST_KEY)
+            .id("test-upload-id")
+            .objectLock(objectLock)
+            .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> parts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag-1", 1024L));
+
+    CompleteMultipartUploadResponse mockGcpResponse =
+        CompleteMultipartUploadResponse.builder().etag("complete-etag").build();
+    when(mpuClient.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
+        .thenReturn(mockGcpResponse);
+
+    Blob blob = mock(Blob.class);
+    Blob.Builder blobBuilder = mock(Blob.Builder.class);
+    when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, null)).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(blob);
+    when(blob.toBuilder()).thenReturn(blobBuilder);
+    when(blobBuilder.setEventBasedHold(true)).thenReturn(blobBuilder);
+    when(blobBuilder.setTemporaryHold(false)).thenReturn(blobBuilder);
+    when(blobBuilder.build()).thenThrow(new RuntimeException("update failed"));
+
+    assertDoesNotThrow(() -> gcpBlobStore.doCompleteMultipartUpload(mpu, parts));
   }
 
   @Test

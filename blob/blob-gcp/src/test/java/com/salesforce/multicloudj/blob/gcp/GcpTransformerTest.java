@@ -13,6 +13,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -40,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -962,6 +964,36 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToBlobInfo_multipartUploadRequestWithObjectLock() {
+    Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(objectLock).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    // Verify object lock - retention mode
+    assertNotNull(blobInfo.getRetention());
+    assertEquals(Retention.Mode.LOCKED, blobInfo.getRetention().getMode());
+    assertEquals(
+        OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
+        blobInfo.getRetention().getRetainUntilTime());
+    // Verify event-based hold is set (not temporary hold)
+    assertTrue(blobInfo.getEventBasedHold());
+    // Temporary hold should not be set
+    assertNull(blobInfo.getTemporaryHold());
+  }
+
+  @Test
   public void testToBlobInfo_uploadRequestWithContentType() {
     UploadRequest request =
         UploadRequest.builder()
@@ -987,6 +1019,44 @@ class GcpTransformerTest {
     assertEquals(TEST_BUCKET, blobInfo.getBucket());
     assertEquals(TEST_KEY, blobInfo.getName());
     assertEquals("application/x-directory", blobInfo.getContentType());
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockEventBasedHold() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(tempHold == null || !tempHold, "Temporary hold should be false or null");
+    assertTrue(eventHold != null && eventHold, "Event-based hold should be set to true");
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockTemporaryHoldDefault() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(null).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(
+        tempHold != null && tempHold,
+        "Temporary hold should be set to true (default when useEventBasedHold is null)");
+    assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
   }
 
   @Test

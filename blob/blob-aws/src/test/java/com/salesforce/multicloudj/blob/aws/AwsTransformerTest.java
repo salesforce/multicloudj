@@ -49,11 +49,13 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
@@ -76,6 +78,7 @@ import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
@@ -91,6 +94,13 @@ import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 public class AwsTransformerTest {
 
   private static final String BUCKET = "some-bucket";
+  private static final String SOME_KEY = "some-key";
+  private static final String SOME_VALUE = "some-value";
+  private static final String TEST_OBJECT_KEY = "object-1";
+  private static final String TEST_METADATA_KEY = "key1";
+  private static final String TEST_METADATA_VALUE = "value1";
+  private static final String TEST_METADATA_KEY_2 = "key2";
+  private static final String TEST_METADATA_VALUE_2 = "value2";
   private final AwsTransformer transformer = new AwsTransformer(BUCKET);
 
   @Test
@@ -100,8 +110,8 @@ public class AwsTransformerTest {
 
   @Test
   void testUpload() {
-    var key = "some-key";
-    var metadata = Map.of("some-key", "some-value");
+    var key = SOME_KEY;
+    var metadata = Map.of(SOME_KEY, SOME_VALUE);
     var tags = Map.of("tag-key", "tag-value");
 
     var request =
@@ -486,12 +496,43 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequestWithObjectLock() {
+    Map<String, String> metadata = Map.of(TEST_METADATA_KEY, TEST_METADATA_VALUE);
+    Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey(TEST_OBJECT_KEY)
+            .withMetadata(metadata)
+            .withObjectLock(objectLock)
+            .build();
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+    assertEquals(TEST_OBJECT_KEY, request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(metadata, request.metadata());
+    // Verify object lock settings
+    assertEquals(ObjectLockMode.COMPLIANCE, request.objectLockMode());
+    assertEquals(retainUntil, request.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, request.objectLockLegalHoldStatus());
+  }
+
+  @Test
   void testToUploadPartRequest() {
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+    Map<String, String> metadata =
+        Map.of(
+            TEST_METADATA_KEY,
+            TEST_METADATA_VALUE,
+            TEST_METADATA_KEY_2,
+            TEST_METADATA_VALUE_2);
     MultipartUpload multipartUpload =
         MultipartUpload.builder()
             .bucket("bucket-1")
-            .key("object-1")
+            .key(TEST_OBJECT_KEY)
             .id("mpu-id")
             .metadata(metadata)
             .contentType("text/plain")
@@ -499,7 +540,7 @@ public class AwsTransformerTest {
     byte[] content = "This is test data".getBytes();
     MultipartPart multipartPart = new MultipartPart(1, content);
     UploadPartRequest request = transformer.toUploadPartRequest(multipartUpload, multipartPart);
-    assertEquals("object-1", request.key());
+    assertEquals(TEST_OBJECT_KEY, request.key());
     assertEquals(BUCKET, request.bucket());
     assertEquals("mpu-id", request.uploadId());
     assertEquals(content.length, request.contentLength());
@@ -866,7 +907,7 @@ public class AwsTransformerTest {
     PutObjectRequest putRequest = fileBuilder.build().putObjectRequest();
     assertEquals(ObjectLockMode.GOVERNANCE, putRequest.objectLockMode());
     assertEquals(retainUntil, putRequest.objectLockRetainUntilDate());
-    assertEquals(ObjectLockLegalHoldStatus.OFF, putRequest.objectLockLegalHoldStatus());
+    assertNull(putRequest.objectLockLegalHoldStatus());
   }
 
   @Test
@@ -1121,6 +1162,84 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToCreateMultipartUploadRequest_WithObjectLockLegalHoldTrue() {
+    Instant retainUntilDate = Instant.now().plusSeconds(3600);
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(
+                ObjectLockConfiguration.builder()
+                    .mode(RetentionMode.GOVERNANCE)
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(true)
+                    .build())
+            .build();
+
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(ObjectLockMode.GOVERNANCE, request.objectLockMode());
+    assertEquals(retainUntilDate, request.objectLockRetainUntilDate());
+    assertEquals(ObjectLockLegalHoldStatus.ON, request.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToCreateMultipartUploadRequest_WithObjectLockLegalHoldFalse_OmitsHeader() {
+    Instant retainUntilDate = Instant.now().plusSeconds(3600);
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(
+                ObjectLockConfiguration.builder()
+                    .mode(RetentionMode.GOVERNANCE)
+                    .retainUntilDate(retainUntilDate)
+                    .legalHold(false)
+                    .build())
+            .build();
+
+    CreateMultipartUploadRequest request = transformer.toCreateMultipartUploadRequest(mpuRequest);
+
+    assertEquals("object-1", request.key());
+    assertEquals(BUCKET, request.bucket());
+    assertEquals(ObjectLockMode.GOVERNANCE, request.objectLockMode());
+    assertEquals(retainUntilDate, request.objectLockRetainUntilDate());
+    assertNull(request.objectLockLegalHoldStatus());
+  }
+
+  @Test
+  void testToMultipartUpload_PropagatesObjectLockConfiguration() {
+    Instant retainUntilDate = Instant.now().plusSeconds(7200);
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(true)
+            .build();
+    MultipartUploadRequest mpuRequest =
+        new MultipartUploadRequest.Builder()
+            .withKey("object-1")
+            .withObjectLock(objectLock)
+            .build();
+    CreateMultipartUploadResponse response =
+        CreateMultipartUploadResponse.builder()
+            .bucket(BUCKET)
+            .key("object-1")
+            .uploadId("upload-id")
+            .build();
+
+    MultipartUpload mpu = transformer.toMultipartUpload(mpuRequest, response);
+
+    assertEquals(BUCKET, mpu.getBucket());
+    assertEquals("object-1", mpu.getKey());
+    assertEquals("upload-id", mpu.getId());
+    assertNotNull(mpu.getObjectLock());
+    assertEquals(RetentionMode.COMPLIANCE, mpu.getObjectLock().getMode());
+    assertEquals(retainUntilDate, mpu.getObjectLock().getRetainUntilDate());
+    assertTrue(mpu.getObjectLock().isLegalHold());
+  }
+
+  @Test
   void testToAwsRetryStrategyWithExponentialMode() {
     RetryConfig config =
         RetryConfig.builder()
@@ -1322,7 +1441,7 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(ObjectLockMode.COMPLIANCE, actual.objectLockMode());
-    assertEquals(ObjectLockLegalHoldStatus.OFF, actual.objectLockLegalHoldStatus());
+    assertNull(actual.objectLockLegalHoldStatus());
   }
 
   @Test
@@ -1371,11 +1490,9 @@ public class AwsTransformerTest {
   @Test
   void testToObjectLockInfo_WithNullRetention() {
     var legalHoldResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+        GetObjectLegalHoldResponse.builder()
             .legalHold(
-                software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                    .status(ObjectLockLegalHoldStatus.OFF)
-                    .build())
+                ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.OFF).build())
             .build();
 
     var result = transformer.toObjectLockInfo(null, legalHoldResponse);
@@ -1386,20 +1503,18 @@ public class AwsTransformerTest {
   @Test
   void testToObjectLockInfo_WithComplianceMode() {
     var retentionResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse.builder()
+        GetObjectRetentionResponse.builder()
             .retention(
-                software.amazon.awssdk.services.s3.model.ObjectLockRetention.builder()
+                ObjectLockRetention.builder()
                     .mode(ObjectLockRetentionMode.COMPLIANCE)
                     .retainUntilDate(Instant.now().plusSeconds(3600))
                     .build())
             .build();
 
     var legalHoldResponse =
-        software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse.builder()
+        GetObjectLegalHoldResponse.builder()
             .legalHold(
-                software.amazon.awssdk.services.s3.model.ObjectLockLegalHold.builder()
-                    .status(ObjectLockLegalHoldStatus.OFF)
-                    .build())
+                ObjectLockLegalHold.builder().status(ObjectLockLegalHoldStatus.OFF).build())
             .build();
 
     var result = transformer.toObjectLockInfo(retentionResponse, legalHoldResponse);
@@ -1462,8 +1577,7 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        actual.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, actual.checksumAlgorithm());
     assertEquals("abc123sha256", actual.checksumSHA256());
   }
 
@@ -1479,8 +1593,7 @@ public class AwsTransformerTest {
     var actual = transformer.toRequest(request);
 
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
-        actual.checksumAlgorithm());
+        ChecksumAlgorithm.CRC32_C, actual.checksumAlgorithm());
     assertEquals("abc123crc32c", actual.checksumCRC32C());
   }
 
@@ -1498,8 +1611,7 @@ public class AwsTransformerTest {
     assertEquals("object-1", request.key());
     assertEquals(BUCKET, request.bucket());
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        request.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, request.checksumAlgorithm());
   }
 
   @Test
@@ -1522,8 +1634,7 @@ public class AwsTransformerTest {
     assertEquals(BUCKET, request.bucket());
     assertEquals("mpu-id", request.uploadId());
     assertEquals(
-        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.SHA256,
-        request.checksumAlgorithm());
+        ChecksumAlgorithm.SHA256, request.checksumAlgorithm());
     assertEquals("sha256checksum", request.checksumSHA256());
   }
 
@@ -1574,8 +1685,8 @@ public class AwsTransformerTest {
 
   @Test
   void testToUploadPartResponse_WithSha256Checksum() {
-    software.amazon.awssdk.services.s3.model.UploadPartResponse response =
-        software.amazon.awssdk.services.s3.model.UploadPartResponse.builder()
+    UploadPartResponse response =
+        UploadPartResponse.builder()
             .eTag("etag")
             .checksumSHA256("sha256partvalue")
             .build();
