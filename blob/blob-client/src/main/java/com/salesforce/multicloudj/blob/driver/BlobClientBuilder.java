@@ -160,7 +160,8 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   }
 
   /**
-   * Method to enable/disable parallel uploads
+   * Method to enable/disable parallel uploads. Enabling this may incur additional
+   * per-part request charges depending on the provider.
    *
    * @param parallelUploadsEnabled Whether to enable parallel uploads
    * @return An instance of self

@@ -109,6 +109,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -1459,16 +1460,42 @@ public class GcpBlobStore extends AbstractBlobStore {
      * supported unless a {@link TransferManager} is supplied explicitly via {@link
      * #withTransferManager(TransferManager)}.
      */
-    private static TransferManager buildTransferManager(Storage storage) {
+    private static TransferManager buildTransferManager(Builder builder, Storage storage) {
       StorageOptions options = storage.getOptions();
       if (options == null) {
         return null;
       }
-      return TransferManagerConfig.newBuilder()
-          .setStorageOptions(options)
-          .setAllowDivideAndConquerDownload(true)
-          .build()
-          .getService();
+      TransferManagerConfig.Builder configBuilder =
+          TransferManagerConfig.newBuilder().setStorageOptions(options);
+
+      // Map transferManagerThreadPoolSize -> setMaxWorkers
+      if (builder.getTransferManagerThreadPoolSize() != null) {
+        configBuilder.setMaxWorkers(builder.getTransferManagerThreadPoolSize());
+      }
+
+      // Map partBufferSize -> setPerWorkerBufferSize. GCP API takes int, so guard against overflow.
+      if (builder.getPartBufferSize() != null) {
+        long partBufferSize = builder.getPartBufferSize();
+        if (partBufferSize <= 0 || partBufferSize > Integer.MAX_VALUE) {
+          throw new IllegalArgumentException(
+              "partBufferSize must be a positive value not exceeding Integer.MAX_VALUE bytes,"
+                  + " got: "
+                  + partBufferSize);
+        }
+        configBuilder.setPerWorkerBufferSize((int) partBufferSize);
+      }
+
+      // Map parallelDownloadsEnabled -> setAllowDivideAndConquerDownload.
+      // multicloudj defaults this to TRUE; the underlying GCS SDK defaults to FALSE.
+      configBuilder.setAllowDivideAndConquerDownload(
+          Objects.requireNonNullElse(builder.getParallelDownloadsEnabled(), Boolean.TRUE));
+
+      // Map parallelUploadsEnabled -> setAllowParallelCompositeUpload.
+      if (builder.getParallelUploadsEnabled() != null) {
+        configBuilder.setAllowParallelCompositeUpload(builder.getParallelUploadsEnabled());
+      }
+
+      return configBuilder.build().getService();
     }
 
     private static CloseableHttpClient buildHttpClient(Builder builder) {
@@ -1520,7 +1547,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         mpuClient = buildMultipartUploadClient(this);
       }
       if (transferManager == null) {
-        transferManager = buildTransferManager(storage);
+        transferManager = buildTransferManager(this, storage);
       }
       return new GcpBlobStore(this, storage, mpuClient, transferManager);
     }

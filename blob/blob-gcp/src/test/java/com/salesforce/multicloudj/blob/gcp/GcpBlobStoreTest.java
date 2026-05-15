@@ -237,6 +237,39 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testTransferManagerPerfConfig() {
+    // Drives Builder.build() through buildTransferManager so the perf-config mapping
+    // (transferManagerThreadPoolSize, partBufferSize, parallelDownloadsEnabled,
+    // parallelUploadsEnabled) is exercised end-to-end.
+    GcpBlobStore store =
+        (GcpBlobStore)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withTransferManagerThreadPoolSize(15)
+                .withPartBufferSize(8L * 1024L * 1024L)
+                .withParallelDownloadsEnabled(true)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+    assertNotNull(store);
+    assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
+    assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
+  void testPartBufferSizeOverflowRejected() {
+    // partBufferSize is a Long in the cross-cloud builder but GCP's setPerWorkerBufferSize
+    // takes an int. Anything that can't fit must be rejected up front.
+    GcpBlobStore.Builder builder =
+        (GcpBlobStore.Builder)
+            new GcpBlobStore.Builder()
+                .withBucket(TEST_BUCKET)
+                .withPartBufferSize((long) Integer.MAX_VALUE + 1L);
+
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
   void testDoUpload_WithInputStream() {
     try (MockedStatic<ByteStreams> mockedStatic = Mockito.mockStatic(ByteStreams.class)) {
       // Given
