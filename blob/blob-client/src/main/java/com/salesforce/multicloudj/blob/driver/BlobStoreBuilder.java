@@ -171,7 +171,11 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to supply multipart threshold in bytes
+   * Method to supply multipart threshold in bytes.
+   *
+   * <p>Provider support: AWS only. GCP does not expose a multipart threshold; parallel composite
+   * uploads are controlled by {@link #withParallelUploadsEnabled(Boolean)} and the SDK decides
+   * internally when to split.
    *
    * @param thresholdBytes The threshold in bytes above which multipart upload will be used
    * @return An instance of self
@@ -216,7 +220,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set target throughput in Gbps
+   * Method to set target throughput in Gbps.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not have an equivalent setting;
+   * this value is ignored when using the GCP provider.
    *
    * @param targetThroughputInGbps The target throughput in Gbps
    * @return An instance of self
@@ -227,7 +234,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum native memory limit in bytes
+   * Method to set maximum native memory limit in bytes.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not use native memory management;
+   * this value is ignored when using the GCP provider.
    *
    * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
    * @return An instance of self
@@ -238,7 +248,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set initial read buffer size in bytes
+   * Method to set initial read buffer size in bytes.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not expose an equivalent read buffer
+   * configuration; this value is ignored when using the GCP provider.
    *
    * @param initialReadBufferSizeInBytes The initial read buffer size in bytes
    * @return An instance of self
@@ -249,7 +262,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum concurrency
+   * Method to set maximum concurrency.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not have a separate
+   * concurrency setting — under HTTP/1.1, connection count equals concurrency,
+   * so {@link #withMaxConnections(Integer)} implicitly controls max concurrency.
+   * This value is ignored when using the GCP provider.
    *
    * @param maxConcurrency The maximum number of concurrent operations
    * @return An instance of self
@@ -272,7 +290,13 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+   * Method to set maximum concurrency for directory transfers in S3 Transfer Manager.
+   *
+   * <p>Provider support: AWS only. GCP does not have a separate directory concurrency
+   * setting — each GCP TransferManager worker handles one file at a time with no
+   * intra-worker concurrency, so directory parallelism equals the worker pool size
+   * configured via {@link #withTransferManagerThreadPoolSize(Integer)}.
+   * This value is ignored when using the GCP provider.
    *
    * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during
    *     directory operations
