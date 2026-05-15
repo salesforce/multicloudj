@@ -584,6 +584,13 @@ public class AsyncBucketClient implements AutoCloseable {
       return this;
     }
 
+    /**
+     * Method to enable/disable parallel uploads. Enabling this may incur additional
+     * per-part request charges depending on the provider.
+     *
+     * @param parallelUploadsEnabled Whether to enable parallel uploads
+     * @return An instance of self
+     */
     @Override
     public Builder withParallelUploadsEnabled(Boolean parallelUploadsEnabled) {
       super.withParallelUploadsEnabled(parallelUploadsEnabled);

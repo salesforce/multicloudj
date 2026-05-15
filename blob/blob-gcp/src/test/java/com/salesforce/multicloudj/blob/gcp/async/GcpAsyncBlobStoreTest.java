@@ -126,6 +126,26 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
+  void testProviderBuilderTransferManagerPerfConfig() {
+    // Async builder delegates to GcpBlobStore.Builder via copyFrom + build(), which exercises
+    // buildTransferManager. This test asserts the perf config path goes end-to-end without
+    // breaking.
+    GcpAsyncBlobStore store =
+        (GcpAsyncBlobStore)
+            GcpAsyncBlobStore.builder()
+                .withBucket(TEST_BUCKET)
+                .withTransferManagerThreadPoolSize(15)
+                .withPartBufferSize(8L * 1024L * 1024L)
+                .withParallelDownloadsEnabled(true)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+    assertNotNull(store);
+    assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
+    assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
   void testConstructorWithNullExecutor() {
     GcpAsyncBlobStore asyncStore =
         new GcpAsyncBlobStore(mockBlobStore, null, mockStorage, mockTransformerSupplier);

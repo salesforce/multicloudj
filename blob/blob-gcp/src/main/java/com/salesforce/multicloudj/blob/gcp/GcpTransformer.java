@@ -285,7 +285,7 @@ public class GcpTransformer {
     }
 
     return toBlobInfo(
-        request.getKey(), metadata, null, null, null, request.getContentType());
+        request.getKey(), metadata, null, null, request.getObjectLock(), request.getContentType());
   }
 
   public Storage.BlobListOption[] toBlobListOptions(ListBlobsPageRequest request) {

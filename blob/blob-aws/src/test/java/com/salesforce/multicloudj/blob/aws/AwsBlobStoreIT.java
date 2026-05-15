@@ -134,6 +134,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isObjectLockSupported() {
+      return true;
+    }
+
+    @Override
     public void close() {
       client.close();
       httpClient.close();
