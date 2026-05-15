@@ -936,13 +936,35 @@ public class AwsTransformer {
       String versionId,
       ObjectLockRetentionMode mode,
       Instant retainUntilDate) {
-    return PutObjectRetentionRequest.builder()
-        .bucket(getBucket())
-        .key(key)
-        .versionId(versionId)
-        .retention(
-            ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntilDate).build())
-        .build();
+    return toPutObjectRetentionRequest(key, versionId, mode, retainUntilDate, false);
+  }
+
+  /**
+   * Creates a {@link PutObjectRetentionRequest} for the new {@code
+   * updateObjectRetention(key, versionId, ObjectRetentionConfig)} overload.
+   *
+   * <p>The {@code bypassGovernanceRetention} flag is set on the request only when {@code true};
+   * AWS S3 ignores the flag on COMPLIANCE objects (per design §E.7), but client-side guards in
+   * {@link com.salesforce.multicloudj.blob.driver.ObjectRetentionRules} reject the disallowed
+   * combinations before reaching this transformer, so the request shape is always valid.
+   */
+  public PutObjectRetentionRequest toPutObjectRetentionRequest(
+      String key,
+      String versionId,
+      ObjectLockRetentionMode mode,
+      Instant retainUntilDate,
+      boolean bypassGovernanceRetention) {
+    PutObjectRetentionRequest.Builder builder =
+        PutObjectRetentionRequest.builder()
+            .bucket(getBucket())
+            .key(key)
+            .versionId(versionId)
+            .retention(
+                ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntilDate).build());
+    if (bypassGovernanceRetention) {
+      builder.bypassGovernanceRetention(true);
+    }
+    return builder.build();
   }
 
   /** Creates a PutObjectLegalHoldRequest for updating legal hold status */

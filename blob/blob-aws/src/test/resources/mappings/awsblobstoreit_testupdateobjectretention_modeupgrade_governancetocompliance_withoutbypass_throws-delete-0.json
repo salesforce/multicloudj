@@ -1,0 +1,22 @@
+{
+  "id" : "d3a74bcb-9de7-4f20-9da4-ff506597d226",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withoutBypass_throws-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/mode-upgrade-no-bypass",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "ZYYJ6RGC5F1A1TYZ",
+      "x-amz-id-2" : "rSPldaLrFZcmccF9OLMsIshayQYfu7GvSafS0oFJMs+gO2W+HzwBDkV91xmTrrjbet3pztlWUiI=",
+      "x-amz-version-id" : "Vku5KLH.zUnUqGI1zoy8sxSPSwBqNND_",
+      "Date" : "Mon, 11 May 2026 10:39:23 GMT"
+    }
+  },
+  "uuid" : "d3a74bcb-9de7-4f20-9da4-ff506597d226",
+  "persistent" : true,
+  "insertionIndex" : 730
+}

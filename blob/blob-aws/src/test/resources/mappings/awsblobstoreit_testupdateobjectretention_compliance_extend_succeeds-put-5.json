@@ -1,0 +1,28 @@
+{
+  "id" : "3a1147fa-2fa1-4039-8f11-cbd4d9fcfb8b",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-PUT-5",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/comp-extend",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmV0ZW50aW9uLXVwZGF0ZS1jb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL3VwZGF0ZS9jb21wLWV4dGVuZA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"bd63e27d8e1ffc7b2a7e82ab64a21fea\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "6T45Y8A7ZP7BRNGM",
+      "x-amz-checksum-crc32c" : "WUEpvQ==",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "o5kGUGaOmAyrANcvnPjx84sccw/+JOHcLHjQvKi5Eu0JGaSB7bfJkJfj53ucmYOvTZc+WYeSlPQ=",
+      "x-amz-version-id" : "R6tzBRKYQ0p9EZE.kwI97bj0T7I6G1io",
+      "Date" : "Mon, 11 May 2026 10:39:03 GMT"
+    }
+  },
+  "uuid" : "3a1147fa-2fa1-4039-8f11-cbd4d9fcfb8b",
+  "persistent" : true,
+  "insertionIndex" : 713
+}
