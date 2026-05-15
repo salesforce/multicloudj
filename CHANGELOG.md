@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.3...multicloudj-v0.3.4) (2026-05-15)
+
+
+### Blob Store
+
+* add object lock support to multipart uploads ([#412](https://github.com/salesforce/multicloudj/issues/412)) ([b0d51ad](https://github.com/salesforce/multicloudj/commit/b0d51ad007e0ac5010b899d96465bfce1a2fa058))
+* Fix GcpTransformer.toBlobInfo(UploadRequest) so that UploadRequest.getChecksumValue() is forwarded to BlobInfo.setCrc32c(...) ([#419](https://github.com/salesforce/multicloudj/issues/419)) ([1072d63](https://github.com/salesforce/multicloudj/commit/1072d630e73f507c448c202292e991234fb39316))
+* fix testInvalidCredentials conformance test for GCP ([#407](https://github.com/salesforce/multicloudj/issues/407)) ([4f9c835](https://github.com/salesforce/multicloudj/commit/4f9c835642d5e10905438be59748c57195cbc04e))
+* GCP and AWS directory upload object lock ([#410](https://github.com/salesforce/multicloudj/issues/410)) ([2be326e](https://github.com/salesforce/multicloudj/commit/2be326e51e61993204028af7bcbd0df9936007cf))
+* onboard handling for archived objects in download for aws/gcp ([#411](https://github.com/salesforce/multicloudj/issues/411)) ([1076088](https://github.com/salesforce/multicloudj/commit/107608827c1b3ce25e82432ce07de2f42b93bf9b))
+* onboard perf configs on GCP ([#416](https://github.com/salesforce/multicloudj/issues/416)) ([6b928e9](https://github.com/salesforce/multicloudj/commit/6b928e904e17c15a353ff7acddc1c7810b495884))
+* Onboard the logging and tracing in blobstore for all AWS/GCP ([#408](https://github.com/salesforce/multicloudj/issues/408)) ([db634b0](https://github.com/salesforce/multicloudj/commit/db634b038f10804615c5a7cb21a21ae6f95cabb3))
+* support retention mode in updateObjectRetention for AWS & GCP ([#417](https://github.com/salesforce/multicloudj/issues/417)) ([48df8d6](https://github.com/salesforce/multicloudj/commit/48df8d618998d1caba724ecc46053bd2f205d270))
+
+
+### Document Store
+
+* Update the documentation for docstore query ([#413](https://github.com/salesforce/multicloudj/issues/413)) ([542fb1d](https://github.com/salesforce/multicloudj/commit/542fb1d2f4522ebba4ed9bc867eeb3953853bcf9))
+
 ## [0.3.3](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.2...multicloudj-v0.3.3) (2026-05-01)
 
 
