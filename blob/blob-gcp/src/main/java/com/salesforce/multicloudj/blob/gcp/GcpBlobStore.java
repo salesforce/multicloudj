@@ -31,6 +31,7 @@ import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadReque
 import com.google.cloud.storage.multipartupload.model.CreateMultipartUploadResponse;
 import com.google.cloud.storage.multipartupload.model.ListPartsRequest;
 import com.google.cloud.storage.multipartupload.model.ListPartsResponse;
+import com.google.cloud.storage.multipartupload.model.ObjectLockMode;
 import com.google.cloud.storage.multipartupload.model.UploadPartRequest;
 import com.google.cloud.storage.multipartupload.model.UploadPartResponse;
 import com.google.cloud.storage.transfermanager.DownloadJob;
@@ -100,6 +101,9 @@ import java.nio.channels.Channels;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -120,12 +124,15 @@ import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** GCP implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class GcpBlobStore extends AbstractBlobStore {
 
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
+  private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
 
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
@@ -567,6 +574,16 @@ public class GcpBlobStore extends AbstractBlobStore {
       createRequestBuilder.contentType(request.getContentType());
     }
 
+    if (request.getObjectLock() != null) {
+      if (request.getObjectLock().getMode() != null) {
+        createRequestBuilder.objectLockMode(toGcpObjectLockMode(request.getObjectLock().getMode()));
+      }
+      if (request.getObjectLock().getRetainUntilDate() != null) {
+        createRequestBuilder.objectLockRetainUntilDate(
+            toOffsetDateTimeUtc(request.getObjectLock().getRetainUntilDate()));
+      }
+    }
+
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
@@ -579,6 +596,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();
   }
@@ -641,7 +659,37 @@ public class GcpBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResponse response =
         multipartUploadClient.completeMultipartUpload(completeRequest);
 
+    applyMultipartLegalHold(mpu);
+
     return new MultipartUploadResponse(response.etag(), response.crc32c());
+  }
+
+  private void applyMultipartLegalHold(MultipartUpload mpu) {
+    ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+    if (lockConfig == null || !lockConfig.isLegalHold()) {
+      return;
+    }
+    try {
+      Blob blob = getRequiredBlob(transformer.toBlobId(bucket, mpu.getKey(), null));
+      BlobInfo.Builder builder = blob.toBuilder();
+      if (Boolean.TRUE.equals(lockConfig.getUseEventBasedHold())) {
+        builder.setEventBasedHold(true);
+        builder.setTemporaryHold(false);
+      } else {
+        builder.setTemporaryHold(true);
+        builder.setEventBasedHold(false);
+      }
+      storage.update(builder.build());
+    } catch (RuntimeException e) {
+      // Multipart completion has already succeeded, so legal hold application is best-effort.
+      logger.warn(
+          "Multipart upload completed but legal hold application failed."
+              + " bucket={}, key={}, uploadId={}",
+          bucket,
+          mpu.getKey(),
+          mpu.getId(),
+          e);
+    }
   }
 
   @Override
@@ -1085,7 +1133,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     RetentionMode mode = null;
-    java.time.Instant retainUntilDate = null;
+    Instant retainUntilDate = null;
 
     if (hasRetention) {
       // Map provider retention mode to SDK retention mode
@@ -1119,7 +1167,7 @@ public class GcpBlobStore extends AbstractBlobStore {
    */
   @Override
   public void updateObjectRetention(
-      String key, String versionId, java.time.Instant retainUntilDate) {
+      String key, String versionId, Instant retainUntilDate) {
     Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
 
     Retention currentRetention = blob.getRetention();
@@ -1132,7 +1180,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     // Check if trying to shorten retention (not allowed for LOCKED/COMPLIANCE mode)
     if (currentMode == Retention.Mode.LOCKED) {
-      java.time.Instant currentRetainUntil =
+      Instant currentRetainUntil =
           currentRetention.getRetainUntilTime() != null
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
@@ -1148,7 +1196,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     Retention updatedRetention =
         currentRetention.toBuilder()
             .setRetainUntilTime(
-                java.time.OffsetDateTime.ofInstant(retainUntilDate, java.time.ZoneOffset.UTC))
+                toOffsetDateTimeUtc(retainUntilDate))
             .build();
 
     BlobInfo updatedBlobInfo =
@@ -1156,7 +1204,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     // For GOVERNANCE (UNLOCKED) mode, use bypass header if shortening retention
     if (currentMode == Retention.Mode.UNLOCKED) {
-      java.time.Instant currentRetainUntil =
+      Instant currentRetainUntil =
           currentRetention.getRetainUntilTime() != null
               ? currentRetention.getRetainUntilTime().toInstant()
               : null;
@@ -1260,6 +1308,21 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
 
     storage.update(builder.build());
+  }
+
+  private static OffsetDateTime toOffsetDateTimeUtc(Instant instant) {
+    return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
+  }
+
+  private static ObjectLockMode toGcpObjectLockMode(RetentionMode mode) {
+    switch (mode) {
+      case COMPLIANCE:
+        return ObjectLockMode.COMPLIANCE;
+      case GOVERNANCE:
+        return ObjectLockMode.GOVERNANCE;
+      default:
+        throw new InvalidArgumentException("Unsupported retention mode: " + mode);
+    }
   }
 
   @Override

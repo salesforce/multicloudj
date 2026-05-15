@@ -1,0 +1,21 @@
+{
+  "id" : "d4ff6905-2cd4-4bd9-8343-d8764f7b0efe",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withObjectLock-GET-5",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/multipart-withObjectLock?legal-hold",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><LegalHold xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>OFF</Status></LegalHold>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "OBJECTLOCKMPU0006",
+      "x-amz-id-2" : "objectlock-multipart-upload-legalhold",
+      "Date" : "Tue, 05 May 2026 20:00:05 GMT"
+    }
+  },
+  "uuid" : "d4ff6905-2cd4-4bd9-8343-d8764f7b0efe",
+  "persistent" : true,
+  "insertionIndex" : 2006
+}

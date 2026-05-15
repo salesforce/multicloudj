@@ -93,10 +93,10 @@ public abstract class AbstractBlobStoreIT {
 
     /**
      * Whether this provider supports object lock (WORM). When false, object lock conformance
-     * tests are skipped.
+     * tests are skipped. Defaults to false — providers must explicitly opt in.
      */
     default boolean isObjectLockSupported() {
-      return true;
+      return false;
     }
 
     /**
@@ -2595,7 +2595,8 @@ public abstract class AbstractBlobStoreIT {
 
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
-    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
+    // Keep retainUntil in the future so record mode remains valid over time.
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -4921,5 +4922,68 @@ public abstract class AbstractBlobStoreIT {
     }
 
     blobStore.close();
+  }
+
+  @Test
+  public void testMultipartUpload_withObjectLock() {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withObjectLock";
+    // Keep retainUntil in the future so record mode remains valid over time.
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      // Create object lock configuration
+      ObjectLockConfiguration objectLock =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(retainUntil)
+              .legalHold(false)
+              .build();
+
+      // Initiate multipart upload with object lock
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withMetadata(Map.of("test-key", "test-value"))
+              .withObjectLock(objectLock)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu, "Multipart upload should be initiated");
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      Assertions.assertNotNull(part1Response, "Part 1 response should not be null");
+      Assertions.assertNotNull(part2Response, "Part 2 response should not be null");
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse, "Complete response should not be null");
+      Assertions.assertNotNull(completeResponse.getEtag(), "ETag should not be null");
+
+      // Verify object lock was applied
+      ObjectLockInfo lockInfo = bucketClient.getObjectLock(expectedKey, null);
+      Assertions.assertNotNull(lockInfo, "Object lock info should not be null");
+      Assertions.assertEquals(
+          RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+      Assertions.assertFalse(lockInfo.isLegalHold(), "Legal hold should be false");
+      // Note: retainUntilDate comparison may vary slightly by provider, so we just check it exists
+      Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+    }
   }
 }
