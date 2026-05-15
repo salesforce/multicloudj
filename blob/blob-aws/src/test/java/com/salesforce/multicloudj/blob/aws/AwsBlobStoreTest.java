@@ -1999,4 +1999,183 @@ public class AwsBlobStoreTest {
     // Then
     verify(mockS3Client, times(1)).close();
   }
+
+  // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
+
+  private GetObjectRetentionResponse currentRetention(
+      ObjectLockRetentionMode mode, Instant retainUntil) {
+    return GetObjectRetentionResponse.builder()
+        .retention(
+            ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntil).build())
+        .build();
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceExtend_setsRetentionWithoutBypass() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    PutObjectRetentionRequest sent = captor.getValue();
+    assertEquals(ObjectLockRetentionMode.GOVERNANCE, sent.retention().mode());
+    assertEquals(later, sent.retention().retainUntilDate());
+    org.junit.jupiter.api.Assertions.assertNull(sent.bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenWithBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenNoBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_complianceShortenEvenWithBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeDowngrade_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withoutBypass_throws() {
+    // GOVERNANCE → COMPLIANCE upgrade requires bypassGovernanceRetention=true; rules helper
+    // rejects without it for uniform error reporting across providers.
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(ObjectLockRetentionMode.COMPLIANCE, captor.getValue().retention().mode());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_noCurrentRetention_throws() {
+    String key = "test-key";
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(GetObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.now().plusSeconds(3600))
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
 }

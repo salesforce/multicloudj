@@ -70,6 +70,8 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
@@ -1168,6 +1170,75 @@ public class GcpBlobStore extends AbstractBlobStore {
       // COMPLIANCE (LOCKED) mode - only allow increasing
       storage.update(updatedBlobInfo);
     }
+  }
+
+  /**
+   * Provider hook for {@link
+   * com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String, String,
+   * ObjectRetentionConfig)}.
+   *
+   * <p>Stateless validation has already run; this method enforces the state-dependent rules from
+   * {@link ObjectRetentionRules} (no-current-retention, mode-downgrade, shorten-with-bypass) so
+   * the GCP impl surfaces the same {@code FailedPreconditionException} types and messages as
+   * AWS and the in-memory provider.
+   */
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    Blob blob = getRequiredBlob(transformer.toBlobId(bucket, key, versionId));
+    Retention currentRetention = blob.getRetention();
+    java.time.Instant currentRetainUntil =
+        currentRetention != null && currentRetention.getRetainUntilTime() != null
+            ? currentRetention.getRetainUntilTime().toInstant()
+            : null;
+    RetentionMode currentMode =
+        currentRetention != null
+            ? toMulticloudMode(currentRetention.getMode())
+            : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    Retention updatedRetention =
+        Retention.newBuilder()
+            .setMode(toGcsRetentionMode(resolvedMode))
+            .setRetainUntilTime(toUtcOffsetDateTime(config.getRetainUntilDate()))
+            .build();
+    BlobInfo updatedBlobInfo = blob.toBuilder().setRetention(updatedRetention).build();
+
+    // GCS has no dedicated retention-only API (unlike AWS s3Client.putObjectRetention).
+    // Storage.update(BlobInfo) is a field-level patch: only the retention field we set is written.
+    boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
+    if (bypass) {
+      storage.update(updatedBlobInfo, Storage.BlobTargetOption.overrideUnlockedRetention(true));
+    } else {
+      storage.update(updatedBlobInfo);
+    }
+  }
+
+  /**
+   * Converts a MultiCloudJ {@link RetentionMode} to a GCS {@link Retention.Mode}. Mapping:
+   * GOVERNANCE↔UNLOCKED, COMPLIANCE↔LOCKED.
+   */
+  private static Retention.Mode toGcsRetentionMode(RetentionMode mode) {
+    return mode == RetentionMode.COMPLIANCE ? Retention.Mode.LOCKED : Retention.Mode.UNLOCKED;
+  }
+
+  /** Inverse of {@link #toGcsRetentionMode(RetentionMode)}. */
+  private static RetentionMode toMulticloudMode(Retention.Mode mode) {
+    if (mode == null) {
+      return null;
+    }
+    return mode == Retention.Mode.LOCKED ? RetentionMode.COMPLIANCE : RetentionMode.GOVERNANCE;
+  }
+
+  /**
+   * Converts an {@link java.time.Instant} to a UTC-anchored {@link java.time.OffsetDateTime} for
+   * GCS API calls. Sub-millisecond precision is truncated by GCS server-side; document on
+   * {@link ObjectRetentionConfig#getRetainUntilDate()}.
+   */
+  private static java.time.OffsetDateTime toUtcOffsetDateTime(java.time.Instant instant) {
+    return java.time.OffsetDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
   }
 
   /** Updates legal hold status on an object. */

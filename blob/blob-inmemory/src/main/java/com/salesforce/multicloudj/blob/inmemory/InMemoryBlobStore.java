@@ -21,6 +21,8 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
@@ -1037,6 +1039,30 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         ObjectLockInfo.builder()
             .mode(existing != null ? existing.getMode() : null)
             .retainUntilDate(retainUntilDate)
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    RetentionMode currentMode = existing != null ? existing.getMode() : null;
+    Instant currentRetainUntil = existing != null ? existing.getRetainUntilDate() : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    // Legal hold and useEventBasedHold are preserved across retention updates — they have their
+    // own dedicated APIs and must not be cleared by this call.
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(resolvedMode)
+            .retainUntilDate(config.getRetainUntilDate())
             .legalHold(existing != null && existing.isLegalHold())
             .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
             .build());

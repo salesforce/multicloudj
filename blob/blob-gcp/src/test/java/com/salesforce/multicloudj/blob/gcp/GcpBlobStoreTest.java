@@ -4095,4 +4095,177 @@ class GcpBlobStoreTest {
       verify(mockStorage, never()).list(anyString(), any(Storage.BlobListOption[].class));
     }
   }
+
+  // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
+
+  /** Minimal helper to mock the Blob → Builder → BlobInfo chain consistently for retention. */
+  private Blob mockBlobWithRetention(
+      com.google.cloud.storage.BlobInfo.Retention.Mode mode,
+      java.time.OffsetDateTime currentRetainUntil) {
+    com.google.cloud.storage.BlobInfo.Retention currentRetention =
+        com.google.cloud.storage.BlobInfo.Retention.newBuilder()
+            .setMode(mode)
+            .setRetainUntilTime(currentRetainUntil)
+            .build();
+    Blob mockBlob = mock(Blob.class);
+    when(mockBlob.getRetention()).thenReturn(currentRetention);
+    com.google.cloud.storage.Blob.Builder blobBuilder =
+        mock(com.google.cloud.storage.Blob.Builder.class);
+    lenient().when(mockBlob.toBuilder()).thenReturn(blobBuilder);
+    lenient()
+        .when(blobBuilder.setRetention(any(com.google.cloud.storage.BlobInfo.Retention.class)))
+        .thenReturn(blobBuilder);
+    Blob mockBuiltBlob = mock(Blob.class);
+    lenient().when(blobBuilder.build()).thenReturn(mockBuiltBlob);
+    Blob mockUpdatedBlob = mock(Blob.class);
+    lenient()
+        .when(
+            mockStorage.update(
+                any(com.google.cloud.storage.BlobInfo.class), any(Storage.BlobTargetOption.class)))
+        .thenReturn(mockUpdatedBlob);
+    lenient()
+        .when(mockStorage.update(any(com.google.cloud.storage.BlobInfo.class)))
+        .thenReturn(mockUpdatedBlob);
+    return mockBlob;
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceExtend_callsUpdateWithoutOverride() {
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(3600);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().plusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .build();
+
+    gcpBlobStore.updateObjectRetention(key, null, cfg);
+
+    verify(mockStorage).update(any(com.google.cloud.storage.BlobInfo.class));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenWithBypass_callsUpdateWithOverride() {
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(7200);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().minusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    gcpBlobStore.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<Storage.BlobTargetOption> captor =
+        ArgumentCaptor.forClass(Storage.BlobTargetOption.class);
+    verify(mockStorage)
+        .update(any(com.google.cloud.storage.BlobInfo.class), captor.capture());
+    assertEquals(Storage.BlobTargetOption.overrideUnlockedRetention(true), captor.getValue());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenNoBypass_throws() {
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(7200);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().minusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.UNLOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .build();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_complianceShortenEvenWithBypass_throws() {
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(7200);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().minusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(newRetainUntil)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeDowngrade_throws() {
+    String key = "test-key";
+    java.time.OffsetDateTime currentRetainUntil =
+        java.time.OffsetDateTime.now().plusSeconds(3600);
+    java.time.Instant newRetainUntil = currentRetainUntil.toInstant().plusSeconds(3600);
+    Blob mockBlob =
+        mockBlobWithRetention(
+            com.google.cloud.storage.BlobInfo.Retention.Mode.LOCKED, currentRetainUntil);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(newRetainUntil)
+            .build();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_noCurrentRetention_throws() {
+    String key = "test-key";
+    Blob mockBlob = mock(Blob.class);
+    when(mockBlob.getRetention()).thenReturn(null);
+    when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
+    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(java.time.Instant.now().plusSeconds(3600))
+            .build();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
 }

@@ -690,13 +690,23 @@ public class BucketClient implements AutoCloseable {
   }
 
   /**
-   * Updates object retention date.
+   * Updates object retention date, preserving the object's current retention mode.
+   *
+   * <p><strong>Deprecated.</strong> Prefer {@link #updateObjectRetention(String, String,
+   * com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig)} which accepts an explicit mode
+   * and bypass flag. This method is retained for backward compatibility.
+   *
+   * <p><strong>Existing non-uniform behavior:</strong> The AWS provider has historically thrown
+   * {@code FailedPreconditionException} for any update on a COMPLIANCE-mode object — even
+   * extension. GCP allows extending LOCKED. The new overload follows uniform rules across
+   * providers; this deprecated method preserves each provider's existing semantics.
    *
    * @param key Object key
    * @param versionId Optional version ID. For versioned buckets, null means latest version.
    * @param retainUntilDate New retention expiration date
    * @throws SubstrateSdkException Thrown if the operation fails
    */
+  @Deprecated
   public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
     multiCloudJLogger.traceVoidOperation(
         BlobSpanNames.UPDATE_OBJECT_RETENTION,
@@ -709,6 +719,32 @@ public class BucketClient implements AutoCloseable {
             propagate(t);
           }
         });
+  }
+
+  /**
+   * Updates per-object retention with explicit mode and bypass control.
+   *
+   * <p>See {@link com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String,
+   * String, com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig)} for the full rules
+   * table governing every {@code (config.mode, config.bypassGovernanceRetention, current state,
+   * new date vs current)} combination.
+   *
+   * @param key Object key
+   * @param versionId Optional version ID. For versioned buckets, null means latest version.
+   * @param config retention configuration (mode, retain-until date, bypass flag)
+   * @throws SubstrateSdkException Thrown if the operation fails
+   * @throws IllegalArgumentException if {@code config} or {@code config.retainUntilDate} is null
+   */
+  public void updateObjectRetention(
+      String key,
+      String versionId,
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config) {
+    try {
+      blobStore.updateObjectRetention(key, versionId, config);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
   }
 
   /**
