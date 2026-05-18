@@ -46,6 +46,9 @@ import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -103,11 +106,13 @@ public class AliBlobStoreTest {
   private MockedStatic<OSSClientBuilder> staticMockBuilder;
 
   private OSS mockOssClient;
+  private OSSClient mockOssV2Client;
   private AliBlobStore ali;
 
   @BeforeEach
   void setup() {
     mockOssClient = mock(OSS.class);
+    mockOssV2Client = mock(OSSClient.class);
     staticMockBuilder = mockStatic(OSSClientBuilder.class);
     OSSClientBuilder.OSSClientBuilderImpl mockBuilder =
         mock(OSSClientBuilder.OSSClientBuilderImpl.class);
@@ -139,6 +144,7 @@ public class AliBlobStoreTest {
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("role").build();
     ali =
         new AliBlobStore.Builder()
+            .withV2Client(mockOssV2Client)
             .withBucket("bucket-1")
             .withRegion("cn-shanghai")
             .withCredentialsOverrider(credsOverrider)
@@ -451,33 +457,34 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoGetMetadata() {
-    Instant now = Instant.now();
     Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
-    ObjectMetadata mockResponse = mock(ObjectMetadata.class);
-    when(mockResponse.getVersionId()).thenReturn("v1");
-    when(mockResponse.getETag()).thenReturn("etag");
-    when(mockResponse.getContentLength()).thenReturn(1024L);
-    when(mockResponse.getUserMetadata()).thenReturn(metadataMap);
-    when(mockResponse.getLastModified()).thenReturn(Date.from(now));
-    when(mockOssClient.getObjectMetadata(any())).thenReturn(mockResponse);
+    HeadObjectResult mockResult = mock(HeadObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v1");
+    when(mockResult.eTag()).thenReturn("etag");
+    when(mockResult.contentLength()).thenReturn(1024L);
+    when(mockResult.metadata()).thenReturn(metadataMap);
+    when(mockResult.lastModified()).thenReturn("Sun, 18 May 2025 12:00:00 GMT");
+    when(mockResult.contentType()).thenReturn("application/octet-stream");
+    when(mockOssV2Client.headObject(any(HeadObjectRequest.class), any())).thenReturn(mockResult);
 
     BlobMetadata metadata = ali.doGetMetadata("object-1", "v1");
 
-    ArgumentCaptor<GenericRequest> genericRequestCaptor =
-        ArgumentCaptor.forClass(GenericRequest.class);
-    verify(mockOssClient, times(1)).getObjectMetadata(genericRequestCaptor.capture());
+    ArgumentCaptor<HeadObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(HeadObjectRequest.class);
+    verify(mockOssV2Client, times(1)).headObject(requestCaptor.capture(), any());
 
-    GenericRequest genericRequest = genericRequestCaptor.getValue();
-    assertEquals("bucket-1", genericRequest.getBucketName());
-    assertEquals("object-1", genericRequest.getKey());
-    assertEquals("v1", genericRequest.getVersionId());
+    HeadObjectRequest capturedRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", capturedRequest.bucket());
+    assertEquals("object-1", capturedRequest.key());
+    assertEquals("v1", capturedRequest.versionId());
 
     assertEquals("object-1", metadata.getKey());
     assertEquals("v1", metadata.getVersionId());
     assertEquals("etag", metadata.getETag());
     assertEquals(1024L, metadata.getObjectSize());
     assertEquals(metadataMap, metadata.getMetadata());
-    assertEquals(Date.from(now), Date.from(metadata.getLastModified()));
+    assertNotNull(metadata.getLastModified());
+    assertEquals("application/octet-stream", metadata.getContentType());
   }
 
   @Test

@@ -23,6 +23,8 @@ import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
@@ -43,6 +45,8 @@ import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.File;
 import java.io.InputStream;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -238,6 +242,51 @@ public class AliTransformer {
         .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
         .contentType(metadata.getContentType())
         .build();
+  }
+
+  public HeadObjectRequest toHeadObjectRequest(String key, String versionId) {
+    HeadObjectRequest.Builder builder = HeadObjectRequest.newBuilder()
+        .bucket(bucket)
+        .key(key);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    return builder.build();
+  }
+
+  public BlobMetadata toBlobMetadata(String key, HeadObjectResult result) {
+    Long contentLength = result.contentLength();
+    long objectSize = contentLength != null ? contentLength : 0L;
+    Instant lastModified = parseHttpDate(result.lastModified());
+    return BlobMetadata.builder()
+        .key(key)
+        .versionId(result.versionId())
+        .eTag(stripQuotes(result.eTag()))
+        .objectSize(objectSize)
+        .metadata(result.metadata())
+        .lastModified(lastModified)
+        .createdTime(lastModified)
+        .md5(HexUtil.convertToBytes(result.contentMd5()))
+        .contentType(result.contentType())
+        .build();
+  }
+
+  private String stripQuotes(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
+  }
+
+  private Instant parseHttpDate(String httpDate) {
+    if (httpDate == null) {
+      return null;
+    }
+    return ZonedDateTime.parse(httpDate, DateTimeFormatter.RFC_1123_DATE_TIME)
+        .toInstant();
   }
 
   public InitiateMultipartUploadRequest toInitiateMultipartUploadRequest(

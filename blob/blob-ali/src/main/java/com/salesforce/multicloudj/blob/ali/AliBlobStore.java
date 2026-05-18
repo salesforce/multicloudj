@@ -99,6 +99,18 @@ public class AliBlobStore extends AbstractBlobStore {
     } else if (t instanceof ServiceException) {
       String errorCode = ((ServiceException) t).getErrorCode();
       return ErrorCodeMapping.getException(errorCode);
+    } else if (t instanceof com.aliyun.sdk.service.oss2.exceptions.OperationException) {
+      Throwable cause = t.getCause();
+      if (cause instanceof com.aliyun.sdk.service.oss2.exceptions.ServiceException) {
+        String errorCode =
+            ((com.aliyun.sdk.service.oss2.exceptions.ServiceException) cause).errorCode();
+        return ErrorCodeMapping.getException(errorCode);
+      }
+      return UnknownException.class;
+    } else if (t instanceof com.aliyun.sdk.service.oss2.exceptions.ServiceException) {
+      String errorCode =
+          ((com.aliyun.sdk.service.oss2.exceptions.ServiceException) t).errorCode();
+      return ErrorCodeMapping.getException(errorCode);
     } else if (t instanceof ClientException || t instanceof IllegalArgumentException) {
       return InvalidArgumentException.class;
     }
@@ -364,8 +376,12 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected BlobMetadata doGetMetadata(String key, String versionId) {
-    GenericRequest metadataRequest = transformer.toMetadataRequest(key, versionId);
-    return transformer.toBlobMetadata(key, ossClient.getObjectMetadata(metadataRequest));
+    com.aliyun.sdk.service.oss2.models.HeadObjectRequest request =
+        transformer.toHeadObjectRequest(key, versionId);
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        ossV2Client.headObject(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toBlobMetadata(key, result);
   }
 
   /**

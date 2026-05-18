@@ -85,9 +85,20 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
                   OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
               .build();
 
+      com.aliyun.sdk.service.oss2.OSSClient ossV2Client =
+          com.aliyun.sdk.service.oss2.OSSClient.newBuilder()
+              .region(region)
+              .endpoint(endpoint)
+              .credentialsProvider(
+                  OSSCredentialsProvider.getV2CredentialsProvider(credentialsOverrider))
+              .proxyHost(TestsUtil.WIREMOCK_HOST + ":" + (port + 1))
+              .insecureSkipVerify(true)
+              .build();
+
       AliBlobStore.Builder builder = new AliBlobStore.Builder();
       builder
           .withClient(ossClient)
+          .withV2Client(ossV2Client)
           .withEndpoint(URI.create(endpoint))
           .withBucket(bucketName)
           .withRegion(region)
