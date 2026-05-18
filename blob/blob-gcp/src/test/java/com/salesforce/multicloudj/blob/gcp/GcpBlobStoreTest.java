@@ -4352,6 +4352,8 @@ class GcpBlobStoreTest {
     // TransferManager must never see the malicious blob.
     verify(mockTransferManager, never())
         .downloadBlobs(anyList(), any(ParallelDownloadConfig.class));
+  }
+
   // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
 
   /** Minimal helper to mock the Blob → Builder → BlobInfo chain consistently for retention. */
