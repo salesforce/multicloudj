@@ -28,10 +28,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -94,6 +96,24 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   protected static final int DIR_LARGE_COUNT = 5;
 
   protected static final int PART_SIZE = 5 * 1024 * 1024;
+
+  // Page size for benchmarkListPage; should be smaller than the number of pre-uploaded small
+  // blobs (SMALL_COUNT) so the page is full but a single page suffices per invocation.
+  protected static final int LIST_PAGE_MAX_RESULTS = 20;
+
+  // Key prefixes for pre-uploaded benchmark data (used by download/list/listPage/getMetadata).
+  protected static final String DOWNLOAD_BLOBS_PREFIX = "bench-download/";
+  protected static final String SMALL_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "small/";
+  protected static final String MEDIUM_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "medium/";
+  protected static final String LARGE_BLOBS_PREFIX = DOWNLOAD_BLOBS_PREFIX + "large/";
+
+  // Key prefixes for blobs created during the benchmark run (cleaned up at the end).
+  protected static final String UPLOAD_SMALL_PREFIX = "bench-upload-small/";
+  protected static final String UPLOAD_MEDIUM_PREFIX = "bench-upload-medium/";
+  protected static final String UPLOAD_LARGE_PREFIX = "bench-upload-large/";
+  protected static final String WRITE_READ_DELETE_PREFIX = "bench-write-read-delete/";
+  protected static final String MULTIPART_PREFIX = "bench-multipart/";
+  protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
 
   static final int THREAD_COUNT = 4;
   private static final long OP_TIMEOUT_SECONDS = 600;
@@ -370,7 +390,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   @Benchmark
   public void benchmarkUploadSmall(Blackhole bh) {
-    String key = "bench-upload-small/" + nextUploadSmallId.incrementAndGet() + ".dat";
+    String key = UPLOAD_SMALL_PREFIX + nextUploadSmallId.incrementAndGet() + ".dat";
     UploadRequest request =
         new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
     UploadResponse response =
@@ -381,7 +401,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   @Benchmark
   public void benchmarkUploadMedium(Blackhole bh) {
-    String key = "bench-upload-medium/" + nextUploadMediumId.incrementAndGet() + ".dat";
+    String key = UPLOAD_MEDIUM_PREFIX + nextUploadMediumId.incrementAndGet() + ".dat";
     UploadRequest request =
         new UploadRequest.Builder().withKey(key).withContentLength(mediumBlob.length).build();
     UploadResponse response =
@@ -394,7 +414,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   @Benchmark
   @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkUploadLarge(Blackhole bh) {
-    String key = "bench-upload-large/" + nextUploadLargeId.incrementAndGet() + ".dat";
+    String key = UPLOAD_LARGE_PREFIX + nextUploadLargeId.incrementAndGet() + ".dat";
     UploadRequest request =
         new UploadRequest.Builder().withKey(key).withContentLength(largeBlob.length).build();
     UploadResponse response =
@@ -437,7 +457,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   @Benchmark
   public void benchmarkWriteReadDelete(Blackhole bh) {
-    String key = "bench-write-read-delete/" + nextWriteReadDeleteId.incrementAndGet() + ".dat";
+    String key = WRITE_READ_DELETE_PREFIX + nextWriteReadDeleteId.incrementAndGet() + ".dat";
     UploadRequest uploadRequest =
         new UploadRequest.Builder().withKey(key).withContentLength(smallBlob.length).build();
     UploadResponse uploadResponse =
@@ -454,29 +474,43 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     asyncClient.delete(key, null).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
   }
 
-  // Explicit multipart API (initiate + uploadParts + complete).
-  // 10MB serial upload needs longer iterations to collect enough samples for stable P99.
+  /**
+   * Benchmarks the explicit multipart upload API (initiate + uploadParts + complete) using the
+   * realistic concurrent pattern: all parts are uploaded in parallel via {@link
+   * CompletableFuture#allOf}, mirroring how production callers use the low-level MPU API on an
+   * async client.
+   *
+   * <p>The high-level {@link AsyncBucketClient#upload upload()} method also performs multipart
+   * uploads transparently when the SDK is configured with {@code multipartEnabled} above the
+   * threshold; this benchmark exercises the manual MPU code path to measure orchestration
+   * overhead independently of the high-level path covered by {@link #benchmarkUploadLarge}.
+   *
+   * <p>For a 10 MB blob with 5 MB parts (numParts = 2), the expected latency is roughly
+   * {@code max(part1, part2) + initiate + complete}, not {@code sum(part1, part2)}.
+   */
   @Benchmark
-  @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkMultipartUpload(Blackhole bh) {
-    String key = "bench-multipart/" + nextMultipartUploadId.incrementAndGet() + ".dat";
+    String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + ".dat";
     MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key).build();
     MultipartUpload mpu =
         asyncClient.initiateMultipartUpload(request)
             .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
 
-    List<UploadPartResponse> partResponses = new ArrayList<>();
     int numParts = (int) Math.ceil((double) largeBlob.length / PART_SIZE);
+    List<CompletableFuture<UploadPartResponse>> partFutures = new ArrayList<>(numParts);
     for (int partNum = 1; partNum <= numParts; partNum++) {
       int startIndex = (partNum - 1) * PART_SIZE;
       int endIndex = Math.min(startIndex + PART_SIZE, largeBlob.length);
       byte[] partData = Arrays.copyOfRange(largeBlob, startIndex, endIndex);
       MultipartPart part = new MultipartPart(partNum, partData);
-      UploadPartResponse partResponse =
+      partFutures.add(
           asyncClient.uploadMultipartPart(mpu, part)
-              .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
-      partResponses.add(partResponse);
+              .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS));
     }
+
+    CompletableFuture.allOf(partFutures.toArray(new CompletableFuture[0])).join();
+    List<UploadPartResponse> partResponses =
+        partFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
     MultipartUploadResponse completeResponse =
         asyncClient.completeMultipartUpload(mpu, partResponses)
@@ -498,7 +532,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   public void benchmarkList(Blackhole bh) {
     List<BlobInfo> results = new ArrayList<>();
     ListBlobsRequest request =
-        ListBlobsRequest.builder().withPrefix("bench-download/small/").build();
+        ListBlobsRequest.builder().withPrefix(SMALL_BLOBS_PREFIX).build();
     asyncClient.list(request, batch -> results.addAll(batch.getBlobs()))
         .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
     bh.consume(results.size());
@@ -507,8 +541,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   @Benchmark
   public void benchmarkListPage(Blackhole bh) {
     ListBlobsPageRequest request = ListBlobsPageRequest.builder()
-        .withPrefix("bench-download/small/")
-        .withMaxResults(20)
+        .withPrefix(SMALL_BLOBS_PREFIX)
+        .withMaxResults(LIST_PAGE_MAX_RESULTS)
         .build();
     ListBlobsPageResponse response =
         asyncClient.listPage(request)
@@ -518,7 +552,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   @Benchmark
   public void benchmarkCopy(Blackhole bh) {
-    String destKey = "bench-copy-dest/" + nextCopyId.incrementAndGet() + ".dat";
+    String destKey = COPY_DEST_PREFIX + nextCopyId.incrementAndGet() + ".dat";
     CopyRequest request = CopyRequest.builder()
         .srcKey(copySourceKey)
         .destBucket(bucketName)
@@ -543,21 +577,21 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
     smallKeys = new ArrayList<>(SMALL_COUNT);
     for (int i = 0; i < SMALL_COUNT; i++) {
-      String key = "bench-download/small/blob_" + i + ".dat";
+      String key = SMALL_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, smallBlob);
       smallKeys.add(key);
     }
 
     mediumKeys = new ArrayList<>(MEDIUM_COUNT);
     for (int i = 0; i < MEDIUM_COUNT; i++) {
-      String key = "bench-download/medium/blob_" + i + ".dat";
+      String key = MEDIUM_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, mediumBlob);
       mediumKeys.add(key);
     }
 
     largeKeys = new ArrayList<>(LARGE_COUNT);
     for (int i = 0; i < LARGE_COUNT; i++) {
-      String key = "bench-download/large/blob_" + i + ".dat";
+      String key = LARGE_BLOBS_PREFIX + "blob_" + i + ".dat";
       uploadBlob(key, largeBlob);
       largeKeys.add(key);
     }
@@ -581,9 +615,9 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       return;
     }
     String[] prefixes = {
-        "bench-download/", "bench-upload-small/", "bench-upload-medium/",
-        "bench-upload-large/", "bench-write-read-delete/", "bench-multipart/",
-        "bench-copy-dest/"
+        DOWNLOAD_BLOBS_PREFIX, UPLOAD_SMALL_PREFIX, UPLOAD_MEDIUM_PREFIX,
+        UPLOAD_LARGE_PREFIX, WRITE_READ_DELETE_PREFIX, MULTIPART_PREFIX,
+        COPY_DEST_PREFIX
     };
     for (String prefix : prefixes) {
       try {
