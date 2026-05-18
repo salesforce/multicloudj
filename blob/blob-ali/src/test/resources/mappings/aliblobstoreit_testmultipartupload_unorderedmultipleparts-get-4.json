@@ -1,0 +1,37 @@
+{
+  "id" : "f44f9941-41e9-409e-815d-5d6cdbd1d202",
+  "name" : "AliBlobStoreIT_testMultipartUpload_unorderedMultipleParts-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-unorderedMultipleParts",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "425BEC7435B4432D855C308D4874A897"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-unorderedMultipleParts</Key>\n  <UploadId>425BEC7435B4432D855C308D4874A897</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>2</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>1</PartNumber>\n    <LastModified>2026-05-14T22:20:44.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-05-14T22:20:47.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064AC03D204E31384EF4C6",
+      "x-oss-server-time" : "10",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:20:48 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "f44f9941-41e9-409e-815d-5d6cdbd1d202",
+  "persistent" : true,
+  "insertionIndex" : 383
+}

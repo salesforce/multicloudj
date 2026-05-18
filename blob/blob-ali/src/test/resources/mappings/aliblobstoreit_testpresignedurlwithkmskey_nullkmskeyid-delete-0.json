@@ -1,0 +1,25 @@
+{
+  "id" : "59bc60ef-f97b-42c1-a65d-25bd3596af6f",
+  "name" : "AliBlobStoreIT_testPresignedUrlWithKmsKey_nullKmsKeyId-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/kms/presigned-url-null-key",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A5DA73E4C353054A2AA",
+      "x-oss-server-time" : "2",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:19:09 GMT"
+    }
+  },
+  "uuid" : "59bc60ef-f97b-42c1-a65d-25bd3596af6f",
+  "persistent" : true,
+  "insertionIndex" : 255
+}

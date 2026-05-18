@@ -1,0 +1,25 @@
+{
+  "id" : "5515c229-8989-426f-96a7-988ad87fb952",
+  "name" : "AliBlobStoreIT_testGeneratePresignedDownloadUrl_zeroDuration-DELETE-1",
+  "request" : {
+    "url" : "/conformance-tests/presignedDownloadUrls/zeroDuration",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A8BEB58E5383414680C",
+      "x-oss-server-time" : "17",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:19:55 GMT"
+    }
+  },
+  "uuid" : "5515c229-8989-426f-96a7-988ad87fb952",
+  "persistent" : true,
+  "insertionIndex" : 320
+}

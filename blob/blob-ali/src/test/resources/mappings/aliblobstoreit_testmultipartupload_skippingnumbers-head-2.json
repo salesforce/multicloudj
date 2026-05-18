@@ -1,0 +1,34 @@
+{
+  "id" : "197bac88-52f7-49a1-9ff7-4019df0734aa",
+  "name" : "AliBlobStoreIT_testMultipartUpload_skippingNumbers-HEAD-2",
+  "request" : {
+    "url" : "/conformance-tests/multipart-skippingNumbers",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A064A5BC15CCF3932A86776",
+      "x-oss-server-time" : "9",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Multipart",
+      "Last-Modified" : "Thu, 14 May 2026 22:19:06 GMT",
+      "Date" : "Thu, 14 May 2026 22:19:07 GMT",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "10306256359930404492",
+      "ETag" : "\"CC02DC03DED7B38B441058D78C28066B-3\"",
+      "x-oss-meta-456" : "456",
+      "Vary" : "Accept-Encoding",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "197bac88-52f7-49a1-9ff7-4019df0734aa",
+  "persistent" : true,
+  "insertionIndex" : 247
+}

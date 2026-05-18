@@ -1,0 +1,43 @@
+{
+  "id" : "495ab387-322e-4b16-9852-fdc9c7023f5b",
+  "name" : "AliBlobStoreIT_testMultipartUpload_skippingNumbers-POST-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-skippingNumbers",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1C112CAB3A2D46CCBF518DC7CEE14EFE"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>&quot;2B5C91AD399409EC9B409B66F5BB00FB&quot;</ETag></Part><Part><PartNumber>3</PartNumber><ETag>&quot;267C038CC2EC32FFD0EE2512FF5DA5A5&quot;</ETag></Part><Part><PartNumber>6</PartNumber><ETag>&quot;FE9E522B589EF23E2C49B65C0522CE97&quot;</ETag></Part></CompleteMultipartUpload>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-skippingNumbers</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-skippingNumbers</Key>\n  <ETag>\"CC02DC03DED7B38B441058D78C28066B-3\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064A5A279F7138353A5C3B",
+      "x-oss-server-time" : "67",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "10306256359930404492",
+      "ETag" : "\"CC02DC03DED7B38B441058D78C28066B-3\"",
+      "Date" : "Thu, 14 May 2026 22:19:06 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "495ab387-322e-4b16-9852-fdc9c7023f5b",
+  "persistent" : true,
+  "insertionIndex" : 248
+}

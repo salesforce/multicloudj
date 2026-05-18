@@ -1,0 +1,37 @@
+{
+  "id" : "7c0f9948-7d38-4868-967a-37ce2ddf3aaa",
+  "name" : "AliBlobStoreIT_testMultipartUpload_skippingNumbers-GET-4",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-skippingNumbers",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "1C112CAB3A2D46CCBF518DC7CEE14EFE"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-skippingNumbers</Key>\n  <UploadId>1C112CAB3A2D46CCBF518DC7CEE14EFE</UploadId>\n  <StorageClass>Standard</StorageClass>\n  <PartNumberMarker>0</PartNumberMarker>\n  <NextPartNumberMarker>6</NextPartNumberMarker>\n  <MaxParts>1000</MaxParts>\n  <IsTruncated>false</IsTruncated>\n  <Part>\n    <PartNumber>2</PartNumber>\n    <LastModified>2026-05-14T22:18:59.000Z</LastModified>\n    <ETag>\"2B5C91AD399409EC9B409B66F5BB00FB\"</ETag>\n    <HashCrc64ecma>14920568100270865136</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>3</PartNumber>\n    <LastModified>2026-05-14T22:19:02.000Z</LastModified>\n    <ETag>\"267C038CC2EC32FFD0EE2512FF5DA5A5\"</ETag>\n    <HashCrc64ecma>9618452871104087932</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n  <Part>\n    <PartNumber>6</PartNumber>\n    <LastModified>2026-05-14T22:19:04.000Z</LastModified>\n    <ETag>\"FE9E522B589EF23E2C49B65C0522CE97\"</ETag>\n    <HashCrc64ecma>13592587331863467000</HashCrc64ecma>\n    <Size>5242880</Size>\n  </Part>\n</ListPartsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064A593D204E3939D469C5",
+      "x-oss-server-time" : "11",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:19:05 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7c0f9948-7d38-4868-967a-37ce2ddf3aaa",
+  "persistent" : true,
+  "insertionIndex" : 249
+}

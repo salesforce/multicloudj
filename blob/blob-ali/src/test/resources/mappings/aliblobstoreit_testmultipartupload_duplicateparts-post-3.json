@@ -1,0 +1,43 @@
+{
+  "id" : "227b911c-2958-4cc7-a619-aa93d1a8c041",
+  "name" : "AliBlobStoreIT_testMultipartUpload_duplicateParts-POST-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-duplicateParts",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "95334BCF70F24F778CC16398935ED12A"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>&quot;FE9E522B589EF23E2C49B65C0522CE97&quot;</ETag></Part><Part><PartNumber>3</PartNumber><ETag>&quot;267C038CC2EC32FFD0EE2512FF5DA5A5&quot;</ETag></Part></CompleteMultipartUpload>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-duplicateParts</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests/multipart-duplicateParts</Key>\n  <ETag>\"8B2D0ADCE4928086C89F8F6B87E504C7-2\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064B08EB20573239C72CC3",
+      "x-oss-server-time" : "36",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "2131419258895295297",
+      "ETag" : "\"8B2D0ADCE4928086C89F8F6B87E504C7-2\"",
+      "Date" : "Thu, 14 May 2026 22:22:00 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "227b911c-2958-4cc7-a619-aa93d1a8c041",
+  "persistent" : true,
+  "insertionIndex" : 463
+}

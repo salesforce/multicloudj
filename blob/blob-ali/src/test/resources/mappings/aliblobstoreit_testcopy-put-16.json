@@ -1,0 +1,31 @@
+{
+  "id" : "b1c205a2-e5c0-449c-814f-478d7d78fb5e",
+  "name" : "AliBlobStoreIT_testCopy-PUT-16",
+  "request" : {
+    "url" : "/conformance-tests/copied-blob",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A064A113D437D35392A1AF5</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>blob-that-doesnt-exist</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064A113D437D35392A1AF5",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Thu, 14 May 2026 22:17:53 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b1c205a2-e5c0-449c-814f-478d7d78fb5e",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-conformance-tests-copied-blob",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-conformance-tests-copied-blob-2",
+  "insertionIndex" : 175
+}

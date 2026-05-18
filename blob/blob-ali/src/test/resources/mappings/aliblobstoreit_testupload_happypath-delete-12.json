@@ -1,0 +1,25 @@
+{
+  "id" : "656fa4de-a439-4ed7-a1cf-c23b75b500a6",
+  "name" : "AliBlobStoreIT_testUpload_happyPath-DELETE-12",
+  "request" : {
+    "url" : "/conformance-tests/upload/happyPath_Path",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064ACDD94FC93836C33967",
+      "x-oss-server-time" : "15",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:21:01 GMT"
+    }
+  },
+  "uuid" : "656fa4de-a439-4ed7-a1cf-c23b75b500a6",
+  "persistent" : true,
+  "insertionIndex" : 400
+}

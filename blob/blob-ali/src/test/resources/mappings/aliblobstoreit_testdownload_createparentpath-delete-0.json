@@ -1,0 +1,27 @@
+{
+  "id" : "37e09874-3448-421e-a254-80f01a0fb122",
+  "name" : "AliBlobStoreIT_testDownload_createParentPath-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/download_create_parent/nested/object_unversioned",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A3E82E54D30370F03D4",
+      "x-oss-server-time" : "19",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:18:38 GMT"
+    }
+  },
+  "uuid" : "37e09874-3448-421e-a254-80f01a0fb122",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-download_create_parent-nested-object_unversioned",
+  "requiredScenarioState" : "scenario-1-conformance-tests-download_create_parent-nested-object_unversioned-2",
+  "insertionIndex" : 211
+}

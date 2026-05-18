@@ -1,0 +1,27 @@
+{
+  "id" : "2a7eca64-89c3-4771-94eb-2051d456b63d",
+  "name" : "AliBlobStoreIT_testDownload_happy-DELETE-12",
+  "request" : {
+    "url" : "/conformance-tests/download_happy_unversioned",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A7382E54D3032E9BED4",
+      "x-oss-server-time" : "10",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:19:31 GMT"
+    }
+  },
+  "uuid" : "2a7eca64-89c3-4771-94eb-2051d456b63d",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-conformance-tests-download_happy_unversioned",
+  "requiredScenarioState" : "scenario-3-conformance-tests-download_happy_unversioned-4",
+  "insertionIndex" : 288
+}

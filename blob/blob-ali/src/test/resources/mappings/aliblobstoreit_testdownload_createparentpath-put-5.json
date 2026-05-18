@@ -1,0 +1,34 @@
+{
+  "id" : "962decc4-476c-4d24-94bc-99d9ff51ef34",
+  "name" : "AliBlobStoreIT_testDownload_createParentPath-PUT-5",
+  "request" : {
+    "url" : "/conformance-tests/download_create_parent/nested/object_unversioned",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A064A3A9E87C1363536A8C0",
+      "x-oss-server-time" : "8",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "4694637722962336160",
+      "ETag" : "\"701BBD4BDE1EE04E3B0596F63994EBAE\"",
+      "Date" : "Thu, 14 May 2026 22:18:34 GMT",
+      "Content-MD5" : "cBu9S94e4E47BZb2OZTrrg=="
+    }
+  },
+  "uuid" : "962decc4-476c-4d24-94bc-99d9ff51ef34",
+  "persistent" : true,
+  "scenarioName" : "scenario-3-conformance-tests-download_create_parent-nested-object_unversioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-3-conformance-tests-download_create_parent-nested-object_unversioned-2",
+  "insertionIndex" : 216
+}

@@ -1,0 +1,41 @@
+{
+  "id" : "94e0520f-3f9d-4682-89ba-6ef09a1c9efe",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-8",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>CAEQigEYgYDAn96oovEZIiBjMGYxYjI0NGZjZDU0ODM1YmUwNDdkZGJhZjJjOWQ4Mg--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>CAEQigEYgYDA2.GoovEZIiBhMTRiMGYzMzE1NTA0ZmI0OTViZDc4ZjBjZDQ4MjRmZQ--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>CAEQigEYgYCA8.SoovEZIiBhNjZkNjA3YjNmMWE0ZTdlYWM2ODU5ODJlMTZjODA1Zg--</VersionId></Object></Delete>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy4</Key>\n    <VersionId>CAEQigEYgYDAn96oovEZIiBjMGYxYjI0NGZjZDU0ODM1YmUwNDdkZGJhZjJjOWQ4Mg--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy5</Key>\n    <VersionId>CAEQigEYgYDA2.GoovEZIiBhMTRiMGYzMzE1NTA0ZmI0OTViZDc4ZjBjZDQ4MjRmZQ--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy6</Key>\n    <VersionId>CAEQigEYgYCA8.SoovEZIiBhNjZkNjA3YjNmMWE0ZTdlYWM2ODU5ODJlMTZjODA1Zg--</VersionId>\n  </Deleted>\n</DeleteResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A064ADB82F61D313362D118",
+      "x-oss-server-time" : "20",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:21:15 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "94e0520f-3f9d-4682-89ba-6ef09a1c9efe",
+  "persistent" : true,
+  "insertionIndex" : 422
+}

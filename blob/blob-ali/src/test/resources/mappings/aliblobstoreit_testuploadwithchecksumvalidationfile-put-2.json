@@ -1,0 +1,32 @@
+{
+  "id" : "7a58a589-1103-47db-83d8-753171867cdb",
+  "name" : "AliBlobStoreIT_testUploadWithChecksumValidationFile-PUT-2",
+  "request" : {
+    "url" : "/conformance-tests/checksum/upload-file-checksum",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "Test checksum with File",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A064A4DFB200F32359C35F8",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "3939908265854787543",
+      "ETag" : "\"72A85A20131E1A2B0CF48B33676817E8\"",
+      "Date" : "Thu, 14 May 2026 22:18:53 GMT",
+      "Content-MD5" : "cqhaIBMeGisM9IszZ2gX6A=="
+    }
+  },
+  "uuid" : "7a58a589-1103-47db-83d8-753171867cdb",
+  "persistent" : true,
+  "insertionIndex" : 239
+}

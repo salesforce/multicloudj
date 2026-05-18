@@ -1,0 +1,34 @@
+{
+  "id" : "02f6e47c-8c6e-4c84-9b6b-e0d2b96e6682",
+  "name" : "AliBlobStoreIT_testDoesObjectExist-PUT-6",
+  "request" : {
+    "url" : "/conformance-tests/doesBlobExist/unversioned",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A0649DEDC97B336380250E4",
+      "x-oss-server-time" : "10",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "4694637722962336160",
+      "ETag" : "\"701BBD4BDE1EE04E3B0596F63994EBAE\"",
+      "Date" : "Thu, 14 May 2026 22:17:02 GMT",
+      "Content-MD5" : "cBu9S94e4E47BZb2OZTrrg=="
+    }
+  },
+  "uuid" : "02f6e47c-8c6e-4c84-9b6b-e0d2b96e6682",
+  "persistent" : true,
+  "scenarioName" : "scenario-PUT--conformance-tests-doesBlobExist-unversioned",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-PUT--conformance-tests-doesBlobExist-unversioned-1",
+  "insertionIndex" : 100
+}

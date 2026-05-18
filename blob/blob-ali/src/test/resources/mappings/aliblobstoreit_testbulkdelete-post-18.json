@@ -1,0 +1,41 @@
+{
+  "id" : "7a4e9445-d3cb-4b61-8733-b644a31697d4",
+  "name" : "AliBlobStoreIT_testBulkDelete-POST-18",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy4</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy5</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy6</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key></Object></Delete>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy4</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy5</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy6</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key>\n  </Deleted>\n</DeleteResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0649AEA550873731F98314",
+      "x-oss-server-time" : "37",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:16:14 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7a4e9445-d3cb-4b61-8733-b644a31697d4",
+  "persistent" : true,
+  "insertionIndex" : 39
+}

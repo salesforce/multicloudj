@@ -1,0 +1,25 @@
+{
+  "id" : "b02208c0-1753-4192-8985-74ac635f8d81",
+  "name" : "AliBlobStoreIT_testGeneratePresignedUploadUrl_missingTagsOnUpload-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/presignedUploadUrls/missingTagsOnUpload",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064A1113B6F233378DF245",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:17:53 GMT"
+    }
+  },
+  "uuid" : "b02208c0-1753-4192-8985-74ac635f8d81",
+  "persistent" : true,
+  "insertionIndex" : 157
+}

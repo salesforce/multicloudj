@@ -1,0 +1,28 @@
+{
+  "id" : "235b09ef-968e-4f54-b9c5-a9684211e283",
+  "name" : "AliBlobStoreIT_testRangedRead-DELETE-50",
+  "request" : {
+    "url" : "/conformance-tests/testRangedRead_unversioned",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A064B4EDF51553235841F76",
+      "x-oss-server-time" : "17",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 14 May 2026 22:23:10 GMT"
+    }
+  },
+  "uuid" : "235b09ef-968e-4f54-b9c5-a9684211e283",
+  "persistent" : true,
+  "scenarioName" : "scenario-7-conformance-tests-testRangedRead_unversioned",
+  "requiredScenarioState" : "scenario-7-conformance-tests-testRangedRead_unversioned-3",
+  "newScenarioState" : "scenario-7-conformance-tests-testRangedRead_unversioned-4",
+  "insertionIndex" : 574
+}
