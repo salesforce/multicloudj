@@ -251,6 +251,39 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
     doDeleteDirectory(prefix);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Deprecated path: delegates to {@link #updateObjectRetention(String, String,
+   * ObjectRetentionConfig)} with {@code mode=null} (preserve current mode) and {@code
+   * bypassGovernanceRetention=false}. This delegation gives every provider a single retention-
+   * update code path and prevents AWS/GCP behavior from drifting.
+   *
+   * <p>Note: the historical AWS implementation rejected ANY update on COMPLIANCE objects
+   * (including extension), while GCP allows extending LOCKED. Each provider's existing
+   * override of this deprecated method takes precedence over this delegate, preserving its
+   * legacy semantics; the new overload introduces a uniform rules table across providers.
+   */
+  @Override
+  @Deprecated
+  public void updateObjectRetention(
+      String key, String versionId, java.time.Instant retainUntilDate) {
+    updateObjectRetention(
+        key,
+        versionId,
+        ObjectRetentionConfig.builder()
+            .retainUntilDate(retainUntilDate)
+            .bypassGovernanceRetention(Boolean.FALSE)
+            .build());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void updateObjectRetention(String key, String versionId, ObjectRetentionConfig config) {
+    validator.validate(config);
+    doUpdateObjectRetention(key, versionId, config);
+  }
+
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, byte[] content);
@@ -306,6 +339,24 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 
   protected abstract boolean doDoesBucketExist();
+
+  /**
+   * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.
+   *
+   * <p>State-dependent validation (no-current-retention rejection, mode-transition rules,
+   * shorten-with-bypass rules) lives here per design §E so all providers surface uniform
+   * exception types and messages. Stateless validation has already been performed by the
+   * template before this hook is invoked.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException} — provider
+   * implementations that do not support per-object retention (e.g. Alibaba OSS) inherit this
+   * behavior without further work.
+   */
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    throw new UnsupportedOperationException(
+        "Per-object retention updates are not supported by this substrate implementation");
+  }
 
   protected DirectoryDownloadResponse doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {

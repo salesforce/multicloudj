@@ -1,0 +1,34 @@
+{
+  "id" : "fe2b4ecf-23a1-43c1-9614-04924381e99a",
+  "name" : "AwsBlobStoreIT_testGetObjectLock_nonexistentKey_throws-GET-0",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/nonexistent",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>conformance-tests/objectlock/nonexistent</Key><RequestId>STX55VHW1WRAGPM5</RequestId><HostId>IX+LXP2iYGZMHpbNFuNTdwHURb8SiNNqOYVpkK8AA25uHWaQOD6oJgU9Ne9u6YpHbBBSLkg9mlgCEVKMN/kWGGeMujFRA7EpfGlVn76UQ9k=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "STX55VHW1WRAGPM5",
+      "x-amz-id-2" : "IX+LXP2iYGZMHpbNFuNTdwHURb8SiNNqOYVpkK8AA25uHWaQOD6oJgU9Ne9u6YpHbBBSLkg9mlgCEVKMN/kWGGeMujFRA7EpfGlVn76UQ9k=",
+      "Date" : "Tue, 05 May 2026 19:48:46 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fe2b4ecf-23a1-43c1-9614-04924381e99a",
+  "persistent" : true,
+  "insertionIndex" : 1007
+}

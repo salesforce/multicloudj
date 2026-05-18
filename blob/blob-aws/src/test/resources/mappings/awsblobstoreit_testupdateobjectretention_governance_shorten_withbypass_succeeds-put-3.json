@@ -1,0 +1,36 @@
+{
+  "id" : "c205d217-ede2-4b52-8ef1-4281e06f3e72",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_governance_shorten_withBypass_succeeds-PUT-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/gov-shorten-bypass",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><RetainUntilDate>2030-02-01T00:00:00Z</RetainUntilDate></Retention>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "G19GBAF6NGZ1YGVQ",
+      "x-amz-id-2" : "cPeiyu0xZgLInIrSNGzgIOOZtjmBWSAjtfmZ5WQVytvkbMyFnKlEHsObaFhIA6UbCfhVSp320+8=",
+      "x-amz-version-id" : "XLzxOpagg_tm6xUD4Sqz2vgQCa2V1HrQ",
+      "Date" : "Mon, 11 May 2026 10:38:56 GMT"
+    }
+  },
+  "uuid" : "c205d217-ede2-4b52-8ef1-4281e06f3e72",
+  "persistent" : true,
+  "insertionIndex" : 700
+}
