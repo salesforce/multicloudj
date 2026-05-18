@@ -73,7 +73,7 @@
         <aws-sdk.version>2.42.40</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <wiremock-grpc.version>0.11.0</wiremock-grpc.version>
-        <opentelemetry.version>1.43.0</opentelemetry.version>
+        <opentelemetry.version>1.62.0</opentelemetry.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <revision>0.2.5-SNAPSHOT</revision>
     </properties>
