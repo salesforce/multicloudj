@@ -13,6 +13,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -30,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -230,6 +233,59 @@ class GcpTransformerTest {
     assertEquals(TEST_KEY, blobInfo.getName());
     assertNotNull(blobInfo.getMetadata());
     assertTrue(blobInfo.getMetadata().isEmpty());
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdInjectedIntoMetadata() {
+    OperationContext ctx = OperationContext.builder().correlationId("req-abc-123").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertEquals(
+        "req-abc-123",
+        blobInfo.getMetadata().get("correlation-id"),
+        "transformer must persist the operation correlation_id under the well-known metadata key");
+  }
+
+  @Test
+  void testToBlobInfo_correlationIdNotInjectedWhenContextMissing() {
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("user-key", "user-value"))
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals("user-value", blobInfo.getMetadata().get("user-key"));
+    assertFalse(
+        blobInfo.getMetadata().containsKey("correlation-id"),
+        "no injection when the request carries no OperationContext");
+  }
+
+  @Test
+  void testToBlobInfo_userSuppliedCorrelationIdNotOverwritten() {
+    OperationContext ctx = OperationContext.builder().correlationId("sdk-generated").build();
+    UploadRequest uploadRequest =
+        UploadRequest.builder()
+            .withKey(TEST_KEY)
+            .withMetadata(Map.of("correlation-id", "user-supplied"))
+            .withOperationContext(ctx)
+            .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+
+    assertEquals(
+        "user-supplied",
+        blobInfo.getMetadata().get("correlation-id"),
+        "application's explicit correlation-id metadata value must take precedence");
   }
 
   @Test
@@ -908,6 +964,36 @@ class GcpTransformerTest {
   }
 
   @Test
+  public void testToBlobInfo_multipartUploadRequestWithObjectLock() {
+    Instant retainUntil = Instant.parse("2026-12-31T23:59:59Z");
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.COMPLIANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(true)
+            .build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(objectLock).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    // Verify object lock - retention mode
+    assertNotNull(blobInfo.getRetention());
+    assertEquals(Retention.Mode.LOCKED, blobInfo.getRetention().getMode());
+    assertEquals(
+        OffsetDateTime.ofInstant(retainUntil, ZoneOffset.UTC),
+        blobInfo.getRetention().getRetainUntilTime());
+    // Verify event-based hold is set (not temporary hold)
+    assertTrue(blobInfo.getEventBasedHold());
+    // Temporary hold should not be set
+    assertNull(blobInfo.getTemporaryHold());
+  }
+
+  @Test
   public void testToBlobInfo_uploadRequestWithContentType() {
     UploadRequest request =
         UploadRequest.builder()
@@ -933,6 +1019,44 @@ class GcpTransformerTest {
     assertEquals(TEST_BUCKET, blobInfo.getBucket());
     assertEquals(TEST_KEY, blobInfo.getName());
     assertEquals("application/x-directory", blobInfo.getContentType());
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockEventBasedHold() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(true).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(tempHold == null || !tempHold, "Temporary hold should be false or null");
+    assertTrue(eventHold != null && eventHold, "Event-based hold should be set to true");
+  }
+
+  @Test
+  public void testToBlobInfo_MultipartUploadRequestWithObjectLockTemporaryHoldDefault() {
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder().legalHold(true).useEventBasedHold(null).build();
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey(TEST_KEY).withObjectLock(lockConfig).build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals(TEST_BUCKET, blobInfo.getBucket());
+    assertEquals(TEST_KEY, blobInfo.getName());
+    Boolean tempHold = getTemporaryHold(blobInfo);
+    Boolean eventHold = getEventBasedHold(blobInfo);
+    assertTrue(
+        tempHold != null && tempHold,
+        "Temporary hold should be set to true (default when useEventBasedHold is null)");
+    assertTrue(eventHold == null || !eventHold, "Event-based hold should be false or null");
   }
 
   @Test

@@ -72,6 +72,27 @@
             </exclusions>
         </dependency>
 
+        <!-- OpenTelemetry: tracing API + context propagation. -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.19</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- The transitives of the dependencies above -->
         <dependency>
             <groupId>commons-codec</groupId>

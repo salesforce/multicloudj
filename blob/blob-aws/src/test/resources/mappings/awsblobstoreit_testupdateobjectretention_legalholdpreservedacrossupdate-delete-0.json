@@ -1,0 +1,22 @@
+{
+  "id" : "48f3521b-3ce1-4573-bae4-be856d58a8c0",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/legalhold-preserved",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "0ABGSG3FNTH3TY9F",
+      "x-amz-id-2" : "QzD/QJHu1HLBmeee3YOaq1VTL2i4LOEgNfWLZNuEaLFKJ+ST/22ipf0Mm9tqGU2sIElj5UagWFM=",
+      "x-amz-version-id" : "EyMw8h3DjvZ_f15L4T9cwJ7AK7zXti4y",
+      "Date" : "Mon, 11 May 2026 10:39:20 GMT"
+    }
+  },
+  "uuid" : "48f3521b-3ce1-4573-bae4-be856d58a8c0",
+  "persistent" : true,
+  "insertionIndex" : 722
+}

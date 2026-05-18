@@ -19,7 +19,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"generation\":\"1772658217080951\",\"metadata\":{\"gcp-tag-tag1\":null,\"gcp-tag-tag3\":\"value3\"},\"name\":\"conformance-tests/blob-for-tagging\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {

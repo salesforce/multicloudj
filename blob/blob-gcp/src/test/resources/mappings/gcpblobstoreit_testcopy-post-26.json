@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{\"key1\":\"value1\",\"key2\":\"value2\"},\"name\":\"conformance-tests/blob-for-copying\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {

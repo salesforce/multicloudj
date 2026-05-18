@@ -1,0 +1,22 @@
+{
+  "id" : "402854d2-a575-4039-91fc-fbbbff83f051",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_governance_shorten_withoutBypass_throws-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/gov-shorten-no-bypass",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "6T4EGMF15JB0EY64",
+      "x-amz-id-2" : "KwJf3akVnhDlLfcWFVHc/ZgLX5ZJWCH3K7e0FkPKznwMoybL+h1hADvipVFdjLmBYKHH/M2zSXs=",
+      "x-amz-version-id" : "eGMzum3YcE3fXMNS.9Llx711KqnHmMus",
+      "Date" : "Mon, 11 May 2026 10:39:03 GMT"
+    }
+  },
+  "uuid" : "402854d2-a575-4039-91fc-fbbbff83f051",
+  "persistent" : true,
+  "insertionIndex" : 704
+}

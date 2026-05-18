@@ -21,6 +21,8 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
@@ -62,6 +64,13 @@ import lombok.Getter;
 public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
+
+  /**
+   * Object-metadata key under which the SDK persists the operation correlation id during upload,
+   * so the value is stored on the blob alongside the user's metadata and matches the correlation
+   * id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
 
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
@@ -124,10 +133,21 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
+    // Copy the application-supplied metadata and stamp the SDK's correlation id on it so
+    // the value persists with the stored blob alongside the user's metadata. Skipped when
+    // the request carries no operation context, or when the app has supplied the same key.
+    Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
+    if (uploadRequest.getOperationContext() != null
+        && uploadRequest.getOperationContext().getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(
+          CORRELATION_ID_METADATA_KEY,
+          uploadRequest.getOperationContext().getCorrelationId());
+    }
+
     StoredBlob blob =
         new StoredBlob(
-            content, etag, versionId, Instant.now(), uploadRequest.getMetadata(),
-            uploadRequest.getContentType());
+            content, etag, versionId, Instant.now(), metadata, uploadRequest.getContentType());
 
     STORAGE.put(versionedKey, blob);
     LATEST_VERSIONS.put(baseKey, versionId);
@@ -1019,6 +1039,30 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         ObjectLockInfo.builder()
             .mode(existing != null ? existing.getMode() : null)
             .retainUntilDate(retainUntilDate)
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    RetentionMode currentMode = existing != null ? existing.getMode() : null;
+    Instant currentRetainUntil = existing != null ? existing.getRetainUntilDate() : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    // Legal hold and useEventBasedHold are preserved across retention updates — they have their
+    // own dedicated APIs and must not be cleared by this call.
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(resolvedMode)
+            .retainUntilDate(config.getRetainUntilDate())
             .legalHold(existing != null && existing.isLegalHold())
             .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
             .build());

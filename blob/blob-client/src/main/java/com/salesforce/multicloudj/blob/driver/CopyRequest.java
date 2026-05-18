@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -24,4 +25,10 @@ public class CopyRequest {
 
   /** The key of the blob you're copying into in the destination bucket */
   private final String destKey;
+
+  /**
+   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
+   * correlation ID is missing, the SDK auto-generates a UUID and returns it via the response.
+   */
+  private final OperationContext operationContext;
 }

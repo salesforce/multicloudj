@@ -18,8 +18,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -38,6 +40,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -406,6 +409,7 @@ public class Main {
   private static final String LOCAL_SOURCE_DIRECTORY = "/tmp/test-directory";
   private static final String LOCAL_DOWNLOAD_DIRECTORY = "/tmp/downloaded-directory";
   private static final String REMOTE_PREFIX = "uploads/";
+  private static final String REMOTE_PREFIX_OBJECT_LOCK = REMOTE_PREFIX + "object-lock/";
   private static final Map<String, String> EXPECTED_FILE_CONTENT =
       Map.of(
           "file1.txt", "Hello from file1",
@@ -478,6 +482,69 @@ public class Main {
       verifyUploadedBlobsAndTags();
     } catch (Exception e) {
       throw new RuntimeException("Directory upload failed: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Uploads a local directory with object-lock settings applied to every uploaded file.
+   *
+   * <p>Note: Your bucket must have object lock enabled, and your credentials must have permission
+   * to set retention / legal hold.
+   */
+  public static void uploadDirectoryWithObjectLockAsync() {
+    System.out.println("Using AsyncBucketClient for provider: aws");
+    AsyncBucketClient asyncClient = getAsyncBucketClient("aws");
+    try {
+      asyncClient.deleteDirectory(REMOTE_PREFIX_OBJECT_LOCK).get();
+      System.out.println("Cleaned existing prefix before upload: " + REMOTE_PREFIX_OBJECT_LOCK);
+    } catch (Exception e) {
+      System.out.println(
+          "Prefix cleanup skipped/failed (continuing): "
+              + REMOTE_PREFIX_OBJECT_LOCK
+              + " - "
+              + e.getMessage());
+    }
+
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.now().plus(Duration.ofDays(7)))
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(LOCAL_SOURCE_DIRECTORY)
+            .prefix(REMOTE_PREFIX_OBJECT_LOCK)
+            .includeSubFolders(true)
+            .followSymbolicLinks(false)
+            .objectLock(objectLock)
+            .build();
+
+    try {
+      CompletableFuture<DirectoryUploadResponse> future = asyncClient.uploadDirectory(request);
+      DirectoryUploadResponse response = future.get();
+      System.out.println(
+          "Directory upload (object lock) completed; failedTransfers="
+              + response.getFailedTransfers().size());
+      if (!response.getFailedTransfers().isEmpty()) {
+        response
+            .getFailedTransfers()
+            .forEach(
+                failure ->
+                    System.out.println(
+                        "Upload failed for "
+                            + failure.getSource()
+                            + ": "
+                            + failure.getException().getMessage()));
+        throw new IllegalStateException(
+            "Directory upload with object lock produced "
+                + response.getFailedTransfers().size()
+                + " failures");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Directory upload with object lock failed: " + e.getMessage(), e);
     }
   }
 
@@ -798,7 +865,7 @@ public class Main {
 
   private static String getProvider() {
     // Change this to test different providers
-    return "aws"; // or "aws" or "ali"
+    return "gcp"; // or "aws" or "ali"
   }
 
   private static InputStream getInputStream() {
@@ -851,6 +918,25 @@ public class Main {
     try {
       System.out.println("=== Test Archived ===");
       downloadArchivedBlob();
+
+      System.out.println("=== Creating Test Directory ===");
+      createTestDirectory();
+
+      System.out.println("=== Testing Directory Upload (with tags) ===");
+      uploadDirectory();
+      System.out.println("uploadDirectory: PASS");
+
+      System.out.println("=== Testing Directory Upload (with object lock) ===");
+      uploadDirectoryWithObjectLockAsync();
+      System.out.println("uploadDirectoryWithObjectLockAsync: PASS");
+
+      System.out.println("=== Testing Directory Download (with content verification) ===");
+      downloadDirectory();
+      System.out.println("downloadDirectory: PASS");
+
+      System.out.println("=== Testing Directory Delete (with existence verification) ===");
+      deleteDirectory();
+      System.out.println("deleteDirectory: PASS");
 
       success = true;
       System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");
