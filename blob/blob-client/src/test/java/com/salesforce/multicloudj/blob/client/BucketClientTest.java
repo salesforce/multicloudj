@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -51,6 +52,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -408,6 +410,32 @@ public class BucketClientTest {
         UnAuthorizedException.class,
         () -> {
           client.list(request);
+        });
+  }
+
+  @Test
+  void testListObjectVersions() {
+    ListObjectVersionsRequest request =
+        ListObjectVersionsRequest.builder().withKey("object-1").build();
+    @SuppressWarnings("unchecked")
+    Iterator<BlobMetadata> expectedIterator = mock(Iterator.class);
+    when(mockBlobStore.listObjectVersions(request)).thenReturn(expectedIterator);
+
+    Iterator<BlobMetadata> actualIterator = client.listObjectVersions(request);
+    verify(mockBlobStore, times(1)).listObjectVersions(request);
+    assertEquals(expectedIterator, actualIterator);
+  }
+
+  @Test
+  void testListObjectVersionsThrowsException() {
+    ListObjectVersionsRequest request =
+        ListObjectVersionsRequest.builder().withKey("object-1").build();
+    when(mockBlobStore.listObjectVersions(request)).thenThrow(RuntimeException.class);
+
+    assertThrows(
+        UnAuthorizedException.class,
+        () -> {
+          client.listObjectVersions(request);
         });
   }
 

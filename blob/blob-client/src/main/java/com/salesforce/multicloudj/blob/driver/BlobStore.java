@@ -175,6 +175,14 @@ public interface BlobStore extends SdkService, Provider {
   ListBlobsPageResponse listPage(ListBlobsPageRequest request);
 
   /**
+   * Lists all available versions for a given object key.
+   *
+   * @param request The list versions request containing the target key and optional limits
+   * @return Iterator object of BlobMetadata for each version
+   */
+  Iterator<BlobMetadata> listObjectVersions(ListObjectVersionsRequest request);
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request

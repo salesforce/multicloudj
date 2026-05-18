@@ -65,6 +65,7 @@ import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -553,6 +554,40 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     return new ListBlobsPageResponse(
         blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
+  }
+
+  @Override
+  protected Iterator<BlobMetadata> doListObjectVersions(ListObjectVersionsRequest request) {
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.prefix(request.getKey()));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    Iterable<Blob> blobs =
+        storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0])).iterateAll();
+    Iterator<Blob> blobIterator =
+        Iterators.filter(blobs.iterator(), blob -> request.getKey().equals(blob.getName()));
+
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return blobIterator.hasNext();
+      }
+
+      @Override
+      public BlobMetadata next() {
+        Blob blob = blobIterator.next();
+        return BlobMetadata.builder()
+            .key(blob.getName())
+            .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
+            .eTag(blob.getEtag())
+            .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
+            .lastModified(
+                blob.getUpdateTimeOffsetDateTime() != null
+                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
+                    : null)
+            .build();
+      }
+    };
   }
 
   @Override

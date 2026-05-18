@@ -139,6 +139,11 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isListObjectVersionsSupported() {
+      return true;
+    }
+
+    @Override
     public void close() {
       client.close();
       httpClient.close();

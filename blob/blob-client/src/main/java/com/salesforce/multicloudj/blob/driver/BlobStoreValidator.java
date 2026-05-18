@@ -44,6 +44,8 @@ public class BlobStoreValidator {
       "ObjectRetentionConfig cannot be null";
   static final String NULL_RETAIN_UNTIL_DATE_MSG =
       "ObjectRetentionConfig.retainUntilDate cannot be null";
+  static final String LIST_OBJECT_VERSIONS_REQUEST_NULL_MSG =
+      "ListObjectVersionsRequest cannot be null";
 
   /**
    * Inspects the input string and throws an IllegalArgumentException if the input is `null`, empty,
@@ -285,6 +287,18 @@ public class BlobStoreValidator {
     validatePresignedOperationType(request.getType());
     validateKey(request.getKey());
     validateDuration(request.getDuration());
+  }
+
+  /**
+   * Validates that a ListObjectVersionsRequest is valid.
+   *
+   * @param request the list object versions request
+   */
+  public void validate(ListObjectVersionsRequest request) {
+    if (request == null) {
+      throw new IllegalArgumentException(LIST_OBJECT_VERSIONS_REQUEST_NULL_MSG);
+    }
+    validateKey(request.getKey());
   }
 
   /**

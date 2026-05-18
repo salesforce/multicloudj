@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.driver;
 
 import static com.salesforce.multicloudj.blob.driver.BlobStoreValidator.INVALID_TAGS_COLLECTION_MSG;
+import static com.salesforce.multicloudj.blob.driver.BlobStoreValidator.LIST_OBJECT_VERSIONS_REQUEST_NULL_MSG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.spy;
@@ -394,5 +395,23 @@ public class BlobStoreValidatorTest {
             .retainUntilDate(java.time.Instant.parse("2000-01-01T00:00:00Z"))
             .build();
     validator.validate(cfg); // does not throw
+  }
+
+  @Test
+  void testValidateListObjectVersionsRequest() {
+    validator.validate(ListObjectVersionsRequest.builder().withKey("object-1").build());
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> validator.validate((ListObjectVersionsRequest) null));
+    assertEquals(LIST_OBJECT_VERSIONS_REQUEST_NULL_MSG, e.getMessage());
+
+    e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> validator.validate(ListObjectVersionsRequest.builder().withKey("").build()));
+    assertEquals(BlobStoreValidator.INVALID_OBJECT_NAME_MSG, e.getMessage());
+
   }
 }

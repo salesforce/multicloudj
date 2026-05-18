@@ -81,6 +81,7 @@ import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -4484,5 +4485,35 @@ class GcpBlobStoreTest {
     org.junit.jupiter.api.Assertions.assertThrows(
         com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testDoListObjectVersions() {
+    ListObjectVersionsRequest request =
+        ListObjectVersionsRequest.builder().withKey(TEST_KEY).build();
+
+    Blob matchingBlob = mock(Blob.class);
+    when(matchingBlob.getName()).thenReturn(TEST_KEY);
+    when(matchingBlob.getGeneration()).thenReturn(12345L);
+    when(matchingBlob.getEtag()).thenReturn(TEST_ETAG);
+    when(matchingBlob.getSize()).thenReturn(100L);
+
+    Blob nonMatchingBlob = mock(Blob.class);
+    when(nonMatchingBlob.getName()).thenReturn(TEST_KEY + "-extra");
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listObjectVersions(request);
+
+    assertTrue(versions.hasNext());
+    BlobMetadata metadata = versions.next();
+    assertEquals(TEST_KEY, metadata.getKey());
+    assertEquals("12345", metadata.getVersionId());
+    assertEquals(TEST_ETAG, metadata.getETag());
+    assertEquals(100L, metadata.getObjectSize());
+    assertFalse(versions.hasNext());
   }
 }
