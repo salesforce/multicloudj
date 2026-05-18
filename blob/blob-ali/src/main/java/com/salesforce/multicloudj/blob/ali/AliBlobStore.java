@@ -22,6 +22,7 @@ import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.sdk.service.oss2.OSSClient;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -72,15 +73,17 @@ import lombok.Getter;
 public class AliBlobStore extends AbstractBlobStore {
 
   private final OSS ossClient;
+  private final OSSClient ossV2Client;
   private final AliTransformer transformer;
 
   public AliBlobStore() {
-    this(new Builder(), null);
+    this(new Builder(), null, null);
   }
 
-  public AliBlobStore(Builder builder, OSS ossClient) {
+  public AliBlobStore(Builder builder, OSS ossClient, OSSClient ossV2Client) {
     super(builder);
     this.ossClient = ossClient;
+    this.ossV2Client = ossV2Client;
     this.transformer = builder.getTransformerSupplier().get(bucket);
   }
 
@@ -568,6 +571,7 @@ public class AliBlobStore extends AbstractBlobStore {
   public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
 
     private OSS client;
+    private OSSClient v2Client;
     private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
 
     public Builder() {
@@ -584,12 +588,17 @@ public class AliBlobStore extends AbstractBlobStore {
       return this;
     }
 
+    public Builder withV2Client(OSSClient v2Client) {
+      this.v2Client = v2Client;
+      return this;
+    }
+
     public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
       this.transformerSupplier = transformerSupplier;
       return this;
     }
 
-    /** Helper function for generating the OSS client */
+    /** Helper function for generating the v1 OSS client */
     private static OSS buildOSSClient(Builder builder) {
       return OSSClientBuilder.create()
           .region(builder.getRegion())
@@ -599,6 +608,31 @@ public class AliBlobStore extends AbstractBlobStore {
               OSSCredentialsProvider.getCredentialsProvider(
                   builder.getCredentialsOverrider(), builder.getRegion()))
           .build();
+    }
+
+    /** Helper function for generating the v2 OSS client. */
+    private static OSSClient buildOSSV2Client(Builder builder) {
+      com.aliyun.sdk.service.oss2.credentials.CredentialsProvider v2Creds =
+          OSSCredentialsProvider.getV2CredentialsProvider(
+              builder.getCredentialsOverrider());
+      if (v2Creds == null) {
+        return null;
+      }
+
+      var v2Builder = OSSClient.newBuilder()
+          .region(builder.getRegion())
+          .credentialsProvider(v2Creds);
+
+      if (builder.getEndpoint() != null) {
+        v2Builder.endpoint(builder.getEndpoint().toString());
+      }
+      if (builder.getProxyEndpoint() != null) {
+        v2Builder.proxyHost(
+            builder.getProxyEndpoint().getHost()
+                + ":" + builder.getProxyEndpoint().getPort());
+      }
+
+      return v2Builder.build();
     }
 
     /** Helper function to produce the endpoint value */
@@ -614,7 +648,6 @@ public class AliBlobStore extends AbstractBlobStore {
       ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
       clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
       if (builder.getProxyEndpoint() != null) {
-        // Note: The proxy logic is hardwired to be HTTP-only in OSS
         clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
         clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
       }
@@ -633,11 +666,15 @@ public class AliBlobStore extends AbstractBlobStore {
 
     @Override
     public AliBlobStore build() {
-      OSS client = getClient();
-      if (client == null) {
-        client = buildOSSClient(this);
+      OSS v1 = getClient();
+      if (v1 == null) {
+        v1 = buildOSSClient(this);
       }
-      return new AliBlobStore(this, client);
+      OSSClient v2 = this.v2Client;
+      if (v2 == null) {
+        v2 = buildOSSV2Client(this);
+      }
+      return new AliBlobStore(this, v1, v2);
     }
   }
 }
