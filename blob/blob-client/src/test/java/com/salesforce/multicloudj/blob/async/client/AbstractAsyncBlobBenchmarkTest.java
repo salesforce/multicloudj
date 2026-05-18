@@ -474,20 +474,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
     asyncClient.delete(key, null).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
   }
 
-  /**
-   * Benchmarks the explicit multipart upload API (initiate + uploadParts + complete) using the
-   * realistic concurrent pattern: all parts are uploaded in parallel via {@link
-   * CompletableFuture#allOf}, mirroring how production callers use the low-level MPU API on an
-   * async client.
-   *
-   * <p>The high-level {@link AsyncBucketClient#upload upload()} method also performs multipart
-   * uploads transparently when the SDK is configured with {@code multipartEnabled} above the
-   * threshold; this benchmark exercises the manual MPU code path to measure orchestration
-   * overhead independently of the high-level path covered by {@link #benchmarkUploadLarge}.
-   *
-   * <p>For a 10 MB blob with 5 MB parts (numParts = 2), the expected latency is roughly
-   * {@code max(part1, part2) + initiate + complete}, not {@code sum(part1, part2)}.
-   */
+  // Explicit MPU (initiate + uploadParts + complete) with parts uploaded concurrently.
   @Benchmark
   public void benchmarkMultipartUpload(Blackhole bh) {
     String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + ".dat";
