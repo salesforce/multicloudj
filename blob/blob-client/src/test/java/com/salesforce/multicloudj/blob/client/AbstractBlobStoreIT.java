@@ -4354,7 +4354,7 @@ public abstract class AbstractBlobStoreIT {
   private static void assertUserMetadataEquals(
       Map<String, String> expected, Map<String, String> actual, String message) {
     Map<String, String> filtered = new HashMap<>(actual);
-    filtered.remove("correlation-id");
+    filtered.remove("sdk-logging-correlation-id");
     Assertions.assertEquals(expected, filtered, message);
   }
 
