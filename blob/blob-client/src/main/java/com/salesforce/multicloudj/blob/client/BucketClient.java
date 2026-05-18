@@ -70,6 +70,10 @@ public class BucketClient implements AutoCloseable {
     return blobStore.getBucket();
   }
 
+  public String getProviderId() {
+    return blobStore.getProviderId();
+  }
+
   /**
    * Uploads the Blob content to substrate-specific Blob storage. Note: Specifying the contentLength
    * in the UploadRequest can dramatically improve upload efficiency because the substrate SDKs do
