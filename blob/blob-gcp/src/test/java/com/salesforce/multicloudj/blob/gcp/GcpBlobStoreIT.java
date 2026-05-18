@@ -203,6 +203,11 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isListObjectVersionsSupported() {
+      return true;
+    }
+
+    @Override
     public List<String> getWiremockExtensions() {
       return List.of(MultipartBoundaryTransformer.class.getName());
     }

@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -77,7 +78,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -317,7 +317,7 @@ public class AwsBlobStore extends AbstractBlobStore {
       return;
     }
     ListObjectVersionsResponse versionsResponse = s3Client.listObjectVersions(
-        ListObjectVersionsRequest.builder()
+        software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest.builder()
             .bucket(bucket)
             .prefix(downloadRequest.getKey())
             .maxKeys(2) // one for delete marker + one for actual object in stack
@@ -422,6 +422,61 @@ public class AwsBlobStore extends AbstractBlobStore {
 
     return new ListBlobsPageResponse(
         blobs, commonPrefixes, response.isTruncated(), response.nextContinuationToken());
+  }
+
+  @Override
+  protected Iterator<BlobMetadata> doListObjectVersions(
+      ListObjectVersionsRequest request) {
+    software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest.Builder awsRequestBuilder =
+        software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest.builder()
+            .bucket(getBucket())
+            .prefix(request.getKey());
+
+    Iterator<ListObjectVersionsResponse> responseIterator =
+        s3Client.listObjectVersionsPaginator(awsRequestBuilder.build()).iterator();
+
+    return new Iterator<>() {
+      private Iterator<ObjectVersion> current = List.<ObjectVersion>of().iterator();
+      private BlobMetadata next;
+
+      @Override
+      public boolean hasNext() {
+        if (next != null) {
+          return true;
+        }
+        while (true) {
+          while (current.hasNext()) {
+            ObjectVersion version = current.next();
+            if (!request.getKey().equals(version.key())) {
+              continue;
+            }
+            next =
+                BlobMetadata.builder()
+                    .key(version.key())
+                    .versionId(version.versionId())
+                    .eTag(version.eTag())
+                    .objectSize(version.size())
+                    .lastModified(version.lastModified())
+                    .build();
+            return true;
+          }
+          if (!responseIterator.hasNext()) {
+            return false;
+          }
+          current = responseIterator.next().versions().iterator();
+        }
+      }
+
+      @Override
+      public BlobMetadata next() {
+        if (!hasNext()) {
+          throw new java.util.NoSuchElementException();
+        }
+        BlobMetadata result = next;
+        next = null;
+        return result;
+      }
+    };
   }
 
   /**

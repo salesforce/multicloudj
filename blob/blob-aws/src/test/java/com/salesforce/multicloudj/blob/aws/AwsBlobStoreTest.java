@@ -1972,6 +1972,49 @@ public class AwsBlobStoreTest {
     assertEquals(404, thrown.statusCode());
   }
 
+  @Test
+  void testDoListObjectVersions() {
+    com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest request =
+        com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest.builder()
+            .withKey("obj-1")
+            .build();
+
+    ObjectVersion matchingVersion =
+        ObjectVersion.builder()
+            .key("obj-1")
+            .versionId("v1")
+            .eTag("etag-v1")
+            .size(123L)
+            .lastModified(Instant.now())
+            .build();
+    ObjectVersion nonMatchingVersion =
+        ObjectVersion.builder()
+            .key("obj-1-extra")
+            .versionId("v2")
+            .eTag("etag-v2")
+            .size(456L)
+            .lastModified(Instant.now())
+            .build();
+    ListObjectVersionsResponse versionsResponse =
+        ListObjectVersionsResponse.builder().versions(matchingVersion, nonMatchingVersion).build();
+
+    software.amazon.awssdk.services.s3.paginators.ListObjectVersionsIterable iterable =
+        mock(software.amazon.awssdk.services.s3.paginators.ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(versionsResponse).iterator());
+    when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    Iterator<BlobMetadata> versions = aws.listObjectVersions(request);
+
+    assertTrue(versions.hasNext());
+    BlobMetadata metadata = versions.next();
+    assertEquals("obj-1", metadata.getKey());
+    assertEquals("v1", metadata.getVersionId());
+    assertEquals("etag-v1", metadata.getETag());
+    assertEquals(123L, metadata.getObjectSize());
+    assertFalse(versions.hasNext());
+  }
+
   private S3Exception mockS3ExceptionWithDeleteMarkerHeader(boolean includeHeader) {
     SdkHttpResponse sdkHttpResponse = mock(SdkHttpResponse.class);
     if (includeHeader) {

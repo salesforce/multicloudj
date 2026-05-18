@@ -162,6 +162,13 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public Iterator<BlobMetadata> listObjectVersions(ListObjectVersionsRequest request) {
+    validator.validate(request);
+    return doListObjectVersions(request);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return doInitiateMultipartUpload(request);
   }
@@ -317,6 +324,11 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract Iterator<BlobInfo> doList(ListBlobsRequest request);
 
   protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
+
+  protected Iterator<BlobMetadata> doListObjectVersions(ListObjectVersionsRequest request) {
+    throw new UnsupportedOperationException(
+        "List object versions is not supported by this substrate implementation");
+  }
 
   protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 

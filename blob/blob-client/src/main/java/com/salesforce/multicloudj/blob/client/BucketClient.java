@@ -14,6 +14,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.ListObjectVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -441,6 +442,23 @@ public class BucketClient implements AutoCloseable {
             return null;
           }
         });
+  }
+
+  /**
+   * Lists all available versions for a given object key.
+   *
+   * @param request The list versions request containing the target key and optional limits
+   * @return Iterator object of BlobMetadata for each version
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public Iterator<BlobMetadata> listObjectVersions(ListObjectVersionsRequest request) {
+    try {
+      return blobStore.listObjectVersions(request);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = blobStore.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return null;
+    }
   }
 
   /**
