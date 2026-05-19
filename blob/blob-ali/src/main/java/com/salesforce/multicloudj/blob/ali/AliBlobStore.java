@@ -337,11 +337,10 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected void doDelete(String key, String versionId) {
-    if (versionId == null) {
-      ossClient.deleteObject(bucket, key);
-    } else {
-      ossClient.deleteVersion(bucket, key, versionId);
-    }
+    com.aliyun.sdk.service.oss2.models.DeleteObjectRequest request =
+        transformer.toV2DeleteObjectRequest(key, versionId);
+    ossV2Client.deleteObject(request,
+        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
   }
 
   /**
@@ -351,20 +350,13 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-
-    // Split the BlobIdentifiers into collections of those with versionIds and those without
-    Map<Boolean, List<BlobIdentifier>> partitionedIdentifiers =
-        objects.stream()
-            .collect(Collectors.partitioningBy(identifier -> identifier.getVersionId() != null));
-
-    List<BlobIdentifier> unversionedObjects = partitionedIdentifiers.get(false);
-    List<BlobIdentifier> versionedObjects = partitionedIdentifiers.get(true);
-    if (!versionedObjects.isEmpty()) {
-      ossClient.deleteVersions(transformer.toDeleteVersionsRequest(versionedObjects));
+    if (objects.isEmpty()) {
+      return;
     }
-    if (!unversionedObjects.isEmpty()) {
-      ossClient.deleteObjects(transformer.toDeleteObjectsRequest(unversionedObjects));
-    }
+    com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest request =
+        transformer.toV2DeleteMultipleObjectsRequest(objects);
+    ossV2Client.deleteMultipleObjects(request,
+        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
   }
 
   /**

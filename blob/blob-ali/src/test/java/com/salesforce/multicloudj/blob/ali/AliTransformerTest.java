@@ -213,31 +213,39 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToDeleteObjectsRequest() {
-    Collection<BlobIdentifier> objects =
-        List.of(new BlobIdentifier("key1", null), new BlobIdentifier("key2", null));
+  void testToV2DeleteObjectRequest() {
+    var actual = transformer.toV2DeleteObjectRequest("key1", "v1");
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key1", actual.key());
+    assertEquals("v1", actual.versionId());
 
-    var actual = transformer.toDeleteObjectsRequest(objects);
-
-    assertEquals(BUCKET, actual.getBucketName());
-    var keys = actual.getKeys();
-    assertEquals("key1", keys.get(0));
-    assertEquals("key2", keys.get(1));
+    var actualNoVersion = transformer.toV2DeleteObjectRequest("key2", null);
+    assertEquals(BUCKET, actualNoVersion.bucket());
+    assertEquals("key2", actualNoVersion.key());
+    assertNull(actualNoVersion.versionId());
   }
 
   @Test
-  void testToDeleteVersionsRequest() {
+  void testToV2DeleteMultipleObjectsRequest() {
     Collection<BlobIdentifier> objects =
-        List.of(new BlobIdentifier("key1", "v1"), new BlobIdentifier("key2", "v2"));
+        List.of(
+            new BlobIdentifier("key1", "v1"),
+            new BlobIdentifier("key2", null),
+            new BlobIdentifier("key3", "v3"));
 
-    var actual = transformer.toDeleteVersionsRequest(objects);
+    var actual = transformer.toV2DeleteMultipleObjectsRequest(objects);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    var keys = actual.getKeys();
-    assertEquals("key1", keys.get(0).getKey());
-    assertEquals("v1", keys.get(0).getVersion());
-    assertEquals("key2", keys.get(1).getKey());
-    assertEquals("v2", keys.get(1).getVersion());
+    assertEquals(BUCKET, actual.bucket());
+    var delete = actual.delete();
+    assertTrue(delete.quiet());
+    var ids = delete.objects();
+    assertEquals(3, ids.size());
+    assertEquals("key1", ids.get(0).key());
+    assertEquals("v1", ids.get(0).versionId());
+    assertEquals("key2", ids.get(1).key());
+    assertNull(ids.get(1).versionId());
+    assertEquals("key3", ids.get(2).key());
+    assertEquals("v3", ids.get(2).versionId());
   }
 
   @Test

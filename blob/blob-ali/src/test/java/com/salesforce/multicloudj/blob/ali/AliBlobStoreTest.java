@@ -23,8 +23,6 @@ import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.DeleteObjectsRequest;
-import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListObjectsRequest;
@@ -341,21 +339,22 @@ public class AliBlobStoreTest {
   void testDoDelete() {
     ali.doDelete("object-1", "version-1");
 
-    ArgumentCaptor<String> bucketCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> versionCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1))
-        .deleteVersion(bucketCaptor.capture(), keyCaptor.capture(), versionCaptor.capture());
-    assertEquals("bucket-1", bucketCaptor.getValue());
-    assertEquals("object-1", keyCaptor.getValue());
-    assertEquals("version-1", versionCaptor.getValue());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.DeleteObjectRequest> captor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.class);
+    verify(mockOssV2Client, times(1)).deleteObject(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.DeleteObjectRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("version-1", actual.versionId());
 
     ali.doDelete("object-1", null);
-    bucketCaptor = ArgumentCaptor.forClass(String.class);
-    keyCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1)).deleteObject(bucketCaptor.capture(), keyCaptor.capture());
-    assertEquals("bucket-1", bucketCaptor.getValue());
-    assertEquals("object-1", keyCaptor.getValue());
+    verify(mockOssV2Client, times(2)).deleteObject(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.versionId());
   }
 
   @Test
@@ -368,33 +367,33 @@ public class AliBlobStoreTest {
             new BlobIdentifier("object-4", null));
     ali.doDelete(objects);
 
-    // Verify it sends a delete request for the objects that have versionIds
-    ArgumentCaptor<DeleteVersionsRequest> deleteVersionsRequestCaptor =
-        ArgumentCaptor.forClass(DeleteVersionsRequest.class);
-    verify(mockOssClient, times(1)).deleteVersions(deleteVersionsRequestCaptor.capture());
-    DeleteVersionsRequest actualDeleteVersionsRequest = deleteVersionsRequestCaptor.getValue();
-    assertEquals("bucket-1", actualDeleteVersionsRequest.getBucketName());
-    List<DeleteVersionsRequest.KeyVersion> keyVersions = actualDeleteVersionsRequest.getKeys();
-    assertEquals(2, keyVersions.size());
-    assertEquals("object-1", keyVersions.get(0).getKey());
-    assertEquals("version-1", keyVersions.get(0).getVersion());
-    assertEquals("object-3", keyVersions.get(1).getKey());
-    assertEquals("version-3", keyVersions.get(1).getVersion());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest> captor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.class);
+    verify(mockOssV2Client, times(1)).deleteMultipleObjects(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.bucket());
+    List<com.aliyun.sdk.service.oss2.models.ObjectIdentifier> ids = actual.delete().objects();
+    assertEquals(4, ids.size());
+    assertEquals("object-1", ids.get(0).key());
+    assertEquals("version-1", ids.get(0).versionId());
+    assertEquals("object-2", ids.get(1).key());
+    assertNull(ids.get(1).versionId());
+    assertEquals("object-3", ids.get(2).key());
+    assertEquals("version-3", ids.get(2).versionId());
+    assertEquals("object-4", ids.get(3).key());
+    assertNull(ids.get(3).versionId());
 
-    // Verify it sends a delete request for the objects that don't have versionIds
-    ArgumentCaptor<DeleteObjectsRequest> deleteObjectsRequestCaptor =
-        ArgumentCaptor.forClass(DeleteObjectsRequest.class);
-    verify(mockOssClient, times(1)).deleteObjects(deleteObjectsRequestCaptor.capture());
-    DeleteObjectsRequest actualDeleteObjectsRequest = deleteObjectsRequestCaptor.getValue();
-    List<String> keys = actualDeleteObjectsRequest.getKeys();
-    assertEquals(2, keys.size());
-    assertEquals("object-2", keys.get(0));
-    assertEquals("object-4", keys.get(1));
-
-    // Test that edge cases are properly processed
+    // Test edge cases
     ali.doDelete(List.of(new BlobIdentifier("object-1", "version-1")));
     ali.doDelete(List.of(new BlobIdentifier("object-1", null)));
+
+    // Empty list should not call deleteMultipleObjects
     ali.doDelete(List.of());
+    verify(mockOssV2Client, times(3)).deleteMultipleObjects(
+        any(com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
   }
 
   @Test

@@ -3,8 +3,6 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.DeleteObjectsRequest;
-import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
@@ -40,7 +38,6 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -251,18 +248,40 @@ public class AliTransformer {
         .build();
   }
 
-  public DeleteObjectsRequest toDeleteObjectsRequest(Collection<BlobIdentifier> objects) {
-    return new DeleteObjectsRequest(bucket)
-        .withKeys(objects.stream().map(BlobIdentifier::getKey).collect(Collectors.toList()));
+  public com.aliyun.sdk.service.oss2.models.DeleteObjectRequest toV2DeleteObjectRequest(
+      String key, String versionId) {
+    com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(key);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    return builder.build();
   }
 
-  public DeleteVersionsRequest toDeleteVersionsRequest(Collection<BlobIdentifier> objects) {
-    List<DeleteVersionsRequest.KeyVersion> objectsToDelete = new ArrayList<>();
-    for (BlobIdentifier object : objects) {
-      objectsToDelete.add(
-          new DeleteVersionsRequest.KeyVersion(object.getKey(), object.getVersionId()));
-    }
-    return new DeleteVersionsRequest(bucket).withKeys(objectsToDelete);
+  public com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest
+      toV2DeleteMultipleObjectsRequest(Collection<BlobIdentifier> objects) {
+    List<com.aliyun.sdk.service.oss2.models.ObjectIdentifier> identifiers = objects.stream()
+        .map(obj -> {
+          com.aliyun.sdk.service.oss2.models.ObjectIdentifier.Builder idBuilder =
+              com.aliyun.sdk.service.oss2.models.ObjectIdentifier.newBuilder()
+                  .key(obj.getKey());
+          if (obj.getVersionId() != null) {
+            idBuilder.versionId(obj.getVersionId());
+          }
+          return idBuilder.build();
+        })
+        .collect(Collectors.toList());
+    com.aliyun.sdk.service.oss2.models.Delete delete =
+        com.aliyun.sdk.service.oss2.models.Delete.newBuilder()
+            .quiet(true)
+            .objects(identifiers)
+            .build();
+    return com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.newBuilder()
+        .bucket(bucket)
+        .delete(delete)
+        .build();
   }
 
   public com.aliyun.sdk.service.oss2.models.CopyObjectRequest toV2CopyObjectRequest(
