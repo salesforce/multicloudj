@@ -10,7 +10,6 @@ import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
-import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
@@ -553,7 +552,14 @@ public class AliBlobStore extends AbstractBlobStore {
   /** {@inheritdoc} */
   @Override
   protected boolean doDoesObjectExist(String key, String versionId) {
-    return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
+    com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.Builder reqBuilder =
+        com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.newBuilder()
+            .bucket(bucket)
+            .key(key);
+    if (versionId != null) {
+      reqBuilder.versionId(versionId);
+    }
+    return ossV2Client.doesObjectExist(reqBuilder.build());
   }
 
   /**
@@ -563,16 +569,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected boolean doDoesBucketExist() {
-    try {
-      return ossClient.doesBucketExist(bucket);
-    } catch (ServiceException e) {
-      if ("NoSuchBucket".equals(e.getErrorCode())) {
-        return false;
-      }
-      throw new SubstrateSdkException("Failed to check bucket existence", e);
-    } catch (ClientException e) {
-      throw new SubstrateSdkException("Failed to check bucket existence", e);
-    }
+    return ossV2Client.doesBucketExist(bucket);
   }
 
   /** Closes the underlying OSS client and releases any resources. */
