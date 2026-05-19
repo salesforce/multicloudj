@@ -3,8 +3,6 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.CopyObjectRequest;
-import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.GenericRequest;
@@ -211,7 +209,7 @@ public class AliTransformer {
 
   public DownloadResponse toDownloadResponse(
       String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
-    Instant lastModified = parseHttpDate(result.lastModified());
+    Instant lastModified = parseLastModified(result.lastModified());
     Long contentLength = result.contentLength();
     long objectSize = contentLength != null ? contentLength : 0L;
     return DownloadResponse.builder()
@@ -233,7 +231,7 @@ public class AliTransformer {
   public DownloadResponse toDownloadResponse(
       String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result,
       InputStream inputStream) {
-    Instant lastModified = parseHttpDate(result.lastModified());
+    Instant lastModified = parseLastModified(result.lastModified());
     Long contentLength = result.contentLength();
     long objectSize = contentLength != null ? contentLength : 0L;
     return DownloadResponse.builder()
@@ -267,30 +265,45 @@ public class AliTransformer {
     return new DeleteVersionsRequest(bucket).withKeys(objectsToDelete);
   }
 
-  public CopyObjectRequest toCopyObjectRequest(CopyRequest request) {
-    return new CopyObjectRequest(
-        bucket,
-        request.getSrcKey(),
-        request.getSrcVersionId(),
-        request.getDestBucket(),
-        request.getDestKey());
+  public com.aliyun.sdk.service.oss2.models.CopyObjectRequest toV2CopyObjectRequest(
+      CopyRequest request) {
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.CopyObjectRequest.newBuilder()
+            .bucket(request.getDestBucket())
+            .key(request.getDestKey())
+            .sourceBucket(bucket)
+            .sourceKey(request.getSrcKey());
+    if (request.getSrcVersionId() != null) {
+      builder.sourceVersionId(request.getSrcVersionId());
+    }
+    return builder.build();
   }
 
-  public CopyObjectRequest toCopyObjectRequest(CopyFromRequest request) {
-    return new CopyObjectRequest(
-        request.getSrcBucket(),
-        request.getSrcKey(),
-        request.getSrcVersionId(),
-        bucket,
-        request.getDestKey());
+  public com.aliyun.sdk.service.oss2.models.CopyObjectRequest toV2CopyObjectRequest(
+      CopyFromRequest request) {
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.CopyObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(request.getDestKey())
+            .sourceBucket(request.getSrcBucket())
+            .sourceKey(request.getSrcKey());
+    if (request.getSrcVersionId() != null) {
+      builder.sourceVersionId(request.getSrcVersionId());
+    }
+    return builder.build();
   }
 
-  public CopyResponse toCopyResponse(String destKey, CopyObjectResult result) {
+  public CopyResponse toCopyResponse(
+      String destKey, com.aliyun.sdk.service.oss2.models.CopyObjectResult result) {
+    String eTag = result.eTag();
+    if (eTag != null) {
+      eTag = eTag.replace("\"", "");
+    }
     return CopyResponse.builder()
         .key(destKey)
-        .versionId(result.getVersionId())
-        .eTag(result.getETag())
-        .lastModified(result.getLastModified().toInstant())
+        .versionId(result.versionId())
+        .eTag(eTag)
+        .lastModified(parseLastModified(result.lastModified()))
         .build();
   }
 
@@ -327,7 +340,7 @@ public class AliTransformer {
   public BlobMetadata toBlobMetadata(String key, HeadObjectResult result) {
     Long contentLength = result.contentLength();
     long objectSize = contentLength != null ? contentLength : 0L;
-    Instant lastModified = parseHttpDate(result.lastModified());
+    Instant lastModified = parseLastModified(result.lastModified());
     return BlobMetadata.builder()
         .key(key)
         .versionId(result.versionId())
@@ -351,7 +364,7 @@ public class AliTransformer {
     return value;
   }
 
-  private Instant parseHttpDate(String httpDate) {
+  Instant parseLastModified(String httpDate) {
     if (httpDate == null) {
       return null;
     }

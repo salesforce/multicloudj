@@ -14,7 +14,7 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 | 6 | delete (versioned) | `deleteVersion(bucket, key, versionId)` | `deleteObject(DeleteObjectRequest, OperationOptions)` with versionId | `testVersionedDelete` | Pending |
 | 7 | delete (batch) | `deleteObjects(DeleteObjectsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | `testBulkDelete` | Pending |
 | 8 | delete (batch versioned) | `deleteVersions(DeleteVersionsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | `testBulkVersionedDelete_happyPath`, `testBulkVersionedDelete_happyPathWithNonExisting`, `testBulkVersionedDelete_duplicateDeletion` | Pending |
-| 9 | copy | `copyObject(CopyObjectRequest)` | `copyObject(CopyObjectRequest, OperationOptions)` | `testCopy`, `testVersionedCopy`, `testCopyFrom`, `testVersionedCopyFrom` | Pending |
+| 9 | copy | `copyObject(CopyObjectRequest)` | `copyObject(CopyObjectRequest, OperationOptions)` | `testCopy`, `testVersionedCopy`, `testCopyFrom`, `testVersionedCopyFrom` | Done |
 | 10 | doesObjectExist | `doesObjectExist(GenericRequest)` | `doesObjectExist(GetObjectMetaRequest)` | `testDoesObjectExist`, `testDoesObjectExist_versioned` | Done |
 | 11 | doesBucketExist | `doesBucketExist(bucket)` | `doesBucketExist(bucket)` | `testDoesBucketExist`, `testDoesBucketExist_NonExistentBucket` | Done |
 | 12 | initiate multipart | `initiateMultipartUpload(InitiateMultipartUploadRequest)` | `initiateMultipartUpload(InitiateMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_singlePart`, `testMultipartUpload_multipleParts`, `testMultipartUpload_withKms`, `testMultipartUpload_withTags`, `testMultipartUpload_withContentType` | Pending |

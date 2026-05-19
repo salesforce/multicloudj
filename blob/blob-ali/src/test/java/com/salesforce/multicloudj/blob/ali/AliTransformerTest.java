@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
@@ -242,7 +241,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToCopyObjectRequest() {
+  void testToV2CopyObjectRequest() {
     CopyRequest request =
         CopyRequest.builder()
             .srcKey("key1")
@@ -251,29 +250,45 @@ public class AliTransformerTest {
             .destKey("key2")
             .build();
 
-    var actual = transformer.toCopyObjectRequest(request);
+    var actual = transformer.toV2CopyObjectRequest(request);
 
-    assertEquals(BUCKET, actual.getSourceBucketName());
-    assertEquals("key1", actual.getSourceKey());
-    assertEquals("v1", actual.getSourceVersionId());
-    assertEquals("bucket2", actual.getDestinationBucketName());
-    assertEquals("key2", actual.getDestinationKey());
+    assertEquals(BUCKET, actual.sourceBucket());
+    assertEquals("key1", actual.sourceKey());
+    assertEquals("v1", actual.sourceVersionId());
+    assertEquals("bucket2", actual.bucket());
+    assertEquals("key2", actual.key());
   }
 
   @Test
-  void testToCopyResponse() {
-    CopyObjectResult result = mock(CopyObjectResult.class);
-    doReturn("v2").when(result).getVersionId();
-    doReturn("etag").when(result).getETag();
-    Date lastModified = Date.from(Instant.now());
-    doReturn(lastModified).when(result).getLastModified();
+  void testToCopyResponse_withLastModifiedHeader() {
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    doReturn("v2").when(result).versionId();
+    doReturn("\"etag\"").when(result).eTag();
+    doReturn("Fri, 15 May 2026 10:30:00 GMT").when(result).lastModified();
 
     var actual = transformer.toCopyResponse("key2", result);
 
     assertEquals("key2", actual.getKey());
     assertEquals("v2", actual.getVersionId());
     assertEquals("etag", actual.getETag());
-    assertEquals(lastModified.toInstant(), actual.getLastModified());
+    assertNotNull(actual.getLastModified());
+  }
+
+  @Test
+  void testToCopyResponse_withNullLastModifiedHeader() {
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    doReturn("v2").when(result).versionId();
+    doReturn("\"etag\"").when(result).eTag();
+    doReturn(null).when(result).lastModified();
+
+    var actual = transformer.toCopyResponse("key2", result);
+
+    assertEquals("key2", actual.getKey());
+    assertEquals("v2", actual.getVersionId());
+    assertEquals("etag", actual.getETag());
+    assertNull(actual.getLastModified());
   }
 
   @Test

@@ -23,8 +23,6 @@ import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.CopyObjectRequest;
-import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
@@ -401,12 +399,28 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoCopy() {
-    Instant now = Instant.now();
-    CopyObjectResult mockResult = mock(CopyObjectResult.class);
-    doReturn("copyVersion-1").when(mockResult).getVersionId();
-    doReturn("eTag-1").when(mockResult).getETag();
-    doReturn(Date.from(now)).when(mockResult).getLastModified();
-    when(mockOssClient.copyObject(any())).thenReturn(mockResult);
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    String lastModifiedRfc =
+        java.time.ZonedDateTime.ofInstant(now, java.time.ZoneOffset.UTC)
+            .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult mockCopyResult =
+        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
+    when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
+    when(mockCopyResult.lastModified()).thenReturn(null);
+    when(mockOssV2Client.copyObject(
+        any(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenReturn(mockCopyResult);
+
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult mockHeadResult =
+        mock(com.aliyun.sdk.service.oss2.models.HeadObjectResult.class);
+    when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
+    when(mockOssV2Client.headObject(
+        any(com.aliyun.sdk.service.oss2.models.HeadObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenReturn(mockHeadResult);
 
     CopyRequest copyRequest =
         CopyRequest.builder()
@@ -421,27 +435,43 @@ public class AliBlobStoreTest {
     assertEquals("dest-object-1", copyResponse.getKey());
     assertEquals("copyVersion-1", copyResponse.getVersionId());
     assertEquals("eTag-1", copyResponse.getETag());
-    assertEquals(Date.from(now).toInstant(), copyResponse.getLastModified());
+    assertEquals(now, copyResponse.getLastModified());
 
-    ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor =
-        ArgumentCaptor.forClass(CopyObjectRequest.class);
-    verify(mockOssClient, times(1)).copyObject(copyObjectRequestCaptor.capture());
-    CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
-    assertEquals("bucket-1", actualCopyObjectRequest.getSourceBucketName());
-    assertEquals("src-object-1", actualCopyObjectRequest.getSourceKey());
-    assertEquals("version-1", actualCopyObjectRequest.getSourceVersionId());
-    assertEquals("dest-bucket-1", actualCopyObjectRequest.getDestinationBucketName());
-    assertEquals("dest-object-1", actualCopyObjectRequest.getDestinationKey());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CopyObjectRequest> captor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class);
+    verify(mockOssV2Client, times(1)).copyObject(captor.capture(), any());
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest actual = captor.getValue();
+    assertEquals("bucket-1", actual.sourceBucket());
+    assertEquals("src-object-1", actual.sourceKey());
+    assertEquals("version-1", actual.sourceVersionId());
+    assertEquals("dest-bucket-1", actual.bucket());
+    assertEquals("dest-object-1", actual.key());
   }
 
   @Test
   void testDoCopyFrom() {
-    Instant now = Instant.now();
-    CopyObjectResult mockResult = mock(CopyObjectResult.class);
-    doReturn("copyVersion-1").when(mockResult).getVersionId();
-    doReturn("eTag-1").when(mockResult).getETag();
-    doReturn(Date.from(now)).when(mockResult).getLastModified();
-    when(mockOssClient.copyObject(any())).thenReturn(mockResult);
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    String lastModifiedRfc =
+        java.time.ZonedDateTime.ofInstant(now, java.time.ZoneOffset.UTC)
+            .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult mockCopyResult =
+        mock(com.aliyun.sdk.service.oss2.models.CopyObjectResult.class);
+    when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
+    when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
+    when(mockCopyResult.lastModified()).thenReturn(null);
+    when(mockOssV2Client.copyObject(
+        any(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenReturn(mockCopyResult);
+
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult mockHeadResult =
+        mock(com.aliyun.sdk.service.oss2.models.HeadObjectResult.class);
+    when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
+    when(mockOssV2Client.headObject(
+        any(com.aliyun.sdk.service.oss2.models.HeadObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenReturn(mockHeadResult);
 
     CopyFromRequest copyFromRequest =
         CopyFromRequest.builder()
@@ -456,17 +486,17 @@ public class AliBlobStoreTest {
     assertEquals("dest-object-1", copyResponse.getKey());
     assertEquals("copyVersion-1", copyResponse.getVersionId());
     assertEquals("eTag-1", copyResponse.getETag());
-    assertEquals(Date.from(now).toInstant(), copyResponse.getLastModified());
+    assertEquals(now, copyResponse.getLastModified());
 
-    ArgumentCaptor<CopyObjectRequest> copyObjectRequestCaptor =
-        ArgumentCaptor.forClass(CopyObjectRequest.class);
-    verify(mockOssClient, times(1)).copyObject(copyObjectRequestCaptor.capture());
-    CopyObjectRequest actualCopyObjectRequest = copyObjectRequestCaptor.getValue();
-    assertEquals("src-bucket-1", actualCopyObjectRequest.getSourceBucketName());
-    assertEquals("src-object-1", actualCopyObjectRequest.getSourceKey());
-    assertEquals("version-1", actualCopyObjectRequest.getSourceVersionId());
-    assertEquals("bucket-1", actualCopyObjectRequest.getDestinationBucketName());
-    assertEquals("dest-object-1", actualCopyObjectRequest.getDestinationKey());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CopyObjectRequest> captor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class);
+    verify(mockOssV2Client, times(1)).copyObject(captor.capture(), any());
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest actual = captor.getValue();
+    assertEquals("src-bucket-1", actual.sourceBucket());
+    assertEquals("src-object-1", actual.sourceKey());
+    assertEquals("version-1", actual.sourceVersionId());
+    assertEquals("bucket-1", actual.bucket());
+    assertEquals("dest-object-1", actual.key());
   }
 
   @Test

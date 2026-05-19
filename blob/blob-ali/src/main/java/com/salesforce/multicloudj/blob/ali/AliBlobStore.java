@@ -8,8 +8,6 @@ import com.aliyun.oss.ServiceException;
 import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.CopyObjectRequest;
-import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
@@ -377,9 +375,12 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected CopyResponse doCopy(CopyRequest request) {
-    CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
-    CopyObjectResult result = ossClient.copyObject(copyRequest);
-    return transformer.toCopyResponse(request.getDestKey(), result);
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest copyRequest =
+        transformer.toV2CopyObjectRequest(request);
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
+        ossV2Client.copyObject(copyRequest,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return buildCopyResponse(request.getDestKey(), result);
   }
 
   /**
@@ -390,9 +391,31 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected CopyResponse doCopyFrom(CopyFromRequest request) {
-    CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
-    CopyObjectResult result = ossClient.copyObject(copyRequest);
-    return transformer.toCopyResponse(request.getDestKey(), result);
+    com.aliyun.sdk.service.oss2.models.CopyObjectRequest copyRequest =
+        transformer.toV2CopyObjectRequest(request);
+    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
+        ossV2Client.copyObject(copyRequest,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return buildCopyResponse(request.getDestKey(), result);
+  }
+
+  private CopyResponse buildCopyResponse(
+      String destKey, com.aliyun.sdk.service.oss2.models.CopyObjectResult result) {
+    CopyResponse response = transformer.toCopyResponse(destKey, result);
+    if (response.getLastModified() == null) {
+      com.aliyun.sdk.service.oss2.models.HeadObjectRequest headRequest =
+          transformer.toHeadObjectRequest(destKey, response.getVersionId());
+      com.aliyun.sdk.service.oss2.models.HeadObjectResult headResult =
+          ossV2Client.headObject(headRequest,
+              com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+      return CopyResponse.builder()
+          .key(response.getKey())
+          .versionId(response.getVersionId())
+          .eTag(response.getETag())
+          .lastModified(transformer.parseLastModified(headResult.lastModified()))
+          .build();
+    }
+    return response;
   }
 
   /**
