@@ -24,8 +24,9 @@ graph TD
     B --> C{New guide or update?}
     C -->|existing| D[Update existing guide]
     C -->|new| E[Create new guide]
-    D --> F[Commit and PR]
+    D --> F[Jekyll build]
     E --> F
+    F --> G[Commit and PR]
 ```
 
 ## Step 1: Gather Feature Info
@@ -98,10 +99,22 @@ parent: Usage Guides
 
 Reference `guides/blobstore-guide.md` on the site branch as the canonical template.
 
-## Step 4: Commit and PR
+## Step 4: Jekyll Build
+
+Generate the HTML from the updated markdown sources. Requires Ruby 3.3 and Bundler.
 
 ```bash
-git add guides/<file>.md
+export PATH="/opt/homebrew/opt/ruby@3.3/bin:$PATH"
+bundle install --quiet
+bundle exec jekyll build --destination docs
+```
+
+This regenerates the static site in `docs/`. The generated HTML must be committed alongside the markdown sources.
+
+## Step 5: Commit and PR
+
+```bash
+git add guides/<file>.md docs/
 git commit -m "docs: <description of what was documented>"
 git push origin docs/<descriptive-name>
 gh pr create --base site --title "docs: <short title>" --body "$(cat <<'EOF'
