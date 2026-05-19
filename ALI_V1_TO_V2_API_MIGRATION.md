@@ -7,8 +7,8 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 | # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
 |---|-----------|------------------------|---------------|-------------------|--------|
 | 1 | getMetadata | `getObjectMetadata(GenericRequest)` | `headObject(HeadObjectRequest, OperationOptions)` | `testGetMetadata`, `testGetMetadataBlobNotExists`, `testGetVersionedMetadata` | Done |
-| 2 | upload (stream) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | `testUpload_nullKey`, `testUpload_emptyKey`, `testUpload_emptyContent`, `testUpload_happyPath`, `testUploadWithContentType`, `testDownloadWithKmsKey` | Pending |
-| 3 | upload (file) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | (same as above — shared upload path) | Pending |
+| 2 | upload (stream) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | `testUpload_nullKey`, `testUpload_emptyKey`, `testUpload_emptyContent`, `testUpload_happyPath`, `testUploadWithContentType`, `testDownloadWithKmsKey` | Done |
+| 3 | upload (file) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | (same as above — shared upload path) | Done |
 | 4 | download | `getObject(GetObjectRequest)` | `getObject(GetObjectRequest, OperationOptions)` | `testDownload_happy`, `testDownload_createParentPath`, `testVersionedDownload_happy`, `testVersionedDownload_noVersionId`, `testVersionedDownload_badVersionId`, `testDownloadWithKmsKey`, `testDownload_checkArchived` | Done |
 | 5 | delete (single) | `deleteObject(bucket, key)` | `deleteObject(DeleteObjectRequest, OperationOptions)` | `testDelete`, `testVersionedDelete`, `testVersionedDelete_fileDoesNotExist` | Pending |
 | 6 | delete (versioned) | `deleteVersion(bucket, key, versionId)` | `deleteObject(DeleteObjectRequest, OperationOptions)` with versionId | `testVersionedDelete` | Pending |

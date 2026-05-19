@@ -16,7 +16,6 @@ import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PartSummary;
-import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -32,7 +31,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
@@ -54,74 +52,69 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToPutObjectRequest() {
+  void testToV2PutObjectRequest() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
     var tags = Map.of("tag-key", "tag-value");
 
     var request =
         UploadRequest.builder().withKey(key).withMetadata(metadata).withTags(tags).build();
-    InputStream inputStream = mock(InputStream.class);
-    File file = mock(File.class);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toPutObjectRequest(request, inputStream);
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(key, actual.getKey());
-    assertEquals(metadata, actual.getMetadata().getUserMetadata());
-    assertEquals("tag-key=tag-value", actual.getMetadata().getRawMetadata().get("x-oss-tagging"));
-    assertEquals(inputStream, actual.getInputStream());
-
-    actual = transformer.toPutObjectRequest(request, file);
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(key, actual.getKey());
-    assertEquals(metadata, actual.getMetadata().getUserMetadata());
-    assertEquals("tag-key=tag-value", actual.getMetadata().getRawMetadata().get("x-oss-tagging"));
-    assertEquals(file, actual.getFile());
+    var actual = transformer.toV2PutObjectRequest(request, body);
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals(key, actual.key());
+    assertEquals("some-value", actual.metadata().get("some-key"));
+    assertEquals("tag-key=tag-value", actual.tagging());
   }
 
   @Test
-  void testToPutObjectRequestWithKmsKey() {
+  void testToV2PutObjectRequestWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
     var kmsKeyId = "alias/my-kms-key";
 
     var request =
         UploadRequest.builder().withKey(key).withMetadata(metadata).withKmsKeyId(kmsKeyId).build();
-    InputStream inputStream = mock(InputStream.class);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toPutObjectRequest(request, inputStream);
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(key, actual.getKey());
-    assertEquals(metadata, actual.getMetadata().getUserMetadata());
-    assertEquals(
-        ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION, actual.getMetadata().getServerSideEncryption());
+    var actual = transformer.toV2PutObjectRequest(request, body);
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals(key, actual.key());
+    assertEquals("some-value", actual.metadata().get("some-key"));
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
   }
 
   @Test
-  void testToPutObjectRequestWithoutKmsKey() {
+  void testToV2PutObjectRequestWithoutKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
 
     var request = UploadRequest.builder().withKey(key).withMetadata(metadata).build();
-    InputStream inputStream = mock(InputStream.class);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toPutObjectRequest(request, inputStream);
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(key, actual.getKey());
-    assertEquals(metadata, actual.getMetadata().getUserMetadata());
-    assertNull(actual.getMetadata().getServerSideEncryption());
+    var actual = transformer.toV2PutObjectRequest(request, body);
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals(key, actual.key());
+    assertEquals("some-value", actual.metadata().get("some-key"));
+    assertNull(actual.serverSideEncryption());
   }
 
   @Test
-  void testToUploadResponse() {
+  void testToV2UploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
             .withKey("some-key")
             .withMetadata(Map.of("some-key", "some-value"))
             .build();
-    PutObjectResult result = mock(PutObjectResult.class);
-    doReturn("etag").when(result).getETag();
-    doReturn("version-1").when(result).getVersionId();
+    com.aliyun.sdk.service.oss2.models.PutObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.PutObjectResult.class);
+    doReturn("\"etag\"").when(result).eTag();
+    doReturn("version-1").when(result).versionId();
 
     var actual = transformer.toUploadResponse(request, result);
 
@@ -602,93 +595,6 @@ public class AliTransformerTest {
     assertEquals(request.getMaxResults(), actual.getMaxKeys());
   }
 
-  @Test
-  void testGenerateObjectMetadataWithStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder()
-            .withKey("test-key")
-            .withMetadata(Map.of("key1", "value1"))
-            .withTags(Map.of("tag1", "value1"))
-            .withStorageClass("IA")
-            .build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithStandardStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey("test-key").withStorageClass("Standard").build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    // Verify the metadata object was created successfully
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithArchiveStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey("test-key").withStorageClass("Archive").build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    // Verify the metadata object was created successfully
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithNullStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey("test-key").withStorageClass(null).build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    // Verify the metadata object was created successfully
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithEmptyStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey("test-key").withStorageClass("").build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    // Verify the metadata object was created successfully
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithoutStorageClass() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder()
-            .withKey("test-key")
-            .withMetadata(Map.of("key1", "value1"))
-            .withTags(Map.of("tag1", "value1"))
-            .build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    assertEquals(Map.of("key1", "value1"), result.getUserMetadata());
-    assertNotNull(result);
-  }
-
-  @Test
-  void testGenerateObjectMetadataWithContentType() {
-    UploadRequest uploadRequest =
-        UploadRequest.builder()
-            .withKey("test-key")
-            .withContentType("application/x-directory")
-            .build();
-
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
-
-    assertEquals("application/x-directory", result.getContentType());
-  }
 
   @Test
   void testToInitiateMultipartUploadRequestWithContentType() {
@@ -705,21 +611,21 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToPutObjectRequestWithStorageClass() {
+  void testToV2PutObjectRequestWithStorageClass() {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withStorageClass("IA").build();
 
-    InputStream inputStream = new ByteArrayInputStream("test data".getBytes());
-    com.aliyun.oss.model.PutObjectRequest result =
-        transformer.toPutObjectRequest(uploadRequest, inputStream);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("test data".getBytes());
+    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
 
-    assertEquals(BUCKET, result.getBucketName());
-    assertEquals("test-key", result.getKey());
-    assertNotNull(result.getMetadata());
+    assertEquals(BUCKET, result.bucket());
+    assertEquals("test-key", result.key());
+    assertEquals("IA", result.storageClass());
   }
 
   @Test
-  void testGenerateObjectMetadata_WithSha256Checksum() {
+  void testToV2PutObjectRequest_WithSha256Checksum() {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey("test-key")
@@ -727,28 +633,28 @@ public class AliTransformerTest {
             .withChecksumAlgorithm(ChecksumMethod.SHA256)
             .build();
 
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
 
-    assertEquals(
-        "abc123sha256value",
-        result.getRawMetadata().get("x-oss-content-sha256"));
-    assertNull(result.getRawMetadata().get("x-oss-hash-crc64ecma"));
+    assertEquals("abc123sha256value", result.headers().get("x-oss-content-sha256"));
+    assertNull(result.headers().get("x-oss-hash-crc64ecma"));
   }
 
   @Test
-  void testGenerateObjectMetadata_WithCrc64Checksum() {
+  void testToV2PutObjectRequest_WithCrc64Checksum() {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey("test-key")
             .withChecksumValue("12345678901234")
             .build();
 
-    ObjectMetadata result = transformer.generateObjectMetadata(uploadRequest);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
 
-    assertEquals(
-        "12345678901234",
-        result.getRawMetadata().get("x-oss-hash-crc64ecma"));
-    assertNull(result.getRawMetadata().get("x-oss-content-sha256"));
+    assertEquals("12345678901234", result.headers().get("x-oss-hash-crc64ecma"));
+    assertNull(result.headers().get("x-oss-content-sha256"));
   }
 
   @Test
@@ -773,17 +679,16 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToPutObjectRequestWithFileAndStorageClass() {
+  void testToV2PutObjectRequestWithContentType() {
     UploadRequest uploadRequest =
-        UploadRequest.builder().withKey("test-key").withStorageClass("Archive").build();
+        UploadRequest.builder().withKey("test-key").withContentType("text/plain").build();
 
-    File file = new File("test-file.txt");
-    com.aliyun.oss.model.PutObjectRequest result =
-        transformer.toPutObjectRequest(uploadRequest, file);
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
 
-    assertEquals(BUCKET, result.getBucketName());
-    assertEquals("test-key", result.getKey());
-    // Verify the request was created successfully with metadata
-    assertNotNull(result.getMetadata());
+    assertEquals(BUCKET, result.bucket());
+    assertEquals("test-key", result.key());
+    assertEquals("text/plain", result.contentType());
   }
 }

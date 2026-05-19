@@ -19,8 +19,6 @@ import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PartSummary;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -42,7 +40,6 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.util.HexUtil;
-import java.io.File;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -68,65 +65,73 @@ public class AliTransformer {
     this.bucket = bucket;
   }
 
-  public PutObjectRequest toPutObjectRequest(UploadRequest uploadRequest, InputStream inputStream) {
-    return new PutObjectRequest(
-        bucket, uploadRequest.getKey(), inputStream, generateObjectMetadata(uploadRequest));
-  }
+  public com.aliyun.sdk.service.oss2.models.PutObjectRequest toV2PutObjectRequest(
+      UploadRequest uploadRequest,
+      com.aliyun.sdk.service.oss2.transport.BinaryData body) {
+    com.aliyun.sdk.service.oss2.models.PutObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.PutObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(uploadRequest.getKey())
+            .body(body);
 
-  public PutObjectRequest toPutObjectRequest(UploadRequest uploadRequest, File file) {
-    return new PutObjectRequest(
-        bucket, uploadRequest.getKey(), file, generateObjectMetadata(uploadRequest));
-  }
-
-  protected ObjectMetadata generateObjectMetadata(UploadRequest uploadRequest) {
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setUserMetadata(uploadRequest.getMetadata());
-    metadata.setObjectTagging(uploadRequest.getTags());
-
-    if (uploadRequest.getContentLength() > 0) {
-      metadata.setContentLength(uploadRequest.getContentLength());
+    if (uploadRequest.getMetadata() != null && !uploadRequest.getMetadata().isEmpty()) {
+      builder.metadata(uploadRequest.getMetadata());
     }
 
-    // Set storage class if provided
+    if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
+      builder.tagging(encodeTags(uploadRequest.getTags()));
+    }
+
+    if (uploadRequest.getContentLength() > 0) {
+      builder.contentLength((int) uploadRequest.getContentLength());
+    }
+
     if (StringUtils.isNotEmpty(uploadRequest.getStorageClass())) {
-      metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
+      builder.storageClass(uploadRequest.getStorageClass());
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
-      metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
-      metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, uploadRequest.getKmsKeyId());
+      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryptionKeyId(uploadRequest.getKmsKeyId());
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
       if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
-        metadata.setHeader("x-oss-content-sha256", uploadRequest.getChecksumValue());
+        builder.header("x-oss-content-sha256", uploadRequest.getChecksumValue());
       } else {
-        metadata.setHeader("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
+        builder.header("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
       }
     }
 
-    // Set content type if provided
     if (StringUtils.isNotEmpty(uploadRequest.getContentType())) {
-      metadata.setContentType(uploadRequest.getContentType());
-    }
-
-    return metadata;
-  }
-
-  public UploadResponse toUploadResponse(UploadRequest uploadRequest, PutObjectResult result) {
-    UploadResponse.UploadResponseBuilder builder =
-        UploadResponse.builder()
-            .key(uploadRequest.getKey())
-            .versionId(result.getVersionId())
-            .eTag(result.getETag());
-
-    // Extract CRC64 checksum from response (computed by OSS server-side)
-    if (result.getClientCRC() != null) {
-      builder.checksumValue(String.valueOf(result.getClientCRC()));
+      builder.contentType(uploadRequest.getContentType());
     }
 
     return builder.build();
   }
+
+  public UploadResponse toUploadResponse(
+      UploadRequest uploadRequest,
+      com.aliyun.sdk.service.oss2.models.PutObjectResult result) {
+    UploadResponse.UploadResponseBuilder builder =
+        UploadResponse.builder()
+            .key(uploadRequest.getKey())
+            .versionId(result.versionId())
+            .eTag(stripQuotes(result.eTag()));
+
+    if (result.hashCrc64ecma() != null) {
+      builder.checksumValue(result.hashCrc64ecma());
+    }
+
+    return builder.build();
+  }
+
+  private String encodeTags(Map<String, String> tags) {
+    return tags.entrySet().stream()
+        .map(e -> e.getKey() + "=" + e.getValue())
+        .collect(Collectors.joining("&"));
+  }
+
 
   public GetObjectRequest toGetObjectRequest(DownloadRequest downloadRequest) {
     GetObjectRequest request =

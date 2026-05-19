@@ -15,7 +15,6 @@ import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
 import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
@@ -48,7 +47,6 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -124,7 +122,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, inputStream));
+    long contentLength = uploadRequest.getContentLength();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+            inputStream, contentLength > 0 ? contentLength : null);
+    return doV2Upload(uploadRequest, body);
   }
 
   /**
@@ -136,7 +138,9 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    return doUpload(uploadRequest, new ByteArrayInputStream(content));
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes(content);
+    return doV2Upload(uploadRequest, body);
   }
 
   /**
@@ -148,7 +152,14 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-    return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, file));
+    try {
+      com.aliyun.sdk.service.oss2.transport.BinaryData body =
+          com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+              Files.newInputStream(file.toPath()), file.length());
+      return doV2Upload(uploadRequest, body);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to read file for upload: " + file.getPath(), e);
+    }
   }
 
   /**
@@ -163,9 +174,16 @@ public class AliBlobStore extends AbstractBlobStore {
     return doUpload(uploadRequest, path.toFile());
   }
 
-  /** Helper function to upload blobs */
-  protected UploadResponse doUpload(UploadRequest uploadRequest, PutObjectRequest request) {
-    return transformer.toUploadResponse(uploadRequest, ossClient.putObject(request));
+  /** Helper function to upload blobs via v2 SDK */
+  protected UploadResponse doV2Upload(
+      UploadRequest uploadRequest,
+      com.aliyun.sdk.service.oss2.transport.BinaryData body) {
+    com.aliyun.sdk.service.oss2.models.PutObjectRequest request =
+        transformer.toV2PutObjectRequest(uploadRequest, body);
+    com.aliyun.sdk.service.oss2.models.PutObjectResult result =
+        ossV2Client.putObject(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toUploadResponse(uploadRequest, result);
   }
 
   /**

@@ -38,8 +38,6 @@ import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
@@ -179,19 +177,25 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadInputStream() {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestV2PutObjectResult())
+        .when(mockOssV2Client).putObject(
+            any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), mock(InputStream.class)));
   }
 
   @Test
   void testDoUploadByteArray() {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestV2PutObjectResult())
+        .when(mockOssV2Client).putObject(
+            any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), new byte[1024]));
   }
 
   @Test
   void testDoUploadFile() throws IOException {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestV2PutObjectResult())
+        .when(mockOssV2Client).putObject(
+            any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     Path path = null;
     try {
       path = Files.createTempFile("tempFile", ".txt");
@@ -200,7 +204,6 @@ public class AliBlobStoreTest {
       }
       verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), path.toFile()));
     } finally {
-      // Clean up temp file even if test fails
       if (path != null) {
         try {
           Files.deleteIfExists(path);
@@ -213,7 +216,9 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadPath() throws IOException {
-    doReturn(buildTestPutObjectResult()).when(mockOssClient).putObject(any());
+    doReturn(buildTestV2PutObjectResult())
+        .when(mockOssV2Client).putObject(
+            any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     Path path = Files.createTempFile("tempFile", ".txt");
     try (BufferedWriter writer = Files.newBufferedWriter(path)) {
       writer.write(new char[1024]);
@@ -223,17 +228,16 @@ public class AliBlobStoreTest {
 
   void verifyUploadTestResults(UploadResponse uploadResponse) {
 
-    // Verify the parameters passed into the SDK
-    ArgumentCaptor<PutObjectRequest> putObjectRequestCaptor =
-        ArgumentCaptor.forClass(PutObjectRequest.class);
-    verify(mockOssClient, times(1)).putObject(putObjectRequestCaptor.capture());
-    PutObjectRequest actualPutObjectRequest = putObjectRequestCaptor.getValue();
-    assertEquals("object-1", actualPutObjectRequest.getKey());
-    assertEquals("bucket-1", actualPutObjectRequest.getBucketName());
-    assertEquals(
-        "tag-1=tag-value-1",
-        actualPutObjectRequest.getMetadata().getRawMetadata().get(OSSHeaders.OSS_TAGGING));
-    assertEquals("value-1", actualPutObjectRequest.getMetadata().getUserMetadata().get("key-1"));
+    // Verify the parameters passed into the v2 SDK
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> putObjectRequestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class);
+    verify(mockOssV2Client, times(1)).putObject(putObjectRequestCaptor.capture(), any());
+    com.aliyun.sdk.service.oss2.models.PutObjectRequest actualRequest =
+        putObjectRequestCaptor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("tag-1=tag-value-1", actualRequest.tagging());
+    assertEquals("value-1", actualRequest.metadata().get("key-1"));
 
     // Verify the mapping of the response into the UploadResponse object
     assertEquals("object-1", uploadResponse.getKey());
@@ -988,11 +992,12 @@ public class AliBlobStoreTest {
         .build();
   }
 
-  private PutObjectResult buildTestPutObjectResult() {
-    PutObjectResult putObjectResult = mock(PutObjectResult.class);
-    doReturn("version-1").when(putObjectResult).getVersionId();
-    doReturn("etag").when(putObjectResult).getETag();
-    return putObjectResult;
+  private com.aliyun.sdk.service.oss2.models.PutObjectResult buildTestV2PutObjectResult() {
+    com.aliyun.sdk.service.oss2.models.PutObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.PutObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("\"etag\"").when(result).eTag();
+    return result;
   }
 
   private DownloadRequest getTestDownloadRequest() {
