@@ -38,6 +38,17 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **List Parts** | Mid of Aug'25 | ✅ Supported | ✅ Supported | List uploaded parts |
 | **Abort Multipart** | Mid of Aug'25 | ✅ Supported | ✅ Supported | Cancel multipart upload |
 
+### Object Lock & Retention Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Get Object Lock** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve lock config (mode, retain-until, legal hold) |
+| **Update Object Retention** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Change retention mode and/or expiration date |
+| **Retention Mode Support** | ✅ Supported | ✅ Supported | 📅 In Roadmap | GOVERNANCE and COMPLIANCE modes with uniform rules |
+| **Bypass Governance Retention** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Shorten or remove GOVERNANCE-mode retention |
+| **Update Legal Hold** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Enable/disable legal hold on objects |
+| **Object Lock on Upload** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Set retention at upload time via ObjectLockConfiguration |
+
 ### Advanced Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
@@ -244,6 +255,78 @@ List<UploadPartResponse> uploadedParts = bucketClient.listMultipartUpload(upload
 
 bucketClient.abortMultipartUpload(upload);
 ```
+
+---
+
+## Object Retention
+
+Update per-object retention with explicit mode and bypass control using `ObjectRetentionConfig`:
+
+```java
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
+
+// Extend retention on a GOVERNANCE-mode object
+bucketClient.updateObjectRetention("object-key", null,
+    ObjectRetentionConfig.builder()
+        .mode(RetentionMode.GOVERNANCE)
+        .retainUntilDate(Instant.now().plus(Duration.ofDays(90)))
+        .build());
+
+// Extend retention on a COMPLIANCE-mode object
+bucketClient.updateObjectRetention("object-key", null,
+    ObjectRetentionConfig.builder()
+        .mode(RetentionMode.COMPLIANCE)
+        .retainUntilDate(Instant.now().plus(Duration.ofDays(365)))
+        .build());
+
+// Shorten GOVERNANCE retention (requires bypass flag)
+bucketClient.updateObjectRetention("object-key", null,
+    ObjectRetentionConfig.builder()
+        .mode(RetentionMode.GOVERNANCE)
+        .retainUntilDate(Instant.now().plus(Duration.ofDays(7)))
+        .bypassGovernanceRetention(true)
+        .build());
+
+// Upgrade from GOVERNANCE to COMPLIANCE (requires bypass flag)
+bucketClient.updateObjectRetention("object-key", null,
+    ObjectRetentionConfig.builder()
+        .mode(RetentionMode.COMPLIANCE)
+        .retainUntilDate(Instant.now().plus(Duration.ofDays(365)))
+        .bypassGovernanceRetention(true)
+        .build());
+
+// Preserve current mode (pass null for mode)
+bucketClient.updateObjectRetention("object-key", null,
+    ObjectRetentionConfig.builder()
+        .retainUntilDate(Instant.now().plus(Duration.ofDays(60)))
+        .build());
+```
+
+### Retention Modes
+
+| Mode | Description |
+|------|-------------|
+| `GOVERNANCE` | Retention can be shortened or removed by users with bypass permissions |
+| `COMPLIANCE` | Retention cannot be shortened or removed by anyone until it expires |
+
+### Rules Table
+
+The SDK enforces uniform rules across AWS and GCP:
+
+| Current Mode | Action | Bypass Flag | Outcome |
+|-------------|--------|-------------|---------|
+| GOVERNANCE | Extend retention | Not required | ✅ Succeeds |
+| GOVERNANCE | Shorten retention | `true` | ✅ Succeeds |
+| GOVERNANCE | Shorten retention | `false` | ❌ `FailedPreconditionException` |
+| GOVERNANCE | Upgrade to COMPLIANCE | `true` | ✅ Succeeds |
+| GOVERNANCE | Upgrade to COMPLIANCE | `false` | ❌ `FailedPreconditionException` |
+| COMPLIANCE | Extend retention | Not required | ✅ Succeeds |
+| COMPLIANCE | Shorten retention | Any | ❌ `FailedPreconditionException` |
+| COMPLIANCE | Downgrade to GOVERNANCE | Any | ❌ `FailedPreconditionException` |
+| _(none)_ | Any update | Any | ❌ `FailedPreconditionException` |
+
+> **Note:** The `bypassGovernanceRetention` flag maps to `bypassGovernanceRetention` on AWS S3 and `overrideUnlockedRetention` on GCP GCS. It has no effect on COMPLIANCE-mode objects.
 
 ---
 
