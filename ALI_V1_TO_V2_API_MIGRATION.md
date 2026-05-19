@@ -4,43 +4,43 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 
 ## AliBlobStore
 
-| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Status |
-|---|-----------|------------------------|---------------|--------|
-| 1 | getMetadata | `getObjectMetadata(GenericRequest)` | `headObject(HeadObjectRequest, OperationOptions)` | Done |
-| 2 | upload (stream) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | Pending |
-| 3 | upload (file) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | Pending |
-| 4 | download | `getObject(GetObjectRequest)` | `getObject(GetObjectRequest, OperationOptions)` | Pending |
-| 5 | delete (single) | `deleteObject(bucket, key)` | `deleteObject(DeleteObjectRequest, OperationOptions)` | Pending |
-| 6 | delete (versioned) | `deleteVersion(bucket, key, versionId)` | `deleteObject(DeleteObjectRequest, OperationOptions)` with versionId | Pending |
-| 7 | delete (batch) | `deleteObjects(DeleteObjectsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | Pending |
-| 8 | delete (batch versioned) | `deleteVersions(DeleteVersionsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | Pending |
-| 9 | copy | `copyObject(CopyObjectRequest)` | `copyObject(CopyObjectRequest, OperationOptions)` | Pending |
-| 10 | doesObjectExist | `doesObjectExist(GenericRequest)` | `doesObjectExist(GetObjectMetaRequest)` | Done |
-| 11 | doesBucketExist | `doesBucketExist(bucket)` | `doesBucketExist(bucket)` | Done |
-| 12 | initiate multipart | `initiateMultipartUpload(InitiateMultipartUploadRequest)` | `initiateMultipartUpload(InitiateMultipartUploadRequest, OperationOptions)` | Pending |
-| 13 | upload part | `uploadPart(UploadPartRequest)` | `uploadPart(UploadPartRequest, OperationOptions)` | Pending |
-| 14 | complete multipart | `completeMultipartUpload(CompleteMultipartUploadRequest)` | `completeMultipartUpload(CompleteMultipartUploadRequest, OperationOptions)` | Pending |
-| 15 | list parts | `listParts(ListPartsRequest)` | `listParts(ListPartsRequest, OperationOptions)` | Pending |
-| 16 | abort multipart | `abortMultipartUpload(AbortMultipartUploadRequest)` | `abortMultipartUpload(AbortMultipartUploadRequest, OperationOptions)` | Pending |
-| 17 | getTags | `getObjectTagging(bucket, key)` | `getObjectTagging(GetObjectTaggingRequest, OperationOptions)` | Pending |
-| 18 | setTags | `setObjectTagging(bucket, key, TagSet)` | `putObjectTagging(PutObjectTaggingRequest, OperationOptions)` | Pending |
-| 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest)` | Pending |
-| 20 | presigned URL (download) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(GetObjectRequest)` | Pending |
-| 21 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | Pending |
+| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
+|---|-----------|------------------------|---------------|-------------------|--------|
+| 1 | getMetadata | `getObjectMetadata(GenericRequest)` | `headObject(HeadObjectRequest, OperationOptions)` | `testGetMetadata`, `testGetMetadataBlobNotExists`, `testGetVersionedMetadata` | Done |
+| 2 | upload (stream) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | `testUpload_nullKey`, `testUpload_emptyKey`, `testUpload_emptyContent`, `testUpload_happyPath`, `testUploadWithContentType`, `testDownloadWithKmsKey` | Pending |
+| 3 | upload (file) | `putObject(PutObjectRequest)` | `putObject(PutObjectRequest, OperationOptions)` | (same as above — shared upload path) | Pending |
+| 4 | download | `getObject(GetObjectRequest)` | `getObject(GetObjectRequest, OperationOptions)` | `testDownload_happy`, `testDownload_createParentPath`, `testVersionedDownload_happy`, `testVersionedDownload_noVersionId`, `testVersionedDownload_badVersionId`, `testDownloadWithKmsKey`, `testDownload_checkArchived` | Pending |
+| 5 | delete (single) | `deleteObject(bucket, key)` | `deleteObject(DeleteObjectRequest, OperationOptions)` | `testDelete`, `testVersionedDelete`, `testVersionedDelete_fileDoesNotExist` | Pending |
+| 6 | delete (versioned) | `deleteVersion(bucket, key, versionId)` | `deleteObject(DeleteObjectRequest, OperationOptions)` with versionId | `testVersionedDelete` | Pending |
+| 7 | delete (batch) | `deleteObjects(DeleteObjectsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | `testBulkDelete` | Pending |
+| 8 | delete (batch versioned) | `deleteVersions(DeleteVersionsRequest)` | `deleteMultipleObjects(DeleteMultipleObjectsRequest, OperationOptions)` | `testBulkVersionedDelete_happyPath`, `testBulkVersionedDelete_happyPathWithNonExisting`, `testBulkVersionedDelete_duplicateDeletion` | Pending |
+| 9 | copy | `copyObject(CopyObjectRequest)` | `copyObject(CopyObjectRequest, OperationOptions)` | `testCopy`, `testVersionedCopy`, `testCopyFrom`, `testVersionedCopyFrom` | Pending |
+| 10 | doesObjectExist | `doesObjectExist(GenericRequest)` | `doesObjectExist(GetObjectMetaRequest)` | `testDoesObjectExist`, `testDoesObjectExist_versioned` | Done |
+| 11 | doesBucketExist | `doesBucketExist(bucket)` | `doesBucketExist(bucket)` | `testDoesBucketExist`, `testDoesBucketExist_NonExistentBucket` | Done |
+| 12 | initiate multipart | `initiateMultipartUpload(InitiateMultipartUploadRequest)` | `initiateMultipartUpload(InitiateMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_singlePart`, `testMultipartUpload_multipleParts`, `testMultipartUpload_withKms`, `testMultipartUpload_withTags`, `testMultipartUpload_withContentType` | Pending |
+| 13 | upload part | `uploadPart(UploadPartRequest)` | `uploadPart(UploadPartRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Pending |
+| 14 | complete multipart | `completeMultipartUpload(CompleteMultipartUploadRequest)` | `completeMultipartUpload(CompleteMultipartUploadRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Pending |
+| 15 | list parts | `listParts(ListPartsRequest)` | `listParts(ListPartsRequest, OperationOptions)` | `testMultipartUpload_duplicateParts` | Pending |
+| 16 | abort multipart | `abortMultipartUpload(AbortMultipartUploadRequest)` | `abortMultipartUpload(AbortMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_completeAnAbortedUpload` | Pending |
+| 17 | getTags | `getObjectTagging(bucket, key)` | `getObjectTagging(GetObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
+| 18 | setTags | `setObjectTagging(bucket, key, TagSet)` | `putObjectTagging(PutObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
+| 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest)` | `testGeneratePresignedUploadUrl_happyPath*`, `testPresignedUrlWithKmsKey_*` | Pending |
+| 20 | presigned URL (download) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(GetObjectRequest)` | `testGeneratePresignedDownloadUrl_happyPath`, `testGeneratePresignedDownloadUrl_nonExistingFile` | Pending |
+| 21 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Pending |
 
 ## BlobInfoIterator
 
-| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Status |
-|---|-----------|------------------------|---------------|--------|
-| 22 | list objects | `listObjects(ListObjectsRequest)` | `listObjectsV2(ListObjectsV2Request, OperationOptions)` | Pending |
+| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
+|---|-----------|------------------------|---------------|-------------------|--------|
+| 22 | list objects | `listObjects(ListObjectsRequest)` | `listObjectsV2(ListObjectsV2Request, OperationOptions)` | `testList`, `testListPage`, `testListPage_WithDelimiter_*`, `testListPage_withTimeStamp` | Pending |
 
 ## AliBlobClient
 
-| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Status |
-|---|-----------|------------------------|---------------|--------|
-| 23 | listBuckets | `listBuckets()` | `listBuckets(ListBucketsRequest, OperationOptions)` | Pending |
-| 24 | createBucket | `createBucket(bucketName)` | `putBucket(PutBucketRequest, OperationOptions)` | Pending |
-| 25 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | Pending |
+| # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
+|---|-----------|------------------------|---------------|-------------------|--------|
+| 23 | listBuckets | `listBuckets()` | `listBuckets(ListBucketsRequest, OperationOptions)` | N/A (no conformance test) | Pending |
+| 24 | createBucket | `createBucket(bucketName)` | `putBucket(PutBucketRequest, OperationOptions)` | `testCreateBucket` (AbstractBlobClientIT) | Pending |
+| 25 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Pending |
 
 ## Notes
 

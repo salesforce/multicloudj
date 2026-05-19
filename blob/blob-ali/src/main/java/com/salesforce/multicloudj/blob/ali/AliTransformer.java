@@ -289,6 +289,41 @@ public class AliTransformer {
         .toInstant();
   }
 
+  public Map<String, String> toTagMap(
+      com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult result) {
+    com.aliyun.sdk.service.oss2.models.Tagging tagging = result.tagging();
+    if (tagging == null || tagging.tagSet() == null || tagging.tagSet().tags() == null) {
+      return Map.of();
+    }
+    return tagging.tagSet().tags().stream()
+        .collect(Collectors.toMap(
+            com.aliyun.sdk.service.oss2.models.Tag::key,
+            com.aliyun.sdk.service.oss2.models.Tag::value));
+  }
+
+  public com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest toPutObjectTaggingRequest(
+      String key, Map<String, String> tags) {
+    List<com.aliyun.sdk.service.oss2.models.Tag> tagList = tags.entrySet().stream()
+        .map(e -> com.aliyun.sdk.service.oss2.models.Tag.newBuilder()
+            .key(e.getKey())
+            .value(e.getValue())
+            .build())
+        .collect(Collectors.toList());
+    com.aliyun.sdk.service.oss2.models.TagSet tagSet =
+        com.aliyun.sdk.service.oss2.models.TagSet.newBuilder()
+            .tags(tagList)
+            .build();
+    com.aliyun.sdk.service.oss2.models.Tagging tagging =
+        com.aliyun.sdk.service.oss2.models.Tagging.newBuilder()
+            .tagSet(tagSet)
+            .build();
+    return com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest.newBuilder()
+        .bucket(bucket)
+        .key(key)
+        .tagging(tagging)
+        .build();
+  }
+
   public InitiateMultipartUploadRequest toInitiateMultipartUploadRequest(
       MultipartUploadRequest request) {
     ObjectMetadata metadata = new ObjectMetadata();

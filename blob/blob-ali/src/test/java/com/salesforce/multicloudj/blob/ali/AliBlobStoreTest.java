@@ -43,7 +43,6 @@ import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.PutObjectResult;
-import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
@@ -832,14 +831,25 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoGetTags() {
-    TagSet mockResponse = mock(TagSet.class);
-    Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
-    doReturn(tags).when(mockResponse).getAllTags();
-    when(mockOssClient.getObjectTagging(any(), any())).thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.Tag tag1 =
+        com.aliyun.sdk.service.oss2.models.Tag.newBuilder().key("key1").value("value1").build();
+    com.aliyun.sdk.service.oss2.models.Tag tag2 =
+        com.aliyun.sdk.service.oss2.models.Tag.newBuilder().key("key2").value("value2").build();
+    com.aliyun.sdk.service.oss2.models.TagSet tagSet =
+        com.aliyun.sdk.service.oss2.models.TagSet.newBuilder()
+            .tags(List.of(tag1, tag2)).build();
+    com.aliyun.sdk.service.oss2.models.Tagging tagging =
+        com.aliyun.sdk.service.oss2.models.Tagging.newBuilder().tagSet(tagSet).build();
+    com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult.class);
+    when(mockResult.tagging()).thenReturn(tagging);
+    when(mockOssV2Client.getObjectTagging(
+        any(com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest.class), any()))
+        .thenReturn(mockResult);
 
     Map<String, String> tagsResult = ali.getTags("object-1");
 
-    assertEquals(tags, tagsResult);
+    assertEquals(Map.of("key1", "value1", "key2", "value2"), tagsResult);
   }
 
   @Test
@@ -847,21 +857,22 @@ public class AliBlobStoreTest {
     Map<String, String> tags = Map.of("key1", "value1", "key2", "value2");
     ali.setTags("object-1", tags);
 
-    ArgumentCaptor<TagSet> tagSetRequestCaptor = ArgumentCaptor.forClass(TagSet.class);
-    ArgumentCaptor<String> bucketNameRequestCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> keyRequestCaptor = ArgumentCaptor.forClass(String.class);
-    verify(mockOssClient, times(1))
-        .setObjectTagging(
-            bucketNameRequestCaptor.capture(),
-            keyRequestCaptor.capture(),
-            tagSetRequestCaptor.capture());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest> requestCaptor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest.class);
+    verify(mockOssV2Client, times(1)).putObjectTagging(requestCaptor.capture(), any());
 
-    String actualBucketNameRequestCaptor = bucketNameRequestCaptor.getValue();
-    String actualKeyRequestCaptor = keyRequestCaptor.getValue();
-    TagSet actualTagSetRequestCaptor = tagSetRequestCaptor.getValue();
-    assertEquals("bucket-1", actualBucketNameRequestCaptor);
-    assertEquals("object-1", actualKeyRequestCaptor);
-    assertEquals(tags, actualTagSetRequestCaptor.getAllTags());
+    com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest actualRequest =
+        requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
+    List<com.aliyun.sdk.service.oss2.models.Tag> actualTags =
+        actualRequest.tagging().tagSet().tags();
+    Map<String, String> actualTagMap = actualTags.stream()
+        .collect(java.util.stream.Collectors.toMap(
+            com.aliyun.sdk.service.oss2.models.Tag::key,
+            com.aliyun.sdk.service.oss2.models.Tag::value));
+    assertEquals(tags, actualTagMap);
   }
 
   @Test

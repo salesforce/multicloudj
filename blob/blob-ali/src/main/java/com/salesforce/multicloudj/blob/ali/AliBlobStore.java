@@ -18,7 +18,6 @@ import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
@@ -496,8 +495,15 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected Map<String, String> doGetTags(String key) {
-    TagSet response = ossClient.getObjectTagging(bucket, key);
-    return response.getAllTags();
+    com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest request =
+        com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest.newBuilder()
+            .bucket(bucket)
+            .key(key)
+            .build();
+    com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult result =
+        ossV2Client.getObjectTagging(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toTagMap(result);
   }
 
   /**
@@ -508,7 +514,10 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
-    ossClient.setObjectTagging(bucket, key, new TagSet(tags));
+    com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest request =
+        transformer.toPutObjectTaggingRequest(key, tags);
+    ossV2Client.putObjectTagging(request,
+        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
   }
 
   /** {@inheritdoc} */
