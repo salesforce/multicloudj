@@ -38,6 +38,16 @@ This client enables uploading, downloading, deleting, listing, copying, and mana
 | **List Parts** | Mid of Aug'25 | ✅ Supported | ✅ Supported | List uploaded parts |
 | **Abort Multipart** | Mid of Aug'25 | ✅ Supported | ✅ Supported | Cancel multipart upload |
 
+### Object Lock & Retention Features
+
+| Feature Name | GCP | AWS | ALI | Comments |
+|--------------|-----|-----|-----|----------|
+| **Get Object Lock Info** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Retrieve retention mode, date, and legal hold |
+| **Update Object Retention (date only)** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Extend retention date preserving current mode |
+| **Update Object Retention (with mode & bypass)** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Change mode, extend/shorten with bypass flag |
+| **Update Legal Hold** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Enable or disable legal hold on an object |
+| **Object Lock on Multipart Upload** | ✅ Supported | ✅ Supported | 📅 In Roadmap | Set retention at multipart upload initiation |
+
 ### Advanced Features
 
 | Feature Name | GCP | AWS | ALI | Comments |
@@ -243,6 +253,91 @@ bucketClient.completeMultipartUpload(upload, parts);
 List<UploadPartResponse> uploadedParts = bucketClient.listMultipartUpload(upload);
 
 bucketClient.abortMultipartUpload(upload);
+```
+
+---
+
+## Object Lock & Retention
+
+Object Lock prevents objects from being deleted or overwritten for a fixed period or indefinitely. MultiCloudJ provides a unified API for managing per-object retention and legal holds across AWS S3 and GCP GCS.
+
+### Retention Modes
+
+| Mode | AWS Equivalent | GCP Equivalent | Behavior |
+|------|---------------|----------------|----------|
+| `GOVERNANCE` | Governance | Unlocked | Can be shortened or removed with bypass permission |
+| `COMPLIANCE` | Compliance | Locked | Cannot be shortened or removed by anyone, including root |
+
+### Updating Object Retention
+
+Use `ObjectRetentionConfig` to update retention with explicit mode and bypass control:
+
+```java
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
+
+// Extend retention on a COMPLIANCE object
+ObjectRetentionConfig config = ObjectRetentionConfig.builder()
+    .mode(RetentionMode.COMPLIANCE)
+    .retainUntilDate(Instant.parse("2030-06-01T00:00:00Z"))
+    .build();
+
+bucketClient.updateObjectRetention("my-object", null, config);
+```
+
+Shorten retention on a GOVERNANCE-mode object (requires bypass):
+
+```java
+ObjectRetentionConfig config = ObjectRetentionConfig.builder()
+    .mode(RetentionMode.GOVERNANCE)
+    .retainUntilDate(Instant.parse("2026-01-01T00:00:00Z"))
+    .bypassGovernanceRetention(true)
+    .build();
+
+bucketClient.updateObjectRetention("my-object", null, config);
+```
+
+Preserve the current mode (pass `mode = null`):
+
+```java
+ObjectRetentionConfig config = ObjectRetentionConfig.builder()
+    .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+    .build();
+
+bucketClient.updateObjectRetention("my-object", versionId, config);
+```
+
+### Retention Rules Table
+
+The following rules apply uniformly across AWS and GCP:
+
+| Current Mode | Requested Change | `bypassGovernanceRetention` | Outcome |
+|---|---|---|---|
+| COMPLIANCE | Extend date | N/A | ✅ Allowed |
+| COMPLIANCE | Shorten date | `true` or `false` | ❌ Rejected |
+| COMPLIANCE | Downgrade to GOVERNANCE | N/A | ❌ Rejected |
+| GOVERNANCE | Extend date | N/A | ✅ Allowed |
+| GOVERNANCE | Shorten date | `true` | ✅ Allowed |
+| GOVERNANCE | Shorten date | `false` / unset | ❌ Rejected |
+| GOVERNANCE | Upgrade to COMPLIANCE | `true` | ✅ Allowed |
+| GOVERNANCE | Upgrade to COMPLIANCE | `false` / unset | ❌ Rejected |
+| None | Any update | N/A | ❌ Rejected (`FailedPreconditionException`) |
+
+### Managing Legal Hold
+
+```java
+// Enable legal hold
+bucketClient.updateLegalHold("my-object", versionId, true);
+
+// Disable legal hold
+bucketClient.updateLegalHold("my-object", versionId, false);
+```
+
+### Getting Object Lock Info
+
+```java
+ObjectLockInfo lockInfo = bucketClient.getObjectLock("my-object", versionId);
+// lockInfo contains retention mode, retain-until date, and legal hold status
 ```
 
 ---
