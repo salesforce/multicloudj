@@ -579,14 +579,23 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+    com.aliyun.sdk.service.oss2.PresignOptions options = transformer.toPresignOptions(request);
+    com.aliyun.sdk.service.oss2.models.PresignResult result;
     switch (request.getType()) {
       case UPLOAD:
-        return ossClient.generatePresignedUrl(transformer.toPresignedUrlUploadRequest(request));
+        result = ossV2Client.presign(transformer.toPresignedPutObjectRequest(request), options);
+        break;
       case DOWNLOAD:
-        return ossClient.generatePresignedUrl(transformer.toPresignedUrlDownloadRequest(request));
+        result = ossV2Client.presign(transformer.toPresignedGetObjectRequest(request), options);
+        break;
       default:
         throw new InvalidArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
+    }
+    try {
+      return new URL(result.url());
+    } catch (java.net.MalformedURLException e) {
+      throw new RuntimeException("Invalid presigned URL: " + result.url(), e);
     }
   }
 

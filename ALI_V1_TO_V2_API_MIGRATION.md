@@ -24,8 +24,8 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 | 16 | abort multipart | `abortMultipartUpload(AbortMultipartUploadRequest)` | `abortMultipartUpload(AbortMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_completeAnAbortedUpload` | Pending |
 | 17 | getTags | `getObjectTagging(bucket, key)` | `getObjectTagging(GetObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
 | 18 | setTags | `setObjectTagging(bucket, key, TagSet)` | `putObjectTagging(PutObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
-| 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest)` | `testGeneratePresignedUploadUrl_happyPath*`, `testPresignedUrlWithKmsKey_*` | Pending |
-| 20 | presigned URL (download) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(GetObjectRequest)` | `testGeneratePresignedDownloadUrl_happyPath`, `testGeneratePresignedDownloadUrl_nonExistingFile` | Pending |
+| 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest, PresignOptions)` | `testGeneratePresignedUploadUrl_happyPath*`, `testPresignedUrlWithKmsKey_*` | Done |
+| 20 | presigned URL (download) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(GetObjectRequest, PresignOptions)` | `testGeneratePresignedDownloadUrl_happyPath`, `testGeneratePresignedDownloadUrl_nonExistingFile` | Done |
 | 21 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Pending |
 
 ## BlobInfoIterator

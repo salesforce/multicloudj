@@ -16,7 +16,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.aliyun.oss.ClientException;
-import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
@@ -28,7 +27,6 @@ import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
-import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListObjectsRequest;
@@ -76,6 +74,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -893,6 +892,14 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoGeneratePresignedUploadUrl() {
+    com.aliyun.sdk.service.oss2.models.PresignResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.PresignResult.class);
+    doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
+        .when(mockResult).url();
+    doReturn(mockResult).when(mockOssV2Client).presign(
+        any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.PresignOptions.class));
+
     UploadRequest uploadRequest = getTestUploadRequest();
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedUploadRequest =
@@ -904,24 +911,30 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    ali.doGeneratePresignedUrl(presignedUploadRequest);
+    URL result = ali.doGeneratePresignedUrl(presignedUploadRequest);
 
-    ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor =
-        ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
-    verify(mockOssClient, times(1))
-        .generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());
-    GeneratePresignedUrlRequest actualRequest = generatePresignedUrlRequestCaptor.getValue();
-    assertEquals(HttpMethod.PUT, actualRequest.getMethod());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("object-1", actualRequest.getKey());
-    Map<String, String> headers = actualRequest.getHeaders();
-    assertEquals("tag-1=tag-value-1", headers.get(OSSHeaders.OSS_TAGGING));
-    assertEquals("value-1", actualRequest.getUserMetadata().get("key-1"));
-    assertNotNull(actualRequest.getExpiration());
+    assertNotNull(result);
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class);
+    verify(mockOssV2Client, times(1)).presign(requestCaptor.capture(),
+        any(com.aliyun.sdk.service.oss2.PresignOptions.class));
+    com.aliyun.sdk.service.oss2.models.PutObjectRequest actualRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("tag-1=tag-value-1", actualRequest.tagging());
+    assertEquals("value-1", actualRequest.metadata().get("key-1"));
   }
 
   @Test
   void testDoGeneratePresignedDownloadUrl() {
+    com.aliyun.sdk.service.oss2.models.PresignResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.PresignResult.class);
+    doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
+        .when(mockResult).url();
+    doReturn(mockResult).when(mockOssV2Client).presign(
+        any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.PresignOptions.class));
+
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =
         PresignedUrlRequest.builder()
@@ -930,16 +943,16 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    ali.doGeneratePresignedUrl(presignedDownloadRequest);
+    URL result = ali.doGeneratePresignedUrl(presignedDownloadRequest);
 
-    ArgumentCaptor<GeneratePresignedUrlRequest> generatePresignedUrlRequestCaptor =
-        ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
-    verify(mockOssClient, times(1))
-        .generatePresignedUrl(generatePresignedUrlRequestCaptor.capture());
-    GeneratePresignedUrlRequest actualRequest = generatePresignedUrlRequestCaptor.getValue();
-    assertEquals(HttpMethod.GET, actualRequest.getMethod());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("object-1", actualRequest.getKey());
+    assertNotNull(result);
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class);
+    verify(mockOssV2Client, times(1)).presign(requestCaptor.capture(),
+        any(com.aliyun.sdk.service.oss2.PresignOptions.class));
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest actualRequest = requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("object-1", actualRequest.key());
   }
 
   @Test

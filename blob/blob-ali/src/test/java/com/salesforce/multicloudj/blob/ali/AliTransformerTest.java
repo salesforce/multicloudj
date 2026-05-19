@@ -8,8 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-import com.aliyun.oss.HttpMethod;
-import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.OSSObject;
@@ -474,39 +472,29 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToPresignedUrlUploadRequest() {
+  void testToPresignedUploadRequest() {
     Map<String, String> metadata = Map.of("key-1", "value-1");
     Map<String, String> tags = Map.of("tag-1", "tag-value-1");
-    UploadRequest uploadRequest =
-        new UploadRequest.Builder()
-            .withKey("object-1")
-            .withContentLength(1024)
-            .withMetadata(metadata)
-            .withTags(tags)
-            .build();
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedUploadRequest =
         PresignedUrlRequest.builder()
             .type(PresignedOperation.UPLOAD)
-            .key(uploadRequest.getKey())
-            .metadata(uploadRequest.getMetadata())
-            .tags(uploadRequest.getTags())
+            .key("object-1")
+            .metadata(metadata)
+            .tags(tags)
             .duration(duration)
             .build();
 
-    var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
 
-    assertEquals(HttpMethod.PUT, actual.getMethod());
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("object-1", actual.getKey());
-    Map<String, String> headers = actual.getHeaders();
-    assertEquals("tag-1=tag-value-1", headers.get(OSSHeaders.OSS_TAGGING));
-    assertEquals("value-1", actual.getUserMetadata().get("key-1"));
-    assertNotNull(actual.getExpiration());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("tag-1=tag-value-1", actual.tagging());
+    assertEquals("value-1", actual.metadata().get("key-1"));
   }
 
   @Test
-  void testToPresignedUrlUploadRequestWithKmsKey() {
+  void testToPresignedUploadRequestWithKmsKey() {
     Map<String, String> metadata = Map.of("key-1", "value-1");
     String kmsKeyId = "alias/my-kms-key";
     Duration duration = Duration.ofHours(12);
@@ -519,22 +507,17 @@ public class AliTransformerTest {
             .duration(duration)
             .build();
 
-    var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
 
-    assertEquals(HttpMethod.PUT, actual.getMethod());
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("object-1", actual.getKey());
-    Map<String, String> headers = actual.getHeaders();
-    assertEquals(
-        ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION,
-        headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
-    assertEquals(kmsKeyId, headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
-    assertEquals("value-1", actual.getUserMetadata().get("key-1"));
-    assertNotNull(actual.getExpiration());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+    assertEquals("value-1", actual.metadata().get("key-1"));
   }
 
   @Test
-  void testToPresignedUrlUploadRequestWithoutKmsKey() {
+  void testToPresignedUploadRequestWithoutKmsKey() {
     Map<String, String> metadata = Map.of("key-1", "value-1");
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedUploadRequest =
@@ -545,20 +528,17 @@ public class AliTransformerTest {
             .duration(duration)
             .build();
 
-    var actual = transformer.toPresignedUrlUploadRequest(presignedUploadRequest);
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
 
-    assertEquals(HttpMethod.PUT, actual.getMethod());
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("object-1", actual.getKey());
-    Map<String, String> headers = actual.getHeaders();
-    assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION));
-    assertNull(headers.get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
-    assertEquals("value-1", actual.getUserMetadata().get("key-1"));
-    assertNotNull(actual.getExpiration());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.serverSideEncryption());
+    assertNull(actual.serverSideEncryptionKeyId());
+    assertEquals("value-1", actual.metadata().get("key-1"));
   }
 
   @Test
-  void testToPresignedUrlDownloadRequest() {
+  void testToPresignedDownloadRequest() {
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =
         PresignedUrlRequest.builder()
@@ -567,14 +547,25 @@ public class AliTransformerTest {
             .duration(duration)
             .build();
 
-    var actual = transformer.toPresignedUrlDownloadRequest(presignedDownloadRequest);
+    var actual = transformer.toPresignedGetObjectRequest(presignedDownloadRequest);
 
-    assertEquals(HttpMethod.GET, actual.getMethod());
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("object-1", actual.getKey());
-    long diff =
-        Date.from(Instant.now()).getTime() - actual.getExpiration().getTime() + duration.toMillis();
-    assertTrue(diff < 1000L); // The time difference is less than a second from expected
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+  }
+
+  @Test
+  void testToPresignOptions() {
+    Duration duration = Duration.ofHours(12);
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(duration)
+            .build();
+
+    var actual = transformer.toPresignOptions(request);
+
+    assertTrue(actual.expiration().isPresent());
   }
 
   @Test

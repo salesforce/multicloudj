@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.internal.OSSHeaders;
 import com.aliyun.oss.model.AbortMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadRequest;
@@ -8,7 +7,6 @@ import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
-import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
@@ -47,7 +45,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -472,44 +469,43 @@ public class AliTransformer {
     return new AbortMultipartUploadRequest(bucket, mpu.getKey(), mpu.getId());
   }
 
-  public GeneratePresignedUrlRequest toPresignedUrlUploadRequest(PresignedUrlRequest request) {
-    Date expirationDate = Date.from(Instant.now().plus(request.getDuration()));
-    GeneratePresignedUrlRequest presignedUrlRequest =
-        new GeneratePresignedUrlRequest(getBucket(), request.getKey());
-    presignedUrlRequest.setExpiration(expirationDate);
-    presignedUrlRequest.setMethod(HttpMethod.PUT);
+  public com.aliyun.sdk.service.oss2.models.PutObjectRequest toPresignedPutObjectRequest(
+      PresignedUrlRequest request) {
+    com.aliyun.sdk.service.oss2.models.PutObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.PutObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(request.getKey());
+
     Map<String, String> userMetadata = request.getMetadata();
     if (userMetadata != null && !userMetadata.isEmpty()) {
-      presignedUrlRequest.setUserMetadata(userMetadata);
+      builder.metadata(userMetadata);
     }
 
-    // Note: Tagging is not supported by default for OSS presigned uploads so we have to manually
-    // append it
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setObjectTagging(request.getTags());
-    Object encodedTagging = metadata.getRawMetadata().get(OSSHeaders.OSS_TAGGING);
-    if (encodedTagging instanceof String) {
-      presignedUrlRequest.addHeader(OSSHeaders.OSS_TAGGING, (String) encodedTagging);
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      builder.tagging(encodeTags(request.getTags()));
     }
 
-    // Add KMS encryption headers if KMS key is specified
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
-      presignedUrlRequest.addHeader(
-          OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION, ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
-      presignedUrlRequest.addHeader(
-          OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
-    return presignedUrlRequest;
+    return builder.build();
   }
 
-  public GeneratePresignedUrlRequest toPresignedUrlDownloadRequest(PresignedUrlRequest request) {
-    Date expirationDate = Date.from(Instant.now().plus(request.getDuration()));
-    GeneratePresignedUrlRequest presignedUrlRequest =
-        new GeneratePresignedUrlRequest(getBucket(), request.getKey());
-    presignedUrlRequest.setExpiration(expirationDate);
-    presignedUrlRequest.setMethod(HttpMethod.GET);
-    return presignedUrlRequest;
+  public com.aliyun.sdk.service.oss2.models.GetObjectRequest toPresignedGetObjectRequest(
+      PresignedUrlRequest request) {
+    return com.aliyun.sdk.service.oss2.models.GetObjectRequest.newBuilder()
+        .bucket(bucket)
+        .key(request.getKey())
+        .build();
+  }
+
+  public com.aliyun.sdk.service.oss2.PresignOptions toPresignOptions(
+      PresignedUrlRequest request) {
+    return com.aliyun.sdk.service.oss2.PresignOptions.newBuilder()
+        .expiration(request.getDuration())
+        .build();
   }
 
   public com.aliyun.oss.model.ListObjectsRequest toListObjectsRequest(
