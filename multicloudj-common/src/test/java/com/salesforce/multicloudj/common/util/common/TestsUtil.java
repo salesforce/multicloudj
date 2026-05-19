@@ -238,7 +238,7 @@ public class TestsUtil {
     extensions.add(new StubNamingTransformer());
     extensions.add(new QueryParamCountTransformer());
     extensions.add(new QueryParamCountFilter());
-    // extensions.add(new TruncateRequestBodyTransformer());
+    extensions.add(new TruncateRequestBodyTransformer());
 
     // Load additional extensions if provided
     for (String extensionClass : extensionInstances) {

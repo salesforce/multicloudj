@@ -1,0 +1,38 @@
+{
+  "id" : "15ed3984-fef3-4fcb-b687-24f8c0149faf",
+  "name" : "GcpBlobStoreIT_testUpload_emptyContent-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/upload/emptyContent_versioned_Path/1776210795033264\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fupload%2FemptyContent_versioned_Path?generation=1776210795033264&alt=media\",\n  \"name\": \"conformance-tests/upload/emptyContent_versioned_Path\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1776210795033264\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"0\",\n  \"md5Hash\": \"1B2M2Y8AsgTpgAmY7PhCfg==\",\n  \"crc32c\": \"AAAAAA==\",\n  \"etag\": \"CLDl7+vE7pMDEAE=\",\n  \"timeCreated\": \"2026-04-14T23:53:15.077Z\",\n  \"updated\": \"2026-04-14T23:53:15.077Z\",\n  \"timeStorageClassUpdated\": \"2026-04-14T23:53:15.077Z\",\n  \"timeFinalized\": \"2026-04-14T23:53:15.077Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CLDl7+vE7pMDEAE=",
+      "X-GUploader-UploadID" : "AMNfjG3a1b-79gwwUTvNb25YL5FSiHjzonn8kJN9joaBJ84hi7snuQpTNfol_Rg7wf1Wser5SOxFAUkZ6yupsQ",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Tue, 14 Apr 2026 23:53:15 GMT",
+      "Date" : "Tue, 14 Apr 2026 23:53:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "15ed3984-fef3-4fcb-b687-24f8c0149faf",
+  "persistent" : true,
+  "insertionIndex" : 1173
+}

@@ -38,6 +38,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   protected final String region;
   protected final URI endpoint;
   protected final URI proxyEndpoint;
+  protected final Duration nackVisibilityTimeout;
 
   /**
    * Constants class for queue batching and sizing parameters. Contains immutable configuration
@@ -158,6 +159,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.region = region;
     this.endpoint = null;
     this.proxyEndpoint = null;
+    this.nackVisibilityTimeout = Duration.ZERO;
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = credentialsOverrider;
@@ -181,6 +183,8 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     this.region = builder.region;
     this.endpoint = builder.endpoint;
     this.proxyEndpoint = builder.proxyEndpoint;
+    this.nackVisibilityTimeout =
+        builder.nackVisibilityTimeout == null ? Duration.ZERO : builder.nackVisibilityTimeout;
 
     this.receiveBatcherOptions = createReceiveBatcherOptions();
     this.credentialsOverrider = builder.credentialsOverrider;
@@ -349,13 +353,29 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
   }
 
   /**
-   * Sends negative acknowledgment for a single message.
+   * Sends negative acknowledgment for a single message, using the subscription's default nack
+   * visibility timeout.
    *
    * @param ackID the acknowledgment ID to negatively acknowledge
    * @throws InvalidArgumentException if ackID is null
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public void sendNack(AckID ackID) {
+    sendNack(ackID, null);
+  }
+
+  /**
+   * Sends negative acknowledgment for a single message, overriding the subscription's default
+   * nack visibility timeout for this call only.
+   *
+   * @param ackID the acknowledgment ID to negatively acknowledge
+   * @param visibilityTimeout the visibility timeout to apply to this nack. When {@code null}, the
+   *     subscription's default {@link #getNackVisibilityTimeout()} is used. Must be non-negative;
+   *     providers will clamp the upper bound to their supported maximum.
+   * @throws InvalidArgumentException if ackID is null or visibilityTimeout is negative
+   * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
+   */
+  public void sendNack(AckID ackID, Duration visibilityTimeout) {
     if (isShutdown.get()) {
       throw new FailedPreconditionException("Subscription has been shut down");
     }
@@ -366,11 +386,20 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       throw error;
     }
 
-    ackBatcher.addNoWait(new AckInfo(ackID, false));
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
+      permanentError.set(error);
+      throw error;
+    }
+
+    ackBatcher.addNoWait(new AckInfo(ackID, false, visibilityTimeout));
   }
 
   /**
-   * Sends negative acknowledgment for multiple messages.
+   * Sends negative acknowledgment for multiple messages, using the subscription's default nack
+   * visibility timeout.
    *
    * @param ackIDs the list of acknowledgment IDs to negatively acknowledge
    * @return a CompletableFuture that completes when the nack is queued
@@ -378,6 +407,23 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
    * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
    */
   public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
+    return sendNacks(ackIDs, null);
+  }
+
+  /**
+   * Sends negative acknowledgment for multiple messages, overriding the subscription's default
+   * nack visibility timeout for this batch only.
+   *
+   * @param ackIDs the list of acknowledgment IDs to negatively acknowledge
+   * @param visibilityTimeout the visibility timeout to apply to every nack in this batch. When
+   *     {@code null}, the subscription's default {@link #getNackVisibilityTimeout()} is used.
+   *     Must be non-negative; providers will clamp the upper bound to their supported maximum.
+   * @return a CompletableFuture that completes when the nack is queued
+   * @throws InvalidArgumentException if ackIDs is null, contains null elements, or
+   *     visibilityTimeout is negative
+   * @throws SubstrateSdkException if the subscription is in an error state or has been shut down
+   */
+  public CompletableFuture<Void> sendNacks(List<AckID> ackIDs, Duration visibilityTimeout) {
     if (isShutdown.get()) {
       throw new FailedPreconditionException("Subscription has been shut down");
     }
@@ -401,8 +447,16 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
       }
     }
 
+    if (visibilityTimeout != null && visibilityTimeout.isNegative()) {
+      InvalidArgumentException error =
+          new InvalidArgumentException(
+              "Nack visibility timeout cannot be negative: " + visibilityTimeout);
+      permanentError.set(error);
+      throw error;
+    }
+
     for (AckID ackID : ackIDs) {
-      ackBatcher.addNoWait(new AckInfo(ackID, false));
+      ackBatcher.addNoWait(new AckInfo(ackID, false, visibilityTimeout));
     }
 
     return CompletableFuture.completedFuture(null);
@@ -416,7 +470,12 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
   protected abstract void doSendAcks(List<AckID> ackIDs);
 
-  protected abstract void doSendNacks(List<AckID> ackIDs);
+  /**
+   * Sends negative acknowledgments for a batch of messages. Each {@link AckInfo} may carry an
+   * optional per-message visibility timeout; when {@code null}, implementations should fall back
+   * to {@link #getNackVisibilityTimeout()}. All entries passed here have {@code isAck() == false}.
+   */
+  protected abstract void doSendNacks(List<AckInfo> nacks);
 
   protected abstract Batcher.Options createAckBatcherOptions();
 
@@ -430,13 +489,13 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     }
 
     List<AckID> acks = new ArrayList<>();
-    List<AckID> nacks = new ArrayList<>();
+    List<AckInfo> nacks = new ArrayList<>();
 
     for (AckInfo info : ackInfos) {
       if (info.isAck()) {
         acks.add(info.getAckID());
       } else {
-        nacks.add(info.getAckID());
+        nacks.add(info);
       }
     }
 
@@ -666,6 +725,10 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
   public abstract Class<? extends SubstrateSdkException> getException(Throwable t);
 
+  public Duration getNackVisibilityTimeout() {
+    return nackVisibilityTimeout;
+  }
+
   public abstract static class Builder<T extends AbstractSubscription<T>>
       implements Provider.Builder {
     protected String providerId;
@@ -674,6 +737,7 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
     protected URI endpoint;
     protected URI proxyEndpoint;
     protected CredentialsOverrider credentialsOverrider;
+    protected Duration nackVisibilityTimeout;
 
     @Override
     public Builder<T> providerId(String providerId) {
@@ -703,6 +767,15 @@ public abstract class AbstractSubscription<T extends AbstractSubscription<T>>
 
     public Builder<T> withCredentialsOverrider(CredentialsOverrider credentialsOverrider) {
       this.credentialsOverrider = credentialsOverrider;
+      return this;
+    }
+
+    public Builder<T> withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      if (nackVisibilityTimeout != null && nackVisibilityTimeout.isNegative()) {
+        throw new InvalidArgumentException(
+            "Nack visibility timeout cannot be negative: " + nackVisibilityTimeout);
+      }
+      this.nackVisibilityTimeout = nackVisibilityTimeout;
       return this;
     }
 

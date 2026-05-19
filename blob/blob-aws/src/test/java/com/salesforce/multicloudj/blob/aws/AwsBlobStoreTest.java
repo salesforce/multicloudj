@@ -40,8 +40,10 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
@@ -49,6 +51,7 @@ import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -64,6 +67,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -82,6 +86,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
@@ -110,6 +115,8 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
@@ -120,6 +127,7 @@ import software.amazon.awssdk.services.s3.model.ObjectLockLegalHold;
 import software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetention;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectLegalHoldResponse;
@@ -183,27 +191,25 @@ public class AwsBlobStoreTest {
             .withSessionCredentials(sessionCreds)
             .build();
 
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .withEndpoint(URI.create("https://blob.endpoint.com"))
-            .withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"))
-            .withSocketTimeout(Duration.ofMinutes(1))
-            .withIdleConnectionTimeout(Duration.ofMinutes(5))
-            .withMaxConnections(100)
-            .build();
+    AwsBlobStore.Builder builder1 = new AwsBlobStore.Builder();
+    builder1.withTransformerSupplier(transformerSupplier);
+    builder1.withCredentialsOverrider(credsOverrider);
+    builder1.withBucket("bucket-1");
+    builder1.withRegion("us-east-2");
+    builder1.withEndpoint(URI.create("https://blob.endpoint.com"));
+    builder1.withProxyEndpoint(URI.create("https://proxy.endpoint.com:443"));
+    builder1.withSocketTimeout(Duration.ofMinutes(1));
+    builder1.withIdleConnectionTimeout(Duration.ofMinutes(5));
+    builder1.withMaxConnections(100);
+    aws = builder1.build();
     credsOverrider =
         new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("some-role").build();
-    aws =
-        new AwsBlobStore.Builder()
-            .withTransformerSupplier(transformerSupplier)
-            .withCredentialsOverrider(credsOverrider)
-            .withBucket("bucket-1")
-            .withRegion("us-east-2")
-            .build();
+    AwsBlobStore.Builder builder2 = new AwsBlobStore.Builder();
+    builder2.withTransformerSupplier(transformerSupplier);
+    builder2.withCredentialsOverrider(credsOverrider);
+    builder2.withBucket("bucket-1");
+    builder2.withRegion("us-east-2");
+    aws = builder2.build();
   }
 
   @AfterEach
@@ -554,6 +560,33 @@ public class AwsBlobStoreTest {
       } catch (IOException e) {
         Assertions.fail();
       }
+    }
+  }
+
+  @Test
+  void testDoDownloadPath_WithCreateParentPath() throws IOException {
+    Instant now = Instant.now();
+    setupMockGetObjectResponse(now, false);
+
+    Path rootPath = Path.of("tempCreateParentRoot");
+    try {
+      Files.createDirectories(rootPath);
+      DownloadRequest request =
+          DownloadRequest.builder()
+              .withKey("prefix-a/prefix-b/object-1")
+              .withVersionId("version-1")
+              .withRange(10L, 110L)
+              .withCreateParentPath(true)
+              .build();
+      DownloadResponse response = aws.doDownload(request, rootPath);
+      assertEquals("prefix-a/prefix-b/object-1", response.getKey());
+      // Verify the intermediate parent directories were created.
+      assertTrue(Files.exists(rootPath.resolve("prefix-a/prefix-b")));
+    } finally {
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b/object-1"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a/prefix-b"));
+      Files.deleteIfExists(rootPath.resolve("prefix-a"));
+      Files.deleteIfExists(rootPath);
     }
   }
 
@@ -1862,11 +1895,287 @@ public class AwsBlobStoreTest {
   }
 
   @Test
+  void testHandleArchivedObjects_archivedObject() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    ObjectVersion objectVersion = mock(ObjectVersion.class);
+    when(objectVersion.key()).thenReturn("archived-key");
+    when(objectVersion.versionId()).thenReturn("v123");
+
+    ListObjectVersionsResponse versionsResponse = mock(ListObjectVersionsResponse.class);
+    when(versionsResponse.versions()).thenReturn(List.of(objectVersion));
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(versionsResponse);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    ResourceNotFoundException thrown = assertThrows(
+        ResourceNotFoundException.class,
+        () -> aws.doDownload(request, out));
+
+    ArchiveInfo archiveInfo = thrown.getArchiveInfo();
+    assertNotNull(archiveInfo);
+    assertTrue(archiveInfo.isArchived());
+    assertEquals("v123", archiveInfo.getVersionId());
+  }
+
+  @Test
+  void testHandleArchivedObjectsHeader() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("missing-key")
+        .withCheckArchived(true)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(false);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    S3Exception thrown = assertThrows(
+        S3Exception.class,
+        () -> aws.doDownload(request, out));
+
+    assertEquals(404, thrown.statusCode());
+  }
+
+  @Test
+  void testHandleArchivedObjects_checkArchivedFalse() {
+    DownloadRequest request = new DownloadRequest.Builder()
+        .withKey("archived-key")
+        .withCheckArchived(false)
+        .build();
+
+    S3Exception s3Exception = mockS3ExceptionWithDeleteMarkerHeader(true);
+
+    when(mockS3Client.getObject(
+        any(GetObjectRequest.class),
+        ArgumentMatchers.<ResponseTransformer<GetObjectResponse, ?>>any()))
+        .thenThrow(s3Exception);
+
+    OutputStream out = new ByteArrayOutputStream();
+    S3Exception thrown = assertThrows(
+        S3Exception.class,
+        () -> aws.doDownload(request, out));
+
+    assertEquals(404, thrown.statusCode());
+  }
+
+  private S3Exception mockS3ExceptionWithDeleteMarkerHeader(boolean includeHeader) {
+    SdkHttpResponse sdkHttpResponse = mock(SdkHttpResponse.class);
+    if (includeHeader) {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.of("true"));
+    } else {
+      when(sdkHttpResponse.firstMatchingHeader("x-amz-delete-marker"))
+          .thenReturn(Optional.empty());
+    }
+
+    AwsErrorDetails errorDetails = mock(AwsErrorDetails.class);
+    when(errorDetails.sdkHttpResponse()).thenReturn(sdkHttpResponse);
+
+    S3Exception s3Exception = mock(S3Exception.class);
+    when(s3Exception.statusCode()).thenReturn(404);
+    when(s3Exception.awsErrorDetails()).thenReturn(errorDetails);
+    return s3Exception;
+  }
+
+  @Test
   void testClose() {
     // When
     aws.close();
 
     // Then
     verify(mockS3Client, times(1)).close();
+  }
+
+  // ---- New overload: updateObjectRetention(String, String, ObjectRetentionConfig) ----
+
+  private GetObjectRetentionResponse currentRetention(
+      ObjectLockRetentionMode mode, Instant retainUntil) {
+    return GetObjectRetentionResponse.builder()
+        .retention(
+            ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntil).build())
+        .build();
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceExtend_setsRetentionWithoutBypass() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    PutObjectRetentionRequest sent = captor.getValue();
+    assertEquals(ObjectLockRetentionMode.GOVERNANCE, sent.retention().mode());
+    assertEquals(later, sent.retention().retainUntilDate());
+    org.junit.jupiter.api.Assertions.assertNull(sent.bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenWithBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_governanceShortenNoBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(earlier)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_complianceShortenEvenWithBypass_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(7200);
+    Instant earlier = current.minusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(earlier)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeDowngrade_throws() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.COMPLIANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withoutBypass_throws() {
+    // GOVERNANCE → COMPLIANCE upgrade requires bypassGovernanceRetention=true; rules helper
+    // rejects without it for uniform error reporting across providers.
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_modeUpgrade_withBypass_setsBypassTrue() {
+    String key = "test-key";
+    Instant current = Instant.now().plusSeconds(3600);
+    Instant later = current.plusSeconds(3600);
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(currentRetention(ObjectLockRetentionMode.GOVERNANCE, current));
+    when(mockS3Client.putObjectRetention(any(PutObjectRetentionRequest.class)))
+        .thenReturn(PutObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(later)
+            .bypassGovernanceRetention(Boolean.TRUE)
+            .build();
+
+    aws.updateObjectRetention(key, null, cfg);
+
+    ArgumentCaptor<PutObjectRetentionRequest> captor =
+        ArgumentCaptor.forClass(PutObjectRetentionRequest.class);
+    verify(mockS3Client).putObjectRetention(captor.capture());
+    assertEquals(ObjectLockRetentionMode.COMPLIANCE, captor.getValue().retention().mode());
+    assertEquals(Boolean.TRUE, captor.getValue().bypassGovernanceRetention());
+  }
+
+  @Test
+  void testUpdateObjectRetentionConfig_noCurrentRetention_throws() {
+    String key = "test-key";
+    when(mockS3Client.getObjectRetention(any(GetObjectRetentionRequest.class)))
+        .thenReturn(GetObjectRetentionResponse.builder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.now().plusSeconds(3600))
+            .build();
+
+    assertThrows(
+        FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
   }
 }

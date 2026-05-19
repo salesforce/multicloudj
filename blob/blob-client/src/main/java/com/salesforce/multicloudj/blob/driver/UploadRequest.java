@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.driver;
 
 import static java.util.Collections.unmodifiableMap;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import java.util.Collections;
 import java.util.Map;
 import lombok.Getter;
@@ -64,6 +65,13 @@ public class UploadRequest {
    */
   private final String contentType;
 
+  /**
+   * (Optional parameter) Per-call observability context carrying the correlation ID. If null or
+   * if its correlation ID is missing, the SDK auto-generates a UUID and returns it via the
+   * response object.
+   */
+  private final OperationContext operationContext;
+
   private UploadRequest(Builder builder) {
     this.key = builder.key;
     this.contentLength = builder.contentLength;
@@ -78,6 +86,7 @@ public class UploadRequest {
         ? builder.checksumAlgorithm
         : (builder.checksumValue != null ? ChecksumMethod.CRC32C : null);
     this.contentType = builder.contentType;
+    this.operationContext = builder.operationContext;
   }
 
   public Map<String, String> getMetadata() {
@@ -100,6 +109,7 @@ public class UploadRequest {
     private String checksumValue;
     private ChecksumMethod checksumAlgorithm;
     private String contentType;
+    private OperationContext operationContext;
 
     public Builder withKey(String key) {
       this.key = key;
@@ -154,6 +164,18 @@ public class UploadRequest {
 
     public Builder withContentType(String contentType) {
       this.contentType = contentType;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. If not set (or if the
+     * context's correlation ID is null/empty), the SDK auto-generates a UUID.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
       return this;
     }
 

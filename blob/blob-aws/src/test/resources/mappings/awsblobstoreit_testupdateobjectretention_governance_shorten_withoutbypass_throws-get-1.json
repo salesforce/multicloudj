@@ -1,0 +1,33 @@
+{
+  "id" : "ef72fb11-f5e1-4d92-8121-a4d052d463ff",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_governance_shorten_withoutBypass_throws-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/gov-shorten-no-bypass",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFJldGVudGlvbiB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48TW9kZT5HT1ZFUk5BTkNFPC9Nb2RlPjxSZXRhaW5VbnRpbERhdGU+MjAzMC0wNi0wMVQwMDowMDowMC4wMDBaPC9SZXRhaW5VbnRpbERhdGU+PC9SZXRlbnRpb24+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "8PGSS1PN64FTGXHR",
+      "x-amz-id-2" : "Ajs3u+33INSmCkehL6b9RSs+L5iWTkAiniEMEWVo5767tEomIWqvKuiNatSHYZD07ebitgwUCJM=",
+      "Date" : "Mon, 11 May 2026 10:39:01 GMT"
+    }
+  },
+  "uuid" : "ef72fb11-f5e1-4d92-8121-a4d052d463ff",
+  "persistent" : true,
+  "insertionIndex" : 705
+}

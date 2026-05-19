@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.aws;
 
+import com.salesforce.multicloudj.blob.aws.async.S3LoggingTransferListener;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -34,14 +35,18 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -97,9 +102,17 @@ import software.amazon.awssdk.transfer.s3.config.DownloadFilter;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryDownload;
 import software.amazon.awssdk.transfer.s3.model.CompletedDirectoryUpload;
 import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 
 public class AwsTransformer {
+
+  /**
+   * Object-metadata key under which the SDK persists the operation correlation id during upload,
+   * so the value is stored on the blob (as {@code x-amz-meta-correlation-id} in S3) and matches
+   * the correlation id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
 
   private final String bucket;
 
@@ -177,11 +190,23 @@ public class AwsTransformer {
         request.getTags().entrySet().stream()
             .map(entry -> Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
             .collect(Collectors.toList());
+
+    // Copy the application-supplied metadata and stamp the SDK's correlation id onto the
+    // stored object so it persists in S3 alongside the user's metadata. Skipped when the
+    // request carries no operation context, or when the app has supplied the same key
+    // explicitly.
+    Map<String, String> metadata = new HashMap<>(request.getMetadata());
+    if (request.getOperationContext() != null
+        && request.getOperationContext().getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId());
+    }
+
     PutObjectRequest.Builder builder =
         PutObjectRequest.builder()
             .bucket(getBucket())
             .key(request.getKey())
-            .metadata(request.getMetadata())
+            .metadata(metadata)
             .tagging(Tagging.builder().tagSet(tags).build());
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
@@ -204,15 +229,7 @@ public class AwsTransformer {
 
     // Set object lock if provided
     if (request.getObjectLock() != null) {
-      ObjectLockConfiguration lockConfig = request.getObjectLock();
-      if (lockConfig.getMode() != null) {
-        builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
-      }
-      if (lockConfig.getRetainUntilDate() != null) {
-        builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
-      }
-      builder.objectLockLegalHoldStatus(
-          lockConfig.isLegalHold() ? ObjectLockLegalHoldStatus.ON : ObjectLockLegalHoldStatus.OFF);
+      applyObjectLockToPutObjectBuilder(builder, request.getObjectLock());
     }
 
     // Set checksum if provided
@@ -244,6 +261,19 @@ public class AwsTransformer {
         return ObjectLockMode.COMPLIANCE;
       default:
         throw new InvalidArgumentException("Unknown retention mode: " + mode);
+    }
+  }
+
+  private void applyObjectLockToPutObjectBuilder(
+      PutObjectRequest.Builder builder, ObjectLockConfiguration lockConfig) {
+    if (lockConfig.getMode() != null) {
+      builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
+    }
+    if (lockConfig.getRetainUntilDate() != null) {
+      builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
+    }
+    if (lockConfig.isLegalHold()) {
+      builder.objectLockLegalHoldStatus(ObjectLockLegalHoldStatus.ON);
     }
   }
 
@@ -290,6 +320,14 @@ public class AwsTransformer {
     return builder.build();
   }
 
+  /** Builds a {@link DownloadFileRequest} for use with {@code S3TransferManager.downloadFile}. */
+  public DownloadFileRequest toRequest(DownloadRequest request, Path destinationPath) {
+    return DownloadFileRequest.builder()
+        .getObjectRequest(toRequest(request))
+        .destination(destinationPath)
+        .build();
+  }
+
   /**
    * Reading the first 500 bytes - createRangeString(0, 500) - "bytes=0-500" Reading a middle 500
    * bytes - createRangeString(123, 623) - "bytes=123-623" Reading the last 500 bytes -
@@ -300,6 +338,8 @@ public class AwsTransformer {
     return "bytes=" + (start == null ? "" : start) + "-" + (end == null ? "" : end);
   }
 
+  // S3 does not expose a separate creation timestamp
+  // objects are immutable, lastModified is the best available value
   public DownloadResponse toDownloadResponse(
       DownloadRequest downloadRequest, GetObjectResponse response) {
     return DownloadResponse.builder()
@@ -310,6 +350,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -329,6 +370,7 @@ public class AwsTransformer {
                 .versionId(response.versionId())
                 .eTag(response.eTag())
                 .lastModified(response.lastModified())
+                .createdTime(response.lastModified())
                 .metadata(response.metadata())
                 .objectSize(response.contentLength())
                 .contentType(response.contentType())
@@ -405,6 +447,7 @@ public class AwsTransformer {
         .objectSize(objectSize)
         .metadata(metadata)
         .lastModified(response.lastModified())
+        .createdTime(response.lastModified())
         .md5(eTagToMD5(eTag))
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
@@ -453,6 +496,20 @@ public class AwsTransformer {
       builder.checksumAlgorithm(toAwsChecksumAlgorithm(algo));
     }
 
+    // Set object lock if provided
+    if (request.getObjectLock() != null) {
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
+      if (lockConfig.getMode() != null) {
+        builder.objectLockMode(toAwsObjectLockMode(lockConfig.getMode()));
+      }
+      if (lockConfig.getRetainUntilDate() != null) {
+        builder.objectLockRetainUntilDate(lockConfig.getRetainUntilDate());
+      }
+      if (lockConfig.isLegalHold()) {
+        builder.objectLockLegalHoldStatus(ObjectLockLegalHoldStatus.ON);
+      }
+    }
+
     // Set content type if provided
     if (StringUtils.isNotEmpty(request.getContentType())) {
       builder.contentType(request.getContentType());
@@ -478,6 +535,11 @@ public class AwsTransformer {
       } else {
         builder.checksumCRC32C(mpp.getChecksumValue());
       }
+    }
+
+    if (StringUtils.isNotEmpty(mpu.getContentType())) {
+      builder.overrideConfiguration(
+          b -> b.putHeader("Content-Type", mpu.getContentType()));
     }
 
     return builder.build();
@@ -595,6 +657,19 @@ public class AwsTransformer {
     return downloadDirectoryRequestBuilder.build();
   }
 
+  public DownloadDirectoryRequest toDownloadDirectoryRequest(
+      DirectoryDownloadRequest request, AtomicLong totalBytesTransferred) {
+    DownloadDirectoryRequest.Builder downloadDirectoryRequestBuilder =
+        toDownloadDirectoryRequest(request).toBuilder();
+    if (request.isTransferStatusLoggingEnabled()) {
+      S3LoggingTransferListener transferListener =
+          S3LoggingTransferListener.create(totalBytesTransferred);
+      downloadDirectoryRequestBuilder.downloadFileRequestTransformer(
+          builder -> builder.addTransferListener(transferListener));
+    }
+    return downloadDirectoryRequestBuilder.build();
+  }
+
   // Return false if we want to exclude this blob from the download
   protected DownloadFilter getPrefixExclusionsFilter(List<String> prefixesToExclude) {
     return s3Object -> {
@@ -608,7 +683,7 @@ public class AwsTransformer {
   }
 
   public DirectoryDownloadResponse toDirectoryDownloadResponse(
-      CompletedDirectoryDownload completedDirectoryDownload) {
+      CompletedDirectoryDownload completedDirectoryDownload, Long totalBytesTransferred) {
     return DirectoryDownloadResponse.builder()
         .failedTransfers(
             completedDirectoryDownload.failedTransfers().stream()
@@ -619,6 +694,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 
@@ -631,26 +707,81 @@ public class AwsTransformer {
             .followSymbolicLinks(request.isFollowSymbolicLinks())
             .s3Prefix(request.getPrefix());
 
-    // Merge tags into the existing PutObjectRequest per file; putObjectRequest(Consumer) would
-    // replace it and drop bucket/key.
-    if (request.getTags() != null && !request.getTags().isEmpty()) {
+    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    boolean hasObjectLock = request.getObjectLock() != null;
+
+    // Merge tags / object lock into the existing PutObjectRequest per file;
+    // putObjectRequest(Consumer) would replace it and drop bucket/key.
+    if (hasTags || hasObjectLock) {
       List<Tag> tagSet =
-          request.getTags().entrySet().stream()
-              .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
-              .collect(Collectors.toList());
+          hasTags
+              ? request.getTags().entrySet().stream()
+                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                  .collect(Collectors.toList())
+              : null;
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
       builder.uploadFileRequestTransformer(
           fileRequestBuilder -> {
             PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
-            fileRequestBuilder.putObjectRequest(
-                existing.toBuilder().tagging(Tagging.builder().tagSet(tagSet).build()).build());
+            PutObjectRequest.Builder putBuilder = existing.toBuilder();
+            if (hasTags) {
+              putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
+            }
+            if (hasObjectLock) {
+              applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            fileRequestBuilder.putObjectRequest(putBuilder.build());
           });
     }
 
     return builder.build();
   }
 
+  public UploadDirectoryRequest toUploadDirectoryRequest(
+      DirectoryUploadRequest request, AtomicLong totalBytesTransferred) {
+    UploadDirectoryRequest.Builder builder =
+        UploadDirectoryRequest.builder()
+            .bucket(getBucket())
+            .source(Paths.get(request.getLocalSourceDirectory()))
+            .maxDepth(request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1)
+            .followSymbolicLinks(request.isFollowSymbolicLinks())
+            .s3Prefix(request.getPrefix());
+    boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
+    boolean hasObjectLock = request.getObjectLock() != null;
+    boolean transferStatusLoggingEnabled = request.isTransferStatusLoggingEnabled();
+    if (hasTags || hasObjectLock || transferStatusLoggingEnabled) {
+      S3LoggingTransferListener transferListener =
+          transferStatusLoggingEnabled
+              ? S3LoggingTransferListener.create(totalBytesTransferred)
+              : null;
+      List<Tag> tagSet =
+          hasTags
+              ? request.getTags().entrySet().stream()
+                  .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+                  .collect(Collectors.toList())
+              : null;
+      ObjectLockConfiguration lockConfig = request.getObjectLock();
+      builder.uploadFileRequestTransformer(
+          fileRequestBuilder -> {
+            PutObjectRequest existing = fileRequestBuilder.build().putObjectRequest();
+            PutObjectRequest.Builder putBuilder = existing.toBuilder();
+            if (hasTags) {
+              putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
+            }
+            if (hasObjectLock) {
+              applyObjectLockToPutObjectBuilder(putBuilder, lockConfig);
+            }
+            fileRequestBuilder.putObjectRequest(putBuilder.build());
+            if (transferListener != null) {
+              fileRequestBuilder.addTransferListener(transferListener);
+            }
+          });
+    }
+    return builder.build();
+  }
+
   public DirectoryUploadResponse toDirectoryUploadResponse(
-      CompletedDirectoryUpload completedDirectoryUpload) {
+      CompletedDirectoryUpload completedDirectoryUpload, Long totalBytesTransferred) {
     return DirectoryUploadResponse.builder()
         .failedTransfers(
             completedDirectoryUpload.failedTransfers().stream()
@@ -661,6 +792,7 @@ public class AwsTransformer {
                             .exception(item.exception())
                             .build())
                 .collect(Collectors.toList()))
+        .totalBytesTransferred(totalBytesTransferred)
         .build();
   }
 
@@ -714,6 +846,8 @@ public class AwsTransformer {
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
+        .objectLock(request.getObjectLock())
+        .contentType(request.getContentType())
         .build();
   }
 
@@ -817,14 +951,36 @@ public class AwsTransformer {
       String key,
       String versionId,
       ObjectLockRetentionMode mode,
-      java.time.Instant retainUntilDate) {
-    return PutObjectRetentionRequest.builder()
-        .bucket(getBucket())
-        .key(key)
-        .versionId(versionId)
-        .retention(
-            ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntilDate).build())
-        .build();
+      Instant retainUntilDate) {
+    return toPutObjectRetentionRequest(key, versionId, mode, retainUntilDate, false);
+  }
+
+  /**
+   * Creates a {@link PutObjectRetentionRequest} for the new {@code
+   * updateObjectRetention(key, versionId, ObjectRetentionConfig)} overload.
+   *
+   * <p>The {@code bypassGovernanceRetention} flag is set on the request only when {@code true};
+   * AWS S3 ignores the flag on COMPLIANCE objects (per design §E.7), but client-side guards in
+   * {@link com.salesforce.multicloudj.blob.driver.ObjectRetentionRules} reject the disallowed
+   * combinations before reaching this transformer, so the request shape is always valid.
+   */
+  public PutObjectRetentionRequest toPutObjectRetentionRequest(
+      String key,
+      String versionId,
+      ObjectLockRetentionMode mode,
+      Instant retainUntilDate,
+      boolean bypassGovernanceRetention) {
+    PutObjectRetentionRequest.Builder builder =
+        PutObjectRetentionRequest.builder()
+            .bucket(getBucket())
+            .key(key)
+            .versionId(versionId)
+            .retention(
+                ObjectLockRetention.builder().mode(mode).retainUntilDate(retainUntilDate).build());
+    if (bypassGovernanceRetention) {
+      builder.bypassGovernanceRetention(true);
+    }
+    return builder.build();
   }
 
   /** Creates a PutObjectLegalHoldRequest for updating legal hold status */

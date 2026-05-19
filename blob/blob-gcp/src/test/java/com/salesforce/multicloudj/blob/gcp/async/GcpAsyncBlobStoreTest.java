@@ -126,6 +126,26 @@ class GcpAsyncBlobStoreTest {
   }
 
   @Test
+  void testProviderBuilderTransferManagerPerfConfig() {
+    // Async builder delegates to GcpBlobStore.Builder via copyFrom + build(), which exercises
+    // buildTransferManager. This test asserts the perf config path goes end-to-end without
+    // breaking.
+    GcpAsyncBlobStore store =
+        (GcpAsyncBlobStore)
+            GcpAsyncBlobStore.builder()
+                .withBucket(TEST_BUCKET)
+                .withTransferManagerThreadPoolSize(15)
+                .withPartBufferSize(8L * 1024L * 1024L)
+                .withParallelDownloadsEnabled(true)
+                .withParallelUploadsEnabled(true)
+                .build();
+
+    assertNotNull(store);
+    assertEquals(GcpConstants.PROVIDER_ID, store.getProviderId());
+    assertEquals(TEST_BUCKET, store.getBucket());
+  }
+
+  @Test
   void testConstructorWithNullExecutor() {
     GcpAsyncBlobStore asyncStore =
         new GcpAsyncBlobStore(mockBlobStore, null, mockStorage, mockTransformerSupplier);
@@ -843,6 +863,18 @@ class GcpAsyncBlobStoreTest {
     assertNotNull(store);
     assertEquals("test-bucket", store.getBucket());
     assertEquals("us-central1", store.getRegion());
+  }
+
+  @Test
+  void testBuilder_WithUseTransferListener_DummyApiAccepted() {
+    GcpAsyncBlobStore.Builder builder = new GcpAsyncBlobStore.Builder();
+    builder.withBucket(TEST_BUCKET);
+    builder.withRegion(TEST_REGION);
+    builder.withStorage(mockStorage);
+    builder.withUseTransferListener(true);
+    GcpAsyncBlobStore store = builder.build();
+    assertNotNull(store);
+    assertEquals(TEST_BUCKET, store.getBucket());
   }
 
   @Test

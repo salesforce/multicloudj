@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.provider.SdkProvider;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
@@ -38,6 +39,8 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   private RetryConfig retryConfig;
   private Boolean useSystemPropertyProxyValues;
   private Boolean useEnvironmentVariableProxyValues;
+  private String quotaProjectId;
+  private TracingPolicy tracingPolicy;
 
   public BlobStoreBuilder<T> providerId(String providerId) {
     this.providerId = providerId;
@@ -168,7 +171,11 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to supply multipart threshold in bytes
+   * Method to supply multipart threshold in bytes.
+   *
+   * <p>Provider support: AWS only. GCP does not expose a multipart threshold; parallel composite
+   * uploads are controlled by {@link #withParallelUploadsEnabled(Boolean)} and the SDK decides
+   * internally when to split.
    *
    * @param thresholdBytes The threshold in bytes above which multipart upload will be used
    * @return An instance of self
@@ -190,7 +197,8 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to enable/disable parallel uploads
+   * Method to enable/disable parallel uploads. Enabling this may incur additional
+   * per-part request charges depending on the provider.
    *
    * @param parallelUploadsEnabled Whether to enable parallel uploads
    * @return An instance of self
@@ -212,7 +220,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set target throughput in Gbps
+   * Method to set target throughput in Gbps.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not have an equivalent setting;
+   * this value is ignored when using the GCP provider.
    *
    * @param targetThroughputInGbps The target throughput in Gbps
    * @return An instance of self
@@ -223,7 +234,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum native memory limit in bytes
+   * Method to set maximum native memory limit in bytes.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not use native memory management;
+   * this value is ignored when using the GCP provider.
    *
    * @param maxNativeMemoryLimitInBytes The maximum native memory limit in bytes
    * @return An instance of self
@@ -234,7 +248,10 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set initial read buffer size in bytes
+   * Method to set initial read buffer size in bytes.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not expose an equivalent read buffer
+   * configuration; this value is ignored when using the GCP provider.
    *
    * @param initialReadBufferSizeInBytes The initial read buffer size in bytes
    * @return An instance of self
@@ -245,7 +262,12 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum concurrency
+   * Method to set maximum concurrency.
+   *
+   * <p>Provider support: AWS only (S3 CRT client). GCP does not have a separate
+   * concurrency setting — under HTTP/1.1, connection count equals concurrency,
+   * so {@link #withMaxConnections(Integer)} implicitly controls max concurrency.
+   * This value is ignored when using the GCP provider.
    *
    * @param maxConcurrency The maximum number of concurrent operations
    * @return An instance of self
@@ -268,7 +290,13 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   }
 
   /**
-   * Method to set maximum concurrency for directory transfers in S3 Transfer Manager
+   * Method to set maximum concurrency for directory transfers in S3 Transfer Manager.
+   *
+   * <p>Provider support: AWS only. GCP does not have a separate directory concurrency
+   * setting — each GCP TransferManager worker handles one file at a time with no
+   * intra-worker concurrency, so directory parallelism equals the worker pool size
+   * configured via {@link #withTransferManagerThreadPoolSize(Integer)}.
+   * This value is ignored when using the GCP provider.
    *
    * @param transferDirectoryMaxConcurrency The maximum number of concurrent file transfers during
    *     directory operations
@@ -318,6 +346,32 @@ public abstract class BlobStoreBuilder<T extends SdkService> implements SdkProvi
   public BlobStoreBuilder<T> withUseEnvironmentVariableProxyValues(
       Boolean useEnvironmentVariableProxyValues) {
     this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
+    return this;
+  }
+
+  /**
+   * Method to supply a quota project ID. For GCP, this is the project ID used for billing and quota
+   * attribution. Other providers may ignore this setting.
+   *
+   * @param quotaProjectId The project ID to use for quota and billing
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withQuotaProjectId(String quotaProjectId) {
+    this.quotaProjectId = quotaProjectId;
+    return this;
+  }
+
+  /**
+   * Method to supply the per-client tracing policy. Resolution order at runtime is per-client
+   * &gt; global default &gt; {@link TracingPolicy#DISABLED}. Default behavior (when not set) is no
+   * spans created and zero behavior change for existing callers; the correlation ID is still
+   * populated in MDC for log correlation.
+   *
+   * @param tracingPolicy the tracing policy
+   * @return An instance of self
+   */
+  public BlobStoreBuilder<T> withTracingPolicy(TracingPolicy tracingPolicy) {
+    this.tracingPolicy = tracingPolicy;
     return this;
   }
 }

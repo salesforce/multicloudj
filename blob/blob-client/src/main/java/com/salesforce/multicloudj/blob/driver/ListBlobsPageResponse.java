@@ -15,6 +15,10 @@ public class ListBlobsPageResponse {
   private final boolean isTruncated;
   private final String nextPageToken;
 
+  public ListBlobsPageResponse(List<BlobInfo> blobs, boolean isTruncated, String nextPageToken) {
+    this(blobs, List.of(), isTruncated, nextPageToken);
+  }
+
   public ListBlobsPageResponse(
       List<BlobInfo> blobs,
       List<String> commonPrefixes,

@@ -9,6 +9,8 @@ import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -26,6 +28,8 @@ import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -50,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -71,6 +76,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,9 +93,17 @@ public abstract class AbstractBlobStoreIT {
 
     /**
      * Whether this provider supports object lock (WORM). When false, object lock conformance
-     * tests are skipped.
+     * tests are skipped. Defaults to false — providers must explicitly opt in.
      */
     default boolean isObjectLockSupported() {
+      return false;
+    }
+
+    /**
+     * Whether this provider supports directory upload. When false, directory upload conformance
+     * tests are skipped.
+     */
+    default boolean isDirectoryUploadSupported() {
       return true;
     }
 
@@ -149,6 +163,10 @@ public abstract class AbstractBlobStoreIT {
         throw new UnSupportedOperationException("SHA-256 not available", e);
       }
     }
+
+    default List<String> getWiremockExtensions() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -158,21 +176,30 @@ public abstract class AbstractBlobStoreIT {
   private static final String GCP_PROVIDER_ID = "gcp";
   private static final String ALI_PROVIDER_ID = "ali";
 
-  /** Initializes the WireMock server before all tests. */
+  /**
+   * Initializes the WireMock server before all tests.
+   */
   @BeforeAll
   public void initializeWireMockServer() {
     harness = createHarness();
-    TestsUtil.startWireMockServer("src/test/resources", harness.getPort());
+    TestsUtil.startWireMockServer(
+        "src/test/resources",
+        harness.getPort(),
+        harness.getWiremockExtensions().toArray(new String[0]));
   }
 
-  /** Shuts down the WireMock server after all tests. */
+  /**
+   * Shuts down the WireMock server after all tests.
+   */
   @AfterAll
   public void shutdownWireMockServer() throws Exception {
     TestsUtil.stopWireMockServer();
     harness.close();
   }
 
-  /** Initialize the harness and */
+  /**
+   * Initialize the harness and
+   */
   @BeforeEach
   public void setupTestEnvironment(TestInfo testInfo) {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
@@ -181,7 +208,9 @@ public abstract class AbstractBlobStoreIT {
     TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
   }
 
-  /** Cleans up the test environment after each test. */
+  /**
+   * Cleans up the test environment after each test.
+   */
   @AfterEach
   public void cleanupTestEnvironment() {
     TestsUtil.stopWireMockRecording();
@@ -203,7 +232,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testInvalidCredentials() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the blobstore driver for a bucket that exists, but use invalid credentialsOverrider
     AbstractBlobStore blobStore = harness.createBlobStore(true, false, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -413,14 +441,12 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpload_emptyContent() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_emptyContent", "conformance-tests/upload/emptyContent", new byte[] {}, false);
   }
 
   @Test
   public void testUpload_happyPath() {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     runUploadTests(
         "testUpload_happyPath",
         "conformance-tests/upload/happyPath",
@@ -539,6 +565,37 @@ public abstract class AbstractBlobStoreIT {
         "conformance-tests/download_happy",
         "conformance-tests/download_happy",
         false);
+  }
+
+  /**
+   * {@link DownloadRequest.Builder#withCreateParentPath(boolean)}: object key contains slashes and
+   * content is written under a destination directory preserving that layout.
+   */
+  @Test
+  public void testDownload_createParentPath() throws IOException {
+    String key = "conformance-tests/download_create_parent/nested/object_unversioned";
+    runDownloadTest(
+        "create parent path file download",
+        key,
+        key,
+        false,
+        DownloadType.File,
+        true,
+        true,
+        false,
+        false,
+        true);
+    runDownloadTest(
+        "create parent path path download",
+        key,
+        key,
+        false,
+        DownloadType.Path,
+        true,
+        true,
+        false,
+        false,
+        true);
   }
 
   @Test
@@ -673,6 +730,55 @@ public abstract class AbstractBlobStoreIT {
       boolean useCorrectVersionId,
       boolean wantError)
       throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        false,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload)
+      throws IOException {
+    runDownloadTest(
+        testName,
+        uploadKey,
+        downloadKey,
+        useVersionedBucket,
+        downloadType,
+        downloadUsingVersionId,
+        useCorrectVersionId,
+        wantError,
+        parallelDownload,
+        false);
+  }
+
+  private void runDownloadTest(
+      String testName,
+      String uploadKey,
+      String downloadKey,
+      boolean useVersionedBucket,
+      DownloadType downloadType,
+      boolean downloadUsingVersionId,
+      boolean useCorrectVersionId,
+      boolean wantError,
+      boolean parallelDownload,
+      boolean createParentPath)
+      throws IOException {
     // Test data
     String blobData = "This is test data";
     byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -707,11 +813,14 @@ public abstract class AbstractBlobStoreIT {
         requestBuilder.withVersionId(
             useCorrectVersionId ? uploadResponse.getVersionId() : "fakeVersionId");
       }
+      requestBuilder.withParallelDownload(parallelDownload);
+      requestBuilder.withCreateParentPath(createParentPath);
       DownloadRequest request = requestBuilder.build();
       DownloadResponse response;
       byte[] content;
       try {
-        Pair<DownloadResponse, byte[]> result = readContent(bucketClient, request, downloadType);
+        Pair<DownloadResponse, byte[]> result =
+            readContent(bucketClient, request, downloadType, createParentPath);
         response = result.getLeft();
         content = result.getRight();
         Assertions.assertEquals(
@@ -736,6 +845,8 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getMetadata().getETag(), testName + ": etag was missing");
       Assertions.assertNotNull(
           response.getMetadata().getLastModified(), testName + ": lastModified was missing");
+      Assertions.assertNotNull(
+          response.getMetadata().getCreatedTime(), testName + ": createdTime was missing");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, uploadKey);
@@ -846,9 +957,20 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading content using the overloaded download() types */
+  /**
+   * Helper function for downloading content using the overloaded download() types
+   */
   private Pair<DownloadResponse, byte[]> readContent(
       BucketClient bucketClient, DownloadRequest request, DownloadType downloadType)
+      throws IOException {
+    return readContent(bucketClient, request, downloadType, false);
+  }
+
+  private Pair<DownloadResponse, byte[]> readContent(
+      BucketClient bucketClient,
+      DownloadRequest request,
+      DownloadType downloadType,
+      boolean createParentPath)
       throws IOException {
     byte[] content = null;
     DownloadResponse response = null;
@@ -857,7 +979,7 @@ public abstract class AbstractBlobStoreIT {
         response = bucketClient.download(request);
         if (response.getInputStream() != null) {
           try (InputStream inputStream = response.getInputStream();
-              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+               ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -873,22 +995,64 @@ public abstract class AbstractBlobStoreIT {
         content = byteArray.getBytes();
         break;
       case File:
-        Path path = Files.createTempFile("tempFile", ".txt");
-        File file = path.toFile();
-        file.delete();
-        response = bucketClient.download(request, file);
-        content = Files.readAllBytes(path);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir.toFile());
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path = Files.createTempFile("tempFile", ".txt");
+          File file = path.toFile();
+          file.delete();
+          response = bucketClient.download(request, file);
+          content = Files.readAllBytes(path);
+        }
         break;
       case Path:
-        Path path2 = Files.createTempFile("tempPath", ".txt");
-        path2.toFile().delete();
-        response = bucketClient.download(request, path2);
-        content = Files.readAllBytes(path2);
+        if (createParentPath) {
+          Path rootDir = Files.createTempDirectory("mcbj-create-parent-");
+          try {
+            response = bucketClient.download(request, rootDir);
+            Path dataPath = rootDir.resolve(request.getKey()).normalize();
+            content = Files.readAllBytes(dataPath);
+          } finally {
+            deleteRecursivelyQuietly(rootDir);
+          }
+        } else {
+          Path path2 = Files.createTempFile("tempPath", ".txt");
+          path2.toFile().delete();
+          response = bucketClient.download(request, path2);
+          content = Files.readAllBytes(path2);
+        }
         break;
       default:
         throw new IllegalArgumentException("Unsupported download type: " + downloadType);
     }
     return new ImmutablePair<>(response, content);
+  }
+
+  private static void deleteRecursivelyQuietly(Path root) {
+    if (root == null || !Files.exists(root)) {
+      return;
+    }
+    try (var paths = Files.walk(root)) {
+      paths.sorted(Comparator.reverseOrder()).forEach(AbstractBlobStoreIT::deletePathQuietly);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class)
+          .debug("Failed to walk temp directory for cleanup: {}", root, e);
+    }
+  }
+
+  private static void deletePathQuietly(Path p) {
+    try {
+      Files.deleteIfExists(p);
+    } catch (IOException e) {
+      LoggerFactory.getLogger(AbstractBlobStoreIT.class).debug("Failed to delete path: {}", p, e);
+    }
   }
 
   // Note: This tests delete for non-versioned buckets
@@ -1100,7 +1264,7 @@ public abstract class AbstractBlobStoreIT {
       UploadResponse uploadResponse1;
       UploadResponse uploadResponse2;
       try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-          InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+           InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
         UploadRequest request1 =
             new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
         uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -1478,7 +1642,7 @@ public abstract class AbstractBlobStoreIT {
 
     // Verify the copied contents are the same
     try (ByteArrayOutputStream originalOutputStream = new ByteArrayOutputStream();
-        ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
+         ByteArrayOutputStream destOutputStream = new ByteArrayOutputStream()) {
 
       bucketClient.download(
           new DownloadRequest.Builder()
@@ -1790,13 +1954,13 @@ public abstract class AbstractBlobStoreIT {
     String prefixKey = baseKey + "/prefix";
     String[] keys =
         new String[] {
-          baseKey,
-          prefixKey + "-1",
-          prefixKey + "-2",
-          prefixKey + "_3",
-          prefixKey + "-4",
-          prefixKey + "-5",
-          prefixKey + "_6"
+            baseKey,
+            prefixKey + "-1",
+            prefixKey + "-2",
+            prefixKey + "_3",
+            prefixKey + "-4",
+            prefixKey + "-5",
+            prefixKey + "_6"
         };
     byte[] blobBytes = "Default content for this blob".getBytes(StandardCharsets.UTF_8);
 
@@ -1921,10 +2085,10 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-basic/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -1968,10 +2132,10 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-nested/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir1/b.txt",
-      base + "dir2/c.txt",
-      base + "root.txt"
+        base + "dir1/a.txt",
+        base + "dir1/b.txt",
+        base + "dir2/c.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2010,8 +2174,8 @@ public abstract class AbstractBlobStoreIT {
 
     String base = "conformance-tests/common-prefix-all-dirs/";
     String[] keys = {
-      base + "dir1/a.txt",
-      base + "dir2/b.txt"
+        base + "dir1/a.txt",
+        base + "dir2/b.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2052,10 +2216,10 @@ public abstract class AbstractBlobStoreIT {
     // 3 virtual dirs + 1 top-level blob = 4 total entries; maxResults=2 forces 2 pages
     String base = "conformance-tests/common-prefix-multipage/";
     String[] keys = {
-      base + "a/file.txt",
-      base + "b/file.txt",
-      base + "c/file.txt",
-      base + "root.txt"
+        base + "a/file.txt",
+        base + "b/file.txt",
+        base + "c/file.txt",
+        base + "root.txt"
     };
     byte[] content = "test".getBytes(StandardCharsets.UTF_8);
 
@@ -2389,11 +2553,12 @@ public abstract class AbstractBlobStoreIT {
             uploadResponse.getETag(),
             blobMetadata.getETag(),
             testConfig.testName + ": The metadata etag does not match the original");
-        Assertions.assertEquals(
+        assertUserMetadataEquals(
             testConfig.expectedMetadata,
             blobMetadata.getMetadata(),
             testConfig.testName + ": The metadata does not match the original");
         Assertions.assertNotNull(blobMetadata.getLastModified());
+        Assertions.assertNotNull(blobMetadata.getCreatedTime());
       }
     } finally {
       // Delete our blob to clean up the test
@@ -2413,11 +2578,15 @@ public abstract class AbstractBlobStoreIT {
         () -> bucketClient.getMetadata("conformance-tests/non-existent-blob", null));
   }
 
-  /** Fixed retainUntil for object lock tests so WireMock replay matches recorded request body. */
+  /**
+   * Fixed retainUntil for object lock tests so WireMock replay matches recorded request body.
+   */
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE =
       Instant.parse("2026-03-11T15:47:28.252Z");
   private static final Instant OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE =
       Instant.parse("2026-03-11T15:47:25.512Z");
+  private static final Instant OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD =
+      Instant.parse("2030-04-30T00:00:00Z");
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
@@ -2426,7 +2595,8 @@ public abstract class AbstractBlobStoreIT {
 
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
-    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_GOVERNANCE;
+    // Keep retainUntil in the future so record mode remains valid over time.
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2552,6 +2722,408 @@ public abstract class AbstractBlobStoreIT {
         () -> bucketClient.getObjectLock("conformance-tests/objectlock/nonexistent", null));
   }
 
+  // ------------------------------------------------------------------------------------
+  // Conformance tests for updateObjectRetention(key, versionId, ObjectRetentionConfig)
+  //
+  // These verify that AWS, GCP, and the in-memory provider behave identically against the
+  // (config.mode, config.bypassGovernanceRetention, current state, new date vs current)
+  // rules table documented on BlobStore#updateObjectRetention(String, String,
+  // ObjectRetentionConfig).
+  // ------------------------------------------------------------------------------------
+
+  /** Fixed retain-until pair for update-retention tests; second value is later than first. */
+  private static final Instant UPDATE_RETENTION_INITIAL =
+      Instant.parse("2030-01-01T00:00:00Z");
+  private static final Instant UPDATE_RETENTION_EXTENDED =
+      Instant.parse("2030-06-01T00:00:00Z");
+  private static final Instant UPDATE_RETENTION_SHORTENED =
+      Instant.parse("2030-02-01T00:00:00Z");
+
+  /**
+   * Helper to upload a key with a specific retention configuration so the update-retention
+   * conformance tests have a known starting state.
+   */
+  private void uploadWithRetention(
+      BucketClient bucketClient, String key, RetentionMode mode, Instant retainUntil)
+      throws IOException {
+    byte[] content = ("retention-update-" + key).getBytes(StandardCharsets.UTF_8);
+    ObjectLockConfiguration lockConfig =
+        ObjectLockConfiguration.builder()
+            .mode(mode)
+            .retainUntilDate(retainUntil)
+            .legalHold(false)
+            .build();
+    try (InputStream inputStream = new ByteArrayInputStream(content)) {
+      bucketClient.upload(
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withObjectLock(lockConfig)
+              .withChecksumValue(harness.computeChecksum(content))
+              .build(),
+          inputStream);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_extend_succeeds() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/gov-extend";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertEquals(RetentionMode.GOVERNANCE, info.getMode());
+      Assertions.assertEquals(UPDATE_RETENTION_EXTENDED, info.getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_compliance_extend_succeeds() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/comp-extend";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_EXTENDED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_shorten_withBypass_succeeds()
+      throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/gov-shorten-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_EXTENDED);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build());
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_SHORTENED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_governance_shorten_withoutBypass_throws()
+      throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/gov-shorten-no-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_EXTENDED);
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withBypass_succeeds()
+      throws IOException {
+    // Mode upgrade requires bypassGovernanceRetention=true on both AWS and GCP — the cloud
+    // treats the lock-mode change as a modification of the existing lock. The rules helper
+    // mirrors that and rejects upgrade without bypass.
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/mode-upgrade";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build());
+
+      ObjectLockInfo info = bucketClient.getObjectLock(key, null);
+      Assertions.assertEquals(RetentionMode.COMPLIANCE, info.getMode());
+      Assertions.assertEquals(UPDATE_RETENTION_EXTENDED, info.getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withoutBypass_throws()
+      throws IOException {
+    // Without bypassGovernanceRetention=true, the cloud rejects the lock-mode change.
+    // The rules helper rejects this client-side for uniform error reporting.
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/mode-upgrade-no-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws()
+      throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/mode-downgrade";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_INITIAL);
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_compliance_shorten_evenWithBypass_throws()
+      throws IOException {
+    // bypassGovernanceRetention=true CANNOT rescue a shorten on COMPLIANCE/LOCKED — both AWS
+    // and GCP ignore the flag on the immutable mode. MultiCloudJ surfaces a uniform
+    // FailedPreconditionException client-side rather than waiting for HTTP 403 from AWS or
+    // HTTP 400/412 from GCP.
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/comp-shorten-bypass";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_EXTENDED);
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.COMPLIANCE)
+              .retainUntilDate(UPDATE_RETENTION_SHORTENED)
+              .bypassGovernanceRetention(Boolean.TRUE)
+              .build();
+      Assertions.assertThrows(
+          Exception.class, () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_noCurrentRetention_throws() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    // Upload WITHOUT retention config — object has no retention set.
+    String key = "conformance-tests/objectlock/update/no-current-retention";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      byte[] content = "no-retention".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build();
+      Assertions.assertThrows(
+          FailedPreconditionException.class,
+          () -> bucketClient.updateObjectRetention(key, null, cfg));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled(
+      "Backward-compat verification covered by deprecated-method tests in"
+          + " AbstractBlobStoreTest; full IT path requires the Instant overload to be exercised"
+          + " against a recorded WireMock fixture, which is generated alongside the new overload"
+          + " fixtures.")
+  public void testUpdateObjectRetention_deprecatedInstantOverload_stillWorks() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/deprecated-path";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
+
+      // Deprecated Instant overload — must keep working with unchanged semantics.
+      bucketClient.updateObjectRetention(key, null, UPDATE_RETENTION_EXTENDED);
+
+      Assertions.assertEquals(
+          UPDATE_RETENTION_EXTENDED, bucketClient.getObjectLock(key, null).getRetainUntilDate());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUpdateObjectRetention_nullConfig_throws() {
+    // Stateless validation in BlobStoreValidator runs before any provider hook —
+    // so this test does NOT need a provider implementation to pass. Verifies that the
+    // template (AbstractBlobStore.updateObjectRetention) invokes the validator.
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // BucketClient wraps IllegalArgumentException in InvalidArgumentException via
+    // ExceptionHandler; assert on the wrapper for parity with other client-level tests.
+    Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
+        () ->
+            bucketClient.updateObjectRetention(
+                "conformance-tests/objectlock/null-config",
+                null,
+                (com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig) null));
+  }
+
+  @Test
+  public void testUpdateObjectRetention_nullRetainUntilDate_throws() {
+    // Stateless validation. Same as above — does not require a provider implementation.
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .build(); // retainUntilDate intentionally null
+
+    Assertions.assertThrows(
+        com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
+        () ->
+            bucketClient.updateObjectRetention(
+                "conformance-tests/objectlock/null-date", null, cfg));
+  }
+
+  @Test
+  public void testUpdateObjectRetention_legalHoldPreservedAcrossUpdate() throws IOException {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    String key = "conformance-tests/objectlock/update/legalhold-preserved";
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      // Upload with retention + legal hold ON.
+      byte[] content = "legalhold-preserved".getBytes(StandardCharsets.UTF_8);
+      ObjectLockConfiguration lockConfig =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_INITIAL)
+              .legalHold(true)
+              .build();
+      try (InputStream inputStream = new ByteArrayInputStream(content)) {
+        bucketClient.upload(
+            new UploadRequest.Builder()
+                .withKey(key)
+                .withContentLength(content.length)
+                .withObjectLock(lockConfig)
+                .withChecksumValue(harness.computeChecksum(content))
+                .build(),
+            inputStream);
+      }
+
+      bucketClient.updateObjectRetention(
+          key,
+          null,
+          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(UPDATE_RETENTION_EXTENDED)
+              .build());
+
+      Assertions.assertTrue(
+          bucketClient.getObjectLock(key, null).isLegalHold(),
+          "Legal hold should be preserved across retention update");
+    } finally {
+      // Release the legal hold before delete (else cleanup hangs on AWS).
+      try {
+        bucketClient.updateLegalHold(key, null, false);
+      } catch (Exception ignored) {
+        // Best-effort cleanup; continues to safeDeleteBlobs.
+      }
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   @Test
   public void testGetVersionedMetadata() throws IOException {
 
@@ -2595,14 +3167,14 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(v1Metadata);
       Assertions.assertEquals(v1Metadata.getKey(), uploadResponse1.getKey());
       Assertions.assertEquals(v1Metadata.getVersionId(), uploadResponse1.getVersionId());
-      Assertions.assertEquals(v1Metadata.getMetadata(), metadata1);
+      assertUserMetadataEquals(metadata1, v1Metadata.getMetadata(), "v1 metadata mismatch");
 
       // Now verify the metadata from v2
       BlobMetadata v2Metadata = bucketClient.getMetadata(key, uploadResponse2.getVersionId());
       Assertions.assertNotNull(v2Metadata);
       Assertions.assertEquals(v2Metadata.getKey(), uploadResponse2.getKey());
       Assertions.assertEquals(v2Metadata.getVersionId(), uploadResponse2.getVersionId());
-      Assertions.assertEquals(v2Metadata.getMetadata(), metadata2);
+      assertUserMetadataEquals(metadata2, v2Metadata.getMetadata(), "v2 metadata mismatch");
     } finally {
       // Delete our blob to clean up the test
       safeDeleteBlobs(bucketClient, key);
@@ -2643,6 +3215,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   static class MultipartUploadTestConfig {
+    // The client defaults to binary (application/octet-stream). Override to text/plain here
+    // so that WireMock records body patterns as text instead of binary.
+    private static final String DEFAULT_CONTENT_TYPE = "text/plain";
     final String testName;
     final String key;
     final Map<String, String> metadata;
@@ -2652,6 +3227,7 @@ public abstract class AbstractBlobStoreIT {
     final boolean wantCompletionError;
     final String kmsKeyId;
     final Map<String, String> tags;
+    final String contentType;
 
     public MultipartUploadTestConfig(
         String testName,
@@ -2670,7 +3246,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           null,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2691,7 +3268,8 @@ public abstract class AbstractBlobStoreIT {
           abortUpload,
           wantCompletionError,
           kmsKeyId,
-          null);
+          null,
+          DEFAULT_CONTENT_TYPE);
     }
 
     public MultipartUploadTestConfig(
@@ -2704,6 +3282,30 @@ public abstract class AbstractBlobStoreIT {
         boolean wantCompletionError,
         String kmsKeyId,
         Map<String, String> tags) {
+      this(
+          testName,
+          key,
+          metadata,
+          partsToUpload,
+          partsToComplete,
+          abortUpload,
+          wantCompletionError,
+          kmsKeyId,
+          tags,
+          DEFAULT_CONTENT_TYPE);
+    }
+
+    public MultipartUploadTestConfig(
+        String testName,
+        String key,
+        Map<String, String> metadata,
+        List<MultipartUploadTestPart> partsToUpload,
+        List<MultipartUploadPartResult> partsToComplete,
+        boolean abortUpload,
+        boolean wantCompletionError,
+        String kmsKeyId,
+        Map<String, String> tags,
+        String contentType) {
       this.testName = testName;
       this.key = key;
       this.metadata = metadata;
@@ -2713,6 +3315,7 @@ public abstract class AbstractBlobStoreIT {
       this.wantCompletionError = wantCompletionError;
       this.kmsKeyId = kmsKeyId;
       this.tags = tags;
+      this.contentType = contentType;
     }
   }
 
@@ -2735,6 +3338,9 @@ public abstract class AbstractBlobStoreIT {
       }
       if (testConfig.tags != null && !testConfig.tags.isEmpty()) {
         requestBuilder.withTags(testConfig.tags);
+      }
+      if (testConfig.contentType != null) {
+        requestBuilder.withContentType(testConfig.contentType);
       }
       MultipartUploadRequest multipartUploadRequest = requestBuilder.build();
       mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
@@ -3474,6 +4080,7 @@ public abstract class AbstractBlobStoreIT {
             metadataForUrlGeneration, downloadResponse.getMetadata().getMetadata());
         Assertions.assertNotNull(downloadResponse.getMetadata().getETag());
         Assertions.assertNotNull(downloadResponse.getMetadata().getLastModified());
+        Assertions.assertNotNull(downloadResponse.getMetadata().getCreatedTime());
 
         // Check the metadata on the object
         BlobMetadata blobMetadata = bucketClient.getMetadata(key, null);
@@ -3601,7 +4208,7 @@ public abstract class AbstractBlobStoreIT {
     UploadResponse uploadResponse2;
 
     try (InputStream inputStream1 = new ByteArrayInputStream(blobBytes1);
-        InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
+         InputStream inputStream2 = new ByteArrayInputStream(blobBytes2)) {
       UploadRequest request1 =
           new UploadRequest.Builder().withKey(key).withContentLength(blobBytes1.length).build();
       uploadResponse1 = bucketClient.upload(request1, inputStream1);
@@ -3641,7 +4248,9 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertFalse(bucketClient.doesBucketExist());
   }
 
-  /** Helper function for uploading to a presignedUrl */
+  /**
+   * Helper function for uploading to a presignedUrl
+   */
   void useHttpUrlConnectionToPut(
       Harness harness,
       URL presignedUrl,
@@ -3666,7 +4275,7 @@ public abstract class AbstractBlobStoreIT {
     connection.setRequestMethod("PUT");
 
     try (InputStream inputStream = new ByteArrayInputStream(blobBytes);
-        OutputStream out = connection.getOutputStream()) {
+         OutputStream out = connection.getOutputStream()) {
       byte[] buffer = new byte[1024];
       int bytesRead;
       while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -3679,7 +4288,9 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  /** Helper function for downloading from a presignedUrl */
+  /**
+   * Helper function for downloading from a presignedUrl
+   */
   public byte[] useHttpUrlConnectionToGet(URL presignedUrl) throws IOException {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
@@ -3694,7 +4305,9 @@ public abstract class AbstractBlobStoreIT {
     return byteArrayOutputStream.toByteArray();
   }
 
-  /** Helper function to generate the tag header value of the format tag1=value1&tag2=value2 */
+  /**
+   * Helper function to generate the tag header value of the format tag1=value1&tag2=value2
+   */
   protected String generateTagsValue(Map<String, String> tags) {
     if (tags == null || tags.isEmpty()) {
       return null;
@@ -3726,6 +4339,23 @@ public abstract class AbstractBlobStoreIT {
         // Ignore
       }
     }
+  }
+
+  /**
+   * Asserts that the user-visible portion of {@code actual} blob metadata equals {@code expected},
+   * ignoring SDK-internal entries that the blob clients stamp onto uploaded objects. Today that
+   * means the {@code correlation-id} key the SDK persists to tie a stored blob back to the trace
+   * span and logs of the upload that produced it; the value is non-deterministic per upload and is
+   * not user content, so it must not participate in user-metadata round-trip equality checks.
+   *
+   * <p>Keep this filter list in sync with the {@code CORRELATION_ID_METADATA_KEY} constants in the
+   * provider transformers.
+   */
+  private static void assertUserMetadataEquals(
+      Map<String, String> expected, Map<String, String> actual, String message) {
+    Map<String, String> filtered = new HashMap<>(actual);
+    filtered.remove("correlation-id");
+    Assertions.assertEquals(expected, filtered, message);
   }
 
   @Test
@@ -3891,7 +4521,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignedUrlWithKmsKey_nullKmsKeyId() throws IOException {
-    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/kms/presigned-url-null-key";
     Map<String, String> metadata = Map.of("key2", "value2");
     byte[] content = "Test data for presigned URL without KMS".getBytes(StandardCharsets.UTF_8);
@@ -4070,6 +4699,50 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testMultipartUpload_withContentType() {
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
+    String contentType = "text/plain";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withContentType(contentType)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu);
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse);
+      Assertions.assertNotNull(completeResponse.getEtag());
+
+      // Verify content type is set correctly on the resulting object
+      BlobMetadata metadata = bucketClient.getMetadata(expectedKey, null);
+      Assertions.assertNotNull(metadata, "Metadata should not be null");
+      Assertions.assertEquals(
+          contentType, metadata.getContentType(),
+          "Content type should match what was set in multipart upload request");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
+    }
+  }
+
+  @Test
   public void testUploadWithContentType() {
     String key = "conformance-tests/content-type/upload-with-content-type";
     byte[] content = new byte[0];
@@ -4100,6 +4773,217 @@ public abstract class AbstractBlobStoreIT {
 
     } finally {
       safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/check-archived/archived-blob";
+
+    try {
+      byte[] blobBytes = "archived content".getBytes(StandardCharsets.UTF_8);
+      try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+        UploadRequest request =
+            new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+        bucketClient.upload(request, inputStream);
+      }
+
+      bucketClient.delete(key, null);
+
+      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        bucketClient.download(
+            new DownloadRequest.Builder().withKey(key).withCheckArchived(true).build(),
+            outputStream);
+        Assertions.fail("Should have thrown ResourceNotFoundException");
+      } catch (ResourceNotFoundException e) {
+        ArchiveInfo archiveInfo = e.getArchiveInfo();
+        Assertions.assertNotNull(archiveInfo, "ArchiveInfo should be non-null for archived blob");
+        Assertions.assertTrue(archiveInfo.isArchived(), "archived flag should be true");
+        Assertions.assertFalse(archiveInfo.getVersionId().isEmpty(),
+            "versionId should not be empty");
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+          bucketClient.download(
+              new DownloadRequest.Builder()
+                  .withKey(key)
+                  .withVersionId(archiveInfo.getVersionId())
+                  .build(),
+              outputStream);
+          Assertions.assertArrayEquals(blobBytes, outputStream.toByteArray(),
+              "Should be able to download archived version by versionId");
+        }
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testDownload_checkArchived_neverExisted() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      bucketClient.download(
+          new DownloadRequest.Builder()
+              .withKey("conformance-tests/check-archived/never-existed")
+              .withCheckArchived(true)
+              .build(),
+          outputStream);
+      Assertions.fail("Should have thrown ResourceNotFoundException");
+    } catch (ResourceNotFoundException e) {
+      ArchiveInfo archiveInfo = e.getArchiveInfo();
+      if (archiveInfo != null) {
+        Assertions.assertFalse(archiveInfo.isArchived(),
+            "archived flag should be false for never-existed blob");
+      }
+    }
+  }
+
+  @Test
+  public void testUploadDirectory_WithObjectLock(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        GCP_PROVIDER_ID.equals(harness.getProviderId()),
+        "Directory upload with object lock conformance test runs only for GCP");
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+
+    // Create test files
+    Path file1 = tempDir.resolve("file1.txt");
+    Path file2 = tempDir.resolve("subdir");
+    Files.createDirectories(file2);
+    Path file2File = file2.resolve("file2.txt");
+    Files.write(file1, "content1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2File, "content2".getBytes(StandardCharsets.UTF_8));
+
+    // Fixed retainUntil to keep WireMock replay stable.
+    Instant retainUntil = OBJECT_LOCK_RETAIN_UNTIL_DIRECTORY_UPLOAD;
+    ObjectLockConfiguration objectLock =
+        ObjectLockConfiguration.builder()
+            .mode(RetentionMode.GOVERNANCE)
+            .retainUntilDate(retainUntil)
+            .legalHold(true)
+            .useEventBasedHold(false)
+            .build();
+
+    String prefix = "conformance-tests/directory-objectlock/upload-with-lock-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .objectLock(objectLock)
+            .build();
+
+    // Upload directory with object lock
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify uploaded files have object lock
+    BucketClient bucketClient = new BucketClient(blobStore);
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      int fileCount = 0;
+      while (blobs.hasNext()) {
+        BlobInfo blob = blobs.next();
+        fileCount++;
+
+        // Get object lock info for each file
+        ObjectLockInfo lockInfo = bucketClient.getObjectLock(blob.getKey(), null);
+        Assertions.assertNotNull(
+            lockInfo, "Object lock should be set on uploaded file: " + blob.getKey());
+        Assertions.assertEquals(
+            RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+        Assertions.assertTrue(lockInfo.isLegalHold(), "Legal hold should be enabled");
+        Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+      }
+
+      // Verify we found the files (at least 2 files were uploaded)
+      Assertions.assertTrue(fileCount >= 2, "Should have uploaded at least 2 files");
+    } finally {
+      ListBlobsRequest cleanupListRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      java.util.Iterator<BlobInfo> cleanupBlobs = blobStore.list(cleanupListRequest);
+      List<String> cleanupKeys = new ArrayList<>();
+      while (cleanupBlobs.hasNext()) {
+        cleanupKeys.add(cleanupBlobs.next().getKey());
+      }
+      safeDeleteBlobs(bucketClient, cleanupKeys.toArray(new String[0]));
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testMultipartUpload_withObjectLock() {
+    Assumptions.assumeTrue(
+        harness.isObjectLockSupported(), "Object lock not supported by this provider");
+
+    String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withObjectLock";
+    // Keep retainUntil in the future so record mode remains valid over time.
+    Instant retainUntil = Instant.parse("2100-01-01T00:00:00Z");
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    MultipartUpload mpu = null;
+    try {
+      // Create object lock configuration
+      ObjectLockConfiguration objectLock =
+          ObjectLockConfiguration.builder()
+              .mode(RetentionMode.GOVERNANCE)
+              .retainUntilDate(retainUntil)
+              .legalHold(false)
+              .build();
+
+      // Initiate multipart upload with object lock
+      MultipartUploadRequest multipartUploadRequest =
+          new MultipartUploadRequest.Builder()
+              .withKey(expectedKey)
+              .withMetadata(Map.of("test-key", "test-value"))
+              .withObjectLock(objectLock)
+              .build();
+      mpu = bucketClient.initiateMultipartUpload(multipartUploadRequest);
+      Assertions.assertNotNull(mpu, "Multipart upload should be initiated");
+
+      // Upload parts
+      UploadPartResponse part1Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(1, multipartBytes1));
+      UploadPartResponse part2Response =
+          bucketClient.uploadMultipartPart(mpu, new MultipartPart(2, multipartBytes2));
+
+      Assertions.assertNotNull(part1Response, "Part 1 response should not be null");
+      Assertions.assertNotNull(part2Response, "Part 2 response should not be null");
+
+      // Complete multipart upload
+      List<UploadPartResponse> partsToComplete = List.of(part1Response, part2Response);
+      MultipartUploadResponse completeResponse =
+          bucketClient.completeMultipartUpload(mpu, partsToComplete);
+
+      Assertions.assertNotNull(completeResponse, "Complete response should not be null");
+      Assertions.assertNotNull(completeResponse.getEtag(), "ETag should not be null");
+
+      // Verify object lock was applied
+      ObjectLockInfo lockInfo = bucketClient.getObjectLock(expectedKey, null);
+      Assertions.assertNotNull(lockInfo, "Object lock info should not be null");
+      Assertions.assertEquals(
+          RetentionMode.GOVERNANCE, lockInfo.getMode(), "Retention mode should be GOVERNANCE");
+      Assertions.assertFalse(lockInfo.isLegalHold(), "Legal hold should be false");
+      // Note: retainUntilDate comparison may vary slightly by provider, so we just check it exists
+      Assertions.assertNotNull(lockInfo.getRetainUntilDate(), "Retain until date should be set");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, expectedKey);
     }
   }
 }

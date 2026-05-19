@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"java-bucket-does-not-exist\",\"metadata\":{},\"name\":\"conformance-tests/blob-for-failing/testNonexistentBucket\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : false
+      "ignoreExtraElements" : true
     } ]
   },
   "response" : {

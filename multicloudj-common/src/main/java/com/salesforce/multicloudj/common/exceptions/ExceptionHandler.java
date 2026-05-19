@@ -22,6 +22,9 @@ public class ExceptionHandler {
   public static void handleAndPropagate(
       Class<? extends SubstrateSdkException> exceptionClass, Throwable t)
       throws SubstrateSdkException {
+    if (t != null && exceptionClass != null && exceptionClass.isInstance(t)) {
+      throw (SubstrateSdkException) t;
+    }
     if (exceptionClass == null) {
       throw new UnknownException(t);
     } else if (ResourceAlreadyExistsException.class.isAssignableFrom(exceptionClass)) {

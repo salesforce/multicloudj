@@ -1,12 +1,14 @@
 package com.salesforce.multicloudj.pubsub.client;
 
 import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
 import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -109,6 +111,27 @@ public class SubscriptionClient implements AutoCloseable {
   }
 
   /**
+   * Negatively acknowledges a single message, overriding the subscription's default nack
+   * visibility timeout for this call.
+   *
+   * <p>This allows callers to request a specific redelivery delay for individual messages without
+   * reconfiguring the subscription. 
+   *
+   * @param ackID The acknowledgment ID of the message to nack
+   * @param visibilityTimeout The visibility timeout to apply for this nack.
+   * @throws SubstrateSdkException If the nack operation fails
+   * @throws UnsupportedOperationException If the provider doesn't support nacking
+   */
+  public void sendNack(AckID ackID, Duration visibilityTimeout) {
+    try {
+      subscription.sendNack(ackID, visibilityTimeout);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+    }
+  }
+
+  /**
    * Negatively acknowledges multiple messages in a batch.
    *
    * <p>This is more efficient than calling sendNack multiple times. Nacked messages will be
@@ -121,6 +144,26 @@ public class SubscriptionClient implements AutoCloseable {
   public CompletableFuture<Void> sendNacks(List<AckID> ackIDs) {
     try {
       return subscription.sendNacks(ackIDs);
+    } catch (Throwable t) {
+      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
+      ExceptionHandler.handleAndPropagate(exception, t);
+      return CompletableFuture.failedFuture(t);
+    }
+  }
+
+  /**
+   * Negatively acknowledges multiple messages in a batch, overriding the subscription's default
+   * nack visibility timeout for the entire batch.
+   *
+   * @param ackIDs The list of acknowledgment IDs to nack
+   * @param visibilityTimeout The visibility timeout to apply to every nack in this batch. When
+   *     {@code null}, the subscription's default nack visibility timeout is used.
+   * @return A CompletableFuture that completes when all nacks are sent
+   * @throws UnsupportedOperationException If the provider doesn't support nacking
+   */
+  public CompletableFuture<Void> sendNacks(List<AckID> ackIDs, Duration visibilityTimeout) {
+    try {
+      return subscription.sendNacks(ackIDs, visibilityTimeout);
     } catch (Throwable t) {
       Class<? extends SubstrateSdkException> exception = subscription.getException(t);
       ExceptionHandler.handleAndPropagate(exception, t);
@@ -249,6 +292,24 @@ public class SubscriptionClient implements AutoCloseable {
     public SubscriptionClientBuilder withCredentialsOverrider(
         CredentialsOverrider credentialsOverrider) {
       this.subscriptionBuilder.withCredentialsOverrider(credentialsOverrider);
+      return this;
+    }
+
+    /**
+     * Sets the default visibility timeout applied when a message is nacked.
+     *
+     * <p>{@link Duration#ZERO} (the default), or a null value, makes nacked messages
+     * immediately available for redelivery. A positive value delays redelivery by that amount.
+     *
+     * <p>Overridden per-call by {@link SubscriptionClient#sendNack(AckID, Duration)} and
+     * {@link SubscriptionClient#sendNacks(List, Duration)}.
+     *
+     * @param nackVisibilityTimeout the visibility timeout to apply on nack
+     * @return This builder instance
+     * @throws InvalidArgumentException if {@code nackVisibilityTimeout} is negative
+     */
+    public SubscriptionClientBuilder withNackVisibilityTimeout(Duration nackVisibilityTimeout) {
+      this.subscriptionBuilder.withNackVisibilityTimeout(nackVisibilityTimeout);
       return this;
     }
 

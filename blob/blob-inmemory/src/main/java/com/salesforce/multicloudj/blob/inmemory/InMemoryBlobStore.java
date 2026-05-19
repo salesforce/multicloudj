@@ -19,11 +19,16 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -31,6 +36,7 @@ import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
@@ -59,12 +65,21 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   private static final String PROVIDER_ID = "memory";
 
+  /**
+   * Object-metadata key under which the SDK persists the operation correlation id during upload,
+   * so the value is stored on the blob alongside the user's metadata and matches the correlation
+   * id that appears in the same upload's logs and trace span.
+   */
+  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+
   // Shared storage across all instances - key is "bucket:key:versionId"
   private static final Map<String, StoredBlob> STORAGE = new ConcurrentHashMap<>();
   // Track latest version for each key - key is "bucket:key", value is versionId
   private static final Map<String, String> LATEST_VERSIONS = new ConcurrentHashMap<>();
   // Tags are per version - key is "bucket:key:versionId"
   private static final Map<String, Map<String, String>> TAGS = new ConcurrentHashMap<>();
+  // Object lock info per version - key is "bucket:key:versionId"
+  private static final Map<String, ObjectLockInfo> OBJECT_LOCKS = new ConcurrentHashMap<>();
   private static final Map<String, MultipartUploadState> MULTIPART_UPLOADS =
       new ConcurrentHashMap<>();
   // Track bucket metadata - key is bucket name
@@ -118,10 +133,21 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String versionId = UUID.randomUUID().toString();
     String versionedKey = baseKey + ":" + versionId;
 
+    // Copy the application-supplied metadata and stamp the SDK's correlation id on it so
+    // the value persists with the stored blob alongside the user's metadata. Skipped when
+    // the request carries no operation context, or when the app has supplied the same key.
+    Map<String, String> metadata = new HashMap<>(uploadRequest.getMetadata());
+    if (uploadRequest.getOperationContext() != null
+        && uploadRequest.getOperationContext().getCorrelationId() != null
+        && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      metadata.put(
+          CORRELATION_ID_METADATA_KEY,
+          uploadRequest.getOperationContext().getCorrelationId());
+    }
+
     StoredBlob blob =
         new StoredBlob(
-            content, etag, versionId, Instant.now(), uploadRequest.getMetadata(),
-            uploadRequest.getContentType());
+            content, etag, versionId, Instant.now(), metadata, uploadRequest.getContentType());
 
     STORAGE.put(versionedKey, blob);
     LATEST_VERSIONS.put(baseKey, versionId);
@@ -129,6 +155,19 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     // Store tags if provided
     if (uploadRequest.getTags() != null && !uploadRequest.getTags().isEmpty()) {
       TAGS.put(versionedKey, new HashMap<>(uploadRequest.getTags()));
+    }
+
+    // Store object lock configuration if provided
+    if (uploadRequest.getObjectLock() != null) {
+      ObjectLockConfiguration lockConfig = uploadRequest.getObjectLock();
+      OBJECT_LOCKS.put(
+          versionedKey,
+          ObjectLockInfo.builder()
+              .mode(lockConfig.getMode())
+              .retainUntilDate(lockConfig.getRetainUntilDate())
+              .legalHold(lockConfig.isLegalHold())
+              .useEventBasedHold(lockConfig.getUseEventBasedHold())
+              .build());
     }
 
     return UploadResponse.builder()
@@ -172,6 +211,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -205,6 +245,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -243,6 +284,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -257,11 +299,29 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] data =
           extractRange(blob.getData(), downloadRequest.getStart(), downloadRequest.getEnd());
-      Files.write(path, data);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+      Files.write(destinationPath, data);
       return buildDownloadResponse(downloadRequest.getKey(), blob, data.length);
     } catch (Exception e) {
       throw new UnknownException("Failed to download blob to path", e);
     }
+  }
+
+  @Override
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new UnknownException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   @Override
@@ -276,6 +336,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     }
 
     if (versionId == null) {
+      checkIfArchived(downloadRequest);
       throw new ResourceNotFoundException("Blob not found: " + downloadRequest.getKey());
     }
 
@@ -303,6 +364,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       String versionedKey = baseKey + ":" + versionId;
       STORAGE.remove(versionedKey);
       TAGS.remove(versionedKey);
+      OBJECT_LOCKS.remove(versionedKey);
 
       // If deleting the latest version, clear the latest version tracker
       String latestVersion = LATEST_VERSIONS.get(baseKey);
@@ -310,26 +372,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         LATEST_VERSIONS.remove(baseKey);
       }
     } else {
-      // Delete all versions of this key
-      String latestVersion = LATEST_VERSIONS.get(baseKey);
-      if (latestVersion != null) {
-        String versionedKey = baseKey + ":" + latestVersion;
-        STORAGE.remove(versionedKey);
-        TAGS.remove(versionedKey);
-        LATEST_VERSIONS.remove(baseKey);
-      }
-
-      // Also delete any other versions
-      List<String> keysToDelete = new ArrayList<>();
-      for (String storageKey : STORAGE.keySet()) {
-        if (storageKey.startsWith(baseKey + ":")) {
-          keysToDelete.add(storageKey);
-        }
-      }
-      for (String storageKey : keysToDelete) {
-        STORAGE.remove(storageKey);
-        TAGS.remove(storageKey);
-      }
+      // Simulate a delete marker: remove from LATEST_VERSIONS but keep data in STORAGE
+      LATEST_VERSIONS.remove(baseKey);
     }
   }
 
@@ -469,7 +513,9 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .objectSize((long) blob.getData().length)
         .metadata(blob.getMetadata())
         .lastModified(blob.getLastModified())
+        .createdTime(blob.getLastModified())
         .contentType(blob.getContentType())
+        .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
         .build();
   }
 
@@ -628,6 +674,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
+        .contentType(request.getContentType())
         .build();
   }
 
@@ -812,6 +859,22 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   // Helper methods
 
+  private void checkIfArchived(DownloadRequest downloadRequest) {
+    if (!downloadRequest.isCheckArchived()) {
+      return;
+    }
+    String baseKey = getStorageKey(downloadRequest.getKey());
+    for (String storageKey : STORAGE.keySet()) {
+      if (storageKey.startsWith(baseKey + ":")) {
+        String versionId = storageKey.substring((baseKey + ":").length());
+        throw new ResourceNotFoundException(
+            "Object is archived (delete marker): " + downloadRequest.getKey(),
+            null,
+            ArchiveInfo.builder().archived(true).versionId(versionId).build());
+      }
+    }
+  }
+
   private void validateBucketExists() {
     if (!BUCKETS.containsKey(bucket)) {
       throw new ResourceNotFoundException("Bucket not found: " + bucket);
@@ -896,6 +959,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   private DownloadResponse buildDownloadResponse(String key, StoredBlob blob, int contentLength) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -906,13 +970,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
         .build();
   }
 
   private DownloadResponse buildDownloadResponse(
       String key, StoredBlob blob, int contentLength, InputStream inputStream) {
+    String versionedKey = getStorageKey(key) + ":" + blob.getVersionId();
     return DownloadResponse.builder()
         .key(key)
         .metadata(
@@ -923,22 +990,98 @@ public class InMemoryBlobStore extends AbstractBlobStore {
                 .objectSize((long) contentLength)
                 .metadata(blob.getMetadata())
                 .lastModified(blob.getLastModified())
+                .createdTime(blob.getLastModified())
                 .contentType(blob.getContentType())
+                .objectLockInfo(OBJECT_LOCKS.get(versionedKey))
                 .build())
         .inputStream(inputStream)
         .build();
   }
 
-  @Override
-  public ObjectLockInfo getObjectLock(String key, String versionId) {
-    return null;
+  /**
+   * Resolves the versioned storage key for a blob, validating that the bucket and blob exist.
+   * If versionId is null, resolves to the latest version.
+   */
+  private String resolveVersionedKey(String key, String versionId) {
+    validateBucketExists();
+    String baseKey = getStorageKey(key);
+
+    String resolvedVersionId = versionId;
+    if (resolvedVersionId == null) {
+      resolvedVersionId = LATEST_VERSIONS.get(baseKey);
+    }
+
+    if (resolvedVersionId == null) {
+      throw new ResourceNotFoundException("Blob not found: " + key);
+    }
+
+    String versionedKey = baseKey + ":" + resolvedVersionId;
+    if (!STORAGE.containsKey(versionedKey)) {
+      throw new ResourceNotFoundException(
+          "Blob version not found: " + key + " version: " + resolvedVersionId);
+    }
+
+    return versionedKey;
   }
 
   @Override
-  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {}
+  public ObjectLockInfo getObjectLock(String key, String versionId) {
+    return OBJECT_LOCKS.get(resolveVersionedKey(key, versionId));
+  }
 
   @Override
-  public void updateLegalHold(String key, String versionId, boolean legalHold) {}
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(existing != null ? existing.getMode() : null)
+            .retainUntilDate(retainUntilDate)
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    RetentionMode currentMode = existing != null ? existing.getMode() : null;
+    Instant currentRetainUntil = existing != null ? existing.getRetainUntilDate() : null;
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    // Legal hold and useEventBasedHold are preserved across retention updates — they have their
+    // own dedicated APIs and must not be cleared by this call.
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(resolvedMode)
+            .retainUntilDate(config.getRetainUntilDate())
+            .legalHold(existing != null && existing.isLegalHold())
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
+
+  @Override
+  public void updateLegalHold(String key, String versionId, boolean legalHold) {
+    String versionedKey = resolveVersionedKey(key, versionId);
+    ObjectLockInfo existing = OBJECT_LOCKS.get(versionedKey);
+
+    OBJECT_LOCKS.put(
+        versionedKey,
+        ObjectLockInfo.builder()
+            .mode(existing != null ? existing.getMode() : null)
+            .retainUntilDate(existing != null ? existing.getRetainUntilDate() : null)
+            .legalHold(legalHold)
+            .useEventBasedHold(existing != null ? existing.getUseEventBasedHold() : null)
+            .build());
+  }
 
   // Inner classes for storage
 
@@ -1046,6 +1189,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     STORAGE.clear();
     LATEST_VERSIONS.clear();
     TAGS.clear();
+    OBJECT_LOCKS.clear();
     MULTIPART_UPLOADS.clear();
     BUCKETS.clear();
   }

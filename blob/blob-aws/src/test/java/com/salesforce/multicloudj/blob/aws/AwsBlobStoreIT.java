@@ -39,10 +39,10 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     public AbstractBlobStore createBlobStore(
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket) {
 
-      String accessKeyId = System.getenv().getOrDefault("ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
+      String accessKeyId = System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY");
       String secretAccessKey =
-          System.getenv().getOrDefault("SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
-      String sessionToken = System.getenv().getOrDefault("SESSION_TOKEN", "FAKE_SESSION_TOKEN");
+          System.getenv().getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY");
+      String sessionToken = System.getenv().getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN");
 
       if (!useValidCredentials) {
         accessKeyId = "invalidAccessKey";
@@ -126,6 +126,16 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public String getKmsKeyId() {
       return "arn:aws:kms:us-west-2:654654370895:key/faa140af-8195-49c0-9f8a-f03e9fd47d89";
+    }
+
+    @Override
+    public boolean isDirectoryUploadSupported() {
+      return false;
+    }
+
+    @Override
+    public boolean isObjectLockSupported() {
+      return true;
     }
 
     @Override

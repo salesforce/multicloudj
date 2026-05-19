@@ -1,0 +1,28 @@
+{
+  "id" : "bcadb1db-486d-4242-973b-a74503d2bbcf",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_noCurrentRetention_throws-PUT-2",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/no-current-retention",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "bm8tcmV0ZW50aW9u"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"bfe1089cb37491a8a0f7e52b9f03b4ab\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "MSEG9EA54XYTAQAA",
+      "x-amz-checksum-crc32c" : "mD6zIg==",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "0Kh9SHXhbDLrNkysPso1my2MilSpznpRN1qnkh/Qv1gLJaNEKRmvjheDJTwePDvBkkQoGnDkkQh06lZz/RHl6eCRMa6I+Lz3",
+      "x-amz-version-id" : "qDa3iFZNkHcfkQpFcafxMD4_wfrzPWgQ",
+      "Date" : "Thu, 14 May 2026 07:06:50 GMT"
+    }
+  },
+  "uuid" : "bcadb1db-486d-4242-973b-a74503d2bbcf",
+  "persistent" : true,
+  "insertionIndex" : 730
+}

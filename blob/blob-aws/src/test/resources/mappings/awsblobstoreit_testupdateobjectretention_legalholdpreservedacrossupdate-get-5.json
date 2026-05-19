@@ -1,0 +1,36 @@
+{
+  "id" : "7ba9ef94-c606-45e3-bdac-d5e05601150f",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-GET-5",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/legalhold-preserved",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFJldGVudGlvbiB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48TW9kZT5HT1ZFUk5BTkNFPC9Nb2RlPjxSZXRhaW5VbnRpbERhdGU+MjAzMC0wMS0wMVQwMDowMDowMC4wMDBaPC9SZXRhaW5VbnRpbERhdGU+PC9SZXRlbnRpb24+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "A7QYJQAM5P5M2FSP",
+      "x-amz-id-2" : "hNPFoGgc198mhCYCbZdFmvGpYnhXWOla69OYb+hkPrF4Nrk5Gbxy/mlcPouOHDta+F54esNzSm8=",
+      "Date" : "Mon, 11 May 2026 10:39:16 GMT"
+    }
+  },
+  "uuid" : "7ba9ef94-c606-45e3-bdac-d5e05601150f",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-objectlock-update-legalhold-preserved",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-objectlock-update-legalhold-preserved-2",
+  "insertionIndex" : 727
+}

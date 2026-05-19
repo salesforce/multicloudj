@@ -19,14 +19,19 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
 import com.salesforce.multicloudj.common.aws.CredentialsProvider;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -72,11 +77,14 @@ import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectVersionsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
+import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -202,10 +210,15 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response =
-        s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toOutputStream(outputStream));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -217,12 +230,17 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    ResponseBytes<GetObjectResponse> responseBytes =
-        s3Client.getObject(request, ResponseTransformer.toBytes());
-    byteArray.setBytes(responseBytes.asByteArray());
-    GetObjectResponse response = responseBytes.response();
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      ResponseBytes<GetObjectResponse> responseBytes =
+          s3Client.getObject(request, ResponseTransformer.toBytes());
+      byteArray.setBytes(responseBytes.asByteArray());
+      GetObjectResponse response = responseBytes.response();
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -234,9 +252,16 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(file));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, file.toPath());
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -248,9 +273,16 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    GetObjectResponse response = s3Client.getObject(request, ResponseTransformer.toFile(path));
-    return transformer.toDownloadResponse(downloadRequest, response);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+      GetObjectResponse response =
+          s3Client.getObject(request, ResponseTransformer.toFile(destinationPath));
+      return transformer.toDownloadResponse(downloadRequest, response);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
   }
 
   /**
@@ -262,10 +294,40 @@ public class AwsBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    GetObjectRequest request = transformer.toRequest(downloadRequest);
-    ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
-    return transformer.toDownloadResponse(
-        downloadRequest, responseInputStream.response(), responseInputStream);
+    try {
+      GetObjectRequest request = transformer.toRequest(downloadRequest);
+      ResponseInputStream<GetObjectResponse> responseInputStream = s3Client.getObject(request);
+      return transformer.toDownloadResponse(
+          downloadRequest, responseInputStream.response(), responseInputStream);
+    } catch (S3Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
+  }
+
+  private void handleArchivedObjects(DownloadRequest downloadRequest, S3Exception e) {
+    if (!downloadRequest.isCheckArchived() || e.statusCode() != 404) {
+      return;
+    }
+    boolean isDeleteMarker = e.awsErrorDetails().sdkHttpResponse()
+        .firstMatchingHeader("x-amz-delete-marker")
+        .map("true"::equals)
+        .orElse(false);
+    if (!isDeleteMarker) {
+      return;
+    }
+    ListObjectVersionsResponse versionsResponse = s3Client.listObjectVersions(
+        ListObjectVersionsRequest.builder()
+            .bucket(bucket)
+            .prefix(downloadRequest.getKey())
+            .maxKeys(2) // one for delete marker + one for actual object in stack
+            .build());
+    Iterator<ObjectVersion> it = versionsResponse.versions().iterator();
+    String versionId = it.hasNext() ? it.next().versionId() : null;
+    throw new ResourceNotFoundException(
+        "Object is archived (delete marker): " + downloadRequest.getKey(),
+        e,
+        ArchiveInfo.builder().archived(true).versionId(versionId).build());
   }
 
   /**
@@ -563,6 +625,65 @@ public class AwsBlobStore extends AbstractBlobStore {
 
     s3Client.putObjectRetention(
         transformer.toPutObjectRetentionRequest(key, versionId, currentMode, retainUntilDate));
+  }
+
+  /**
+   * Provider hook for {@link
+   * com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String, String,
+   * ObjectRetentionConfig)}.
+   *
+   * <p>Stateless validation has already run; this method enforces the state-dependent rules from
+   * {@link ObjectRetentionRules} (no-current-retention, mode-downgrade, shorten-with-bypass) so
+   * AWS surfaces the same {@code FailedPreconditionException} types and messages as GCP and the
+   * in-memory provider.
+   */
+  @Override
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    RetentionMode currentMode = null;
+    Instant currentRetainUntil = null;
+    try {
+      GetObjectRetentionResponse currentRetentionResponse =
+          s3Client.getObjectRetention(transformer.toGetObjectRetentionRequest(key, versionId));
+      if (currentRetentionResponse != null && currentRetentionResponse.retention() != null) {
+        currentMode = toMulticloudMode(currentRetentionResponse.retention().mode());
+        currentRetainUntil = currentRetentionResponse.retention().retainUntilDate();
+      }
+    } catch (S3Exception e) {
+      if (e.statusCode() != 404) {
+        throw e;
+      }
+      // 404 means no retention configured — fall through with nulls so ObjectRetentionRules
+      // rejects the request with FailedPreconditionException.
+    }
+
+    RetentionMode resolvedMode =
+        ObjectRetentionRules.resolveAndValidate(currentMode, currentRetainUntil, config);
+
+    boolean bypass = Boolean.TRUE.equals(config.getBypassGovernanceRetention());
+    s3Client.putObjectRetention(
+        transformer.toPutObjectRetentionRequest(
+            key, versionId, toAwsRetentionMode(resolvedMode), config.getRetainUntilDate(), bypass));
+  }
+
+  /**
+   * Converts a MultiCloudJ {@link RetentionMode} to an AWS {@link ObjectLockRetentionMode}.
+   * Mapping: GOVERNANCE↔GOVERNANCE, COMPLIANCE↔COMPLIANCE.
+   */
+  private static ObjectLockRetentionMode toAwsRetentionMode(RetentionMode mode) {
+    return mode == RetentionMode.COMPLIANCE
+        ? ObjectLockRetentionMode.COMPLIANCE
+        : ObjectLockRetentionMode.GOVERNANCE;
+  }
+
+  /** Inverse of {@link #toAwsRetentionMode(RetentionMode)}. */
+  private static RetentionMode toMulticloudMode(ObjectLockRetentionMode mode) {
+    if (mode == null) {
+      return null;
+    }
+    return mode == ObjectLockRetentionMode.COMPLIANCE
+        ? RetentionMode.COMPLIANCE
+        : RetentionMode.GOVERNANCE;
   }
 
   /** Updates legal hold status on an object. */

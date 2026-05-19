@@ -17,10 +17,17 @@ public class DirectoryUploadRequest {
    * the files they point to. Defaults to false.
    */
   private final boolean followSymbolicLinks;
+  private final boolean transferStatusLoggingEnabled;
 
   /**
    * (Optional parameter) The map of tagName to tagValue to be associated with all blobs in the
    * directory
    */
   private final Map<String, String> tags;
+
+  /**
+   * Optional object lock (retention / legal hold) applied to each uploaded object, including the
+   * directory marker when a prefix is used.
+   */
+  private final ObjectLockConfiguration objectLock;
 }

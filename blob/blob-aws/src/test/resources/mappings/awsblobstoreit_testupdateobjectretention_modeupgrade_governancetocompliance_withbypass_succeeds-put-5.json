@@ -1,0 +1,28 @@
+{
+  "id" : "9ed2c62b-28b4-4e75-a0c4-9827d88f2ccc",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withBypass_succeeds-PUT-5",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/mode-upgrade",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmV0ZW50aW9uLXVwZGF0ZS1jb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL3VwZGF0ZS9tb2RlLXVwZ3JhZGU="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"30b8e4f8624a5876646c9676744d4579\"",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "Y3NP09S0T1W5PDDE",
+      "x-amz-checksum-crc32c" : "d5fzBw==",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "r/Ah/1rix1qB7w8UfB13zDDzOjhrAJd4qofB0qoqvBDbxphNFDoExKyH20ssHtxh006Cq8Xt+qI=",
+      "x-amz-version-id" : "wecwb8MalD0NDhlLBRoYHTMkf2b61HWs",
+      "Date" : "Mon, 11 May 2026 10:38:40 GMT"
+    }
+  },
+  "uuid" : "9ed2c62b-28b4-4e75-a0c4-9827d88f2ccc",
+  "persistent" : true,
+  "insertionIndex" : 690
+}

@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.common.gcp.util;
 
+import com.google.auth.ServiceAccountSigner;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
@@ -28,7 +29,7 @@ public final class MockGoogleCredentialsFactory {
   }
 
   private static class MockGoogleCredentialsWithIdToken extends GoogleCredentials
-      implements IdTokenProvider {
+      implements IdTokenProvider, ServiceAccountSigner {
     private final AccessToken staticToken;
 
     MockGoogleCredentialsWithIdToken(AccessToken token) {
@@ -53,6 +54,16 @@ public final class MockGoogleCredentialsFactory {
               + "XIiLCJhdWQiOiJtdWx0aWNsb3VkaiIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxMjM0NTY3ODkwfQ"
               + ".mock-signature";
       return IdToken.create(mockJwt);
+    }
+
+    @Override
+    public String getAccount() {
+      return "mock-service-account@mock-project.iam.gserviceaccount.com";
+    }
+
+    @Override
+    public byte[] sign(byte[] toSign) {
+      return "mock-signature".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
   }
 }

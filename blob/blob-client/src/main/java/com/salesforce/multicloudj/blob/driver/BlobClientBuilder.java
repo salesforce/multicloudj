@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.TracingPolicy;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.service.SdkService;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -159,7 +160,8 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   }
 
   /**
-   * Method to enable/disable parallel uploads
+   * Method to enable/disable parallel uploads. Enabling this may incur additional
+   * per-part request charges depending on the provider.
    *
    * @param parallelUploadsEnabled Whether to enable parallel uploads
    * @return An instance of self
@@ -286,6 +288,17 @@ public abstract class BlobClientBuilder<C, S extends SdkService> {
   public BlobClientBuilder<C, S> withUseEnvironmentVariableProxyValues(
       Boolean useEnvironmentVariableProxyValues) {
     this.storeBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+    return this;
+  }
+
+  /**
+   * Method to supply the per-client tracing policy. Default is {@link TracingPolicy#DISABLED}.
+   *
+   * @param tracingPolicy the tracing policy
+   * @return An instance of self
+   */
+  public BlobClientBuilder<C, S> withTracingPolicy(TracingPolicy tracingPolicy) {
+    this.storeBuilder.withTracingPolicy(tracingPolicy);
     return this;
   }
 

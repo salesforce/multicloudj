@@ -1,0 +1,33 @@
+{
+  "id" : "2148dd34-5874-41d0-8b7c-3e9a90a09e89",
+  "name" : "AwsBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/objectlock/update/legalhold-preserved",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "legal-hold" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPExlZ2FsSG9sZCB4bWxucz0iaHR0cDovL3MzLmFtYXpvbmF3cy5jb20vZG9jLzIwMDYtMDMtMDEvIj48U3RhdHVzPk9OPC9TdGF0dXM+PC9MZWdhbEhvbGQ+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "7VMGMZZJQQYAJ5ZX",
+      "x-amz-id-2" : "vHN/522CWcNa3GZQYz9zypwf5LeUg6hJP/VXRUoWmHc5s5m5Gq6u7HfRXl5ZsRJ2e2N2cov+wFA=",
+      "Date" : "Mon, 11 May 2026 10:39:19 GMT"
+    }
+  },
+  "uuid" : "2148dd34-5874-41d0-8b7c-3e9a90a09e89",
+  "persistent" : true,
+  "insertionIndex" : 724
+}

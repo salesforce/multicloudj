@@ -1,0 +1,32 @@
+{
+  "id" : "24d51a1a-b65d-4599-a357-db10fb659905",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withContentType-DELETE-0",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-withContentType",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "7x2AIyNWenyO9C74g1BoJo6IPDywuexnGud2bmaMsBng.ALIy2U52yODC5Xw3gz9.UhdSTmiMYF3Wgjz8FONx4YTL6ddfN6WHAPNLFm3fYvMwX3qncHpDH3Jm4yZhOqNKrWKn4HGoMlQfvaSrxrB1r5hAmLu9GGvWfrDG2mWmVIfASSP7P_N.Va.0lSdy2SV"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "XG9EZ66F2YMHVPC2",
+      "x-amz-id-2" : "Ve5zAnL6WTX0jN108Gk3/nJgLTZzwC7S/G0dxZe87jCDMmsFO69mLkApJo7BsSt/DSupvau/8SFs7Q8WFR5Z8gEWaZHD401m",
+      "Date" : "Fri, 10 Apr 2026 16:16:43 GMT"
+    }
+  },
+  "uuid" : "24d51a1a-b65d-4599-a357-db10fb659905",
+  "persistent" : true,
+  "insertionIndex" : 665
+}

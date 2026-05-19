@@ -40,6 +40,10 @@ public class BlobStoreValidator {
       "Ranged read boundaries cannot be negative. start=%s end=%s";
   static final String INVALID_RANGED_READ_BOUNDARIES_MSG =
       "Ranged read start cannot be larger than end. start=%s end=%s";
+  static final String NULL_RETENTION_CONFIG_MSG =
+      "ObjectRetentionConfig cannot be null";
+  static final String NULL_RETAIN_UNTIL_DATE_MSG =
+      "ObjectRetentionConfig.retainUntilDate cannot be null";
 
   /**
    * Inspects the input string and throws an IllegalArgumentException if the input is `null`, empty,
@@ -344,5 +348,31 @@ public class BlobStoreValidator {
       throw new IllegalArgumentException(
           String.format(INVALID_RANGED_READ_BOUNDARIES_MSG, start, end));
     }
+  }
+
+  /**
+   * Performs stateless validation on an {@link ObjectRetentionConfig}.
+   *
+   * <p>Only checks invariants that do not require fetching the object's current state. Stateful
+   * checks (mode-transition rules, shorten guards, "no current retention" rejection) live in each
+   * provider implementation so the same exception type and message are surfaced uniformly across
+   * providers.
+   *
+   * <p>Notably absent: future-date validation. Neither the existing {@code
+   * updateObjectRetention(..., Instant)} method nor any provider currently performs a client-side
+   * future-date check — both defer to server-side rejection. This method preserves that behavior.
+   *
+   * @param config the configuration to validate
+   * @throws IllegalArgumentException if {@code config} or {@code config.retainUntilDate} is null
+   */
+  public void validate(ObjectRetentionConfig config) {
+    if (config == null) {
+      throw new IllegalArgumentException(NULL_RETENTION_CONFIG_MSG);
+    }
+    if (config.getRetainUntilDate() == null) {
+      throw new IllegalArgumentException(NULL_RETAIN_UNTIL_DATE_MSG);
+    }
+    // mode == null is the documented sentinel for "preserve current mode" — do NOT reject.
+    // bypassGovernanceRetention == null is the documented default for "no bypass" — do NOT reject.
   }
 }

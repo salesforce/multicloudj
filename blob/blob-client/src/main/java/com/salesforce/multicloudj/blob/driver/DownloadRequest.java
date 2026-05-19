@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import lombok.Getter;
 
 /** Wrapper object for download data */
@@ -11,6 +12,15 @@ public class DownloadRequest {
   private final Long start;
   private final Long end;
   private final String kmsKeyId;
+  private final boolean parallelDownload;
+  private final boolean createParentPath;
+  private final boolean checkArchived;
+
+  /**
+   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
+   * correlation ID is missing, the SDK auto-generates a UUID and returns it via the response.
+   */
+  private final OperationContext operationContext;
 
   private DownloadRequest(Builder builder) {
     this.key = builder.key;
@@ -18,6 +28,10 @@ public class DownloadRequest {
     this.start = builder.start;
     this.end = builder.end;
     this.kmsKeyId = builder.kmsKeyId;
+    this.parallelDownload = builder.parallelDownload;
+    this.createParentPath = builder.createParentPath;
+    this.operationContext = builder.operationContext;
+    this.checkArchived = builder.checkArchived;
   }
 
   public static Builder builder() {
@@ -30,6 +44,10 @@ public class DownloadRequest {
     private Long start;
     private Long end;
     private String kmsKeyId;
+    private boolean parallelDownload;
+    private boolean createParentPath;
+    private OperationContext operationContext;
+    private boolean checkArchived;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -87,6 +105,52 @@ public class DownloadRequest {
      */
     public Builder withKmsKeyId(String kmsKeyId) {
       this.kmsKeyId = kmsKeyId;
+      return this;
+    }
+
+    /**
+     * (Optional) Enables provider-specific parallel download optimization when supported for
+     * file-based destinations ({@code Path} / {@code File}). Ignored for {@code OutputStream} and
+     * related streaming-style downloads so content is not fully materialized to disk first.
+     * Defaults to false.
+     */
+    public Builder withParallelDownload(boolean parallelDownload) {
+      this.parallelDownload = parallelDownload;
+      return this;
+    }
+
+    /**
+     * (Optional) If true, the destination is treated as a root directory: the object key's parent
+     * path structure is preserved beneath it, and any missing parent directories are created on
+     * the local filesystem before the download is written. Only applies to file-based destinations
+     * ({@code File} / {@code Path}). Defaults to false.
+     */
+    public Builder withCreateParentPath(boolean createParentPath) {
+      this.createParentPath = createParentPath;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. If not set (or if the
+     * context's correlation ID is null/empty), the SDK auto-generates a UUID.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
+      return this;
+    }
+    
+    /**
+     * (Optional) If true and the object is not found, the provider will check whether
+     * the object was archived (deletion without version id). When
+     * an archived object is detected, the thrown ResourceNotFoundException will have a
+     * non-null ArchiveInfo with archived=true and, where available, the versionId of
+     * the latest archived version. Defaults to false.
+     */
+    public Builder withCheckArchived(boolean checkArchived) {
+      this.checkArchived = checkArchived;
       return this;
     }
 

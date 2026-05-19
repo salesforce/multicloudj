@@ -1,11 +1,14 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
@@ -248,6 +251,39 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
     doDeleteDirectory(prefix);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Deprecated path: delegates to {@link #updateObjectRetention(String, String,
+   * ObjectRetentionConfig)} with {@code mode=null} (preserve current mode) and {@code
+   * bypassGovernanceRetention=false}. This delegation gives every provider a single retention-
+   * update code path and prevents AWS/GCP behavior from drifting.
+   *
+   * <p>Note: the historical AWS implementation rejected ANY update on COMPLIANCE objects
+   * (including extension), while GCP allows extending LOCKED. Each provider's existing
+   * override of this deprecated method takes precedence over this delegate, preserving its
+   * legacy semantics; the new overload introduces a uniform rules table across providers.
+   */
+  @Override
+  @Deprecated
+  public void updateObjectRetention(
+      String key, String versionId, java.time.Instant retainUntilDate) {
+    updateObjectRetention(
+        key,
+        versionId,
+        ObjectRetentionConfig.builder()
+            .retainUntilDate(retainUntilDate)
+            .bypassGovernanceRetention(Boolean.FALSE)
+            .build());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void updateObjectRetention(String key, String versionId, ObjectRetentionConfig config) {
+    validator.validate(config);
+    doUpdateObjectRetention(key, versionId, config);
+  }
+
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream);
 
   protected abstract UploadResponse doUpload(UploadRequest uploadRequest, byte[] content);
@@ -304,6 +340,24 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract boolean doDoesBucketExist();
 
+  /**
+   * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.
+   *
+   * <p>State-dependent validation (no-current-retention rejection, mode-transition rules,
+   * shorten-with-bypass rules) lives here per design §E so all providers surface uniform
+   * exception types and messages. Stateless validation has already been performed by the
+   * template before this hook is invoked.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException} — provider
+   * implementations that do not support per-object retention (e.g. Alibaba OSS) inherit this
+   * behavior without further work.
+   */
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    throw new UnsupportedOperationException(
+        "Per-object retention updates are not supported by this substrate implementation");
+  }
+
   protected DirectoryDownloadResponse doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     throw new UnsupportedOperationException(
@@ -319,6 +373,27 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected void doDeleteDirectory(String prefix) {
     throw new UnsupportedOperationException(
         "Directory delete is not supported by this substrate implementation");
+  }
+
+  /**
+   * Resolves the local download destination; when {@link DownloadRequest#isCreateParentPath()} is
+   * true, appends the object key and creates any missing parent directories. Subclasses may
+   * override to change the exception type thrown on directory-creation failure.
+   */
+  protected Path createDownloadDestinationPath(DownloadRequest request, Path destination) {
+    if (!request.isCreateParentPath()) {
+      return destination;
+    }
+    Path resolved = destination.resolve(request.getKey()).normalize();
+    Path parent = resolved.getParent();
+    if (parent != null) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create destination directories", e);
+      }
+    }
+    return resolved;
   }
 
   public abstract static class Builder<A extends AbstractBlobStore, T extends Builder<A, T>>
