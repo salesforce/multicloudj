@@ -11,7 +11,6 @@ import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
@@ -436,7 +435,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
-    return new BlobInfoIterator(ossClient, bucket, request);
+    return new BlobInfoIterator(ossV2Client, transformer, request);
   }
 
   /**
@@ -447,23 +446,32 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-    com.aliyun.oss.model.ListObjectsRequest listRequest = transformer.toListObjectsRequest(request);
-    ObjectListing response = ossClient.listObjects(listRequest);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request listRequest =
+        transformer.toV2ListObjectsRequest(request);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result response =
+        ossV2Client.listObjectsV2(listRequest,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
 
     List<BlobInfo> blobs =
-        response.getObjectSummaries().stream()
+        response.contents().stream()
             .map(
                 objSum ->
                     new BlobInfo.Builder()
-                        .withKey(objSum.getKey())
-                        .withObjectSize(objSum.getSize())
+                        .withKey(objSum.key())
+                        .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
                         .build())
             .collect(Collectors.toList());
 
-    List<String> commonPrefixes = response.getCommonPrefixes();
+    List<String> commonPrefixes = response.commonPrefixes() != null
+        ? response.commonPrefixes().stream()
+            .map(com.aliyun.sdk.service.oss2.models.CommonPrefix::prefix)
+            .collect(Collectors.toList())
+        : List.of();
 
     return new ListBlobsPageResponse(
-        blobs, commonPrefixes, response.isTruncated(), response.getNextMarker());
+        blobs, commonPrefixes,
+        Boolean.TRUE.equals(response.isTruncated()),
+        response.nextContinuationToken());
   }
 
   /**

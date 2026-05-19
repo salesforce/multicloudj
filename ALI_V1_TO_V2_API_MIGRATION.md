@@ -32,7 +32,7 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 
 | # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
 |---|-----------|------------------------|---------------|-------------------|--------|
-| 22 | list objects | `listObjects(ListObjectsRequest)` | `listObjectsV2(ListObjectsV2Request, OperationOptions)` | `testList`, `testListPage`, `testListPage_WithDelimiter_*`, `testListPage_withTimeStamp` | Pending |
+| 22 | list objects | `listObjects(ListObjectsRequest)` | `listObjectsV2(ListObjectsV2Request, OperationOptions)` | `testList`, `testListPage`, `testListPage_WithDelimiter_*`, `testListPage_withTimeStamp` | Done |
 
 ## AliBlobClient
 

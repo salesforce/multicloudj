@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -540,27 +541,49 @@ public class AliTransformer {
         .build();
   }
 
-  public com.aliyun.oss.model.ListObjectsRequest toListObjectsRequest(
+  public com.aliyun.sdk.service.oss2.models.ListObjectsV2Request toV2ListObjectsRequest(
       ListBlobsPageRequest request) {
-    com.aliyun.oss.model.ListObjectsRequest listRequest =
-        new com.aliyun.oss.model.ListObjectsRequest(bucket);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.Builder builder =
+        com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.newBuilder()
+            .bucket(bucket);
 
     if (request.getPrefix() != null) {
-      listRequest.setPrefix(request.getPrefix());
+      builder.prefix(request.getPrefix());
     }
 
     if (request.getDelimiter() != null) {
-      listRequest.setDelimiter(request.getDelimiter());
+      builder.delimiter(request.getDelimiter());
     }
 
     if (request.getPaginationToken() != null) {
-      listRequest.setMarker(request.getPaginationToken());
+      builder.continuationToken(request.getPaginationToken());
     }
 
     if (request.getMaxResults() != null) {
-      listRequest.setMaxKeys(request.getMaxResults());
+      builder.maxKeys(request.getMaxResults().longValue());
     }
 
-    return listRequest;
+    return builder.build();
+  }
+
+  public com.aliyun.sdk.service.oss2.models.ListObjectsV2Request toV2ListObjectsRequest(
+      ListBlobsRequest request, String continuationToken) {
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.Builder builder =
+        com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.newBuilder()
+            .bucket(bucket);
+
+    if (request != null && request.getPrefix() != null) {
+      builder.prefix(request.getPrefix());
+    }
+
+    if (request != null && request.getDelimiter() != null) {
+      builder.delimiter(request.getDelimiter());
+    }
+
+    if (continuationToken != null) {
+      builder.continuationToken(continuationToken);
+    }
+
+    return builder.build();
   }
 }

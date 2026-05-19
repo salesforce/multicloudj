@@ -20,6 +20,7 @@ import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
@@ -592,7 +593,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToListObjectsRequest() {
+  void testToV2ListObjectsRequest_fromPageRequest() {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder()
             .withDelimiter(":")
@@ -601,12 +602,38 @@ public class AliTransformerTest {
             .withMaxResults(100)
             .build();
 
-    com.aliyun.oss.model.ListObjectsRequest actual = transformer.toListObjectsRequest(request);
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(request.getDelimiter(), actual.getDelimiter());
-    assertEquals(request.getPrefix(), actual.getPrefix());
-    assertEquals(request.getPaginationToken(), actual.getMarker());
-    assertEquals(request.getMaxResults(), actual.getMaxKeys());
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+        transformer.toV2ListObjectsRequest(request);
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals(request.getDelimiter(), actual.delimiter());
+    assertEquals(request.getPrefix(), actual.prefix());
+    assertEquals(request.getPaginationToken(), actual.continuationToken());
+    assertEquals(request.getMaxResults().longValue(), actual.maxKeys());
+  }
+
+  @Test
+  void testToV2ListObjectsRequest_fromListBlobsRequest() {
+    ListBlobsRequest request =
+        new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
+
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+        transformer.toV2ListObjectsRequest(request, "cont-token");
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("abc", actual.prefix());
+    assertEquals("/", actual.delimiter());
+    assertEquals("cont-token", actual.continuationToken());
+  }
+
+  @Test
+  void testToV2ListObjectsRequest_nullContinuationToken() {
+    ListBlobsRequest request =
+        new ListBlobsRequest.Builder().withPrefix("xyz").build();
+
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
+        transformer.toV2ListObjectsRequest(request, null);
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("xyz", actual.prefix());
+    assertNull(actual.continuationToken());
   }
 
 

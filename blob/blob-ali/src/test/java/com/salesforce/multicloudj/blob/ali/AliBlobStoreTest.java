@@ -25,10 +25,7 @@ import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListObjectsRequest;
 import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.OSSObjectSummary;
-import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PartETag;
 import com.aliyun.oss.model.PartListing;
@@ -533,10 +530,13 @@ public class AliBlobStoreTest {
   @Test
   void testDoListEmpty() {
     ListBlobsRequest request = new ListBlobsRequest.Builder().build();
-    List<OSSObjectSummary> list = List.of();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     Iterator<BlobInfo> iterator = ali.doList(request);
     assertThrows(
@@ -550,10 +550,14 @@ public class AliBlobStoreTest {
   void testDoList() {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    List<OSSObjectSummary> list = getList();
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getV2List();
+    when(mockResult.contents()).thenReturn(list);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     Iterator<BlobInfo> iterator = ali.doList(request);
     assertNotNull(iterator);
@@ -567,15 +571,17 @@ public class AliBlobStoreTest {
     }
   }
 
-  private List<OSSObjectSummary> getList() {
-    List<OSSObjectSummary> list = new ArrayList<>();
+  private List<com.aliyun.sdk.service.oss2.models.ObjectSummary> getV2List() {
+    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = new ArrayList<>();
     IntStream.range(1, 100)
         .forEach(
             (i) -> {
-              OSSObjectSummary mockObjectSummary = mock(OSSObjectSummary.class);
-              when(mockObjectSummary.getKey()).thenReturn("key-" + i);
-              when(mockObjectSummary.getSize()).thenReturn((long) i);
-              list.add(mockObjectSummary);
+              com.aliyun.sdk.service.oss2.models.ObjectSummary summary =
+                  com.aliyun.sdk.service.oss2.models.ObjectSummary.newBuilder()
+                      .key("key-" + i)
+                      .size((long) i)
+                      .build();
+              list.add(summary);
             });
     return list;
   }
@@ -590,30 +596,35 @@ public class AliBlobStoreTest {
             .withMaxResults(50)
             .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    List<OSSObjectSummary> list = getList();
-    when(mockObjectListing.getObjectSummaries()).thenReturn(list);
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
-    when(mockObjectListing.isTruncated()).thenReturn(true);
-    when(mockObjectListing.getNextMarker()).thenReturn("next-page-token");
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getV2List();
+    when(mockResult.contents()).thenReturn(list);
+    when(mockResult.commonPrefixes()).thenReturn(List.of());
+    when(mockResult.isTruncated()).thenReturn(true);
+    when(mockResult.nextContinuationToken()).thenReturn("next-page-token");
 
     ListBlobsPageResponse response = ali.listPage(request);
 
     // Verify the request is mapped to the SDK
-    ArgumentCaptor<ListObjectsRequest> requestCaptor =
-        ArgumentCaptor.forClass(ListObjectsRequest.class);
-    verify(mockOssClient, times(1)).listObjects(requestCaptor.capture());
-    ListObjectsRequest actualRequest = requestCaptor.getValue();
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("abc", actualRequest.getPrefix());
-    assertEquals("/", actualRequest.getDelimiter());
-    assertEquals("next-token", actualRequest.getMarker());
-    assertEquals(50, actualRequest.getMaxKeys());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.ListObjectsV2Request> requestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class);
+    verify(mockOssV2Client, times(1)).listObjectsV2(requestCaptor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actualRequest =
+        requestCaptor.getValue();
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("abc", actualRequest.prefix());
+    assertEquals("/", actualRequest.delimiter());
+    assertEquals("next-token", actualRequest.continuationToken());
+    assertEquals(50L, actualRequest.maxKeys());
 
     // Verify the response is mapped back properly
     assertNotNull(response);
-    assertEquals(99, response.getBlobs().size()); // 1 to 99
+    assertEquals(99, response.getBlobs().size());
     assertEquals(List.of(), response.getCommonPrefixes());
     assertEquals(true, response.isTruncated());
     assertEquals("next-page-token", response.getNextPageToken());
@@ -628,12 +639,15 @@ public class AliBlobStoreTest {
   @Test
   void testDoListPageEmpty() {
     ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of());
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of());
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -649,12 +663,17 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/", "dir2/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("dir1/").build(),
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("dir2/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -669,16 +688,22 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    OSSObjectSummary summary = new OSSObjectSummary();
-    summary.setKey("root.txt");
-    summary.setSize(100L);
+    com.aliyun.sdk.service.oss2.models.ObjectSummary summary =
+        com.aliyun.sdk.service.oss2.models.ObjectSummary.newBuilder()
+            .key("root.txt")
+            .size(100L)
+            .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("dir1/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(summary));
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("dir1/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -693,12 +718,18 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").withMaxResults(5).build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of());
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(List.of("a/", "b/", "c/"));
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of());
+    when(mockResult.commonPrefixes()).thenReturn(List.of(
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("a/").build(),
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("b/").build(),
+        com.aliyun.sdk.service.oss2.models.CommonPrefix.newBuilder().prefix("c/").build()));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
     ListBlobsPageResponse response = ali.listPage(request);
 
@@ -710,27 +741,30 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoListPage_NullCommonPrefixes() {
-    // OSS SDK may return null for getCommonPrefixes() in some cases — verify no NPE
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder().withDelimiter("/").build();
 
-    OSSObjectSummary summary = new OSSObjectSummary();
-    summary.setKey("file.txt");
-    summary.setSize(50L);
+    com.aliyun.sdk.service.oss2.models.ObjectSummary summary =
+        com.aliyun.sdk.service.oss2.models.ObjectSummary.newBuilder()
+            .key("file.txt")
+            .size(50L)
+            .build();
 
-    ObjectListing mockObjectListing = mock(ObjectListing.class);
-    when(mockOssClient.listObjects((ListObjectsRequest) any())).thenReturn(mockObjectListing);
-    when(mockObjectListing.getObjectSummaries()).thenReturn(List.of(summary));
-    when(mockObjectListing.getCommonPrefixes()).thenReturn(null);
-    when(mockObjectListing.isTruncated()).thenReturn(false);
-    when(mockObjectListing.getNextMarker()).thenReturn(null);
+    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
+    when(mockOssV2Client.listObjectsV2(
+        any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockResult.contents()).thenReturn(List.of(summary));
+    when(mockResult.commonPrefixes()).thenReturn(null);
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
 
-    // Should not throw; null from SDK handled gracefully
     ListBlobsPageResponse response = ali.listPage(request);
 
     assertNotNull(response);
     assertEquals(1, response.getBlobs().size());
-    // commonPrefixes may be null or empty — must not cause NPE
+    assertEquals(List.of(), response.getCommonPrefixes());
   }
 
   @Test
