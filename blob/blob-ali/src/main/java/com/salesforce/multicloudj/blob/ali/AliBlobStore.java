@@ -10,11 +10,9 @@ import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.CompleteMultipartUploadResult;
 import com.aliyun.oss.model.CopyObjectRequest;
 import com.aliyun.oss.model.CopyObjectResult;
-import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
 import com.aliyun.oss.model.PutObjectRequest;
@@ -180,13 +178,20 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-    try (OSSObject ossObject = ossClient.getObject(request)) {
-      validateRangeResponse(downloadRequest, ossObject);
-      InputStream downloadedInputstream = ossObject.getObjectContent();
-      copyStream(downloadedInputstream, outputStream);
-      return transformer.toDownloadResponse(ossObject);
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
+        transformer.toV2GetObjectRequest(downloadRequest);
+    try (com.aliyun.sdk.service.oss2.models.GetObjectResult result =
+        ossV2Client.getObject(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults())) {
+      validateRangeResponse(downloadRequest, result);
+      copyStream(result.body(), outputStream);
+      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
     } catch (IOException e) {
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
+    } catch (Exception e) {
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
   }
@@ -229,13 +234,20 @@ public class AliBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     Path destinationPath =
         createDownloadDestinationPath(downloadRequest, path);
-    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-    try (OSSObject ossObject = ossClient.getObject(request)) {
-      validateRangeResponse(downloadRequest, ossObject);
-      InputStream downloadedInputstream = ossObject.getObjectContent();
-      Files.copy(downloadedInputstream, destinationPath);
-      return transformer.toDownloadResponse(ossObject);
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
+        transformer.toV2GetObjectRequest(downloadRequest);
+    try (com.aliyun.sdk.service.oss2.models.GetObjectResult result =
+        ossV2Client.getObject(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults())) {
+      validateRangeResponse(downloadRequest, result);
+      Files.copy(result.body(), destinationPath);
+      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
     } catch (IOException e) {
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
+    } catch (Exception e) {
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
   }
@@ -249,41 +261,43 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   public DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-    OSSObject ossObject = ossClient.getObject(request);
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
+        transformer.toV2GetObjectRequest(downloadRequest);
+    com.aliyun.sdk.service.oss2.models.GetObjectResult result =
+        ossV2Client.getObject(request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
     try {
-      validateRangeResponse(downloadRequest, ossObject);
+      validateRangeResponse(downloadRequest, result);
     } catch (RuntimeException e) {
       try {
-        ossObject.close();
-      } catch (IOException ignored) {
+        result.close();
+      } catch (Exception ignored) {
         // best-effort cleanup
       }
       throw e;
     }
-    InputStream downloadedInputstream = ossObject.getObjectContent();
-    return transformer.toDownloadResponse(ossObject, downloadedInputstream);
+    return transformer.toDownloadResponse(downloadRequest.getKey(), result, result.body());
   }
 
-  // OSS returns the full object with HTTP status code of 200 when range start
-  // or end exceeds object size, unlike S3/GCS which return HTTP 416 in the
-  // case of range start exceeding object size. Detect and throw to make
-  // behavior consistent with other substrates.
+  // OSS returns the full object with HTTP 200 when range start exceeds object size,
+  // unlike S3/GCS which return HTTP 416. Detect via contentRange absence and throw
+  // to make behavior consistent with other substrates.
   private void validateRangeResponse(
-      DownloadRequest downloadRequest, OSSObject ossObject) {
+      DownloadRequest downloadRequest,
+      com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
     if (downloadRequest.getStart() == null) {
       return;
     }
-    long objectSize =
-        ossObject.getObjectMetadata().getContentLength();
-    if (downloadRequest.getStart() >= objectSize
-        && ossObject.getResponse() != null
-        && ossObject.getResponse().getStatusCode() == 200) {
-      throw new InvalidArgumentException(
-          "The requested range start ("
-              + downloadRequest.getStart()
-              + ") is not satisfiable for object of size "
-              + objectSize);
+    if (result.contentRange() == null) {
+      Long contentLength = result.contentLength();
+      long objectSize = contentLength != null ? contentLength : 0L;
+      if (downloadRequest.getStart() >= objectSize) {
+        throw new InvalidArgumentException(
+            "The requested range start ("
+                + downloadRequest.getStart()
+                + ") is not satisfiable for object of size "
+                + objectSize);
+      }
     }
   }
 

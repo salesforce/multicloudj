@@ -29,13 +29,10 @@ import com.aliyun.oss.model.CopyObjectResult;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteVersionsRequest;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
-import com.aliyun.oss.model.GenericRequest;
-import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListObjectsRequest;
 import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.OSSObjectSummary;
 import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.ObjectMetadata;
@@ -86,6 +83,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -242,23 +243,29 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadOutputStream() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssV2Client).getObject(
+            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     verifyDownloadTestResults(
         ali.doDownload(getTestDownloadRequest(), mock(OutputStream.class)), now);
   }
 
   @Test
   void testDoDownloadInputStream() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssV2Client).getObject(
+            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest()), now);
   }
 
   @Test
   void testDoDownloadByteArrayWrapper() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssV2Client).getObject(
+            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     ByteArray byteArray = new ByteArray();
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), byteArray), now);
     assertEquals("downloadedData", new String(byteArray.getBytes()));
@@ -266,8 +273,10 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadFile() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssV2Client).getObject(
+            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     Path path = Path.of("tempFile.txt");
     try {
       Files.deleteIfExists(path);
@@ -285,8 +294,10 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDownloadPath() {
-    Instant now = Instant.now();
-    doReturn(buildTestGetObjectResult(now)).when(mockOssClient).getObject(any());
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    doReturn(buildTestGetObjectResult(now))
+        .when(mockOssV2Client).getObject(
+            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     Path path = Path.of("tempPath.txt");
     try {
       Files.deleteIfExists(path);
@@ -304,15 +315,16 @@ public class AliBlobStoreTest {
 
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
-    // Verify the parameters passed into the SDK
-    ArgumentCaptor<GetObjectRequest> getObjectRequestCaptor =
-        ArgumentCaptor.forClass(GetObjectRequest.class);
-    verify(mockOssClient, times(1)).getObject(getObjectRequestCaptor.capture());
-    GetObjectRequest actualGetObjectRequest = getObjectRequestCaptor.getValue();
-    assertEquals("object-1", actualGetObjectRequest.getKey());
-    assertEquals("bucket-1", actualGetObjectRequest.getBucketName());
-    assertEquals(10, actualGetObjectRequest.getRange()[0]);
-    assertEquals(110, actualGetObjectRequest.getRange()[1]);
+    // Verify the parameters passed into the v2 SDK
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> getObjectRequestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class);
+    verify(mockOssV2Client, times(1)).getObject(getObjectRequestCaptor.capture(), any());
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest actualGetObjectRequest =
+        getObjectRequestCaptor.getValue();
+    assertEquals("object-1", actualGetObjectRequest.key());
+    assertEquals("bucket-1", actualGetObjectRequest.bucket());
+    assertEquals("version-1", actualGetObjectRequest.versionId());
+    assertEquals("bytes=10-110", actualGetObjectRequest.range());
 
     // Verify the response data is properly mapped into the DownloadResponse object
     assertEquals("object-1", response.getKey());
@@ -991,20 +1003,23 @@ public class AliBlobStoreTest {
         .build();
   }
 
-  private OSSObject buildTestGetObjectResult(Instant now) {
+  private com.aliyun.sdk.service.oss2.models.GetObjectResult buildTestGetObjectResult(
+      Instant now) {
     Map<String, String> metadataMap = Map.of("key1", "value1", "key2", "value2");
     InputStream inputStream = new ByteArrayInputStream("downloadedData".getBytes());
-    OSSObject ossObject = mock(OSSObject.class);
-    ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
-    doReturn(objectMetadata).when(ossObject).getObjectMetadata();
-    doReturn("object-1").when(ossObject).getKey();
-    doReturn("version-1").when(objectMetadata).getVersionId();
-    doReturn("etag1").when(objectMetadata).getETag();
-    doReturn(Date.from(now)).when(objectMetadata).getLastModified();
-    doReturn(metadataMap).when(objectMetadata).getUserMetadata();
-    doReturn(100L).when(objectMetadata).getContentLength();
-    doReturn(inputStream).when(ossObject).getObjectContent();
-    return ossObject;
+    String lastModifiedStr = ZonedDateTime.ofInstant(now, ZoneOffset.UTC)
+        .format(DateTimeFormatter.RFC_1123_DATE_TIME);
+    com.aliyun.sdk.service.oss2.models.GetObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(lastModifiedStr).when(result).lastModified();
+    doReturn(metadataMap).when(result).metadata();
+    doReturn(100L).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    doReturn("bytes=10-110").when(result).contentRange();
+    doReturn("application/octet-stream").when(result).contentType();
+    return result;
   }
 
   @Test

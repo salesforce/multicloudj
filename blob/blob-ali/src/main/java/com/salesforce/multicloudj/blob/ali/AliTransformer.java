@@ -138,6 +138,30 @@ public class AliTransformer {
     return request;
   }
 
+  public com.aliyun.sdk.service.oss2.models.GetObjectRequest toV2GetObjectRequest(
+      DownloadRequest downloadRequest) {
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.GetObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(downloadRequest.getKey());
+    if (downloadRequest.getVersionId() != null) {
+      builder.versionId(downloadRequest.getVersionId());
+    }
+    if (downloadRequest.getStart() != null || downloadRequest.getEnd() != null) {
+      builder.range(toHttpRange(downloadRequest.getStart(), downloadRequest.getEnd()));
+    }
+    return builder.build();
+  }
+
+  private String toHttpRange(Long start, Long end) {
+    if (start == null) {
+      return "bytes=-" + end;
+    } else if (end == null) {
+      return "bytes=" + start + "-";
+    }
+    return "bytes=" + start + "-" + end;
+  }
+
   /**
    * Reading the first 500 bytes - computeRange(0, 500) - (0, 500) Reading a middle 500 bytes -
    * computeRange(123, 623) - (123, 623) Reading the last 500 bytes - computeRange(null, 500) - (-1,
@@ -178,6 +202,50 @@ public class AliTransformer {
                 .metadata(ossObject.getObjectMetadata().getUserMetadata())
                 .objectSize(ossObject.getObjectMetadata().getContentLength())
                 .contentType(ossObject.getObjectMetadata().getContentType())
+                .build())
+        .inputStream(inputStream)
+        .build();
+  }
+
+  public DownloadResponse toDownloadResponse(
+      String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
+    Instant lastModified = parseHttpDate(result.lastModified());
+    Long contentLength = result.contentLength();
+    long objectSize = contentLength != null ? contentLength : 0L;
+    return DownloadResponse.builder()
+        .key(key)
+        .metadata(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(result.versionId())
+                .eTag(stripQuotes(result.eTag()))
+                .lastModified(lastModified)
+                .createdTime(lastModified)
+                .metadata(result.metadata())
+                .objectSize(objectSize)
+                .contentType(result.contentType())
+                .build())
+        .build();
+  }
+
+  public DownloadResponse toDownloadResponse(
+      String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result,
+      InputStream inputStream) {
+    Instant lastModified = parseHttpDate(result.lastModified());
+    Long contentLength = result.contentLength();
+    long objectSize = contentLength != null ? contentLength : 0L;
+    return DownloadResponse.builder()
+        .key(key)
+        .metadata(
+            BlobMetadata.builder()
+                .key(key)
+                .versionId(result.versionId())
+                .eTag(stripQuotes(result.eTag()))
+                .lastModified(lastModified)
+                .createdTime(lastModified)
+                .metadata(result.metadata())
+                .objectSize(objectSize)
+                .contentType(result.contentType())
                 .build())
         .inputStream(inputStream)
         .build();
