@@ -9,10 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,7 @@ import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 @Disabled
-@BenchmarkMode({Mode.Throughput, Mode.AverageTime})
+@BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = TimeUnit.SECONDS)
@@ -51,17 +51,11 @@ public abstract class AbstractDocstoreBenchmarkTest {
   protected List<String> documentKeys;
   protected List<Player> testPlayers;
   protected List<HighScore> testHighScores;
-  protected Random random;
   protected DocStoreClient docStoreClient;
   protected DocStoreClient queryDocStoreClient; // For composite key table queries
 
-  private final AtomicInteger nextPutId = new AtomicInteger(0);
-  private final AtomicInteger nextGetId = new AtomicInteger(0);
-  private final AtomicInteger nextCreateId = new AtomicInteger(0);
-  private final AtomicInteger nextReplaceId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
-  private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
+  // Keys created during benchmark invocations, cleaned up in teardown
+  private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -82,7 +76,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       documentKeys = new ArrayList<>();
       testPlayers = new ArrayList<>();
       testHighScores = new ArrayList<>();
-      random = new Random(42);
 
       // Setup single key table
       AbstractDocStore docStore = harness.createDocStore();
@@ -104,6 +97,19 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @TearDown(Level.Trial)
   public void teardownBenchmark() throws Exception {
     try {
+      if (!benchmarkCreatedKeys.isEmpty() && docStoreClient != null) {
+        for (String key : benchmarkCreatedKeys) {
+          try {
+            Player p = new Player();
+            p.setPName(key);
+            docStoreClient.delete(new Document(p));
+          } catch (Exception e) {
+            // best-effort cleanup
+          }
+        }
+        benchmarkCreatedKeys.clear();
+      }
+
       cleanupTestData();
 
       if (docStoreClient != null) {
@@ -316,7 +322,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     try {
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextPutId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
 
         Document doc = new Document(player);
@@ -342,8 +349,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<String> keys = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextGetId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
         keys.add(key);
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
 
         Document doc = new Document(player);
@@ -376,7 +384,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchPutId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         documents.add(new Document(player));
       }
@@ -402,7 +411,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchGetId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         Document doc = new Document(player);
         docStoreClient.put(doc);
@@ -426,8 +436,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     final int docSize = 500;
 
     try {
-      String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
-      Player player = createPlayer(key, random.nextInt(1000), docSize);
+      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      Player player = createPlayer(key, ThreadLocalRandom.current().nextInt(1000), docSize);
 
       Document writeDoc = new Document(player);
       docStoreClient.put(writeDoc);
@@ -489,7 +499,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
       ActionList actions = docStoreClient.getActions();
 
       for (int i = 0; i < 5; i++) {
-        String key = "AtomicDoc" + UUID.randomUUID().toString().substring(0, 8);
+        String key = "AtomicDoc" + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, 100);
         initialPlayers.add(player);
         actions.create(new Document(player));
@@ -528,10 +539,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkPartitionKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
       // Query by Game (partition key)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
+      iter = queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -543,6 +554,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark partition key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -550,10 +565,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkSortKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
       // Query by Player (sort key) - this may use Global Secondary Index
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
+      iter = queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -565,6 +580,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark sort key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -572,9 +591,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkCompositeKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-
-      DocumentIterator iter =
+      iter =
           queryDocStoreClient
               .query()
               .where("Game", FilterOperation.EQUAL, game1)
@@ -591,6 +610,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark composite key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -598,10 +621,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(1)
   public void benchmarkRangeQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
       // Query by Score range (may use Local Secondary Index)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
+      iter = queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -613,6 +636,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark range query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -642,7 +669,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     return new Player(
         pName,
         baseValue,
-        (float) (baseValue + random.nextFloat() * 100),
+        (float) (baseValue + ThreadLocalRandom.current().nextFloat() * 100),
         baseValue % 2 == 0,
         largeString);
   }
@@ -655,7 +682,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     if (playerKeys.isEmpty()) {
       return "FallbackBenchmarkPlayer";
     }
-    return playerKeys.get(random.nextInt(playerKeys.size()));
+    return playerKeys.get(ThreadLocalRandom.current().nextInt(playerKeys.size()));
   }
 
   /** Get a rand player key with specific prefix */
@@ -667,14 +694,14 @@ public abstract class AbstractDocstoreBenchmarkTest {
       return prefix + "fallback";
     }
 
-    return filteredKeys.get(random.nextInt(filteredKeys.size()));
+    return filteredKeys.get(ThreadLocalRandom.current().nextInt(filteredKeys.size()));
   }
 
   @Test
   public void runBenchmarks() throws RunnerException {
     Options opt =
         new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".benchmarkPartitionKeyQuery.*")
+            .include(".*" + this.getClass().getName() + ".*")
             .forks(1)
             .warmupIterations(3)
             .measurementIterations(5)
