@@ -9,6 +9,8 @@ import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.ListBucketsRequest;
+import com.aliyun.sdk.service.oss2.models.ListBucketsResult;
 import com.aliyun.sdk.service.oss2.models.PutBucketRequest;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
@@ -77,20 +79,22 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
   /**
    * Lists all buckets in the Alibaba Cloud Blob Storage account associated with this client.
    *
-   * @return a {@link ListBucketsResponse} containing a list of all buckets int the current region
+   * @return a {@link ListBucketsResponse} containing a list of all buckets in the current region
    *     for this account
    */
   @Override
   protected ListBucketsResponse doListBuckets() {
+    ListBucketsRequest request = ListBucketsRequest.newBuilder().build();
+    ListBucketsResult result = ossV2Client.listBuckets(request, OperationOptions.defaults());
     return ListBucketsResponse.builder()
         .bucketInfoList(
-            ossClient.listBuckets().stream()
+            result.buckets().stream()
                 .map(
                     bucket ->
                         BucketInfo.builder()
-                            .name(bucket.getName())
-                            .region(bucket.getRegion())
-                            .creationDate(bucket.getCreationDate().toInstant())
+                            .name(bucket.name())
+                            .region(bucket.region())
+                            .creationDate(bucket.creationDate())
                             .build())
                 .collect(Collectors.toList()))
         .build();
@@ -133,11 +137,18 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     return UnknownException.class;
   }
 
-  /** Closes the underlying OSS client and releases any resources. */
+  /** Closes the underlying OSS clients and releases any resources. */
   @Override
   public void close() {
     if (ossClient != null) {
       ossClient.shutdown();
+    }
+    if (ossV2Client != null) {
+      try {
+        ossV2Client.close();
+      } catch (Exception e) {
+        throw new SubstrateSdkException("Failed to close Ali OSS v2 client", e);
+      }
     }
   }
 

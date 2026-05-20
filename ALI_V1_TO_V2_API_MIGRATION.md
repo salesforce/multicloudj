@@ -38,9 +38,9 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 
 | # | Operation | v1 API (`ossClient.*`) | v2 Equivalent | Conformance Tests | Status |
 |---|-----------|------------------------|---------------|-------------------|--------|
-| 23 | listBuckets | `listBuckets()` | `listBuckets(ListBucketsRequest, OperationOptions)` | N/A (no conformance test) | Pending |
+| 23 | listBuckets | `listBuckets()` | `listBuckets(ListBucketsRequest, OperationOptions)` | N/A (no conformance test) | Done |
 | 24 | createBucket | `createBucket(bucketName)` | `putBucket(PutBucketRequest, OperationOptions)` | `testCreateBucket` (AbstractBlobClientIT) | Done |
-| 25 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Pending |
+| 25 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Done |
 
 ## Notes
 
