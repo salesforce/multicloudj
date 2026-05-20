@@ -199,7 +199,11 @@ public class AwsTransformer {
     if (request.getOperationContext() != null
         && request.getOperationContext().getCorrelationId() != null
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      // metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId()); // Enable it once we refactor the operation context
+      // Enable it once we refactor the operation context
+      /*
+      metadata.put(CORRELATION_ID_METADATA_KEY,
+          request.getOperationContext().getCorrelationId());
+       */
     }
 
     PutObjectRequest.Builder builder =
