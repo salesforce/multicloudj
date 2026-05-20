@@ -657,11 +657,17 @@ public class AliBlobStore extends AbstractBlobStore {
     return ossV2Client.doesBucketExist(bucket);
   }
 
-  /** Closes the underlying OSS client and releases any resources. */
   @Override
   public void close() {
     if (ossClient != null) {
       ossClient.shutdown();
+    }
+    if (ossV2Client != null) {
+      try {
+        ossV2Client.close();
+      } catch (Exception e) {
+        throw new SubstrateSdkException("Failed to close Ali OSS v2 client", e);
+      }
     }
   }
 

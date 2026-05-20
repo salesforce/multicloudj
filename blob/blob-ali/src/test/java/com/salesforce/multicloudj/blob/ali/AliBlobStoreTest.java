@@ -137,6 +137,13 @@ public class AliBlobStoreTest {
   }
 
   @Test
+  void testClose() throws Exception {
+    ali.close();
+    verify(mockOssClient, times(1)).shutdown();
+    verify(mockOssV2Client, times(1)).close();
+  }
+
+  @Test
   void testProviderId() {
     assertEquals(AliConstants.PROVIDER_ID, ali.getProviderId());
   }

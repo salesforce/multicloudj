@@ -26,7 +26,7 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 | 18 | setTags | `setObjectTagging(bucket, key, TagSet)` | `putObjectTagging(PutObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
 | 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest, PresignOptions)` | `testGeneratePresignedUploadUrl_happyPath*`, `testPresignedUrlWithKmsKey_*` | Done |
 | 20 | presigned URL (download) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(GetObjectRequest, PresignOptions)` | `testGeneratePresignedDownloadUrl_happyPath`, `testGeneratePresignedDownloadUrl_nonExistingFile` | Done |
-| 21 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Pending |
+| 21 | close | `ossClient.shutdown()` | `ossV2Client.close()` (AutoCloseable) | N/A (lifecycle) | Done |
 
 ## BlobInfoIterator
 
