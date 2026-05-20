@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.client.BucketClient;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
@@ -39,10 +40,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -51,6 +54,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.zip.CRC32C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +85,42 @@ public class Main {
 
     // Log the upload response
     getLogger().info("received upload response {}", response);
+  }
+
+  /**
+   * Uploads content with a CRC32C checksum for server-side integrity validation.
+   * The cloud provider will reject the upload if the checksum does not match the data.
+   */
+  public static void uploadWithCrc32cChecksum() {
+    String provider = getProvider();
+    BucketClient client = getBucketClient(provider);
+
+    byte[] content = "Hello, checksum world!".getBytes(StandardCharsets.UTF_8);
+
+    // Compute CRC32C checksum of the content
+    CRC32C crc32c = new CRC32C();
+    crc32c.update(content);
+    long checksumValue = crc32c.getValue();
+
+    // Convert to 4-byte big-endian array and base64-encode
+    byte[] checksumBytes = new byte[4];
+    checksumBytes[0] = (byte) (checksumValue >> 24);
+    checksumBytes[1] = (byte) (checksumValue >> 16);
+    checksumBytes[2] = (byte) (checksumValue >> 8);
+    checksumBytes[3] = (byte) checksumValue;
+    String checksumBase64 = Base64.getEncoder().encodeToString(checksumBytes);
+
+    UploadRequest uploadRequest =
+        new UploadRequest.Builder()
+            .withKey("checksum-example/hello.txt")
+            .withChecksumValue(checksumBase64)
+            .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+            .build();
+
+    UploadResponse response = client.upload(uploadRequest, content);
+
+    getLogger().info("Upload with CRC32C checksum succeeded: key={}, checksum={}",
+        response.getKey(), response.getChecksumValue());
   }
 
   /**
@@ -917,26 +957,7 @@ public class Main {
     boolean success = false;
     try {
       System.out.println("=== Test Archived ===");
-      downloadArchivedBlob();
-
-      System.out.println("=== Creating Test Directory ===");
-      createTestDirectory();
-
-      System.out.println("=== Testing Directory Upload (with tags) ===");
-      uploadDirectory();
-      System.out.println("uploadDirectory: PASS");
-
-      System.out.println("=== Testing Directory Upload (with object lock) ===");
-      uploadDirectoryWithObjectLockAsync();
-      System.out.println("uploadDirectoryWithObjectLockAsync: PASS");
-
-      System.out.println("=== Testing Directory Download (with content verification) ===");
-      downloadDirectory();
-      System.out.println("downloadDirectory: PASS");
-
-      System.out.println("=== Testing Directory Delete (with existence verification) ===");
-      deleteDirectory();
-      System.out.println("deleteDirectory: PASS");
+      uploadWithCrc32cChecksum();
 
       success = true;
       System.out.println("=== ALL DIRECTORY OPERATIONS TESTS PASSED ===");

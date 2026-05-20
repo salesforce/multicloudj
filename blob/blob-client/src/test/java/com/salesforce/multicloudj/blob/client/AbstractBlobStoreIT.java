@@ -33,6 +33,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import java.io.ByteArrayInputStream;
@@ -4621,6 +4622,93 @@ public abstract class AbstractBlobStoreIT {
       boolean exists = bucketClient.doesObjectExist(key, null);
       Assertions.assertTrue(exists, "Uploaded blob should exist");
 
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+      if (tempFile != null) {
+        Files.deleteIfExists(tempFile);
+      }
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumInputStream() {
+    String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
+    byte[] content = "Test invalid checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      InputStream inputStream = new ByteArrayInputStream(content);
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, inputStream));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumByteArray() {
+    String key = "conformance-tests/checksum/upload-bytearray-invalid-checksum";
+    byte[] content = "Test invalid checksum with byte array".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, content));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidChecksumFile() throws Exception {
+    String key = "conformance-tests/checksum/upload-file-invalid-checksum";
+    byte[] content = "Test invalid checksum with File".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    Path tempFile = null;
+    try {
+      tempFile = Files.createTempFile("invalid-checksum-test", ".txt");
+      Files.write(tempFile, content);
+
+      String invalidChecksum = Base64.getEncoder().encodeToString(new byte[] {0, 0, 0, 0});
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidChecksum)
+              .build();
+
+      Path finalTempFile = tempFile;
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, finalTempFile.toFile()));
     } finally {
       safeDeleteBlobs(bucketClient, key);
       if (tempFile != null) {

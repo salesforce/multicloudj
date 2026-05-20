@@ -388,13 +388,15 @@ public class GcpTransformer {
     return new Storage.BlobTargetOption[0];
   }
 
-  public Storage.BlobWriteOption[] getKmsWriteOptions(UploadRequest uploadRequest) {
+  public Storage.BlobWriteOption[] getBlobWriteOptions(UploadRequest uploadRequest) {
+    List<Storage.BlobWriteOption> options = new ArrayList<>();
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
-      return new Storage.BlobWriteOption[] {
-        Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId())
-      };
+      options.add(Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId()));
     }
-    return new Storage.BlobWriteOption[0];
+    if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
+      options.add(Storage.BlobWriteOption.crc32cMatch());
+    }
+    return options.toArray(new Storage.BlobWriteOption[0]);
   }
 
   public BlobInfo toBlobInfo(MultipartUpload mpu) {

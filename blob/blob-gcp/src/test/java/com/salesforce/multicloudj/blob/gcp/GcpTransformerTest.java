@@ -352,14 +352,14 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testGetKmsWriteOptions_WithKmsKey() {
+  void testGetKmsWriteOptions_WithStorageKey() {
     // Given
     String kmsKeyId = "projects/my-project/locations/us-east1/keyRings/my-ring/cryptoKeys/my-key";
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withKmsKeyId(kmsKeyId).build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
     assertEquals(1, options.length);
@@ -367,25 +367,25 @@ class GcpTransformerTest {
   }
 
   @Test
-  void testGetKmsWriteOptions_WithoutKmsKey() {
+  void testGetKmsWriteOptions_WithoutStorageKey() {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
     assertEquals(0, options.length);
   }
 
   @Test
-  void testGetKmsWriteOptions_WithEmptyKmsKey() {
+  void testGetKmsWriteOptions_WithEmptyStorageKey() {
     // Given
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withKmsKeyId("").build();
 
     // When
-    Storage.BlobWriteOption[] options = transformer.getKmsWriteOptions(uploadRequest);
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(uploadRequest);
 
     // Then
     assertEquals(0, options.length);
