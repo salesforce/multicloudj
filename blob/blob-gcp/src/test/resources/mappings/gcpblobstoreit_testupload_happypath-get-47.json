@@ -1,8 +1,8 @@
 {
-  "id" : "3d18e2c9-9c90-4acf-9d61-10a965f040d0",
-  "name" : "GcpBlobStoreIT_testUpload_happyPath-GET-32",
+  "id" : "35a30990-c792-4c17-93bc-029903632066",
+  "name" : "GcpBlobStoreIT_testUpload_happyPath-GET-47",
   "request" : {
-    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_File",
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fupload%2FhappyPath_InputStream",
     "method" : "GET",
     "headers" : {
       "X-Query-Param-Count" : {
@@ -23,25 +23,25 @@
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1776212594249837",
+      "X-Goog-Generation" : "1779262032348493",
       "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 15 Apr 2026 00:23:14 GMT",
+      "Last-Modified" : "Wed, 20 May 2026 07:27:12 GMT",
       "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 15 Apr 2026 00:23:14 GMT",
+      "Date" : "Wed, 20 May 2026 07:27:13 GMT",
       "X-Goog-Stored-Content-Encoding" : "identity",
       "X-Goog-Hash" : "crc32c=E30mnQ==,md5=cBu9S94e4E47BZb2OZTrrg==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CO2g58XL7pMDEAE=",
+      "ETag" : "CM2Kmsurx5QDEAE=",
       "Content-Disposition" : "attachment",
       "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AMNfjG06mj6qZiGOlz1owEGWFSlmvv8NWxvn2YGnfpPzWr8iLSV5UG6_AL4bT2xuxHuLIbfZgZZJGhk",
+      "X-GUploader-UploadID" : "AAVLpEh7TRryokS2coDhJlISP1SnGyqx3zpE3-ZcuJ4Acv1u81Ez2m4Twp8W1upOF1bbY6T1",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "X-Goog-Stored-Content-Length" : "17",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "3d18e2c9-9c90-4acf-9d61-10a965f040d0",
+  "uuid" : "35a30990-c792-4c17-93bc-029903632066",
   "persistent" : true,
-  "insertionIndex" : 1202
+  "insertionIndex" : 1364
 }
