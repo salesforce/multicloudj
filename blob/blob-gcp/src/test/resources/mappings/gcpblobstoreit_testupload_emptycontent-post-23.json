@@ -1,6 +1,6 @@
 {
-  "id" : "2d3dd09c-7257-4813-b495-0d7c8d5a04fa",
-  "name" : "GcpBlobStoreIT_testUpload_emptyContent-POST-21",
+  "id" : "1769cfe2-4405-4d6a-a033-71384b317e8e",
+  "name" : "GcpBlobStoreIT_testUpload_emptyContent-POST-23",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
     "method" : "POST",
@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/upload/emptyContent_versioned_InputStream\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG1axigNCj6RtVLetoZPrAtQF04qbQitRbb37egXiwhSuohVyzFliZXc_UsfU2wV-aSg0f_o_003uKS6GNGiyvlGaDn-dstZ5fyJ9KQdAiI",
+      "X-GUploader-UploadID" : "AAVLpEhjhti940MTjFTqQKgyDfRdMisdRIbNs5ubMtJNusPTdF9QVSPz-JrMmoRbpg-2kHneaBpsmy6IWBf_tmOpzZL5UNEE7NlAptreuYnFN6A",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Tue, 14 Apr 2026 23:53:09 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/upload/emptyContent_versioned_InputStream&uploadType=resumable&upload_id=AMNfjG1axigNCj6RtVLetoZPrAtQF04qbQitRbb37egXiwhSuohVyzFliZXc_UsfU2wV-aSg0f_o_003uKS6GNGiyvlGaDn-dstZ5fyJ9KQdAiI",
+      "Date" : "Wed, 20 May 2026 07:18:26 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/upload/emptyContent_versioned_InputStream&uploadType=resumable&upload_id=AAVLpEhjhti940MTjFTqQKgyDfRdMisdRIbNs5ubMtJNusPTdF9QVSPz-JrMmoRbpg-2kHneaBpsmy6IWBf_tmOpzZL5UNEE7NlAptreuYnFN6A",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "2d3dd09c-7257-4813-b495-0d7c8d5a04fa",
+  "uuid" : "1769cfe2-4405-4d6a-a033-71384b317e8e",
   "persistent" : true,
-  "insertionIndex" : 1191
+  "insertionIndex" : 1340
 }

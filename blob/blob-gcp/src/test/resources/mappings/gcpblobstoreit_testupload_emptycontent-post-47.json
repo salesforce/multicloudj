@@ -1,6 +1,6 @@
 {
-  "id" : "d0f41f5e-d499-461e-b196-067c9e5926e5",
-  "name" : "GcpBlobStoreIT_testUpload_emptyContent-POST-43",
+  "id" : "b82307db-42d4-4172-9dbc-df93a482367c",
+  "name" : "GcpBlobStoreIT_testUpload_emptyContent-POST-47",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "POST",
@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{},\"name\":\"conformance-tests/upload/emptyContent_InputStream\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG1f7ohySsZHKwLgEc2CFjeweTfqL7XamWI_97sk6N3JnG34OthccIBpXAkBgo2D5U3h-78IRBOq3S9q6zYheYvRvbkZ25HfvYrigs3Sxg",
+      "X-GUploader-UploadID" : "AAVLpEhcIUJe4t2uOgVYGfgjefa_rhbILVSx4uUsAvqIBLAwA2vWpsYo7Ac1aOtFs3KWNHZkcfZOutIKIE3V68m0bPvt9oIOVjMnfxE8-OjutT8",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Tue, 14 Apr 2026 23:53:02 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/emptyContent_InputStream&uploadType=resumable&upload_id=AMNfjG1f7ohySsZHKwLgEc2CFjeweTfqL7XamWI_97sk6N3JnG34OthccIBpXAkBgo2D5U3h-78IRBOq3S9q6zYheYvRvbkZ25HfvYrigs3Sxg",
+      "Date" : "Wed, 20 May 2026 07:18:18 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/upload/emptyContent_InputStream&uploadType=resumable&upload_id=AAVLpEhcIUJe4t2uOgVYGfgjefa_rhbILVSx4uUsAvqIBLAwA2vWpsYo7Ac1aOtFs3KWNHZkcfZOutIKIE3V68m0bPvt9oIOVjMnfxE8-OjutT8",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "d0f41f5e-d499-461e-b196-067c9e5926e5",
+  "uuid" : "b82307db-42d4-4172-9dbc-df93a482367c",
   "persistent" : true,
-  "insertionIndex" : 1213
+  "insertionIndex" : 1364
 }
