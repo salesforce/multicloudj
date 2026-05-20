@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.PutBucketRequest;
+import com.aliyun.sdk.service.oss2.models.PutBucketResult;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -19,51 +21,31 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
 
 public class AliBlobClientTest {
 
-  private MockedStatic<OSSClientBuilder> staticMockBuilder;
-
   private OSS mockOssClient;
+  private OSSClient mockOssV2Client;
   private AliBlobClient ali;
 
   @BeforeEach
   void setup() {
     mockOssClient = mock(OSS.class);
-    staticMockBuilder = mockStatic(OSSClientBuilder.class);
-    OSSClientBuilder.OSSClientBuilderImpl mockBuilder =
-        mock(OSSClientBuilder.OSSClientBuilderImpl.class);
-
-    staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
-    when(mockBuilder.region(any())).thenReturn(mockBuilder);
-    when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
-    when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
-    when(mockBuilder.clientConfiguration(any())).thenReturn(mockBuilder);
-    when(mockBuilder.build()).thenReturn(mockOssClient);
+    mockOssV2Client = mock(OSSClient.class);
 
     StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
     CredentialsOverrider credsOverrider =
         new CredentialsOverrider.Builder(CredentialsType.SESSION)
             .withSessionCredentials(creds)
             .build();
-    ali =
-        new AliBlobClient.Builder()
-            .withRegion("us-east")
-            .withEndpoint(URI.create("https://test.example.com"))
-            .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
-            .withCredentialsOverrider(credsOverrider)
-            .build();
-  }
-
-  @AfterEach
-  void teardown() {
-    if (staticMockBuilder != null) {
-      staticMockBuilder.close();
-    }
+    AliBlobClient.Builder builder = new AliBlobClient.Builder();
+    builder.withRegion("us-east")
+        .withEndpoint(URI.create("https://test.example.com"))
+        .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
+        .withCredentialsOverrider(credsOverrider);
+    ali = builder.build(mockOssClient, mockOssV2Client);
   }
 
   @Test
@@ -95,11 +77,11 @@ public class AliBlobClientTest {
   @Test
   void testCreateBucket() {
     String bucketName = "test-bucket";
+    when(mockOssV2Client.putBucket(any(PutBucketRequest.class), any(OperationOptions.class)))
+        .thenReturn(PutBucketResult.newBuilder().build());
 
-    // Call createBucket
     ali.createBucket(bucketName);
 
-    // Verify that createBucket was called on the mock OSS client
-    verify(mockOssClient).createBucket(bucketName);
+    verify(mockOssV2Client).putBucket(any(PutBucketRequest.class), any(OperationOptions.class));
   }
 }

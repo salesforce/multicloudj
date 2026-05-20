@@ -7,6 +7,9 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.ServiceException;
 import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.comm.SignVersion;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.PutBucketRequest;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
  */
 public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
   private OSS ossClient;
+  private OSSClient ossV2Client;
 
   /**
    * Constructs an {@link AliBlobClient} using the provided builder.
@@ -54,17 +58,20 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     }
     ossClientBuilderImpl.clientConfiguration(clientBuilderConfiguration);
     ossClient = ossClientBuilderImpl.build();
+    ossV2Client = buildOSSV2Client(builder);
   }
 
   /**
-   * Constructs an {@link AliBlobClient} using the provided builder and a pre-built OSS client.
+   * Constructs an {@link AliBlobClient} using the provided builder and pre-built OSS clients.
    *
    * @param builder the builder to use to construct the AliBlobClient
-   * @param ossClient the pre-built OSS client to use
+   * @param ossClient the pre-built v1 OSS client to use
+   * @param ossV2Client the pre-built v2 OSS client to use
    */
-  protected AliBlobClient(Builder builder, OSS ossClient) {
+  protected AliBlobClient(Builder builder, OSS ossClient, OSSClient ossV2Client) {
     super(builder);
     this.ossClient = ossClient;
+    this.ossV2Client = ossV2Client;
   }
 
   /**
@@ -96,7 +103,10 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
    */
   @Override
   protected void doCreateBucket(String bucketName) {
-    ossClient.createBucket(bucketName);
+    PutBucketRequest request = PutBucketRequest.newBuilder()
+        .bucket(bucketName)
+        .build();
+    ossV2Client.putBucket(request, OperationOptions.defaults());
   }
 
   /**
@@ -131,6 +141,29 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     }
   }
 
+  private static OSSClient buildOSSV2Client(Builder builder) {
+    com.aliyun.sdk.service.oss2.credentials.CredentialsProvider v2Creds =
+        OSSCredentialsProvider.getV2CredentialsProvider(builder.getCredentialsOverrider());
+    if (v2Creds == null) {
+      return null;
+    }
+
+    var v2Builder = OSSClient.newBuilder()
+        .region(builder.getRegion())
+        .credentialsProvider(v2Creds);
+
+    if (builder.getEndpoint() != null) {
+      v2Builder.endpoint(builder.getEndpoint().toString());
+    }
+    if (builder.getProxyEndpoint() != null) {
+      v2Builder.proxyHost(
+          builder.getProxyEndpoint().getHost()
+              + ":" + builder.getProxyEndpoint().getPort());
+    }
+
+    return v2Builder.build();
+  }
+
   public static class Builder extends AbstractBlobClient.Builder<AliBlobClient> {
 
     public Builder() {
@@ -142,8 +175,8 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
       return new AliBlobClient(this);
     }
 
-    public AliBlobClient build(OSS ossClient) {
-      return new AliBlobClient(this, ossClient);
+    public AliBlobClient build(OSS ossClient, OSSClient ossV2Client) {
+      return new AliBlobClient(this, ossClient, ossV2Client);
     }
   }
 }

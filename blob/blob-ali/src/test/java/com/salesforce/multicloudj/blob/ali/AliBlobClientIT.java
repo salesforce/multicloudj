@@ -4,6 +4,7 @@ import com.aliyun.oss.ClientBuilderConfiguration;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.common.comm.SignVersion;
+import com.aliyun.sdk.service.oss2.OSSClient;
 import com.salesforce.multicloudj.blob.client.AbstractBlobClientIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.common.ali.AliConstants;
@@ -85,6 +86,14 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
                           credentialsOverrider, region))
               .build();
 
+      OSSClient ossV2Client = OSSClient.newBuilder()
+          .region(region)
+          .credentialsProvider(
+              OSSCredentialsProvider.getV2CredentialsProvider(credentialsOverrider))
+          .endpoint(endpoint)
+          .proxyHost(TestsUtil.WIREMOCK_HOST + ":" + (port + 1))
+          .build();
+
       AliBlobClient.Builder builder =
           new AliBlobClient.Builder();
       builder
@@ -92,7 +101,7 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
           .withRegion(region)
           .withCredentialsOverrider(credentialsOverrider);
 
-      return builder.build(ossClient);
+      return builder.build(ossClient, ossV2Client);
     }
 
     @Override
