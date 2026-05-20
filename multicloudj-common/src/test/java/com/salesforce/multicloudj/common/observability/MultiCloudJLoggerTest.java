@@ -171,50 +171,6 @@ class MultiCloudJLoggerTest {
   }
 
   @Test
-  void correlationId_null_generatedAsUuid() {
-    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
-    AtomicReference<OperationContext> resolved = new AtomicReference<>();
-
-    logger.traceOperation(
-        "blob.test",
-        null,
-        null,
-        ctx -> {
-          resolved.set(ctx);
-          return null;
-        });
-
-    String generated = resolved.get().getCorrelationId();
-    assertNotNull(generated);
-    assertEquals(
-        generated,
-        UUID.fromString(generated).toString(),
-        "auto-generated correlation ID must be a valid UUID");
-  }
-
-  @Test
-  void correlationId_emptyString_treatedAsMissingAndGenerated() {
-    MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.DISABLED, "blob", "aws");
-    OperationContext input = OperationContext.builder().correlationId("").build();
-    AtomicReference<OperationContext> resolved = new AtomicReference<>();
-
-    logger.traceOperation(
-        "blob.test",
-        null,
-        input,
-        ctx -> {
-          resolved.set(ctx);
-          return null;
-        });
-
-    String generated = resolved.get().getCorrelationId();
-    assertNotNull(generated);
-    assertFalse(generated.isEmpty());
-  }
-
-  // --- MDC --------------------------------------------------------------
-
-  @Test
   void mdcPopulated_during_clearedAfter() {
     MultiCloudJLogger logger = new MultiCloudJLogger(TracingPolicy.CHILD_AND_ROOT, "blob", "aws");
     AtomicReference<String> capturedTraceId = new AtomicReference<>();

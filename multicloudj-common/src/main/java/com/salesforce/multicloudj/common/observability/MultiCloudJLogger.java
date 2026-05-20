@@ -328,17 +328,9 @@ public class MultiCloudJLogger {
 
   private OperationContext resolveContext(OperationContext context) {
     if (context == null) {
-      return OperationContext.builder().correlationId(generateCorrelationId()).build();
-    }
-    String existing = context.getCorrelationId();
-    if (existing == null || existing.isEmpty()) {
-      return context.toBuilder().correlationId(generateCorrelationId()).build();
+      return OperationContext.builder().correlationId("").build();
     }
     return context;
-  }
-
-  private static String generateCorrelationId() {
-    return UUID.randomUUID().toString();
   }
 
   private static String bucketFrom(Map<String, String> attributes) {

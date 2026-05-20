@@ -84,14 +84,11 @@ public class GcpTransformer {
     // the user's metadata. Skipped when the request carries no operation context, or when the
     // app has supplied the same key explicitly.
     if (uploadRequest.getOperationContext() != null
-        && uploadRequest.getOperationContext().getCorrelationId() != null
+        && StringUtils.isNotBlank(uploadRequest.getOperationContext().getCorrelationId())
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
-      /*
       metadata.put(
           CORRELATION_ID_METADATA_KEY,
           uploadRequest.getOperationContext().getCorrelationId());
-
-       */
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
