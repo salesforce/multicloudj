@@ -120,6 +120,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         baos.write(buffer, 0, bytesRead);
       }
       return doUpload(uploadRequest, baos.toByteArray());
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob", e);
     }
@@ -128,6 +130,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     validateBucketExists();
+    validateChecksum(uploadRequest, content);
     String baseKey = getStorageKey(uploadRequest.getKey());
     String etag = generateEtag(content);
     String versionId = UUID.randomUUID().toString();
@@ -183,6 +186,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] content = Files.readAllBytes(file.toPath());
       return doUpload(uploadRequest, content);
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob from file", e);
     }
@@ -193,6 +198,8 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     try {
       byte[] content = Files.readAllBytes(path);
       return doUpload(uploadRequest, content);
+    } catch (SubstrateSdkException e) {
+      throw e;
     } catch (Exception e) {
       throw new UnknownException("Failed to upload blob from path", e);
     }
@@ -878,6 +885,17 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   private void validateBucketExists() {
     if (!BUCKETS.containsKey(bucket)) {
       throw new ResourceNotFoundException("Bucket not found: " + bucket);
+    }
+  }
+
+  private void validateChecksum(UploadRequest uploadRequest, byte[] content) {
+    if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
+      String actual = computeCrc32cChecksum(content);
+      if (!actual.equals(uploadRequest.getChecksumValue())) {
+        throw new InvalidArgumentException(
+            "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
+                + " but computed " + actual);
+      }
     }
   }
 
