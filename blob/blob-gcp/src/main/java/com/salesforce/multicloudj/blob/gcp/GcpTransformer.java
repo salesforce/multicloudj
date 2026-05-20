@@ -86,9 +86,12 @@ public class GcpTransformer {
     if (uploadRequest.getOperationContext() != null
         && uploadRequest.getOperationContext().getCorrelationId() != null
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
+      /*
       metadata.put(
           CORRELATION_ID_METADATA_KEY,
           uploadRequest.getOperationContext().getCorrelationId());
+
+       */
     }
 
     // Delegate to the protected toBlobInfo method which handles storage class, checksum, object
