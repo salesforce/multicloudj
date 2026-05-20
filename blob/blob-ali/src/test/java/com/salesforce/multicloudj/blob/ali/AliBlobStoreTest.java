@@ -19,18 +19,6 @@ import com.aliyun.oss.ClientException;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
-import com.aliyun.oss.internal.OSSHeaders;
-import com.aliyun.oss.model.AbortMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.InitiateMultipartUploadRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.ObjectMetadata;
-import com.aliyun.oss.model.PartETag;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.UploadPartRequest;
-import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
@@ -769,32 +757,48 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoInitiateMultipartUpload() {
-    InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
-    when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any()))
-        .thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload mockUpload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssV2Client.initiateMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").withMetadata(metadata).build();
 
     ali.initiateMultipartUpload(request);
 
-    ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
-    InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class);
+    verify(mockOssV2Client, times(1)).initiateMultipartUpload(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals(metadata, actualRequest.metadata());
   }
 
   @Test
   void testDoInitiateMultipartUploadWithKms() {
-    InitiateMultipartUploadResult mockResponse = mock(InitiateMultipartUploadResult.class);
-    doReturn("bucket-1").when(mockResponse).getBucketName();
-    doReturn("object-1").when(mockResponse).getKey();
-    doReturn("mpu-id").when(mockResponse).getUploadId();
-    when(mockOssClient.initiateMultipartUpload((InitiateMultipartUploadRequest) any()))
-        .thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload mockUpload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(mockUpload);
+    when(mockUpload.bucket()).thenReturn("bucket-1");
+    when(mockUpload.key()).thenReturn("object-1");
+    when(mockUpload.uploadId()).thenReturn("mpu-id");
+    when(mockOssV2Client.initiateMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
     String kmsKeyId = "test-kms-key-id";
     MultipartUploadRequest request =
@@ -806,22 +810,18 @@ public class AliBlobStoreTest {
 
     MultipartUpload response = ali.initiateMultipartUpload(request);
 
-    ArgumentCaptor<InitiateMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(InitiateMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).initiateMultipartUpload(requestCaptor.capture());
-    InitiateMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals(metadata, actualRequest.getObjectMetadata().getUserMetadata());
-    assertEquals(
-        ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION,
-        actualRequest.getObjectMetadata().getServerSideEncryption());
-    assertEquals(
-        kmsKeyId,
-        actualRequest
-            .getObjectMetadata()
-            .getRawMetadata()
-            .get(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID));
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class);
+    verify(mockOssV2Client, times(1)).initiateMultipartUpload(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals(metadata, actualRequest.metadata());
+    assertEquals("KMS", actualRequest.serverSideEncryption());
+    assertEquals(kmsKeyId, actualRequest.serverSideEncryptionKeyId());
 
     // Verify the response has KMS key
     assertEquals(kmsKeyId, response.getKmsKeyId());
@@ -829,9 +829,12 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadMultipartPart() {
-    UploadPartResult mockResponse = mock(UploadPartResult.class);
-    doReturn(new PartETag(1, "etag")).when(mockResponse).getPartETag();
-    when(mockOssClient.uploadPart(any())).thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.UploadPartResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.UploadPartResult.class);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockOssV2Client.uploadPart(
+        any(com.aliyun.sdk.service.oss2.models.UploadPartRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
     byte[] content = "This is test data".getBytes(StandardCharsets.UTF_8);
@@ -839,20 +842,28 @@ public class AliBlobStoreTest {
 
     ali.uploadMultipartPart(multipartUpload, multipartPart);
 
-    ArgumentCaptor<UploadPartRequest> requestCaptor =
-        ArgumentCaptor.forClass(UploadPartRequest.class);
-    verify(mockOssClient, times(1)).uploadPart(requestCaptor.capture());
-    UploadPartRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
-    assertEquals(1, actualRequest.getPartNumber());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.UploadPartRequest> captor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.UploadPartRequest.class);
+    verify(mockOssV2Client, times(1)).uploadPart(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.UploadPartRequest actualRequest = captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
+    assertEquals(1L, actualRequest.partNumber());
   }
 
   @Test
   void testDoCompleteMultipartUpload() {
-    CompleteMultipartUploadResult mockResponse = mock(CompleteMultipartUploadResult.class);
-    when(mockOssClient.completeMultipartUpload(any())).thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssV2Client.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
     List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
@@ -860,35 +871,44 @@ public class AliBlobStoreTest {
 
     ali.completeMultipartUpload(multipartUpload, listOfParts);
 
-    ArgumentCaptor<CompleteMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(CompleteMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).completeMultipartUpload(requestCaptor.capture());
-    CompleteMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
-    List<PartETag> parts = actualRequest.getPartETags();
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class);
+    verify(mockOssV2Client, times(1)).completeMultipartUpload(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
+    List<com.aliyun.sdk.service.oss2.models.Part> parts =
+        actualRequest.completeMultipartUpload().parts();
     assertEquals(1, parts.size());
-    assertEquals(1, parts.get(0).getPartNumber());
-    assertEquals("etag", parts.get(0).getETag());
+    assertEquals(1L, parts.get(0).partNumber());
+    assertEquals("etag", parts.get(0).eTag());
   }
 
   @Test
   void testDoListMultipartUpload() {
-    PartListing mockResponse = mock(PartListing.class);
-    when(mockOssClient.listParts(any())).thenReturn(mockResponse);
+    com.aliyun.sdk.service.oss2.models.ListPartsResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);
+    when(mockResult.parts()).thenReturn(List.of());
+    when(mockOssV2Client.listParts(
+        any(com.aliyun.sdk.service.oss2.models.ListPartsRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
         MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
 
     ali.listMultipartUpload(multipartUpload);
 
-    ArgumentCaptor<ListPartsRequest> requestCaptor =
-        ArgumentCaptor.forClass(ListPartsRequest.class);
-    verify(mockOssClient, times(1)).listParts(requestCaptor.capture());
-    ListPartsRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.ListPartsRequest> captor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.ListPartsRequest.class);
+    verify(mockOssV2Client, times(1)).listParts(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.ListPartsRequest actualRequest = captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
   }
 
   @Test
@@ -898,13 +918,16 @@ public class AliBlobStoreTest {
 
     ali.abortMultipartUpload(multipartUpload);
 
-    ArgumentCaptor<AbortMultipartUploadRequest> requestCaptor =
-        ArgumentCaptor.forClass(AbortMultipartUploadRequest.class);
-    verify(mockOssClient, times(1)).abortMultipartUpload(requestCaptor.capture());
-    AbortMultipartUploadRequest actualRequest = requestCaptor.getValue();
-    assertEquals("object-1", actualRequest.getKey());
-    assertEquals("bucket-1", actualRequest.getBucketName());
-    assertEquals("mpu-id", actualRequest.getUploadId());
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest> captor =
+        ArgumentCaptor.forClass(
+            com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest.class);
+    verify(mockOssV2Client, times(1)).abortMultipartUpload(captor.capture(),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest actualRequest =
+        captor.getValue();
+    assertEquals("object-1", actualRequest.key());
+    assertEquals("bucket-1", actualRequest.bucket());
+    assertEquals("mpu-id", actualRequest.uploadId());
   }
 
   @Test

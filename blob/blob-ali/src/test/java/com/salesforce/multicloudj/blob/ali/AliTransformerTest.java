@@ -8,12 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PartSummary;
-import com.aliyun.oss.model.UploadPartResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
@@ -334,30 +330,33 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToInitiateMultipartUploadRequest() {
+  void testToV2InitiateMultipartUploadRequest() {
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("key").withMetadata(metadata).build();
 
-    var actual = transformer.toInitiateMultipartUploadRequest(request);
+    var actual = transformer.toV2InitiateMultipartUploadRequest(request);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals(metadata, actual.getObjectMetadata().getUserMetadata());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key", actual.key());
+    assertEquals(metadata, actual.metadata());
   }
 
   @Test
   void testToMultipartUpload() {
-    InitiateMultipartUploadResult initiateMultipartUploadResult =
-        mock(InitiateMultipartUploadResult.class);
-    doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
-    doReturn("key").when(initiateMultipartUploadResult).getKey();
-    doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey("key").withMetadata(metadata).withContentType("text/plain").build();
 
-    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, request);
+    var actual = transformer.toMultipartUpload(result, request);
 
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());
@@ -368,17 +367,20 @@ public class AliTransformerTest {
 
   @Test
   void testToMultipartUploadWithKms() {
-    InitiateMultipartUploadResult initiateMultipartUploadResult =
-        mock(InitiateMultipartUploadResult.class);
-    doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
-    doReturn("key").when(initiateMultipartUploadResult).getKey();
-    doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     String kmsKeyId = "test-kms-key-id";
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey("key").withMetadata(metadata).withKmsKeyId(kmsKeyId).build();
 
-    var actual = transformer.toMultipartUpload(initiateMultipartUploadResult, request);
+    var actual = transformer.toMultipartUpload(result, request);
 
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());
@@ -388,27 +390,24 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToUploadPartRequest() {
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
+  void testToV2UploadPartRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder()
             .bucket(BUCKET)
             .key("key")
             .id("uploadId")
-            .metadata(metadata)
             .build();
     byte[] content = "Test data".getBytes();
     InputStream inputStream = new ByteArrayInputStream(content);
     MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
 
-    var actual = transformer.toUploadPartRequest(mpu, mpp);
+    var actual = transformer.toV2UploadPartRequest(mpu, mpp);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals("uploadId", actual.getUploadId());
-    assertEquals(1, actual.getPartNumber());
-    assertEquals(inputStream, actual.getInputStream());
-    assertEquals(content.length, actual.getPartSize());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key", actual.key());
+    assertEquals("uploadId", actual.uploadId());
+    assertEquals(1L, actual.partNumber());
+    assertEquals((long) content.length, actual.contentLength());
   }
 
   @Test
@@ -416,12 +415,11 @@ public class AliTransformerTest {
     byte[] content = "Test data".getBytes();
     InputStream inputStream = new ByteArrayInputStream(content);
     MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
-    UploadPartResult uploadPartResult = new UploadPartResult();
-    uploadPartResult.setETag("etag");
-    uploadPartResult.setPartNumber(1);
-    uploadPartResult.setPartSize(content.length);
+    com.aliyun.sdk.service.oss2.models.UploadPartResult result =
+        mock(com.aliyun.sdk.service.oss2.models.UploadPartResult.class);
+    doReturn("\"etag\"").when(result).eTag();
 
-    var actual = transformer.toUploadPartResponse(mpp, uploadPartResult);
+    var actual = transformer.toUploadPartResponse(mpp, result);
 
     assertEquals("etag", actual.getEtag());
     assertEquals(1, actual.getPartNumber());
@@ -429,51 +427,49 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToCompleteMultipartUploadRequest() {
+  void testToV2CompleteMultipartUploadRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
     List<UploadPartResponse> parts =
         List.of(new UploadPartResponse(1, "etag1", 50), new UploadPartResponse(2, "etag2", 50));
 
-    var actual = transformer.toCompleteMultipartUploadRequest(mpu, parts);
+    var actual = transformer.toV2CompleteMultipartUploadRequest(mpu, parts);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals("uploadId", actual.getUploadId());
-    var actualParts = actual.getPartETags();
-    assertEquals(1, actualParts.get(0).getPartNumber());
-    assertEquals("etag1", actualParts.get(0).getETag());
-    assertEquals(2, actualParts.get(1).getPartNumber());
-    assertEquals("etag2", actualParts.get(1).getETag());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key", actual.key());
+    assertEquals("uploadId", actual.uploadId());
+    var actualParts = actual.completeMultipartUpload().parts();
+    assertEquals(1L, actualParts.get(0).partNumber());
+    assertEquals("etag1", actualParts.get(0).eTag());
+    assertEquals(2L, actualParts.get(1).partNumber());
+    assertEquals("etag2", actualParts.get(1).eTag());
   }
 
   @Test
-  void testToListPartsRequest() {
+  void testToV2ListPartsRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
 
-    var actual = transformer.toListPartsRequest(mpu);
+    var actual = transformer.toV2ListPartsRequest(mpu);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals("uploadId", actual.getUploadId());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key", actual.key());
+    assertEquals("uploadId", actual.uploadId());
   }
 
   @Test
   void testToListUploadPartResponse() {
-    PartListing partListing = new PartListing();
-    var part2 = new PartSummary();
-    part2.setETag("etag2");
-    part2.setPartNumber(2);
-    part2.setSize(50L);
-    partListing.addPart(part2); // Intentionally out of order, to verify sort
-    var part1 = new PartSummary();
-    part1.setETag("etag1");
-    part1.setPartNumber(1);
-    part1.setSize(100L);
-    partListing.addPart(part1);
+    com.aliyun.sdk.service.oss2.models.ListPartsResult result =
+        mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);
+    com.aliyun.sdk.service.oss2.models.Part part2 =
+        com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+            .partNumber(2L).eTag("\"etag2\"").size(50L).build();
+    com.aliyun.sdk.service.oss2.models.Part part1 =
+        com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+            .partNumber(1L).eTag("\"etag1\"").size(100L).build();
+    doReturn(List.of(part2, part1)).when(result).parts();
 
-    var actual = transformer.toListUploadPartResponse(partListing);
+    var actual = transformer.toListUploadPartResponse(result);
 
     assertEquals(1, actual.get(0).getPartNumber());
     assertEquals("etag1", actual.get(0).getEtag());
@@ -484,15 +480,15 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToAbortMultipartUploadRequest() {
+  void testToV2AbortMultipartUploadRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
 
-    var actual = transformer.toAbortMultipartUploadRequest(mpu);
+    var actual = transformer.toV2AbortMultipartUploadRequest(mpu);
 
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals("uploadId", actual.getUploadId());
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("key", actual.key());
+    assertEquals("uploadId", actual.uploadId());
   }
 
   @Test
@@ -638,17 +634,16 @@ public class AliTransformerTest {
 
 
   @Test
-  void testToInitiateMultipartUploadRequestWithContentType() {
+  void testToV2InitiateMultipartUploadRequestWithContentType() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder()
             .withKey("test-key")
             .withContentType("application/x-directory")
             .build();
 
-    com.aliyun.oss.model.InitiateMultipartUploadRequest result =
-        transformer.toInitiateMultipartUploadRequest(request);
+    var result = transformer.toV2InitiateMultipartUploadRequest(request);
 
-    assertEquals("application/x-directory", result.getObjectMetadata().getContentType());
+    assertEquals("application/x-directory", result.contentType());
   }
 
   @Test
@@ -700,18 +695,20 @@ public class AliTransformerTest {
 
   @Test
   void testToMultipartUpload_WithChecksumAlgorithm() {
-    InitiateMultipartUploadResult initiateMultipartUploadResult =
-        mock(InitiateMultipartUploadResult.class);
-    doReturn(BUCKET).when(initiateMultipartUploadResult).getBucketName();
-    doReturn("key").when(initiateMultipartUploadResult).getKey();
-    doReturn("uploadId").when(initiateMultipartUploadResult).getUploadId();
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
         .withKey("key")
         .withChecksumAlgorithm(ChecksumMethod.SHA256)
         .build();
 
-    var actual = transformer.toMultipartUpload(
-        initiateMultipartUploadResult, request);
+    var actual = transformer.toMultipartUpload(result, request);
 
     assertEquals(BUCKET, actual.getBucket());
     assertEquals("key", actual.getKey());

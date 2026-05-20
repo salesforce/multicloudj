@@ -17,11 +17,11 @@ Complete list of v1 SDK API calls that need to be migrated to v2 across all Ali 
 | 9 | copy | `copyObject(CopyObjectRequest)` | `copyObject(CopyObjectRequest, OperationOptions)` | `testCopy`, `testVersionedCopy`, `testCopyFrom`, `testVersionedCopyFrom` | Done |
 | 10 | doesObjectExist | `doesObjectExist(GenericRequest)` | `doesObjectExist(GetObjectMetaRequest)` | `testDoesObjectExist`, `testDoesObjectExist_versioned` | Done |
 | 11 | doesBucketExist | `doesBucketExist(bucket)` | `doesBucketExist(bucket)` | `testDoesBucketExist`, `testDoesBucketExist_NonExistentBucket` | Done |
-| 12 | initiate multipart | `initiateMultipartUpload(InitiateMultipartUploadRequest)` | `initiateMultipartUpload(InitiateMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_singlePart`, `testMultipartUpload_multipleParts`, `testMultipartUpload_withKms`, `testMultipartUpload_withTags`, `testMultipartUpload_withContentType` | Pending |
-| 13 | upload part | `uploadPart(UploadPartRequest)` | `uploadPart(UploadPartRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Pending |
-| 14 | complete multipart | `completeMultipartUpload(CompleteMultipartUploadRequest)` | `completeMultipartUpload(CompleteMultipartUploadRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Pending |
-| 15 | list parts | `listParts(ListPartsRequest)` | `listParts(ListPartsRequest, OperationOptions)` | `testMultipartUpload_duplicateParts` | Pending |
-| 16 | abort multipart | `abortMultipartUpload(AbortMultipartUploadRequest)` | `abortMultipartUpload(AbortMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_completeAnAbortedUpload` | Pending |
+| 12 | initiate multipart | `initiateMultipartUpload(InitiateMultipartUploadRequest)` | `initiateMultipartUpload(InitiateMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_singlePart`, `testMultipartUpload_multipleParts`, `testMultipartUpload_withKms`, `testMultipartUpload_withTags`, `testMultipartUpload_withContentType` | Done |
+| 13 | upload part | `uploadPart(UploadPartRequest)` | `uploadPart(UploadPartRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Done |
+| 14 | complete multipart | `completeMultipartUpload(CompleteMultipartUploadRequest)` | `completeMultipartUpload(CompleteMultipartUploadRequest, OperationOptions)` | (same as #12 — part of multipart flow) | Done |
+| 15 | list parts | `listParts(ListPartsRequest)` | `listParts(ListPartsRequest, OperationOptions)` | `testMultipartUpload_duplicateParts` | Done |
+| 16 | abort multipart | `abortMultipartUpload(AbortMultipartUploadRequest)` | `abortMultipartUpload(AbortMultipartUploadRequest, OperationOptions)` | `testMultipartUpload_completeAnAbortedUpload` | Done |
 | 17 | getTags | `getObjectTagging(bucket, key)` | `getObjectTagging(GetObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
 | 18 | setTags | `setObjectTagging(bucket, key, TagSet)` | `putObjectTagging(PutObjectTaggingRequest, OperationOptions)` | `testTagging` | Done |
 | 19 | presigned URL (upload) | `generatePresignedUrl(GeneratePresignedUrlRequest)` | `presign(PutObjectRequest, PresignOptions)` | `testGeneratePresignedUploadUrl_happyPath*`, `testPresignedUrlWithKmsKey_*` | Done |

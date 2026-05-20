@@ -1,20 +1,9 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.internal.OSSHeaders;
-import com.aliyun.oss.model.AbortMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadRequest;
 import com.aliyun.oss.model.GenericRequest;
 import com.aliyun.oss.model.GetObjectRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListPartsRequest;
 import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
-import com.aliyun.oss.model.PartETag;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PartSummary;
-import com.aliyun.oss.model.UploadPartRequest;
-import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -427,31 +416,42 @@ public class AliTransformer {
         .build();
   }
 
-  public InitiateMultipartUploadRequest toInitiateMultipartUploadRequest(
-      MultipartUploadRequest request) {
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setUserMetadata(request.getMetadata());
+  public com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest
+      toV2InitiateMultipartUploadRequest(MultipartUploadRequest request) {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.Builder builder =
+        com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.newBuilder()
+            .bucket(bucket)
+            .key(request.getKey());
+
+    if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
+      builder.metadata(request.getMetadata());
+    }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
-      metadata.setServerSideEncryption(ObjectMetadata.KMS_SERVER_SIDE_ENCRYPTION);
-      metadata.setHeader(OSSHeaders.OSS_SERVER_SIDE_ENCRYPTION_KEY_ID, request.getKmsKeyId());
+      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
-    // Set content type if provided
     if (StringUtils.isNotEmpty(request.getContentType())) {
-      metadata.setContentType(request.getContentType());
+      builder.contentType(request.getContentType());
     }
 
-    return new InitiateMultipartUploadRequest(getBucket(), request.getKey(), metadata);
+    if (request.getTags() != null && !request.getTags().isEmpty()) {
+      builder.tagging(encodeTags(request.getTags()));
+    }
+
+    return builder.build();
   }
 
   public MultipartUpload toMultipartUpload(
-      InitiateMultipartUploadResult initiateMultipartUploadResult,
+      com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result,
       MultipartUploadRequest request) {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        result.initiateMultipartUpload();
     return MultipartUpload.builder()
-        .bucket(initiateMultipartUploadResult.getBucketName())
-        .key(initiateMultipartUploadResult.getKey())
-        .id(initiateMultipartUploadResult.getUploadId())
+        .bucket(upload.bucket())
+        .key(upload.key())
+        .id(upload.uploadId())
         .metadata(request.getMetadata())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
@@ -460,46 +460,76 @@ public class AliTransformer {
         .build();
   }
 
-  public UploadPartRequest toUploadPartRequest(MultipartUpload mpu, MultipartPart mpp) {
-    return new UploadPartRequest(
-        getBucket(),
-        mpu.getKey(),
-        mpu.getId(),
-        mpp.getPartNumber(),
-        mpp.getInputStream(),
-        mpp.getContentLength());
+  public com.aliyun.sdk.service.oss2.models.UploadPartRequest toV2UploadPartRequest(
+      MultipartUpload mpu, MultipartPart mpp) {
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+            mpp.getInputStream(), mpp.getContentLength());
+    return com.aliyun.sdk.service.oss2.models.UploadPartRequest.newBuilder()
+        .bucket(bucket)
+        .key(mpu.getKey())
+        .uploadId(mpu.getId())
+        .partNumber((long) mpp.getPartNumber())
+        .body(body)
+        .contentLength(mpp.getContentLength())
+        .build();
   }
 
   public UploadPartResponse toUploadPartResponse(
-      MultipartPart mpp, UploadPartResult uploadPartResult) {
+      MultipartPart mpp, com.aliyun.sdk.service.oss2.models.UploadPartResult result) {
     return new UploadPartResponse(
-        mpp.getPartNumber(), uploadPartResult.getPartETag().getETag(), mpp.getContentLength());
+        mpp.getPartNumber(), stripQuotes(result.eTag()), mpp.getContentLength());
   }
 
-  public CompleteMultipartUploadRequest toCompleteMultipartUploadRequest(
-      MultipartUpload mpu, List<UploadPartResponse> parts) {
-    List<PartETag> completedParts =
+  public com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest
+      toV2CompleteMultipartUploadRequest(
+          MultipartUpload mpu, List<UploadPartResponse> parts) {
+    List<com.aliyun.sdk.service.oss2.models.Part> v2Parts =
         parts.stream()
             .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
-            .map(part -> new PartETag(part.getPartNumber(), part.getEtag()))
+            .map(part -> com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+                .partNumber((long) part.getPartNumber())
+                .eTag(part.getEtag())
+                .build())
             .collect(Collectors.toList());
-    return new CompleteMultipartUploadRequest(
-        getBucket(), mpu.getKey(), mpu.getId(), completedParts);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload body =
+        com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload.newBuilder()
+            .parts(v2Parts)
+            .build();
+    return com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.newBuilder()
+        .bucket(bucket)
+        .key(mpu.getKey())
+        .uploadId(mpu.getId())
+        .completeMultipartUpload(body)
+        .build();
   }
 
-  public ListPartsRequest toListPartsRequest(MultipartUpload mpu) {
-    return new ListPartsRequest(bucket, mpu.getKey(), mpu.getId());
+  public com.aliyun.sdk.service.oss2.models.ListPartsRequest toV2ListPartsRequest(
+      MultipartUpload mpu) {
+    return com.aliyun.sdk.service.oss2.models.ListPartsRequest.newBuilder()
+        .bucket(bucket)
+        .key(mpu.getKey())
+        .uploadId(mpu.getId())
+        .build();
   }
 
-  public List<UploadPartResponse> toListUploadPartResponse(PartListing partListing) {
-    return partListing.getParts().stream()
-        .sorted(Comparator.comparingInt(PartSummary::getPartNumber))
-        .map((part) -> new UploadPartResponse(part.getPartNumber(), part.getETag(), part.getSize()))
+  public List<UploadPartResponse> toListUploadPartResponse(
+      com.aliyun.sdk.service.oss2.models.ListPartsResult result) {
+    return result.parts().stream()
+        .sorted(Comparator.comparingLong(com.aliyun.sdk.service.oss2.models.Part::partNumber))
+        .map(part -> new UploadPartResponse(
+            part.partNumber().intValue(), stripQuotes(part.eTag()),
+            part.size() != null ? part.size() : 0L))
         .collect(Collectors.toList());
   }
 
-  public AbortMultipartUploadRequest toAbortMultipartUploadRequest(MultipartUpload mpu) {
-    return new AbortMultipartUploadRequest(bucket, mpu.getKey(), mpu.getId());
+  public com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest
+      toV2AbortMultipartUploadRequest(MultipartUpload mpu) {
+    return com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest.newBuilder()
+        .bucket(bucket)
+        .key(mpu.getKey())
+        .uploadId(mpu.getId())
+        .build();
   }
 
   public com.aliyun.sdk.service.oss2.models.PutObjectRequest toPresignedPutObjectRequest(

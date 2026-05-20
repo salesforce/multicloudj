@@ -6,14 +6,6 @@ import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.ServiceException;
 import com.aliyun.oss.common.comm.SignVersion;
-import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.InitiateMultipartUploadRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.UploadPartRequest;
-import com.aliyun.oss.model.UploadPartResult;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -482,11 +474,12 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
-    InitiateMultipartUploadRequest initiateMultipartUploadRequest =
-        transformer.toInitiateMultipartUploadRequest(request);
-    InitiateMultipartUploadResult initiateMultipartUploadResult =
-        ossClient.initiateMultipartUpload(initiateMultipartUploadRequest);
-    return transformer.toMultipartUpload(initiateMultipartUploadResult, request);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest v2Request =
+        transformer.toV2InitiateMultipartUploadRequest(request);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        ossV2Client.initiateMultipartUpload(v2Request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toMultipartUpload(result, request);
   }
 
   /**
@@ -499,9 +492,12 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected UploadPartResponse doUploadMultipartPart(
       final MultipartUpload mpu, final MultipartPart mpp) {
-    UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
-    UploadPartResult uploadPartResult = ossClient.uploadPart(uploadPartRequest);
-    return transformer.toUploadPartResponse(mpp, uploadPartResult);
+    com.aliyun.sdk.service.oss2.models.UploadPartRequest v2Request =
+        transformer.toV2UploadPartRequest(mpu, mpp);
+    com.aliyun.sdk.service.oss2.models.UploadPartResult result =
+        ossV2Client.uploadPart(v2Request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toUploadPartResponse(mpp, result);
   }
 
   /**
@@ -514,11 +510,13 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected MultipartUploadResponse doCompleteMultipartUpload(
       final MultipartUpload mpu, final List<UploadPartResponse> parts) {
-    CompleteMultipartUploadRequest completeMultipartUploadRequest =
-        transformer.toCompleteMultipartUploadRequest(mpu, parts);
-    CompleteMultipartUploadResult completeMultipartUploadResult =
-        ossClient.completeMultipartUpload(completeMultipartUploadRequest);
-    return new MultipartUploadResponse(completeMultipartUploadResult.getETag());
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest v2Request =
+        transformer.toV2CompleteMultipartUploadRequest(mpu, parts);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult result =
+        ossV2Client.completeMultipartUpload(v2Request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return new MultipartUploadResponse(
+        stripQuotes(result.completeMultipartUpload().eTag()));
   }
 
   /**
@@ -528,9 +526,12 @@ public class AliBlobStore extends AbstractBlobStore {
    * @return Returns a list of all uploaded parts
    */
   protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu) {
-    ListPartsRequest listPartsRequest = transformer.toListPartsRequest(mpu);
-    PartListing partListing = ossClient.listParts(listPartsRequest);
-    return transformer.toListUploadPartResponse(partListing);
+    com.aliyun.sdk.service.oss2.models.ListPartsRequest v2Request =
+        transformer.toV2ListPartsRequest(mpu);
+    com.aliyun.sdk.service.oss2.models.ListPartsResult result =
+        ossV2Client.listParts(v2Request,
+            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    return transformer.toListUploadPartResponse(result);
   }
 
   /**
@@ -539,7 +540,18 @@ public class AliBlobStore extends AbstractBlobStore {
    * @param mpu The multipartUpload identifier
    */
   protected void doAbortMultipartUpload(final MultipartUpload mpu) {
-    ossClient.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu));
+    ossV2Client.abortMultipartUpload(transformer.toV2AbortMultipartUploadRequest(mpu),
+        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+  }
+
+  private String stripQuotes(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
   }
 
   /**
