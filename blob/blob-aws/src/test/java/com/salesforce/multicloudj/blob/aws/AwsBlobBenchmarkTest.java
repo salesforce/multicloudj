@@ -16,9 +16,12 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
   private static final Logger logger = LoggerFactory.getLogger(AwsBlobBenchmarkTest.class);
-  private static final String endpoint = "https://s3.us-east-2.amazonaws.com";
-  private static final String bucketName = "chameleon-jcloud-benchmarks";
-  private static final String region = "us-east-2";
+  private static final String region =
+      System.getProperty("aws.benchmark.region", "us-west-2");
+  private static final String endpoint =
+      System.getProperty("aws.benchmark.endpoint", "https://s3." + region + ".amazonaws.com");
+  private static final String bucketName =
+      System.getProperty("aws.benchmark.bucket", "multicloudj-sync-client-benchmark");
 
   @Override
   protected Harness createHarness() {
@@ -38,11 +41,11 @@ public class AwsBlobBenchmarkTest extends AbstractBlobBenchmarkTest {
 
       try {
         URI endpointUri = URI.create(endpoint);
-        logger.debug("Building S3 client with region: {}", Region.US_EAST_2);
+        logger.debug("Building S3 client with region: {}", region);
 
         client =
             S3Client.builder()
-                .region(Region.US_EAST_2)
+                .region(Region.of(region))
                 .endpointOverride(endpointUri)
                 .serviceConfiguration(
                     S3Configuration.builder().pathStyleAccessEnabled(true).build())

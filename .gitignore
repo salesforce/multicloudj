@@ -3,7 +3,8 @@ target/
 .classpath
 .project
 .idea/
-.claude/
+.claude/*
+!.claude/skills/
 *.iml
 *.eml
 *.ipr
