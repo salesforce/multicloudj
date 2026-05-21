@@ -1,0 +1,37 @@
+{
+  "id" : "b00deac0-e10c-44ee-8615-07287b1f56c0",
+  "name" : "AliBlobStoreIT_testDoesBucketExist-GET-0",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "acl" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<AccessControlPolicy>\n  <Owner>\n    <ID>1099202394511537</ID>\n    <DisplayName>1099202394511537</DisplayName>\n  </Owner>\n  <AccessControlList>\n    <Grant>private</Grant>\n  </AccessControlList>\n</AccessControlPolicy>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0E79CFCC7B3F333511CDCF",
+      "x-oss-server-time" : "2",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 03:19:43 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b00deac0-e10c-44ee-8615-07287b1f56c0",
+  "persistent" : true,
+  "insertionIndex" : 302
+}

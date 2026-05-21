@@ -1,0 +1,37 @@
+{
+  "id" : "fa17912a-1640-41ed-9e8a-fb2c0181c218",
+  "name" : "AliBlobStoreIT_testNonexistentBucket-POST-6",
+  "request" : {
+    "urlPath" : "/conformance-tests/blob-for-failing/testNonexistentBucketmultipart1",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploads" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0E799220C22B353294BEFB</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0E799220C22B353294BEFB",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0015-00000101",
+      "Date" : "Thu, 21 May 2026 03:18:42 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fa17912a-1640-41ed-9e8a-fb2c0181c218",
+  "persistent" : true,
+  "insertionIndex" : 217
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "da8521d9-3cf7-413a-854c-8aa1d3262193",
+  "name" : "AliBlobStoreIT_testGetVersionedMetadata-PUT-4",
+  "request" : {
+    "url" : "/conformance-tests/metadata/versioned-blob",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VmVyc2lvbmVkIG1ldGFkYXRhIGJsb2I="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgYDA_peXovIZIiA4ODk1ODA5NGU3MjU0ZWUyOWJmODkyZjNlMTA3YmIzNw--",
+      "x-oss-request-id" : "6A0E79C0506D7F3730655F53",
+      "x-oss-server-time" : "28",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "7808103775122806056",
+      "ETag" : "\"1575B03AB162A4352AFB6F4A7D8890A9\"",
+      "Date" : "Thu, 21 May 2026 03:19:28 GMT",
+      "Content-MD5" : "FXWwOrFipDUq+29KfYiQqQ=="
+    }
+  },
+  "uuid" : "da8521d9-3cf7-413a-854c-8aa1d3262193",
+  "persistent" : true,
+  "insertionIndex" : 284
+}

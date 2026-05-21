@@ -1,0 +1,34 @@
+{
+  "id" : "dfd71867-c313-4c12-912e-12884cac985d",
+  "name" : "AliBlobStoreIT_testDownloadWithKmsKey-GET-1",
+  "request" : {
+    "url" : "/conformance-tests/kms/download-happy-path",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGVzdCBkYXRhIGZvciBLTVMgZG93bmxvYWQ=",
+    "headers" : {
+      "x-oss-request-id" : "6A0E78F1CC7B3F31345094C8",
+      "x-oss-server-time" : "62",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Thu, 21 May 2026 03:16:00 GMT",
+      "Date" : "Thu, 21 May 2026 03:16:01 GMT",
+      "Content-MD5" : "HYA/8YGA96w8epKOb+FkdQ==",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "4874043655706260165",
+      "ETag" : "\"1D803FF18180F7AC3C7A928E6FE16475\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "dfd71867-c313-4c12-912e-12884cac985d",
+  "persistent" : true,
+  "insertionIndex" : 42
+}
