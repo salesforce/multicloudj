@@ -1,0 +1,47 @@
+{
+  "id" : "1fcfdae1-d291-477d-9e4c-79e656669d9e",
+  "name" : "AliBlobStoreIT_testListPage-GET-13",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
+      },
+      "marker" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page/prefix-2"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "3"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests/blob-for-list-page</Prefix>\n  <Marker>conformance-tests/blob-for-list-page/prefix-2</Marker>\n  <MaxKeys>3</MaxKeys>\n  <Delimiter></Delimiter>\n  <IsTruncated>true</IsTruncated>\n  <NextMarker>conformance-tests/blob-for-list-page/prefix_3</NextMarker>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix-4</Key>\n    <LastModified>2026-05-21T03:23:28.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix-5</Key>\n    <LastModified>2026-05-21T03:23:29.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix_3</Key>\n    <LastModified>2026-05-21T03:23:27.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0E7AB5D7BDE83935B1F2AC",
+      "x-oss-server-time" : "3",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 03:23:33 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "1fcfdae1-d291-477d-9e4c-79e656669d9e",
+  "persistent" : true,
+  "insertionIndex" : 590
+}

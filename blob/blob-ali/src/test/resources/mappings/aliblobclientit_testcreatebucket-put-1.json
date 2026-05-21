@@ -1,0 +1,26 @@
+{
+  "id" : "b35a4058-6cc6-4cee-b554-e883094df3b5",
+  "name" : "AliBlobClientIT_testCreateBucket-PUT-1",
+  "request" : {
+    "url" : "/",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "test-bucket-create-multicloudj3.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A06C80740BC853033EE2352",
+      "x-oss-server-time" : "407",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 15 May 2026 07:15:20 GMT",
+      "Location" : "/test-bucket-create-multicloudj3"
+    }
+  },
+  "uuid" : "b35a4058-6cc6-4cee-b554-e883094df3b5",
+  "persistent" : true,
+  "insertionIndex" : 603
+}

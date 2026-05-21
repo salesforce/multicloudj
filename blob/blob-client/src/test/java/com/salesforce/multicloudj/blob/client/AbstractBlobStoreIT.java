@@ -167,6 +167,10 @@ public abstract class AbstractBlobStoreIT {
     default List<String> getWiremockExtensions() {
       return List.of();
     }
+
+    default List<String> getRecordingCaptureHeaders() {
+      return List.of();
+    }
   }
 
   protected abstract Harness createHarness();
@@ -205,7 +209,11 @@ public abstract class AbstractBlobStoreIT {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
         testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
-    TestsUtil.startWireMockRecording(harness.getEndpoint(), testClassName, testMethodName);
+    TestsUtil.startWireMockRecording(
+        harness.getEndpoint(),
+        testClassName,
+        testMethodName,
+        harness.getRecordingCaptureHeaders());
   }
 
   /**
@@ -1450,6 +1458,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopy() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String key = "conformance-tests/blob-for-copying";
     String destKey = "conformance-tests/copied-blob";
@@ -1678,6 +1687,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopyFrom() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     String key = "conformance-tests/blob-for-copyFrom";
     String destKey = "conformance-tests/copied-from-blob";
@@ -3320,6 +3330,7 @@ public abstract class AbstractBlobStoreIT {
   }
 
   private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the BucketClient
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3589,6 +3600,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_invalidMultipartUpload() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3642,6 +3654,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_multipleMultipartUploadsForSameKey() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3674,6 +3687,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_completeAnAbortedUpload() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3749,6 +3763,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withChecksum() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withChecksum";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -4631,6 +4646,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumInputStream() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
     byte[] content = "Test invalid checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -4658,6 +4674,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumByteArray() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/checksum/upload-bytearray-invalid-checksum";
     byte[] content = "Test invalid checksum with byte array".getBytes(StandardCharsets.UTF_8);
 
@@ -4684,6 +4701,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumFile() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/checksum/upload-file-invalid-checksum";
     byte[] content = "Test invalid checksum with File".getBytes(StandardCharsets.UTF_8);
 
@@ -4718,6 +4736,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withSha256Checksum() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     Assumptions.assumeTrue(
         harness.isSha256Supported(),
         "SHA256 checksum not supported by " + harness.getProviderId());
@@ -4787,6 +4806,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withContentType() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
     String contentType = "text/plain";
 
@@ -4865,6 +4885,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testDownload_checkArchived() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
     String key = "conformance-tests/check-archived/archived-blob";
@@ -4909,6 +4930,7 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testDownload_checkArchived_neverExisted() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 

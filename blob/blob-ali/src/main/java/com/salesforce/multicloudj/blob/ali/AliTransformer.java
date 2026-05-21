@@ -79,6 +79,10 @@ public class AliTransformer {
     metadata.setUserMetadata(uploadRequest.getMetadata());
     metadata.setObjectTagging(uploadRequest.getTags());
 
+    if (uploadRequest.getContentLength() > 0) {
+      metadata.setContentLength(uploadRequest.getContentLength());
+    }
+
     // Set storage class if provided
     if (StringUtils.isNotEmpty(uploadRequest.getStorageClass())) {
       metadata.setHeader("x-oss-storage-class", uploadRequest.getStorageClass());
@@ -317,7 +321,10 @@ public class AliTransformer {
         new GeneratePresignedUrlRequest(getBucket(), request.getKey());
     presignedUrlRequest.setExpiration(expirationDate);
     presignedUrlRequest.setMethod(HttpMethod.PUT);
-    presignedUrlRequest.setUserMetadata(request.getMetadata());
+    Map<String, String> userMetadata = request.getMetadata();
+    if (userMetadata != null && !userMetadata.isEmpty()) {
+      presignedUrlRequest.setUserMetadata(userMetadata);
+    }
 
     // Note: Tagging is not supported by default for OSS presigned uploads so we have to manually
     // append it

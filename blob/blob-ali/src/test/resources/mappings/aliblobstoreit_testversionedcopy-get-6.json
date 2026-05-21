@@ -1,0 +1,35 @@
+{
+  "id" : "78ebd19a-b3b9-4071-ac28-c4f9472dd768",
+  "name" : "AliBlobStoreIT_testVersionedCopy-GET-6",
+  "request" : {
+    "url" : "/conformance-tests/versionedCopy/copied-blob-latest",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2I=",
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgYDAs5CVovIZIiBiNDU5ZmE2NWYzZGI0NTJlYjVlNTE5MGNkNmMzNGQzMQ--",
+      "x-oss-request-id" : "6A0E797E1AA5CE3839798133",
+      "x-oss-server-time" : "28",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Thu, 21 May 2026 03:18:21 GMT",
+      "Date" : "Thu, 21 May 2026 03:18:22 GMT",
+      "Content-MD5" : "2ksGazsjJF4qLp6jLPdSYw==",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "10918592999517518563",
+      "ETag" : "\"DA4B066B3B23245E2A2E9EA32CF75263\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "78ebd19a-b3b9-4071-ac28-c4f9472dd768",
+  "persistent" : true,
+  "insertionIndex" : 184
+}

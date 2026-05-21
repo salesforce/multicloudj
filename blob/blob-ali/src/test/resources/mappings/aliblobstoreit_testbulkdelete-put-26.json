@@ -1,0 +1,31 @@
+{
+  "id" : "154308b2-e8aa-4694-b1ca-35f1058e8965",
+  "name" : "AliBlobStoreIT_testBulkDelete-PUT-26",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-bulk-delete_happy3",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "QnVsayBkZWxldGUgYmxvYiBmb3IgY29uZm9ybWFuY2UtdGVzdHMvYmxvYi1mb3ItYnVsay1kZWxldGVfaGFwcHkz"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A0E78D167EC9C33327B0337",
+      "x-oss-server-time" : "56",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "10505808169652980713",
+      "ETag" : "\"E54C269DB97F24BAF0BF214901ACF1F2\"",
+      "Date" : "Thu, 21 May 2026 03:15:29 GMT",
+      "Content-MD5" : "5Uwmnbl/JLrwvyFJAazx8g=="
+    }
+  },
+  "uuid" : "154308b2-e8aa-4694-b1ca-35f1058e8965",
+  "persistent" : true,
+  "insertionIndex" : 35
+}
