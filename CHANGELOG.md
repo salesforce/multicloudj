@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.4...multicloudj-v0.3.5) (2026-05-21)
+
+
+### Blob Store
+
+* fix the checksum crc32c validation with negative case with… ([#433](https://github.com/salesforce/multicloudj/issues/433)) ([228ec40](https://github.com/salesforce/multicloudj/commit/228ec40defe0a3c24cc3b67b6202edf43b36216f))
+* onboard conformance test for Ali ([#425](https://github.com/salesforce/multicloudj/issues/425)) ([16268d7](https://github.com/salesforce/multicloudj/commit/16268d79507c41e64b16b19f1c8a984abf610ff2))
+
 ## [0.3.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.3...multicloudj-v0.3.4) (2026-05-15)
 
 
