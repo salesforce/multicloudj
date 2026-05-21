@@ -175,8 +175,8 @@ public class GcpBlobStore extends AbstractBlobStore {
     try (WriteChannel writer =
             storage.writer(
                 transformer.toBlobInfo(uploadRequest),
-                transformer.getKmsWriteOptions(uploadRequest));
-        var channel = Channels.newOutputStream(writer)) {
+                transformer.getBlobWriteOptions(uploadRequest));
+         var channel = Channels.newOutputStream(writer)) {
       ByteStreams.copy(inputStream, channel);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
@@ -188,11 +188,15 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     rejectSha256(uploadRequest.getChecksumAlgorithm());
-    Blob blob =
-        storage.create(
-            transformer.toBlobInfo(uploadRequest),
-            content,
-            transformer.getKmsTargetOptions(uploadRequest));
+    try (WriteChannel writer =
+            storage.writer(
+                transformer.toBlobInfo(uploadRequest),
+                transformer.getBlobWriteOptions(uploadRequest))) {
+      writer.write(ByteBuffer.wrap(content));
+    } catch (IOException e) {
+      throw new SubstrateSdkException("Request failed while uploading from byte array", e);
+    }
+    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
     return transformer.toUploadResponse(blob);
   }
 
@@ -210,7 +214,7 @@ public class GcpBlobStore extends AbstractBlobStore {
           storage.createFrom(
               transformer.toBlobInfo(uploadRequest),
               path,
-              transformer.getKmsWriteOptions(uploadRequest));
+              transformer.getBlobWriteOptions(uploadRequest));
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from path", e);

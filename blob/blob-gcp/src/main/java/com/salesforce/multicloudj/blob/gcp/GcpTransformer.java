@@ -84,7 +84,7 @@ public class GcpTransformer {
     // the user's metadata. Skipped when the request carries no operation context, or when the
     // app has supplied the same key explicitly.
     if (uploadRequest.getOperationContext() != null
-        && uploadRequest.getOperationContext().getCorrelationId() != null
+        && StringUtils.isNotBlank(uploadRequest.getOperationContext().getCorrelationId())
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
       metadata.put(
           CORRELATION_ID_METADATA_KEY,
@@ -388,13 +388,15 @@ public class GcpTransformer {
     return new Storage.BlobTargetOption[0];
   }
 
-  public Storage.BlobWriteOption[] getKmsWriteOptions(UploadRequest uploadRequest) {
+  public Storage.BlobWriteOption[] getBlobWriteOptions(UploadRequest uploadRequest) {
+    List<Storage.BlobWriteOption> options = new ArrayList<>();
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
-      return new Storage.BlobWriteOption[] {
-        Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId())
-      };
+      options.add(Storage.BlobWriteOption.kmsKeyName(uploadRequest.getKmsKeyId()));
     }
-    return new Storage.BlobWriteOption[0];
+    if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
+      options.add(Storage.BlobWriteOption.crc32cMatch());
+    }
+    return options.toArray(new Storage.BlobWriteOption[0]);
   }
 
   public BlobInfo toBlobInfo(MultipartUpload mpu) {

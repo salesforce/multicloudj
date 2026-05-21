@@ -197,7 +197,7 @@ public class AwsTransformer {
     // explicitly.
     Map<String, String> metadata = new HashMap<>(request.getMetadata());
     if (request.getOperationContext() != null
-        && request.getOperationContext().getCorrelationId() != null
+        && StringUtils.isNotBlank(request.getOperationContext().getCorrelationId())
         && !metadata.containsKey(CORRELATION_ID_METADATA_KEY)) {
       metadata.put(CORRELATION_ID_METADATA_KEY, request.getOperationContext().getCorrelationId());
     }

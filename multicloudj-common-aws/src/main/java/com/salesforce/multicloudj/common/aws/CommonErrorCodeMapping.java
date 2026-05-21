@@ -41,6 +41,7 @@ public class CommonErrorCodeMapping {
             Map.entry("NotSignedUp", UnAuthorizedException.class),
             Map.entry("RequestTimeTooSkewed", InvalidArgumentException.class),
             Map.entry("SignatureDoesNotMatch", InvalidArgumentException.class),
+            Map.entry("BadDigest", InvalidArgumentException.class),
             Map.entry("TokenRefreshRequired", UnAuthorizedException.class));
   }
 
