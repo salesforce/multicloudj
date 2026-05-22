@@ -4,12 +4,10 @@ import com.google.cloud.firestore.v1.FirestoreClient;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreBenchmarkTest;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
