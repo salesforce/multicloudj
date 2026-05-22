@@ -1,0 +1,34 @@
+{
+  "id" : "a02546d3-1299-4796-ae5f-eff78f32405c",
+  "name" : "AliBlobStoreIT_testUploadWithKmsKey_emptyKmsKeyId-GET-1",
+  "request" : {
+    "url" : "/conformance-tests/kms/upload-empty-key",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VGVzdCBkYXRhIHdpdGggZW1wdHkgS01TIGtleQ==",
+    "headers" : {
+      "x-oss-request-id" : "6A0E79A249861E3138B7A034",
+      "x-oss-server-time" : "24",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Thu, 21 May 2026 03:18:58 GMT",
+      "Date" : "Thu, 21 May 2026 03:18:58 GMT",
+      "Content-MD5" : "4Ry4oYRPjP5uuZZsEjd+Gw==",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "6309071365331516203",
+      "ETag" : "\"E11CB8A1844F8CFE6EB9966C12377E1B\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "a02546d3-1299-4796-ae5f-eff78f32405c",
+  "persistent" : true,
+  "insertionIndex" : 241
+}

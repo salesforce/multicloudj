@@ -1,0 +1,41 @@
+{
+  "id" : "a5714ae6-e921-44fa-99f7-3943150f7ed7",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPath-POST-6",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/bulkDeleteByVersion/happy1</Key><VersionId>CAEQigEYgYCA0c2RovIZIiBiZmNmODJlNzM1YjQ0YWMxOGVkZTZiYTk2ODJjMTVlMg--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy2</Key><VersionId>CAEQigEYgYDAhdGRovIZIiBjNWZjNzRmZjE1ZDg0NTAwOWQ5NzQ4ZWIwMmUzYTUzZQ--</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy3</Key><VersionId>CAEQigEYgYDAktSRovIZIiBmY2QyNmU5NTcxMmY0OGEwOTBjMTAxN2I2ZGFhYjcwNQ--</VersionId></Object></Delete>",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <EncodingType>url</EncodingType>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy1</Key>\n    <VersionId>CAEQigEYgYCA0c2RovIZIiBiZmNmODJlNzM1YjQ0YWMxOGVkZTZiYTk2ODJjMTVlMg--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy2</Key>\n    <VersionId>CAEQigEYgYDAhdGRovIZIiBjNWZjNzRmZjE1ZDg0NTAwOWQ5NzQ4ZWIwMmUzYTUzZQ--</VersionId>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests%2FbulkDeleteByVersion%2Fhappy3</Key>\n    <VersionId>CAEQigEYgYDAktSRovIZIiBmY2QyNmU5NTcxMmY0OGEwOTBjMTAxN2I2ZGFhYjcwNQ--</VersionId>\n  </Deleted>\n</DeleteResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0E790C1F90403331026F3D",
+      "x-oss-server-time" : "55",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 03:16:28 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "a5714ae6-e921-44fa-99f7-3943150f7ed7",
+  "persistent" : true,
+  "insertionIndex" : 74
+}

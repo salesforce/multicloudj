@@ -1,0 +1,30 @@
+{
+  "id" : "822d93a8-f296-40ef-bac5-6dcc3e0661c3",
+  "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPath-GET-3",
+  "request" : {
+    "url" : "/conformance-tests/bulkDeleteByVersion/happy3",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0E790E9E5E0B39391BC7E0</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy3</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgoDAsYe1ofIZIiBjZDdiN2M5YmM5MDA0ZDA4YTg2NTQ4NmMzYmM5M2VmZg--",
+      "x-oss-request-id" : "6A0E790E9E5E0B39391BC7E0",
+      "x-oss-server-time" : "37",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "x-oss-delete-marker" : "true",
+      "Date" : "Thu, 21 May 2026 03:16:30 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "822d93a8-f296-40ef-bac5-6dcc3e0661c3",
+  "persistent" : true,
+  "insertionIndex" : 71
+}

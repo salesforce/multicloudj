@@ -37,10 +37,10 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
 
     String endpoint = "https://oss-" + region + ".aliyuncs.com";
     if (builder.getEndpoint() != null) {
-      endpoint = builder.getEndpoint().getHost();
+      endpoint = builder.getEndpoint().toString();
     }
     OSSClientBuilder.OSSClientBuilderImpl ossClientBuilderImpl =
-        OSSClientBuilder.create().endpoint(endpoint);
+        OSSClientBuilder.create().region(region).endpoint(endpoint);
     ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
     clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
     if (builder.getProxyEndpoint() != null) {
@@ -54,6 +54,17 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     }
     ossClientBuilderImpl.clientConfiguration(clientBuilderConfiguration);
     ossClient = ossClientBuilderImpl.build();
+  }
+
+  /**
+   * Constructs an {@link AliBlobClient} using the provided builder and a pre-built OSS client.
+   *
+   * @param builder the builder to use to construct the AliBlobClient
+   * @param ossClient the pre-built OSS client to use
+   */
+  protected AliBlobClient(Builder builder, OSS ossClient) {
+    super(builder);
+    this.ossClient = ossClient;
   }
 
   /**
@@ -106,7 +117,7 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     } else if (t instanceof ServiceException) {
       String errorCode = ((ServiceException) t).getErrorCode();
       return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof ClientException) {
+    } else if (t instanceof ClientException || t instanceof IllegalArgumentException) {
       return InvalidArgumentException.class;
     }
     return UnknownException.class;
@@ -129,6 +140,10 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     @Override
     public AliBlobClient build() {
       return new AliBlobClient(this);
+    }
+
+    public AliBlobClient build(OSS ossClient) {
+      return new AliBlobClient(this, ossClient);
     }
   }
 }

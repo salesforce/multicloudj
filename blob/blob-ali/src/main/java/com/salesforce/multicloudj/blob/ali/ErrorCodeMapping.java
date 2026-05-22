@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.ali;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -27,7 +28,7 @@ public class ErrorCodeMapping {
     ERROR_MAPPING.put("InvalidAccessKeyId", InvalidArgumentException.class);
     ERROR_MAPPING.put("ServerError", UnknownException.class);
     ERROR_MAPPING.put("NoSuchBucket", InvalidArgumentException.class);
-    ERROR_MAPPING.put("NoSuchKey", InvalidArgumentException.class);
+    ERROR_MAPPING.put("NoSuchKey", ResourceNotFoundException.class);
     ERROR_MAPPING.put("InvalidRequest", InvalidArgumentException.class);
     ERROR_MAPPING.put("SignatureDoesNotMatch", UnAuthorizedException.class);
     ERROR_MAPPING.put("BucketAlreadyExists", InvalidArgumentException.class);

@@ -270,7 +270,8 @@ public class TestsUtil {
                 .useChunkedTransferEncoding(Options.ChunkedEncodingPolicy.NEVER)
                 .filenameTemplate("{{name}}.json")
                 .extensions(extensions.toArray(new Extension[0]))
-                .enableBrowserProxying(true));
+                .enableBrowserProxying(true)
+                .preserveHostHeader(true));
     wireMockServer.start();
   }
 
@@ -280,6 +281,15 @@ public class TestsUtil {
 
   public static void startWireMockRecording(
       String targetEndpoint, String testClassName, String testMethodName) {
+    startWireMockRecording(
+        targetEndpoint, testClassName, testMethodName, List.of());
+  }
+
+  public static void startWireMockRecording(
+      String targetEndpoint,
+      String testClassName,
+      String testMethodName,
+      List<String> captureHeaders) {
     currentTestPrefix = testClassName + "_" + testMethodName;
     stubCounter.set(0);
 
@@ -294,6 +304,10 @@ public class TestsUtil {
                 Parameters.from(Map.of(TRUNCATE_MATCHER_REQUEST_BODY_OVER, 4096 * 2)))
             .chooseBodyMatchTypeAutomatically(true, false, false)
             .makeStubsPersistent(true);
+
+    for (String header : captureHeaders) {
+      recordSpec = recordSpec.captureHeader(header);
+    }
 
     // Apply transformers during recording
     List<String> transformerNames = new ArrayList<>();
