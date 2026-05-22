@@ -128,6 +128,7 @@ java -cp ".:multicloudj-blob-0.2.2.jar" MultiCloudJQuickStart
 
 ## Next Steps
 
+- **AI-Powered Development**: Set up [DevBar, Superpowers, and AI Dev Workflow](ai-plugins-guide.html) for AI-assisted development
 - **Explore Guides**: Check out our [detailed guides](guides/index.html) for specific use cases
 - **API Reference**: Browse the complete [Java API documentation](api/java/latest/index.html)
 - **Examples**: See working examples in our [examples repository](https://github.com/salesforce/multicloudj/tree/main/examples)
