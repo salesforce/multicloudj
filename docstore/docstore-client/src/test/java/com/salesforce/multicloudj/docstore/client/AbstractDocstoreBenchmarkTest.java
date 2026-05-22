@@ -39,6 +39,8 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -48,6 +50,9 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Fork(1)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDocstoreBenchmarkTest {
+
+  private static final Logger logger =
+      LoggerFactory.getLogger(AbstractDocstoreBenchmarkTest.class);
 
   // Pre-seeded test data
   protected List<String> documentKeys;
@@ -145,7 +150,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
             p.setPName(key);
             docStoreClient.delete(new Document(p));
           } catch (Exception e) {
-            // best-effort: one failed delete does not abort the rest
+            logger.warn("Failed to delete benchmark key {}: {}", key, e.getMessage());
           }
         }
         benchmarkCreatedKeys.clear();
