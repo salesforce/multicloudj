@@ -95,6 +95,16 @@ public class TestBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected Iterator<BlobInfo> doListVersions(ListBlobVersionsRequest request) {
+    return null;
+  }
+
+  @Override
+  protected ListBlobVersionsPageResponse doListVersionsPage(ListBlobVersionsPageRequest request) {
+    return null;
+  }
+
+  @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
     return null;
   }

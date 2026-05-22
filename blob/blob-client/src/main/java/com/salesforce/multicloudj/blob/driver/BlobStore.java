@@ -175,6 +175,23 @@ public interface BlobStore extends SdkService, Provider {
   ListBlobsPageResponse listPage(ListBlobsPageRequest request);
 
   /**
+   * Lists all versions of a specific blob, excluding delete markers.
+   *
+   * @param request The request containing the key to list versions for
+   * @return Iterator of BlobInfo objects representing each version
+   */
+  Iterator<BlobInfo> listVersions(ListBlobVersionsRequest request);
+
+  /**
+   * Lists a single page of versions of a specific blob, excluding delete markers.
+   *
+   * @param request The request containing the key, pagination token, and max results
+   * @return ListBlobVersionsPageResponse containing versions, truncation status, and next page
+   *     token
+   */
+  ListBlobVersionsPageResponse listVersionsPage(ListBlobVersionsPageRequest request);
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request

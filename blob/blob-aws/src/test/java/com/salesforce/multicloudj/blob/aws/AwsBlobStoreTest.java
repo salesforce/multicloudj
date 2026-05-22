@@ -2178,4 +2178,206 @@ public class AwsBlobStoreTest {
     assertThrows(
         FailedPreconditionException.class, () -> aws.updateObjectRetention(key, null, cfg));
   }
+
+  @Test
+  void testDoListVersionsPage() {
+    ListObjectVersionsResponse mockResponse = mock(ListObjectVersionsResponse.class);
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(mockResponse);
+
+    ObjectVersion v1 = mock(ObjectVersion.class);
+    when(v1.key()).thenReturn("my-key");
+    when(v1.versionId()).thenReturn("v1");
+    when(v1.isLatest()).thenReturn(true);
+    when(v1.size()).thenReturn(100L);
+    when(v1.lastModified()).thenReturn(Instant.now());
+
+    ObjectVersion v2 = mock(ObjectVersion.class);
+    when(v2.key()).thenReturn("my-key");
+    when(v2.versionId()).thenReturn("v2");
+    when(v2.isLatest()).thenReturn(false);
+    when(v2.size()).thenReturn(200L);
+    when(v2.lastModified()).thenReturn(Instant.now().minusSeconds(60));
+
+    when(mockResponse.versions()).thenReturn(List.of(v1, v2));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextKeyMarker()).thenReturn(null);
+    when(mockResponse.nextVersionIdMarker()).thenReturn(null);
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .withMaxResults(10)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        aws.listVersionsPage(request);
+
+    assertNotNull(response);
+    assertEquals(2, response.getVersions().size());
+    assertFalse(response.isTruncated());
+    assertNull(response.getNextPageToken());
+
+    assertEquals("my-key", response.getVersions().get(0).getKey());
+    assertEquals("v1", response.getVersions().get(0).getVersionId());
+    assertTrue(response.getVersions().get(0).getIsLatest());
+    assertEquals(100L, response.getVersions().get(0).getObjectSize());
+
+    assertEquals("v2", response.getVersions().get(1).getVersionId());
+    assertFalse(response.getVersions().get(1).getIsLatest());
+    assertEquals(200L, response.getVersions().get(1).getObjectSize());
+
+    ArgumentCaptor<ListObjectVersionsRequest> captor =
+        ArgumentCaptor.forClass(ListObjectVersionsRequest.class);
+    verify(mockS3Client).listObjectVersions(captor.capture());
+    assertEquals("bucket-1", captor.getValue().bucket());
+    assertEquals("my-key", captor.getValue().prefix());
+    assertEquals(10, captor.getValue().maxKeys());
+  }
+
+  @Test
+  void testDoListVersionsPageTruncated() {
+    ListObjectVersionsResponse mockResponse = mock(ListObjectVersionsResponse.class);
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(mockResponse);
+
+    ObjectVersion v1 = mock(ObjectVersion.class);
+    when(v1.key()).thenReturn("my-key");
+    when(v1.versionId()).thenReturn("v1");
+    when(v1.isLatest()).thenReturn(true);
+    when(v1.size()).thenReturn(100L);
+    when(v1.lastModified()).thenReturn(Instant.now());
+
+    when(mockResponse.versions()).thenReturn(List.of(v1));
+    when(mockResponse.isTruncated()).thenReturn(true);
+    when(mockResponse.nextKeyMarker()).thenReturn("my-key");
+    when(mockResponse.nextVersionIdMarker()).thenReturn("v1");
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .withMaxResults(1)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        aws.listVersionsPage(request);
+
+    assertTrue(response.isTruncated());
+    assertEquals("my-key||v1", response.getNextPageToken());
+    assertEquals(1, response.getVersions().size());
+  }
+
+  @Test
+  void testDoListVersionsPageWithPaginationToken() {
+    ListObjectVersionsResponse mockResponse = mock(ListObjectVersionsResponse.class);
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(mockResponse);
+
+    ObjectVersion v2 = mock(ObjectVersion.class);
+    when(v2.key()).thenReturn("my-key");
+    when(v2.versionId()).thenReturn("v2");
+    when(v2.isLatest()).thenReturn(false);
+    when(v2.size()).thenReturn(200L);
+    when(v2.lastModified()).thenReturn(Instant.now());
+
+    when(mockResponse.versions()).thenReturn(List.of(v2));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextKeyMarker()).thenReturn(null);
+    when(mockResponse.nextVersionIdMarker()).thenReturn(null);
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .withPaginationToken("my-key||v1")
+            .build();
+
+    aws.listVersionsPage(request);
+
+    ArgumentCaptor<ListObjectVersionsRequest> captor =
+        ArgumentCaptor.forClass(ListObjectVersionsRequest.class);
+    verify(mockS3Client).listObjectVersions(captor.capture());
+    assertEquals("my-key", captor.getValue().keyMarker());
+    assertEquals("v1", captor.getValue().versionIdMarker());
+  }
+
+  @Test
+  void testDoListVersionsPageFiltersNonMatchingKeys() {
+    ListObjectVersionsResponse mockResponse = mock(ListObjectVersionsResponse.class);
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(mockResponse);
+
+    ObjectVersion matching = mock(ObjectVersion.class);
+    when(matching.key()).thenReturn("my-key");
+    when(matching.versionId()).thenReturn("v1");
+    when(matching.isLatest()).thenReturn(true);
+    when(matching.size()).thenReturn(100L);
+    when(matching.lastModified()).thenReturn(Instant.now());
+
+    ObjectVersion nonMatching = mock(ObjectVersion.class);
+    when(nonMatching.key()).thenReturn("my-key-suffix");
+    when(nonMatching.versionId()).thenReturn("v2");
+    when(nonMatching.isLatest()).thenReturn(false);
+    when(nonMatching.size()).thenReturn(50L);
+    when(nonMatching.lastModified()).thenReturn(Instant.now());
+
+    when(mockResponse.versions()).thenReturn(List.of(matching, nonMatching));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextKeyMarker()).thenReturn(null);
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        aws.listVersionsPage(request);
+
+    assertEquals(1, response.getVersions().size());
+    assertEquals("v1", response.getVersions().get(0).getVersionId());
+  }
+
+  @Test
+  void testDoListVersionsIterator() {
+    ListObjectVersionsResponse mockResponse = mock(ListObjectVersionsResponse.class);
+    when(mockS3Client.listObjectVersions(any(ListObjectVersionsRequest.class)))
+        .thenReturn(mockResponse);
+
+    ObjectVersion v1 = mock(ObjectVersion.class);
+    when(v1.key()).thenReturn("my-key");
+    when(v1.versionId()).thenReturn("v1");
+    when(v1.isLatest()).thenReturn(true);
+    when(v1.size()).thenReturn(100L);
+    when(v1.lastModified()).thenReturn(Instant.now());
+
+    ObjectVersion v2 = mock(ObjectVersion.class);
+    when(v2.key()).thenReturn("my-key");
+    when(v2.versionId()).thenReturn("v2");
+    when(v2.isLatest()).thenReturn(false);
+    when(v2.size()).thenReturn(200L);
+    when(v2.lastModified()).thenReturn(Instant.now());
+
+    when(mockResponse.versions()).thenReturn(List.of(v1, v2));
+    when(mockResponse.isTruncated()).thenReturn(false);
+    when(mockResponse.nextKeyMarker()).thenReturn(null);
+    when(mockResponse.nextVersionIdMarker()).thenReturn(null);
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey("my-key")
+            .build();
+
+    Iterator<BlobInfo> iter = aws.listVersions(request);
+
+    assertTrue(iter.hasNext());
+    BlobInfo first = iter.next();
+    assertEquals("v1", first.getVersionId());
+    assertTrue(first.getIsLatest());
+
+    assertTrue(iter.hasNext());
+    BlobInfo second = iter.next();
+    assertEquals("v2", second.getVersionId());
+    assertFalse(second.getIsLatest());
+
+    assertFalse(iter.hasNext());
+  }
 }

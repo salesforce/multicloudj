@@ -1,0 +1,44 @@
+{
+  "id" : "6b83451a-e8ff-486d-aece-58383e0aaca8",
+  "name" : "AwsBlobStoreIT_testListVersionsPage-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-versions-page"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/blob-for-list-versions-page</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><NextKeyMarker>conformance-tests/blob-for-list-versions-page</NextKeyMarker><NextVersionIdMarker>O9ETL23YzGjFLQBajDGMro0YixyEH7od</NextVersionIdMarker><MaxKeys>1</MaxKeys><IsTruncated>true</IsTruncated><Version><Key>conformance-tests/blob-for-list-versions-page</Key><VersionId>O9ETL23YzGjFLQBajDGMro0YixyEH7od</VersionId><IsLatest>true</IsLatest><LastModified>2026-05-22T06:40:30.000Z</LastModified><ETag>&quot;9cf30c9f8f13411b1709025f12a4969c&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>25</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "H6AC6HYJ4TVWTG9F",
+      "x-amz-id-2" : "18x3S/gUiCNWkaAb8Hu51MQR40ryD0/juNRGNznqbfUUP074Zzl9o7WctDy4az5EFn+rJz+60+PYtFxlDsmU5HGvTHJMcnLH",
+      "Date" : "Fri, 22 May 2026 06:40:31 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "6b83451a-e8ff-486d-aece-58383e0aaca8",
+  "persistent" : true,
+  "insertionIndex" : 752
+}

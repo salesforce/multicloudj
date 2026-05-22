@@ -13,6 +13,9 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -5071,6 +5074,181 @@ public abstract class AbstractBlobStoreIT {
 
     } finally {
       safeDeleteBlobs(bucketClient, expectedKey);
+    }
+  }
+
+  @Test
+  public void testListVersionsPage() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String key = "conformance-tests/blob-for-list-versions-page";
+    byte[] content1 = "Version 1 content".getBytes(StandardCharsets.UTF_8);
+    byte[] content2 = "Version 2 content - updated".getBytes(StandardCharsets.UTF_8);
+    byte[] content3 = "Version 3 content - final".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      // Upload three versions of the same key
+      UploadRequest uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content1.length)
+              .build();
+      bucketClient.upload(uploadRequest, content1);
+
+      uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content2.length)
+              .build();
+      bucketClient.upload(uploadRequest, content2);
+
+      uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content3.length)
+              .build();
+      bucketClient.upload(uploadRequest, content3);
+
+      // Test 1: List all versions for the key
+      ListBlobVersionsPageRequest request =
+          ListBlobVersionsPageRequest.builder()
+              .withKey(key)
+              .build();
+
+      ListBlobVersionsPageResponse response = bucketClient.listVersionsPage(request);
+
+      Assertions.assertNotNull(response);
+      Assertions.assertNotNull(response.getVersions());
+      Assertions.assertTrue(
+          response.getVersions().size() >= 3,
+          "Should have at least 3 versions, got " + response.getVersions().size());
+
+      // Verify version properties
+      for (BlobInfo version : response.getVersions()) {
+        Assertions.assertEquals(key, version.getKey());
+        Assertions.assertNotNull(version.getVersionId());
+        Assertions.assertNotNull(version.getIsLatest());
+        Assertions.assertTrue(version.getObjectSize() > 0);
+        Assertions.assertNotNull(version.getLastModified());
+      }
+
+      // Exactly one version should be marked as latest
+      long latestCount = response.getVersions().stream()
+          .filter(v -> Boolean.TRUE.equals(v.getIsLatest()))
+          .count();
+      Assertions.assertEquals(1, latestCount, "Exactly one version should be latest");
+
+      // The latest version should be the most recent upload (content3 size)
+      BlobInfo latestVersion = response.getVersions().stream()
+          .filter(v -> Boolean.TRUE.equals(v.getIsLatest()))
+          .findFirst()
+          .orElseThrow();
+      Assertions.assertEquals(content3.length, latestVersion.getObjectSize());
+
+      // Test 2: Paginated listing with maxResults=1
+      ListBlobVersionsPageRequest pagedRequest =
+          ListBlobVersionsPageRequest.builder()
+              .withKey(key)
+              .withMaxResults(1)
+              .build();
+
+      ListBlobVersionsPageResponse firstPage = bucketClient.listVersionsPage(pagedRequest);
+      Assertions.assertNotNull(firstPage);
+      Assertions.assertTrue(
+          firstPage.getVersions().size() <= 1,
+          "First page should have at most 1 item");
+      Assertions.assertTrue(
+          firstPage.isTruncated(),
+          "Should be truncated when more versions exist");
+      Assertions.assertNotNull(
+          firstPage.getNextPageToken(),
+          "Should have next page token when truncated");
+
+      // Test 3: Fetch second page
+      ListBlobVersionsPageRequest secondPageRequest =
+          ListBlobVersionsPageRequest.builder()
+              .withKey(key)
+              .withMaxResults(1)
+              .withPaginationToken(firstPage.getNextPageToken())
+              .build();
+
+      ListBlobVersionsPageResponse secondPage =
+          bucketClient.listVersionsPage(secondPageRequest);
+      Assertions.assertNotNull(secondPage);
+      Assertions.assertFalse(secondPage.getVersions().isEmpty());
+
+      // Verify pages don't overlap
+      Set<String> firstPageVersionIds = firstPage.getVersions().stream()
+          .map(BlobInfo::getVersionId)
+          .collect(Collectors.toSet());
+      Set<String> secondPageVersionIds = secondPage.getVersions().stream()
+          .map(BlobInfo::getVersionId)
+          .collect(Collectors.toSet());
+      Set<String> overlap = new HashSet<>(firstPageVersionIds);
+      overlap.retainAll(secondPageVersionIds);
+      Assertions.assertTrue(
+          overlap.isEmpty(),
+          "Paginated results should not overlap");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testListVersions() throws IOException {
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String key = "conformance-tests/blob-for-list-versions-iterator";
+    byte[] content1 = "Iterator version 1".getBytes(StandardCharsets.UTF_8);
+    byte[] content2 = "Iterator version 2 - updated".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      UploadRequest uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content1.length)
+              .build();
+      bucketClient.upload(uploadRequest, content1);
+
+      uploadRequest =
+          new UploadRequest.Builder()
+              .withKey(key)
+              .withContentLength(content2.length)
+              .build();
+      bucketClient.upload(uploadRequest, content2);
+
+      ListBlobVersionsRequest request =
+          ListBlobVersionsRequest.builder()
+              .withKey(key)
+              .build();
+
+      Iterator<BlobInfo> iter = bucketClient.listVersions(request);
+
+      Assertions.assertNotNull(iter);
+      Assertions.assertTrue(iter.hasNext());
+
+      int count = 0;
+      boolean foundLatest = false;
+      while (iter.hasNext()) {
+        BlobInfo version = iter.next();
+        Assertions.assertEquals(key, version.getKey());
+        Assertions.assertNotNull(version.getVersionId());
+        Assertions.assertNotNull(version.getIsLatest());
+        if (Boolean.TRUE.equals(version.getIsLatest())) {
+          foundLatest = true;
+          Assertions.assertEquals(content2.length, version.getObjectSize());
+        }
+        count++;
+      }
+
+      Assertions.assertTrue(count >= 2, "Should have at least 2 versions");
+      Assertions.assertTrue(foundLatest, "Should have found the latest version");
+
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
     }
   }
 }

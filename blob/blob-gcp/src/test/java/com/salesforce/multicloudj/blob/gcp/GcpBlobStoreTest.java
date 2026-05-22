@@ -4482,4 +4482,129 @@ class GcpBlobStoreTest {
         com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
+
+  @Test
+  void testDoListVersionsPage() {
+    java.time.OffsetDateTime updateTime = java.time.OffsetDateTime.now();
+
+    Blob currentBlob = mock(Blob.class);
+    when(currentBlob.getGeneration()).thenReturn(1001L);
+    when(mockStorage.get(BlobId.of(TEST_BUCKET, "my-key"))).thenReturn(currentBlob);
+
+    Blob blob1 = mock(Blob.class);
+    when(blob1.getName()).thenReturn("my-key");
+    when(blob1.getGeneration()).thenReturn(1001L);
+    when(blob1.getSize()).thenReturn(100L);
+    when(blob1.getUpdateTimeOffsetDateTime()).thenReturn(updateTime);
+    when(blob1.isDirectory()).thenReturn(false);
+
+    Blob blob2 = mock(Blob.class);
+    when(blob2.getName()).thenReturn("my-key");
+    when(blob2.getGeneration()).thenReturn(1000L);
+    when(blob2.getSize()).thenReturn(200L);
+    when(blob2.getUpdateTimeOffsetDateTime()).thenReturn(updateTime.minusSeconds(60));
+    when(blob2.isDirectory()).thenReturn(false);
+
+    Page<Blob> page = mock(Page.class);
+    when(page.getValues()).thenReturn(Arrays.asList(blob1, blob2));
+    when(page.hasNextPage()).thenReturn(false);
+    when(page.getNextPageToken()).thenReturn(null);
+
+    doReturn(page).when(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .withMaxResults(10)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        gcpBlobStore.listVersionsPage(request);
+
+    assertNotNull(response);
+    assertEquals(2, response.getVersions().size());
+    assertFalse(response.isTruncated());
+    assertNull(response.getNextPageToken());
+
+    assertEquals("my-key", response.getVersions().get(0).getKey());
+    assertEquals("1001", response.getVersions().get(0).getVersionId());
+    assertTrue(response.getVersions().get(0).getIsLatest());
+    assertEquals(100L, response.getVersions().get(0).getObjectSize());
+
+    assertEquals("1000", response.getVersions().get(1).getVersionId());
+    assertFalse(response.getVersions().get(1).getIsLatest());
+  }
+
+  @Test
+  void testDoListVersionsPageTruncated() {
+    Blob currentBlob = mock(Blob.class);
+    when(currentBlob.getGeneration()).thenReturn(1001L);
+    when(mockStorage.get(BlobId.of(TEST_BUCKET, "my-key"))).thenReturn(currentBlob);
+
+    Blob blob1 = mock(Blob.class);
+    when(blob1.getName()).thenReturn("my-key");
+    when(blob1.getGeneration()).thenReturn(1001L);
+    when(blob1.getSize()).thenReturn(100L);
+    when(blob1.getUpdateTimeOffsetDateTime()).thenReturn(java.time.OffsetDateTime.now());
+    when(blob1.isDirectory()).thenReturn(false);
+
+    Page<Blob> page = mock(Page.class);
+    when(page.getValues()).thenReturn(Arrays.asList(blob1));
+    when(page.hasNextPage()).thenReturn(true);
+    when(page.getNextPageToken()).thenReturn("next-page-token");
+
+    doReturn(page).when(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .withMaxResults(1)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        gcpBlobStore.listVersionsPage(request);
+
+    assertTrue(response.isTruncated());
+    assertEquals("next-page-token", response.getNextPageToken());
+    assertEquals(1, response.getVersions().size());
+  }
+
+  @Test
+  void testDoListVersionsPageFiltersNonMatchingKeys() {
+    Blob currentBlob = mock(Blob.class);
+    when(currentBlob.getGeneration()).thenReturn(1001L);
+    when(mockStorage.get(BlobId.of(TEST_BUCKET, "my-key"))).thenReturn(currentBlob);
+
+    Blob matching = mock(Blob.class);
+    when(matching.getName()).thenReturn("my-key");
+    when(matching.getGeneration()).thenReturn(1001L);
+    when(matching.getSize()).thenReturn(100L);
+    when(matching.getUpdateTimeOffsetDateTime()).thenReturn(java.time.OffsetDateTime.now());
+    when(matching.isDirectory()).thenReturn(false);
+
+    Blob nonMatching = mock(Blob.class);
+    when(nonMatching.getName()).thenReturn("my-key-suffix");
+
+    Blob directory = mock(Blob.class);
+    when(directory.getName()).thenReturn("my-key");
+    when(directory.isDirectory()).thenReturn(true);
+
+    Page<Blob> page = mock(Page.class);
+    when(page.getValues()).thenReturn(Arrays.asList(matching, nonMatching, directory));
+    when(page.hasNextPage()).thenReturn(false);
+    when(page.getNextPageToken()).thenReturn(null);
+
+    doReturn(page).when(mockStorage).list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class));
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest request =
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest.builder()
+            .withKey("my-key")
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse response =
+        gcpBlobStore.listVersionsPage(request);
+
+    assertEquals(1, response.getVersions().size());
+    assertEquals("1001", response.getVersions().get(0).getVersionId());
+  }
 }

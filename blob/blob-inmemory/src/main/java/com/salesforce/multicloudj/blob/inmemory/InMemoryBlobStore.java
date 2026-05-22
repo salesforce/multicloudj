@@ -12,6 +12,9 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -661,6 +664,100 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         isTruncated ? pageEntries.get(pageEntries.size() - 1).getKey() : null;
 
     return new ListBlobsPageResponse(blobs, commonPrefixes, isTruncated, nextToken);
+  }
+
+  @Override
+  protected Iterator<BlobInfo> doListVersions(ListBlobVersionsRequest request) {
+    validateBucketExists();
+    String baseKey = bucket + ":" + request.getKey();
+    String latestVersionId = LATEST_VERSIONS.get(baseKey);
+    String keyPrefix = baseKey + ":";
+
+    List<BlobInfo> versions =
+        STORAGE.entrySet().stream()
+            .filter(entry -> entry.getKey().startsWith(keyPrefix))
+            .map(
+                entry -> {
+                  String versionId = entry.getKey().substring(keyPrefix.length());
+                  StoredBlob blob = entry.getValue();
+                  return BlobInfo.builder()
+                      .withKey(request.getKey())
+                      .withVersionId(versionId)
+                      .withIsLatest(versionId.equals(latestVersionId))
+                      .withObjectSize((long) blob.getData().length)
+                      .withLastModified(blob.getLastModified())
+                      .build();
+                })
+            .sorted(
+                (a, b) -> {
+                  if (Boolean.TRUE.equals(a.getIsLatest())) {
+                    return -1;
+                  }
+                  if (Boolean.TRUE.equals(b.getIsLatest())) {
+                    return 1;
+                  }
+                  return b.getLastModified().compareTo(a.getLastModified());
+                })
+            .collect(Collectors.toList());
+
+    return versions.iterator();
+  }
+
+  @Override
+  protected ListBlobVersionsPageResponse doListVersionsPage(
+      ListBlobVersionsPageRequest request) {
+    validateBucketExists();
+    String baseKey = bucket + ":" + request.getKey();
+    String latestVersionId = LATEST_VERSIONS.get(baseKey);
+    String keyPrefix = baseKey + ":";
+
+    List<BlobInfo> allVersions =
+        STORAGE.entrySet().stream()
+            .filter(entry -> entry.getKey().startsWith(keyPrefix))
+            .map(
+                entry -> {
+                  String versionId = entry.getKey().substring(keyPrefix.length());
+                  StoredBlob blob = entry.getValue();
+                  return BlobInfo.builder()
+                      .withKey(request.getKey())
+                      .withVersionId(versionId)
+                      .withIsLatest(versionId.equals(latestVersionId))
+                      .withObjectSize((long) blob.getData().length)
+                      .withLastModified(blob.getLastModified())
+                      .build();
+                })
+            .sorted(
+                (a, b) -> {
+                  if (Boolean.TRUE.equals(a.getIsLatest())) {
+                    return -1;
+                  }
+                  if (Boolean.TRUE.equals(b.getIsLatest())) {
+                    return 1;
+                  }
+                  return b.getLastModified().compareTo(a.getLastModified());
+                })
+            .collect(Collectors.toList());
+
+    int maxResults = request.getMaxResults() != null ? request.getMaxResults() : 1000;
+    int startIndex = 0;
+
+    if (request.getPaginationToken() != null) {
+      for (int i = 0; i < allVersions.size(); i++) {
+        if (allVersions.get(i).getVersionId().equals(request.getPaginationToken())) {
+          startIndex = i + 1;
+          break;
+        }
+      }
+    }
+
+    int endIndex = Math.min(startIndex + maxResults, allVersions.size());
+    List<BlobInfo> pageVersions = allVersions.subList(startIndex, endIndex);
+
+    boolean isTruncated = endIndex < allVersions.size();
+    String nextPageToken =
+        isTruncated ? pageVersions.get(pageVersions.size() - 1).getVersionId() : null;
+
+    return new ListBlobVersionsPageResponse(pageVersions, isTruncated, nextPageToken);
   }
 
   @Override

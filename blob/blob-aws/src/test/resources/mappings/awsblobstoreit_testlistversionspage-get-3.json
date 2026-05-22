@@ -1,0 +1,39 @@
+{
+  "id" : "b629ac80-3ed8-4c50-86b4-784a13d675f7",
+  "name" : "AwsBlobStoreIT_testListVersionsPage-GET-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-versions-page"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud-versioned</Name><Prefix>conformance-tests/blob-for-list-versions-page</Prefix><KeyMarker></KeyMarker><VersionIdMarker></VersionIdMarker><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Version><Key>conformance-tests/blob-for-list-versions-page</Key><VersionId>O9ETL23YzGjFLQBajDGMro0YixyEH7od</VersionId><IsLatest>true</IsLatest><LastModified>2026-05-22T06:40:30.000Z</LastModified><ETag>&quot;9cf30c9f8f13411b1709025f12a4969c&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>25</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><Version><Key>conformance-tests/blob-for-list-versions-page</Key><VersionId>o3DFQLWgADqvlo5tTdkMHEXI4RiVeH38</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-22T06:40:29.000Z</LastModified><ETag>&quot;f43b31ceb78f9c3cdd434c3e948a0cb3&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>27</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version><Version><Key>conformance-tests/blob-for-list-versions-page</Key><VersionId>rQeF8rNbG3hHBjtZTvf4Ypd74v1IMYHK</VersionId><IsLatest>false</IsLatest><LastModified>2026-05-22T06:40:28.000Z</LastModified><ETag>&quot;142f8ce5a7fe374949d9460b7716d2f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>17</Size><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "787X4VCK8NJR6K8S",
+      "x-amz-id-2" : "rc8DsVDxQ0I+mMepsXha8yShHs7CpjTv4U75AK1oyTaKmXB5WrHFOX04IFN0ruvv0+r0MKclVDavxVkAqmYEYBJ4p02pNMgt",
+      "Date" : "Fri, 22 May 2026 06:40:30 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "b629ac80-3ed8-4c50-86b4-784a13d675f7",
+  "persistent" : true,
+  "insertionIndex" : 753
+}

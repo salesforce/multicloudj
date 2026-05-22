@@ -11,6 +11,9 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -436,6 +439,51 @@ public class BucketClient implements AutoCloseable {
         ctx -> {
           try {
             return blobStore.listPage(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
+  }
+
+  /**
+   * Lists all versions of a specific blob, excluding delete markers.
+   *
+   * @param request The request containing the key to list versions for
+   * @return Iterator of BlobInfo objects representing each version
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public Iterator<BlobInfo> listVersions(ListBlobVersionsRequest request) {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_VERSIONS,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.listVersions(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
+  }
+
+  /**
+   * Lists a single page of versions of a specific blob, excluding delete markers.
+   *
+   * @param request The request containing the key, pagination token, and max results
+   * @return ListBlobVersionsPageResponse containing versions, truncation status, and next page
+   *     token
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public ListBlobVersionsPageResponse listVersionsPage(ListBlobVersionsPageRequest request) {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_VERSIONS_PAGE,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.listVersionsPage(request);
           } catch (Throwable t) {
             propagate(t);
             return null;

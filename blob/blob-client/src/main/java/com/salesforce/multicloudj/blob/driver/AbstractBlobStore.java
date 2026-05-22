@@ -162,6 +162,20 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public Iterator<BlobInfo> listVersions(ListBlobVersionsRequest request) {
+    validator.validateKey(request.getKey());
+    return doListVersions(request);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public ListBlobVersionsPageResponse listVersionsPage(ListBlobVersionsPageRequest request) {
+    validator.validateKey(request.getKey());
+    return doListVersionsPage(request);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return doInitiateMultipartUpload(request);
   }
@@ -317,6 +331,11 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract Iterator<BlobInfo> doList(ListBlobsRequest request);
 
   protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
+
+  protected abstract Iterator<BlobInfo> doListVersions(ListBlobVersionsRequest request);
+
+  protected abstract ListBlobVersionsPageResponse doListVersionsPage(
+      ListBlobVersionsPageRequest request);
 
   protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 

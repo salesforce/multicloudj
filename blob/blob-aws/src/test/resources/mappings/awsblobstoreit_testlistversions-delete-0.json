@@ -1,0 +1,22 @@
+{
+  "id" : "91a02d1c-f01d-4ecc-ad3b-bfc0035d8bb5",
+  "name" : "AwsBlobStoreIT_testListVersions-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/blob-for-list-versions-iterator",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "8KEF7XMMNZWKFJE5",
+      "x-amz-id-2" : "n6yT7j1556hUQN4N1RwAVplGAj/zq76S+wkjVJ3MHjVnygt0zeTTGNbAoyLMmzrP6wR/PBxopkkV6Zqs7u24Y1cwrHtev56/",
+      "x-amz-version-id" : "kYXwcytQg9JzGrQc8NrvN4OV0B09xQXr",
+      "Date" : "Fri, 22 May 2026 06:40:28 GMT"
+    }
+  },
+  "uuid" : "91a02d1c-f01d-4ecc-ad3b-bfc0035d8bb5",
+  "persistent" : true,
+  "insertionIndex" : 745
+}

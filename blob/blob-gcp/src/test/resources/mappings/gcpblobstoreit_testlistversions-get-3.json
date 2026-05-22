@@ -1,0 +1,40 @@
+{
+  "id" : "23b9d152-71f7-4177-b4a1-54588c6fa9ab",
+  "name" : "GcpBlobStoreIT_testListVersions-GET-3",
+  "request" : {
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-list-versions-iterator",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/blob-for-list-versions-iterator/1779432436641813\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-list-versions-iterator\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fblob-for-list-versions-iterator?generation=1779432436641813&alt=media\",\n  \"name\": \"conformance-tests/blob-for-list-versions-iterator\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1779432436641813\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"28\",\n  \"md5Hash\": \"OpXBQQJq0xNx1hffh8xPTQ==\",\n  \"crc32c\": \"rVPmEw==\",\n  \"etag\": \"CJXgprKmzJQDEAE=\",\n  \"timeCreated\": \"2026-05-22T06:47:16.746Z\",\n  \"updated\": \"2026-05-22T06:47:16.746Z\",\n  \"timeStorageClassUpdated\": \"2026-05-22T06:47:16.746Z\",\n  \"timeFinalized\": \"2026-05-22T06:47:16.746Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "ETag" : "CJXgprKmzJQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEikefWjlhzsREk_N2pfUPALPKZ4FEWuURTj6sJ208YGcgdv_XgwShqcnMYjkoXkRLkg3TOuef8",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Fri, 22 May 2026 06:47:17 GMT",
+      "Date" : "Fri, 22 May 2026 06:47:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "23b9d152-71f7-4177-b4a1-54588c6fa9ab",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-blob-for-list-versions-iterator",
+  "requiredScenarioState" : "scenario-1-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-blob-for-list-versions-iterator-3",
+  "insertionIndex" : 1372
+}

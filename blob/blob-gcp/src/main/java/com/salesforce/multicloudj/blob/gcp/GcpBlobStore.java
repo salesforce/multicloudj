@@ -62,6 +62,9 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -557,6 +560,95 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     return new ListBlobsPageResponse(
         blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
+  }
+
+  @Override
+  protected Iterator<com.salesforce.multicloudj.blob.driver.BlobInfo> doListVersions(
+      ListBlobVersionsRequest request) {
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.prefix(request.getKey()));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    Blob currentBlob = storage.get(BlobId.of(getBucket(), request.getKey()));
+    Long currentGeneration = currentBlob != null ? currentBlob.getGeneration() : null;
+
+    Iterable<Blob> blobs = storage.list(getBucket(),
+        listOptions.toArray(new Storage.BlobListOption[0])).iterateAll();
+
+    Iterator<Blob> filtered = Iterators.filter(
+        blobs.iterator(),
+        blob -> blob.getName().equals(request.getKey()) && !blob.isDirectory());
+
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return filtered.hasNext();
+      }
+
+      @Override
+      public com.salesforce.multicloudj.blob.driver.BlobInfo next() {
+        Blob blob = filtered.next();
+        boolean isLatest = blob.getGeneration() != null
+            && blob.getGeneration().equals(currentGeneration);
+        return com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+            .withKey(blob.getName())
+            .withVersionId(blob.getGeneration() != null
+                ? blob.getGeneration().toString() : null)
+            .withIsLatest(isLatest)
+            .withObjectSize(blob.getSize())
+            .withLastModified(
+                blob.getUpdateTimeOffsetDateTime() != null
+                    ? blob.getUpdateTimeOffsetDateTime().toInstant()
+                    : null)
+            .build();
+      }
+    };
+  }
+
+  @Override
+  protected ListBlobVersionsPageResponse doListVersionsPage(ListBlobVersionsPageRequest request) {
+    Blob currentBlob = storage.get(BlobId.of(getBucket(), request.getKey()));
+    Long currentGeneration = currentBlob != null ? currentBlob.getGeneration() : null;
+
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.prefix(request.getKey()));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    if (request.getPaginationToken() != null) {
+      listOptions.add(Storage.BlobListOption.pageToken(request.getPaginationToken()));
+    }
+
+    if (request.getMaxResults() != null) {
+      listOptions.add(Storage.BlobListOption.pageSize(request.getMaxResults().longValue()));
+    }
+
+    Page<Blob> page = storage.list(getBucket(),
+        listOptions.toArray(new Storage.BlobListOption[0]));
+
+    List<com.salesforce.multicloudj.blob.driver.BlobInfo> versions = new ArrayList<>();
+    for (Blob blob : page.getValues()) {
+      if (!blob.getName().equals(request.getKey()) || blob.isDirectory()) {
+        continue;
+      }
+      boolean isLatest = blob.getGeneration() != null
+          && blob.getGeneration().equals(currentGeneration);
+      versions.add(
+          com.salesforce.multicloudj.blob.driver.BlobInfo.builder()
+              .withKey(blob.getName())
+              .withVersionId(
+                  blob.getGeneration() != null
+                      ? blob.getGeneration().toString() : null)
+              .withIsLatest(isLatest)
+              .withObjectSize(blob.getSize())
+              .withLastModified(
+                  blob.getUpdateTimeOffsetDateTime() != null
+                      ? blob.getUpdateTimeOffsetDateTime().toInstant()
+                      : null)
+              .build());
+    }
+
+    return new ListBlobVersionsPageResponse(
+        versions, page.hasNextPage(), page.getNextPageToken());
   }
 
   @Override

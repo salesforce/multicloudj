@@ -15,6 +15,7 @@ import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadRequest;
 import com.aliyun.oss.model.InitiateMultipartUploadResult;
 import com.aliyun.oss.model.ListPartsRequest;
+import com.aliyun.oss.model.ListVersionsRequest;
 import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectListing;
 import com.aliyun.oss.model.PartListing;
@@ -22,6 +23,7 @@ import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.TagSet;
 import com.aliyun.oss.model.UploadPartRequest;
 import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.oss.model.VersionListing;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -33,6 +35,9 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -364,6 +369,59 @@ public class AliBlobStore extends AbstractBlobStore {
 
     return new ListBlobsPageResponse(
         blobs, commonPrefixes, response.isTruncated(), response.getNextMarker());
+  }
+
+  @Override
+  protected Iterator<BlobInfo> doListVersions(ListBlobVersionsRequest request) {
+    return new BlobVersionIterator(ossClient, bucket, request);
+  }
+
+  @Override
+  protected ListBlobVersionsPageResponse doListVersionsPage(
+      ListBlobVersionsPageRequest request) {
+    ListVersionsRequest listVersionsRequest = new ListVersionsRequest();
+    listVersionsRequest.setBucketName(bucket);
+    listVersionsRequest.setPrefix(request.getKey());
+
+    if (request.getMaxResults() != null) {
+      listVersionsRequest.setMaxResults(request.getMaxResults());
+    }
+
+    if (request.getPaginationToken() != null) {
+      String[] markers = request.getPaginationToken().split("\\|\\|", 2);
+      listVersionsRequest.setKeyMarker(markers[0]);
+      if (markers.length > 1 && !markers[1].isEmpty()) {
+        listVersionsRequest.setVersionIdMarker(markers[1]);
+      }
+    }
+
+    VersionListing response = ossClient.listVersions(listVersionsRequest);
+
+    List<BlobInfo> versions =
+        response.getVersionSummaries().stream()
+            .filter(v -> !v.isDeleteMarker())
+            .filter(v -> v.getKey().equals(request.getKey()))
+            .map(
+                v ->
+                    BlobInfo.builder()
+                        .withKey(v.getKey())
+                        .withVersionId(v.getVersionId())
+                        .withIsLatest(v.isLatest())
+                        .withObjectSize(v.getSize())
+                        .withLastModified(
+                            v.getLastModified() != null ? v.getLastModified().toInstant() : null)
+                        .build())
+            .collect(Collectors.toList());
+
+    boolean isTruncated = response.isTruncated();
+    String nextPageToken = null;
+    if (isTruncated && response.getNextKeyMarker() != null) {
+      String versionMarker =
+          response.getNextVersionIdMarker() != null ? response.getNextVersionIdMarker() : "";
+      nextPageToken = response.getNextKeyMarker() + "||" + versionMarker;
+    }
+
+    return new ListBlobVersionsPageResponse(versions, isTruncated, nextPageToken);
   }
 
   /**

@@ -1,0 +1,59 @@
+{
+  "id": "36f9c479-b5af-4b43-a4d8-28fb83a1592e",
+  "name": "GcpBlobStoreIT_testListVersionsPage-POST-10",
+  "request": {
+    "urlPath": "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method": "POST",
+    "headers": {
+      "X-Query-Param-Count": {
+        "equalTo": "2"
+      }
+    },
+    "queryParameters": {
+      "name": {
+        "hasExactly": [
+          {
+            "equalTo": "conformance-tests/blob-for-list-versions-page"
+          }
+        ]
+      },
+      "uploadType": {
+        "hasExactly": [
+          {
+            "equalTo": "resumable"
+          }
+        ]
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/blob-for-list-versions-page\"}",
+        "ignoreArrayOrder": true,
+        "ignoreExtraElements": false
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server": "UploadServer",
+      "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID": "AAVLpEhibEkCzhzVPtn2KGbkqF5woyOH9ALLc4cgAlsRIYbj6F-lj-hJPazZK_osxJ1FohyW3MZrZiSj_HFtOOMm4-0pbkUHHmu1Lsk_nWMi7yo",
+      "Vary": [
+        "Origin",
+        "X-Origin"
+      ],
+      "Pragma": "no-cache",
+      "Expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date": "Fri, 22 May 2026 06:47:21 GMT",
+      "Location": "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/blob-for-list-versions-page&uploadType=resumable&upload_id=AAVLpEhibEkCzhzVPtn2KGbkqF5woyOH9ALLc4cgAlsRIYbj6F-lj-hJPazZK_osxJ1FohyW3MZrZiSj_HFtOOMm4-0pbkUHHmu1Lsk_nWMi7yo",
+      "Content-Type": "text/plain; charset=utf-8"
+    }
+  },
+  "uuid": "36f9c479-b5af-4b43-a4d8-28fb83a1592e",
+  "persistent": true,
+  "scenarioName": "scenario-2-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-listversionspage",
+  "requiredScenarioState": "scenario-2-upload-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-listversionspage-3",
+  "insertionIndex": 1390
+}

@@ -11,6 +11,9 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -422,6 +425,58 @@ public class AwsBlobStore extends AbstractBlobStore {
 
     return new ListBlobsPageResponse(
         blobs, commonPrefixes, response.isTruncated(), response.nextContinuationToken());
+  }
+
+  @Override
+  protected Iterator<BlobInfo> doListVersions(ListBlobVersionsRequest request) {
+    return new BlobVersionIterator(s3Client, getBucket(), request);
+  }
+
+  @Override
+  protected ListBlobVersionsPageResponse doListVersionsPage(ListBlobVersionsPageRequest request) {
+    ListObjectVersionsRequest.Builder requestBuilder =
+        ListObjectVersionsRequest.builder()
+            .bucket(getBucket())
+            .prefix(request.getKey());
+
+    if (request.getMaxResults() != null) {
+      requestBuilder.maxKeys(request.getMaxResults());
+    }
+
+    if (request.getPaginationToken() != null) {
+      String[] markers = request.getPaginationToken().split("\\|\\|", 2);
+      requestBuilder.keyMarker(markers[0]);
+      if (markers.length > 1 && !markers[1].isEmpty()) {
+        requestBuilder.versionIdMarker(markers[1]);
+      }
+    }
+
+    ListObjectVersionsResponse response =
+        s3Client.listObjectVersions(requestBuilder.build());
+
+    List<BlobInfo> versions =
+        response.versions().stream()
+            .filter(v -> v.key().equals(request.getKey()))
+            .map(
+                v ->
+                    BlobInfo.builder()
+                        .withKey(v.key())
+                        .withVersionId(v.versionId())
+                        .withIsLatest(v.isLatest())
+                        .withObjectSize(v.size())
+                        .withLastModified(v.lastModified())
+                        .build())
+            .collect(Collectors.toList());
+
+    boolean isTruncated = Boolean.TRUE.equals(response.isTruncated());
+    String nextPageToken = null;
+    if (isTruncated && response.nextKeyMarker() != null) {
+      String versionMarker =
+          response.nextVersionIdMarker() != null ? response.nextVersionIdMarker() : "";
+      nextPageToken = response.nextKeyMarker() + "||" + versionMarker;
+    }
+
+    return new ListBlobVersionsPageResponse(versions, isTruncated, nextPageToken);
   }
 
   /**
