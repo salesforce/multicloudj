@@ -158,18 +158,30 @@ public class GcpSts extends AbstractSts {
   }
 
   /**
-   * Builds GCP CEL expression from cloud-agnostic resource prefix. Example:
-   * "storage://my-bucket/documents/" ->
-   * "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')"
+   * Builds GCP CEL expression from cloud-agnostic resource prefix. Generates a combined expression
+   * covering both object operations and LIST operations. For object operations (GET, PUT, DELETE),
+   * GCP evaluates resource.name against the object path. For LIST operations, GCP sets
+   * resource.name
+   * to the bucket and exposes the prefix via the objectListPrefix API attribute.
+   *
+   * <p>Example: "storage://my-bucket/documents/" produces:
+   * "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/') ||
+   * api.getAttribute('storage.googleapis.com/objectListPrefix', '').startsWith('documents/')"
+   *
+   * @see <a
+   *     href="https://cloud.google.com/iam/docs/downscoping-short-lived-credentials#example-object-prefix">GCP
+   *     CAB documentation</a>
    */
   private String buildGcpPrefixExpression(String resourcePrefix) {
     String path = resourcePrefix.substring("storage://".length());
-    // Extract bucket name (before first /)
     int slashIdx = path.indexOf('/');
     String bucketName = path.substring(0, slashIdx);
     String prefix = path.substring(slashIdx + 1);
     String gcpPath = "projects/_/buckets/" + bucketName + "/objects/" + prefix;
-    return "resource.name.startsWith('" + gcpPath + "')";
+    return "resource.name.startsWith('" + gcpPath + "')"
+        + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '').startsWith('"
+        + prefix
+        + "')";
   }
 
   @Override

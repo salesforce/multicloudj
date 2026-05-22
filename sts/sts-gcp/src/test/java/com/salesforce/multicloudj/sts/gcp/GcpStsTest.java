@@ -380,7 +380,77 @@ public class GcpStsTest {
     Assertions.assertEquals(
         "Only allow access to objects in the documents folder", gcpCondition.getDescription());
     Assertions.assertEquals(
-        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')",
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('documents/')",
+        gcpCondition.getExpression());
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionWithDeepPrefix() throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/a/b/c/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod("convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition gcpCondition =
+        boundary.getAccessBoundaryRules().get(0).getAvailabilityCondition();
+
+    Assertions.assertEquals(
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/a/b/c/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('a/b/c/')",
+        gcpCondition.getExpression());
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionWithRootPrefix() throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:ListBucket")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod("convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition gcpCondition =
+        boundary.getAccessBoundaryRules().get(0).getAvailabilityCondition();
+
+    Assertions.assertEquals(
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('')",
         gcpCondition.getExpression());
   }
 
