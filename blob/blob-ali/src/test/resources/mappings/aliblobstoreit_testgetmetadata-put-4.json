@@ -1,5 +1,5 @@
 {
-  "id" : "b753fd2a-6cbb-4e0f-a912-0740808737fd",
+  "id" : "c83e977b-1e99-472c-a476-3cb44701c89f",
   "name" : "AliBlobStoreIT_testGetMetadata-PUT-4",
   "request" : {
     "url" : "/conformance-tests/blob-for-metadata",
@@ -16,16 +16,16 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-request-id" : "6A0E7A2224FA4D33318A1F19",
-      "x-oss-server-time" : "42",
+      "x-oss-request-id" : "6A0F7F76F1AA103031B15407",
+      "x-oss-server-time" : "13",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "5508535661012992490",
       "ETag" : "\"70936FA816E1A46688CAB3B78C74A8CC\"",
-      "Date" : "Thu, 21 May 2026 03:21:06 GMT",
+      "Date" : "Thu, 21 May 2026 21:56:06 GMT",
       "Content-MD5" : "cJNvqBbhpGaIyrO3jHSozA=="
     }
   },
-  "uuid" : "b753fd2a-6cbb-4e0f-a912-0740808737fd",
+  "uuid" : "c83e977b-1e99-472c-a476-3cb44701c89f",
   "persistent" : true,
-  "insertionIndex" : 412
+  "insertionIndex" : 380
 }

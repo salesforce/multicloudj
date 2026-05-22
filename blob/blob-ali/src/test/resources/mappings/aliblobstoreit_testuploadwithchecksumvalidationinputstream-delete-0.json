@@ -1,5 +1,5 @@
 {
-  "id" : "7c1e4cee-5366-431d-bb20-4b01e64c9795",
+  "id" : "6dd059ea-00d2-4de3-9d92-86a14c7eb27d",
   "name" : "AliBlobStoreIT_testUploadWithChecksumValidationInputStream-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/checksum/upload-inputstream-checksum",
@@ -13,13 +13,13 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E79E65AAB5E313905A8CC",
-      "x-oss-server-time" : "66",
+      "x-oss-request-id" : "6A0F7F4A945E9F3530EF2543",
+      "x-oss-server-time" : "9",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:20:06 GMT"
+      "Date" : "Thu, 21 May 2026 21:55:22 GMT"
     }
   },
-  "uuid" : "7c1e4cee-5366-431d-bb20-4b01e64c9795",
+  "uuid" : "6dd059ea-00d2-4de3-9d92-86a14c7eb27d",
   "persistent" : true,
-  "insertionIndex" : 328
+  "insertionIndex" : 297
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "9e01c33b-01ef-459f-adbd-f983aa0d340d",
+  "id" : "380e1445-b4a0-4937-a4b2-19723c0df463",
   "name" : "AliBlobStoreIT_testNonexistentBucket-PUT-0",
   "request" : {
     "urlPath" : "/conformance-tests/blob-for-failing/testNonexistentBucket",
@@ -20,22 +20,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "<Tagging><TagSet><Tag><Key>tagfail2</Key><Value>value2</Value></Tag><Tag><Key>tagfail1</Key><Value>value1</Value></Tag></TagSet></Tagging>",
-      "caseInsensitive" : false
+      "equalToXml" : "<Tagging><TagSet><Tag><Key>tagfail1</Key><Value>value1</Value></Tag><Tag><Key>tagfail2</Key><Value>value2</Value></Tag></TagSet></Tagging>"
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0E799AD7BC073335EE1DF7</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0F7F1D58FB013435DBB32E</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E799AD7BC073335EE1DF7",
+      "x-oss-request-id" : "6A0F7F1D58FB013435DBB32E",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0015-00000101",
-      "Date" : "Thu, 21 May 2026 03:18:50 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:37 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "9e01c33b-01ef-459f-adbd-f983aa0d340d",
+  "uuid" : "380e1445-b4a0-4937-a4b2-19723c0df463",
   "persistent" : true,
-  "insertionIndex" : 211
+  "insertionIndex" : 197
 }

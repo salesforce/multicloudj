@@ -1,5 +1,5 @@
 {
-  "id" : "9088ef2b-80eb-4de9-94fc-e8dfb2d8c34c",
+  "id" : "bf7ad0d0-fa7a-4418-8e9e-a01c16042fe4",
   "name" : "AliBlobStoreIT_testRangedRead-GET-6",
   "request" : {
     "urlPath" : "/conformance-tests/testRangedRead_versioned",
@@ -15,7 +15,7 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "CAEQigEYgYDAjJudovIZIiAxMTI0NThjNzBmYTY0OWQ4YTU3NWNhMDI0N2I2OGU3OQ--"
+          "equalTo" : "CAEQigEYgYCAuJ.WsvIZIiA5MmMwMDU0OGFmMjk0ZjUwOGEzYjcyMTA3MGY4ZjBjMg--"
         } ]
       }
     }
@@ -24,14 +24,14 @@
     "status" : 206,
     "base64Body" : "c3QgZGF0YSBmb3IgdGhlIHJhbmdlZCByZWFkIHRlc3QgZmlsZQ==",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYDAjJudovIZIiAxMTI0NThjNzBmYTY0OWQ4YTU3NWNhMDI0N2I2OGU3OQ--",
-      "x-oss-request-id" : "6A0E7A89D7BDE83833E983AB",
-      "x-oss-server-time" : "4",
+      "x-oss-version-id" : "CAEQigEYgYCAuJ.WsvIZIiA5MmMwMDU0OGFmMjk0ZjUwOGEzYjcyMTA3MGY4ZjBjMg--",
+      "x-oss-request-id" : "6A0F7FC84A9D9837320AB9F5",
+      "x-oss-server-time" : "6",
       "Server" : "AliyunOSS",
       "Content-Range" : "bytes 10-46/47",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:22:45 GMT",
-      "Date" : "Thu, 21 May 2026 03:22:49 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:57:26 GMT",
+      "Date" : "Thu, 21 May 2026 21:57:28 GMT",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
       "x-oss-hash-crc64ecma" : "15651652868027691141",
@@ -39,10 +39,10 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "9088ef2b-80eb-4de9-94fc-e8dfb2d8c34c",
+  "uuid" : "bf7ad0d0-fa7a-4418-8e9e-a01c16042fe4",
   "persistent" : true,
   "scenarioName" : "scenario-2-conformance-tests-testRangedRead_versioned",
   "requiredScenarioState" : "scenario-2-conformance-tests-testRangedRead_versioned-3",
   "newScenarioState" : "scenario-2-conformance-tests-testRangedRead_versioned-4",
-  "insertionIndex" : 466
+  "insertionIndex" : 434
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "96a664a4-97a3-4bac-a0fb-9e0c0d7f35bb",
+  "id" : "2ae810a6-0583-40f3-b687-dbcd53696284",
   "name" : "AliBlobStoreIT_testListPage-GET-8",
   "request" : {
     "urlPath" : "/",
@@ -9,39 +9,49 @@
         "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
       },
       "X-Query-Param-Count" : {
-        "equalTo" : "3"
+        "equalTo" : "5"
       }
     },
     "queryParameters" : {
-      "prefix" : {
+      "list-type" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/blob-for-list-page"
+          "equalTo" : "2"
         } ]
       },
-      "marker" : {
+      "continuation-token" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/blob-for-list-page/prefix-4"
+          "equalTo" : "Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4LTQQAA--"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
         } ]
       },
       "max-keys" : {
         "hasExactly" : [ {
           "equalTo" : "2"
         } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests/blob-for-list-page</Prefix>\n  <Marker>conformance-tests/blob-for-list-page/prefix-4</Marker>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter></Delimiter>\n  <IsTruncated>true</IsTruncated>\n  <NextMarker>conformance-tests/blob-for-list-page/prefix_3</NextMarker>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix-5</Key>\n    <LastModified>2026-05-21T03:23:29.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix_3</Key>\n    <LastModified>2026-05-21T03:23:27.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n</ListBucketResult>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fblob-for-list-page</Prefix>\n  <ContinuationToken>Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4LTQQAA--</ContinuationToken>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>true</IsTruncated>\n  <NextContinuationToken>Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4XzMQAA--</NextContinuationToken>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix-5</Key>\n    <LastModified>2026-05-21T21:58:01.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix_3</Key>\n    <LastModified>2026-05-21T21:57:59.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E7ABA3AD86E3433C76FCB",
+      "x-oss-request-id" : "6A0F7FEFDF515535339E4381",
       "x-oss-server-time" : "5",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:23:38 GMT",
+      "Date" : "Thu, 21 May 2026 21:58:07 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "96a664a4-97a3-4bac-a0fb-9e0c0d7f35bb",
+  "uuid" : "2ae810a6-0583-40f3-b687-dbcd53696284",
   "persistent" : true,
-  "insertionIndex" : 585
+  "insertionIndex" : 553
 }

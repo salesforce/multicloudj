@@ -1,5 +1,5 @@
 {
-  "id" : "43024fa3-6840-4c29-9b40-501a94a68370",
+  "id" : "8f9c9107-fcae-424a-9b4b-beadc7b11369",
   "name" : "AliBlobStoreIT_testTagging-GET-3",
   "request" : {
     "urlPath" : "/conformance-tests/blob-for-tagging",
@@ -24,14 +24,14 @@
     "status" : 200,
     "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Tagging>\n  <TagSet>\n    <Tag>\n      <Key>tag3</Key>\n      <Value>value3</Value>\n    </Tag>\n  </TagSet>\n</Tagging>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E78F6A73E4C3537E4BCB6",
-      "x-oss-server-time" : "65",
+      "x-oss-request-id" : "6A0F7EAC6BF28E3432125FD8",
+      "x-oss-server-time" : "50",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:16:07 GMT",
+      "Date" : "Thu, 21 May 2026 21:52:44 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "43024fa3-6840-4c29-9b40-501a94a68370",
+  "uuid" : "8f9c9107-fcae-424a-9b4b-beadc7b11369",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-blob-for-tagging",
   "requiredScenarioState" : "scenario-1-conformance-tests-blob-for-tagging-2",

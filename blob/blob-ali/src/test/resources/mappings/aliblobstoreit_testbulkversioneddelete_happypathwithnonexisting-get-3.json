@@ -1,5 +1,5 @@
 {
-  "id" : "6582d4ef-75f8-46c9-94e6-a7848afdcce8",
+  "id" : "c9e6ec55-c3bb-4cdd-88bc-bc120456a6f7",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-GET-3",
   "request" : {
     "url" : "/conformance-tests/bulkDeleteByVersion/nonexisting2",
@@ -12,19 +12,19 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0E7A13598BE13435425295</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7F6BB37E8130354347E1</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYDAuM6ZovIZIiBkOGQxNjkxOTQxMjY0MDdlODg4ZWM4ODI4Y2FkNGIxNA--",
-      "x-oss-request-id" : "6A0E7A13598BE13435425295",
-      "x-oss-server-time" : "22",
+      "x-oss-version-id" : "CAEQigEYgYCAtbKTsvIZIiBjYTcyNTM1OGE2NDQ0YTQzYTJkMmU0NzBkZDEzNTAxNQ--",
+      "x-oss-request-id" : "6A0F7F6BB37E8130354347E1",
+      "x-oss-server-time" : "13",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0026-00000001",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:20:51 GMT",
+      "Date" : "Thu, 21 May 2026 21:55:56 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "6582d4ef-75f8-46c9-94e6-a7848afdcce8",
+  "uuid" : "c9e6ec55-c3bb-4cdd-88bc-bc120456a6f7",
   "persistent" : true,
-  "insertionIndex" : 379
+  "insertionIndex" : 348
 }

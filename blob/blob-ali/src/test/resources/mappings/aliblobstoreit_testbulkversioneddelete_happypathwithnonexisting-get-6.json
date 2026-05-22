@@ -1,5 +1,5 @@
 {
-  "id" : "ae6d1724-d92e-4030-8148-287e817c45ab",
+  "id" : "576787d7-15b7-44eb-b628-66c2649fcf6e",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-GET-6",
   "request" : {
     "url" : "/conformance-tests/bulkDeleteByVersion/happy4",
@@ -12,19 +12,19 @@
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0E7A10692283313093AFF3</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy4</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7F69D7BC0731350CB9E6</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/bulkDeleteByVersion/happy4</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCAhYG.ofIZIiBlNjAwZWUwN2QyMTY0MjM2ODBlNDVjMTljMDdlYzE0OQ--",
-      "x-oss-request-id" : "6A0E7A10692283313093AFF3",
-      "x-oss-server-time" : "51",
+      "x-oss-version-id" : "CAEQigEYgoCAxZHYr_IZIiA1ZTgwZGY4MTA3ZTM0NmIyYjlmMzk2N2Y3NDAyNWE3Zg--",
+      "x-oss-request-id" : "6A0F7F69D7BC0731350CB9E6",
+      "x-oss-server-time" : "28",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0026-00000001",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:20:48 GMT",
+      "Date" : "Thu, 21 May 2026 21:55:53 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "ae6d1724-d92e-4030-8148-287e817c45ab",
+  "uuid" : "576787d7-15b7-44eb-b628-66c2649fcf6e",
   "persistent" : true,
-  "insertionIndex" : 382
+  "insertionIndex" : 351
 }

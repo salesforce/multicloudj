@@ -1,22 +1,12 @@
 {
-  "id" : "60ef8276-ae10-47cb-ba08-3abc0eebf96e",
+  "id" : "aef65c84-31f2-476b-9893-5a4d7b049082",
   "name" : "AliBlobStoreIT_testVersionedCopy-GET-12",
   "request" : {
-    "urlPath" : "/conformance-tests/versionedCopy/blob",
+    "url" : "/conformance-tests/versionedCopy/copied-blob-v2",
     "method" : "GET",
     "headers" : {
       "Host" : {
         "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
-      },
-      "X-Query-Param-Count" : {
-        "equalTo" : "1"
-      }
-    },
-    "queryParameters" : {
-      "versionId" : {
-        "hasExactly" : [ {
-          "equalTo" : "CAEQigEYgYCAntqUovIZIiA0MTFiNjg2ODA5OGU0ZmU2OTY5OTA3YmQzNjcyOTIzOQ--"
-        } ]
       }
     }
   },
@@ -24,13 +14,13 @@
     "status" : 200,
     "base64Body" : "VGhpcyBpcyB0aGUgc2Vjb25kIHZlcnNpb24gb2YgdGhlIGJsb2I=",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCAntqUovIZIiA0MTFiNjg2ODA5OGU0ZmU2OTY5OTA3YmQzNjcyOTIzOQ--",
-      "x-oss-request-id" : "6A0E79785388F53839217667",
-      "x-oss-server-time" : "7",
+      "x-oss-version-id" : "CAEQigEYgYDAvZ.QsvIZIiA5YTkyZGRiNDc2MmU0OWQ1Yjk0NzBkMGMwYTNkOTZkYg--",
+      "x-oss-request-id" : "6A0F7F04F1AA10363220A505",
+      "x-oss-server-time" : "58",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:18:07 GMT",
-      "Date" : "Thu, 21 May 2026 03:18:16 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:54:09 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:12 GMT",
       "Content-MD5" : "2ksGazsjJF4qLp6jLPdSYw==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
@@ -39,10 +29,7 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "60ef8276-ae10-47cb-ba08-3abc0eebf96e",
+  "uuid" : "aef65c84-31f2-476b-9893-5a4d7b049082",
   "persistent" : true,
-  "scenarioName" : "scenario-2-conformance-tests-versionedCopy-blob",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-2-conformance-tests-versionedCopy-blob-2",
-  "insertionIndex" : 190
+  "insertionIndex" : 173
 }

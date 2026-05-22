@@ -1,5 +1,5 @@
 {
-  "id" : "9e9ffba5-a1f2-4be4-9ca3-1d2c2d923226",
+  "id" : "a4cd3667-0de5-4913-9cf3-0127b3cd064c",
   "name" : "AliBlobStoreIT_testUpload_emptyContent-GET-22",
   "request" : {
     "url" : "/conformance-tests/upload/emptyContent_InputStream",
@@ -15,18 +15,18 @@
     "headers" : {
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
-      "x-oss-request-id" : "6A0E7A904C586D30370247D3",
+      "x-oss-request-id" : "6A0F7FCE26AA8C39351CF4C2",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "0",
       "ETag" : "\"D41D8CD98F00B204E9800998ECF8427E\"",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:22:55 GMT",
-      "Date" : "Thu, 21 May 2026 03:22:56 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:57:33 GMT",
+      "Date" : "Thu, 21 May 2026 21:57:34 GMT",
       "Content-MD5" : "1B2M2Y8AsgTpgAmY7PhCfg==",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "9e9ffba5-a1f2-4be4-9ca3-1d2c2d923226",
+  "uuid" : "a4cd3667-0de5-4913-9cf3-0127b3cd064c",
   "persistent" : true,
-  "insertionIndex" : 564
+  "insertionIndex" : 532
 }

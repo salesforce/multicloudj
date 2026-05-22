@@ -1,5 +1,5 @@
 {
-  "id" : "3b608d8c-6382-4243-9ddc-b5e126c99f18",
+  "id" : "1ed99009-0aaf-454f-a290-bece9038c300",
   "name" : "AliBlobStoreIT_testNonexistentBucket-POST-4",
   "request" : {
     "urlPath" : "/conformance-tests/blob-for-failing/testNonexistentBucketmultipart3",
@@ -9,10 +9,15 @@
         "equalTo" : "java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com"
       },
       "X-Query-Param-Count" : {
-        "equalTo" : "1"
+        "equalTo" : "2"
       }
     },
     "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
       "uploadId" : {
         "hasExactly" : [ {
           "equalTo" : "multipart3"
@@ -20,22 +25,21 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>&quot;etag&quot;</ETag></Part></CompleteMultipartUpload>",
-      "caseInsensitive" : false
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>etag</ETag></Part></CompleteMultipartUpload>"
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0E79941FB8DD3032369EAD</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0F7F1A3870173530A43551</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E79941FB8DD3032369EAD",
+      "x-oss-request-id" : "6A0F7F1A3870173530A43551",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0015-00000101",
-      "Date" : "Thu, 21 May 2026 03:18:44 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:34 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "3b608d8c-6382-4243-9ddc-b5e126c99f18",
+  "uuid" : "1ed99009-0aaf-454f-a290-bece9038c300",
   "persistent" : true,
-  "insertionIndex" : 215
+  "insertionIndex" : 201
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "61f6e159-27d5-4d10-9565-ac62b253991d",
+  "id" : "c55544d4-c242-4d2d-8988-41225d728796",
   "name" : "AliBlobStoreIT_testNonexistentBucket-PUT-5",
   "request" : {
     "urlPath" : "/conformance-tests/blob-for-failing/testNonexistentBucketmultipart2",
@@ -13,34 +13,33 @@
       }
     },
     "queryParameters" : {
-      "partNumber" : {
-        "hasExactly" : [ {
-          "equalTo" : "1"
-        } ]
-      },
       "uploadId" : {
         "hasExactly" : [ {
           "equalTo" : "multipart2"
         } ]
+      },
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "This is test data",
-      "caseInsensitive" : false
+      "binaryEqualTo" : "VGhpcyBpcyB0ZXN0IGRhdGE="
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0E7993C15CCF303104CC91</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchBucket</Code>\n  <Message>The specified bucket does not exist.</Message>\n  <RequestId>6A0F7F19D7BC0738314B7DE5</RequestId>\n  <HostId>java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com</HostId>\n  <BucketName>java-bucket-does-not-exist</BucketName>\n  <EC>0015-00000101</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0015-00000101</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E7993C15CCF303104CC91",
+      "x-oss-request-id" : "6A0F7F19D7BC0738314B7DE5",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0015-00000101",
-      "Date" : "Thu, 21 May 2026 03:18:43 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:33 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "61f6e159-27d5-4d10-9565-ac62b253991d",
+  "uuid" : "c55544d4-c242-4d2d-8988-41225d728796",
   "persistent" : true,
-  "insertionIndex" : 216
+  "insertionIndex" : 202
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "ed9ee59f-f24d-43ed-96a8-2858228c7c5b",
+  "id" : "190f731e-5efd-4422-8005-9925a0d812f9",
   "name" : "AliBlobStoreIT_testDownload_createParentPath-GET-1",
   "request" : {
     "url" : "/conformance-tests/download_create_parent/nested/object_unversioned",
@@ -14,12 +14,12 @@
     "status" : 200,
     "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
     "headers" : {
-      "x-oss-request-id" : "6A0E7988DC97B33833B1B605",
-      "x-oss-server-time" : "13",
+      "x-oss-request-id" : "6A0F7F1040BC8535334C6EE9",
+      "x-oss-server-time" : "7",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:18:32 GMT",
-      "Date" : "Thu, 21 May 2026 03:18:32 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:54:23 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:24 GMT",
       "Content-MD5" : "cBu9S94e4E47BZb2OZTrrg==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
@@ -28,9 +28,9 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "ed9ee59f-f24d-43ed-96a8-2858228c7c5b",
+  "uuid" : "190f731e-5efd-4422-8005-9925a0d812f9",
   "persistent" : true,
   "scenarioName" : "scenario-2-conformance-tests-download_create_parent-nested-object_unversioned",
   "requiredScenarioState" : "scenario-2-conformance-tests-download_create_parent-nested-object_unversioned-2",
-  "insertionIndex" : 201
+  "insertionIndex" : 187
 }

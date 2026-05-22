@@ -1,35 +1,25 @@
 {
-  "id" : "b4685a5b-48ed-4e5e-8ac9-98f274471636",
+  "id" : "d98d9e8b-506c-4d91-b52a-924468cc4fda",
   "name" : "AliBlobStoreIT_testVersionedCopy-HEAD-10",
   "request" : {
-    "urlPath" : "/conformance-tests/versionedCopy/blob",
+    "url" : "/conformance-tests/versionedCopy/copied-blob-v2",
     "method" : "HEAD",
     "headers" : {
       "Host" : {
         "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
-      },
-      "X-Query-Param-Count" : {
-        "equalTo" : "1"
-      }
-    },
-    "queryParameters" : {
-      "versionId" : {
-        "hasExactly" : [ {
-          "equalTo" : "CAEQigEYgYCAntqUovIZIiA0MTFiNjg2ODA5OGU0ZmU2OTY5OTA3YmQzNjcyOTIzOQ--"
-        } ]
       }
     }
   },
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCAntqUovIZIiA0MTFiNjg2ODA5OGU0ZmU2OTY5OTA3YmQzNjcyOTIzOQ--",
-      "x-oss-request-id" : "6A0E79796D612F393404B007",
-      "x-oss-server-time" : "44",
+      "x-oss-version-id" : "CAEQigEYgYDAvZ.QsvIZIiA5YTkyZGRiNDc2MmU0OWQ1Yjk0NzBkMGMwYTNkOTZkYg--",
+      "x-oss-request-id" : "6A0F7F058D81BD363649216F",
+      "x-oss-server-time" : "3",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:18:07 GMT",
-      "Date" : "Thu, 21 May 2026 03:18:17 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:54:09 GMT",
+      "Date" : "Thu, 21 May 2026 21:54:13 GMT",
       "Content-MD5" : "2ksGazsjJF4qLp6jLPdSYw==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
@@ -38,10 +28,7 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "b4685a5b-48ed-4e5e-8ac9-98f274471636",
+  "uuid" : "d98d9e8b-506c-4d91-b52a-924468cc4fda",
   "persistent" : true,
-  "scenarioName" : "scenario-1-conformance-tests-versionedCopy-blob",
-  "requiredScenarioState" : "Started",
-  "newScenarioState" : "scenario-1-conformance-tests-versionedCopy-blob-2",
-  "insertionIndex" : 188
+  "insertionIndex" : 171
 }

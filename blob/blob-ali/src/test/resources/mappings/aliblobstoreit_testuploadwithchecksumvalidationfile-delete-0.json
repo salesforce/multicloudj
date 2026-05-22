@@ -1,5 +1,5 @@
 {
-  "id" : "1e8d89f7-175a-47b2-8352-ef8319762699",
+  "id" : "3a8a8e9b-70b4-4977-b34c-782ca48dfba0",
   "name" : "AliBlobStoreIT_testUploadWithChecksumValidationFile-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/checksum/upload-file-checksum",
@@ -13,13 +13,13 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E799E982AE9323269C456",
-      "x-oss-server-time" : "14",
+      "x-oss-request-id" : "6A0F7F1F40BC853832CBA7E9",
+      "x-oss-server-time" : "17",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:18:54 GMT"
+      "Date" : "Thu, 21 May 2026 21:54:39 GMT"
     }
   },
-  "uuid" : "1e8d89f7-175a-47b2-8352-ef8319762699",
+  "uuid" : "3a8a8e9b-70b4-4977-b34c-782ca48dfba0",
   "persistent" : true,
-  "insertionIndex" : 227
+  "insertionIndex" : 213
 }
