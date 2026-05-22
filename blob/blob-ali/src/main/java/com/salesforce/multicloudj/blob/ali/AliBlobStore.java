@@ -1,12 +1,38 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.ClientBuilderConfiguration;
-import com.aliyun.oss.ClientException;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.ServiceException;
-import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.PresignOptions;
+import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.exceptions.OperationException;
+import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
+import com.aliyun.sdk.service.oss2.models.CommonPrefix;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
+import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.PresignResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -55,18 +81,16 @@ import lombok.Getter;
 @AutoService(AbstractBlobStore.class)
 public class AliBlobStore extends AbstractBlobStore {
 
-  private final OSS ossClient;
-  private final OSSClient ossV2Client;
+  private final OSSClient ossClient;
   private final AliTransformer transformer;
 
   public AliBlobStore() {
-    this(new Builder(), null, null);
+    this(new Builder(), null);
   }
 
-  public AliBlobStore(Builder builder, OSS ossClient, OSSClient ossV2Client) {
+  public AliBlobStore(Builder builder, OSSClient ossClient) {
     super(builder);
     this.ossClient = ossClient;
-    this.ossV2Client = ossV2Client;
     this.transformer = builder.getTransformerSupplier().get(bucket);
   }
 
@@ -79,22 +103,19 @@ public class AliBlobStore extends AbstractBlobStore {
   public Class<? extends SubstrateSdkException> getException(Throwable t) {
     if (t instanceof SubstrateSdkException) {
       return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof ServiceException) {
-      String errorCode = ((ServiceException) t).getErrorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof com.aliyun.sdk.service.oss2.exceptions.OperationException) {
+    } else if (t instanceof OperationException) {
       Throwable cause = t.getCause();
-      if (cause instanceof com.aliyun.sdk.service.oss2.exceptions.ServiceException) {
+      if (cause instanceof ServiceException) {
         String errorCode =
-            ((com.aliyun.sdk.service.oss2.exceptions.ServiceException) cause).errorCode();
+            ((ServiceException) cause).errorCode();
         return ErrorCodeMapping.getException(errorCode);
       }
       return UnknownException.class;
-    } else if (t instanceof com.aliyun.sdk.service.oss2.exceptions.ServiceException) {
+    } else if (t instanceof ServiceException) {
       String errorCode =
-          ((com.aliyun.sdk.service.oss2.exceptions.ServiceException) t).errorCode();
+          ((ServiceException) t).errorCode();
       return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof ClientException || t instanceof IllegalArgumentException) {
+    } else if (t instanceof IllegalArgumentException) {
       return InvalidArgumentException.class;
     }
     return UnknownException.class;
@@ -112,10 +133,10 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     long contentLength = uploadRequest.getContentLength();
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+    BinaryData body =
+        BinaryData.fromStream(
             inputStream, contentLength > 0 ? contentLength : null);
-    return doV2Upload(uploadRequest, body);
+    return doUploadInternal(uploadRequest, body);
   }
 
   /**
@@ -127,9 +148,9 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes(content);
-    return doV2Upload(uploadRequest, body);
+    BinaryData body =
+        BinaryData.fromBytes(content);
+    return doUploadInternal(uploadRequest, body);
   }
 
   /**
@@ -142,10 +163,10 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
     try {
-      com.aliyun.sdk.service.oss2.transport.BinaryData body =
-          com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+      BinaryData body =
+          BinaryData.fromStream(
               Files.newInputStream(file.toPath()), file.length());
-      return doV2Upload(uploadRequest, body);
+      return doUploadInternal(uploadRequest, body);
     } catch (IOException e) {
       throw new RuntimeException("Failed to read file for upload: " + file.getPath(), e);
     }
@@ -163,15 +184,15 @@ public class AliBlobStore extends AbstractBlobStore {
     return doUpload(uploadRequest, path.toFile());
   }
 
-  /** Helper function to upload blobs via v2 SDK */
-  protected UploadResponse doV2Upload(
+  /** Helper function to upload blobs */
+  protected UploadResponse doUploadInternal(
       UploadRequest uploadRequest,
-      com.aliyun.sdk.service.oss2.transport.BinaryData body) {
-    com.aliyun.sdk.service.oss2.models.PutObjectRequest request =
-        transformer.toV2PutObjectRequest(uploadRequest, body);
-    com.aliyun.sdk.service.oss2.models.PutObjectResult result =
-        ossV2Client.putObject(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+      BinaryData body) {
+    PutObjectRequest request =
+        transformer.toPutObjectRequest(uploadRequest, body);
+    PutObjectResult result =
+        ossClient.putObject(request,
+            OperationOptions.defaults());
     return transformer.toUploadResponse(uploadRequest, result);
   }
 
@@ -185,11 +206,11 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
-        transformer.toV2GetObjectRequest(downloadRequest);
-    try (com.aliyun.sdk.service.oss2.models.GetObjectResult result =
-        ossV2Client.getObject(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults())) {
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    try (GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults())) {
       validateRangeResponse(downloadRequest, result);
       copyStream(result.body(), outputStream);
       return transformer.toDownloadResponse(downloadRequest.getKey(), result);
@@ -241,11 +262,11 @@ public class AliBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
     Path destinationPath =
         createDownloadDestinationPath(downloadRequest, path);
-    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
-        transformer.toV2GetObjectRequest(downloadRequest);
-    try (com.aliyun.sdk.service.oss2.models.GetObjectResult result =
-        ossV2Client.getObject(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults())) {
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    try (GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults())) {
       validateRangeResponse(downloadRequest, result);
       Files.copy(result.body(), destinationPath);
       return transformer.toDownloadResponse(downloadRequest.getKey(), result);
@@ -268,11 +289,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   public DownloadResponse doDownload(DownloadRequest downloadRequest) {
-    com.aliyun.sdk.service.oss2.models.GetObjectRequest request =
-        transformer.toV2GetObjectRequest(downloadRequest);
-    com.aliyun.sdk.service.oss2.models.GetObjectResult result =
-        ossV2Client.getObject(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults());
     try {
       validateRangeResponse(downloadRequest, result);
     } catch (RuntimeException e) {
@@ -291,7 +312,7 @@ public class AliBlobStore extends AbstractBlobStore {
   // to make behavior consistent with other substrates.
   private void validateRangeResponse(
       DownloadRequest downloadRequest,
-      com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
+      GetObjectResult result) {
     if (downloadRequest.getStart() == null) {
       return;
     }
@@ -328,10 +349,10 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected void doDelete(String key, String versionId) {
-    com.aliyun.sdk.service.oss2.models.DeleteObjectRequest request =
-        transformer.toV2DeleteObjectRequest(key, versionId);
-    ossV2Client.deleteObject(request,
-        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    DeleteObjectRequest request =
+        transformer.toDeleteObjectRequest(key, versionId);
+    ossClient.deleteObject(request,
+        OperationOptions.defaults());
   }
 
   /**
@@ -344,10 +365,10 @@ public class AliBlobStore extends AbstractBlobStore {
     if (objects.isEmpty()) {
       return;
     }
-    com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest request =
-        transformer.toV2DeleteMultipleObjectsRequest(objects);
-    ossV2Client.deleteMultipleObjects(request,
-        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    DeleteMultipleObjectsRequest request =
+        transformer.toDeleteMultipleObjectsRequest(objects);
+    ossClient.deleteMultipleObjects(request,
+        OperationOptions.defaults());
   }
 
   /**
@@ -358,11 +379,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected CopyResponse doCopy(CopyRequest request) {
-    com.aliyun.sdk.service.oss2.models.CopyObjectRequest copyRequest =
-        transformer.toV2CopyObjectRequest(request);
-    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
-        ossV2Client.copyObject(copyRequest,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    CopyObjectRequest copyRequest =
+        transformer.toCopyObjectRequest(request);
+    CopyObjectResult result =
+        ossClient.copyObject(copyRequest,
+            OperationOptions.defaults());
     return buildCopyResponse(request.getDestKey(), result);
   }
 
@@ -374,23 +395,23 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected CopyResponse doCopyFrom(CopyFromRequest request) {
-    com.aliyun.sdk.service.oss2.models.CopyObjectRequest copyRequest =
-        transformer.toV2CopyObjectRequest(request);
-    com.aliyun.sdk.service.oss2.models.CopyObjectResult result =
-        ossV2Client.copyObject(copyRequest,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    CopyObjectRequest copyRequest =
+        transformer.toCopyObjectRequest(request);
+    CopyObjectResult result =
+        ossClient.copyObject(copyRequest,
+            OperationOptions.defaults());
     return buildCopyResponse(request.getDestKey(), result);
   }
 
   private CopyResponse buildCopyResponse(
-      String destKey, com.aliyun.sdk.service.oss2.models.CopyObjectResult result) {
+      String destKey, CopyObjectResult result) {
     CopyResponse response = transformer.toCopyResponse(destKey, result);
     if (response.getLastModified() == null) {
-      com.aliyun.sdk.service.oss2.models.HeadObjectRequest headRequest =
+      HeadObjectRequest headRequest =
           transformer.toHeadObjectRequest(destKey, response.getVersionId());
-      com.aliyun.sdk.service.oss2.models.HeadObjectResult headResult =
-          ossV2Client.headObject(headRequest,
-              com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+      HeadObjectResult headResult =
+          ossClient.headObject(headRequest,
+              OperationOptions.defaults());
       return CopyResponse.builder()
           .key(response.getKey())
           .versionId(response.getVersionId())
@@ -412,11 +433,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected BlobMetadata doGetMetadata(String key, String versionId) {
-    com.aliyun.sdk.service.oss2.models.HeadObjectRequest request =
+    HeadObjectRequest request =
         transformer.toHeadObjectRequest(key, versionId);
-    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
-        ossV2Client.headObject(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    HeadObjectResult result =
+        ossClient.headObject(request,
+            OperationOptions.defaults());
     return transformer.toBlobMetadata(key, result);
   }
 
@@ -427,7 +448,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
-    return new BlobInfoIterator(ossV2Client, transformer, request);
+    return new BlobInfoIterator(ossClient, transformer, request);
   }
 
   /**
@@ -438,11 +459,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request listRequest =
-        transformer.toV2ListObjectsRequest(request);
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Result response =
-        ossV2Client.listObjectsV2(listRequest,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request);
+    ListObjectsV2Result response =
+        ossClient.listObjectsV2(listRequest,
+            OperationOptions.defaults());
 
     List<BlobInfo> blobs =
         response.contents().stream()
@@ -456,7 +477,7 @@ public class AliBlobStore extends AbstractBlobStore {
 
     List<String> commonPrefixes = response.commonPrefixes() != null
         ? response.commonPrefixes().stream()
-            .map(com.aliyun.sdk.service.oss2.models.CommonPrefix::prefix)
+            .map(CommonPrefix::prefix)
             .collect(Collectors.toList())
         : List.of();
 
@@ -474,11 +495,11 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest v2Request =
-        transformer.toV2InitiateMultipartUploadRequest(request);
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
-        ossV2Client.initiateMultipartUpload(v2Request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    InitiateMultipartUploadRequest ossRequest =
+        transformer.toInitiateMultipartUploadRequest(request);
+    InitiateMultipartUploadResult result =
+        ossClient.initiateMultipartUpload(ossRequest,
+            OperationOptions.defaults());
     return transformer.toMultipartUpload(result, request);
   }
 
@@ -492,11 +513,11 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected UploadPartResponse doUploadMultipartPart(
       final MultipartUpload mpu, final MultipartPart mpp) {
-    com.aliyun.sdk.service.oss2.models.UploadPartRequest v2Request =
-        transformer.toV2UploadPartRequest(mpu, mpp);
-    com.aliyun.sdk.service.oss2.models.UploadPartResult result =
-        ossV2Client.uploadPart(v2Request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    UploadPartRequest request =
+        transformer.toUploadPartRequest(mpu, mpp);
+    UploadPartResult result =
+        ossClient.uploadPart(request,
+            OperationOptions.defaults());
     return transformer.toUploadPartResponse(mpp, result);
   }
 
@@ -510,11 +531,11 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected MultipartUploadResponse doCompleteMultipartUpload(
       final MultipartUpload mpu, final List<UploadPartResponse> parts) {
-    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest v2Request =
-        transformer.toV2CompleteMultipartUploadRequest(mpu, parts);
-    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult result =
-        ossV2Client.completeMultipartUpload(v2Request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    CompleteMultipartUploadRequest request =
+        transformer.toCompleteMultipartUploadRequest(mpu, parts);
+    CompleteMultipartUploadResult result =
+        ossClient.completeMultipartUpload(request,
+            OperationOptions.defaults());
     return new MultipartUploadResponse(
         stripQuotes(result.completeMultipartUpload().eTag()));
   }
@@ -526,11 +547,11 @@ public class AliBlobStore extends AbstractBlobStore {
    * @return Returns a list of all uploaded parts
    */
   protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu) {
-    com.aliyun.sdk.service.oss2.models.ListPartsRequest v2Request =
-        transformer.toV2ListPartsRequest(mpu);
-    com.aliyun.sdk.service.oss2.models.ListPartsResult result =
-        ossV2Client.listParts(v2Request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    ListPartsRequest request =
+        transformer.toListPartsRequest(mpu);
+    ListPartsResult result =
+        ossClient.listParts(request,
+            OperationOptions.defaults());
     return transformer.toListUploadPartResponse(result);
   }
 
@@ -540,8 +561,8 @@ public class AliBlobStore extends AbstractBlobStore {
    * @param mpu The multipartUpload identifier
    */
   protected void doAbortMultipartUpload(final MultipartUpload mpu) {
-    ossV2Client.abortMultipartUpload(transformer.toV2AbortMultipartUploadRequest(mpu),
-        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    ossClient.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu),
+        OperationOptions.defaults());
   }
 
   private String stripQuotes(String value) {
@@ -562,14 +583,14 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected Map<String, String> doGetTags(String key) {
-    com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest request =
-        com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest.newBuilder()
+    GetObjectTaggingRequest request =
+        GetObjectTaggingRequest.newBuilder()
             .bucket(bucket)
             .key(key)
             .build();
-    com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult result =
-        ossV2Client.getObjectTagging(request,
-            com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    GetObjectTaggingResult result =
+        ossClient.getObjectTagging(request,
+            OperationOptions.defaults());
     return transformer.toTagMap(result);
   }
 
@@ -581,10 +602,10 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected void doSetTags(String key, Map<String, String> tags) {
-    com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest request =
+    PutObjectTaggingRequest request =
         transformer.toPutObjectTaggingRequest(key, tags);
-    ossV2Client.putObjectTagging(request,
-        com.aliyun.sdk.service.oss2.OperationOptions.defaults());
+    ossClient.putObjectTagging(request,
+        OperationOptions.defaults());
   }
 
   /** {@inheritdoc} */
@@ -614,14 +635,14 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    com.aliyun.sdk.service.oss2.PresignOptions options = transformer.toPresignOptions(request);
-    com.aliyun.sdk.service.oss2.models.PresignResult result;
+    PresignOptions options = transformer.toPresignOptions(request);
+    PresignResult result;
     switch (request.getType()) {
       case UPLOAD:
-        result = ossV2Client.presign(transformer.toPresignedPutObjectRequest(request), options);
+        result = ossClient.presign(transformer.toPresignedPutObjectRequest(request), options);
         break;
       case DOWNLOAD:
-        result = ossV2Client.presign(transformer.toPresignedGetObjectRequest(request), options);
+        result = ossClient.presign(transformer.toPresignedGetObjectRequest(request), options);
         break;
       default:
         throw new InvalidArgumentException(
@@ -637,14 +658,14 @@ public class AliBlobStore extends AbstractBlobStore {
   /** {@inheritdoc} */
   @Override
   protected boolean doDoesObjectExist(String key, String versionId) {
-    com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.Builder reqBuilder =
-        com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.newBuilder()
+    GetObjectMetaRequest.Builder reqBuilder =
+        GetObjectMetaRequest.newBuilder()
             .bucket(bucket)
             .key(key);
     if (versionId != null) {
       reqBuilder.versionId(versionId);
     }
-    return ossV2Client.doesObjectExist(reqBuilder.build());
+    return ossClient.doesObjectExist(reqBuilder.build());
   }
 
   /**
@@ -654,19 +675,16 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected boolean doDoesBucketExist() {
-    return ossV2Client.doesBucketExist(bucket);
+    return ossClient.doesBucketExist(bucket);
   }
 
   @Override
   public void close() {
     if (ossClient != null) {
-      ossClient.shutdown();
-    }
-    if (ossV2Client != null) {
       try {
-        ossV2Client.close();
+        ossClient.close();
       } catch (Exception e) {
-        throw new SubstrateSdkException("Failed to close Ali OSS v2 client", e);
+        throw new SubstrateSdkException("Failed to close Ali OSS client", e);
       }
     }
   }
@@ -674,8 +692,7 @@ public class AliBlobStore extends AbstractBlobStore {
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
 
-    private OSS client;
-    private OSSClient v2Client;
+    private OSSClient client;
     private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
 
     public Builder() {
@@ -687,13 +704,8 @@ public class AliBlobStore extends AbstractBlobStore {
       return this;
     }
 
-    public Builder withClient(OSS client) {
+    public Builder withClient(OSSClient client) {
       this.client = client;
-      return this;
-    }
-
-    public Builder withV2Client(OSSClient v2Client) {
-      this.v2Client = v2Client;
       return this;
     }
 
@@ -702,83 +714,37 @@ public class AliBlobStore extends AbstractBlobStore {
       return this;
     }
 
-    /** Helper function for generating the v1 OSS client */
-    private static OSS buildOSSClient(Builder builder) {
-      return OSSClientBuilder.create()
-          .region(builder.getRegion())
-          .endpoint(getEndpoint(builder))
-          .clientConfiguration(getClientBuilderConfiguration(builder))
-          .credentialsProvider(
-              OSSCredentialsProvider.getCredentialsProvider(
-                  builder.getCredentialsOverrider(), builder.getRegion()))
-          .build();
-    }
-
-    /** Helper function for generating the v2 OSS client. */
-    private static OSSClient buildOSSV2Client(Builder builder) {
-      com.aliyun.sdk.service.oss2.credentials.CredentialsProvider v2Creds =
-          OSSCredentialsProvider.getV2CredentialsProvider(
-              builder.getCredentialsOverrider());
-      if (v2Creds == null) {
+    private static OSSClient buildOSSClient(Builder builder) {
+      CredentialsProvider creds =
+          OSSCredentialsProvider.getCredentialsProvider(
+              builder.getCredentialsOverrider(), builder.getRegion());
+      if (creds == null) {
         return null;
       }
 
-      var v2Builder = OSSClient.newBuilder()
+      var clientBuilder = OSSClient.newBuilder()
           .region(builder.getRegion())
-          .credentialsProvider(v2Creds);
+          .credentialsProvider(creds);
 
       if (builder.getEndpoint() != null) {
-        v2Builder.endpoint(builder.getEndpoint().toString());
+        clientBuilder.endpoint(builder.getEndpoint().toString());
       }
       if (builder.getProxyEndpoint() != null) {
-        v2Builder.proxyHost(
+        clientBuilder.proxyHost(
             builder.getProxyEndpoint().getHost()
                 + ":" + builder.getProxyEndpoint().getPort());
       }
 
-      return v2Builder.build();
-    }
-
-    /** Helper function to produce the endpoint value */
-    private static String getEndpoint(Builder builder) {
-      if (builder.getEndpoint() != null) {
-        return builder.getEndpoint().toString();
-      }
-      return "https://oss-" + builder.getRegion() + ".aliyuncs.com";
-    }
-
-    /** Helper function to generate the ClientBuilderConfiguration */
-    private static ClientBuilderConfiguration getClientBuilderConfiguration(Builder builder) {
-      ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-      clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-      if (builder.getProxyEndpoint() != null) {
-        clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
-        clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
-      }
-      if (builder.getMaxConnections() != null) {
-        clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
-      }
-      if (builder.getSocketTimeout() != null) {
-        clientBuilderConfiguration.setSocketTimeout((int) builder.getSocketTimeout().toMillis());
-      }
-      if (builder.getIdleConnectionTimeout() != null) {
-        clientBuilderConfiguration.setIdleConnectionTime(
-            (int) builder.getIdleConnectionTimeout().toMillis());
-      }
-      return clientBuilderConfiguration;
+      return clientBuilder.build();
     }
 
     @Override
     public AliBlobStore build() {
-      OSS v1 = getClient();
-      if (v1 == null) {
-        v1 = buildOSSClient(this);
+      OSSClient ossClient = this.client;
+      if (ossClient == null) {
+        ossClient = buildOSSClient(this);
       }
-      OSSClient v2 = this.v2Client;
-      if (v2 == null) {
-        v2 = buildOSSV2Client(this);
-      }
-      return new AliBlobStore(this, v1, v2);
+      return new AliBlobStore(this, ossClient);
     }
   }
 }

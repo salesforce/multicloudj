@@ -15,7 +15,7 @@ import java.util.NoSuchElementException;
 /** Iterator object to retrieve BlobInfo list */
 public class BlobInfoIterator implements Iterator<BlobInfo> {
 
-  private final OSSClient ossV2Client;
+  private final OSSClient ossClient;
   private final AliTransformer transformer;
   private List<BlobInfo> currentBatch;
   private String nextContinuationToken;
@@ -23,8 +23,8 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
   private final ListBlobsRequest listRequest;
 
   public BlobInfoIterator(
-      OSSClient ossV2Client, AliTransformer transformer, ListBlobsRequest listRequest) {
-    this.ossV2Client = ossV2Client;
+      OSSClient ossClient, AliTransformer transformer, ListBlobsRequest listRequest) {
+    this.ossClient = ossClient;
     this.transformer = transformer;
     this.listRequest = listRequest;
     this.currentBatch = nextBatch();
@@ -33,9 +33,9 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
 
   private List<BlobInfo> nextBatch() {
     ListObjectsV2Request request =
-        transformer.toV2ListObjectsRequest(listRequest, nextContinuationToken);
+        transformer.toListObjectsRequest(listRequest, nextContinuationToken);
     ListObjectsV2Result result =
-        ossV2Client.listObjectsV2(request, OperationOptions.defaults());
+        ossClient.listObjectsV2(request, OperationOptions.defaults());
     nextContinuationToken = result.nextContinuationToken();
 
     return result.contents().stream()

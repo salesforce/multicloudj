@@ -1,11 +1,36 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.model.GenericRequest;
-import com.aliyun.oss.model.GetObjectRequest;
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.ObjectMetadata;
+import com.aliyun.sdk.service.oss2.PresignOptions;
+import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.Delete;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectIdentifier;
+import com.aliyun.sdk.service.oss2.models.Part;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.Tag;
+import com.aliyun.sdk.service.oss2.models.TagSet;
+import com.aliyun.sdk.service.oss2.models.Tagging;
+import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
@@ -35,11 +60,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 
 @Getter
 public class AliTransformer {
+
+  private static final String SERVER_SIDE_ENCRYPTION_KMS = "KMS";
 
   private final String bucket;
 
@@ -47,11 +72,11 @@ public class AliTransformer {
     this.bucket = bucket;
   }
 
-  public com.aliyun.sdk.service.oss2.models.PutObjectRequest toV2PutObjectRequest(
+  public PutObjectRequest toPutObjectRequest(
       UploadRequest uploadRequest,
-      com.aliyun.sdk.service.oss2.transport.BinaryData body) {
-    com.aliyun.sdk.service.oss2.models.PutObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.PutObjectRequest.newBuilder()
+      BinaryData body) {
+    PutObjectRequest.Builder builder =
+        PutObjectRequest.newBuilder()
             .bucket(bucket)
             .key(uploadRequest.getKey())
             .body(body);
@@ -73,7 +98,7 @@ public class AliTransformer {
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
-      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(uploadRequest.getKmsKeyId());
     }
 
@@ -94,7 +119,7 @@ public class AliTransformer {
 
   public UploadResponse toUploadResponse(
       UploadRequest uploadRequest,
-      com.aliyun.sdk.service.oss2.models.PutObjectResult result) {
+      PutObjectResult result) {
     UploadResponse.UploadResponseBuilder builder =
         UploadResponse.builder()
             .key(uploadRequest.getKey())
@@ -115,20 +140,10 @@ public class AliTransformer {
   }
 
 
-  public GetObjectRequest toGetObjectRequest(DownloadRequest downloadRequest) {
-    GetObjectRequest request =
-        new GetObjectRequest(bucket, downloadRequest.getKey(), downloadRequest.getVersionId());
-    if (downloadRequest.getStart() != null || downloadRequest.getEnd() != null) {
-      Pair<Long, Long> range = computeRange(downloadRequest.getStart(), downloadRequest.getEnd());
-      request.withRange(range.getLeft(), range.getRight());
-    }
-    return request;
-  }
-
-  public com.aliyun.sdk.service.oss2.models.GetObjectRequest toV2GetObjectRequest(
+  public GetObjectRequest toGetObjectRequest(
       DownloadRequest downloadRequest) {
-    com.aliyun.sdk.service.oss2.models.GetObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.GetObjectRequest.newBuilder()
+    GetObjectRequest.Builder builder =
+        GetObjectRequest.newBuilder()
             .bucket(bucket)
             .key(downloadRequest.getKey());
     if (downloadRequest.getVersionId() != null) {
@@ -149,53 +164,8 @@ public class AliTransformer {
     return "bytes=" + start + "-" + end;
   }
 
-  /**
-   * Reading the first 500 bytes - computeRange(0, 500) - (0, 500) Reading a middle 500 bytes -
-   * computeRange(123, 623) - (123, 623) Reading the last 500 bytes - computeRange(null, 500) - (-1,
-   * 500) Reading everything but first 500 bytes - computeRange(500, null) - (500, -1)
-   */
-  protected Pair<Long, Long> computeRange(Long start, Long end) {
-    return new ImmutablePair<>(start == null ? -1 : start, end == null ? -1 : end);
-  }
-
-  // OSS does not expose a separate creation timestamp, lastModified is the best available value
-  public DownloadResponse toDownloadResponse(OSSObject ossObject) {
-    return DownloadResponse.builder()
-        .key(ossObject.getKey())
-        .metadata(
-            BlobMetadata.builder()
-                .key(ossObject.getKey())
-                .versionId(ossObject.getObjectMetadata().getVersionId())
-                .eTag(ossObject.getObjectMetadata().getETag())
-                .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
-                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
-                .metadata(ossObject.getObjectMetadata().getUserMetadata())
-                .objectSize(ossObject.getObjectMetadata().getContentLength())
-                .contentType(ossObject.getObjectMetadata().getContentType())
-                .build())
-        .build();
-  }
-
-  public DownloadResponse toDownloadResponse(OSSObject ossObject, InputStream inputStream) {
-    return DownloadResponse.builder()
-        .key(ossObject.getKey())
-        .metadata(
-            BlobMetadata.builder()
-                .key(ossObject.getKey())
-                .versionId(ossObject.getObjectMetadata().getVersionId())
-                .eTag(ossObject.getObjectMetadata().getETag())
-                .lastModified(ossObject.getObjectMetadata().getLastModified().toInstant())
-                .createdTime(ossObject.getObjectMetadata().getLastModified().toInstant())
-                .metadata(ossObject.getObjectMetadata().getUserMetadata())
-                .objectSize(ossObject.getObjectMetadata().getContentLength())
-                .contentType(ossObject.getObjectMetadata().getContentType())
-                .build())
-        .inputStream(inputStream)
-        .build();
-  }
-
   public DownloadResponse toDownloadResponse(
-      String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
+      String key, GetObjectResult result) {
     Instant lastModified = parseLastModified(result.lastModified());
     Long contentLength = result.contentLength();
     long objectSize = contentLength != null ? contentLength : 0L;
@@ -216,7 +186,7 @@ public class AliTransformer {
   }
 
   public DownloadResponse toDownloadResponse(
-      String key, com.aliyun.sdk.service.oss2.models.GetObjectResult result,
+      String key, GetObjectResult result,
       InputStream inputStream) {
     Instant lastModified = parseLastModified(result.lastModified());
     Long contentLength = result.contentLength();
@@ -238,10 +208,10 @@ public class AliTransformer {
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.DeleteObjectRequest toV2DeleteObjectRequest(
+  public DeleteObjectRequest toDeleteObjectRequest(
       String key, String versionId) {
-    com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.newBuilder()
+    DeleteObjectRequest.Builder builder =
+        DeleteObjectRequest.newBuilder()
             .bucket(bucket)
             .key(key);
     if (versionId != null) {
@@ -250,12 +220,12 @@ public class AliTransformer {
     return builder.build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest
-      toV2DeleteMultipleObjectsRequest(Collection<BlobIdentifier> objects) {
-    List<com.aliyun.sdk.service.oss2.models.ObjectIdentifier> identifiers = objects.stream()
+  public DeleteMultipleObjectsRequest
+      toDeleteMultipleObjectsRequest(Collection<BlobIdentifier> objects) {
+    List<ObjectIdentifier> identifiers = objects.stream()
         .map(obj -> {
-          com.aliyun.sdk.service.oss2.models.ObjectIdentifier.Builder idBuilder =
-              com.aliyun.sdk.service.oss2.models.ObjectIdentifier.newBuilder()
+          ObjectIdentifier.Builder idBuilder =
+              ObjectIdentifier.newBuilder()
                   .key(obj.getKey());
           if (obj.getVersionId() != null) {
             idBuilder.versionId(obj.getVersionId());
@@ -263,21 +233,21 @@ public class AliTransformer {
           return idBuilder.build();
         })
         .collect(Collectors.toList());
-    com.aliyun.sdk.service.oss2.models.Delete delete =
-        com.aliyun.sdk.service.oss2.models.Delete.newBuilder()
+    Delete delete =
+        Delete.newBuilder()
             .quiet(true)
             .objects(identifiers)
             .build();
-    return com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.newBuilder()
+    return DeleteMultipleObjectsRequest.newBuilder()
         .bucket(bucket)
         .delete(delete)
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.CopyObjectRequest toV2CopyObjectRequest(
+  public CopyObjectRequest toCopyObjectRequest(
       CopyRequest request) {
-    com.aliyun.sdk.service.oss2.models.CopyObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.CopyObjectRequest.newBuilder()
+    CopyObjectRequest.Builder builder =
+        CopyObjectRequest.newBuilder()
             .bucket(request.getDestBucket())
             .key(request.getDestKey())
             .sourceBucket(bucket)
@@ -288,10 +258,10 @@ public class AliTransformer {
     return builder.build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.CopyObjectRequest toV2CopyObjectRequest(
+  public CopyObjectRequest toCopyObjectRequest(
       CopyFromRequest request) {
-    com.aliyun.sdk.service.oss2.models.CopyObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.CopyObjectRequest.newBuilder()
+    CopyObjectRequest.Builder builder =
+        CopyObjectRequest.newBuilder()
             .bucket(bucket)
             .key(request.getDestKey())
             .sourceBucket(request.getSrcBucket())
@@ -303,7 +273,7 @@ public class AliTransformer {
   }
 
   public CopyResponse toCopyResponse(
-      String destKey, com.aliyun.sdk.service.oss2.models.CopyObjectResult result) {
+      String destKey, CopyObjectResult result) {
     String eTag = result.eTag();
     if (eTag != null) {
       eTag = eTag.replace("\"", "");
@@ -313,26 +283,6 @@ public class AliTransformer {
         .versionId(result.versionId())
         .eTag(eTag)
         .lastModified(parseLastModified(result.lastModified()))
-        .build();
-  }
-
-  public GenericRequest toMetadataRequest(String key, String versionId) {
-    return new GenericRequest().withBucketName(bucket).withKey(key).withVersionId(versionId);
-  }
-
-  public BlobMetadata toBlobMetadata(String key, ObjectMetadata metadata) {
-    long objectSize = metadata.getContentLength();
-    Map<String, String> rawMetadata = metadata.getUserMetadata();
-    return BlobMetadata.builder()
-        .key(key)
-        .versionId(metadata.getVersionId())
-        .eTag(metadata.getETag())
-        .objectSize(objectSize)
-        .metadata(rawMetadata)
-        .lastModified(metadata.getLastModified().toInstant())
-        .createdTime(metadata.getLastModified().toInstant())
-        .md5(HexUtil.convertToBytes(metadata.getContentMD5()))
-        .contentType(metadata.getContentType())
         .build();
   }
 
@@ -382,44 +332,44 @@ public class AliTransformer {
   }
 
   public Map<String, String> toTagMap(
-      com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult result) {
-    com.aliyun.sdk.service.oss2.models.Tagging tagging = result.tagging();
+      GetObjectTaggingResult result) {
+    Tagging tagging = result.tagging();
     if (tagging == null || tagging.tagSet() == null || tagging.tagSet().tags() == null) {
       return Map.of();
     }
     return tagging.tagSet().tags().stream()
         .collect(Collectors.toMap(
-            com.aliyun.sdk.service.oss2.models.Tag::key,
-            com.aliyun.sdk.service.oss2.models.Tag::value));
+            Tag::key,
+            Tag::value));
   }
 
-  public com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest toPutObjectTaggingRequest(
+  public PutObjectTaggingRequest toPutObjectTaggingRequest(
       String key, Map<String, String> tags) {
-    List<com.aliyun.sdk.service.oss2.models.Tag> tagList = tags.entrySet().stream()
-        .map(e -> com.aliyun.sdk.service.oss2.models.Tag.newBuilder()
+    List<Tag> tagList = tags.entrySet().stream()
+        .map(e -> Tag.newBuilder()
             .key(e.getKey())
             .value(e.getValue())
             .build())
         .collect(Collectors.toList());
-    com.aliyun.sdk.service.oss2.models.TagSet tagSet =
-        com.aliyun.sdk.service.oss2.models.TagSet.newBuilder()
+    TagSet tagSet =
+        TagSet.newBuilder()
             .tags(tagList)
             .build();
-    com.aliyun.sdk.service.oss2.models.Tagging tagging =
-        com.aliyun.sdk.service.oss2.models.Tagging.newBuilder()
+    Tagging tagging =
+        Tagging.newBuilder()
             .tagSet(tagSet)
             .build();
-    return com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest.newBuilder()
+    return PutObjectTaggingRequest.newBuilder()
         .bucket(bucket)
         .key(key)
         .tagging(tagging)
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest
-      toV2InitiateMultipartUploadRequest(MultipartUploadRequest request) {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.newBuilder()
+  public InitiateMultipartUploadRequest
+      toInitiateMultipartUploadRequest(MultipartUploadRequest request) {
+    InitiateMultipartUploadRequest.Builder builder =
+        InitiateMultipartUploadRequest.newBuilder()
             .bucket(bucket)
             .key(request.getKey());
 
@@ -428,7 +378,7 @@ public class AliTransformer {
     }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
-      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
@@ -444,9 +394,9 @@ public class AliTransformer {
   }
 
   public MultipartUpload toMultipartUpload(
-      com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result,
+      InitiateMultipartUploadResult result,
       MultipartUploadRequest request) {
-    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+    InitiateMultipartUpload upload =
         result.initiateMultipartUpload();
     return MultipartUpload.builder()
         .bucket(upload.bucket())
@@ -460,12 +410,12 @@ public class AliTransformer {
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.UploadPartRequest toV2UploadPartRequest(
+  public UploadPartRequest toUploadPartRequest(
       MultipartUpload mpu, MultipartPart mpp) {
-    com.aliyun.sdk.service.oss2.transport.BinaryData body =
-        com.aliyun.sdk.service.oss2.transport.BinaryData.fromStream(
+    BinaryData body =
+        BinaryData.fromStream(
             mpp.getInputStream(), mpp.getContentLength());
-    return com.aliyun.sdk.service.oss2.models.UploadPartRequest.newBuilder()
+    return UploadPartRequest.newBuilder()
         .bucket(bucket)
         .key(mpu.getKey())
         .uploadId(mpu.getId())
@@ -476,27 +426,27 @@ public class AliTransformer {
   }
 
   public UploadPartResponse toUploadPartResponse(
-      MultipartPart mpp, com.aliyun.sdk.service.oss2.models.UploadPartResult result) {
+      MultipartPart mpp, UploadPartResult result) {
     return new UploadPartResponse(
         mpp.getPartNumber(), stripQuotes(result.eTag()), mpp.getContentLength());
   }
 
-  public com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest
-      toV2CompleteMultipartUploadRequest(
+  public CompleteMultipartUploadRequest
+      toCompleteMultipartUploadRequest(
           MultipartUpload mpu, List<UploadPartResponse> parts) {
-    List<com.aliyun.sdk.service.oss2.models.Part> v2Parts =
+    List<Part> ossParts =
         parts.stream()
             .sorted(Comparator.comparingInt(UploadPartResponse::getPartNumber))
-            .map(part -> com.aliyun.sdk.service.oss2.models.Part.newBuilder()
+            .map(part -> Part.newBuilder()
                 .partNumber((long) part.getPartNumber())
                 .eTag(part.getEtag())
                 .build())
             .collect(Collectors.toList());
-    com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload body =
-        com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload.newBuilder()
-            .parts(v2Parts)
+    CompleteMultipartUpload body =
+        CompleteMultipartUpload.newBuilder()
+            .parts(ossParts)
             .build();
-    return com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.newBuilder()
+    return CompleteMultipartUploadRequest.newBuilder()
         .bucket(bucket)
         .key(mpu.getKey())
         .uploadId(mpu.getId())
@@ -504,9 +454,9 @@ public class AliTransformer {
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.ListPartsRequest toV2ListPartsRequest(
+  public ListPartsRequest toListPartsRequest(
       MultipartUpload mpu) {
-    return com.aliyun.sdk.service.oss2.models.ListPartsRequest.newBuilder()
+    return ListPartsRequest.newBuilder()
         .bucket(bucket)
         .key(mpu.getKey())
         .uploadId(mpu.getId())
@@ -514,28 +464,28 @@ public class AliTransformer {
   }
 
   public List<UploadPartResponse> toListUploadPartResponse(
-      com.aliyun.sdk.service.oss2.models.ListPartsResult result) {
+      ListPartsResult result) {
     return result.parts().stream()
-        .sorted(Comparator.comparingLong(com.aliyun.sdk.service.oss2.models.Part::partNumber))
+        .sorted(Comparator.comparingLong(Part::partNumber))
         .map(part -> new UploadPartResponse(
             part.partNumber().intValue(), stripQuotes(part.eTag()),
             part.size() != null ? part.size() : 0L))
         .collect(Collectors.toList());
   }
 
-  public com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest
-      toV2AbortMultipartUploadRequest(MultipartUpload mpu) {
-    return com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest.newBuilder()
+  public AbortMultipartUploadRequest
+      toAbortMultipartUploadRequest(MultipartUpload mpu) {
+    return AbortMultipartUploadRequest.newBuilder()
         .bucket(bucket)
         .key(mpu.getKey())
         .uploadId(mpu.getId())
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.PutObjectRequest toPresignedPutObjectRequest(
+  public PutObjectRequest toPresignedPutObjectRequest(
       PresignedUrlRequest request) {
-    com.aliyun.sdk.service.oss2.models.PutObjectRequest.Builder builder =
-        com.aliyun.sdk.service.oss2.models.PutObjectRequest.newBuilder()
+    PutObjectRequest.Builder builder =
+        PutObjectRequest.newBuilder()
             .bucket(bucket)
             .key(request.getKey());
 
@@ -549,32 +499,32 @@ public class AliTransformer {
     }
 
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
-      builder.serverSideEncryption("KMS");
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
     return builder.build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.GetObjectRequest toPresignedGetObjectRequest(
+  public GetObjectRequest toPresignedGetObjectRequest(
       PresignedUrlRequest request) {
-    return com.aliyun.sdk.service.oss2.models.GetObjectRequest.newBuilder()
+    return GetObjectRequest.newBuilder()
         .bucket(bucket)
         .key(request.getKey())
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.PresignOptions toPresignOptions(
+  public PresignOptions toPresignOptions(
       PresignedUrlRequest request) {
-    return com.aliyun.sdk.service.oss2.PresignOptions.newBuilder()
+    return PresignOptions.newBuilder()
         .expiration(request.getDuration())
         .build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.ListObjectsV2Request toV2ListObjectsRequest(
+  public ListObjectsV2Request toListObjectsRequest(
       ListBlobsPageRequest request) {
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.Builder builder =
-        com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.newBuilder()
+    ListObjectsV2Request.Builder builder =
+        ListObjectsV2Request.newBuilder()
             .bucket(bucket);
 
     if (request.getPrefix() != null) {
@@ -596,10 +546,10 @@ public class AliTransformer {
     return builder.build();
   }
 
-  public com.aliyun.sdk.service.oss2.models.ListObjectsV2Request toV2ListObjectsRequest(
+  public ListObjectsV2Request toListObjectsRequest(
       ListBlobsRequest request, String continuationToken) {
-    com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.Builder builder =
-        com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.newBuilder()
+    ListObjectsV2Request.Builder builder =
+        ListObjectsV2Request.newBuilder()
             .bucket(bucket);
 
     if (request != null && request.getPrefix() != null) {

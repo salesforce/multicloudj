@@ -1,10 +1,8 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.ClientBuilderConfiguration;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.client.AbstractBlobClientIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.common.ali.AliConstants;
@@ -14,6 +12,15 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.net.ssl.SSLContext;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
+import org.apache.hc.core5.http.HttpHost;
 
 public class AliBlobClientIT extends AbstractBlobClientIT {
 
@@ -30,7 +37,7 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
     int port =
         ThreadLocalRandom.current().nextInt(2000, 20000);
 
-    OSS ossClient;
+    OSSClient ossClient;
 
     @Override
     public AbstractBlobClient<?> createBlobClient(
@@ -63,35 +70,30 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
               .withSessionCredentials(sessionCreds)
               .build();
 
-      ClientBuilderConfiguration clientConfig =
-          new ClientBuilderConfiguration();
-      clientConfig.setSignatureVersion(SignVersion.V4);
-      clientConfig.setVerifySSLEnable(false);
-      clientConfig.setX509TrustManagers(
-          new javax.net.ssl.X509TrustManager[] {
-            (javax.net.ssl.X509TrustManager)
-                TestsUtil.createTrustAllManager()[0]
-          });
-      clientConfig.setProxyHost(TestsUtil.WIREMOCK_HOST);
-      clientConfig.setProxyPort(port + 1);
-
-      ossClient =
-          OSSClientBuilder.create()
-              .region(region)
-              .endpoint(endpoint)
-              .clientConfiguration(clientConfig)
-              .credentialsProvider(
-                  OSSCredentialsProvider
-                      .getCredentialsProvider(
-                          credentialsOverrider, region))
+      SSLContext sslContext = TestsUtil.createTrustAllSSLContext();
+      TlsSocketStrategy tlsStrategy = ClientTlsStrategyBuilder.create()
+          .setSslContext(sslContext)
+          .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+          .setHostVerificationPolicy(HostnameVerificationPolicy.CLIENT)
+          .buildClassic();
+      PoolingHttpClientConnectionManager connManager =
+          PoolingHttpClientConnectionManagerBuilder.create()
+              .setTlsSocketStrategy(tlsStrategy)
               .build();
+      RequestConfig requestConfig = RequestConfig.custom()
+          .setProxy(new HttpHost(TestsUtil.WIREMOCK_HOST, port + 1))
+          .build();
+      Apache5HttpClient httpClient = Apache5HttpClientBuilder.create()
+          .connectionManager(connManager)
+          .requestConfig(requestConfig)
+          .build();
 
-      OSSClient ossV2Client = OSSClient.newBuilder()
+      ossClient = OSSClient.newBuilder()
           .region(region)
           .credentialsProvider(
-              OSSCredentialsProvider.getV2CredentialsProvider(credentialsOverrider))
+              OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
           .endpoint(endpoint)
-          .proxyHost(TestsUtil.WIREMOCK_HOST + ":" + (port + 1))
+          .httpClient(httpClient)
           .build();
 
       AliBlobClient.Builder builder =
@@ -101,7 +103,7 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
           .withRegion(region)
           .withCredentialsOverrider(credentialsOverrider);
 
-      return builder.build(ossClient, ossV2Client);
+      return builder.build(ossClient);
     }
 
     @Override
@@ -127,7 +129,11 @@ public class AliBlobClientIT extends AbstractBlobClientIT {
     @Override
     public void close() {
       if (ossClient != null) {
-        ossClient.shutdown();
+        try {
+          ossClient.close();
+        } catch (Exception e) {
+          // best-effort cleanup
+        }
       }
     }
   }

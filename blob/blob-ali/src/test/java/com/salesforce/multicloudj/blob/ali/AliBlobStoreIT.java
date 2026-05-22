@@ -1,9 +1,9 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.ClientBuilderConfiguration;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.common.comm.SignVersion;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.hash.CRC64;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClient;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.client.AbstractBlobStoreIT;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.common.ali.AliConstants;
@@ -13,6 +13,15 @@ import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.net.ssl.SSLContext;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
+import org.apache.hc.core5.http.HttpHost;
 
 public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
@@ -30,7 +39,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   public static class HarnessImpl implements Harness {
     int port = ThreadLocalRandom.current().nextInt(2000, 20000);
 
-    OSS ossClient;
+    OSSClient ossClient;
 
     @Override
     public AbstractBlobStore createBlobStore(
@@ -66,39 +75,36 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     private AbstractBlobStore createBlobStore(
         final String bucketName, final CredentialsOverrider credentialsOverrider) {
 
-      ClientBuilderConfiguration clientConfig = new ClientBuilderConfiguration();
-      clientConfig.setSignatureVersion(SignVersion.V4);
-      clientConfig.setVerifySSLEnable(false);
-      clientConfig.setX509TrustManagers(
-          new javax.net.ssl.X509TrustManager[] {
-            (javax.net.ssl.X509TrustManager) TestsUtil.createTrustAllManager()[0]
-          });
-      clientConfig.setProxyHost(TestsUtil.WIREMOCK_HOST);
-      clientConfig.setProxyPort(port + 1);
+      SSLContext sslContext = TestsUtil.createTrustAllSSLContext();
+      TlsSocketStrategy tlsStrategy = ClientTlsStrategyBuilder.create()
+          .setSslContext(sslContext)
+          .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+          .setHostVerificationPolicy(HostnameVerificationPolicy.CLIENT)
+          .buildClassic();
+      PoolingHttpClientConnectionManager connManager =
+          PoolingHttpClientConnectionManagerBuilder.create()
+              .setTlsSocketStrategy(tlsStrategy)
+              .build();
+      RequestConfig requestConfig = RequestConfig.custom()
+          .setProxy(new HttpHost(TestsUtil.WIREMOCK_HOST, port + 1))
+          .build();
+      Apache5HttpClient httpClient = Apache5HttpClientBuilder.create()
+          .connectionManager(connManager)
+          .requestConfig(requestConfig)
+          .build();
 
       ossClient =
-          OSSClientBuilder.create()
+          OSSClient.newBuilder()
               .region(region)
               .endpoint(endpoint)
-              .clientConfiguration(clientConfig)
               .credentialsProvider(
                   OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
-              .build();
-
-      com.aliyun.sdk.service.oss2.OSSClient ossV2Client =
-          com.aliyun.sdk.service.oss2.OSSClient.newBuilder()
-              .region(region)
-              .endpoint(endpoint)
-              .credentialsProvider(
-                  OSSCredentialsProvider.getV2CredentialsProvider(credentialsOverrider))
-              .proxyHost(TestsUtil.WIREMOCK_HOST + ":" + (port + 1))
-              .insecureSkipVerify(true)
+              .httpClient(httpClient)
               .build();
 
       AliBlobStore.Builder builder = new AliBlobStore.Builder();
       builder
           .withClient(ossClient)
-          .withV2Client(ossV2Client)
           .withEndpoint(URI.create(endpoint))
           .withBucket(bucketName)
           .withRegion(region)
@@ -149,8 +155,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public String computeChecksum(byte[] content) {
-      com.aliyun.oss.common.utils.CRC64 crc64 =
-          new com.aliyun.oss.common.utils.CRC64();
+      CRC64 crc64 = new CRC64();
       crc64.update(content, content.length);
       return String.valueOf(crc64.getValue());
     }
@@ -163,7 +168,11 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     @Override
     public void close() {
       if (ossClient != null) {
-        ossClient.shutdown();
+        try {
+          ossClient.close();
+        } catch (Exception e) {
+          // best-effort cleanup
+        }
       }
     }
   }

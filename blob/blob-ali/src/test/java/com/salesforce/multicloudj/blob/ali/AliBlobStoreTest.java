@@ -10,16 +10,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.aliyun.oss.ClientException;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.OSSException;
 import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.exceptions.OperationException;
+import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -72,35 +69,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.IntStream;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 
 public class AliBlobStoreTest {
 
-  private MockedStatic<OSSClientBuilder> staticMockBuilder;
-
-  private OSS mockOssClient;
-  private OSSClient mockOssV2Client;
+  private OSSClient mockOssClient;
   private AliBlobStore ali;
 
   @BeforeEach
   void setup() {
-    mockOssClient = mock(OSS.class);
-    mockOssV2Client = mock(OSSClient.class);
-    staticMockBuilder = mockStatic(OSSClientBuilder.class);
-    OSSClientBuilder.OSSClientBuilderImpl mockBuilder =
-        mock(OSSClientBuilder.OSSClientBuilderImpl.class);
-
-    staticMockBuilder.when(OSSClientBuilder::create).thenReturn(mockBuilder);
-    when(mockBuilder.region(any())).thenReturn(mockBuilder);
-    when(mockBuilder.endpoint(any())).thenReturn(mockBuilder);
-    when(mockBuilder.clientConfiguration(any())).thenReturn(mockBuilder);
-    when(mockBuilder.credentialsProvider(any())).thenReturn(mockBuilder);
-    when(mockBuilder.build()).thenReturn(mockOssClient);
+    mockOssClient = mock(OSSClient.class);
 
     StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
     CredentialsOverrider credsOverrider =
@@ -109,38 +90,19 @@ public class AliBlobStoreTest {
             .build();
     ali =
         new AliBlobStore.Builder()
+            .withClient(mockOssClient)
             .withBucket("bucket-1")
             .withRegion("cn-shanghai")
             .withEndpoint(URI.create("https://test.example.com"))
             .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
             .withCredentialsOverrider(credsOverrider)
-            .withSocketTimeout(Duration.ofMinutes(1))
-            .withIdleConnectionTimeout(Duration.ofMinutes(5))
-            .withMaxConnections(100)
             .build();
-    credsOverrider =
-        new CredentialsOverrider.Builder(CredentialsType.ASSUME_ROLE).withRole("role").build();
-    ali =
-        new AliBlobStore.Builder()
-            .withV2Client(mockOssV2Client)
-            .withBucket("bucket-1")
-            .withRegion("cn-shanghai")
-            .withCredentialsOverrider(credsOverrider)
-            .build();
-  }
-
-  @AfterEach
-  void teardown() {
-    if (staticMockBuilder != null) {
-      staticMockBuilder.close();
-    }
   }
 
   @Test
   void testClose() throws Exception {
     ali.close();
-    verify(mockOssClient, times(1)).shutdown();
-    verify(mockOssV2Client, times(1)).close();
+    verify(mockOssClient, times(1)).close();
   }
 
   @Test
@@ -150,12 +112,17 @@ public class AliBlobStoreTest {
 
   @Test
   void testExceptionHandling() {
-    OSSException ossException = new OSSException("", "AccessDenied", "", "", "", "", "");
-    Class<?> cls = ali.getException(ossException);
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.errorCode()).thenReturn("AccessDenied");
+    OperationException operationException = mock(OperationException.class);
+    when(operationException.getCause()).thenReturn(serviceException);
+    Class<?> cls = ali.getException(operationException);
     assertEquals(cls, UnAuthorizedException.class);
 
-    ClientException clientException = new ClientException();
-    cls = ali.getException(clientException);
+    cls = ali.getException(serviceException);
+    assertEquals(cls, UnAuthorizedException.class);
+
+    cls = ali.getException(new IllegalArgumentException("bad arg"));
     assertEquals(cls, InvalidArgumentException.class);
 
     cls = ali.getException(new IOException("Channel is closed"));
@@ -164,24 +131,24 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadInputStream() {
-    doReturn(buildTestV2PutObjectResult())
-        .when(mockOssV2Client).putObject(
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
             any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), mock(InputStream.class)));
   }
 
   @Test
   void testDoUploadByteArray() {
-    doReturn(buildTestV2PutObjectResult())
-        .when(mockOssV2Client).putObject(
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
             any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     verifyUploadTestResults(ali.doUpload(getTestUploadRequest(), new byte[1024]));
   }
 
   @Test
   void testDoUploadFile() throws IOException {
-    doReturn(buildTestV2PutObjectResult())
-        .when(mockOssV2Client).putObject(
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
             any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     Path path = null;
     try {
@@ -203,8 +170,8 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoUploadPath() throws IOException {
-    doReturn(buildTestV2PutObjectResult())
-        .when(mockOssV2Client).putObject(
+    doReturn(buildTestPutObjectResult())
+        .when(mockOssClient).putObject(
             any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class), any());
     Path path = Files.createTempFile("tempFile", ".txt");
     try (BufferedWriter writer = Files.newBufferedWriter(path)) {
@@ -215,10 +182,10 @@ public class AliBlobStoreTest {
 
   void verifyUploadTestResults(UploadResponse uploadResponse) {
 
-    // Verify the parameters passed into the v2 SDK
+    // Verify the parameters passed into the OSS SDK
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> putObjectRequestCaptor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class);
-    verify(mockOssV2Client, times(1)).putObject(putObjectRequestCaptor.capture(), any());
+    verify(mockOssClient, times(1)).putObject(putObjectRequestCaptor.capture(), any());
     com.aliyun.sdk.service.oss2.models.PutObjectRequest actualRequest =
         putObjectRequestCaptor.getValue();
     assertEquals("object-1", actualRequest.key());
@@ -236,7 +203,7 @@ public class AliBlobStoreTest {
   void testDoDownloadOutputStream() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     doReturn(buildTestGetObjectResult(now))
-        .when(mockOssV2Client).getObject(
+        .when(mockOssClient).getObject(
             any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     verifyDownloadTestResults(
         ali.doDownload(getTestDownloadRequest(), mock(OutputStream.class)), now);
@@ -246,7 +213,7 @@ public class AliBlobStoreTest {
   void testDoDownloadInputStream() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     doReturn(buildTestGetObjectResult(now))
-        .when(mockOssV2Client).getObject(
+        .when(mockOssClient).getObject(
             any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest()), now);
   }
@@ -255,7 +222,7 @@ public class AliBlobStoreTest {
   void testDoDownloadByteArrayWrapper() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     doReturn(buildTestGetObjectResult(now))
-        .when(mockOssV2Client).getObject(
+        .when(mockOssClient).getObject(
             any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     ByteArray byteArray = new ByteArray();
     verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), byteArray), now);
@@ -266,7 +233,7 @@ public class AliBlobStoreTest {
   void testDoDownloadFile() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     doReturn(buildTestGetObjectResult(now))
-        .when(mockOssV2Client).getObject(
+        .when(mockOssClient).getObject(
             any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     Path path = Path.of("tempFile.txt");
     try {
@@ -287,7 +254,7 @@ public class AliBlobStoreTest {
   void testDoDownloadPath() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     doReturn(buildTestGetObjectResult(now))
-        .when(mockOssV2Client).getObject(
+        .when(mockOssClient).getObject(
             any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
     Path path = Path.of("tempPath.txt");
     try {
@@ -306,10 +273,10 @@ public class AliBlobStoreTest {
 
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
-    // Verify the parameters passed into the v2 SDK
+    // Verify the parameters passed into the OSS SDK
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> getObjectRequestCaptor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class);
-    verify(mockOssV2Client, times(1)).getObject(getObjectRequestCaptor.capture(), any());
+    verify(mockOssClient, times(1)).getObject(getObjectRequestCaptor.capture(), any());
     com.aliyun.sdk.service.oss2.models.GetObjectRequest actualGetObjectRequest =
         getObjectRequestCaptor.getValue();
     assertEquals("object-1", actualGetObjectRequest.key());
@@ -333,7 +300,7 @@ public class AliBlobStoreTest {
 
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.DeleteObjectRequest> captor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.DeleteObjectRequest.class);
-    verify(mockOssV2Client, times(1)).deleteObject(captor.capture(),
+    verify(mockOssClient, times(1)).deleteObject(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.DeleteObjectRequest actual = captor.getValue();
     assertEquals("bucket-1", actual.bucket());
@@ -341,7 +308,7 @@ public class AliBlobStoreTest {
     assertEquals("version-1", actual.versionId());
 
     ali.doDelete("object-1", null);
-    verify(mockOssV2Client, times(2)).deleteObject(captor.capture(),
+    verify(mockOssClient, times(2)).deleteObject(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     actual = captor.getValue();
     assertEquals("bucket-1", actual.bucket());
@@ -362,7 +329,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest> captor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.class);
-    verify(mockOssV2Client, times(1)).deleteMultipleObjects(captor.capture(),
+    verify(mockOssClient, times(1)).deleteMultipleObjects(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest actual = captor.getValue();
     assertEquals("bucket-1", actual.bucket());
@@ -383,7 +350,7 @@ public class AliBlobStoreTest {
 
     // Empty list should not call deleteMultipleObjects
     ali.doDelete(List.of());
-    verify(mockOssV2Client, times(3)).deleteMultipleObjects(
+    verify(mockOssClient, times(3)).deleteMultipleObjects(
         any(com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
   }
@@ -400,7 +367,7 @@ public class AliBlobStoreTest {
     when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
     when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
     when(mockCopyResult.lastModified()).thenReturn(null);
-    when(mockOssV2Client.copyObject(
+    when(mockOssClient.copyObject(
         any(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
         .thenReturn(mockCopyResult);
@@ -408,7 +375,7 @@ public class AliBlobStoreTest {
     com.aliyun.sdk.service.oss2.models.HeadObjectResult mockHeadResult =
         mock(com.aliyun.sdk.service.oss2.models.HeadObjectResult.class);
     when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
-    when(mockOssV2Client.headObject(
+    when(mockOssClient.headObject(
         any(com.aliyun.sdk.service.oss2.models.HeadObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
         .thenReturn(mockHeadResult);
@@ -430,7 +397,7 @@ public class AliBlobStoreTest {
 
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CopyObjectRequest> captor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class);
-    verify(mockOssV2Client, times(1)).copyObject(captor.capture(), any());
+    verify(mockOssClient, times(1)).copyObject(captor.capture(), any());
     com.aliyun.sdk.service.oss2.models.CopyObjectRequest actual = captor.getValue();
     assertEquals("bucket-1", actual.sourceBucket());
     assertEquals("src-object-1", actual.sourceKey());
@@ -451,7 +418,7 @@ public class AliBlobStoreTest {
     when(mockCopyResult.versionId()).thenReturn("copyVersion-1");
     when(mockCopyResult.eTag()).thenReturn("\"eTag-1\"");
     when(mockCopyResult.lastModified()).thenReturn(null);
-    when(mockOssV2Client.copyObject(
+    when(mockOssClient.copyObject(
         any(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
         .thenReturn(mockCopyResult);
@@ -459,7 +426,7 @@ public class AliBlobStoreTest {
     com.aliyun.sdk.service.oss2.models.HeadObjectResult mockHeadResult =
         mock(com.aliyun.sdk.service.oss2.models.HeadObjectResult.class);
     when(mockHeadResult.lastModified()).thenReturn(lastModifiedRfc);
-    when(mockOssV2Client.headObject(
+    when(mockOssClient.headObject(
         any(com.aliyun.sdk.service.oss2.models.HeadObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
         .thenReturn(mockHeadResult);
@@ -481,7 +448,7 @@ public class AliBlobStoreTest {
 
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CopyObjectRequest> captor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.CopyObjectRequest.class);
-    verify(mockOssV2Client, times(1)).copyObject(captor.capture(), any());
+    verify(mockOssClient, times(1)).copyObject(captor.capture(), any());
     com.aliyun.sdk.service.oss2.models.CopyObjectRequest actual = captor.getValue();
     assertEquals("src-bucket-1", actual.sourceBucket());
     assertEquals("src-object-1", actual.sourceKey());
@@ -500,13 +467,13 @@ public class AliBlobStoreTest {
     when(mockResult.metadata()).thenReturn(metadataMap);
     when(mockResult.lastModified()).thenReturn("Sun, 18 May 2025 12:00:00 GMT");
     when(mockResult.contentType()).thenReturn("application/octet-stream");
-    when(mockOssV2Client.headObject(any(HeadObjectRequest.class), any())).thenReturn(mockResult);
+    when(mockOssClient.headObject(any(HeadObjectRequest.class), any())).thenReturn(mockResult);
 
     BlobMetadata metadata = ali.doGetMetadata("object-1", "v1");
 
     ArgumentCaptor<HeadObjectRequest> requestCaptor =
         ArgumentCaptor.forClass(HeadObjectRequest.class);
-    verify(mockOssV2Client, times(1)).headObject(requestCaptor.capture(), any());
+    verify(mockOssClient, times(1)).headObject(requestCaptor.capture(), any());
 
     HeadObjectRequest capturedRequest = requestCaptor.getValue();
     assertEquals("bucket-1", capturedRequest.bucket());
@@ -527,7 +494,7 @@ public class AliBlobStoreTest {
     ListBlobsRequest request = new ListBlobsRequest.Builder().build();
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of());
@@ -547,10 +514,10 @@ public class AliBlobStoreTest {
         new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
-    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getV2List();
+    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getObjectSummaryList();
     when(mockResult.contents()).thenReturn(list);
     when(mockResult.nextContinuationToken()).thenReturn(null);
 
@@ -566,7 +533,7 @@ public class AliBlobStoreTest {
     }
   }
 
-  private List<com.aliyun.sdk.service.oss2.models.ObjectSummary> getV2List() {
+  private List<com.aliyun.sdk.service.oss2.models.ObjectSummary> getObjectSummaryList() {
     List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = new ArrayList<>();
     IntStream.range(1, 100)
         .forEach(
@@ -593,10 +560,10 @@ public class AliBlobStoreTest {
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
-    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getV2List();
+    List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = getObjectSummaryList();
     when(mockResult.contents()).thenReturn(list);
     when(mockResult.commonPrefixes()).thenReturn(List.of());
     when(mockResult.isTruncated()).thenReturn(true);
@@ -607,7 +574,7 @@ public class AliBlobStoreTest {
     // Verify the request is mapped to the SDK
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.ListObjectsV2Request> requestCaptor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class);
-    verify(mockOssV2Client, times(1)).listObjectsV2(requestCaptor.capture(),
+    verify(mockOssClient, times(1)).listObjectsV2(requestCaptor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actualRequest =
         requestCaptor.getValue();
@@ -636,7 +603,7 @@ public class AliBlobStoreTest {
     ListBlobsPageRequest request = ListBlobsPageRequest.builder().build();
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of());
@@ -660,7 +627,7 @@ public class AliBlobStoreTest {
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of());
@@ -691,7 +658,7 @@ public class AliBlobStoreTest {
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of(summary));
@@ -715,7 +682,7 @@ public class AliBlobStoreTest {
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of());
@@ -747,7 +714,7 @@ public class AliBlobStoreTest {
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Result mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListObjectsV2Result.class);
-    when(mockOssV2Client.listObjectsV2(
+    when(mockOssClient.listObjectsV2(
         any(com.aliyun.sdk.service.oss2.models.ListObjectsV2Request.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     when(mockResult.contents()).thenReturn(List.of(summary));
@@ -772,7 +739,7 @@ public class AliBlobStoreTest {
     when(mockUpload.bucket()).thenReturn("bucket-1");
     when(mockUpload.key()).thenReturn("object-1");
     when(mockUpload.uploadId()).thenReturn("mpu-id");
-    when(mockOssV2Client.initiateMultipartUpload(
+    when(mockOssClient.initiateMultipartUpload(
         any(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
@@ -784,7 +751,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest> captor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class);
-    verify(mockOssV2Client, times(1)).initiateMultipartUpload(captor.capture(),
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest actualRequest =
         captor.getValue();
@@ -803,7 +770,7 @@ public class AliBlobStoreTest {
     when(mockUpload.bucket()).thenReturn("bucket-1");
     when(mockUpload.key()).thenReturn("object-1");
     when(mockUpload.uploadId()).thenReturn("mpu-id");
-    when(mockOssV2Client.initiateMultipartUpload(
+    when(mockOssClient.initiateMultipartUpload(
         any(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     Map<String, String> metadata = Map.of("key-1", "value-1");
@@ -820,7 +787,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest> captor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest.class);
-    verify(mockOssV2Client, times(1)).initiateMultipartUpload(captor.capture(),
+    verify(mockOssClient, times(1)).initiateMultipartUpload(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest actualRequest =
         captor.getValue();
@@ -839,7 +806,7 @@ public class AliBlobStoreTest {
     com.aliyun.sdk.service.oss2.models.UploadPartResult mockResult =
         mock(com.aliyun.sdk.service.oss2.models.UploadPartResult.class);
     when(mockResult.eTag()).thenReturn("\"etag\"");
-    when(mockOssV2Client.uploadPart(
+    when(mockOssClient.uploadPart(
         any(com.aliyun.sdk.service.oss2.models.UploadPartRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
@@ -851,7 +818,7 @@ public class AliBlobStoreTest {
 
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.UploadPartRequest> captor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.UploadPartRequest.class);
-    verify(mockOssV2Client, times(1)).uploadPart(captor.capture(),
+    verify(mockOssClient, times(1)).uploadPart(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.UploadPartRequest actualRequest = captor.getValue();
     assertEquals("object-1", actualRequest.key());
@@ -868,7 +835,7 @@ public class AliBlobStoreTest {
         mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
     when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
     when(mockXml.eTag()).thenReturn("\"result-etag\"");
-    when(mockOssV2Client.completeMultipartUpload(
+    when(mockOssClient.completeMultipartUpload(
         any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
@@ -881,7 +848,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest> captor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class);
-    verify(mockOssV2Client, times(1)).completeMultipartUpload(captor.capture(),
+    verify(mockOssClient, times(1)).completeMultipartUpload(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest actualRequest =
         captor.getValue();
@@ -900,7 +867,7 @@ public class AliBlobStoreTest {
     com.aliyun.sdk.service.oss2.models.ListPartsResult mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);
     when(mockResult.parts()).thenReturn(List.of());
-    when(mockOssV2Client.listParts(
+    when(mockOssClient.listParts(
         any(com.aliyun.sdk.service.oss2.models.ListPartsRequest.class),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
     MultipartUpload multipartUpload =
@@ -910,7 +877,7 @@ public class AliBlobStoreTest {
 
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.ListPartsRequest> captor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.ListPartsRequest.class);
-    verify(mockOssV2Client, times(1)).listParts(captor.capture(),
+    verify(mockOssClient, times(1)).listParts(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.ListPartsRequest actualRequest = captor.getValue();
     assertEquals("object-1", actualRequest.key());
@@ -928,7 +895,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest> captor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest.class);
-    verify(mockOssV2Client, times(1)).abortMultipartUpload(captor.capture(),
+    verify(mockOssClient, times(1)).abortMultipartUpload(captor.capture(),
         any(com.aliyun.sdk.service.oss2.OperationOptions.class));
     com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest actualRequest =
         captor.getValue();
@@ -951,7 +918,7 @@ public class AliBlobStoreTest {
     com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult mockResult =
         mock(com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult.class);
     when(mockResult.tagging()).thenReturn(tagging);
-    when(mockOssV2Client.getObjectTagging(
+    when(mockOssClient.getObjectTagging(
         any(com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest.class), any()))
         .thenReturn(mockResult);
 
@@ -968,7 +935,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest> requestCaptor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest.class);
-    verify(mockOssV2Client, times(1)).putObjectTagging(requestCaptor.capture(), any());
+    verify(mockOssClient, times(1)).putObjectTagging(requestCaptor.capture(), any());
 
     com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest actualRequest =
         requestCaptor.getValue();
@@ -989,7 +956,7 @@ public class AliBlobStoreTest {
         mock(com.aliyun.sdk.service.oss2.models.PresignResult.class);
     doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
         .when(mockResult).url();
-    doReturn(mockResult).when(mockOssV2Client).presign(
+    doReturn(mockResult).when(mockOssClient).presign(
         any(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.PresignOptions.class));
 
@@ -1009,7 +976,7 @@ public class AliBlobStoreTest {
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> requestCaptor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.PutObjectRequest.class);
-    verify(mockOssV2Client, times(1)).presign(requestCaptor.capture(),
+    verify(mockOssClient, times(1)).presign(requestCaptor.capture(),
         any(com.aliyun.sdk.service.oss2.PresignOptions.class));
     com.aliyun.sdk.service.oss2.models.PutObjectRequest actualRequest = requestCaptor.getValue();
     assertEquals("bucket-1", actualRequest.bucket());
@@ -1024,7 +991,7 @@ public class AliBlobStoreTest {
         mock(com.aliyun.sdk.service.oss2.models.PresignResult.class);
     doReturn("https://bucket-1.oss-cn-shanghai.aliyuncs.com/object-1?signed=true")
         .when(mockResult).url();
-    doReturn(mockResult).when(mockOssV2Client).presign(
+    doReturn(mockResult).when(mockOssClient).presign(
         any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
         any(com.aliyun.sdk.service.oss2.PresignOptions.class));
 
@@ -1041,7 +1008,7 @@ public class AliBlobStoreTest {
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> requestCaptor =
         ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class);
-    verify(mockOssV2Client, times(1)).presign(requestCaptor.capture(),
+    verify(mockOssClient, times(1)).presign(requestCaptor.capture(),
         any(com.aliyun.sdk.service.oss2.PresignOptions.class));
     com.aliyun.sdk.service.oss2.models.GetObjectRequest actualRequest = requestCaptor.getValue();
     assertEquals("bucket-1", actualRequest.bucket());
@@ -1050,7 +1017,7 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDoesObjectExist() {
-    doReturn(true).when(mockOssV2Client).doesObjectExist(
+    doReturn(true).when(mockOssClient).doesObjectExist(
         any(com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.class));
 
     boolean result = ali.doDoesObjectExist("object-1", "version-1");
@@ -1058,7 +1025,7 @@ public class AliBlobStoreTest {
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest> requestCaptor =
         ArgumentCaptor.forClass(
             com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest.class);
-    verify(mockOssV2Client, times(1)).doesObjectExist(requestCaptor.capture());
+    verify(mockOssClient, times(1)).doesObjectExist(requestCaptor.capture());
     com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest actualRequest =
         requestCaptor.getValue();
     assertEquals("bucket-1", actualRequest.bucket());
@@ -1069,21 +1036,21 @@ public class AliBlobStoreTest {
 
   @Test
   void testDoDoesBucketExist() {
-    doReturn(true).when(mockOssV2Client).doesBucketExist("bucket-1");
+    doReturn(true).when(mockOssClient).doesBucketExist("bucket-1");
 
     boolean result = ali.doDoesBucketExist();
 
-    verify(mockOssV2Client, times(1)).doesBucketExist("bucket-1");
+    verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
     assertTrue(result);
   }
 
   @Test
   void testDoDoesBucketExist_BucketDoesNotExist() {
-    doReturn(false).when(mockOssV2Client).doesBucketExist("bucket-1");
+    doReturn(false).when(mockOssClient).doesBucketExist("bucket-1");
 
     boolean result = ali.doDoesBucketExist();
 
-    verify(mockOssV2Client, times(1)).doesBucketExist("bucket-1");
+    verify(mockOssClient, times(1)).doesBucketExist("bucket-1");
     assertFalse(result);
   }
 
@@ -1098,7 +1065,7 @@ public class AliBlobStoreTest {
         .build();
   }
 
-  private com.aliyun.sdk.service.oss2.models.PutObjectResult buildTestV2PutObjectResult() {
+  private com.aliyun.sdk.service.oss2.models.PutObjectResult buildTestPutObjectResult() {
     com.aliyun.sdk.service.oss2.models.PutObjectResult result =
         mock(com.aliyun.sdk.service.oss2.models.PutObjectResult.class);
     doReturn("version-1").when(result).versionId();

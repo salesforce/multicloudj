@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.aliyun.oss.OSS;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.models.BucketSummary;
@@ -28,14 +27,12 @@ import org.junit.jupiter.api.Test;
 
 public class AliBlobClientTest {
 
-  private OSS mockOssClient;
-  private OSSClient mockOssV2Client;
+  private OSSClient mockOssClient;
   private AliBlobClient ali;
 
   @BeforeEach
   void setup() {
-    mockOssClient = mock(OSS.class);
-    mockOssV2Client = mock(OSSClient.class);
+    mockOssClient = mock(OSSClient.class);
 
     StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
     CredentialsOverrider credsOverrider =
@@ -47,7 +44,7 @@ public class AliBlobClientTest {
         .withEndpoint(URI.create("https://test.example.com"))
         .withProxyEndpoint(URI.create("http://proxy.example.com:80"))
         .withCredentialsOverrider(credsOverrider);
-    ali = builder.build(mockOssClient, mockOssV2Client);
+    ali = builder.build(mockOssClient);
   }
 
   @Test
@@ -57,12 +54,7 @@ public class AliBlobClientTest {
         .name("bucket1").region("cn-shanghai").creationDate(now).build();
     BucketSummary bucket2 = BucketSummary.newBuilder()
         .name("bucket2").region("cn-shanghai").creationDate(now).build();
-    ListBucketsResult result = ListBucketsResult.newBuilder().build();
-    when(mockOssV2Client.listBuckets(any(ListBucketsRequest.class), any(OperationOptions.class)))
-        .thenReturn(result);
-    // Use reflection or spy to set buckets — but ListBucketsResult uses internal XML delegate.
-    // Instead, mock at the OSSClient level and verify the call is made correctly.
-    when(mockOssV2Client.listBuckets(any(ListBucketsRequest.class), any(OperationOptions.class)))
+    when(mockOssClient.listBuckets(any(ListBucketsRequest.class), any(OperationOptions.class)))
         .thenAnswer(invocation -> {
           ListBucketsResult mockResult = mock(ListBucketsResult.class);
           when(mockResult.buckets()).thenReturn(List.of(bucket1, bucket2));
@@ -71,7 +63,7 @@ public class AliBlobClientTest {
 
     ListBucketsResponse response = ali.listBuckets();
 
-    verify(mockOssV2Client).listBuckets(any(ListBucketsRequest.class), any(OperationOptions.class));
+    verify(mockOssClient).listBuckets(any(ListBucketsRequest.class), any(OperationOptions.class));
 
     assertNotNull(response);
     assertEquals(2, response.getBucketInfoList().size());
@@ -89,18 +81,17 @@ public class AliBlobClientTest {
   @Test
   void testCreateBucket() {
     String bucketName = "test-bucket";
-    when(mockOssV2Client.putBucket(any(PutBucketRequest.class), any(OperationOptions.class)))
+    when(mockOssClient.putBucket(any(PutBucketRequest.class), any(OperationOptions.class)))
         .thenReturn(PutBucketResult.newBuilder().build());
 
     ali.createBucket(bucketName);
 
-    verify(mockOssV2Client).putBucket(any(PutBucketRequest.class), any(OperationOptions.class));
+    verify(mockOssClient).putBucket(any(PutBucketRequest.class), any(OperationOptions.class));
   }
 
   @Test
   void testClose() throws Exception {
     ali.close();
-    verify(mockOssClient).shutdown();
-    verify(mockOssV2Client).close();
+    verify(mockOssClient).close();
   }
 }

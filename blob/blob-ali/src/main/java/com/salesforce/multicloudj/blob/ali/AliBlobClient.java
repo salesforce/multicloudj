@@ -1,14 +1,10 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.ClientBuilderConfiguration;
-import com.aliyun.oss.ClientException;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.ServiceException;
-import com.aliyun.oss.common.auth.CredentialsProvider;
-import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.exceptions.OperationException;
+import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.aliyun.sdk.service.oss2.models.ListBucketsRequest;
 import com.aliyun.sdk.service.oss2.models.ListBucketsResult;
 import com.aliyun.sdk.service.oss2.models.PutBucketRequest;
@@ -30,8 +26,7 @@ import java.util.stream.Collectors;
  * OSS service.
  */
 public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
-  private OSS ossClient;
-  private OSSClient ossV2Client;
+  private OSSClient ossClient;
 
   /**
    * Constructs an {@link AliBlobClient} using the provided builder.
@@ -40,40 +35,18 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
    */
   protected AliBlobClient(Builder builder) {
     super(builder);
-
-    String endpoint = "https://oss-" + region + ".aliyuncs.com";
-    if (builder.getEndpoint() != null) {
-      endpoint = builder.getEndpoint().toString();
-    }
-    OSSClientBuilder.OSSClientBuilderImpl ossClientBuilderImpl =
-        OSSClientBuilder.create().region(region).endpoint(endpoint);
-    ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-    clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-    if (builder.getProxyEndpoint() != null) {
-      clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
-      clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
-    }
-    CredentialsProvider credentialsProvider =
-        OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region);
-    if (credentialsProvider != null) {
-      ossClientBuilderImpl.credentialsProvider(credentialsProvider);
-    }
-    ossClientBuilderImpl.clientConfiguration(clientBuilderConfiguration);
-    ossClient = ossClientBuilderImpl.build();
-    ossV2Client = buildOSSV2Client(builder);
+    ossClient = buildOSSClient(builder);
   }
 
   /**
-   * Constructs an {@link AliBlobClient} using the provided builder and pre-built OSS clients.
+   * Constructs an {@link AliBlobClient} using the provided builder and a pre-built OSS client.
    *
    * @param builder the builder to use to construct the AliBlobClient
-   * @param ossClient the pre-built v1 OSS client to use
-   * @param ossV2Client the pre-built v2 OSS client to use
+   * @param ossClient the pre-built OSS client to use
    */
-  protected AliBlobClient(Builder builder, OSS ossClient, OSSClient ossV2Client) {
+  protected AliBlobClient(Builder builder, OSSClient ossClient) {
     super(builder);
     this.ossClient = ossClient;
-    this.ossV2Client = ossV2Client;
   }
 
   /**
@@ -85,7 +58,7 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
   @Override
   protected ListBucketsResponse doListBuckets() {
     ListBucketsRequest request = ListBucketsRequest.newBuilder().build();
-    ListBucketsResult result = ossV2Client.listBuckets(request, OperationOptions.defaults());
+    ListBucketsResult result = ossClient.listBuckets(request, OperationOptions.defaults());
     return ListBucketsResponse.builder()
         .bucketInfoList(
             result.buckets().stream()
@@ -110,7 +83,7 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
     PutBucketRequest request = PutBucketRequest.newBuilder()
         .bucket(bucketName)
         .build();
-    ossV2Client.putBucket(request, OperationOptions.defaults());
+    ossClient.putBucket(request, OperationOptions.defaults());
   }
 
   /**
@@ -128,51 +101,58 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
   public Class<? extends SubstrateSdkException> getException(Throwable t) {
     if (t instanceof SubstrateSdkException) {
       return (Class<? extends SubstrateSdkException>) t.getClass();
+    } else if (t instanceof OperationException) {
+      Throwable cause = t.getCause();
+      if (cause instanceof ServiceException) {
+        String errorCode =
+            ((ServiceException) cause).errorCode();
+        return ErrorCodeMapping.getException(errorCode);
+      }
+      return UnknownException.class;
     } else if (t instanceof ServiceException) {
-      String errorCode = ((ServiceException) t).getErrorCode();
+      String errorCode =
+          ((ServiceException) t).errorCode();
       return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof ClientException || t instanceof IllegalArgumentException) {
+    } else if (t instanceof IllegalArgumentException) {
       return InvalidArgumentException.class;
     }
     return UnknownException.class;
   }
 
-  /** Closes the underlying OSS clients and releases any resources. */
+  /** Closes the underlying OSS client and releases any resources. */
   @Override
   public void close() {
     if (ossClient != null) {
-      ossClient.shutdown();
-    }
-    if (ossV2Client != null) {
       try {
-        ossV2Client.close();
+        ossClient.close();
       } catch (Exception e) {
-        throw new SubstrateSdkException("Failed to close Ali OSS v2 client", e);
+        throw new SubstrateSdkException("Failed to close Ali OSS client", e);
       }
     }
   }
 
-  private static OSSClient buildOSSV2Client(Builder builder) {
-    com.aliyun.sdk.service.oss2.credentials.CredentialsProvider v2Creds =
-        OSSCredentialsProvider.getV2CredentialsProvider(builder.getCredentialsOverrider());
-    if (v2Creds == null) {
+  private static OSSClient buildOSSClient(Builder builder) {
+    CredentialsProvider creds =
+        OSSCredentialsProvider.getCredentialsProvider(
+            builder.getCredentialsOverrider(), builder.getRegion());
+    if (creds == null) {
       return null;
     }
 
-    var v2Builder = OSSClient.newBuilder()
+    var clientBuilder = OSSClient.newBuilder()
         .region(builder.getRegion())
-        .credentialsProvider(v2Creds);
+        .credentialsProvider(creds);
 
     if (builder.getEndpoint() != null) {
-      v2Builder.endpoint(builder.getEndpoint().toString());
+      clientBuilder.endpoint(builder.getEndpoint().toString());
     }
     if (builder.getProxyEndpoint() != null) {
-      v2Builder.proxyHost(
+      clientBuilder.proxyHost(
           builder.getProxyEndpoint().getHost()
               + ":" + builder.getProxyEndpoint().getPort());
     }
 
-    return v2Builder.build();
+    return clientBuilder.build();
   }
 
   public static class Builder extends AbstractBlobClient.Builder<AliBlobClient> {
@@ -186,8 +166,8 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
       return new AliBlobClient(this);
     }
 
-    public AliBlobClient build(OSS ossClient, OSSClient ossV2Client) {
-      return new AliBlobClient(this, ossClient, ossV2Client);
+    public AliBlobClient build(OSSClient ossClient) {
+      return new AliBlobClient(this, ossClient);
     }
   }
 }

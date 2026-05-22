@@ -1,6 +1,5 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -8,8 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.ObjectMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
@@ -29,10 +26,8 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 
 public class AliTransformerTest {
@@ -46,7 +41,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2PutObjectRequest() {
+  void testToPutObjectRequest() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
     var tags = Map.of("tag-key", "tag-value");
@@ -56,7 +51,7 @@ public class AliTransformerTest {
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toV2PutObjectRequest(request, body);
+    var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals("some-value", actual.metadata().get("some-key"));
@@ -64,7 +59,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2PutObjectRequestWithKmsKey() {
+  void testToPutObjectRequestWithKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
     var kmsKeyId = "alias/my-kms-key";
@@ -74,7 +69,7 @@ public class AliTransformerTest {
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toV2PutObjectRequest(request, body);
+    var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals("some-value", actual.metadata().get("some-key"));
@@ -83,7 +78,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2PutObjectRequestWithoutKmsKey() {
+  void testToPutObjectRequestWithoutKmsKey() {
     var key = "some-key";
     var metadata = Map.of("some-key", "some-value");
 
@@ -91,7 +86,7 @@ public class AliTransformerTest {
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
 
-    var actual = transformer.toV2PutObjectRequest(request, body);
+    var actual = transformer.toPutObjectRequest(request, body);
     assertEquals(BUCKET, actual.bucket());
     assertEquals(key, actual.key());
     assertEquals("some-value", actual.metadata().get("some-key"));
@@ -99,7 +94,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2UploadResponse() {
+  void testToUploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
             .withKey("some-key")
@@ -118,119 +113,27 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToGetObjectRequest() {
-    var request =
-        DownloadRequest.builder()
-            .withKey("some/key/path.file")
-            .withVersionId("version-1")
-            .withRange(0L, 500L)
-            .build();
-
-    var actual = transformer.toGetObjectRequest(request);
-
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals(request.getKey(), actual.getKey());
-    assertEquals("version-1", actual.getVersionId());
-    assertEquals(0L, actual.getRange()[0]);
-    assertEquals(500L, actual.getRange()[1]);
-  }
-
-  @Test
-  void testComputeRange() {
-    Pair<Long, Long> result = transformer.computeRange(0L, 500L);
-    assertEquals(result.getLeft(), 0);
-    assertEquals(result.getRight(), 500);
-
-    result = transformer.computeRange(100L, 600L);
-    assertEquals(result.getLeft(), 100);
-    assertEquals(result.getRight(), 600);
-
-    result = transformer.computeRange(null, 500L);
-    assertEquals(result.getLeft(), -1);
-    assertEquals(result.getRight(), 500);
-
-    result = transformer.computeRange(500L, null);
-    assertEquals(result.getLeft(), 500);
-    assertEquals(result.getRight(), -1);
-  }
-
-  @Test
-  void testToDownloadResponse() {
-    OSSObject ossObject = mock(OSSObject.class);
-    doReturn("key").when(ossObject).getKey();
-    ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
-    doReturn(objectMetadata).when(ossObject).getObjectMetadata();
-    doReturn("version-1").when(objectMetadata).getVersionId();
-    doReturn("etag").when(objectMetadata).getETag();
-    Date date = Date.from(Instant.now());
-    doReturn(date).when(objectMetadata).getLastModified();
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
-    doReturn(metadata).when(objectMetadata).getUserMetadata();
-    doReturn(100L).when(objectMetadata).getContentLength();
-
-    var actual = transformer.toDownloadResponse(ossObject);
-
-    assertEquals("key", actual.getKey());
-    BlobMetadata blobMetadata = actual.getMetadata();
-    assertEquals("key", blobMetadata.getKey());
-    assertEquals("version-1", blobMetadata.getVersionId());
-    assertEquals("etag", blobMetadata.getETag());
-    assertEquals(metadata, blobMetadata.getMetadata());
-    assertEquals(date.toInstant(), blobMetadata.getLastModified());
-    assertEquals(100L, blobMetadata.getObjectSize());
-  }
-
-  @Test
-  void testToDownloadResponseWithInputStream() {
-    OSSObject ossObject = mock(OSSObject.class);
-    doReturn("key").when(ossObject).getKey();
-    ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
-    doReturn(objectMetadata).when(ossObject).getObjectMetadata();
-    doReturn("version-1").when(objectMetadata).getVersionId();
-    doReturn("etag").when(objectMetadata).getETag();
-    Date date = Date.from(Instant.now());
-    doReturn(date).when(objectMetadata).getLastModified();
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
-    doReturn(metadata).when(objectMetadata).getUserMetadata();
-    doReturn(100L).when(objectMetadata).getContentLength();
-
-    InputStream inputStream = new ByteArrayInputStream("test content".getBytes());
-
-    var actual = transformer.toDownloadResponse(ossObject, inputStream);
-
-    assertEquals("key", actual.getKey());
-    assertEquals(inputStream, actual.getInputStream());
-    BlobMetadata blobMetadata = actual.getMetadata();
-    assertEquals("key", blobMetadata.getKey());
-    assertEquals("version-1", blobMetadata.getVersionId());
-    assertEquals("etag", blobMetadata.getETag());
-    assertEquals(metadata, blobMetadata.getMetadata());
-    assertEquals(date.toInstant(), blobMetadata.getLastModified());
-    assertEquals(100L, blobMetadata.getObjectSize());
-  }
-
-  @Test
-  void testToV2DeleteObjectRequest() {
-    var actual = transformer.toV2DeleteObjectRequest("key1", "v1");
+  void testToDeleteObjectRequest() {
+    var actual = transformer.toDeleteObjectRequest("key1", "v1");
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key1", actual.key());
     assertEquals("v1", actual.versionId());
 
-    var actualNoVersion = transformer.toV2DeleteObjectRequest("key2", null);
+    var actualNoVersion = transformer.toDeleteObjectRequest("key2", null);
     assertEquals(BUCKET, actualNoVersion.bucket());
     assertEquals("key2", actualNoVersion.key());
     assertNull(actualNoVersion.versionId());
   }
 
   @Test
-  void testToV2DeleteMultipleObjectsRequest() {
+  void testToDeleteMultipleObjectsRequest() {
     Collection<BlobIdentifier> objects =
         List.of(
             new BlobIdentifier("key1", "v1"),
             new BlobIdentifier("key2", null),
             new BlobIdentifier("key3", "v3"));
 
-    var actual = transformer.toV2DeleteMultipleObjectsRequest(objects);
+    var actual = transformer.toDeleteMultipleObjectsRequest(objects);
 
     assertEquals(BUCKET, actual.bucket());
     var delete = actual.delete();
@@ -246,7 +149,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2CopyObjectRequest() {
+  void testToCopyObjectRequest() {
     CopyRequest request =
         CopyRequest.builder()
             .srcKey("key1")
@@ -255,7 +158,7 @@ public class AliTransformerTest {
             .destKey("key2")
             .build();
 
-    var actual = transformer.toV2CopyObjectRequest(request);
+    var actual = transformer.toCopyObjectRequest(request);
 
     assertEquals(BUCKET, actual.sourceBucket());
     assertEquals("key1", actual.sourceKey());
@@ -297,45 +200,12 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToMetadataRequest() {
-    var actual = transformer.toMetadataRequest("key", "v1");
-    assertEquals(BUCKET, actual.getBucketName());
-    assertEquals("key", actual.getKey());
-    assertEquals("v1", actual.getVersionId());
-  }
-
-  @Test
-  void testToBlobMetadata() {
-    ObjectMetadata objectMetadata = mock(ObjectMetadata.class);
-    doReturn("version-1").when(objectMetadata).getVersionId();
-    doReturn("etag").when(objectMetadata).getETag();
-    Date date = Date.from(Instant.now());
-    doReturn(date).when(objectMetadata).getLastModified();
-    Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
-    doReturn(metadata).when(objectMetadata).getUserMetadata();
-    doReturn(100L).when(objectMetadata).getContentLength();
-    doReturn("5d41402abc4b2a76b9719d911017c592").when(objectMetadata).getContentMD5();
-
-    var actual = transformer.toBlobMetadata("key", objectMetadata);
-
-    assertEquals("key", actual.getKey());
-    assertEquals("version-1", actual.getVersionId());
-    assertEquals("etag", actual.getETag());
-    assertEquals(metadata, actual.getMetadata());
-    assertEquals(date.toInstant(), actual.getLastModified());
-    assertEquals(100L, actual.getObjectSize());
-
-    byte[] expectedMd5 = {93, 65, 64, 42, -68, 75, 42, 118, -71, 113, -99, -111, 16, 23, -59, -110};
-    assertArrayEquals(expectedMd5, actual.getMd5());
-  }
-
-  @Test
-  void testToV2InitiateMultipartUploadRequest() {
+  void testToInitiateMultipartUploadRequest() {
     Map<String, String> metadata = Map.of("key1", "value1", "key2", "value2");
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("key").withMetadata(metadata).build();
 
-    var actual = transformer.toV2InitiateMultipartUploadRequest(request);
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
@@ -390,7 +260,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2UploadPartRequest() {
+  void testToUploadPartRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder()
             .bucket(BUCKET)
@@ -401,7 +271,7 @@ public class AliTransformerTest {
     InputStream inputStream = new ByteArrayInputStream(content);
     MultipartPart mpp = new MultipartPart(1, inputStream, content.length);
 
-    var actual = transformer.toV2UploadPartRequest(mpu, mpp);
+    var actual = transformer.toUploadPartRequest(mpu, mpp);
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
@@ -427,13 +297,13 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2CompleteMultipartUploadRequest() {
+  void testToCompleteMultipartUploadRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
     List<UploadPartResponse> parts =
         List.of(new UploadPartResponse(1, "etag1", 50), new UploadPartResponse(2, "etag2", 50));
 
-    var actual = transformer.toV2CompleteMultipartUploadRequest(mpu, parts);
+    var actual = transformer.toCompleteMultipartUploadRequest(mpu, parts);
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
@@ -446,11 +316,11 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2ListPartsRequest() {
+  void testToListPartsRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
 
-    var actual = transformer.toV2ListPartsRequest(mpu);
+    var actual = transformer.toListPartsRequest(mpu);
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
@@ -480,11 +350,11 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2AbortMultipartUploadRequest() {
+  void testToAbortMultipartUploadRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder().bucket(BUCKET).key("key").id("uploadId").build();
 
-    var actual = transformer.toV2AbortMultipartUploadRequest(mpu);
+    var actual = transformer.toAbortMultipartUploadRequest(mpu);
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
@@ -589,7 +459,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2ListObjectsRequest_fromPageRequest() {
+  void testToListObjectsRequest_fromPageRequest() {
     ListBlobsPageRequest request =
         ListBlobsPageRequest.builder()
             .withDelimiter(":")
@@ -599,7 +469,7 @@ public class AliTransformerTest {
             .build();
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
-        transformer.toV2ListObjectsRequest(request);
+        transformer.toListObjectsRequest(request);
     assertEquals(BUCKET, actual.bucket());
     assertEquals(request.getDelimiter(), actual.delimiter());
     assertEquals(request.getPrefix(), actual.prefix());
@@ -608,12 +478,12 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2ListObjectsRequest_fromListBlobsRequest() {
+  void testToListObjectsRequest_fromListBlobsRequest() {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("abc").withDelimiter("/").build();
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
-        transformer.toV2ListObjectsRequest(request, "cont-token");
+        transformer.toListObjectsRequest(request, "cont-token");
     assertEquals(BUCKET, actual.bucket());
     assertEquals("abc", actual.prefix());
     assertEquals("/", actual.delimiter());
@@ -621,12 +491,12 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2ListObjectsRequest_nullContinuationToken() {
+  void testToListObjectsRequest_nullContinuationToken() {
     ListBlobsRequest request =
         new ListBlobsRequest.Builder().withPrefix("xyz").build();
 
     com.aliyun.sdk.service.oss2.models.ListObjectsV2Request actual =
-        transformer.toV2ListObjectsRequest(request, null);
+        transformer.toListObjectsRequest(request, null);
     assertEquals(BUCKET, actual.bucket());
     assertEquals("xyz", actual.prefix());
     assertNull(actual.continuationToken());
@@ -634,26 +504,26 @@ public class AliTransformerTest {
 
 
   @Test
-  void testToV2InitiateMultipartUploadRequestWithContentType() {
+  void testToInitiateMultipartUploadRequestWithContentType() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder()
             .withKey("test-key")
             .withContentType("application/x-directory")
             .build();
 
-    var result = transformer.toV2InitiateMultipartUploadRequest(request);
+    var result = transformer.toInitiateMultipartUploadRequest(request);
 
     assertEquals("application/x-directory", result.contentType());
   }
 
   @Test
-  void testToV2PutObjectRequestWithStorageClass() {
+  void testToPutObjectRequestWithStorageClass() {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withStorageClass("IA").build();
 
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("test data".getBytes());
-    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
+    var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals(BUCKET, result.bucket());
     assertEquals("test-key", result.key());
@@ -661,7 +531,7 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2PutObjectRequest_WithSha256Checksum() {
+  void testToPutObjectRequest_WithSha256Checksum() {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey("test-key")
@@ -671,14 +541,14 @@ public class AliTransformerTest {
 
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
-    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
+    var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals("abc123sha256value", result.headers().get("x-oss-content-sha256"));
     assertNull(result.headers().get("x-oss-hash-crc64ecma"));
   }
 
   @Test
-  void testToV2PutObjectRequest_WithCrc64Checksum() {
+  void testToPutObjectRequest_WithCrc64Checksum() {
     UploadRequest uploadRequest =
         UploadRequest.builder()
             .withKey("test-key")
@@ -687,7 +557,7 @@ public class AliTransformerTest {
 
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
-    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
+    var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals("12345678901234", result.headers().get("x-oss-hash-crc64ecma"));
     assertNull(result.headers().get("x-oss-content-sha256"));
@@ -717,13 +587,13 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToV2PutObjectRequestWithContentType() {
+  void testToPutObjectRequestWithContentType() {
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey("test-key").withContentType("text/plain").build();
 
     com.aliyun.sdk.service.oss2.transport.BinaryData body =
         com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
-    var result = transformer.toV2PutObjectRequest(uploadRequest, body);
+    var result = transformer.toPutObjectRequest(uploadRequest, body);
 
     assertEquals(BUCKET, result.bucket());
     assertEquals("test-key", result.key());
