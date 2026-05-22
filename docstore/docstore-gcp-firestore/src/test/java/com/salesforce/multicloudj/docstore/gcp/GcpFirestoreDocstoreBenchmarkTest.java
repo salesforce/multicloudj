@@ -11,9 +11,10 @@ import org.slf4j.LoggerFactory;
 
 @Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class GcpDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
+public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(GcpDocstoreBenchmarkTest.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(GcpFirestoreDocstoreBenchmarkTest.class);
 
   @Override
   protected String getProviderId() {

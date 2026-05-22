@@ -63,6 +63,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
   private List<String> smallPlayerKeys;
+  private List<String> mediumPlayerKeys;
   private List<String> largePlayerKeys;
 
   // Harness interface
@@ -120,6 +121,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       smallPlayerKeys = Collections.unmodifiableList(
           documentKeys.stream()
               .filter(k -> k.contains("BenchmarkSmall"))
+              .collect(Collectors.toList()));
+      mediumPlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkMedium"))
               .collect(Collectors.toList()));
       largePlayerKeys = Collections.unmodifiableList(
           documentKeys.stream()
@@ -513,7 +518,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkGetMedium(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkMedium");
+    benchmarkGetByList(bh, mediumPlayerKeys, "Medium");
   }
 
   @Benchmark
@@ -689,20 +694,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
-  /** Helper method to get players by prefix — used for benchmarkGetMedium (no cached list). */
-  private void benchmarkGetByPrefix(Blackhole bh, String prefix) {
-    try {
-      String key = getRandomPlayerKeyWithPrefix(prefix);
-      Player getPlayer = new Player();
-      getPlayer.setPName(key);
-      Document doc = new Document(getPlayer);
-      docStoreClient.get(doc);
-      bh.consume(doc.getField("pName"));
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark get " + prefix + " failed", e);
-    }
-  }
-
   /**
    * Create a Player with varied data types and a string of specific size. `size` parameter is for
    * the size of the 's' field in characters.
@@ -732,18 +723,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
     return playerKeys.get(ThreadLocalRandom.current().nextInt(playerKeys.size()));
   }
 
-  /** Get a random player key with specific prefix */
-  protected String getRandomPlayerKeyWithPrefix(String prefix) {
-    List<String> filteredKeys =
-        documentKeys.stream().filter(key -> key.contains(prefix)).collect(Collectors.toList());
-
-    if (filteredKeys.isEmpty()) {
-      return prefix + "fallback";
-    }
-
-    return filteredKeys.get(ThreadLocalRandom.current().nextInt(filteredKeys.size()));
-  }
-
   @Test
   @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
@@ -758,8 +737,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
         new OptionsBuilder()
             .include(".*" + this.getClass().getName() + ".*")
             .forks(1)
-            .warmupIterations(3)
-            .measurementIterations(5)
             .resultFormat(ResultFormatType.JSON)
             .result("target/jmh-docstore-results-" + getProviderId() + ".json")
             .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
