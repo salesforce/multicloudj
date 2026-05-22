@@ -56,6 +56,7 @@ import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -317,6 +318,9 @@ public class AwsTransformer {
     if (request.getStart() != null || request.getEnd() != null) {
       builder.range(createRangeString(request.getStart(), request.getEnd()));
     }
+    if (request.isChecksumValidation()) {
+      builder.checksumMode(ChecksumMode.ENABLED);
+    }
     return builder.build();
   }
 
@@ -344,17 +348,7 @@ public class AwsTransformer {
       DownloadRequest downloadRequest, GetObjectResponse response) {
     return DownloadResponse.builder()
         .key(downloadRequest.getKey())
-        .metadata(
-            BlobMetadata.builder()
-                .key(downloadRequest.getKey())
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .lastModified(response.lastModified())
-                .createdTime(response.lastModified())
-                .metadata(response.metadata())
-                .objectSize(response.contentLength())
-                .contentType(response.contentType())
-                .build())
+        .metadata(toBlobMetadata(downloadRequest.getKey(), response))
         .build();
   }
 
@@ -364,18 +358,31 @@ public class AwsTransformer {
       ResponseInputStream<GetObjectResponse> responseInputStream) {
     return DownloadResponse.builder()
         .key(downloadRequest.getKey())
-        .metadata(
-            BlobMetadata.builder()
-                .key(downloadRequest.getKey())
-                .versionId(response.versionId())
-                .eTag(response.eTag())
-                .lastModified(response.lastModified())
-                .createdTime(response.lastModified())
-                .metadata(response.metadata())
-                .objectSize(response.contentLength())
-                .contentType(response.contentType())
-                .build())
+        .metadata(toBlobMetadata(downloadRequest.getKey(), response))
         .inputStream(responseInputStream)
+        .build();
+  }
+
+  /**
+   * Builds {@link BlobMetadata} from a {@link GetObjectResponse}. Flexible-checksum fields
+   * ({@link BlobMetadata#getCrc32c()} etc.) are populated only when S3 returned them, which only
+   * happens when the originating request was sent with {@code ChecksumMode.ENABLED} (i.e., the
+   * {@link DownloadRequest} had {@code withChecksumValidation(true)}).
+   */
+  private BlobMetadata toBlobMetadata(String key, GetObjectResponse response) {
+    return BlobMetadata.builder()
+        .key(key)
+        .versionId(response.versionId())
+        .eTag(response.eTag())
+        .lastModified(response.lastModified())
+        .createdTime(response.lastModified())
+        .metadata(response.metadata())
+        .objectSize(response.contentLength())
+        .contentType(response.contentType())
+        .crc32c(response.checksumCRC32C())
+        .sha256(response.checksumSHA256())
+        .crc32(response.checksumCRC32())
+        .sha1(response.checksumSHA1())
         .build();
   }
 
@@ -449,6 +456,10 @@ public class AwsTransformer {
         .lastModified(response.lastModified())
         .createdTime(response.lastModified())
         .md5(eTagToMD5(eTag))
+        .crc32c(response.checksumCRC32C())
+        .sha256(response.checksumSHA256())
+        .crc32(response.checksumCRC32())
+        .sha1(response.checksumSHA1())
         .contentType(response.contentType())
         .objectLockInfo(objectLockInfo)
         .build();

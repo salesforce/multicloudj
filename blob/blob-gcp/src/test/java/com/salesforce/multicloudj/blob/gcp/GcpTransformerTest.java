@@ -678,6 +678,20 @@ class GcpTransformerTest {
     assertTrue(blobMetadata.getMetadata().isEmpty());
     assertNull(blobMetadata.getLastModified());
     assertArrayEquals(new byte[0], blobMetadata.getMd5());
+    assertNull(blobMetadata.getCrc32c());
+  }
+
+  @Test
+  void testToBlobMetadata_PropagatesCrc32c() {
+    // Composite GCS objects have no MD5 but always have CRC32C.
+    when(mockBlob.getName()).thenReturn(TEST_KEY);
+    when(mockBlob.getMd5()).thenReturn(null);
+    when(mockBlob.getCrc32c()).thenReturn("base64-crc32c");
+
+    BlobMetadata blobMetadata = transformer.toBlobMetadata(mockBlob);
+
+    assertEquals("base64-crc32c", blobMetadata.getCrc32c());
+    assertArrayEquals(new byte[0], blobMetadata.getMd5());
   }
 
   @Test

@@ -358,6 +358,20 @@ public class AwsTransformerTest {
     assertEquals(request.getVersionId(), actual.versionId());
     assertEquals(request.getStart(), 0);
     assertEquals(request.getEnd(), 500);
+    // checksumValidation defaults to false → no ChecksumMode header is set.
+    assertNull(actual.checksumMode());
+  }
+
+  @Test
+  void testToGetObjectRequest_checksumValidationEnabled() {
+    var request =
+        DownloadRequest.builder()
+            .withKey("k")
+            .withChecksumValidation(true)
+            .build();
+    var actual = transformer.toRequest(request);
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumMode.ENABLED, actual.checksumMode());
   }
 
   @Test
@@ -390,6 +404,29 @@ public class AwsTransformerTest {
     assertEquals(now, response.getMetadata().getLastModified());
     assertEquals(metadata, response.getMetadata().getMetadata());
     assertEquals(1024L, response.getMetadata().getObjectSize());
+    // No flexible-checksum values were stubbed, so they should not appear on the metadata.
+    assertNull(response.getMetadata().getCrc32c());
+    assertNull(response.getMetadata().getSha256());
+    assertNull(response.getMetadata().getCrc32());
+    assertNull(response.getMetadata().getSha1());
+  }
+
+  @Test
+  void testToDownloadObjectResponse_flexibleChecksumsPropagated() {
+    var request = DownloadRequest.builder().withKey("k").withChecksumValidation(true).build();
+    GetObjectResponse getObjectResponse = mock(GetObjectResponse.class);
+    doReturn(0L).when(getObjectResponse).contentLength();
+    doReturn("base64-crc32c").when(getObjectResponse).checksumCRC32C();
+    doReturn("base64-sha256").when(getObjectResponse).checksumSHA256();
+    doReturn("base64-crc32").when(getObjectResponse).checksumCRC32();
+    doReturn("base64-sha1").when(getObjectResponse).checksumSHA1();
+
+    DownloadResponse response = transformer.toDownloadResponse(request, getObjectResponse);
+
+    assertEquals("base64-crc32c", response.getMetadata().getCrc32c());
+    assertEquals("base64-sha256", response.getMetadata().getSha256());
+    assertEquals("base64-crc32", response.getMetadata().getCrc32());
+    assertEquals("base64-sha1", response.getMetadata().getSha1());
   }
 
   @Test
@@ -463,6 +500,23 @@ public class AwsTransformerTest {
     assertEquals(metadata, actual.getMetadata());
     assertEquals(1024L, actual.getObjectSize());
     assertEquals(now, actual.getLastModified());
+  }
+
+  @Test
+  void testToMetadata_flexibleChecksumsPropagated() {
+    var response =
+        HeadObjectResponse.builder()
+            .contentLength(0L)
+            .checksumCRC32C("base64-crc32c")
+            .checksumSHA256("base64-sha256")
+            .checksumCRC32("base64-crc32")
+            .checksumSHA1("base64-sha1")
+            .build();
+    var actual = transformer.toMetadata(response, "k");
+    assertEquals("base64-crc32c", actual.getCrc32c());
+    assertEquals("base64-sha256", actual.getSha256());
+    assertEquals("base64-crc32", actual.getCrc32());
+    assertEquals("base64-sha1", actual.getSha1());
   }
 
   @Test

@@ -15,6 +15,7 @@ public class DownloadRequest {
   private final boolean parallelDownload;
   private final boolean createParentPath;
   private final boolean checkArchived;
+  private final boolean checksumValidation;
 
   /**
    * (Optional) Per-call observability context carrying the correlation ID. If null or if its
@@ -32,6 +33,7 @@ public class DownloadRequest {
     this.createParentPath = builder.createParentPath;
     this.operationContext = builder.operationContext;
     this.checkArchived = builder.checkArchived;
+    this.checksumValidation = builder.checksumValidation;
   }
 
   public static Builder builder() {
@@ -48,6 +50,7 @@ public class DownloadRequest {
     private boolean createParentPath;
     private OperationContext operationContext;
     private boolean checkArchived;
+    private boolean checksumValidation;
 
     /** Specifies the key of the Blob to download. */
     public Builder withKey(String key) {
@@ -151,6 +154,29 @@ public class DownloadRequest {
      */
     public Builder withCheckArchived(boolean checkArchived) {
       this.checkArchived = checkArchived;
+      return this;
+    }
+
+    /**
+     * (Optional) When true, asks the substrate to surface stored checksums on the response so the
+     * caller (or a future SDK-side wrapper) can verify the downloaded bytes against the algorithm
+     * the object was originally stored with.
+     *
+     * <p>Provider behavior:
+     *
+     * <ul>
+     *   <li>AWS: enables {@code ChecksumMode.ENABLED} on the underlying {@code GetObjectRequest},
+     *       which causes S3 to return {@code x-amz-checksum-*} headers populated with whichever
+     *       algorithm the object was stored with (SHA-256, CRC32C, CRC32, or SHA-1). Those values
+     *       are then exposed via {@code BlobMetadata.getSha256()} / {@code getCrc32c()} / etc.
+     *   <li>GCS: no-op on the request side because GCS already returns the CRC32C unconditionally.
+     *       {@code BlobMetadata.getCrc32c()} is populated regardless of this flag.
+     * </ul>
+     *
+     * <p>Defaults to {@code false} to preserve existing behavior.
+     */
+    public Builder withChecksumValidation(boolean checksumValidation) {
+      this.checksumValidation = checksumValidation;
       return this;
     }
 

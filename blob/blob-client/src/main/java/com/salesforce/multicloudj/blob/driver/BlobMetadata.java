@@ -33,6 +33,34 @@ public class BlobMetadata {
 
   private final byte[] md5;
 
+  /**
+   * Base64-encoded CRC32C checksum of the object as reported by the substrate, or {@code null} if
+   * the substrate did not surface one. Populated by GCS for every object (including composite
+   * objects, which have no MD5) and by AWS when the {@code GetObject} request was issued with
+   * checksum validation enabled (see {@link DownloadRequest.Builder#withChecksumValidation}).
+   */
+  private final String crc32c;
+
+  /**
+   * Base64-encoded SHA-256 checksum of the object as reported by the substrate, or {@code null} if
+   * the substrate did not surface one. On AWS this is populated only when the object was uploaded
+   * with {@code SHA256} as the flexible-checksum algorithm and {@code GetObject} was issued with
+   * checksum validation enabled.
+   */
+  private final String sha256;
+
+  /**
+   * Base64-encoded CRC32 checksum of the object as reported by the substrate, or {@code null} if
+   * not surfaced.
+   */
+  private final String crc32;
+
+  /**
+   * Base64-encoded SHA-1 checksum of the object as reported by the substrate, or {@code null} if
+   * not surfaced.
+   */
+  private final String sha1;
+
   /** The content type of the blob (e.g., "application/octet-stream", "application/x-directory") */
   private final String contentType;
 
