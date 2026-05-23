@@ -2,54 +2,48 @@ package com.salesforce.multicloudj.blob.ali;
 
 import static java.util.stream.Collectors.toList;
 
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.model.ListObjectsRequest;
-import com.aliyun.oss.model.ObjectListing;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.commons.lang3.StringUtils;
 
 /** Iterator object to retrieve BlobInfo list */
 public class BlobInfoIterator implements Iterator<BlobInfo> {
 
-  private final OSS ossClient;
-  private final String bucket;
+  private final OSSClient ossClient;
+  private final AliTransformer transformer;
   private List<BlobInfo> currentBatch;
-  private String nextMarker;
+  private String nextContinuationToken;
   private int currentIndex;
   private final ListBlobsRequest listRequest;
 
-  public BlobInfoIterator(OSS ossClient, String bucket, ListBlobsRequest listRequest) {
+  public BlobInfoIterator(
+      OSSClient ossClient, AliTransformer transformer, ListBlobsRequest listRequest) {
     this.ossClient = ossClient;
-    this.bucket = bucket;
+    this.transformer = transformer;
     this.listRequest = listRequest;
     this.currentBatch = nextBatch();
     this.currentIndex = 0;
   }
 
   private List<BlobInfo> nextBatch() {
-    ListObjectsRequest request = new ListObjectsRequest(bucket).withMarker(nextMarker);
+    ListObjectsV2Request request =
+        transformer.toListObjectsRequest(listRequest, nextContinuationToken);
+    ListObjectsV2Result result =
+        ossClient.listObjectsV2(request, OperationOptions.defaults());
+    nextContinuationToken = result.nextContinuationToken();
 
-    if (listRequest != null && StringUtils.isNotEmpty(listRequest.getPrefix())) {
-      request.withPrefix(listRequest.getPrefix());
-    }
-
-    if (listRequest != null && StringUtils.isNotEmpty(listRequest.getDelimiter())) {
-      request.withDelimiter(listRequest.getDelimiter());
-    }
-
-    ObjectListing response = ossClient.listObjects(request);
-    nextMarker = response.getNextMarker();
-
-    return response.getObjectSummaries().stream()
+    return result.contents().stream()
         .map(
             objSum ->
                 new BlobInfo.Builder()
-                    .withKey(objSum.getKey())
-                    .withObjectSize(objSum.getSize())
+                    .withKey(objSum.key())
+                    .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
                     .build())
         .collect(toList());
   }
@@ -60,7 +54,7 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
       return true;
     }
 
-    if (nextMarker != null) {
+    if (nextContinuationToken != null) {
       currentBatch = nextBatch();
       currentIndex = 0;
       return !currentBatch.isEmpty();

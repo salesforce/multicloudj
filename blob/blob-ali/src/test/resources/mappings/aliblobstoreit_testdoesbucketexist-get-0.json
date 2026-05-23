@@ -1,5 +1,5 @@
 {
-  "id" : "b00deac0-e10c-44ee-8615-07287b1f56c0",
+  "id" : "ecdbaf74-8c6c-414f-a8c0-ea256e5fb6d2",
   "name" : "AliBlobStoreIT_testDoesBucketExist-GET-0",
   "request" : {
     "urlPath" : "/",
@@ -24,14 +24,14 @@
     "status" : 200,
     "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<AccessControlPolicy>\n  <Owner>\n    <ID>1099202394511537</ID>\n    <DisplayName>1099202394511537</DisplayName>\n  </Owner>\n  <AccessControlList>\n    <Grant>private</Grant>\n  </AccessControlList>\n</AccessControlPolicy>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E79CFCC7B3F333511CDCF",
+      "x-oss-request-id" : "6A0F7F454C586D36350449BD",
       "x-oss-server-time" : "2",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:19:43 GMT",
+      "Date" : "Thu, 21 May 2026 21:55:17 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "b00deac0-e10c-44ee-8615-07287b1f56c0",
+  "uuid" : "ecdbaf74-8c6c-414f-a8c0-ea256e5fb6d2",
   "persistent" : true,
-  "insertionIndex" : 302
+  "insertionIndex" : 288
 }

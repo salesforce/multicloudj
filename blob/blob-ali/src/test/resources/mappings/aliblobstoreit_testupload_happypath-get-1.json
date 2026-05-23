@@ -1,5 +1,5 @@
 {
-  "id" : "24eaa0e7-6361-418d-9228-5ef3a96f25b1",
+  "id" : "48aab522-5ee5-46bb-b262-2043a3e8adb7",
   "name" : "AliBlobStoreIT_testUpload_happyPath-GET-1",
   "request" : {
     "url" : "/conformance-tests/upload/happyPath_versioned_Path",
@@ -12,24 +12,24 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "This is test data",
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGE=",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCA7bWZovIZIiA4ZmQ5MzJmYTY1NjM0MWQyYTZhZmE1N2IzOWVkYTQ1Zg--",
-      "x-oss-request-id" : "6A0E7A0A3D437D3136B33616",
-      "x-oss-server-time" : "38",
+      "x-oss-version-id" : "CAEQigEYgYCA5aCTsvIZIiA3NzMxMWY5ZmFmNWY0Njk3OWI5MjZhZDYwZjQ0MTNmOQ--",
+      "x-oss-request-id" : "6A0F7F65B4C7B93635B4886D",
+      "x-oss-server-time" : "8",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:20:41 GMT",
-      "Date" : "Thu, 21 May 2026 03:20:42 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:55:48 GMT",
+      "Date" : "Thu, 21 May 2026 21:55:49 GMT",
       "Content-MD5" : "cBu9S94e4E47BZb2OZTrrg==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
       "x-oss-hash-crc64ecma" : "4694637722962336160",
       "ETag" : "\"701BBD4BDE1EE04E3B0596F63994EBAE\"",
-      "Content-Type" : "text/plain"
+      "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "24eaa0e7-6361-418d-9228-5ef3a96f25b1",
+  "uuid" : "48aab522-5ee5-46bb-b262-2043a3e8adb7",
   "persistent" : true,
-  "insertionIndex" : 351
+  "insertionIndex" : 320
 }

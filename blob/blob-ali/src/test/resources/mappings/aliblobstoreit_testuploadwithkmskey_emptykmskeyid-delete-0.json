@@ -1,5 +1,5 @@
 {
-  "id" : "d2c4a838-5147-4a3f-be38-58ae85b58544",
+  "id" : "fdd3de45-566f-419e-8c50-a7b8f3a24ce5",
   "name" : "AliBlobStoreIT_testUploadWithKmsKey_emptyKmsKeyId-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/kms/upload-empty-key",
@@ -13,13 +13,13 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E79A43A503C3836087345",
-      "x-oss-server-time" : "13",
+      "x-oss-request-id" : "6A0F7F2489F0063238B3AC97",
+      "x-oss-server-time" : "10",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:19:00 GMT"
+      "Date" : "Thu, 21 May 2026 21:54:44 GMT"
     }
   },
-  "uuid" : "d2c4a838-5147-4a3f-be38-58ae85b58544",
+  "uuid" : "fdd3de45-566f-419e-8c50-a7b8f3a24ce5",
   "persistent" : true,
-  "insertionIndex" : 240
+  "insertionIndex" : 226
 }

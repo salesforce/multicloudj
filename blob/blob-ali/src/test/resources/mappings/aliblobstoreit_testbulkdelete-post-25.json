@@ -1,5 +1,5 @@
 {
-  "id" : "8257533e-84bc-4375-9baf-f8bc81ac696e",
+  "id" : "1dcbcc6e-8341-4ee3-8c38-be459f2f7823",
   "name" : "AliBlobStoreIT_testBulkDelete-POST-25",
   "request" : {
     "urlPath" : "/",
@@ -9,10 +9,15 @@
         "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
       },
       "X-Query-Param-Count" : {
-        "equalTo" : "1"
+        "equalTo" : "2"
       }
     },
     "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
       "delete" : {
         "hasExactly" : [ {
           "equalTo" : ""
@@ -20,22 +25,19 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy1</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy2</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy3</Key></Object></Delete>",
-      "caseInsensitive" : false
+      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy1</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy2</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy3</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy1</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy2</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy3</Key>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E78D246D899343843E047",
-      "x-oss-server-time" : "48",
+      "x-oss-request-id" : "6A0F7E9410827E3836B6B112",
+      "x-oss-server-time" : "55",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:15:30 GMT",
-      "Content-Type" : "application/xml"
+      "Date" : "Thu, 21 May 2026 21:52:20 GMT"
     }
   },
-  "uuid" : "8257533e-84bc-4375-9baf-f8bc81ac696e",
+  "uuid" : "1dcbcc6e-8341-4ee3-8c38-be459f2f7823",
   "persistent" : true,
   "insertionIndex" : 34
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "1fcfdae1-d291-477d-9e4c-79e656669d9e",
+  "id" : "45767c5f-a4eb-4a74-895c-0e553206ef93",
   "name" : "AliBlobStoreIT_testListPage-GET-13",
   "request" : {
     "urlPath" : "/",
@@ -9,39 +9,49 @@
         "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
       },
       "X-Query-Param-Count" : {
-        "equalTo" : "3"
+        "equalTo" : "5"
       }
     },
     "queryParameters" : {
-      "prefix" : {
+      "list-type" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/blob-for-list-page"
+          "equalTo" : "2"
         } ]
       },
-      "marker" : {
+      "continuation-token" : {
         "hasExactly" : [ {
-          "equalTo" : "conformance-tests/blob-for-list-page/prefix-2"
+          "equalTo" : "Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4LTIQAA--"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
         } ]
       },
       "max-keys" : {
         "hasExactly" : [ {
           "equalTo" : "3"
         } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
       }
     }
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests/blob-for-list-page</Prefix>\n  <Marker>conformance-tests/blob-for-list-page/prefix-2</Marker>\n  <MaxKeys>3</MaxKeys>\n  <Delimiter></Delimiter>\n  <IsTruncated>true</IsTruncated>\n  <NextMarker>conformance-tests/blob-for-list-page/prefix_3</NextMarker>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix-4</Key>\n    <LastModified>2026-05-21T03:23:28.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix-5</Key>\n    <LastModified>2026-05-21T03:23:29.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests/blob-for-list-page/prefix_3</Key>\n    <LastModified>2026-05-21T03:23:27.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Contents>\n</ListBucketResult>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fblob-for-list-page</Prefix>\n  <ContinuationToken>Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4LTIQAA--</ContinuationToken>\n  <MaxKeys>3</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>true</IsTruncated>\n  <NextContinuationToken>Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4XzMQAA--</NextContinuationToken>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix-4</Key>\n    <LastModified>2026-05-21T21:58:00.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix-5</Key>\n    <LastModified>2026-05-21T21:58:01.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix_3</Key>\n    <LastModified>2026-05-21T21:57:59.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>3</KeyCount>\n</ListBucketResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E7AB5D7BDE83935B1F2AC",
-      "x-oss-server-time" : "3",
+      "x-oss-request-id" : "6A0F7FEB1FE77230366563C4",
+      "x-oss-server-time" : "2",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:23:33 GMT",
+      "Date" : "Thu, 21 May 2026 21:58:03 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "1fcfdae1-d291-477d-9e4c-79e656669d9e",
+  "uuid" : "45767c5f-a4eb-4a74-895c-0e553206ef93",
   "persistent" : true,
-  "insertionIndex" : 590
+  "insertionIndex" : 558
 }

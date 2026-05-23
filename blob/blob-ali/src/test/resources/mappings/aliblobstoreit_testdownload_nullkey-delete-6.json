@@ -1,5 +1,5 @@
 {
-  "id" : "cf7ca76d-237b-49a9-a2f6-60a9e3e7cb6e",
+  "id" : "19d6927d-088e-47c3-9308-6c29b0461201",
   "name" : "AliBlobStoreIT_testDownload_nullKey-DELETE-6",
   "request" : {
     "url" : "/conformance-tests/download_null_key_versioned",
@@ -13,15 +13,15 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgoCA5uqSovIZIiBjMTVjYjg2NmRlMDY0MmU1OTFiZDE2NDU1YjE4N2YzOQ--",
-      "x-oss-request-id" : "6A0E7931A4C9F93636E4DDF4",
-      "x-oss-server-time" : "69",
+      "x-oss-version-id" : "CAEQigEYgoDAqICPsvIZIiA3NTQwZGQwOWZlZjI0N2FhOTFmY2ZjNWMwY2RiMjM4OA--",
+      "x-oss-request-id" : "6A0F7ED927D2E93539396EA8",
+      "x-oss-server-time" : "50",
       "Server" : "AliyunOSS",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:17:05 GMT"
+      "Date" : "Thu, 21 May 2026 21:53:29 GMT"
     }
   },
-  "uuid" : "cf7ca76d-237b-49a9-a2f6-60a9e3e7cb6e",
+  "uuid" : "19d6927d-088e-47c3-9308-6c29b0461201",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-download_null_key_versioned",
   "requiredScenarioState" : "scenario-1-conformance-tests-download_null_key_versioned-2",

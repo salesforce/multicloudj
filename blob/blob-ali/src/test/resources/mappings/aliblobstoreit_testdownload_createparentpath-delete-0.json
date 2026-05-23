@@ -1,5 +1,5 @@
 {
-  "id" : "4ee2d337-cd64-47fb-9203-1192d233023b",
+  "id" : "2db44836-0dfc-4487-8598-d5adcb40b39d",
   "name" : "AliBlobStoreIT_testDownload_createParentPath-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/download_create_parent/nested/object_unversioned",
@@ -13,15 +13,15 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E7989B8999830326F0D31",
-      "x-oss-server-time" : "76",
+      "x-oss-request-id" : "6A0F7F11A1E8F83830247C1B",
+      "x-oss-server-time" : "12",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:18:33 GMT"
+      "Date" : "Thu, 21 May 2026 21:54:25 GMT"
     }
   },
-  "uuid" : "4ee2d337-cd64-47fb-9203-1192d233023b",
+  "uuid" : "2db44836-0dfc-4487-8598-d5adcb40b39d",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-download_create_parent-nested-object_unversioned",
   "requiredScenarioState" : "scenario-1-conformance-tests-download_create_parent-nested-object_unversioned-2",
-  "insertionIndex" : 200
+  "insertionIndex" : 186
 }
