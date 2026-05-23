@@ -1,97 +1,161 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.observability.OperationContext;
 import lombok.Getter;
 
-/**
- * Wrapper object for download data
- */
+/** Wrapper object for download data */
 @Getter
 public class DownloadRequest {
 
-    private final String key;
-    private final String versionId;
-    private final Long start;
-    private final Long end;
-    private final String kmsKeyId;
+  private final String key;
+  private final String versionId;
+  private final Long start;
+  private final Long end;
+  private final String kmsKeyId;
+  private final boolean parallelDownload;
+  private final boolean createParentPath;
+  private final boolean checkArchived;
 
-    private DownloadRequest(Builder builder) {
-        this.key = builder.key;
-        this.versionId = builder.versionId;
-        this.start = builder.start;
-        this.end = builder.end;
-        this.kmsKeyId = builder.kmsKeyId;
+  /**
+   * (Optional) Per-call observability context carrying the correlation ID. If null or if its
+   * correlation ID is missing, the SDK auto-generates a UUID and returns it via the response.
+   */
+  private final OperationContext operationContext;
+
+  private DownloadRequest(Builder builder) {
+    this.key = builder.key;
+    this.versionId = builder.versionId;
+    this.start = builder.start;
+    this.end = builder.end;
+    this.kmsKeyId = builder.kmsKeyId;
+    this.parallelDownload = builder.parallelDownload;
+    this.createParentPath = builder.createParentPath;
+    this.operationContext = builder.operationContext;
+    this.checkArchived = builder.checkArchived;
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder {
+    private String key;
+    private String versionId;
+    private Long start;
+    private Long end;
+    private String kmsKeyId;
+    private boolean parallelDownload;
+    private boolean createParentPath;
+    private OperationContext operationContext;
+    private boolean checkArchived;
+
+    /** Specifies the key of the Blob to download. */
+    public Builder withKey(String key) {
+      this.key = key;
+      return this;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    /**
+     * (Optional) Specifies the versionId of the blob to download.
+     *
+     * <p>For buckets without versioning enabled:
+     *
+     * <ul>
+     *   <li>This field has no purpose for non-versioned buckets. Leave it null
+     *   <li>Note: Some substrates do return a value for this field, and it can be used in requests,
+     *       but it doesn't do anything
+     * </ul>
+     *
+     * <p>For buckets with versioning enabled:
+     *
+     * <ul>
+     *   <li>This field is optional
+     *   <li>If you set the value to null then it will target the latest version of the blob
+     *   <li>If you set the value to a specific versionId, then it will target that version of the
+     *       blob
+     *   <li>If you use an invalid versionId it will not be able to find your blob
+     * </ul>
+     */
+    public Builder withVersionId(String versionId) {
+      this.versionId = versionId;
+      return this;
     }
 
-    public static class Builder {
-        private String key;
-        private String versionId;
-        private Long start;
-        private Long end;
-        private String kmsKeyId;
-
-        /**
-         * Specifies the key of the Blob to download.
-         */
-        public Builder withKey(String key) {
-            this.key = key;
-            return this;
-        }
-
-        /**
-         * (Optional) Specifies the versionId of the blob to download.
-         *
-         * <p>For buckets without versioning enabled:</p>
-         * <ul>
-         *     <li>This field has no purpose for non-versioned buckets. Leave it null</li>
-         *     <li>Note: Some substrates do return a value for this field, and it can be used in requests,
-         *         but it doesn't do anything</li>
-         * </ul>
-         *
-         * <p>For buckets with versioning enabled:</p>
-         * <ul>
-         *     <li>This field is optional</li>
-         *     <li>If you set the value to null then it will target the latest version of the blob</li>
-         *     <li>If you set the value to a specific versionId, then it will target that version of the blob</li>
-         *     <li>If you use an invalid versionId it will not be able to find your blob</li>
-         * </ul>
-         */
-        public Builder withVersionId(String versionId) {
-            this.versionId = versionId;
-            return this;
-        }
-
-        /**
-         * Specifies the byte range to read from the blob. Inclusive of both start and end bytes.
-         * Only specify the byte range if you want to download a specific byte range. If this is not specified
-         * it will download the entire blob by default.
-         * <pre>
-         * Reading the first 500 bytes            - createRangeString(0, 500)
-         * Reading a middle 500 bytes             - createRangeString(123, 623)
-         * Reading the last 500 bytes             - createRangeString(null, 500)
-         * Reading everything but first 500 bytes - createRangeString(500, null)
-         * </pre>
-         */
-        public Builder withRange(Long start, Long end) {
-            this.start = start;
-            this.end = end;
-            return this;
-        }
-
-        /**
-         * (Optional) Specifies the KMS key ID or ARN to use for decrypting the blob.
-         * This is only needed if the blob was encrypted with a customer-managed KMS key.
-         */
-        public Builder withKmsKeyId(String kmsKeyId) {
-            this.kmsKeyId = kmsKeyId;
-            return this;
-        }
-
-        public DownloadRequest build() {
-            return new DownloadRequest(this);
-        }
+    /**
+     * Specifies the byte range to read from the blob. Inclusive of both start and end bytes. Only
+     * specify the byte range if you want to download a specific byte range. If this is not
+     * specified it will download the entire blob by default.
+     *
+     * <pre>
+     * Reading the first 500 bytes            - createRangeString(0, 500)
+     * Reading a middle 500 bytes             - createRangeString(123, 623)
+     * Reading the last 500 bytes             - createRangeString(null, 500)
+     * Reading everything but first 500 bytes - createRangeString(500, null)
+     * </pre>
+     */
+    public Builder withRange(Long start, Long end) {
+      this.start = start;
+      this.end = end;
+      return this;
     }
+
+    /**
+     * (Optional) Specifies the KMS key ID or ARN to use for decrypting the blob. This is only
+     * needed if the blob was encrypted with a customer-managed KMS key.
+     */
+    public Builder withKmsKeyId(String kmsKeyId) {
+      this.kmsKeyId = kmsKeyId;
+      return this;
+    }
+
+    /**
+     * (Optional) Enables provider-specific parallel download optimization when supported for
+     * file-based destinations ({@code Path} / {@code File}). Ignored for {@code OutputStream} and
+     * related streaming-style downloads so content is not fully materialized to disk first.
+     * Defaults to false.
+     */
+    public Builder withParallelDownload(boolean parallelDownload) {
+      this.parallelDownload = parallelDownload;
+      return this;
+    }
+
+    /**
+     * (Optional) If true, the destination is treated as a root directory: the object key's parent
+     * path structure is preserved beneath it, and any missing parent directories are created on
+     * the local filesystem before the download is written. Only applies to file-based destinations
+     * ({@code File} / {@code Path}). Defaults to false.
+     */
+    public Builder withCreateParentPath(boolean createParentPath) {
+      this.createParentPath = createParentPath;
+      return this;
+    }
+
+    /**
+     * Sets the per-call observability context carrying the correlation ID. If not set (or if the
+     * context's correlation ID is null/empty), the SDK auto-generates a UUID.
+     *
+     * @param operationContext the observability context
+     * @return this builder
+     */
+    public Builder withOperationContext(OperationContext operationContext) {
+      this.operationContext = operationContext;
+      return this;
+    }
+    
+    /**
+     * (Optional) If true and the object is not found, the provider will check whether
+     * the object was archived (deletion without version id). When
+     * an archived object is detected, the thrown ResourceNotFoundException will have a
+     * non-null ArchiveInfo with archived=true and, where available, the versionId of
+     * the latest archived version. Defaults to false.
+     */
+    public Builder withCheckArchived(boolean checkArchived) {
+      this.checkArchived = checkArchived;
+      return this;
+    }
+
+    public DownloadRequest build() {
+      return new DownloadRequest(this);
+    }
+  }
 }

@@ -1,0 +1,38 @@
+{
+  "id" : "c6d74fc1-c8f4-4310-9c1b-5089445e5c3c",
+  "name" : "GcpRegistryIT_testExtract-GET-4",
+  "request" : {
+    "urlPath" : "/v2/token",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "scope" : {
+        "hasExactly" : [ {
+          "equalTo" : "repository:substrate-sdk-gcp-poc1/test-repo/hello-world:pull"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"token\":\"REDACTED\",\"expires_in\":43200}",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "X-Content-Type-Options" : "nosniff",
+      "X-Xss-Protection" : "0",
+      "Date" : "Fri, 13 Mar 2026 20:00:36 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "c6d74fc1-c8f4-4310-9c1b-5089445e5c3c",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v2-token",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-v2-token-2",
+  "insertionIndex" : 5
+}

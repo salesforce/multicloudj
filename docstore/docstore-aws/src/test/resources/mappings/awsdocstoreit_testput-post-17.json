@@ -1,0 +1,32 @@
+{
+  "id" : "fcec242b-6669-4db5-85cc-c1d3b1a50246",
+  "name" : "AwsDocstoreIT_testPut-POST-17",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"EdwardPlayer\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "GD5DVFCS67SHB453DG0MIRCG43VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Apr 2026 22:57:57 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "fcec242b-6669-4db5-85cc-c1d3b1a50246",
+  "persistent" : true,
+  "insertionIndex" : 261
+}

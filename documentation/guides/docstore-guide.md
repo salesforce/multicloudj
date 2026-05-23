@@ -236,6 +236,10 @@ Query query = client.query();
 
 (Depends on driver implementation.)
 
+### Known Gap: Sort Key Ordering (DynamoDB vs. Firestore)
+
+DynamoDB silently returns results ordered by the sort key; Firestore does not. For parity across substrates, explicitly call `.orderBy("<sortKeyField>", true)` on every query where SK ordering is expected. The SDK translates this into a Firestore `StructuredQuery.OrderBy`, producing identical ordering on both.
+
 ## Advanced Usage
 
 ### Action Lists

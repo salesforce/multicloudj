@@ -1,0 +1,23 @@
+{
+  "id" : "55534375-99d8-49ec-a65c-2a83d974f00c",
+  "name" : "AwsBlobStoreIT_testListPage_CommonPrefixesNeverNull-GET-1",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&prefix=conformance-tests%2Fcommon-prefix-not-null%2F",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-not-null/</Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-not-null/file.txt</Key><LastModified>2026-04-02T04:52:12.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "WT842BHEEMBZKE7K",
+      "x-amz-id-2" : "rYvOOpXLj7lqi1J/atURz5qYcU+43G7RU5l+Qcg00hmILAZ+fVAdU84r+IZjxRzPWoQHcIFSJn/iV3SSbyLkWbj/y6gqTvv4",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:14 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "55534375-99d8-49ec-a65c-2a83d974f00c",
+  "persistent" : true,
+  "insertionIndex" : 612
+}

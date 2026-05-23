@@ -1,0 +1,33 @@
+{
+  "id" : "7c4c9323-4eee-4cbc-a41a-0ff1e4b526fd",
+  "name" : "GcpPubsubIT_testSendBatchMessages-POST-2",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/topics/topic-testSendBatchMessages:publish?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.messages"
+    }, {
+      "matchesJsonPath" : "$.messages[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"messageIds\": [\n    \"18650975721697535\"\n  ]\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 12 Mar 2026 00:48:15 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "7c4c9323-4eee-4cbc-a41a-0ff1e4b526fd",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-topics-topic-testSendBatchMessages:publish",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-topics-topic-testSendBatchMessages:publish-2",
+  "insertionIndex" : 29
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "c426b58c-5f32-412f-a58a-94737b0ddff8",
+  "name" : "AwsDocstoreIT_testPut-POST-20",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.DeleteItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Key\":{\"pName\":{\"S\":\"TigerMap\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "Q9U1AOKP1P909O5K9DDHA5EL2JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Apr 2026 22:57:57 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "c426b58c-5f32-412f-a58a-94737b0ddff8",
+  "persistent" : true,
+  "insertionIndex" : 264
+}

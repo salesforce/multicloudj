@@ -1,0 +1,24 @@
+{
+  "id" : "acf574d4-618b-420d-b18a-25e33e78c38f",
+  "name" : "AwsIamIT_testGetAttachedPolicies-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=ListRolePolicies&Version=2010-05-08&RoleName=testSa",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<ListRolePoliciesResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ListRolePoliciesResult>\n    <IsTruncated>false</IsTruncated>\n    <PolicyNames>\n      <member>InlinePolicy</member>\n      <member>TestPolicy</member>\n    </PolicyNames>\n  </ListRolePoliciesResult>\n  <ResponseMetadata>\n    <RequestId>e4b3f364-58d2-47aa-bc4b-fb8026d11013</RequestId>\n  </ResponseMetadata>\n</ListRolePoliciesResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "e4b3f364-58d2-47aa-bc4b-fb8026d11013",
+      "Date" : "Tue, 10 Mar 2026 06:16:25 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "acf574d4-618b-420d-b18a-25e33e78c38f",
+  "persistent" : true,
+  "insertionIndex" : 42
+}

@@ -1,0 +1,23 @@
+{
+  "id" : "e201f5ca-c76f-4dbf-b992-a274c446525d",
+  "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-5",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&max-keys=2&prefix=conformance-tests%2Fcommon-prefix-multipage%2F",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-multipage/</Prefix><NextContinuationToken>1XgBMBXl/UrLsT1SQS0QTDqg18TOSEOx389Hic9BrhiRjVZtRACvdlkb22uZg4FwIkh2h1FSUUHdR+aMB40d9CM++xtRA/GcK</NextContinuationToken><KeyCount>2</KeyCount><MaxKeys>2</MaxKeys><Delimiter>/</Delimiter><IsTruncated>true</IsTruncated><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/a/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-multipage/b/</Prefix></CommonPrefixes></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "CBPB4CVEJ6H4QK5Z",
+      "x-amz-id-2" : "Rk5FJdwobKU3t0HaMEsxA61xGloQgAtKmu33w5Mjqg5vvdV52taCYL1v3N6gdSy7Kv/Jl4HgH7frJtynCac//LLBtK75EC5i",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:27 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e201f5ca-c76f-4dbf-b992-a274c446525d",
+  "persistent" : true,
+  "insertionIndex" : 629
+}

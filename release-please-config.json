@@ -12,6 +12,7 @@
         {"type": "sts", "section": "STS", "hidden": false},
         {"type": "pubsub", "section": "PubSub", "hidden": false},
         {"type": "iam", "section": "IAM", "hidden": false},
+        {"type": "dbbackuprestore", "section": "DB Backup Restore", "hidden": false},
         {"type": "refactor", "section": "Code Refactoring", "hidden": false},
         {"type": "revert", "section": "Reverts", "hidden": false},
         {"type": "docs", "section": "Documentation", "hidden": true},

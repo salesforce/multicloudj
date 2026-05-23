@@ -1,0 +1,25 @@
+{
+  "id" : "3245c2b8-d14b-4479-8970-a2b3437e83fd",
+  "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-9",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&maxResults=2&prefix=conformance-tests/common-prefix-multipage/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"nextPageToken\": \"Cixjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW11bHRpcGFnZS9iLw==\",\n  \"prefixes\": [\n    \"conformance-tests/common-prefix-multipage/a/\",\n    \"conformance-tests/common-prefix-multipage/b/\"\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AMNfjG3dKO_OYkGSQIaNlDphugsmN2w9gPQX89iaGTQywtMnlGBv5gMWHFYDPhfBI8UjPwJDmqvKlXo",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:45:45 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:45 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "3245c2b8-d14b-4479-8970-a2b3437e83fd",
+  "persistent" : true,
+  "insertionIndex" : 1014
+}

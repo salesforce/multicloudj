@@ -1,0 +1,56 @@
+{
+  "id" : "c85b129e-4399-434d-9482-05b82cd96eda",
+  "name" : "GcpBlobStoreIT_testRangedRead-GET-45",
+  "request" : {
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2FtestRangedRead_versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1772658499289347"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-Goog-Generation" : "1772658499289347",
+      "Content-Range" : "bytes 0-46/47",
+      "Pragma" : "no-cache",
+      "Last-Modified" : "Wed, 04 Mar 2026 21:08:19 GMT",
+      "X-Goog-Metageneration" : "1",
+      "Date" : "Wed, 04 Mar 2026 21:08:23 GMT",
+      "X-Goog-Stored-Content-Encoding" : "identity",
+      "X-Goog-Hash" : "crc32c=YmH3dA==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CIOCosGTh5MDEAE=",
+      "Content-Disposition" : "attachment",
+      "X-Goog-Storage-Class" : "STANDARD",
+      "X-GUploader-UploadID" : "AGQBYWwE1-E1p5IKfUgMLlMXBhO76SPhZM4Mwo9FiW5tthE_1voIVb834HyWCkGvQI8lY6o",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "X-Goog-Stored-Content-Length" : "47",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "c85b129e-4399-434d-9482-05b82cd96eda",
+  "persistent" : true,
+  "scenarioName" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned",
+  "requiredScenarioState" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned-6",
+  "newScenarioState" : "scenario-10-download-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-testRangedRead_versioned-7",
+  "insertionIndex" : 803
+}

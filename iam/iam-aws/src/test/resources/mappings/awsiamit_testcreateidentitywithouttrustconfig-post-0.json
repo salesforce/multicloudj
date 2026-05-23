@@ -1,0 +1,24 @@
+{
+  "id" : "0e4c65a4-36fa-4caa-bd10-44e5c359cd57",
+  "name" : "AwsIamIT_testCreateIdentityWithoutTrustConfig-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=DeleteRole&Version=2010-05-08&RoleName=MultiCloudJTestRole",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<DeleteRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>318a2eb6-4950-48c9-bcee-cfd56dce9784</RequestId>\n  </ResponseMetadata>\n</DeleteRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "318a2eb6-4950-48c9-bcee-cfd56dce9784",
+      "Date" : "Tue, 10 Mar 2026 06:16:16 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "0e4c65a4-36fa-4caa-bd10-44e5c359cd57",
+  "persistent" : true,
+  "insertionIndex" : 27
+}

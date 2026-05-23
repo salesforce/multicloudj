@@ -1,0 +1,22 @@
+{
+  "id" : "ac264358-3f63-4233-8b7c-5e5620f8382f",
+  "name" : "AwsRegistryIT_testExtract-GET-3",
+  "request" : {
+    "url" : "/v2/",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 401,
+    "body" : "Not Authorized\n",
+    "headers" : {
+      "Docker-Distribution-Api-Version" : "registry/2.0",
+      "Sizes" : "",
+      "Www-Authenticate" : "Basic realm=\"https://654654370895.dkr.ecr.us-west-2.amazonaws.com/\",service=\"ecr.amazonaws.com\"",
+      "Date" : "Fri, 20 Mar 2026 18:51:09 GMT",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "ac264358-3f63-4233-8b7c-5e5620f8382f",
+  "persistent" : true,
+  "insertionIndex" : 4
+}

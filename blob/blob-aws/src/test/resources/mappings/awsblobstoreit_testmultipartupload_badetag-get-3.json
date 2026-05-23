@@ -1,0 +1,34 @@
+{
+  "id" : "febd6de6-1ebd-4176-a657-efd8c28a5334",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_badETag-GET-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-badETag",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "Chg.34Xr7W1ZNKCrG.73ksFw6PJFzNnOU7_b3iQF4X3Lj9A6LZZz3I8FMyuJLsYgpthn3x6Gn9Ek8UYcL1RHDsZezHeR38aHV0fRJOLis66xj8pDXCk3rZCFQSbfTQZZGO4yWggGcwzKxSEWlYP1ko.f52jFmZApmJDHgBPh7PwLhPJgtQhZOZ2CFJUS1lad"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-badETag</Key><UploadId>Chg.34Xr7W1ZNKCrG.73ksFw6PJFzNnOU7_b3iQF4X3Lj9A6LZZz3I8FMyuJLsYgpthn3x6Gn9Ek8UYcL1RHDsZezHeR38aHV0fRJOLis66xj8pDXCk3rZCFQSbfTQZZGO4yWggGcwzKxSEWlYP1ko.f52jFmZApmJDHgBPh7PwLhPJgtQhZOZ2CFJUS1lad</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>4</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2026-04-09T18:23:57.000Z</LastModified><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-04-09T18:23:59.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>4</PartNumber><LastModified>2026-04-09T18:24:01.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "A646S4H2PQ9N4TW8",
+      "x-amz-id-2" : "4zuOpHsgVEB0oZb3tk8N7GR/HiV3gQIT2CYeHY75bfOSnY5M6agv++sVErbIBu3YDwTsZFEMJRs=",
+      "Date" : "Thu, 09 Apr 2026 18:24:02 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "febd6de6-1ebd-4176-a657-efd8c28a5334",
+  "persistent" : true,
+  "insertionIndex" : 677
+}

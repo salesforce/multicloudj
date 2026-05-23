@@ -5,19 +5,16 @@ import java.util.List;
 import lombok.Getter;
 
 /**
- * Base class for database backup and restore implementations.
- * This abstract class provides the contract for backup and restore operations
- * across different cloud providers.
+ * Base class for database backup and restore implementations. This abstract class provides the
+ * contract for backup and restore operations across different cloud providers.
  *
  * @since 0.2.25
  */
 public abstract class AbstractDBBackupRestore implements Provider, AutoCloseable {
 
   private final String providerId;
-  @Getter
-  protected final String region;
-  @Getter
-  protected final String resourceName;
+  @Getter protected final String region;
+  @Getter protected final String resourceName;
 
   /**
    * Constructs an AbstractDBBackupRestore instance using a Builder.
@@ -89,10 +86,8 @@ public abstract class AbstractDBBackupRestore implements Provider, AutoCloseable
    */
   public abstract static class Builder<T extends AbstractDBBackupRestore, B extends Builder<T, B>>
       implements Provider.Builder {
-    @Getter
-    protected String region;
-    @Getter
-    protected String resourceName;
+    @Getter protected String region;
+    @Getter protected String resourceName;
     protected String providerId;
 
     /**
@@ -117,9 +112,7 @@ public abstract class AbstractDBBackupRestore implements Provider, AutoCloseable
       return self();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    /** {@inheritDoc} */
     @Override
     public B providerId(String providerId) {
       this.providerId = providerId;

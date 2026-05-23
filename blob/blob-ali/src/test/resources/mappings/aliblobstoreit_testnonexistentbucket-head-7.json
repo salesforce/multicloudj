@@ -1,0 +1,27 @@
+{
+  "id" : "79be43db-a63c-47f1-919e-5cf0cceb385b",
+  "name" : "AliBlobStoreIT_testNonexistentBucket-HEAD-7",
+  "request" : {
+    "url" : "/conformance-tests/blob-for-failing/testNonexistentBucket",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "java-bucket-does-not-exist.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F18EDDB5B34323758D4",
+      "Server" : "AliyunOSS",
+      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaEJ1Y2tldDwvQ29kZT4KICA8TWVzc2FnZT5UaGUgc3BlY2lmaWVkIGJ1Y2tldCBkb2VzIG5vdCBleGlzdC48L01lc3NhZ2U+CiAgPFJlcXVlc3RJZD42QTBGN0YxOEVEREI1QjM0MzIzNzU4RDQ8L1JlcXVlc3RJZD4KICA8SG9zdElkPmphdmEtYnVja2V0LWRvZXMtbm90LWV4aXN0Lm9zcy1jbi1zaGFuZ2hhaS5hbGl5dW5jcy5jb208L0hvc3RJZD4KICA8QnVja2V0TmFtZT5qYXZhLWJ1Y2tldC1kb2VzLW5vdC1leGlzdDwvQnVja2V0TmFtZT4KICA8RUM+MDAxNS0wMDAwMDEwMTwvRUM+CiAgPFJlY29tbWVuZERvYz5odHRwczovL2FwaS5hbGl5dW4uY29tL3Ryb3VibGVzaG9vdD9xPTAwMTUtMDAwMDAxMDE8L1JlY29tbWVuZERvYz4KPC9FcnJvcj4K",
+      "x-oss-ec" : "0015-00000101",
+      "Date" : "Thu, 21 May 2026 21:54:32 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "79be43db-a63c-47f1-919e-5cf0cceb385b",
+  "persistent" : true,
+  "insertionIndex" : 204
+}

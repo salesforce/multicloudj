@@ -1,0 +1,28 @@
+{
+  "id" : "a4a7da56-ec87-415b-b518-30c4d6ab428d",
+  "name" : "AwsBlobStoreIT_testVersionedCopy-GET-16",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/versionedCopy/copied-blob-v1",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "VmVyc2lvbiAxIG9mIGJsb2ImNUzRghJvoKgCsZNyaXF6",
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"26354cd182126fa0a802b1937269717a\"",
+      "Last-Modified" : "Wed, 04 Mar 2026 20:57:21 GMT",
+      "x-amz-request-id" : "0SX8CRKN3BB45WB7",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "a2LosDp116Krt5e/F5eGSTVxfQOqchwuO0bd0U1WymWSH1R+F8GxURT0rh4X8MSFup5PGl0edxqdz1patZA4KQ6Oz7w3tV6z",
+      "x-amz-transfer-encoding" : "append-md5",
+      "x-amz-version-id" : "8ULHcHiTVb9f6qms0jKxjaVH0POqz6el",
+      "Date" : "Wed, 04 Mar 2026 20:57:22 GMT",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "a4a7da56-ec87-415b-b518-30c4d6ab428d",
+  "persistent" : true,
+  "insertionIndex" : 196
+}

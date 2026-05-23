@@ -1,0 +1,32 @@
+{
+  "id" : "cf3f213d-5f42-4ed0-802a-987cc514e35f",
+  "name" : "AwsDocstoreIT_testReplace-POST-8",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":false},\"s\":{\"S\":\"replacedString\"},\"pName\":{\"S\":\"NonExistentReplace\"},\"bytes\":{\"B\":\"cmVwbGFjZWRTdHJpbmc=\"},\"f\":{\"N\":\"34.560001373291016\"},\"i\":{\"N\":\"95\"}},\"ConditionExpression\":\"attribute_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\",\"message\":\"The conditional request failed\"}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "F292FOCM6LESE79815PG1K8J3FVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "396270901",
+      "Date" : "Wed, 22 Apr 2026 22:58:05 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "cf3f213d-5f42-4ed0-802a-987cc514e35f",
+  "persistent" : true,
+  "insertionIndex" : 276
+}

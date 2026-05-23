@@ -1,0 +1,24 @@
+{
+  "id" : "8d976856-2bd4-4661-80ea-b06d3a497e80",
+  "name" : "AwsIamIT_testRemovePolicy-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=DeleteRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<DeleteRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>0d604f03-03ec-44a8-8e13-2b24d6040029</RequestId>\n  </ResponseMetadata>\n</DeleteRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "0d604f03-03ec-44a8-8e13-2b24d6040029",
+      "Date" : "Tue, 10 Mar 2026 06:16:24 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "8d976856-2bd4-4661-80ea-b06d3a497e80",
+  "persistent" : true,
+  "insertionIndex" : 39
+}

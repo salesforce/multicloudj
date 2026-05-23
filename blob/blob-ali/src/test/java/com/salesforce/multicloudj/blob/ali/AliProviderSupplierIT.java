@@ -5,8 +5,8 @@ import com.salesforce.multicloudj.common.ali.AliConstants;
 
 public class AliProviderSupplierIT extends ProviderSupplierIT {
 
-    @Override
-    protected String getSubstrate() {
-        return AliConstants.PROVIDER_ID;
-    }
+  @Override
+  protected String getSubstrate() {
+    return AliConstants.PROVIDER_ID;
+  }
 }

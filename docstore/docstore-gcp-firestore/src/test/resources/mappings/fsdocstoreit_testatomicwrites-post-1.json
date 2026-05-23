@@ -1,0 +1,43 @@
+{
+  "id" : "f91aa55d-0bc0-47be-b9ac-7cc07eaa4a2f",
+  "name" : "FSDocstoreIT_testAtomicWrites-POST-1",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:batchGet",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"documents\":[\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites7\"]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "[{\n  \"found\": {\n    \"name\": \"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/testAtomicWrites7\",\n    \"fields\": {\n      \"b\": {\n        \"booleanValue\": false\n      },\n      \"s\": {\n        \"stringValue\": \"77\"\n      },\n      \"pName\": {\n        \"stringValue\": \"testAtomicWrites7\"\n      },\n      \"i\": {\n        \"integerValue\": \"7\"\n      },\n      \"DocstoreRevision\": {\n        \"bytesValue\": \"CIrEos0GENDR/p8B\"\n      }\n    },\n    \"createTime\": \"2026-03-04T21:20:10.335522Z\",\n    \"updateTime\": \"2026-03-04T21:20:11.551743Z\"\n  },\n  \"readTime\": \"2026-03-04T21:20:11.551743Z\"\n}\n]",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "9133212551170880217;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:20:12 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f91aa55d-0bc0-47be-b9ac-7cc07eaa4a2f",
+  "persistent" : true,
+  "insertionIndex" : 129
+}

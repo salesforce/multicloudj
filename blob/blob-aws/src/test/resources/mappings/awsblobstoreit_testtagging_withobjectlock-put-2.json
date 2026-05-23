@@ -1,0 +1,40 @@
+{
+  "id" : "ac4fd716-2577-4128-b7ea-d84280547ca9",
+  "name" : "AwsBlobStoreIT_testTagging_withObjectLock-PUT-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/blob-for-tagging-objectlock-fake",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Tagging xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
+    } ]
+  },
+  "response" : {
+    "status" : 405,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MethodNotAllowed</Code><Message>The specified method is not allowed against this resource.</Message><Method>PUT</Method><ResourceType>DeleteMarker</ResourceType><RequestId>ZWFNBDC50V7SCY39</RequestId><HostId>wKF+pc/FDDfMPKHCBdyxwEfAvn+Nc7FZmOeQcKcBp51oguPGZncY5ynLg5aghuDGMFOLbA53ui0=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "ZWFNBDC50V7SCY39",
+      "x-amz-id-2" : "wKF+pc/FDDfMPKHCBdyxwEfAvn+Nc7FZmOeQcKcBp51oguPGZncY5ynLg5aghuDGMFOLbA53ui0=",
+      "x-amz-version-id" : "usJvHYtD04RwhO5YCbrOCJRGtbxzoDvr",
+      "Date" : "Tue, 10 Mar 2026 14:31:04 GMT",
+      "Content-Type" : "application/xml",
+      "Allow" : "DELETE"
+    }
+  },
+  "uuid" : "ac4fd716-2577-4128-b7ea-d84280547ca9",
+  "persistent" : true,
+  "insertionIndex" : 583
+}

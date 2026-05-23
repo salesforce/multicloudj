@@ -1,0 +1,23 @@
+{
+  "id" : "5cc39f63-8730-4584-a84a-117b31f729e5",
+  "name" : "AwsBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-GET-4",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&prefix=conformance-tests%2Fcommon-prefix-basic%2F",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-basic/</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/common-prefix-basic/root.txt</Key><LastModified>2026-04-02T04:52:46.000Z</LastModified><ETag>&quot;098f6bcd4621d373cade4e832627b4f6&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>4</Size><StorageClass>STANDARD</StorageClass></Contents><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-basic/dir2/</Prefix></CommonPrefixes></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "BFTTWME6EDXTC7BP",
+      "x-amz-id-2" : "CLLFE1/ouALsPQgynZN0dHi9VEuhKHS8TbXeL6XCyRgKJRpSgJLu2SHPVz63/6XZXPtfM1MBtxdcGzpspqLX9xF0lPsCdykX",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:47 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5cc39f63-8730-4584-a84a-117b31f729e5",
+  "persistent" : true,
+  "insertionIndex" : 649
+}

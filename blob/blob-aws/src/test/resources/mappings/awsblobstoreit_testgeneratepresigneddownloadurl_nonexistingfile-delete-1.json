@@ -1,0 +1,20 @@
+{
+  "id" : "b73f43c8-b647-4af5-9971-66a9d20912ae",
+  "name" : "AwsBlobStoreIT_testGeneratePresignedDownloadUrl_nonExistingFile-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presignedDownloadUrls/nonExistingFile",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "037Y28WW539B82ZD",
+      "x-amz-id-2" : "xfmMu6qiTaILCaSMSPpQCTKnRdl9XkmWIcZ7ml0HlGg4PpH04U5VjjKkiR9VgLwlurwi5Fm9BGWMP5laIAwNAigP8PTqfgLX",
+      "Date" : "Wed, 04 Mar 2026 20:58:17 GMT"
+    }
+  },
+  "uuid" : "b73f43c8-b647-4af5-9971-66a9d20912ae",
+  "persistent" : true,
+  "insertionIndex" : 315
+}

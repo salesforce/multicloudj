@@ -1,0 +1,32 @@
+{
+  "id" : "4ae46026-a6d9-41ca-ba47-8d7f526842ae",
+  "name" : "AwsDocstoreIT_testGetQuery-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Query"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"IndexName\":\"global\",\"Limit\":1,\"ExclusiveStartKey\":{\"Player\":{\"S\":\"mel\"},\"Game\":{\"S\":\"Praise All Monsters\"},\"Time\":{\"S\":\"2024-04-10\"}},\"KeyConditionExpression\":\"#attrPlayer = :value0 AND #attrTime > :value1\",\"ExpressionAttributeNames\":{\"#attrTime\":\"Time\",\"#attrPlayer\":\"Player\"},\"ExpressionAttributeValues\":{\":value1\":{\"S\":\"2024-02-01\"},\":value0\":{\"S\":\"mel\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":1,\"Items\":[{\"Player\":{\"S\":\"mel\"},\"WithGlitch\":{\"BOOL\":true},\"Score\":{\"N\":\"190\"},\"Game\":{\"S\":\"Zombie DMV\"},\"Time\":{\"S\":\"2024-04-18\"}}],\"LastEvaluatedKey\":{\"Time\":{\"S\":\"2024-04-18\"},\"Game\":{\"S\":\"Zombie DMV\"},\"Player\":{\"S\":\"mel\"}},\"ScannedCount\":1}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "DVVOBEJ5Q7MJKJ2BLTA8IFAVLRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "552459120",
+      "Date" : "Wed, 04 Mar 2026 21:12:34 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4ae46026-a6d9-41ca-ba47-8d7f526842ae",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

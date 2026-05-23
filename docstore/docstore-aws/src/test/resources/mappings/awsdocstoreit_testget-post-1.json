@@ -1,0 +1,32 @@
+{
+  "id" : "ce0a20e1-4fd0-4ce6-9bab-c74de45c4c81",
+  "name" : "AwsDocstoreIT_testGet-POST-1",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"SharkMap\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"},\"DocstoreRevision\":{\"S\":\"98cf5a0c-d567-51a1-e95a-c678666fe6f5\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "N3QILLSQBBMVMLTCO11M8AEP5JVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Apr 2026 22:57:56 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "ce0a20e1-4fd0-4ce6-9bab-c74de45c4c81",
+  "persistent" : true,
+  "insertionIndex" : 223
+}

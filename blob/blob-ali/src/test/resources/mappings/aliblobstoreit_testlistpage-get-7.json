@@ -1,0 +1,57 @@
+{
+  "id" : "51138124-e65d-496d-83fe-77113acec8b9",
+  "name" : "AliBlobStoreIT_testListPage-GET-7",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "5"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "continuation-token" : {
+        "hasExactly" : [ {
+          "equalTo" : "Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4XzMQAA--"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fblob-for-list-page</Prefix>\n  <ContinuationToken>Ci1jb25mb3JtYW5jZS10ZXN0cy9ibG9iLWZvci1saXN0LXBhZ2UvcHJlZml4XzMQAA--</ContinuationToken>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Fblob-for-list-page%2Fprefix_6</Key>\n    <LastModified>2026-05-21T21:58:02.000Z</LastModified>\n    <ETag>\"D7A1AAC43614228F2D5A2EDA462AF88A\"</ETag>\n    <Type>Normal</Type>\n    <Size>29</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <KeyCount>1</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A0F7FEF1F90403134519032",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:58:07 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "51138124-e65d-496d-83fe-77113acec8b9",
+  "persistent" : true,
+  "insertionIndex" : 552
+}

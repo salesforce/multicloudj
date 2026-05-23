@@ -1,12 +1,19 @@
 package com.salesforce.multicloudj.pubsub.client;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
 import com.salesforce.multicloudj.pubsub.driver.AbstractTopic;
-import com.salesforce.multicloudj.pubsub.driver.Message;
 import com.salesforce.multicloudj.pubsub.driver.AckID;
-import com.salesforce.multicloudj.common.util.common.TestsUtil;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
-
+import com.salesforce.multicloudj.pubsub.driver.Message;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -14,500 +21,623 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractPubsubIT {
 
-    public interface Harness extends AutoCloseable {
+  private static final Logger logger = LoggerFactory.getLogger(AbstractPubsubIT.class);
 
-        AbstractTopic createTopicDriver();
+  public interface Harness extends AutoCloseable {
 
-        default AbstractSubscription createSubscriptionDriver() {
-            return createSubscriptionDriverWithIndex(0);
-        }
+    AbstractTopic createTopicDriver();
 
-        /**
-         * Create a subscription driver with an index suffix.
-         * This allows creating multiple subscriptions to the same topic.
-         */
-        default AbstractSubscription createSubscriptionDriverWithIndex(int index) {
-            // Default implementation: just create a subscription driver
-            // Providers that need index-based naming should override this method
-            return createSubscriptionDriver();
-        }
-
-        String getPubsubEndpoint();
-
-        String getProviderId();
-
-        int getPort();
-
-        List<String> getWiremockExtensions();
-    }
-
-    protected abstract Harness createHarness();
-
-    private Harness harness;
-
-    /**
-     * Initializes the WireMock server before all tests.
-     */
-    @BeforeAll
-    public void initializeWireMockServer() {
-        harness = createHarness();
-        String rootDir = "src/test/resources";
-        List<String> extensions = harness.getWiremockExtensions();
-        TestsUtil.startWireMockServer(rootDir, harness.getPort(),
-                extensions.toArray(new String[0]));
+    default AbstractSubscription createSubscriptionDriver() {
+      return createSubscriptionDriverWithIndex(0);
     }
 
     /**
-     * Shuts down the WireMock server after all tests.
+     * Create a subscription driver with an index suffix. This allows creating multiple
+     * subscriptions to the same topic.
      */
-    @AfterAll
-    public void shutdownWireMockServer() throws Exception {
-        TestsUtil.stopWireMockServer();
-        harness.close();
+    default AbstractSubscription createSubscriptionDriverWithIndex(int index) {
+      // Default implementation: just create a subscription driver
+      // Providers that need index-based naming should override this method
+      return createSubscriptionDriver();
     }
 
     /**
-     * Initialize the harness and start recording
+     * Create a subscription driver, optionally configured with a specific nack visibility timeout.
+     * Pass {@code null} to use the provider default. Used for conformance tests that validate
+     * provider behavior when nacked messages must remain invisible for a configured duration
+     * before redelivery.
+     *
+     * <p>Providers should override this method to propagate the configured timeout to their
+     * subscription builder.
      */
-    @BeforeEach
-    public void setupTestEnvironment() {
-        TestsUtil.startWireMockRecording(harness.getPubsubEndpoint());
+    default AbstractSubscription createSubscriptionDriver(Duration nackVisibilityTimeout) {
+      return createSubscriptionDriver();
     }
 
-    /**
-     * Cleans up the test environment after each test.
-     */
-    @AfterEach
-    public void cleanupTestEnvironment() {
-        TestsUtil.stopWireMockRecording();
+    String getPubsubEndpoint();
+
+    String getProviderId();
+
+    int getPort();
+
+    List<String> getWiremockExtensions();
+  }
+
+  protected abstract Harness createHarness();
+
+  private Harness harness;
+
+  /** Initializes the WireMock server before all tests. */
+  @BeforeAll
+  public void initializeWireMockServer() {
+    harness = createHarness();
+    String rootDir = "src/test/resources";
+    List<String> extensions = harness.getWiremockExtensions();
+    TestsUtil.startWireMockServer(rootDir, harness.getPort(), extensions.toArray(new String[0]));
+  }
+
+  /** Shuts down the WireMock server after all tests. */
+  @AfterAll
+  public void shutdownWireMockServer() throws Exception {
+    TestsUtil.stopWireMockServer();
+    harness.close();
+  }
+
+  /** Initialize the harness and start recording. */
+  @BeforeEach
+  public void setupTestEnvironment(TestInfo testInfo) {
+    String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
+    String testMethodName =
+        testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+    TestsUtil.startWireMockRecording(harness.getPubsubEndpoint(), testClassName, testMethodName);
+  }
+
+  /** Cleans up the test environment after each test. */
+  @AfterEach
+  public void cleanupTestEnvironment() {
+    TestsUtil.stopWireMockRecording();
+  }
+
+  @Test
+  public void testSendBatchMessages() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver()) {
+      List<Message> messages =
+          List.of(
+              Message.builder()
+                  .withBody("Message 1".getBytes())
+                  .withMetadata(Map.of("batch-id", "1"))
+                  .build(),
+              Message.builder()
+                  .withBody("Message 2".getBytes())
+                  .withMetadata(Map.of("batch-id", "2"))
+                  .build(),
+              Message.builder()
+                  .withBody("Message 3".getBytes())
+                  .withMetadata(Map.of("batch-id", "3"))
+                  .build());
+
+      for (Message message : messages) {
+        topic.send(message);
+      }
+
+      for (Message message : messages) {
+        Assertions.assertNotNull(message, "Message should not be null");
+        Assertions.assertNotNull(message.getBody(), "Message body should not be null");
+        Assertions.assertNotNull(message.getMetadata(), "Message metadata should not be null");
+      }
     }
+  }
 
-    @Test
-    public void testSendBatchMessages() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver()) {
-            List<Message> messages = List.of(
-                    Message.builder().withBody("Message 1".getBytes()).withMetadata(Map.of("batch-id", "1")).build(),
-                    Message.builder().withBody("Message 2".getBytes()).withMetadata(Map.of("batch-id", "2")).build(),
-                    Message.builder().withBody("Message 3".getBytes()).withMetadata(Map.of("batch-id", "3")).build()
-            );
+  @Test
+  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+  public void testReceiveAfterSend() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
+      Message toSend =
+          Message.builder()
+              .withBody("it-receive-test".getBytes())
+              .withMetadata(Map.of("case", "receive"))
+              .build();
+      topic.send(toSend);
 
-            for (Message message : messages) {
-                topic.send(message);
-            }
-
-            for (Message message : messages) {
-                Assertions.assertNotNull(message, "Message should not be null");
-                Assertions.assertNotNull(message.getBody(), "Message body should not be null");
-                Assertions.assertNotNull(message.getMetadata(), "Message metadata should not be null");
-            }
-
+      Message received = null;
+      for (int i = 0; i < 50; i++) {
+        received = subscription.receive();
+        if (received != null) {
+          break;
         }
+        TimeUnit.MILLISECONDS.sleep(200);
+      }
+
+      Assertions.assertNotNull(received, "Should receive a message within timeout");
+      Assertions.assertNotNull(received.getBody(), "Received message body should not be null");
+      Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
     }
+  }
 
-    @Test
-    @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
-    public void testReceiveAfterSend() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+  public void testAckAfterReceive() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-            Message toSend = Message.builder()
-                    .withBody("it-receive-test".getBytes())
-                    .withMetadata(Map.of("case", "receive"))
-                    .build();
-            topic.send(toSend);
+      Message toSend =
+          Message.builder()
+              .withBody("it-ack-test".getBytes())
+              .withMetadata(Map.of("case", "ack"))
+              .build();
+      topic.send(toSend);
 
-            Message received = null;
-            for (int i = 0; i < 50; i++) {
-                received = subscription.receive();
-                if (received != null) {
-                    break;
-                }
-                TimeUnit.MILLISECONDS.sleep(200);
-            }
-
-            Assertions.assertNotNull(received, "Should receive a message within timeout");
-            Assertions.assertNotNull(received.getBody(), "Received message body should not be null");
-            Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+      Message received = null;
+      for (int i = 0; i < 50; i++) {
+        received = subscription.receive();
+        if (received != null) {
+          break;
         }
+        TimeUnit.MILLISECONDS.sleep(200);
+      }
+
+      Assertions.assertNotNull(received, "Should receive a message to ack");
+      Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+
+      subscription.sendAck(received.getAckID());
     }
+  }
 
-    @Test
-    @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
-    public void testAckAfterReceive() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
+  public void testNackAfterReceive() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-            Message toSend = Message.builder()
-                    .withBody("it-ack-test".getBytes())
-                    .withMetadata(Map.of("case", "ack"))
-                    .build();
-            topic.send(toSend);
+      Message toSend =
+          Message.builder()
+              .withBody("it-nack-test".getBytes())
+              .withMetadata(Map.of("case", "nack"))
+              .build();
+      topic.send(toSend);
 
-            Message received = null;
-            for (int i = 0; i < 50; i++) {
-                received = subscription.receive();
-                if (received != null) break;
-                TimeUnit.MILLISECONDS.sleep(200);
-            }
-
-            Assertions.assertNotNull(received, "Should receive a message to ack");
-            Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
-
-            subscription.sendAck(received.getAckID());
+      Message received = null;
+      for (int i = 0; i < 50; i++) {
+        received = subscription.receive();
+        if (received != null) {
+          break;
         }
+        TimeUnit.MILLISECONDS.sleep(200);
+      }
+
+      Assertions.assertNotNull(received, "Should receive a message to nack");
+      Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+
+      subscription.sendNack(received.getAckID());
     }
+  }
 
-    @Test
-    @Timeout(30) // Integration test that calls receive() - fail fast if recordings are missing
-    public void testNackAfterReceive() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  public void testBatchAck() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-            Message toSend = Message.builder()
-                    .withBody("it-nack-test".getBytes())
-                    .withMetadata(Map.of("case", "nack"))
-                    .build();
-            topic.send(toSend);
+      List<Message> toSend =
+          List.of(
+              Message.builder()
+                  .withBody("batch-ack-1".getBytes())
+                  .withMetadata(Map.of("batch", "ack"))
+                  .build(),
+              Message.builder()
+                  .withBody("batch-ack-2".getBytes())
+                  .withMetadata(Map.of("batch", "ack"))
+                  .build(),
+              Message.builder()
+                  .withBody("batch-ack-3".getBytes())
+                  .withMetadata(Map.of("batch", "ack"))
+                  .build());
+      for (Message m : toSend) {
+        topic.send(m);
+      }
 
-            Message received = null;
-            for (int i = 0; i < 50; i++) {
-                received = subscription.receive();
-                if (received != null) break;
-                TimeUnit.MILLISECONDS.sleep(200);
-            }
+      TimeUnit.MILLISECONDS.sleep(500);
 
-            Assertions.assertNotNull(received, "Should receive a message to nack");
-            Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+      List<AckID> ackIDs = new java.util.ArrayList<>();
+      boolean isRecording = System.getProperty("record") != null;
+      long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
-            subscription.sendNack(received.getAckID());
+      while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
+        try {
+          Message r = subscription.receive();
+          if (r != null && r.getAckID() != null) {
+            ackIDs.add(r.getAckID());
+          } else {
+            TimeUnit.MILLISECONDS.sleep(100);
+          }
+        } catch (Exception e) {
+          TimeUnit.MILLISECONDS.sleep(100);
         }
+      }
+
+      Assertions.assertEquals(
+          toSend.size(),
+          ackIDs.size(),
+          "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
+      subscription.sendAcks(ackIDs).join();
     }
+  }
+  
+  @Disabled
+  @Test
+  @Timeout(120) // Integration test with batch operations - allow time for message delivery
+  public void testBatchNack() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-    @Test
-    public void testBatchAck() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+      List<Message> toSend =
+          List.of(
+              Message.builder()
+                  .withBody("batch-nack-1".getBytes())
+                  .withMetadata(Map.of("batch", "nack"))
+                  .build(),
+              Message.builder()
+                  .withBody("batch-nack-2".getBytes())
+                  .withMetadata(Map.of("batch", "nack"))
+                  .build(),
+              Message.builder()
+                  .withBody("batch-nack-3".getBytes())
+                  .withMetadata(Map.of("batch", "nack"))
+                  .build());
+      for (Message m : toSend) {
+        topic.send(m);
+      }
 
-            List<Message> toSend = List.of(
-                    Message.builder().withBody("batch-ack-1".getBytes()).withMetadata(Map.of("batch", "ack")).build(),
-                    Message.builder().withBody("batch-ack-2".getBytes()).withMetadata(Map.of("batch", "ack")).build(),
-                    Message.builder().withBody("batch-ack-3".getBytes()).withMetadata(Map.of("batch", "ack")).build()
-            );
-            for (Message m : toSend) topic.send(m);
+      TimeUnit.MILLISECONDS.sleep(500);
 
-            TimeUnit.MILLISECONDS.sleep(500);
+      List<Message> received = receiveMessages(subscription, toSend.size(), "subscription");
+      List<AckID> ackIDs = received.stream()
+          .map(Message::getAckID)
+          .collect(Collectors.toList());
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = subscription.receive();
-                    if (r != null && r.getAckID() != null) {
-                        ackIDs.add(r.getAckID());
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
-
-            Assertions.assertEquals(toSend.size(), ackIDs.size(),
-                    "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
-            subscription.sendAcks(ackIDs).join();
-        }
+      Assertions.assertEquals(
+          toSend.size(),
+          ackIDs.size(),
+          "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
+      subscription.sendNacks(ackIDs).join();
     }
+  }
 
-    @Disabled
-    @Test
-    @Timeout(120) // Integration test with batch operations - allow time for message delivery
-    public void testBatchNack() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  public void testNackWithVisibilityTimeout() throws Exception {
+    Duration nackVisibilityTimeout = Duration.ofSeconds(5);
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription =
+            harness.createSubscriptionDriver(nackVisibilityTimeout)) {
 
-            List<Message> toSend = List.of(
-                    Message.builder().withBody("batch-nack-1".getBytes()).withMetadata(Map.of("batch", "nack")).build(),
-                    Message.builder().withBody("batch-nack-2".getBytes()).withMetadata(Map.of("batch", "nack")).build(),
-                    Message.builder().withBody("batch-nack-3".getBytes()).withMetadata(Map.of("batch", "nack")).build()
-            );
-            for (Message m : toSend) topic.send(m);
+      Assertions.assertEquals(
+          nackVisibilityTimeout,
+          subscription.getNackVisibilityTimeout(),
+          "Subscription should expose the configured nack visibility timeout");
 
-            TimeUnit.MILLISECONDS.sleep(500);
+      Message toSend =
+          Message.builder()
+              .withBody("it-nack-visibility-timeout".getBytes())
+              .withMetadata(Map.of("case", "nack-visibility-timeout"))
+              .build();
+      topic.send(toSend);
 
-            List<AckID> ackIDs = new java.util.ArrayList<>();
-            boolean isRecording = System.getProperty("record") != null;
-            long timeoutSeconds = isRecording ? 120 : 60; // Increased timeout for integration tests
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
-
-            while (ackIDs.size() < toSend.size() && System.nanoTime() < deadline) {
-                try {
-                    Message r = subscription.receive();
-                    if (r != null && r.getAckID() != null) {
-                        ackIDs.add(r.getAckID());
-                    } else {
-                        TimeUnit.MILLISECONDS.sleep(100);
-                    }
-                } catch (Exception e) {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            }
-
-            Assertions.assertEquals(toSend.size(), ackIDs.size(),
-                    "Should collect all AckIDs. Expected: " + toSend.size() + ", Got: " + ackIDs.size());
-            subscription.sendNacks(ackIDs).join();
+      Message received = null;
+      for (int i = 0; i < 50; i++) {
+        received = subscription.receive();
+        if (received != null) {
+          break;
         }
+        TimeUnit.MILLISECONDS.sleep(200);
+      }
+
+      Assertions.assertNotNull(received, "Should receive a message to nack");
+      Assertions.assertNotNull(received.getAckID(), "AckID must not be null");
+
+      subscription.sendNacks(List.of(received.getAckID())).join();
     }
+  }
 
-    @Test
-    public void testAckNullThrows() throws Exception {
-        try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
-            Assertions.assertThrows(InvalidArgumentException.class, () -> subscription.sendAck(null));
-        }
+  @Test
+  public void testAckNullThrows() throws Exception {
+    try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+      Assertions.assertThrows(InvalidArgumentException.class, () -> subscription.sendAck(null));
     }
+  }
 
-    @Test
-    @Disabled
-    public void testDoubleAck() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  @Disabled
+  public void testDoubleAck() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-            List<Message> messages = List.of(
-                    Message.builder().withBody("0".getBytes()).build(),
-                    Message.builder().withBody("1".getBytes()).build(),
-                    Message.builder().withBody("2".getBytes()).build()
-            );
+      List<Message> messages =
+          List.of(
+              Message.builder().withBody("0".getBytes()).build(),
+              Message.builder().withBody("1".getBytes()).build(),
+              Message.builder().withBody("2".getBytes()).build());
 
-            for (Message message : messages) {
-                topic.send(message);
-            }
+      for (Message message : messages) {
+        topic.send(message);
+      }
 
-            // Receive all messages
-            List<Message> receivedMessages = new ArrayList<>();
-            for (int i = 0; i < messages.size(); i++) {
-                Message received = subscription.receive();
-                Assertions.assertNotNull(received, "Should receive message " + (i + 1));
-                Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
-                receivedMessages.add(received);
-            }
+      // Receive all messages
+      List<Message> receivedMessages = new ArrayList<>();
+      for (int i = 0; i < messages.size(); i++) {
+        Message received = subscription.receive();
+        Assertions.assertNotNull(received, "Should receive message " + (i + 1));
+        Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+        receivedMessages.add(received);
+      }
 
-            Assertions.assertEquals(messages.size(), receivedMessages.size(),
-                    "Should receive all " + messages.size() + " messages");
+      Assertions.assertEquals(
+          messages.size(),
+          receivedMessages.size(),
+          "Should receive all " + messages.size() + " messages");
 
-            // Ack the first two messages
-            List<AckID> firstTwoAcks = List.of(
-                    receivedMessages.get(0).getAckID(),
-                    receivedMessages.get(1).getAckID()
-            );
-            subscription.sendAcks(firstTwoAcks).join();
+      // Ack the first two messages
+      List<AckID> firstTwoAcks =
+          List.of(receivedMessages.get(0).getAckID(), receivedMessages.get(1).getAckID());
+      subscription.sendAcks(firstTwoAcks).join();
 
-            // Ack them again, this should succeed even though we've acked them before
-            subscription.sendAcks(firstTwoAcks).join();
+      // Ack them again, this should succeed even though we've acked them before
+      subscription.sendAcks(firstTwoAcks).join();
 
-            // Test double ack on individual messages 
-            subscription.sendAck(receivedMessages.get(0).getAckID());
-            subscription.sendAck(receivedMessages.get(0).getAckID());
-        }
+      // Test double ack on individual messages
+      subscription.sendAck(receivedMessages.get(0).getAckID());
+      subscription.sendAck(receivedMessages.get(0).getAckID());
     }
+  }
 
-    @Test
-    public void testGetAttributes() throws Exception {
-        try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
-            GetAttributeResult attributes = subscription.getAttributes();
+  @Test
+  public void testGetAttributes() throws Exception {
+    try (AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+      GetAttributeResult attributes = subscription.getAttributes();
 
-            // Verify that attributes are returned
-            Assertions.assertNotNull(attributes, "Attributes should not be null");
+      // Verify that attributes are returned
+      Assertions.assertNotNull(attributes, "Attributes should not be null");
 
-            // Verify essential attributes that should be present across all providers
-            Assertions.assertNotNull(attributes.getName(), "Name should not be null");
-            Assertions.assertFalse(attributes.getName().isEmpty(), "Name should not be empty");
+      // Verify essential attributes that should be present across all providers
+      Assertions.assertNotNull(attributes.getName(), "Name should not be null");
+      Assertions.assertFalse(attributes.getName().isEmpty(), "Name should not be empty");
 
-            Assertions.assertNotNull(attributes.getTopic(), "Topic should not be null");
-            Assertions.assertFalse(attributes.getTopic().isEmpty(), "Topic should not be empty");
+      Assertions.assertNotNull(attributes.getTopic(), "Topic should not be null");
+      Assertions.assertFalse(attributes.getTopic().isEmpty(), "Topic should not be empty");
 
-            // Verify that we have the essential attributes
-            Assertions.assertNotNull(attributes.getName(), "Should have name attribute");
-            Assertions.assertNotNull(attributes.getTopic(), "Should have topic attribute");
-        }
+      // Verify that we have the essential attributes
+      Assertions.assertNotNull(attributes.getName(), "Should have name attribute");
+      Assertions.assertNotNull(attributes.getTopic(), "Should have topic attribute");
     }
+  }
 
-    @Test
-    @Disabled
-    public void testMultipleSendReceiveWithoutBatch() throws Exception {
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription subscription = harness.createSubscriptionDriver()) {
+  @Test
+  @Disabled
+  public void testMultipleSendReceiveWithoutBatch() throws Exception {
+    try (AbstractTopic topic = harness.createTopicDriver();
+        AbstractSubscription subscription = harness.createSubscriptionDriver()) {
 
-            int numMessages = 5;
-            List<Message> sentMessages = new ArrayList<>();
-            
-            // Send messages one by one (not in batch)
-            for (int i = 0; i < numMessages; i++) {
-                Message message = Message.builder()
-                        .withBody(("non-batch-msg-" + i).getBytes())
-                        .withMetadata(Map.of("index", String.valueOf(i)))
-                        .build();
-                topic.send(message);
-                sentMessages.add(message);
-            }
+      int numMessages = 5;
+      List<Message> sentMessages = new ArrayList<>();
 
-            // Receive and ack messages one by one (not in batch)
-            List<Message> receivedMessages = new ArrayList<>();
-            for (int i = 0; i < numMessages; i++) {
-                Message received = subscription.receive();
-                Assertions.assertNotNull(received, "Should receive message " + (i + 1));
-                Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
-                receivedMessages.add(received);
-                // Ack immediately after receiving (not in batch)
-                subscription.sendAck(received.getAckID());
-            }
+      // Send messages one by one (not in batch)
+      for (int i = 0; i < numMessages; i++) {
+        Message message =
+            Message.builder()
+                .withBody(("non-batch-msg-" + i).getBytes())
+                .withMetadata(Map.of("index", String.valueOf(i)))
+                .build();
+        topic.send(message);
+        sentMessages.add(message);
+      }
 
-            Assertions.assertEquals(numMessages, receivedMessages.size(),
-                    "Should receive all " + numMessages + " messages");
+      // Receive and ack messages one by one (not in batch)
+      List<Message> receivedMessages = new ArrayList<>();
+      for (int i = 0; i < numMessages; i++) {
+        Message received = subscription.receive();
+        Assertions.assertNotNull(received, "Should receive message " + (i + 1));
+        Assertions.assertNotNull(received.getAckID(), "Received message should have AckID");
+        receivedMessages.add(received);
+        // Ack immediately after receiving (not in batch)
+        subscription.sendAck(received.getAckID());
+      }
 
-            // Verify all messages were received
-            for (int i = 0; i < receivedMessages.size(); i++) {
-                Message received = receivedMessages.get(i);
-                Assertions.assertNotNull(received, "Received message " + i + " should not be null");
-                Assertions.assertNotNull(received.getBody(), "Received message " + i + " body should not be null");
-                Assertions.assertNotNull(received.getAckID(), "Received message " + i + " should have AckID");
-            }
-        }
+      Assertions.assertEquals(
+          numMessages, receivedMessages.size(), "Should receive all " + numMessages + " messages");
+
+      // Verify all messages were received
+      for (int i = 0; i < receivedMessages.size(); i++) {
+        Message received = receivedMessages.get(i);
+        Assertions.assertNotNull(received, "Received message " + i + " should not be null");
+        Assertions.assertNotNull(
+            received.getBody(), "Received message " + i + " body should not be null");
+        Assertions.assertNotNull(
+            received.getAckID(), "Received message " + i + " should have AckID");
+      }
     }
+  }
 
-    /**
-     * Receive from two subscriptions to the same topic.
-     * Verify both get all the messages.
-     */
-    @Test
-    @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
-    @Disabled
-    public void testSendReceiveTwo() throws Exception {
-        // Create two subscriptions to the same topic
-        AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
-        AbstractSubscription subscription2 = harness.createSubscriptionDriverWithIndex(2);
+  /** Receive from two subscriptions to the same topic. Verify both get all the messages. */
+  @Test
+  @Disabled
+  @Timeout(120) // Integration test with multiple subscriptions - allow time for message delivery
+  public void testSendReceiveTwo() throws Exception {
+    // Create two subscriptions to the same topic
+    AbstractSubscription subscription1 = harness.createSubscriptionDriverWithIndex(1);
+    AbstractSubscription subscription2 = harness.createSubscriptionDriverWithIndex(2);
 
-        try (AbstractTopic topic = harness.createTopicDriver();
-             AbstractSubscription sub1 = subscription1;
-             AbstractSubscription sub2 = subscription2) {
+    // Send 3 messages to the topic
+    List<Message> messagesToSend =
+        List.of(
+            Message.builder()
+                .withBody("fanout-msg1".getBytes())
+                .withMetadata(Map.of("id", "1"))
+                .build(),
+            Message.builder()
+                .withBody("fanout-msg2".getBytes())
+                .withMetadata(Map.of("id", "2"))
+                .build(),
+            Message.builder()
+                .withBody("fanout-msg3".getBytes())
+                .withMetadata(Map.of("id", "3"))
+                .build());
 
-            // Send 3 messages to the topic
-            List<Message> messagesToSend = List.of(
-                    Message.builder().withBody("fanout-msg1".getBytes()).withMetadata(Map.of("id", "1")).build(),
-                    Message.builder().withBody("fanout-msg2".getBytes()).withMetadata(Map.of("id", "2")).build(),
-                    Message.builder().withBody("fanout-msg3".getBytes()).withMetadata(Map.of("id", "3")).build()
-            );
+    try (AbstractTopic topic = harness.createTopicDriver()) {
+      for (int i = 0; i < messagesToSend.size(); i++) {
+        Message message = messagesToSend.get(i);
+        logger.info("[send] Sending message {}/{}: body={}, metadata={}",
+            i + 1, messagesToSend.size(), new String(message.getBody()), message.getMetadata());
+        topic.send(message);
+        logger.info("[send] Message {} sent successfully", i + 1);
+      }
+    } 
 
-            for (Message message : messagesToSend) {
-                topic.send(message);
-            }
+    logger.info("[wait] Sleeping 500ms for message delivery...");
+    TimeUnit.MILLISECONDS.sleep(500);
+    logger.info("[wait] Sleep done, starting receive phase");
 
-            TimeUnit.MILLISECONDS.sleep(500);
+    try (AbstractSubscription sub1 = subscription1;
+        AbstractSubscription sub2 = subscription2) {
+      // Receive messages from both subscriptions
+      List<Message> received1 = receiveMessages(sub1, messagesToSend.size(), "sub1");
+      List<Message> received2 = receiveMessages(sub2, messagesToSend.size(), "sub2");
 
-            // Receive messages from both subscriptions
-            List<Message> received1 = receiveMessages(sub1, messagesToSend.size());
-            List<Message> received2 = receiveMessages(sub2, messagesToSend.size());
+      // Verify both subscriptions received all messages
+      logger.info("[verify] sub1 received {} messages, sub2 received {} messages",
+          received1.size(), received2.size());
+      Assertions.assertEquals(
+          messagesToSend.size(),
+          received1.size(),
+          "Subscription 1 should receive all "
+              + messagesToSend.size()
+              + " messages. Got: "
+              + received1.size());
+      Assertions.assertEquals(
+          messagesToSend.size(),
+          received2.size(),
+          "Subscription 2 should receive all "
+              + messagesToSend.size()
+              + " messages. Got: "
+              + received2.size());
 
-            // Verify both subscriptions received all messages
-            Assertions.assertEquals(messagesToSend.size(), received1.size(),
-                    "Subscription 1 should receive all " + messagesToSend.size() + " messages. Got: " + received1.size());
-            Assertions.assertEquals(messagesToSend.size(), received2.size(),
-                    "Subscription 2 should receive all " + messagesToSend.size() + " messages. Got: " + received2.size());
+      // Verify messages match for both subscriptions
+      logger.info("[verify] Verifying sub1 messages...");
+      verifyMessages(received1, messagesToSend, "Subscription 1");
+      logger.info("[verify] sub1 messages OK");
+      logger.info("[verify] Verifying sub2 messages...");
+      verifyMessages(received2, messagesToSend, "Subscription 2");
+      logger.info("[verify] sub2 messages OK");
 
-            // Verify messages match for both subscriptions
-            verifyMessages(received1, messagesToSend, "Subscription 1");
-            verifyMessages(received2, messagesToSend, "Subscription 2");
-
-            // Ack all messages from both subscriptions
-            ackMessages(sub1, received1);
-            ackMessages(sub2, received2);
-        }
+      // Ack all messages from both subscriptions
+      logger.info("[ack] Acking sub1 messages...");
+      ackMessages(sub1, received1);
+      logger.info("[ack] sub1 ack done");
+      logger.info("[ack] Acking sub2 messages...");
+      ackMessages(sub2, received2);
+      logger.info("[ack] sub2 ack done");
     }
+  }
 
-    /**
-     * Helper function: Receives messages from a subscription until the expected count is reached.
-     */
-    private List<Message> receiveMessages(AbstractSubscription subscription, int expectedCount) throws InterruptedException {
-        boolean isRecording = System.getProperty("record") != null;
-        long timeoutSeconds = isRecording ? 120 : 60;
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+  /** Helper function: Receives messages from a subscription until the expected count is reached. */
+  private List<Message> receiveMessages(
+      AbstractSubscription subscription, int expectedCount, String subscriptionId)
+      throws InterruptedException {
+    long timeoutSeconds = 60;
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
 
-        List<Message> received = new ArrayList<>();
-        while (received.size() < expectedCount && System.nanoTime() < deadline) {
-            try {
-                Message r = subscription.receive();
-                if (r != null && r.getAckID() != null) {
-                    received.add(r);
-                } else {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                }
-            } catch (Exception e) {
-                TimeUnit.MILLISECONDS.sleep(100);
-            }
-        }
-        return received;
+    logger.info("[{}] Starting to receive {} messages (timeout={}s)",
+        subscriptionId, expectedCount, timeoutSeconds);
+
+    List<Message> received = new ArrayList<>();
+    try {
+      while (received.size() < expectedCount && System.nanoTime() < deadline) {
+        long remainingSec = TimeUnit.NANOSECONDS.toSeconds(deadline - System.nanoTime());
+        logger.info("[{}] Calling receive() - got {}/{} so far, {}s remaining",
+            subscriptionId, received.size(), expectedCount, remainingSec);
+        Message r = subscription.receive();
+        logger.info("[{}] receive() returned message: body={}, ackID={}",
+            subscriptionId,
+            r != null ? new String(r.getBody()) : "null",
+            r != null ? r.getAckID() : "null");
+        received.add(r);
+      }
+    } catch (Exception e) {
+      String errorMsg = String.format(
+          "[%s] Failed to receive messages: Got exception after receiving %d/%d messages."
+              + " Exception: %s - %s",
+          subscriptionId, received.size(), expectedCount,
+          e.getClass().getSimpleName(), e.getMessage());
+      logger.error(errorMsg, e);
+      Assertions.fail(errorMsg, e);
     }
-
-    /**
-     * Helper function: Verifies that received messages match the expected messages.
-     */
-    private void verifyMessages(List<Message> received, List<Message> expected, String subscriptionName) {
-        if (received.size() != expected.size()) {
-            Assertions.fail(String.format("%s: got %d messages, expected %d", 
-                    subscriptionName, received.size(), expected.size()));
-        }
-        Map<String, Message> gotByBody = new HashMap<>();
-        for (Message msg : received) {
-            gotByBody.put(new String(msg.getBody()), msg);
-        }
-        for (Message exp : expected) {
-            String body = new String(exp.getBody());
-            Message got = gotByBody.get(body);
-            if (got == null) {
-                Assertions.fail(subscriptionName + ": missing message: " + body);
-            }
-            if (!Arrays.equals(exp.getBody(), got.getBody())) {
-                Assertions.fail(subscriptionName + ": body mismatch for " + body);
-            }
-            if (exp.getMetadata() != null) {
-                for (Map.Entry<String, String> entry : exp.getMetadata().entrySet()) {
-                    String expValue = entry.getValue();
-                    String gotValue = got.getMetadata() != null ? got.getMetadata().get(entry.getKey()) : null;
-                    if (!expValue.equals(gotValue)) {
-                        Assertions.fail(String.format("%s: metadata[%s] mismatch for %s: expected %s, got %s",
-                                subscriptionName, entry.getKey(), body, expValue, gotValue));
-                    }
-                }
-            }
-        }
+    if (received.size() < expectedCount) {
+      String errorMsg = String.format(
+          "[%s] Timeout waiting for messages: Received %d/%d messages.",
+          subscriptionId, received.size(), expectedCount);
+      logger.error(errorMsg);
+      Assertions.fail(errorMsg);
     }
+    logger.info("[{}] Successfully received all {} messages",
+        subscriptionId, received.size());
+    return received;
+  }
 
-
-    /**
-     * Helper function: Acknowledges all messages in the given list.
-     */
-    private void ackMessages(AbstractSubscription subscription, List<Message> messages) {
-        if (!messages.isEmpty()) {
-            List<AckID> ackIDs = new ArrayList<>();
-            for (Message msg : messages) {
-                ackIDs.add(msg.getAckID());
-            }
-            subscription.sendAcks(ackIDs).join();
-        }
+  /** Helper function: Verifies that received messages match the expected messages. */
+  private void verifyMessages(
+      List<Message> received, List<Message> expected, String subscriptionName) {
+    if (received.size() != expected.size()) {
+      Assertions.fail(
+          String.format(
+              "%s: got %d messages, expected %d",
+              subscriptionName, received.size(), expected.size()));
     }
+    Map<String, Message> gotByBody = new HashMap<>();
+    for (Message msg : received) {
+      gotByBody.put(new String(msg.getBody()), msg);
+    }
+    for (Message exp : expected) {
+      String body = new String(exp.getBody());
+      Message got = gotByBody.get(body);
+      if (got == null) {
+        Assertions.fail(subscriptionName + ": missing message: " + body);
+      }
+      if (!Arrays.equals(exp.getBody(), got.getBody())) {
+        Assertions.fail(subscriptionName + ": body mismatch for " + body);
+      }
+      if (exp.getMetadata() != null) {
+        for (Map.Entry<String, String> entry : exp.getMetadata().entrySet()) {
+          String expValue = entry.getValue();
+          String gotValue =
+              got.getMetadata() != null ? got.getMetadata().get(entry.getKey()) : null;
+          if (!expValue.equals(gotValue)) {
+            Assertions.fail(
+                String.format(
+                    "%s: metadata[%s] mismatch for %s: expected %s, got %s",
+                    subscriptionName, entry.getKey(), body, expValue, gotValue));
+          }
+        }
+      }
+    }
+  }
+
+  /** Helper function: Acknowledges all messages in the given list. */
+  private void ackMessages(AbstractSubscription subscription, List<Message> messages) {
+    if (!messages.isEmpty()) {
+      List<AckID> ackIDs = new ArrayList<>();
+      for (Message msg : messages) {
+        ackIDs.add(msg.getAckID());
+      }
+      subscription.sendAcks(ackIDs).join();
+    }
+  }
 }

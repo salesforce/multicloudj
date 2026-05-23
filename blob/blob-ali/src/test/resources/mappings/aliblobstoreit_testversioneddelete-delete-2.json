@@ -1,0 +1,38 @@
+{
+  "id" : "d5e63311-2702-4918-82f5-396e4157db35",
+  "name" : "AliBlobStoreIT_testVersionedDelete-DELETE-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/delete/happyPath",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQigEYgYDAvIaSsvIZIiA1YWE4MjQ4MTk3M2I0NjgwYWM0MzMyNTVkY2RiNjU5Mg--"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-version-id" : "CAEQigEYgYDAvIaSsvIZIiA1YWE4MjQ4MTk3M2I0NjgwYWM0MzMyNTVkY2RiNjU5Mg--",
+      "x-oss-request-id" : "6A0F7F4176CDA4393023625D",
+      "x-oss-server-time" : "52",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:55:13 GMT"
+    }
+  },
+  "uuid" : "d5e63311-2702-4918-82f5-396e4157db35",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-conformance-tests-delete-happyPath",
+  "requiredScenarioState" : "scenario-2-conformance-tests-delete-happyPath-2",
+  "insertionIndex" : 276
+}

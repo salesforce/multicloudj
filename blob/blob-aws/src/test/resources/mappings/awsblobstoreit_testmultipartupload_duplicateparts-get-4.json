@@ -1,0 +1,34 @@
+{
+  "id" : "aef035c4-02e8-45ba-8565-e6ae9e597330",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_duplicateParts-GET-4",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "8V5N1Yn56voqlSybfIhR2IShonbXEeMvsFZ7bPV.4TKETz2ZtGU9DZXNoqaqiaWd0YqmMlVlO70bL0A.yUvCe9exlxeA.ZwIJbjaHhjQfqHR.uL2fBAIYmgAbi2ys11f_38e9zosOL5.6P_y3gMS8jlV0CLNHxrHMSPrBkMeO44SNbXdXvtD2ld2GHG9dgmq"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-duplicateParts</Key><UploadId>8V5N1Yn56voqlSybfIhR2IShonbXEeMvsFZ7bPV.4TKETz2ZtGU9DZXNoqaqiaWd0YqmMlVlO70bL0A.yUvCe9exlxeA.ZwIJbjaHhjQfqHR.uL2fBAIYmgAbi2ys11f_38e9zosOL5.6P_y3gMS8jlV0CLNHxrHMSPrBkMeO44SNbXdXvtD2ld2GHG9dgmq</UploadId><Initiator><ID>arn:aws:sts::654654370895:assumed-role/PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</ID><DisplayName>PCSKAdministratorAccessRole/PCSK-rose.yang@02adc20a-81c9-42d9-a905-4ed2386a6621</DisplayName></Initiator><Owner><ID>b6eaab2af32ba61bce00b8c9aceaa1c649844388ec2c3827bbd3e2b06f798cf1</ID></Owner><StorageClass>STANDARD</StorageClass><PartNumberMarker>0</PartNumberMarker><NextPartNumberMarker>3</NextPartNumberMarker><MaxParts>1000</MaxParts><IsTruncated>false</IsTruncated><Part><PartNumber>2</PartNumber><LastModified>2026-04-09T18:24:45.000Z</LastModified><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><Size>5242880</Size></Part><Part><PartNumber>3</PartNumber><LastModified>2026-04-09T18:24:44.000Z</LastModified><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><Size>5242880</Size></Part></ListPartsResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "YK2CFP01NWBSZMYQ",
+      "x-amz-id-2" : "bXQKeUOs2LvsIrIvT3oQW7GKmmRn0yfGUhqo4yzCmgLI//JyelokiADxn07NJVd/shDnI8hQt0s=",
+      "Date" : "Thu, 09 Apr 2026 18:24:47 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "aef035c4-02e8-45ba-8565-e6ae9e597330",
+  "persistent" : true,
+  "insertionIndex" : 742
+}

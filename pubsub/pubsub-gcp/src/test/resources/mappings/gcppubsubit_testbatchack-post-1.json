@@ -1,0 +1,33 @@
+{
+  "id" : "37285854-ffb2-41f9-9ed4-7b7d5300fa3c",
+  "name" : "GcpPubsubIT_testBatchAck-POST-1",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testBatchAck:acknowledge?$alt=json;enum-encoding%3Dint",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matchesJsonPath" : "$.ackIds"
+    }, {
+      "matchesJsonPath" : "$.ackIds[*]"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 12 Mar 2026 00:48:06 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "37285854-ffb2-41f9-9ed4-7b7d5300fa3c",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchAck:acknowledge",
+  "requiredScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchAck:acknowledge-2",
+  "newScenarioState" : "scenario-1-v1-projects-substrate-sdk-gcp-poc1-subscriptions-sub-testBatchAck:acknowledge-3",
+  "insertionIndex" : 4
+}

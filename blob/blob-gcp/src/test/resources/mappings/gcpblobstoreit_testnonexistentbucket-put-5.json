@@ -1,0 +1,44 @@
+{
+  "id" : "953b104f-df7f-4dbd-976f-477124adf870",
+  "name" : "GcpBlobStoreIT_testNonexistentBucket-PUT-5",
+  "request" : {
+    "urlPath" : "/java-bucket-does-not-exist/conformance-tests%2Fblob-for-failing%2FtestNonexistentBucketmultipart2",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "multipart2"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "This is test data",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWzQxbnhnVvA6-iaUhjdmKC1ujmWPcnPQuTZKDTRLx3rl6WJyy_oLtAuI9PyaqzOYbZj4u1hVKI",
+      "Vary" : "Origin",
+      "Date" : "Wed, 04 Mar 2026 21:05:18 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "953b104f-df7f-4dbd-976f-477124adf870",
+  "persistent" : true,
+  "insertionIndex" : 360
+}

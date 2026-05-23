@@ -1,21 +1,33 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.util.Map;
-
-/**
- * Wrapper object for directory upload data
- */
+/** Wrapper object for directory upload data */
 @Builder
 @Getter
 public class DirectoryUploadRequest {
-    private final String localSourceDirectory;
-    private final String prefix;
-    private final boolean includeSubFolders;
-    /**
-     * (Optional parameter) The map of tagName to tagValue to be associated with all blobs in the directory
-     */
-    private final Map<String, String> tags;
+  private final String localSourceDirectory;
+  private final String prefix;
+  private final boolean includeSubFolders;
+
+  /**
+   * When true, symbolic links encountered during directory traversal will be followed, uploading
+   * the files they point to. Defaults to false.
+   */
+  private final boolean followSymbolicLinks;
+  private final boolean transferStatusLoggingEnabled;
+
+  /**
+   * (Optional parameter) The map of tagName to tagValue to be associated with all blobs in the
+   * directory
+   */
+  private final Map<String, String> tags;
+
+  /**
+   * Optional object lock (retention / legal hold) applied to each uploaded object, including the
+   * directory marker when a prefix is used.
+   */
+  private final ObjectLockConfiguration objectLock;
 }

@@ -1,0 +1,22 @@
+{
+  "id" : "84a5d2ae-59b0-4ae2-8e1b-30b0f926a7f9",
+  "name" : "AwsBlobStoreIT_testTagging_withObjectLock-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/blob-for-tagging-objectlock",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-delete-marker" : "true",
+      "x-amz-request-id" : "ZWFZQ7RBNPDAC6WB",
+      "x-amz-id-2" : "ChQNGnpYPgS/+kFUysSUOYfpiUURiWwlhd+MvXtIKI0tBzb0DXvV17AWj/GGPStcnpK4UbpfYRc=",
+      "x-amz-version-id" : "P9BwaDOYao458KmcNZC3LKfLUH5rILtE",
+      "Date" : "Tue, 10 Mar 2026 14:31:06 GMT"
+    }
+  },
+  "uuid" : "84a5d2ae-59b0-4ae2-8e1b-30b0f926a7f9",
+  "persistent" : true,
+  "insertionIndex" : 582
+}

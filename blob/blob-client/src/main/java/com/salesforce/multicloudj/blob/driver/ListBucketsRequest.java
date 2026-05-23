@@ -5,5 +5,4 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class ListBucketsRequest {
-}
+public class ListBucketsRequest {}

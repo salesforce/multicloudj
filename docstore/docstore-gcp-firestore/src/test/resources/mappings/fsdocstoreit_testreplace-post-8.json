@@ -1,0 +1,43 @@
+{
+  "id" : "750ebdbc-6454-4034-a8ed-e55c4635d043",
+  "name" : "FSDocstoreIT_testReplace-POST-8",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentReplace\",\"fields\":{\"b\":{\"booleanValue\":false},\"s\":{\"stringValue\":\"replacedString\"},\"pName\":{\"stringValue\":\"NonExistentReplace\"},\"bytes\":{\"bytesValue\":\"cmVwbGFjZWRTdHJpbmc=\"},\"f\":{\"doubleValue\":34.560001373291016},\"i\":{\"integerValue\":\"95\"}}},\"currentDocument\":{\"exists\":true}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No document to update: projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/NonExistentReplace\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "8468453055885818112;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 22 Apr 2026 22:41:27 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "750ebdbc-6454-4034-a8ed-e55c4635d043",
+  "persistent" : true,
+  "insertionIndex" : 209
+}

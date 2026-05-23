@@ -1,0 +1,31 @@
+{
+  "id" : "89b6a3dc-8219-49a3-ad08-611987ff46c6",
+  "name" : "AliBlobStoreIT_testUploadWithKmsKey_happyPath-PUT-2",
+  "request" : {
+    "url" : "/conformance-tests/kms/upload-happy-path",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "VGVzdCBkYXRhIHdpdGggS01TIGVuY3J5cHRpb24="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F1299244C31380B2BEC",
+      "x-oss-server-time" : "14",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "17362283864712615466",
+      "ETag" : "\"1FD960B62783A8AE2BD1AFFE71EC1B87\"",
+      "Date" : "Thu, 21 May 2026 21:54:26 GMT",
+      "Content-MD5" : "H9lgtieDqK4r0a/+cewbhw=="
+    }
+  },
+  "uuid" : "89b6a3dc-8219-49a3-ad08-611987ff46c6",
+  "persistent" : true,
+  "insertionIndex" : 195
+}

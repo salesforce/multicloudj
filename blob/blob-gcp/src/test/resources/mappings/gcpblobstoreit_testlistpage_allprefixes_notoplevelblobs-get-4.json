@@ -1,0 +1,25 @@
+{
+  "id" : "19477510-3120-462b-8901-9365ac39d0ff",
+  "name" : "GcpBlobStoreIT_testListPage_AllPrefixes_NoTopLevelBlobs-GET-4",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?delimiter=/&prefix=conformance-tests/common-prefix-all-dirs/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"prefixes\": [\n    \"conformance-tests/common-prefix-all-dirs/dir1/\",\n    \"conformance-tests/common-prefix-all-dirs/dir2/\"\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AMNfjG0lS9qlZ8WtGFnUIRZ_ExA2gR6bqB2M5Xp8ZPqI3F_GEl_Tv-LJe6EV5_vtgQRionFoiQVQf_c",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:46:14 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:46:14 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "19477510-3120-462b-8901-9365ac39d0ff",
+  "persistent" : true,
+  "insertionIndex" : 1089
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "a3559f8f-7358-467f-974e-e5ee219b7e09",
+  "name" : "AwsDocstoreIT_testDelete-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"random String\"},\"pName\":{\"S\":\"ClarkMapDelete\"},\"f\":{\"N\":\"12.65999984741211\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "JA008DPFQQKE1J7TMLNQ4JTUNVVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Apr 2026 22:58:17 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "a3559f8f-7358-467f-974e-e5ee219b7e09",
+  "persistent" : true,
+  "insertionIndex" : 307
+}

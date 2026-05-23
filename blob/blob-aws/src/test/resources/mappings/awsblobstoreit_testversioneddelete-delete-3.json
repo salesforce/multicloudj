@@ -1,0 +1,36 @@
+{
+  "id" : "eda9dc67-247a-4c36-9a75-40816d92d563",
+  "name" : "AwsBlobStoreIT_testVersionedDelete-DELETE-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/delete/happyPath",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "TZir_zP_x71h7DCd.CIM1wNDYYFxwoOo"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "BMSP971A9SQSYMM1",
+      "x-amz-id-2" : "DqrDgWdqgdabLAMcgNYMKrxUOTKaRa9pTDkA3zIXs5z5u7kj4e2hJ4CSHEZnioVV3YoWpGVFxq5atQj4NLPYu5JjwKYpr9YF",
+      "x-amz-version-id" : "TZir_zP_x71h7DCd.CIM1wNDYYFxwoOo",
+      "Date" : "Wed, 04 Mar 2026 20:58:14 GMT"
+    }
+  },
+  "uuid" : "eda9dc67-247a-4c36-9a75-40816d92d563",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-delete-happyPath",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-delete-happyPath-2",
+  "insertionIndex" : 301
+}

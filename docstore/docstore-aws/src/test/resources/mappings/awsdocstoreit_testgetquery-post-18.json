@@ -1,0 +1,32 @@
+{
+  "id" : "4c2f85d1-0849-4072-9ce4-8cf38c6fe647",
+  "name" : "AwsDocstoreIT_testGetQuery-POST-18",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Query"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-2\",\"KeyConditionExpression\":\"#attrGame = :value0 AND #attrPlayer = :value1\",\"ExpressionAttributeNames\":{\"#attrPlayer\":\"Player\",\"#attrGame\":\"Game\"},\"ExpressionAttributeValues\":{\":value1\":{\"S\":\"andy\"},\":value0\":{\"S\":\"Praise All Monsters\"}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":1,\"Items\":[{\"WithGlitch\":{\"BOOL\":false},\"Time\":{\"S\":\"2024-02-01\"},\"Score\":{\"N\":\"81\"},\"Game\":{\"S\":\"Praise All Monsters\"},\"Player\":{\"S\":\"andy\"}}],\"ScannedCount\":1}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "9ICCAIT087HT6M7UH6UACGB5PNVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "1079750851",
+      "Date" : "Wed, 04 Mar 2026 21:12:26 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "4c2f85d1-0849-4072-9ce4-8cf38c6fe647",
+  "persistent" : true,
+  "insertionIndex" : 19
+}

@@ -10,5 +10,5 @@ import lombok.Setter;
 @NoArgsConstructor
 @Setter
 public class ByteArray {
-    private byte[] bytes;
+  private byte[] bytes;
 }

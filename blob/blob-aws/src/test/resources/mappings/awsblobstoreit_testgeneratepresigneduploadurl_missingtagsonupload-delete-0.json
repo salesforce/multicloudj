@@ -1,0 +1,20 @@
+{
+  "id" : "aec279d5-3f74-46dc-9680-8d427e27b094",
+  "name" : "AwsBlobStoreIT_testGeneratePresignedUploadUrl_missingTagsOnUpload-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presignedUploadUrls/missingTagsOnUpload",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "10VKKDHQD9EGWPVE",
+      "x-amz-id-2" : "IdFzSqPioHduDp3tgdWn8wt2qZ0OCebgYiMzkQauSpv2iP45aqR9LAZNZ/Ge21ZW5r0N4gIOtl9+myPFneULFOpJK4aMcRaM",
+      "Date" : "Wed, 04 Mar 2026 20:57:06 GMT"
+    }
+  },
+  "uuid" : "aec279d5-3f74-46dc-9680-8d427e27b094",
+  "persistent" : true,
+  "insertionIndex" : 148
+}

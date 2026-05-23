@@ -1,0 +1,44 @@
+{
+  "id" : "c0e86160-423b-4e65-bb58-0b9b5b374254",
+  "name" : "GcpIamIT_testGetAttachedPolicies-POST-0",
+  "request" : {
+    "urlPath" : "/v3/projects/substrate-sdk-gcp-poc1:getIamPolicy",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "GcpIamIT_testGetAttachedPolicies-POST-0.json",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Tue, 10 Mar 2026 06:21:17 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c0e86160-423b-4e65-bb58-0b9b5b374254",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-v3-projects-substrate-sdk-gcp-poc1:getIamPolicy",
+  "requiredScenarioState" : "scenario-1-v3-projects-substrate-sdk-gcp-poc1:getIamPolicy-2",
+  "insertionIndex" : 19
+}

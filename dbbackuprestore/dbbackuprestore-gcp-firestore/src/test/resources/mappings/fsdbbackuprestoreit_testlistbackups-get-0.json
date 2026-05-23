@@ -1,0 +1,43 @@
+{
+  "id" : "aad25c27-595e-44cc-9509-d035650180ed",
+  "name" : "FSDBBackupRestoreIT_testListBackups-GET-0",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/locations/nam5/backups",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "filter" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "fsdbbackuprestoreit_testlistbackups-get-0-aad25c27-595e-44cc-9509-d035650180ed.json",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "8882420680295969671;o=0",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 04 Mar 2026 21:24:00 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "aad25c27-595e-44cc-9509-d035650180ed",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

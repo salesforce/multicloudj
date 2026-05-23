@@ -1,0 +1,24 @@
+{
+  "id" : "a016781b-0605-476d-b505-c9d9196b351c",
+  "name" : "AwsIamIT_testAttachInlinePolicy-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=PutRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%5B%22s3%3AGetObject%22%2C%22s3%3APutObject%22%5D%2C%22Resource%22%3A%22arn%3Aaws%3As3%3A%3A%3Amulticloudj-iam-it-test-bucket%2F*%22%7D%5D%7D",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<PutRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>c58dc3e6-0686-4b3e-ae5e-85a9c582bc19</RequestId>\n  </ResponseMetadata>\n</PutRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "c58dc3e6-0686-4b3e-ae5e-85a9c582bc19",
+      "Date" : "Tue, 10 Mar 2026 06:16:32 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "a016781b-0605-476d-b505-c9d9196b351c",
+  "persistent" : true,
+  "insertionIndex" : 54
+}

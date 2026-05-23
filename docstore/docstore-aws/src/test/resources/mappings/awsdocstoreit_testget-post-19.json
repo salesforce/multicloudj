@@ -1,0 +1,32 @@
+{
+  "id" : "1e3691df-1950-4160-959f-f7b2b96907e0",
+  "name" : "AwsDocstoreIT_testGet-POST-19",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.Scan"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Count\":0,\"Items\":[],\"ScannedCount\":0}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "E2976KH0A528E0OR5M7TV5K3A3VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3413411624",
+      "Date" : "Wed, 22 Apr 2026 22:57:50 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "1e3691df-1950-4160-959f-f7b2b96907e0",
+  "persistent" : true,
+  "insertionIndex" : 241
+}

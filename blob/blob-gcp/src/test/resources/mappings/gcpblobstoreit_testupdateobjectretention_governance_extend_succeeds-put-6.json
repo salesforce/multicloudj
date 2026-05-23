@@ -1,0 +1,53 @@
+{
+  "id" : "e1938332-c36a-406d-be20-5061be9b8375",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_governance_extend_succeeds-PUT-6",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/update/gov-extend"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AAVLpEhJNV8lf5BRyuoYOIzHCDyHqS4s63et7mtGnZcCzJSZnm8HHSZZuHe6LzafpUhLCre_D61fQzoel7gWj-4A_Am28p3Yzzoh5E9bp1M9tBg"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "retention-update-conformance-tests/objectlock/update/gov-extend",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/objectlock/update/gov-extend/1778743861229163\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fgov-extend\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fobjectlock%2Fupdate%2Fgov-extend?generation=1778743861229163&alt=media\",\n  \"name\": \"conformance-tests/objectlock/update/gov-extend\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778743861229163\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"63\",\n  \"md5Hash\": \"IVmcfxtGntHP/HlvPyacoA==\",\n  \"crc32c\": \"IOzQuw==\",\n  \"etag\": \"COvs+p+huJQDEAE=\",\n  \"temporaryHold\": false,\n  \"retentionExpirationTime\": \"2030-01-01T00:00:00.000Z\",\n  \"retention\": {\n    \"retainUntilTime\": \"2030-01-01T00:00:00.000Z\",\n    \"mode\": \"Unlocked\"\n  },\n  \"timeCreated\": \"2026-05-14T07:31:01.289Z\",\n  \"updated\": \"2026-05-14T07:31:01.289Z\",\n  \"timeStorageClassUpdated\": \"2026-05-14T07:31:01.289Z\",\n  \"timeFinalized\": \"2026-05-14T07:31:01.289Z\",\n  \"metadata\": {\n    \"correlation-id\": \"612ad0b2-e56a-4c8d-b891-384de13c2a15\"\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "COvs+p+huJQDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEhJNV8lf5BRyuoYOIzHCDyHqS4s63et7mtGnZcCzJSZnm8HHSZZuHe6LzafpUhLCre_D61fQzoel7gWj-4A_Am28p3Yzzoh5E9bp1M9tBg",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 14 May 2026 07:31:01 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "e1938332-c36a-406d-be20-5061be9b8375",
+  "persistent" : true,
+  "insertionIndex" : 1269
+}

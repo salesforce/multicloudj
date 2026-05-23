@@ -1,0 +1,50 @@
+{
+  "id" : "bb4448b4-34af-4cec-8033-541996088b97",
+  "name" : "AwsBlobStoreIT_testListPage-GET-7",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-list-page"
+        } ]
+      },
+      "continuation-token" : {
+        "hasExactly" : [ {
+          "equalTo" : "1wVU77mLhGGkGr5JeorKHGQwFllW683zLy1RNOjCHxY4VBFp73fY3QvZJRKw1Z0Tgw2mFGTeovog/r6EbwSWK4aMsbV3F3aS1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/blob-for-list-page</Prefix><ContinuationToken>1wVU77mLhGGkGr5JeorKHGQwFllW683zLy1RNOjCHxY4VBFp73fY3QvZJRKw1Z0Tgw2mFGTeovog/r6EbwSWK4aMsbV3F3aS1</ContinuationToken><KeyCount>1</KeyCount><MaxKeys>2</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/blob-for-list-page/prefix_6</Key><LastModified>2026-03-04T21:00:29.000Z</LastModified><ETag>&quot;d7a1aac43614228f2d5a2eda462af88a&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>29</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "CWY99MGFWYGAS9QS",
+      "x-amz-id-2" : "2dfl96bZYXNYKc2R/TXAHQUJ6VGXR00dRCQGbi/wjKxQNSnpvWmH3Bm+LM30Y/g0bCK+JToCPiWJ/Ld/ayw6Gi5Jz1jiDdVu",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 04 Mar 2026 21:00:32 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "bb4448b4-34af-4cec-8033-541996088b97",
+  "persistent" : true,
+  "insertionIndex" : 613
+}

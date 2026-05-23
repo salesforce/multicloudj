@@ -1,0 +1,32 @@
+{
+  "id" : "0949800f-c41b-499b-afba-26b44ed7f03e",
+  "name" : "AwsDocstoreIT_testCreate-POST-7",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.PutItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"TableName\":\"docstore-test-1\",\"Item\":{\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"pName\":{\"S\":\"JohnMap\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"f\":{\"N\":\"12.65999984741211\"},\"i\":{\"N\":\"121\"}},\"ConditionExpression\":\"attribute_not_exists(pName)\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-RequestId" : "VG0VF4N1IFMNVA32OEK48EDB33VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2745614147",
+      "Date" : "Wed, 22 Apr 2026 22:58:08 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "0949800f-c41b-499b-afba-26b44ed7f03e",
+  "persistent" : true,
+  "insertionIndex" : 297
+}

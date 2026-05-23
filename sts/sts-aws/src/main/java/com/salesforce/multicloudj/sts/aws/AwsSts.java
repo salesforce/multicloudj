@@ -15,6 +15,12 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
@@ -29,248 +35,242 @@ import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
 import software.amazon.awssdk.services.sts.model.GetSessionTokenRequest;
 import software.amazon.awssdk.services.sts.model.GetSessionTokenResponse;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 @AutoService(AbstractSts.class)
 public class AwsSts extends AbstractSts {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private StsClient stsClient;
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private StsClient stsClient;
 
-    public AwsSts(Builder builder) {
-        super(builder);
-        Region region = Region.of(builder.getRegion());
-        StsClientBuilder sb = StsClient.builder().region(region);
-        if (builder.getEndpoint() != null) {
-            sb = sb.endpointOverride(builder.getEndpoint());
+  public AwsSts(Builder builder) {
+    super(builder);
+    Region region = Region.of(builder.getRegion());
+    StsClientBuilder sb = StsClient.builder().region(region);
+    if (builder.getEndpoint() != null) {
+      sb = sb.endpointOverride(builder.getEndpoint());
+    }
+    this.stsClient = sb.build();
+  }
+
+  public AwsSts(Builder builder, StsClient stsClient) {
+    super(builder);
+    this.stsClient = stsClient;
+  }
+
+  public AwsSts() {
+    super(new Builder());
+  }
+
+  @Override
+  public Builder builder() {
+    return new Builder();
+  }
+
+  @Override
+  protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
+    AssumeRoleRequest.Builder roleRequestBuilder =
+        AssumeRoleRequest.builder()
+            .roleArn(request.getRole())
+            .roleSessionName(
+                request.getSessionName() != null
+                    ? request.getSessionName()
+                    : "multicloudj-" + System.currentTimeMillis())
+            .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null);
+
+    // If credential scope is provided, convert to AWS IAM policy JSON
+    if (request.getCredentialScope() != null) {
+      String policyJson = convertToAwsPolicy(request.getCredentialScope());
+      roleRequestBuilder.policy(policyJson);
+    }
+
+    AssumeRoleResponse response = stsClient.assumeRole(roleRequestBuilder.build());
+    Credentials credentials = response.credentials();
+
+    return new StsCredentials(
+        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+  }
+
+  /** Converts cloud-agnostic CredentialScope to AWS IAM Policy JSON. */
+  private String convertToAwsPolicy(CredentialScope credentialScope) {
+    List<Map<String, Object>> statements = new ArrayList<>();
+
+    for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
+      Map<String, Object> statement = new HashMap<>();
+      statement.put("Effect", "Allow");
+
+      // Convert permissions (format: "storage:GetObject" -> "s3:GetObject")
+      List<String> actions =
+          rule.getAvailablePermissions().stream()
+              .map(this::convertPermissionToAction)
+              .collect(Collectors.toList());
+      statement.put("Action", actions);
+
+      // Convert resource (format: "storage://my-bucket" -> "arn:aws:s3:::my-bucket/*")
+      String resource = convertResourceToArn(rule.getAvailableResource());
+      statement.put("Resource", resource);
+
+      // Add condition if present
+      if (rule.getAvailabilityCondition() != null) {
+        Map<String, Object> condition =
+            convertConditionToAwsCondition(rule.getAvailabilityCondition());
+        if (!condition.isEmpty()) {
+          statement.put("Condition", condition);
         }
-        this.stsClient = sb.build();
+      }
+
+      statements.add(statement);
     }
 
-    public AwsSts(Builder builder, StsClient stsClient) {
-        super(builder);
-        this.stsClient = stsClient;
-    }
+    Map<String, Object> policy = new HashMap<>();
+    policy.put("Version", "2012-10-17");
+    policy.put("Statement", statements);
 
-    public AwsSts() {
-        super(new Builder());
-    }
+    return toJsonString(policy);
+  }
 
-    @Override
-    public Builder builder() {
-        return new Builder();
-    }
+  /**
+   * Converts cloud-agnostic permission to AWS Action. Maps MultiCloudJ storage actions to AWS S3
+   * actions. Example: "storage:GetObject" -> "s3:GetObject"
+   */
+  private String convertPermissionToAction(String permission) {
+    String action = permission.substring("storage:".length());
+    return "s3:" + action;
+  }
 
-    @Override
-    protected StsCredentials getSTSCredentialsWithAssumeRole(AssumedRoleRequest request) {
-        AssumeRoleRequest.Builder roleRequestBuilder = AssumeRoleRequest.builder()
-                .roleArn(request.getRole())
-                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-" + System.currentTimeMillis())
-                .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null);
+  /**
+   * Converts cloud-agnostic resource to AWS ARN. Maps MultiCloudJ storage URIs to AWS S3 ARNs.
+   * Example: "storage://my-bucket" -> "arn:aws:s3:::my-bucket/*"
+   */
+  private String convertResourceToArn(String resource) {
+    String bucketName = resource.substring("storage://".length());
+    // AWS requires /* suffix for bucket-level access
+    return "arn:aws:s3:::" + bucketName + "/*";
+  }
 
-        // If credential scope is provided, convert to AWS IAM policy JSON
-        if (request.getCredentialScope() != null) {
-            String policyJson = convertToAwsPolicy(request.getCredentialScope());
-            roleRequestBuilder.policy(policyJson);
+  /**
+   * Converts cloud-agnostic availability condition to AWS IAM condition. Converts resourcePrefix to
+   * AWS IAM Condition with StringLike and s3:prefix. Example: "storage://my-bucket/documents/" ->
+   * {"StringLike": {"s3:prefix": "documents/"}}
+   */
+  private Map<String, Object> convertConditionToAwsCondition(
+      CredentialScope.AvailabilityCondition condition) {
+    Map<String, Object> awsCondition = new HashMap<>();
+
+    // Convert cloud-agnostic resourcePrefix to AWS IAM condition
+    if (condition.getResourcePrefix() != null && !condition.getResourcePrefix().isEmpty()) {
+      String resourcePrefix = condition.getResourcePrefix();
+      if (resourcePrefix.startsWith("storage://")) {
+        String path = resourcePrefix.substring("storage://".length());
+        // Extract path prefix after bucket name
+        if (path.contains("/")) {
+          String pathPrefix = path.substring(path.indexOf("/") + 1);
+          if (!pathPrefix.isEmpty()) {
+            Map<String, String> stringLike = new HashMap<>();
+            stringLike.put("s3:prefix", pathPrefix);
+            awsCondition.put("StringLike", stringLike);
+          }
         }
-
-        AssumeRoleResponse response = stsClient.assumeRole(roleRequestBuilder.build());
-        Credentials credentials = response.credentials();
-
-        return new StsCredentials(
-                credentials.accessKeyId(),
-                credentials.secretAccessKey(),
-                credentials.sessionToken());
+      }
     }
 
-    /**
-     * Converts cloud-agnostic CredentialScope to AWS IAM Policy JSON.
-     */
-    private String convertToAwsPolicy(CredentialScope credentialScope) {
-        List<Map<String, Object>> statements = new ArrayList<>();
+    return awsCondition;
+  }
 
-        for (CredentialScope.ScopeRule rule : credentialScope.getRules()) {
-            Map<String, Object> statement = new HashMap<>();
-            statement.put("Effect", "Allow");
-
-            // Convert permissions (format: "storage:GetObject" -> "s3:GetObject")
-            List<String> actions = rule.getAvailablePermissions().stream()
-                    .map(this::convertPermissionToAction)
-                    .collect(Collectors.toList());
-            statement.put("Action", actions);
-
-            // Convert resource (format: "storage://my-bucket" -> "arn:aws:s3:::my-bucket/*")
-            String resource = convertResourceToArn(rule.getAvailableResource());
-            statement.put("Resource", resource);
-
-            // Add condition if present
-            if (rule.getAvailabilityCondition() != null) {
-                Map<String, Object> condition = convertConditionToAwsCondition(
-                        rule.getAvailabilityCondition());
-                if (!condition.isEmpty()) {
-                    statement.put("Condition", condition);
-                }
-            }
-
-            statements.add(statement);
-        }
-
-        Map<String, Object> policy = new HashMap<>();
-        policy.put("Version", "2012-10-17");
-        policy.put("Statement", statements);
-
-        return toJsonString(policy);
+  /** Converts Map to JSON string. */
+  private String toJsonString(Map<String, Object> map) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(map);
+    } catch (JsonProcessingException e) {
+      throw new InvalidArgumentException("scoped credentials is not in right format", e);
     }
+  }
 
-    /**
-     * Converts cloud-agnostic permission to AWS Action.
-     * Maps MultiCloudJ storage actions to AWS S3 actions.
-     * Example: "storage:GetObject" -> "s3:GetObject"
-     */
-    private String convertPermissionToAction(String permission) {
-        String action = permission.substring("storage:".length());
-        return "s3:" + action;
-    }
+  @Override
+  protected CallerIdentity getCallerIdentityFromProvider(
+      com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
+    GetCallerIdentityRequest callerIdentityRequest = GetCallerIdentityRequest.builder().build();
+    GetCallerIdentityResponse response = stsClient.getCallerIdentity(callerIdentityRequest);
+    return new CallerIdentity(response.userId(), response.arn(), response.account());
+  }
 
-    /**
-     * Converts cloud-agnostic resource to AWS ARN.
-     * Maps MultiCloudJ storage URIs to AWS S3 ARNs.
-     * Example: "storage://my-bucket" -> "arn:aws:s3:::my-bucket/*"
-     */
-    private String convertResourceToArn(String resource) {
-        String bucketName = resource.substring("storage://".length());
-        // AWS requires /* suffix for bucket-level access
-        return "arn:aws:s3:::" + bucketName + "/*";
-    }
+  @Override
+  protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
+    GetSessionTokenRequest tokenRequest =
+        GetSessionTokenRequest.builder().durationSeconds(request.getDuration()).build();
+    GetSessionTokenResponse response = stsClient.getSessionToken(tokenRequest);
+    Credentials credentials = response.credentials();
+    return new StsCredentials(
+        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+  }
 
-    /**
-     * Converts cloud-agnostic availability condition to AWS IAM condition.
-     * Converts resourcePrefix to AWS IAM Condition with StringLike and s3:prefix.
-     * Example: "storage://my-bucket/documents/" -> {"StringLike": {"s3:prefix": "documents/"}}
-     */
-    private Map<String, Object> convertConditionToAwsCondition(
-            CredentialScope.AvailabilityCondition condition) {
-        Map<String, Object> awsCondition = new HashMap<>();
+  @Override
+  protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
+      AssumeRoleWebIdentityRequest request) {
+    AssumeRoleWithWebIdentityRequest webIdentityRequest =
+        AssumeRoleWithWebIdentityRequest.builder()
+            .roleArn(request.getRole())
+            .roleSessionName(
+                request.getSessionName() != null
+                    ? request.getSessionName()
+                    : "multicloudj-web-identity-" + System.currentTimeMillis())
+            .webIdentityToken(request.getWebIdentityToken())
+            .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null)
+            .build();
+    AssumeRoleWithWebIdentityResponse response =
+        stsClient.assumeRoleWithWebIdentity(webIdentityRequest);
+    Credentials credentials = response.credentials();
 
-        // Convert cloud-agnostic resourcePrefix to AWS IAM condition
-        if (condition.getResourcePrefix() != null && !condition.getResourcePrefix().isEmpty()) {
-            String resourcePrefix = condition.getResourcePrefix();
-            if (resourcePrefix.startsWith("storage://")) {
-                String path = resourcePrefix.substring("storage://".length());
-                // Extract path prefix after bucket name
-                if (path.contains("/")) {
-                    String pathPrefix = path.substring(path.indexOf("/") + 1);
-                    if (!pathPrefix.isEmpty()) {
-                        Map<String, String> stringLike = new HashMap<>();
-                        stringLike.put("s3:prefix", pathPrefix);
-                        awsCondition.put("StringLike", stringLike);
-                    }
-                }
-            }
-        }
+    return new StsCredentials(
+        credentials.accessKeyId(), credentials.secretAccessKey(), credentials.sessionToken());
+  }
 
-        return awsCondition;
-    }
-
-    /**
-     * Converts Map to JSON string.
-     */
-    private String toJsonString(Map<String, Object> map) {
-        try {
-            return OBJECT_MAPPER.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
-            throw new InvalidArgumentException("scoped credentials is not in right format", e);
-        }
-    }
-
-    @Override
-    protected CallerIdentity getCallerIdentityFromProvider(com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest request) {
-        GetCallerIdentityRequest callerIdentityRequest = GetCallerIdentityRequest.builder().build();
-        GetCallerIdentityResponse response = stsClient.getCallerIdentity(callerIdentityRequest);
-        return new CallerIdentity(response.userId(), response.arn(), response.account());
-    }
-
-    @Override
-    protected StsCredentials getAccessTokenFromProvider(GetAccessTokenRequest request) {
-        GetSessionTokenRequest tokenRequest = GetSessionTokenRequest.builder()
-                .durationSeconds(request.getDuration()).build();
-        GetSessionTokenResponse response = stsClient.getSessionToken(tokenRequest);
-        Credentials credentials = response.credentials();
-        return new StsCredentials(
-                credentials.accessKeyId(),
-                credentials.secretAccessKey(),
-                credentials.sessionToken());
-    }
-
-    @Override
-    protected StsCredentials getSTSCredentialsWithAssumeRoleWebIdentity(
-            AssumeRoleWebIdentityRequest request) {
-        AssumeRoleWithWebIdentityRequest webIdentityRequest = AssumeRoleWithWebIdentityRequest.builder()
-                .roleArn(request.getRole())
-                .roleSessionName(request.getSessionName() != null ? request.getSessionName() : "multicloudj-web-identity-" + System.currentTimeMillis())
-                .webIdentityToken(request.getWebIdentityToken())
-                .durationSeconds(request.getExpiration() != 0 ? request.getExpiration() : null)
-                .build();
-        AssumeRoleWithWebIdentityResponse response = stsClient.assumeRoleWithWebIdentity(webIdentityRequest);
-        Credentials credentials = response.credentials();
-
-        return new StsCredentials(
-                credentials.accessKeyId(),
-                credentials.secretAccessKey(),
-                credentials.sessionToken());
-    }
-
-    @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof AwsServiceException) {
-            AwsServiceException serviceException = (AwsServiceException) t;
-            if (serviceException.awsErrorDetails() == null) {
-                return UnknownException.class;
-            }
-
-            String errorCode = serviceException.awsErrorDetails().errorCode();
-            return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
-        }
+  @Override
+  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+    if (t instanceof AwsServiceException) {
+      AwsServiceException serviceException = (AwsServiceException) t;
+      if (serviceException.awsErrorDetails() == null) {
         return UnknownException.class;
+      }
+
+      String errorCode = serviceException.awsErrorDetails().errorCode();
+      return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+    }
+    return UnknownException.class;
+  }
+
+  /**
+   * The common error codes
+   *
+   * @see com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping
+   */
+  private static final Map<String, Class<? extends SubstrateSdkException>> ERROR_MAPPING;
+
+  static {
+    Map<String, Class<? extends SubstrateSdkException>> map =
+        new HashMap<>(CommonErrorCodeMapping.get());
+    map.put("SignatureDoesNotMatch", UnAuthorizedException.class);
+    ERROR_MAPPING = Collections.unmodifiableMap(map);
+    // Add more mappings as needed
+  }
+
+  public static class Builder extends AbstractSts.Builder<AwsSts, Builder> {
+    String param;
+
+    protected Builder() {
+      providerId("aws");
     }
 
-    /**
-     * The common error codes
-     *
-     * @see com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping
-     */
-    private static final Map<String, Class<? extends SubstrateSdkException>> ERROR_MAPPING;
-
-    static {
-        Map<String, Class<? extends SubstrateSdkException>> map = new HashMap<>(CommonErrorCodeMapping.get());
-        map.put("SignatureDoesNotMatch", UnAuthorizedException.class);
-        ERROR_MAPPING = Collections.unmodifiableMap(map);
-        // Add more mappings as needed
+    @Override
+    public Builder self() {
+      return this;
     }
 
-    public static class Builder extends AbstractSts.Builder<AwsSts, Builder> {
-        String param;
-        protected Builder() {
-            providerId("aws");
-        }
-
-        @Override
-        public Builder self() {
-            return this;
-        }
-
-        @Override
-        public AwsSts build() {
-            this.param = region;
-            return new AwsSts(this);
-        }
-
-        public AwsSts build(StsClient stsClient) {
-            return new AwsSts(this, stsClient);
-        }
+    @Override
+    public AwsSts build() {
+      this.param = region;
+      return new AwsSts(this);
     }
+
+    public AwsSts build(StsClient stsClient) {
+      return new AwsSts(this, stsClient);
+    }
+  }
 }

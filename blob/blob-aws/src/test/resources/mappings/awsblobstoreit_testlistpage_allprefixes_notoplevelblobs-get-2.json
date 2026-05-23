@@ -1,0 +1,23 @@
+{
+  "id" : "7073dfa7-59fd-4831-8a5f-0b414b43a1e8",
+  "name" : "AwsBlobStoreIT_testListPage_AllPrefixes_NoTopLevelBlobs-GET-2",
+  "request" : {
+    "url" : "/chameleon-jcloud?list-type=2&delimiter=%2F&prefix=conformance-tests%2Fcommon-prefix-all-dirs%2F",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/common-prefix-all-dirs/</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated><CommonPrefixes><Prefix>conformance-tests/common-prefix-all-dirs/dir1/</Prefix></CommonPrefixes><CommonPrefixes><Prefix>conformance-tests/common-prefix-all-dirs/dir2/</Prefix></CommonPrefixes></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "4AB9WZCZ1CMMRDVD",
+      "x-amz-id-2" : "q92BeeHzPTnUZs2eaPUTUEQBs3/KRaVFJUM/1nH+2mCLN5JznnOBlZNrNhLLOHksstQ6Bd3E5pVNdu7/lW4VYyc13FXEuxiU",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Thu, 02 Apr 2026 04:52:59 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "7073dfa7-59fd-4831-8a5f-0b414b43a1e8",
+  "persistent" : true,
+  "insertionIndex" : 664
+}

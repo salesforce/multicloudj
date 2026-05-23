@@ -1,0 +1,38 @@
+{
+  "id" : "9553a78d-fa7a-4a84-95cd-7132b50a8c41",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_withObjectLock-PUT-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/multipart-withObjectLock",
+    "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "partNumber" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "withobjectlock-upload-id"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"2b5c91ad399409ec9b409b66f5bb00fb\"",
+      "x-amz-request-id" : "OBJECTLOCKMPU0002",
+      "x-amz-id-2" : "objectlock-multipart-upload-part-1",
+      "Date" : "Tue, 05 May 2026 20:00:01 GMT"
+    }
+  },
+  "uuid" : "9553a78d-fa7a-4a84-95cd-7132b50a8c41",
+  "persistent" : true,
+  "insertionIndex" : 2002
+}

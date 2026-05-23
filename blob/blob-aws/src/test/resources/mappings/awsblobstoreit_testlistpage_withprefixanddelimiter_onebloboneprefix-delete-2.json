@@ -1,0 +1,20 @@
+{
+  "id" : "cffd1429-b9d7-4604-a06e-147e3ca14716",
+  "name" : "AwsBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-DELETE-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/common-prefix-nested/dir1/b.txt",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3QAX31RX00672X49",
+      "x-amz-id-2" : "+IUzGh50dj+kxoV8Kv8d1/01LviyI9pergMD/ihW4Br4C7Y9L7CWKabLAfp96JgrOM5gGAhcb6myiPy4gTJHF3hYkJ/uKYP3",
+      "Date" : "Thu, 02 Apr 2026 04:52:39 GMT"
+    }
+  },
+  "uuid" : "cffd1429-b9d7-4604-a06e-147e3ca14716",
+  "persistent" : true,
+  "insertionIndex" : 637
+}

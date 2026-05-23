@@ -1,0 +1,20 @@
+{
+  "id" : "c39aa7ee-cc84-4b37-ad4e-1b3063ac4029",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_multipleMultipartUploadsForSameKey-DELETE-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-multipleMPU",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "GNPVB5TDHSJNCV64",
+      "x-amz-id-2" : "eO38ImKhdtR8lXVkUxzRcG5JSs1RLsN8uBPI2fMkAYSykHrUCMjpcMa/KQivwqRBYuil/4U4XBU=",
+      "Date" : "Thu, 09 Apr 2026 18:24:59 GMT"
+    }
+  },
+  "uuid" : "c39aa7ee-cc84-4b37-ad4e-1b3063ac4029",
+  "persistent" : true,
+  "insertionIndex" : 764
+}

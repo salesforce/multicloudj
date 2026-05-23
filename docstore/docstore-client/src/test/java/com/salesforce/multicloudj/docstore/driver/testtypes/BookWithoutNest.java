@@ -11,12 +11,14 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class BookWithoutNest {
-    public String title;
-    public String author;
-    public String publisher;
-    @JsonSerialize(using = TimestampPbSerializer.class)
-    @JsonDeserialize(using = TimestampPbDeserializer.class)
-    public Timestamp publishedDate;
-    public float price;
-    String docRevision;
+  public String title;
+  public String author;
+  public String publisher;
+
+  @JsonSerialize(using = TimestampPbSerializer.class)
+  @JsonDeserialize(using = TimestampPbDeserializer.class)
+  public Timestamp publishedDate;
+
+  public float price;
+  String docRevision;
 }

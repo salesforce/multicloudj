@@ -1,0 +1,32 @@
+{
+  "id" : "214ee3f9-7afe-474c-a49f-5e268a6bd796",
+  "name" : "AwsDocstoreIT_testCreate-POST-6",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"JohnMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"s\":{\"S\":\"randomString\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"JohnMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "SN0EFGQBUU160CBP0UISV3IV93VV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "3082176411",
+      "Date" : "Wed, 22 Apr 2026 22:58:09 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "214ee3f9-7afe-474c-a49f-5e268a6bd796",
+  "persistent" : true,
+  "insertionIndex" : 296
+}

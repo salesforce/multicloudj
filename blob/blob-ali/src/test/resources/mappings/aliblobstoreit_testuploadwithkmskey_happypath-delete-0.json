@@ -1,0 +1,25 @@
+{
+  "id" : "b3e11d35-536f-439f-870e-56b0affd198b",
+  "name" : "AliBlobStoreIT_testUploadWithKmsKey_happyPath-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/kms/upload-happy-path",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F135C5E11323570DBCB",
+      "x-oss-server-time" : "46",
+      "Server" : "AliyunOSS",
+      "Date" : "Thu, 21 May 2026 21:54:27 GMT"
+    }
+  },
+  "uuid" : "b3e11d35-536f-439f-870e-56b0affd198b",
+  "persistent" : true,
+  "insertionIndex" : 193
+}

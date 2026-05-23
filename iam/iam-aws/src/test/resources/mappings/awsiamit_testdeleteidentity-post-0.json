@@ -1,0 +1,24 @@
+{
+  "id" : "a4504967-76ac-4f6b-ba2d-37a170a40677",
+  "name" : "AwsIamIT_testDeleteIdentity-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=DeleteRole&Version=2010-05-08&RoleName=MultiCloudJTestRoleDelete",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<DeleteRoleResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <ResponseMetadata>\n    <RequestId>00523902-188a-4a1c-9438-c89ad9a62544</RequestId>\n  </ResponseMetadata>\n</DeleteRoleResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "00523902-188a-4a1c-9438-c89ad9a62544",
+      "Date" : "Tue, 10 Mar 2026 06:16:29 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "a4504967-76ac-4f6b-ba2d-37a170a40677",
+  "persistent" : true,
+  "insertionIndex" : 48
+}

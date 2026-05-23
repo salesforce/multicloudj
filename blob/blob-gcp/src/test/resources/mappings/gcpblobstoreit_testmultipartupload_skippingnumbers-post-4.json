@@ -1,0 +1,45 @@
+{
+  "id" : "d3ba6fba-2b9d-481e-94b4-dc5533522117",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_skippingNumbers-POST-4",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-skippingNumbers",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm71oeATIHZOLPft9dulM_KVo-b5Uywxbzqhgn6ueBgeH_d3X8xRQ4jVlUbeestq7eg"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part><Part><PartNumber>6</PartNumber><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-skippingNumbers</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-skippingNumbers</Key><ETag>\"eec45a21cb3a20f919a040b07435380a-3\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "15728640",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:05:28 GMT",
+      "x-goog-hash" : "crc32c=UwKSow==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzkfnk0v8nNfSwFdv3m-fkE4D2u3ai1LjN1Y16pNbfcaiPkMMSuhdtRGKUArp5djZB-7FJbNKM",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1772658328045515",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "d3ba6fba-2b9d-481e-94b4-dc5533522117",
+  "persistent" : true,
+  "insertionIndex" : 385
+}

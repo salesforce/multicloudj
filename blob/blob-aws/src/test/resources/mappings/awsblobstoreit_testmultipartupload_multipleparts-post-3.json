@@ -1,0 +1,38 @@
+{
+  "id" : "d8785c85-80e8-448f-be76-9f4ff7b8932a",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_multipleParts-POST-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-multipleParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "pppqb3HhtFuUlNvhZB0QuNbptrEqBxhua.cJky8hXBLZaPgEwOxHf9p2exg4W31F_k0LYxWKhxprcCBv_gf0fubLsJ7FJRXgMN10Vny69BBnuMfKhHKvYSspUtSYM0mI.f26sGEA2B9im.SGQVHsHnFeYaQRXJsw2ANq1654rVJt9PinTv1Fi2njgsOomg_Z"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>1</PartNumber></Part><Part><ETag>&quot;267c038cc2ec32ffd0ee2512ff5da5a5&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>&quot;fe9e522b589ef23e2c49b65c0522ce97&quot;</ETag><PartNumber>3</PartNumber></Part><Part><ETag>&quot;00ad619297ccd041956fe69be4251d30&quot;</ETag><PartNumber>4</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://s3.us-west-2.amazonaws.com/chameleon-jcloud/conformance-tests%2Fmultipart-multipleParts</Location><Bucket>chameleon-jcloud</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag><ChecksumCRC64NVME>FsUGvKjF98M=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CompleteMultipartUploadResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "98C8S0VXBF2953A2",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "4o33Utn28phemSl247f/P+fnKH9kW/WwDJncousAtcpGTsR6AO6rym3MLuGAha3Iqg7KTI8pjPY=",
+      "Date" : "Thu, 09 Apr 2026 18:24:40 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d8785c85-80e8-448f-be76-9f4ff7b8932a",
+  "persistent" : true,
+  "insertionIndex" : 730
+}

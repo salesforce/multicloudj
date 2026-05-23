@@ -1,0 +1,32 @@
+{
+  "id" : "a648eae9-07ed-4afe-9e1a-828a3b58f3e7",
+  "name" : "AwsDocstoreIT_testCreate-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "X-Amz-Target" : {
+        "equalTo" : "DynamoDB_20120810.BatchGetItem"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"RequestItems\":{\"docstore-test-1\":{\"Keys\":[{\"pName\":{\"S\":\"LeoMap\"}}],\"ConsistentRead\":false}}}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"Responses\":{\"docstore-test-1\":[{\"i\":{\"N\":\"121\"},\"bytes\":{\"B\":\"cmFuZG9tU3RyaW5n\"},\"b\":{\"BOOL\":true},\"DocstoreRevision\":{\"S\":\"84167da1-5b13-2d3d-48bf-d83aabf6216b\"},\"f\":{\"N\":\"12.65999984741211\"},\"pName\":{\"S\":\"LeoMap\"}}]},\"UnprocessedKeys\":{}}",
+    "headers" : {
+      "Server" : "Server",
+      "x-amzn-requestid" : "T4GG9C48DAQF7S3JM4B9642OKRVV4KQNSO5AEMVJF66Q9ASUAAJG",
+      "x-amz-crc32" : "2166185439",
+      "Date" : "Wed, 22 Apr 2026 22:58:11 GMT",
+      "Content-Type" : "application/x-amz-json-1.0"
+    }
+  },
+  "uuid" : "a648eae9-07ed-4afe-9e1a-828a3b58f3e7",
+  "persistent" : true,
+  "insertionIndex" : 290
+}

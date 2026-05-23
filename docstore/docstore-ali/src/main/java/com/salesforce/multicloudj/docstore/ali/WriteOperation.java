@@ -5,13 +5,12 @@ import com.salesforce.multicloudj.docstore.driver.Action;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-
 @AllArgsConstructor
 @Getter
 public class WriteOperation {
-    private Action action;
-    private PutRowRequest putRowRequest;
-    private String newPartitionKey;
-    private String newRevision;
-    private Runnable run;
+  private Action action;
+  private PutRowRequest putRowRequest;
+  private String newPartitionKey;
+  private String newRevision;
+  private Runnable run;
 }

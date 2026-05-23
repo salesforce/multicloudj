@@ -120,6 +120,7 @@ Documentation updates and improvements are strongly encouraged.
 - Update documentation in Markdown format.
 - Ensure clarity and correctness.
 - Include examples whenever possible.
+- After adding or updating Markdown files, run `./scripts/generate-site.sh` to generate the corresponding HTML. Prerequisites: Ruby 3.3 (`brew install ruby@3.3`) and Bundler (`gem install bundler`).
 
 ---
 

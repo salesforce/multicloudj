@@ -1,0 +1,37 @@
+{
+  "id" : "38735195-4a7e-4e27-8b48-2633d848c633",
+  "name" : "AwsBlobStoreIT_testVersionedDownload_badVersionId-GET-7",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/versioned_download_bad_versionId_versioned",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "fakeVersionId"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Invalid version id specified</Message><ArgumentName>versionId</ArgumentName><ArgumentValue>fakeVersionId</ArgumentValue><RequestId>PK5ZVTQAZZNHDGC0</RequestId><HostId>1egqPZa3OQm8D7vQ8FSEgTQ+62arxjSp/aFIDI+yyQ1CNPcrC34CYU3XcYuGpQfZWXsgwHLXCAyRrdRbgN27wsaakIsqI8EK</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "PK5ZVTQAZZNHDGC0",
+      "x-amz-id-2" : "1egqPZa3OQm8D7vQ8FSEgTQ+62arxjSp/aFIDI+yyQ1CNPcrC34CYU3XcYuGpQfZWXsgwHLXCAyRrdRbgN27wsaakIsqI8EK",
+      "Date" : "Wed, 04 Mar 2026 20:58:31 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "38735195-4a7e-4e27-8b48-2633d848c633",
+  "persistent" : true,
+  "scenarioName" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned",
+  "requiredScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-2",
+  "newScenarioState" : "scenario-2-chameleon-jcloud-versioned-conformance-tests-versioned_download_bad_versionId_versioned-3",
+  "insertionIndex" : 355
+}

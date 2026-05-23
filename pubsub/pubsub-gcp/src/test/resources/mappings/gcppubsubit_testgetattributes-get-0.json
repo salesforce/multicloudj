@@ -1,0 +1,25 @@
+{
+  "id" : "4a8e195c-e98e-4b0a-be77-01a705fa1d3b",
+  "name" : "GcpPubsubIT_testGetAttributes-GET-0",
+  "request" : {
+    "url" : "/v1/projects/substrate-sdk-gcp-poc1/subscriptions/sub-testGetAttributes?$alt=json;enum-encoding%3Dint",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"name\": \"projects/substrate-sdk-gcp-poc1/subscriptions/sub-testGetAttributes\",\n  \"topic\": \"projects/substrate-sdk-gcp-poc1/topics/topic-testGetAttributes\",\n  \"pushConfig\": {},\n  \"ackDeadlineSeconds\": 10,\n  \"messageRetentionDuration\": \"604800s\",\n  \"expirationPolicy\": {\n    \"ttl\": \"2678400s\"\n  },\n  \"state\": 1\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Thu, 12 Mar 2026 00:48:31 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "4a8e195c-e98e-4b0a-be77-01a705fa1d3b",
+  "persistent" : true,
+  "insertionIndex" : 55
+}

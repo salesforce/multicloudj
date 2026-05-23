@@ -11,9 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Maps AWS SQS and SNS error codes to SubstrateSdkException types.
- */
+/** Maps AWS SQS and SNS error codes to SubstrateSdkException types. */
 public class ErrorCodeMapping {
 
   private ErrorCodeMapping() {}
@@ -72,7 +70,7 @@ public class ErrorCodeMapping {
 
     // SNS specific error codes
     // https://docs.aws.amazon.com/sns/latest/api/API_Publish.html
-    
+
     // InvalidArgument errors
     map.put("InvalidParameter", InvalidArgumentException.class);
     map.put("InvalidParameterValue", InvalidArgumentException.class);
@@ -83,22 +81,22 @@ public class ErrorCodeMapping {
     map.put("InvalidTargetArn", InvalidArgumentException.class);
     map.put("InvalidPhoneNumber", InvalidArgumentException.class);
     map.put("InvalidSubject", InvalidArgumentException.class);
-    
+
     // PermissionDenied errors
     map.put("AuthorizationError", UnAuthorizedException.class);
     map.put("KMSAccessDenied", UnAuthorizedException.class);
     map.put("KMSInvalidState", UnAuthorizedException.class);
-    
+
     // NotFound errors
     map.put("NotFound", ResourceNotFoundException.class);
     map.put("TopicNotFound", ResourceNotFoundException.class);
     map.put("EndpointNotFound", ResourceNotFoundException.class);
     map.put("SubscriptionNotFound", ResourceNotFoundException.class);
-    
+
     // ResourceExhausted errors
     map.put("Throttled", ResourceExhaustedException.class);
     map.put("TooManyEntriesInBatchRequest", ResourceExhaustedException.class);
-    
+
     // PlatformApplication errors
     map.put("PlatformApplicationDisabled", InvalidArgumentException.class);
     map.put("InvalidSecurity", UnAuthorizedException.class);

@@ -5,8 +5,8 @@ import com.salesforce.multicloudj.common.aws.AwsConstants;
 
 public class AwsAsyncProviderSupplierIT extends AsyncProviderSupplierIT {
 
-    @Override
-    protected String getSubstrate() {
-        return AwsConstants.PROVIDER_ID;
-    }
+  @Override
+  protected String getSubstrate() {
+    return AwsConstants.PROVIDER_ID;
+  }
 }

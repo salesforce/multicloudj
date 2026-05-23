@@ -1,0 +1,20 @@
+{
+  "id" : "bfbb6c3f-bccd-4238-abfc-bb0a82e5ea39",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_nonExistentParts-DELETE-1",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0FK56CR6T14G2PNM",
+      "x-amz-id-2" : "YPS5mjgYGpBqKHTzAuNww1ebasZsFksA+jFSvxZ7oczDDPLR6ZJe2/fiLc4+fm72P6yQ5lWhHmY=",
+      "Date" : "Thu, 09 Apr 2026 18:24:25 GMT"
+    }
+  },
+  "uuid" : "bfbb6c3f-bccd-4238-abfc-bb0a82e5ea39",
+  "persistent" : true,
+  "insertionIndex" : 711
+}

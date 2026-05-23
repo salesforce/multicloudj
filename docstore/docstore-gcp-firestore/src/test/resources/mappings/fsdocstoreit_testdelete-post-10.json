@@ -1,0 +1,43 @@
+{
+  "id" : "b97c4f49-932f-4794-a4d4-ae05f6e0f41d",
+  "name" : "FSDocstoreIT_testDelete-POST-10",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"update\":{\"name\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankDelete\",\"fields\":{\"b\":{\"booleanValue\":true},\"s\":{\"stringValue\":\"randomString\"},\"pName\":{\"stringValue\":\"FrankDelete\"},\"f\":{\"doubleValue\":12.65999984741211},\"i\":{\"integerValue\":\"121\"}}},\"currentDocument\":{\"exists\":false}}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {\n      \"updateTime\": \"2026-04-22T22:41:34.366205Z\"\n    }\n  ],\n  \"commitTime\": \"2026-04-22T22:41:34.366205Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "18001058049149710154;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 22 Apr 2026 22:41:34 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "b97c4f49-932f-4794-a4d4-ae05f6e0f41d",
+  "persistent" : true,
+  "insertionIndex" : 241
+}

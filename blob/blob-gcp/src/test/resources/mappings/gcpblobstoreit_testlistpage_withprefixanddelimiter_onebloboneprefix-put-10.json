@@ -1,0 +1,31 @@
+{
+  "id" : "f13c0473-45b3-4c6c-98b2-1ac3123f87da",
+  "name" : "GcpBlobStoreIT_testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix-PUT-10",
+  "request" : {
+    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-nested/root.txt&uploadType=resumable&upload_id=AMNfjG2oz8L9sAIpfQhi6ektv04WhRzJMaCIqW_WTHFtHxflDGb83kXy_ywQZkfVt9tvOCb4fXYUwrbDhK_T51JEYJMyDeixkmraS8hqBepySA",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "test",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-nested/root.txt/1775105154177329\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-nested%2Froot.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-nested%2Froot.txt?generation=1775105154177329&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-nested/root.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775105154177329\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CLGynYGuzpMDEAE=\",\n  \"timeCreated\": \"2026-04-02T04:45:54.251Z\",\n  \"updated\": \"2026-04-02T04:45:54.251Z\",\n  \"timeStorageClassUpdated\": \"2026-04-02T04:45:54.251Z\",\n  \"timeFinalized\": \"2026-04-02T04:45:54.251Z\"\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "ETag" : "CLGynYGuzpMDEAE=",
+      "X-GUploader-UploadID" : "AMNfjG2oz8L9sAIpfQhi6ektv04WhRzJMaCIqW_WTHFtHxflDGb83kXy_ywQZkfVt9tvOCb4fXYUwrbDhK_T51JEYJMyDeixkmraS8hqBepySA",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:54 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "f13c0473-45b3-4c6c-98b2-1ac3123f87da",
+  "persistent" : true,
+  "insertionIndex" : 1038
+}

@@ -1,0 +1,38 @@
+{
+  "id" : "dafc937f-dc46-40cc-9126-539877e9f15f",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_completeAnAbortedUpload-POST-3",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-completeAnAborted",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm4MjBCSyCLGZkFh3PwbILAKj6yqhQxMDZax7hGjcUlFif9cidKu_ooy14zlx4WvNh8"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchUpload</Code><Message>The requested upload was not found.</Message></Error>",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "X-GUploader-UploadID" : "AGQBYWzhCd-2qpPRhGG3zORgtoK9vAAIn8sbre6NiDEoFzbk3JGUipEdrQmjtkHit583C_jQ5NFueAs",
+      "Vary" : "Origin",
+      "Date" : "Wed, 04 Mar 2026 21:07:41 GMT",
+      "Content-Type" : "application/xml; charset=UTF-8"
+    }
+  },
+  "uuid" : "dafc937f-dc46-40cc-9126-539877e9f15f",
+  "persistent" : true,
+  "insertionIndex" : 752
+}

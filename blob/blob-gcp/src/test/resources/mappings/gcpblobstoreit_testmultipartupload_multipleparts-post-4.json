@@ -1,0 +1,45 @@
+{
+  "id" : "8c43f1b3-4b02-4a11-863d-d2915a028281",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_multipleParts-POST-4",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-multipleParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm51DAmu42xAhZsVyMIywzzAIRDlFVVexO38S4jGF7GK9yxxoNAnPtGFlInThNgakq0"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>\"2b5c91ad399409ec9b409b66f5bb00fb\"</ETag></Part><Part><PartNumber>2</PartNumber><ETag>\"267c038cc2ec32ffd0ee2512ff5da5a5\"</ETag></Part><Part><PartNumber>3</PartNumber><ETag>\"fe9e522b589ef23e2c49b65c0522ce97\"</ETag></Part><Part><PartNumber>4</PartNumber><ETag>\"00ad619297ccd041956fe69be4251d30\"</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version='1.0' encoding='UTF-8'?><CompleteMultipartUploadResult xmlns='http://s3.amazonaws.com/doc/2006-03-01/'><Location>http://storage.googleapis.com/substrate-sdk-gcp-poc1-test-bucket/conformance-tests/multipart-multipleParts</Location><Bucket>substrate-sdk-gcp-poc1-test-bucket</Bucket><Key>conformance-tests/multipart-multipleParts</Key><ETag>\"89dc6cf6f8a889b2c911dd47a9534f08-4\"</ETag></CompleteMultipartUploadResult>",
+    "headers" : {
+      "x-goog-stored-content-length" : "20971520",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "x-goog-metageneration" : "1",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:06:55 GMT",
+      "x-goog-hash" : "crc32c=SCLXLQ==",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWzsn2KcgKLn6vC8_JCvVdDXODDOqa-L6FLfMIxniu03zgxj9dOOk1HnQHs6zuEDoug0tO2aqK8",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "x-goog-generation" : "1772658414927763",
+      "Content-Type" : "text/html; charset=UTF-8"
+    }
+  },
+  "uuid" : "8c43f1b3-4b02-4a11-863d-d2915a028281",
+  "persistent" : true,
+  "insertionIndex" : 624
+}

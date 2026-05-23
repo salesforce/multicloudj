@@ -1,5 +1,135 @@
 # Changelog
 
+## [0.3.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.4...multicloudj-v0.3.5) (2026-05-21)
+
+
+### Blob Store
+
+* fix the checksum crc32c validation with negative case with… ([#433](https://github.com/salesforce/multicloudj/issues/433)) ([228ec40](https://github.com/salesforce/multicloudj/commit/228ec40defe0a3c24cc3b67b6202edf43b36216f))
+* onboard conformance test for Ali ([#425](https://github.com/salesforce/multicloudj/issues/425)) ([16268d7](https://github.com/salesforce/multicloudj/commit/16268d79507c41e64b16b19f1c8a984abf610ff2))
+
+## [0.3.4](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.3...multicloudj-v0.3.4) (2026-05-15)
+
+
+### Blob Store
+
+* add object lock support to multipart uploads ([#412](https://github.com/salesforce/multicloudj/issues/412)) ([b0d51ad](https://github.com/salesforce/multicloudj/commit/b0d51ad007e0ac5010b899d96465bfce1a2fa058))
+* Fix GcpTransformer.toBlobInfo(UploadRequest) so that UploadRequest.getChecksumValue() is forwarded to BlobInfo.setCrc32c(...) ([#419](https://github.com/salesforce/multicloudj/issues/419)) ([1072d63](https://github.com/salesforce/multicloudj/commit/1072d630e73f507c448c202292e991234fb39316))
+* fix testInvalidCredentials conformance test for GCP ([#407](https://github.com/salesforce/multicloudj/issues/407)) ([4f9c835](https://github.com/salesforce/multicloudj/commit/4f9c835642d5e10905438be59748c57195cbc04e))
+* GCP and AWS directory upload object lock ([#410](https://github.com/salesforce/multicloudj/issues/410)) ([2be326e](https://github.com/salesforce/multicloudj/commit/2be326e51e61993204028af7bcbd0df9936007cf))
+* onboard handling for archived objects in download for aws/gcp ([#411](https://github.com/salesforce/multicloudj/issues/411)) ([1076088](https://github.com/salesforce/multicloudj/commit/107608827c1b3ce25e82432ce07de2f42b93bf9b))
+* onboard perf configs on GCP ([#416](https://github.com/salesforce/multicloudj/issues/416)) ([6b928e9](https://github.com/salesforce/multicloudj/commit/6b928e904e17c15a353ff7acddc1c7810b495884))
+* Onboard the logging and tracing in blobstore for all AWS/GCP ([#408](https://github.com/salesforce/multicloudj/issues/408)) ([db634b0](https://github.com/salesforce/multicloudj/commit/db634b038f10804615c5a7cb21a21ae6f95cabb3))
+* support retention mode in updateObjectRetention for AWS & GCP ([#417](https://github.com/salesforce/multicloudj/issues/417)) ([48df8d6](https://github.com/salesforce/multicloudj/commit/48df8d618998d1caba724ecc46053bd2f205d270))
+
+
+### Document Store
+
+* Update the documentation for docstore query ([#413](https://github.com/salesforce/multicloudj/issues/413)) ([542fb1d](https://github.com/salesforce/multicloudj/commit/542fb1d2f4522ebba4ed9bc867eeb3953853bcf9))
+
+## [0.3.3](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.2...multicloudj-v0.3.3) (2026-05-01)
+
+
+### Blob Store
+
+* addition of createdTime in the object metadata for all the… ([#400](https://github.com/salesforce/multicloudj/issues/400)) ([a284e81](https://github.com/salesforce/multicloudj/commit/a284e814432ffdfb3812ec15dbb76fd8b88a0e48))
+* support parallel download option and createParentPath option in AWS and GCP ([#377](https://github.com/salesforce/multicloudj/issues/377)) ([da86573](https://github.com/salesforce/multicloudj/commit/da86573679517e667c09eed354884cd28e4980ff))
+
+## [0.3.2](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.1...multicloudj-v0.3.2) (2026-04-28)
+
+
+### Blob Store
+
+* add an option to supply quota project id in bucket client ([#401](https://github.com/salesforce/multicloudj/issues/401)) ([98a6d91](https://github.com/salesforce/multicloudj/commit/98a6d915af2034eb3f6b26638049ff605f68b1b4))
+
+
+### PubSub
+
+* add nack visibility timeout ([#388](https://github.com/salesforce/multicloudj/issues/388)) ([ca3ce0e](https://github.com/salesforce/multicloudj/commit/ca3ce0e5054fcfb63d996a41da3092bdef42bdbe))
+
+## [0.3.1](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.0...multicloudj-v0.3.1) (2026-04-16)
+
+
+### Blob Store
+
+* add contentType support for MPU and optimize wiremock recordings     ([#378](https://github.com/salesforce/multicloudj/issues/378)) ([3f1945c](https://github.com/salesforce/multicloudj/commit/3f1945c13e725087ae757ef0b21f9c187cc4e8a2))
+* checksum support with sha256 ([#368](https://github.com/salesforce/multicloudj/issues/368)) ([1690f20](https://github.com/salesforce/multicloudj/commit/1690f20ba6869bf14d2fa063bd1490d3154c3cc6))
+* fix GCP sync list api to return only blobs ([#354](https://github.com/salesforce/multicloudj/issues/354)) ([0cd097f](https://github.com/salesforce/multicloudj/commit/0cd097f0718e6943fdc93b9c865b085c56ec8528))
+* LoggingTransferListener for AWS ([#367](https://github.com/salesforce/multicloudj/issues/367)) ([9d6bdaa](https://github.com/salesforce/multicloudj/commit/9d6bdaa9e24ec9922bc8d3452daf1a59e58b5bfa))
+* make ListBlobsPageResponse constructor backward compatible ([#376](https://github.com/salesforce/multicloudj/issues/376)) ([b11491d](https://github.com/salesforce/multicloudj/commit/b11491dc5e326f3adbc0688ee8f5368f1ebcddf6))
+* Onboard CommonPrefix support in listPage API ([#369](https://github.com/salesforce/multicloudj/issues/369)) ([f81e955](https://github.com/salesforce/multicloudj/commit/f81e955cacbc4f25606c1c38cfd297e3ca9baf21))
+* onboarding the aws basic credentials in aws creds overider ([#384](https://github.com/salesforce/multicloudj/issues/384)) ([015ccdf](https://github.com/salesforce/multicloudj/commit/015ccdfd4576db1a14d89e0f60b45ac81767e84d))
+* support isObjectLockSupported in in memory blobstore ([#380](https://github.com/salesforce/multicloudj/issues/380)) ([f2738a2](https://github.com/salesforce/multicloudj/commit/f2738a2249c5eb7bbcebe720a3dfc1fd260b597e))
+
+## [0.3.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.28...multicloudj-v0.3.0) (2026-03-27)
+
+
+### Features
+
+* add Jekyll build step to generate-site.sh ([#350](https://github.com/salesforce/multicloudj/issues/350)) ([dc22fe0](https://github.com/salesforce/multicloudj/commit/dc22fe018879d6c9d6f4c8caa3db513921055b55))
+
+
+### Blob Store
+
+* onboard content-type in upload for all clouds ([#346](https://github.com/salesforce/multicloudj/issues/346)) ([f9d8080](https://github.com/salesforce/multicloudj/commit/f9d8080866885edc464b1f1e4cccc65fbb869132))
+
+## [0.2.28](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.27...multicloudj-v0.2.28) (2026-03-17)
+
+
+### Blob Store
+
+* checksum support for mpu ([#332](https://github.com/salesforce/multicloudj/issues/332)) ([5a56444](https://github.com/salesforce/multicloudj/commit/5a564449035f890c2446f5cea204d8719eb525fe))
+* Fix the doGetMetadata blob existence exception ([#341](https://github.com/salesforce/multicloudj/issues/341)) ([fc428ad](https://github.com/salesforce/multicloudj/commit/fc428add5b2babcdd36257dbf690117770b64710))
+* Object lock conformance ([#336](https://github.com/salesforce/multicloudj/issues/336)) ([5a0fb4a](https://github.com/salesforce/multicloudj/commit/5a0fb4a9ab6a5b8ce9f92d50617f47d17f093969))
+
+
+### Document Store
+
+* fix the inequality filter scenario in pagination token ([#340](https://github.com/salesforce/multicloudj/issues/340)) ([f97b58b](https://github.com/salesforce/multicloudj/commit/f97b58b9decbb239b170093043168e32ef03d41c))
+* support decoding byte[] ([#338](https://github.com/salesforce/multicloudj/issues/338)) ([fb1c6f7](https://github.com/salesforce/multicloudj/commit/fb1c6f79378140dfca992cf79b004f79f6360aa7))
+
+
+### PubSub
+
+* add the no-arg constructor ([#339](https://github.com/salesforce/multicloudj/issues/339)) ([bdba4b4](https://github.com/salesforce/multicloudj/commit/bdba4b43aadf4c50c5416c015e3a567e12e3438e))
+
+
+### IAM
+
+* implement substrate neutral policy document model ([#327](https://github.com/salesforce/multicloudj/issues/327)) ([03f6a8c](https://github.com/salesforce/multicloudj/commit/03f6a8ca172c72b8af37222db26b699ca8478db2))
+
+## [0.2.27](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.26...multicloudj-v0.2.27) (2026-03-04)
+
+
+### Blob Store
+
+* extend retry strategy to GCP ([#298](https://github.com/salesforce/multicloudj/issues/298)) ([a22c4b0](https://github.com/salesforce/multicloudj/commit/a22c4b063c7fc84978891a1d89c4d670fb1123d5))
+* override proxy configs ([#318](https://github.com/salesforce/multicloudj/issues/318)) ([d148a85](https://github.com/salesforce/multicloudj/commit/d148a85922ce15356d40d7d537f57dfd5e87bf3c))
+
+
+### IAM
+
+* fix bugs in AWS IAM ([#311](https://github.com/salesforce/multicloudj/issues/311)) ([e741a87](https://github.com/salesforce/multicloudj/commit/e741a87378b1ff059633b5ad548a4004a5d7a781))
+
+## [0.2.26](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.25...multicloudj-v0.2.26) (2026-02-25)
+
+
+### Blob Store
+
+* change validate bucket exists method ([#305](https://github.com/salesforce/multicloudj/issues/305)) ([720fbf6](https://github.com/salesforce/multicloudj/commit/720fbf6d78d2791c7ec0c2ab4fe62bf55fd306c4))
+
+
+### IAM
+
+* implement AWS policy APIs and conformance tests ([#279](https://github.com/salesforce/multicloudj/issues/279)) ([34fceac](https://github.com/salesforce/multicloudj/commit/34fceac6425de3db9cd94ebb3a8016962f5cf466))
+* Onboard examples for IAM APIs  ([#277](https://github.com/salesforce/multicloudj/issues/277)) ([cd82264](https://github.com/salesforce/multicloudj/commit/cd822647c4a863192b9415f418288951f8720c09))
+
+
+### DB Backup Restore
+
+* add examples ([#301](https://github.com/salesforce/multicloudj/issues/301)) ([7d3c34b](https://github.com/salesforce/multicloudj/commit/7d3c34b14e594a807283c58b8932074e7c908f94))
+* add KMS encryption key and status message support to database restore ([#303](https://github.com/salesforce/multicloudj/issues/303)) ([07fcf88](https://github.com/salesforce/multicloudj/commit/07fcf8809081cb9df3e3476069b05cc2bc49c9d8))
+
 ## [0.2.25](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.2.24...multicloudj-v0.2.25) (2026-02-05)
 
 

@@ -5,10 +5,9 @@ import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
-
 import java.util.HashMap;
 import java.util.Map;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 /**
  * Provides the mapping of various AWS Backup error codes to SDK's exceptions.
@@ -17,14 +16,13 @@ import java.util.Map;
  */
 public class ErrorCodeMapping {
 
-  private ErrorCodeMapping() {
-  }
+  private ErrorCodeMapping() {}
 
   private static final Map<String, Class<? extends SubstrateSdkException>> ERROR_MAPPING;
 
   static {
-    Map<String, Class<? extends SubstrateSdkException>> map = new HashMap<>(
-        CommonErrorCodeMapping.get());
+    Map<String, Class<? extends SubstrateSdkException>> map =
+        new HashMap<>(CommonErrorCodeMapping.get());
     // AWS Backup specific error codes
     map.put("ResourceNotFoundException", ResourceNotFoundException.class);
     ERROR_MAPPING = ImmutableMap.copyOf(map);

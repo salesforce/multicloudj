@@ -1,0 +1,24 @@
+{
+  "id" : "e6faaf35-c26b-457c-aa47-85684e79601d",
+  "name" : "AwsPubsubSnsIT_testSendBatchMessages-POST-4",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=CreateTopic&Version=2010-03-31&Name=test-sns-testSendBatchMessages",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<CreateTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <CreateTopicResult>\n    <TopicArn>arn:aws:sns:us-west-2:654654370895:test-sns-testSendBatchMessages</TopicArn>\n  </CreateTopicResult>\n  <ResponseMetadata>\n    <RequestId>d06f4d4c-b01e-56fc-9d3a-2f78464324a3</RequestId>\n  </ResponseMetadata>\n</CreateTopicResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "d06f4d4c-b01e-56fc-9d3a-2f78464324a3",
+      "Date" : "Wed, 18 Mar 2026 18:51:09 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "e6faaf35-c26b-457c-aa47-85684e79601d",
+  "persistent" : true,
+  "insertionIndex" : 54
+}

@@ -1,0 +1,32 @@
+{
+  "id" : "fe84b257-4b15-4ced-9008-28e228ac1aab",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_skippingNumbers-DELETE-0",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-skippingNumbers",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "MIWS3N8ks71tZ7GCHK71MpBAtEefQAlM4ccoTwjI1rRpCxkR10cYQzmKG48qdea0IbGDwHHxi_WvOkj6Wc1TVvB3uOgrbDRutkzQnJUNLHrRPnVIfMeYxFfAxwlBQxqgSGx95oQCnHSGwDE_Kb4y20sD1g6sRfM6doEG4XyPJrj54hKe8GWDMQvdXOZL8q6j"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "97YJ4NA6D1DTKVC5",
+      "x-amz-id-2" : "CkOW3ZyM09Rq8uGdsDYv/TRRLPQ+BLlE1fSzM32/W9Ry3Gs/oA0GwGlTRFzVysIEBUDnP1tXiqE=",
+      "Date" : "Thu, 09 Apr 2026 18:24:11 GMT"
+    }
+  },
+  "uuid" : "fe84b257-4b15-4ced-9008-28e228ac1aab",
+  "persistent" : true,
+  "insertionIndex" : 683
+}

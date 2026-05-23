@@ -1,0 +1,36 @@
+{
+  "id" : "ec230159-6945-41c5-a25f-40f19413180c",
+  "name" : "AliBlobStoreIT_testRangedReadWithKmsKey-GET-1",
+  "request" : {
+    "url" : "/conformance-tests/kms/ranged-read",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 206,
+    "base64Body" : "IHRlc3QgZmlsZQ==",
+    "headers" : {
+      "x-oss-request-id" : "6A0F7F71AF19EA383936CFA3",
+      "x-oss-server-time" : "7",
+      "Server" : "AliyunOSS",
+      "Content-Range" : "bytes 41-50/51",
+      "x-oss-object-type" : "Normal",
+      "Last-Modified" : "Thu, 21 May 2026 21:55:58 GMT",
+      "Date" : "Thu, 21 May 2026 21:56:01 GMT",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "17862811016356862860",
+      "ETag" : "\"D78F126840EC9CBEFD5252BA8EF7EFD5\"",
+      "Content-Type" : "application/octet-stream"
+    }
+  },
+  "uuid" : "ec230159-6945-41c5-a25f-40f19413180c",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-conformance-tests-kms-ranged-read",
+  "requiredScenarioState" : "scenario-1-conformance-tests-kms-ranged-read-4",
+  "insertionIndex" : 361
+}

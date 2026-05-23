@@ -1,0 +1,37 @@
+{
+  "id" : "d0b50d74-5da2-4a27-b4cd-2173a8d65b1f",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_nonExistentParts-POST-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/multipart-nonExistentParts",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "0bEPt2sg8kd.VyNqy.HbaZq42y.WDgYTStVpRZiDavQdk3_lz0cdTF4_gGLKw33prROIMm5.YJwk4.R3qvEPYnCK6EKvRsZW5K1BLOjN1Fw5ZNfGi_OjGMzSUpxjdhyPIvgsC25pVf6TKSVy0zoZRqEgi9tpmsjsMLKImrQUyu1xf3qgW85ZbuVZ5hrx257T"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><ETag>&quot;2b5c91ad399409ec9b409b66f5bb00fb&quot;</ETag><PartNumber>2</PartNumber></Part><Part><ETag>fakeEtag</ETag><PartNumber>3</PartNumber></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>0bEPt2sg8kd.VyNqy.HbaZq42y.WDgYTStVpRZiDavQdk3_lz0cdTF4_gGLKw33prROIMm5.YJwk4.R3qvEPYnCK6EKvRsZW5K1BLOjN1Fw5ZNfGi_OjGMzSUpxjdhyPIvgsC25pVf6TKSVy0zoZRqEgi9tpmsjsMLKImrQUyu1xf3qgW85ZbuVZ5hrx257T</UploadId><PartNumber>3</PartNumber><ETag>fakeEtag</ETag><RequestId>0FK4EWA932A29PMG</RequestId><HostId>5JDYGW+r4m3CsdTTrd2qugsfkInyqnG894LsOeJ1SW7q5dBMFqGVYOn2TimBzv3nxmeTj7owl+Q=</HostId></Error>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "0FK4EWA932A29PMG",
+      "x-amz-id-2" : "5JDYGW+r4m3CsdTTrd2qugsfkInyqnG894LsOeJ1SW7q5dBMFqGVYOn2TimBzv3nxmeTj7owl+Q=",
+      "Date" : "Thu, 09 Apr 2026 18:24:23 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d0b50d74-5da2-4a27-b4cd-2173a8d65b1f",
+  "persistent" : true,
+  "insertionIndex" : 712
+}

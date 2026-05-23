@@ -1,0 +1,36 @@
+{
+  "id" : "5179bea2-16db-4c45-8119-f30758c36880",
+  "name" : "GcpBlobStoreIT_testMultipartUpload_badETag-DELETE-0",
+  "request" : {
+    "urlPath" : "/substrate-sdk-gcp-poc1-test-bucket/conformance-tests%2Fmultipart-badETag",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "ABPnzm7XLWgS5LlxLMExDPceQU-vVUewg-s7gSH8Is5cRR3UqSlSyV4KLnaKtW8itTCyjVs"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AGQBYWx-9w0YXFGWgKnM1YPthUnD1a8_sh8vY8iZGEyX4KYRseHd3cHPa6D9haN4NRhDIgS7AbEbRw2a8CxX",
+      "Vary" : "Origin",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Pragma" : "no-cache",
+      "Date" : "Wed, 04 Mar 2026 21:03:11 GMT"
+    }
+  },
+  "uuid" : "5179bea2-16db-4c45-8119-f30758c36880",
+  "persistent" : true,
+  "insertionIndex" : 9
+}

@@ -1,0 +1,20 @@
+{
+  "id" : "8559d914-97ac-4c65-8891-c8627a4d83f9",
+  "name" : "AwsDBBackupRestoreIT_testListBackups-GET-0",
+  "request" : {
+    "url" : "/resources/arn%3Aaws%3Adynamodb%3Aus-west-2%3A654654370895%3Atable%2Fdocstore-test-1/recovery-points/",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\"NextToken\":\"AAQA-EFRSURBSGhTeHlmNC9rTjNpZHFqdklnZlliUGVXLy9EMGV2YmpqbndpeE9JeW5NL1BRR1l2eW40RHBSZEhrSDBXZWxDSmZORkFBQUFmakI4QmdrcWhraUc5dzBCQndhZ2J6QnRBZ0VBTUdnR0NTcUdTSWIzRFFFSEFUQWVCZ2xnaGtnQlpRTUVBUzR3RVFRTUswK1RDbUgwbkE4b09GT2JBZ0VRZ0R2VERwdUFxclFVOUErdXVxNXdXOVJob2pGY1lsRWJXbVE0UnNPRjg1c2pkN3o2RDRwMGpGY0IwZmdCTDZYZ2NLMVREVFV1REZYa01icFBUQT09J7aGEXDnNhSC4qHW9lx8L5Xqgt5xFSktgpDyoKvjxLiSiID14RAFRlHtN1Z4WPqjslwraNz8sJhC4LXh\",\"RecoveryPoints\":[{\"AggregatedScanResult\":null,\"BackupSizeBytes\":543,\"BackupVaultName\":\"Default\",\"CreationDate\":1.7698191829E9,\"EncryptionKeyArn\":\"arn:aws:kms:us-west-2:654654370895:key/8e5adf52-3724-4f43-b33d-b78d3bd22127\",\"EncryptionKeyType\":null,\"IndexStatus\":null,\"IndexStatusMessage\":null,\"IsParent\":false,\"ParentRecoveryPointArn\":null,\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:c5baed67-6777-4052-8afe-024d7f2e964a\",\"ResourceName\":\"docstore-test-1\",\"Status\":\"COMPLETED\",\"StatusMessage\":null,\"VaultType\":\"BACKUP_VAULT\"},{\"AggregatedScanResult\":null,\"BackupSizeBytes\":543,\"BackupVaultName\":\"Default\",\"CreationDate\":1.76981916897E9,\"EncryptionKeyArn\":\"arn:aws:kms:us-west-2:654654370895:key/8e5adf52-3724-4f43-b33d-b78d3bd22127\",\"EncryptionKeyType\":null,\"IndexStatus\":null,\"IndexStatusMessage\":null,\"IsParent\":false,\"ParentRecoveryPointArn\":null,\"RecoveryPointArn\":\"arn:aws:backup:us-west-2:654654370895:recovery-point:4b430598-8697-4f3f-96c0-6c6cb6271fb2\",\"ResourceName\":\"docstore-test-1\",\"Status\":\"COMPLETED\",\"StatusMessage\":null,\"VaultType\":\"BACKUP_VAULT\"}]}",
+    "headers" : {
+      "x-amzn-RequestId" : "a1dd6408-0065-4c40-9e71-da73ea6d599a",
+      "Date" : "Wed, 04 Mar 2026 21:27:06 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "8559d914-97ac-4c65-8891-c8627a4d83f9",
+  "persistent" : true,
+  "insertionIndex" : 1
+}

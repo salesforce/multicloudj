@@ -1,0 +1,21 @@
+{
+  "id" : "61b42fe1-56ef-4e81-a53e-dde85b4f11bd",
+  "name" : "AwsBlobStoreIT_testDoesBucketExist_NonExistentBucket-HEAD-0",
+  "request" : {
+    "url" : "/java-bucket-does-not-exist",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 404,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "H35YJ0PB4TANVV6J",
+      "x-amz-id-2" : "o0shSNs3OCAKd3uUQKPY8S2u62aAN6qKJh8Y/kmHyaGJIS/vsrksHH4oKZFgaSAx/gyrk8agsPhbN9XQ1wnfcdGu0rWUZjgj",
+      "Date" : "Wed, 04 Mar 2026 20:58:29 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "61b42fe1-56ef-4e81-a53e-dde85b4f11bd",
+  "persistent" : true,
+  "insertionIndex" : 346
+}

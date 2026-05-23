@@ -1,0 +1,26 @@
+{
+  "id" : "0bab92ed-68b5-4be7-86b0-c33e27ec62de",
+  "name" : "AwsBlobStoreIT_testMultipartUpload_duplicateParts-HEAD-2",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/multipart-duplicateParts",
+    "method" : "HEAD"
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Accept-Ranges" : "bytes",
+      "Server" : "AmazonS3",
+      "ETag" : "\"24b97d17bef4abbe4769ada99ebf91c9-2\"",
+      "x-amz-meta-567" : "456",
+      "Last-Modified" : "Thu, 09 Apr 2026 18:24:41 GMT",
+      "x-amz-request-id" : "RZG0ZVW77HDTFPXB",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "EqnPxbcmJhx6A+d4RIoTFSs0lqLCKAhnBat+5dnsCV69z9gYJTfL/EAlUNnwCNnc/6EHG3XV3FY=",
+      "Date" : "Thu, 09 Apr 2026 18:24:48 GMT",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "0bab92ed-68b5-4be7-86b0-c33e27ec62de",
+  "persistent" : true,
+  "insertionIndex" : 740
+}

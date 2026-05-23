@@ -1,0 +1,43 @@
+{
+  "id" : "fbd46e97-0a14-4694-911d-c3a5662f33b6",
+  "name" : "FSDocstoreIT_testPut-POST-11",
+  "request" : {
+    "urlPath" : "/v1/projects/substrate-sdk-gcp-poc1/databases/(default)/documents:commit",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "$alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "json;enum-encoding=int"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"writes\":[{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/BishopPlayer\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/DavidMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/EdwardPlayer\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/FrankMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/LionMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PrincePlayer\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/PumaMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/QueenMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/SharkMap\"},{\"delete\":\"projects/substrate-sdk-gcp-poc1/databases/(default)/documents/docstore-test-1/TigerMap\"}]}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"writeResults\": [\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {},\n    {}\n  ],\n  \"commitTime\": \"2026-04-22T22:41:21.498077Z\"\n}\n",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "ESF",
+      "X-Debug-Tracking-ID" : "11204632662114655065;o=1",
+      "X-Content-Type-Options" : "nosniff",
+      "Vary" : [ "Origin", "X-Origin", "Referer" ],
+      "X-XSS-Protection" : "0",
+      "Date" : "Wed, 22 Apr 2026 22:41:21 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "fbd46e97-0a14-4694-911d-c3a5662f33b6",
+  "persistent" : true,
+  "insertionIndex" : 198
+}

@@ -1,0 +1,25 @@
+{
+  "id" : "c97f3dc8-d3b7-4e1d-b73a-b4101aec992a",
+  "name" : "GcpBlobStoreIT_testListPage_NoDelimiter_CommonPrefixesEmpty-GET-6",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?prefix=conformance-tests/common-prefix-no-delimiter/&projection=full",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"kind\": \"storage#objects\",\n  \"items\": [\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-no-delimiter/dir1/a.txt/1775105128520383\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir1%2Fa.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir1%2Fa.txt?generation=1775105128520383&alt=media\",\n      \"name\": \"conformance-tests/common-prefix-no-delimiter/dir1/a.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1775105128520383\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"4\",\n      \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n      \"crc32c\": \"hqBywA==\",\n      \"etag\": \"CL+1//StzpMDEAE=\",\n      \"timeCreated\": \"2026-04-02T04:45:28.586Z\",\n      \"updated\": \"2026-04-02T04:45:28.586Z\",\n      \"timeStorageClassUpdated\": \"2026-04-02T04:45:28.586Z\",\n      \"timeFinalized\": \"2026-04-02T04:45:28.586Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-no-delimiter/dir2/b.txt/1775105132609493\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir2%2Fb.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Fdir2%2Fb.txt?generation=1775105132609493&alt=media\",\n      \"name\": \"conformance-tests/common-prefix-no-delimiter/dir2/b.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1775105132609493\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"4\",\n      \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n      \"crc32c\": \"hqBywA==\",\n      \"etag\": \"CNX/+PatzpMDEAE=\",\n      \"timeCreated\": \"2026-04-02T04:45:32.676Z\",\n      \"updated\": \"2026-04-02T04:45:32.676Z\",\n      \"timeStorageClassUpdated\": \"2026-04-02T04:45:32.676Z\",\n      \"timeFinalized\": \"2026-04-02T04:45:32.676Z\"\n    },\n    {\n      \"kind\": \"storage#object\",\n      \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-no-delimiter/root.txt/1775105130746393\",\n      \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Froot.txt\",\n      \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-no-delimiter%2Froot.txt?generation=1775105130746393&alt=media\",\n      \"name\": \"conformance-tests/common-prefix-no-delimiter/root.txt\",\n      \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n      \"generation\": \"1775105130746393\",\n      \"metageneration\": \"1\",\n      \"contentType\": \"application/octet-stream\",\n      \"storageClass\": \"STANDARD\",\n      \"size\": \"4\",\n      \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n      \"crc32c\": \"hqBywA==\",\n      \"etag\": \"CJmkh/atzpMDEAE=\",\n      \"timeCreated\": \"2026-04-02T04:45:30.819Z\",\n      \"updated\": \"2026-04-02T04:45:30.819Z\",\n      \"timeStorageClassUpdated\": \"2026-04-02T04:45:30.819Z\",\n      \"timeFinalized\": \"2026-04-02T04:45:30.819Z\"\n    }\n  ]\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
+      "X-GUploader-UploadID" : "AMNfjG3CXc2Dmr07j73S6I-J4on294nPeLAyEc0W7PsYlti75iJEwXOrIGIaROyX-j9gBoqNLfvGRbY",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Thu, 02 Apr 2026 04:45:33 GMT",
+      "Date" : "Thu, 02 Apr 2026 04:45:33 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "c97f3dc8-d3b7-4e1d-b73a-b4101aec992a",
+  "persistent" : true,
+  "insertionIndex" : 994
+}

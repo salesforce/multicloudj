@@ -1,0 +1,24 @@
+{
+  "id" : "526a8d77-eec8-49dc-abf0-b50ba151d70b",
+  "name" : "AwsIamIT_testGetInlinePolicyDetails-POST-0",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalTo" : "Action=GetRolePolicy&Version=2010-05-08&RoleName=testSa&PolicyName=TestPolicy",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<GetRolePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <GetRolePolicyResult>\n    <PolicyDocument>%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3AGetObject%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%3A%3A%3Amulticloudj-iam-it-test-bucket%2F%2A%22%7D%5D%7D</PolicyDocument>\n    <PolicyName>TestPolicy</PolicyName>\n    <RoleName>testSa</RoleName>\n  </GetRolePolicyResult>\n  <ResponseMetadata>\n    <RequestId>3068eec0-9180-4b25-9e49-86eeb168fae1</RequestId>\n  </ResponseMetadata>\n</GetRolePolicyResponse>\n",
+    "headers" : {
+      "x-amzn-RequestId" : "3068eec0-9180-4b25-9e49-86eeb168fae1",
+      "Date" : "Tue, 10 Mar 2026 06:16:14 GMT",
+      "Content-Type" : "text/xml"
+    }
+  },
+  "uuid" : "526a8d77-eec8-49dc-abf0-b50ba151d70b",
+  "persistent" : true,
+  "insertionIndex" : 24
+}

@@ -1,0 +1,29 @@
+{
+  "id" : "0af8c4f2-29c5-41a0-9da5-1307de15c21b",
+  "name" : "AwsBlobStoreIT_testUpload_happyPath-PUT-5",
+  "request" : {
+    "url" : "/chameleon-jcloud-versioned/conformance-tests/upload/happyPath_versioned_File",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "This is test data",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"701bbd4bde1ee04e3b0596f63994ebae\"",
+      "x-amz-checksum-crc64nvme" : "4G16TxxAsWw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "KRP0QD9VXGDZ33QS",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "wBKXvQrDQAUUDv8DXgJ1+J6g16QrQ4m6RbnsHvwrRtZ53p5RKJDMuGv3G9gtfSWtA7HPPJsRdl5VIg5noyiZbWq+SS1T1KjF",
+      "x-amz-version-id" : "yp4VEJM38PqrT1ZxVBXakbLQnKVH3dB5",
+      "Date" : "Wed, 04 Mar 2026 20:58:50 GMT"
+    }
+  },
+  "uuid" : "0af8c4f2-29c5-41a0-9da5-1307de15c21b",
+  "persistent" : true,
+  "insertionIndex" : 375
+}

@@ -1,0 +1,37 @@
+{
+  "id" : "e85417ba-0bed-46ae-bbd7-f0131c4748c0",
+  "name" : "AwsBlobStoreIT_testTagging_withObjectLock-GET-5",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned/conformance-tests/blob-for-tagging-objectlock",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldD48VGFnPjxLZXk+dGFnMTwvS2V5PjxWYWx1ZT52YWx1ZTE8L1ZhbHVlPjwvVGFnPjwvVGFnU2V0PjwvVGFnZ2luZz4=",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "R92F5ZGF8DE057KY",
+      "x-amz-id-2" : "Hxy8ZKlPSfT0vKQ7krCewYOBL8H8jXGy/NQMHb44lYAFlQxGFWNIol07LEan7QD/vKOYNEhzPNE=",
+      "x-amz-version-id" : "dgo9JT5pJMrdh0InTb0FVinbLxRovWYO",
+      "Date" : "Tue, 10 Mar 2026 14:31:04 GMT"
+    }
+  },
+  "uuid" : "e85417ba-0bed-46ae-bbd7-f0131c4748c0",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-blob-for-tagging-objectlock",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1-chameleon-jcloud-versioned-conformance-tests-blob-for-tagging-objectlock-2",
+  "insertionIndex" : 586
+}

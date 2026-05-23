@@ -1,27 +1,38 @@
 package com.salesforce.multicloudj.blob.ali;
 
-import com.aliyun.oss.ClientBuilderConfiguration;
-import com.aliyun.oss.ClientException;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import com.aliyun.oss.ServiceException;
-import com.aliyun.oss.common.comm.SignVersion;
-import com.aliyun.oss.model.CompleteMultipartUploadRequest;
-import com.aliyun.oss.model.CompleteMultipartUploadResult;
-import com.aliyun.oss.model.CopyObjectRequest;
-import com.aliyun.oss.model.CopyObjectResult;
-import com.aliyun.oss.model.GenericRequest;
-import com.aliyun.oss.model.GetObjectRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadRequest;
-import com.aliyun.oss.model.InitiateMultipartUploadResult;
-import com.aliyun.oss.model.ListPartsRequest;
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.ObjectListing;
-import com.aliyun.oss.model.PartListing;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.TagSet;
-import com.aliyun.oss.model.UploadPartRequest;
-import com.aliyun.oss.model.UploadPartResult;
+import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.PresignOptions;
+import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.exceptions.OperationException;
+import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
+import com.aliyun.sdk.service.oss2.models.CommonPrefix;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
+import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.PresignResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -40,20 +51,17 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
-import lombok.Getter;
-
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -67,544 +75,676 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
-/**
- * Alibaba implementation of BlobStore
- */
+/** Alibaba implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class AliBlobStore extends AbstractBlobStore {
 
-    private final OSS ossClient;
-    private final AliTransformer transformer;
+  private final OSSClient ossClient;
+  private final AliTransformer transformer;
 
-    public AliBlobStore() {
-        this(new Builder(), null);
+  public AliBlobStore() {
+    this(new Builder(), null);
+  }
+
+  public AliBlobStore(Builder builder, OSSClient ossClient) {
+    super(builder);
+    this.ossClient = ossClient;
+    this.transformer = builder.getTransformerSupplier().get(bucket);
+  }
+
+  @Override
+  public Provider.Builder builder() {
+    return new Builder();
+  }
+
+  @Override
+  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+    if (t instanceof SubstrateSdkException) {
+      return (Class<? extends SubstrateSdkException>) t.getClass();
+    } else if (t instanceof OperationException) {
+      Throwable cause = t.getCause();
+      if (cause instanceof ServiceException) {
+        String errorCode =
+            ((ServiceException) cause).errorCode();
+        return ErrorCodeMapping.getException(errorCode);
+      }
+      return UnknownException.class;
+    } else if (t instanceof ServiceException) {
+      String errorCode =
+          ((ServiceException) t).errorCode();
+      return ErrorCodeMapping.getException(errorCode);
+    } else if (t instanceof IllegalArgumentException) {
+      return InvalidArgumentException.class;
     }
+    return UnknownException.class;
+  }
 
-    public AliBlobStore(Builder builder, OSS ossClient) {
-        super(builder);
-        this.ossClient = ossClient;
-        this.transformer = builder.getTransformerSupplier().get(bucket);
+  /**
+   * Performs Blob upload Note: Specifying the contentLength in the UploadRequest can dramatically
+   * improve upload efficiency because the substrate SDKs do not need to buffer the contents and
+   * calculate it themselves.
+   *
+   * @param uploadRequest Wrapper object containing upload data
+   * @param inputStream The input stream that contains the blob content
+   * @return Wrapper object containing the upload result data
+   */
+  @Override
+  protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
+    long contentLength = uploadRequest.getContentLength();
+    BinaryData body =
+        BinaryData.fromStream(
+            inputStream, contentLength > 0 ? contentLength : null);
+    return doUploadInternal(uploadRequest, body);
+  }
+
+  /**
+   * Performs Blob upload
+   *
+   * @param uploadRequest Wrapper object containing upload data
+   * @param content The byte array that contains the blob content
+   * @return Wrapper object containing the upload result data
+   */
+  @Override
+  protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
+    BinaryData body =
+        BinaryData.fromBytes(content);
+    return doUploadInternal(uploadRequest, body);
+  }
+
+  /**
+   * Performs Blob upload
+   *
+   * @param uploadRequest Wrapper object containing upload data
+   * @param file The File that contains the blob content
+   * @return Wrapper object containing the upload result data
+   */
+  @Override
+  protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
+    try {
+      BinaryData body =
+          BinaryData.fromStream(
+              Files.newInputStream(file.toPath()), file.length());
+      return doUploadInternal(uploadRequest, body);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to read file for upload: " + file.getPath(), e);
     }
+  }
 
-    @Override
-    public Provider.Builder builder() {
-        return new Builder();
+  /**
+   * Performs Blob upload
+   *
+   * @param uploadRequest Wrapper object containing upload data
+   * @param path The Path that contains the blob content
+   * @return Wrapper object containing the upload result data
+   */
+  @Override
+  protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
+    return doUpload(uploadRequest, path.toFile());
+  }
+
+  /** Helper function to upload blobs */
+  protected UploadResponse doUploadInternal(
+      UploadRequest uploadRequest,
+      BinaryData body) {
+    PutObjectRequest request =
+        transformer.toPutObjectRequest(uploadRequest, body);
+    PutObjectResult result =
+        ossClient.putObject(request,
+            OperationOptions.defaults());
+    return transformer.toUploadResponse(uploadRequest, result);
+  }
+
+  /**
+   * Performs Blob download
+   *
+   * @param downloadRequest Wrapper object containing download data
+   * @param outputStream The output stream that the blob content will be written to
+   * @return Returns a DownloadResponse object that contains metadata about the blob
+   */
+  @Override
+  protected DownloadResponse doDownload(
+      DownloadRequest downloadRequest, OutputStream outputStream) {
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    try (GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults())) {
+      validateRangeResponse(downloadRequest, result);
+      copyStream(result.body(), outputStream);
+      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
+    } catch (Exception e) {
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
+  }
 
-    @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-        if (t instanceof SubstrateSdkException) {
-            return (Class<? extends SubstrateSdkException>) t.getClass();
-        } else if (t instanceof ServiceException) {
-            String errorCode = ((ServiceException) t).getErrorCode();
-            return ErrorCodeMapping.getException(errorCode);
-        } else if (t instanceof ClientException) {
-            return InvalidArgumentException.class;
-        }
-        return UnknownException.class;
+  /**
+   * Performs Blob download
+   *
+   * @param downloadRequest Wrapper object containing download data
+   * @param byteArray The byte array that blob content will be written to
+   * @return Returns a DownloadResponse object that contains metadata about the blob
+   */
+  @Override
+  protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
+    byteArray.setBytes(outputStream.toByteArray());
+    return downloadResponse;
+  }
+
+  /**
+   * Performs Blob download
+   *
+   * @param downloadRequest Wrapper object containing download data
+   * @param file The File the blob content will be written to
+   * @return Returns a DownloadResponse object that contains metadata about the blob
+   */
+  @Override
+  protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
+    return doDownload(downloadRequest, file.toPath());
+  }
+
+  /**
+   * Performs Blob download
+   *
+   * @param downloadRequest Wrapper object containing download data
+   * @param path The Path that blob content will be written to
+   * @return Returns a DownloadResponse object that contains metadata about the blob
+   */
+  @Override
+  protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
+    Path destinationPath =
+        createDownloadDestinationPath(downloadRequest, path);
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    try (GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults())) {
+      validateRangeResponse(downloadRequest, result);
+      Files.copy(result.body(), destinationPath);
+      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
+    } catch (Exception e) {
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
+      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
+  }
 
-    /**
-     * Performs Blob upload
-     * Note: Specifying the contentLength in the UploadRequest can dramatically improve upload efficiency
-     * because the substrate SDKs do not need to buffer the contents and calculate it themselves.
-     *
-     * @param uploadRequest Wrapper object containing upload data
-     * @param inputStream The input stream that contains the blob content
-     * @return Wrapper object containing the upload result data
-     */
-    @Override
-    protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-        return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, inputStream));
+  /**
+   * Performs Blob download and returns an InputStream
+   *
+   * @param downloadRequest Wrapper object containing download data
+   * @return Returns a DownloadResponse object that contains metadata about the blob and an
+   *     InputStream for reading the content
+   */
+  @Override
+  public DownloadResponse doDownload(DownloadRequest downloadRequest) {
+    GetObjectRequest request =
+        transformer.toGetObjectRequest(downloadRequest);
+    GetObjectResult result =
+        ossClient.getObject(request,
+            OperationOptions.defaults());
+    try {
+      validateRangeResponse(downloadRequest, result);
+    } catch (RuntimeException e) {
+      try {
+        result.close();
+      } catch (Exception ignored) {
+        // best-effort cleanup
+      }
+      throw e;
     }
+    return transformer.toDownloadResponse(downloadRequest.getKey(), result, result.body());
+  }
 
-    /**
-     * Performs Blob upload
-     *
-     * @param uploadRequest Wrapper object containing upload data
-     * @param content The byte array that contains the blob content
-     * @return Wrapper object containing the upload result data
-     */
-    @Override
-    protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-        return doUpload(uploadRequest, new ByteArrayInputStream(content));
+  // OSS returns the full object with HTTP 200 when range start exceeds object size,
+  // unlike S3/GCS which return HTTP 416. Detect via contentRange absence and throw
+  // to make behavior consistent with other substrates.
+  private void validateRangeResponse(
+      DownloadRequest downloadRequest,
+      GetObjectResult result) {
+    if (downloadRequest.getStart() == null) {
+      return;
     }
-
-    /**
-     * Performs Blob upload
-     *
-     * @param uploadRequest Wrapper object containing upload data
-     * @param file The File that contains the blob content
-     * @return Wrapper object containing the upload result data
-     */
-    @Override
-    protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-        return doUpload(uploadRequest, transformer.toPutObjectRequest(uploadRequest, file));
+    if (result.contentRange() == null) {
+      Long contentLength = result.contentLength();
+      long objectSize = contentLength != null ? contentLength : 0L;
+      if (downloadRequest.getStart() >= objectSize) {
+        throw new InvalidArgumentException(
+            "The requested range start ("
+                + downloadRequest.getStart()
+                + ") is not satisfiable for object of size "
+                + objectSize);
+      }
     }
+  }
 
-    /**
-     * Performs Blob upload
-     *
-     * @param uploadRequest Wrapper object containing upload data
-     * @param path The Path that contains the blob content
-     * @return Wrapper object containing the upload result data
-     */
-    @Override
-    protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-        return doUpload(uploadRequest, path.toFile());
+  private void copyStream(InputStream in, OutputStream out) {
+    try {
+      byte[] buffer = new byte[1024];
+      int bytesRead;
+      while ((bytesRead = in.read(buffer)) != -1) {
+        out.write(buffer, 0, bytesRead);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    /**
-     * Helper function to upload blobs
-     */
-    protected UploadResponse doUpload(UploadRequest uploadRequest, PutObjectRequest request) {
-        return transformer.toUploadResponse(uploadRequest, ossClient.putObject(request));
+  /**
+   * Deletes a single blob
+   *
+   * @param key Object name of the Blob
+   * @param versionId The versionId of the blob
+   */
+  @Override
+  protected void doDelete(String key, String versionId) {
+    DeleteObjectRequest request =
+        transformer.toDeleteObjectRequest(key, versionId);
+    ossClient.deleteObject(request,
+        OperationOptions.defaults());
+  }
+
+  /**
+   * Deletes a collection of Blobs
+   *
+   * @param objects A collection of blob identifiers to delete
+   */
+  @Override
+  protected void doDelete(Collection<BlobIdentifier> objects) {
+    if (objects.isEmpty()) {
+      return;
     }
+    DeleteMultipleObjectsRequest request =
+        transformer.toDeleteMultipleObjectsRequest(objects);
+    ossClient.deleteMultipleObjects(request,
+        OperationOptions.defaults());
+  }
 
-    /**
-     * Performs Blob download
-     *
-     * @param downloadRequest Wrapper object containing download data
-     * @param outputStream The output stream that the blob content will be written to
-     * @return Returns a DownloadResponse object that contains metadata about the blob
-     */
-    @Override
-    protected DownloadResponse doDownload(DownloadRequest downloadRequest, OutputStream outputStream) {
-        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-        try (OSSObject ossObject = ossClient.getObject(request)) {
-            InputStream downloadedInputstream = ossObject.getObjectContent();
-            copyStream(downloadedInputstream, outputStream);
-            return transformer.toDownloadResponse(ossObject);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-        }
+  /**
+   * Copies a Blob to a different bucket
+   *
+   * @param request the copy request
+   * @return CopyResponse of the copied Blob
+   */
+  @Override
+  protected CopyResponse doCopy(CopyRequest request) {
+    CopyObjectRequest copyRequest =
+        transformer.toCopyObjectRequest(request);
+    CopyObjectResult result =
+        ossClient.copyObject(copyRequest,
+            OperationOptions.defaults());
+    return buildCopyResponse(request.getDestKey(), result);
+  }
+
+  /**
+   * Copies a Blob from a source bucket to the current bucket
+   *
+   * @param request the copyFrom request
+   * @return CopyResponse of the copied Blob
+   */
+  @Override
+  protected CopyResponse doCopyFrom(CopyFromRequest request) {
+    CopyObjectRequest copyRequest =
+        transformer.toCopyObjectRequest(request);
+    CopyObjectResult result =
+        ossClient.copyObject(copyRequest,
+            OperationOptions.defaults());
+    return buildCopyResponse(request.getDestKey(), result);
+  }
+
+  private CopyResponse buildCopyResponse(
+      String destKey, CopyObjectResult result) {
+    CopyResponse response = transformer.toCopyResponse(destKey, result);
+    if (response.getLastModified() == null) {
+      HeadObjectRequest headRequest =
+          transformer.toHeadObjectRequest(destKey, response.getVersionId());
+      HeadObjectResult headResult =
+          ossClient.headObject(headRequest,
+              OperationOptions.defaults());
+      return CopyResponse.builder()
+          .key(response.getKey())
+          .versionId(response.getVersionId())
+          .eTag(response.getETag())
+          .lastModified(transformer.parseLastModified(headResult.lastModified()))
+          .build();
     }
+    return response;
+  }
 
-    /**
-     * Performs Blob download
-     *
-     * @param downloadRequest Wrapper object containing download data
-     * @param byteArray The byte array that blob content will be written to
-     * @return Returns a DownloadResponse object that contains metadata about the blob
-     */
-    @Override
-    protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
-        byteArray.setBytes(outputStream.toByteArray());
-        return downloadResponse;
-    }
+  /**
+   * Retrieves the Blob metadata
+   *
+   * @param key Key of the Blob whose metadata is to be retrieved
+   * @param versionId The versionId of the blob. This field is optional and only used if your bucket
+   *     has versioning enabled. This value should be null unless you're targeting a specific
+   *     key/version blob.
+   * @return Wrapper Blob metadata object
+   */
+  @Override
+  protected BlobMetadata doGetMetadata(String key, String versionId) {
+    HeadObjectRequest request =
+        transformer.toHeadObjectRequest(key, versionId);
+    HeadObjectResult result =
+        ossClient.headObject(request,
+            OperationOptions.defaults());
+    return transformer.toBlobMetadata(key, result);
+  }
 
-    /**
-     * Performs Blob download
-     *
-     * @param downloadRequest Wrapper object containing download data
-     * @param file The File the blob content will be written to
-     * @return Returns a DownloadResponse object that contains metadata about the blob
-     */
-    @Override
-    protected DownloadResponse doDownload(DownloadRequest downloadRequest, File file) {
-        return doDownload(downloadRequest, file.toPath());
-    }
+  /**
+   * Lists all objects in the bucket
+   *
+   * @return Iterator of the list
+   */
+  @Override
+  protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
+    return new BlobInfoIterator(ossClient, transformer, request);
+  }
 
-    /**
-     * Performs Blob download
-     *
-     * @param downloadRequest Wrapper object containing download data
-     * @param path The Path that blob content will be written to
-     * @return Returns a DownloadResponse object that contains metadata about the blob
-     */
-    @Override
-    protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-        try (OSSObject ossObject = ossClient.getObject(request)) {
-            InputStream downloadedInputstream = ossObject.getObjectContent();
-            Files.copy(downloadedInputstream, path);
-            return transformer.toDownloadResponse(ossObject);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-        }
-    }
+  /**
+   * Lists a single page of objects in the bucket with pagination support
+   *
+   * @param request The list request containing filters and optional pagination token
+   * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
+   */
+  @Override
+  protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request);
+    ListObjectsV2Result response =
+        ossClient.listObjectsV2(listRequest,
+            OperationOptions.defaults());
 
-    /**
-     * Performs Blob download and returns an InputStream
-     *
-     * @param downloadRequest Wrapper object containing download data
-     * @return Returns a DownloadResponse object that contains metadata about the blob and an InputStream for reading the content
-     */
-    @Override
-    public DownloadResponse doDownload(DownloadRequest downloadRequest) {
-        GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
-        OSSObject ossObject = ossClient.getObject(request);
-        InputStream downloadedInputstream = ossObject.getObjectContent();
-        return transformer.toDownloadResponse(ossObject, downloadedInputstream);
-    }
-
-    private void copyStream(InputStream in, OutputStream out) {
-        try {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Deletes a single blob
-     *
-     * @param key Object name of the Blob
-     * @param versionId The versionId of the blob
-     */
-    @Override
-    protected void doDelete(String key, String versionId) {
-        if(versionId == null){
-            ossClient.deleteObject(bucket, key);
-        }
-        else {
-            ossClient.deleteVersion(bucket, key, versionId);
-        }
-    }
-
-    /**
-     * Deletes a collection of Blobs
-     *
-     * @param objects A collection of blob identifiers to delete
-     */
-    @Override
-    protected void doDelete(Collection<BlobIdentifier> objects) {
-
-        // Split the BlobIdentifiers into collections of those with versionIds and those without
-        Map<Boolean, List<BlobIdentifier>> partitionedIdentifiers = objects.stream()
-                .collect(Collectors.partitioningBy(identifier -> identifier.getVersionId()!=null));
-
-        List<BlobIdentifier> unversionedObjects = partitionedIdentifiers.get(false);
-        List<BlobIdentifier> versionedObjects = partitionedIdentifiers.get(true);
-        if(!versionedObjects.isEmpty()) {
-            ossClient.deleteVersions(transformer.toDeleteVersionsRequest(versionedObjects));
-        }
-        if(!unversionedObjects.isEmpty()) {
-            ossClient.deleteObjects(transformer.toDeleteObjectsRequest(unversionedObjects));
-        }
-    }
-
-    /**
-     * Copies a Blob to a different bucket
-     *
-     * @param request the copy request
-     * @return CopyResponse of the copied Blob
-     */
-    @Override
-    protected CopyResponse doCopy(CopyRequest request) {
-        CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
-        CopyObjectResult result = ossClient.copyObject(copyRequest);
-        return transformer.toCopyResponse(request.getDestKey(), result);
-    }
-
-    /**
-     * Copies a Blob from a source bucket to the current bucket
-     *
-     * @param request the copyFrom request
-     * @return CopyResponse of the copied Blob
-     */
-    @Override
-    protected CopyResponse doCopyFrom(CopyFromRequest request) {
-        CopyObjectRequest copyRequest = transformer.toCopyObjectRequest(request);
-        CopyObjectResult result = ossClient.copyObject(copyRequest);
-        return transformer.toCopyResponse(request.getDestKey(), result);
-    }
-
-    /**
-     * Retrieves the Blob metadata
-     *
-     * @param key Key of the Blob whose metadata is to be retrieved
-     * @param versionId The versionId of the blob. This field is optional and only used if your bucket
-     *                  has versioning enabled. This value should be null unless you're targeting a
-     *                  specific key/version blob.
-     * @return Wrapper Blob metadata object
-     */
-    @Override
-    protected BlobMetadata doGetMetadata(String key, String versionId) {
-        GenericRequest metadataRequest = transformer.toMetadataRequest(key, versionId);
-        return transformer.toBlobMetadata(key, ossClient.getObjectMetadata(metadataRequest));
-    }
-
-    /**
-     * Lists all objects in the bucket
-     *
-     * @return Iterator of the list
-     */
-    @Override
-    protected Iterator<BlobInfo> doList(ListBlobsRequest request) {
-        return new BlobInfoIterator(ossClient, bucket, request);
-    }
-
-    /**
-     * Lists a single page of objects in the bucket with pagination support
-     *
-     * @param request The list request containing filters and optional pagination token
-     * @return ListBlobsPageResult containing the blobs, truncation status, and next page token
-     */
-    @Override
-    protected ListBlobsPageResponse doListPage(ListBlobsPageRequest request) {
-        com.aliyun.oss.model.ListObjectsRequest listRequest = transformer.toListObjectsRequest(request);
-        ObjectListing response = ossClient.listObjects(listRequest);
-        
-        List<BlobInfo> blobs = response.getObjectSummaries().stream()
-                .map(objSum -> new BlobInfo.Builder()
-                        .withKey(objSum.getKey())
-                        .withObjectSize(objSum.getSize())
+    List<BlobInfo> blobs =
+        response.contents().stream()
+            .map(
+                objSum ->
+                    new BlobInfo.Builder()
+                        .withKey(objSum.key())
+                        .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
                         .build())
-                .collect(Collectors.toList());
+            .collect(Collectors.toList());
 
-        return new ListBlobsPageResponse(
-                blobs,
-                response.isTruncated(),
-                response.getNextMarker()
-        );
+    List<String> commonPrefixes = response.commonPrefixes() != null
+        ? response.commonPrefixes().stream()
+            .map(CommonPrefix::prefix)
+            .collect(Collectors.toList())
+        : List.of();
+
+    return new ListBlobsPageResponse(
+        blobs, commonPrefixes,
+        Boolean.TRUE.equals(response.isTruncated()),
+        response.nextContinuationToken());
+  }
+
+  /**
+   * Initiates a multipart upload
+   *
+   * @param request the multipart request
+   * @return An object that acts as an identifier for subsequent related multipart operations
+   */
+  @Override
+  protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
+    InitiateMultipartUploadRequest ossRequest =
+        transformer.toInitiateMultipartUploadRequest(request);
+    InitiateMultipartUploadResult result =
+        ossClient.initiateMultipartUpload(ossRequest,
+            OperationOptions.defaults());
+    return transformer.toMultipartUpload(result, request);
+  }
+
+  /**
+   * Uploads a part of the multipartUpload operation
+   *
+   * @param mpu The multipartUpload identifier
+   * @param mpp The part to be uploaded
+   * @return Returns an identifier of the uploaded part
+   */
+  @Override
+  protected UploadPartResponse doUploadMultipartPart(
+      final MultipartUpload mpu, final MultipartPart mpp) {
+    UploadPartRequest request =
+        transformer.toUploadPartRequest(mpu, mpp);
+    UploadPartResult result =
+        ossClient.uploadPart(request,
+            OperationOptions.defaults());
+    return transformer.toUploadPartResponse(mpp, result);
+  }
+
+  /**
+   * Completes a multipartUpload operation
+   *
+   * @param mpu The multipartUpload identifier
+   * @param parts The list of all parts that were uploaded
+   * @return Returns a MultipartUploadResponse that contains an etag of the resultant blob
+   */
+  @Override
+  protected MultipartUploadResponse doCompleteMultipartUpload(
+      final MultipartUpload mpu, final List<UploadPartResponse> parts) {
+    CompleteMultipartUploadRequest request =
+        transformer.toCompleteMultipartUploadRequest(mpu, parts);
+    CompleteMultipartUploadResult result =
+        ossClient.completeMultipartUpload(request,
+            OperationOptions.defaults());
+    return new MultipartUploadResponse(
+        stripQuotes(result.completeMultipartUpload().eTag()));
+  }
+
+  /**
+   * List all parts that have been uploaded for the multipartUpload so far
+   *
+   * @param mpu The multipartUpload identifier
+   * @return Returns a list of all uploaded parts
+   */
+  protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu) {
+    ListPartsRequest request =
+        transformer.toListPartsRequest(mpu);
+    ListPartsResult result =
+        ossClient.listParts(request,
+            OperationOptions.defaults());
+    return transformer.toListUploadPartResponse(result);
+  }
+
+  /**
+   * Aborts a multipartUpload that's in progress
+   *
+   * @param mpu The multipartUpload identifier
+   */
+  protected void doAbortMultipartUpload(final MultipartUpload mpu) {
+    ossClient.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu),
+        OperationOptions.defaults());
+  }
+
+  private String stripQuotes(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
+  }
+
+  /**
+   * Returns a map of all the tags associated with the blob
+   *
+   * @param key Name of the blob whose tags are to be retrieved
+   * @return The blob's tags
+   */
+  @Override
+  protected Map<String, String> doGetTags(String key) {
+    GetObjectTaggingRequest request =
+        GetObjectTaggingRequest.newBuilder()
+            .bucket(bucket)
+            .key(key)
+            .build();
+    GetObjectTaggingResult result =
+        ossClient.getObjectTagging(request,
+            OperationOptions.defaults());
+    return transformer.toTagMap(result);
+  }
+
+  /**
+   * Sets tags on a blob
+   *
+   * @param key Name of the blob to set tags on
+   * @param tags The tags to set
+   */
+  @Override
+  protected void doSetTags(String key, Map<String, String> tags) {
+    PutObjectTaggingRequest request =
+        transformer.toPutObjectTaggingRequest(key, tags);
+    ossClient.putObjectTagging(request,
+        OperationOptions.defaults());
+  }
+
+  /** {@inheritdoc} */
+  @Override
+  public ObjectLockInfo getObjectLock(String key, String versionId) {
+    throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
+  }
+
+  /** {@inheritdoc} */
+  @Override
+  public void updateObjectRetention(
+      String key, String versionId, java.time.Instant retainUntilDate) {
+    throw new UnSupportedOperationException("Alibaba OSS does not support object lock/retention");
+  }
+
+  /** {@inheritdoc} */
+  @Override
+  public void updateLegalHold(String key, String versionId, boolean legalHold) {
+    throw new UnSupportedOperationException("Alibaba OSS does not support object lock/legal hold");
+  }
+
+  /**
+   * Generates a presigned URL for uploading/downloading blobs
+   *
+   * @param request The PresignedUrlRequest
+   * @return Returns the presigned URL
+   */
+  @Override
+  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+    PresignOptions options = transformer.toPresignOptions(request);
+    PresignResult result;
+    switch (request.getType()) {
+      case UPLOAD:
+        result = ossClient.presign(transformer.toPresignedPutObjectRequest(request), options);
+        break;
+      case DOWNLOAD:
+        result = ossClient.presign(transformer.toPresignedGetObjectRequest(request), options);
+        break;
+      default:
+        throw new InvalidArgumentException(
+            "Unsupported PresignedOperation. type=" + request.getType());
+    }
+    try {
+      return new URL(result.url());
+    } catch (java.net.MalformedURLException e) {
+      throw new RuntimeException("Invalid presigned URL: " + result.url(), e);
+    }
+  }
+
+  /** {@inheritdoc} */
+  @Override
+  protected boolean doDoesObjectExist(String key, String versionId) {
+    GetObjectMetaRequest.Builder reqBuilder =
+        GetObjectMetaRequest.newBuilder()
+            .bucket(bucket)
+            .key(key);
+    if (versionId != null) {
+      reqBuilder.versionId(versionId);
+    }
+    return ossClient.doesObjectExist(reqBuilder.build());
+  }
+
+  /**
+   * Determines if the bucket exists
+   *
+   * @return Returns true if the bucket exists. Returns false if it doesn't exist.
+   */
+  @Override
+  protected boolean doDoesBucketExist() {
+    return ossClient.doesBucketExist(bucket);
+  }
+
+  @Override
+  public void close() {
+    if (ossClient != null) {
+      try {
+        ossClient.close();
+      } catch (Exception e) {
+        throw new SubstrateSdkException("Failed to close Ali OSS client", e);
+      }
+    }
+  }
+
+  @Getter
+  public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
+
+    private OSSClient client;
+    private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
+
+    public Builder() {
+      providerId(AliConstants.PROVIDER_ID);
     }
 
-    /**
-     * Initiates a multipart upload
-     *
-     * @param request the multipart request
-     * @return An object that acts as an identifier for subsequent related multipart operations
-     */
     @Override
-    protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request){
-        InitiateMultipartUploadRequest initiateMultipartUploadRequest = transformer.toInitiateMultipartUploadRequest(request);
-        InitiateMultipartUploadResult initiateMultipartUploadResult = ossClient.initiateMultipartUpload(initiateMultipartUploadRequest);
-        return transformer.toMultipartUpload(initiateMultipartUploadResult, request.getMetadata(), request.getKmsKeyId());
+    public Builder self() {
+      return this;
     }
 
-    /**
-     * Uploads a part of the multipartUpload operation
-     *
-     * @param mpu The multipartUpload identifier
-     * @param mpp The part to be uploaded
-     * @return Returns an identifier of the uploaded part
-     */
+    public Builder withClient(OSSClient client) {
+      this.client = client;
+      return this;
+    }
+
+    public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
+      this.transformerSupplier = transformerSupplier;
+      return this;
+    }
+
+    private static OSSClient buildOSSClient(Builder builder) {
+      CredentialsProvider creds =
+          OSSCredentialsProvider.getCredentialsProvider(
+              builder.getCredentialsOverrider(), builder.getRegion());
+      if (creds == null) {
+        return null;
+      }
+
+      var clientBuilder = OSSClient.newBuilder()
+          .region(builder.getRegion())
+          .credentialsProvider(creds);
+
+      if (builder.getEndpoint() != null) {
+        clientBuilder.endpoint(builder.getEndpoint().toString());
+      }
+      if (builder.getProxyEndpoint() != null) {
+        clientBuilder.proxyHost(
+            builder.getProxyEndpoint().getHost()
+                + ":" + builder.getProxyEndpoint().getPort());
+      }
+
+      return clientBuilder.build();
+    }
+
     @Override
-    protected UploadPartResponse doUploadMultipartPart(final MultipartUpload mpu, final MultipartPart mpp){
-        UploadPartRequest uploadPartRequest = transformer.toUploadPartRequest(mpu, mpp);
-        UploadPartResult uploadPartResult = ossClient.uploadPart(uploadPartRequest);
-        return transformer.toUploadPartResponse(mpp, uploadPartResult);
+    public AliBlobStore build() {
+      OSSClient ossClient = this.client;
+      if (ossClient == null) {
+        ossClient = buildOSSClient(this);
+      }
+      return new AliBlobStore(this, ossClient);
     }
-
-    /**
-     * Completes a multipartUpload operation
-     *
-     * @param mpu The multipartUpload identifier
-     * @param parts The list of all parts that were uploaded
-     * @return Returns a MultipartUploadResponse that contains an etag of the resultant blob
-     */
-    @Override
-    protected MultipartUploadResponse doCompleteMultipartUpload(final MultipartUpload mpu, final List<UploadPartResponse> parts){
-        CompleteMultipartUploadRequest completeMultipartUploadRequest = transformer.toCompleteMultipartUploadRequest(mpu, parts);
-        CompleteMultipartUploadResult completeMultipartUploadResult = ossClient.completeMultipartUpload(completeMultipartUploadRequest);
-        return new MultipartUploadResponse(completeMultipartUploadResult.getETag());
-    }
-
-    /**
-     * List all parts that have been uploaded for the multipartUpload so far
-     *
-     * @param mpu The multipartUpload identifier
-     * @return Returns a list of all uploaded parts
-     */
-    protected List<UploadPartResponse> doListMultipartUpload(final MultipartUpload mpu){
-        ListPartsRequest listPartsRequest = transformer.toListPartsRequest(mpu);
-        PartListing partListing = ossClient.listParts(listPartsRequest);
-        return transformer.toListUploadPartResponse(partListing);
-    }
-
-    /**
-     * Aborts a multipartUpload that's in progress
-     *
-     * @param mpu The multipartUpload identifier
-     */
-    protected void doAbortMultipartUpload(final MultipartUpload mpu) {
-        ossClient.abortMultipartUpload(transformer.toAbortMultipartUploadRequest(mpu));
-    }
-
-    /**
-     * Returns a map of all the tags associated with the blob
-     * @param key Name of the blob whose tags are to be retrieved
-     * @return The blob's tags
-     */
-    @Override
-    protected Map<String, String> doGetTags(String key) {
-        TagSet response = ossClient.getObjectTagging(bucket, key);
-        return response.getAllTags();
-    }
-
-    /**
-     * Sets tags on a blob
-     * @param key Name of the blob to set tags on
-     * @param tags The tags to set
-     */
-    @Override
-    protected void doSetTags(String key, Map<String, String> tags) {
-        ossClient.setObjectTagging(bucket, key, new TagSet(tags));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    @Override
-    public ObjectLockInfo getObjectLock(String key, String versionId) {
-        throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    @Override
-    public void updateObjectRetention(String key, String versionId, java.time.Instant retainUntilDate) {
-        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/retention");
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    @Override
-    public void updateLegalHold(String key, String versionId, boolean legalHold) {
-        throw new UnSupportedOperationException("Alibaba OSS does not support object lock/legal hold");
-    }
-
-    /**
-     * Generates a presigned URL for uploading/downloading blobs
-     * @param request The PresignedUrlRequest
-     * @return Returns the presigned URL
-     */
-    @Override
-    protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-        switch(request.getType()) {
-            case UPLOAD:
-                return ossClient.generatePresignedUrl(transformer.toPresignedUrlUploadRequest(request));
-            case DOWNLOAD:
-                return ossClient.generatePresignedUrl(transformer.toPresignedUrlDownloadRequest(request));
-        }
-        throw new InvalidArgumentException("Unsupported PresignedOperation. type="+request.getType());
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    @Override
-    protected boolean doDoesObjectExist(String key, String versionId) {
-        return ossClient.doesObjectExist(transformer.toMetadataRequest(key, versionId));
-    }
-
-    /**
-     * Determines if the bucket exists
-     * @return Returns true if the bucket exists. Returns false if it doesn't exist.
-     */
-    @Override
-    protected boolean doDoesBucketExist() {
-        try {
-            return ossClient.doesBucketExist(bucket);
-        } catch (ServiceException e) {
-            if ("NoSuchBucket".equals(e.getErrorCode())) {
-                return false;
-            }
-            throw new SubstrateSdkException("Failed to check bucket existence", e);
-        } catch (ClientException e) {
-            throw new SubstrateSdkException("Failed to check bucket existence", e);
-        }
-    }
-
-    /**
-     * Closes the underlying OSS client and releases any resources.
-     */
-    @Override
-    public void close() {
-        if (ossClient != null) {
-            ossClient.shutdown();
-        }
-    }
-
-    @Getter
-    public static class Builder extends AbstractBlobStore.Builder<AliBlobStore, Builder> {
-
-        private OSS client;
-        private AliTransformerSupplier transformerSupplier = new AliTransformerSupplier();
-
-        public Builder() {
-            providerId(AliConstants.PROVIDER_ID);
-        }
-
-        @Override
-        public Builder self() {
-            return this;
-        }
-
-        public Builder withClient(OSS client) {
-            this.client = client;
-            return this;
-        }
-
-        public Builder withTransformerSupplier(AliTransformerSupplier transformerSupplier) {
-            this.transformerSupplier = transformerSupplier;
-            return this;
-        }
-
-        /**
-         * Helper function for generating the OSS client
-         */
-        private static OSS buildOSSClient(Builder builder) {
-            return OSSClientBuilder.create()
-                    .region(builder.getRegion())
-                    .endpoint(getEndpoint(builder))
-                    .clientConfiguration(getClientBuilderConfiguration(builder))
-                    .credentialsProvider(OSSCredentialsProvider.getCredentialsProvider(
-                            builder.getCredentialsOverrider(),
-                            builder.getRegion()))
-                    .build();
-        }
-
-        /**
-         * Helper function to produce the endpoint value
-         */
-        private static String getEndpoint(Builder builder) {
-            if (builder.getEndpoint() != null) {
-                return builder.getEndpoint().getHost();
-            }
-            return "https://oss-" + builder.getRegion() + ".aliyuncs.com";
-        }
-
-        /**
-         * Helper function to generate the ClientBuilderConfiguration
-         */
-        private static ClientBuilderConfiguration getClientBuilderConfiguration(Builder builder) {
-            ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-            clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-            if (builder.getProxyEndpoint() != null) {
-                // Note: The proxy logic is hardwired to be HTTP-only in OSS
-                clientBuilderConfiguration.setProxyHost(builder.getProxyEndpoint().getHost());
-                clientBuilderConfiguration.setProxyPort(builder.getProxyEndpoint().getPort());
-            }
-            if(builder.getMaxConnections() != null) {
-                clientBuilderConfiguration.setMaxConnections(builder.getMaxConnections());
-            }
-            if(builder.getSocketTimeout() != null) {
-                clientBuilderConfiguration.setSocketTimeout((int) builder.getSocketTimeout().toMillis());
-            }
-            if(builder.getIdleConnectionTimeout() != null) {
-                clientBuilderConfiguration.setIdleConnectionTime((int) builder.getIdleConnectionTimeout().toMillis());
-            }
-            return clientBuilderConfiguration;
-        }
-
-        @Override
-        public AliBlobStore build() {
-            OSS client = getClient();
-            if(client == null) {
-                client = buildOSSClient(this);
-            }
-            return new AliBlobStore(this, client);
-        }
-    }
+  }
 }

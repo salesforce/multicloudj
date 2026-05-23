@@ -6,6 +6,6 @@ import lombok.Getter;
 @Builder
 @Getter
 public class GetCallerIdentityRequest {
-    // optional param to set the target audience for the identity token
-    private String aud;
+  // optional param to set the target audience for the identity token
+  private String aud;
 }

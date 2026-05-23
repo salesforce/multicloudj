@@ -1,0 +1,37 @@
+{
+  "id" : "e24eeb65-50ad-43e6-8651-a294a547a800",
+  "name" : "AwsBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-7",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud-versioned",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "delete" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Object><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>SDrREWaH6cjWg8z7609S3vbfp8RL9ZIt</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>832a0d9Bdm3MiumaByhNNrUh5jZwOp_z</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>YxhI_mZfJHD61CEg35UNhgj9OGp0CwVu</VersionId></Object><Object><Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key></Object></Delete>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Deleted><Key>conformance-tests/bulkDeleteByVersion/nonexisting2</Key><DeleteMarker>true</DeleteMarker><DeleteMarkerVersionId>zn4LXPidReDpGW7bhrLpGfSGUe7B1kOl</DeleteMarkerVersionId></Deleted><Deleted><Key>conformance-tests/bulkDeleteByVersion/happy4</Key><VersionId>SDrREWaH6cjWg8z7609S3vbfp8RL9ZIt</VersionId></Deleted><Deleted><Key>conformance-tests/bulkDeleteByVersion/happy6</Key><VersionId>YxhI_mZfJHD61CEg35UNhgj9OGp0CwVu</VersionId></Deleted><Deleted><Key>conformance-tests/bulkDeleteByVersion/happy5</Key><VersionId>832a0d9Bdm3MiumaByhNNrUh5jZwOp_z</VersionId></Deleted></DeleteResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "5MXQD3A7MME11PDT",
+      "x-amz-id-2" : "7SQ7Mx+VqQAcetwgsSVEa14aoJOiZAzSLfBP9ksaCZgQszG/Lw9q07aKPkyIevaxMYwRXrmuy1rpDI+lTC1aLK5xmPiYSJAa",
+      "Date" : "Wed, 04 Mar 2026 20:58:54 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "e24eeb65-50ad-43e6-8651-a294a547a800",
+  "persistent" : true,
+  "insertionIndex" : 403
+}
