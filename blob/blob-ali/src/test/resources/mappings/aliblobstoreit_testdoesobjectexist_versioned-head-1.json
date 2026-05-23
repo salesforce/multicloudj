@@ -1,5 +1,5 @@
 {
-  "id" : "20b8a2ca-1ad2-4889-bc11-ce8a36718cbe",
+  "id" : "60b332e5-592c-4183-bbf6-4e8ceef21eb8",
   "name" : "AliBlobStoreIT_testDoesObjectExist_versioned-HEAD-1",
   "request" : {
     "urlPath" : "/conformance-tests/doesBlobExist/versionedfake",
@@ -23,16 +23,16 @@
   "response" : {
     "status" : 404,
     "headers" : {
-      "x-oss-request-id" : "6A0E7A2C4896753037FBF712",
-      "x-oss-server-time" : "41",
+      "x-oss-request-id" : "6A0F7F7D1AA5CE35310F9323",
+      "x-oss-server-time" : "16",
       "Server" : "AliyunOSS",
-      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaEtleTwvQ29kZT4KICA8TWVzc2FnZT5UaGUgc3BlY2lmaWVkIGtleSBkb2VzIG5vdCBleGlzdC48L01lc3NhZ2U+CiAgPFJlcXVlc3RJZD42QTBFN0EyQzQ4OTY3NTMwMzdGQkY3MTI8L1JlcXVlc3RJZD4KICA8SG9zdElkPmNoYW1lbGVvbi1tdWx0aWNsb3Vkai10ZXN0LXZlcnNpb25lZC5vc3MtY24tc2hhbmdoYWkuYWxpeXVuY3MuY29tPC9Ib3N0SWQ+CiAgPEtleT5jb25mb3JtYW5jZS10ZXN0cy9kb2VzQmxvYkV4aXN0L3ZlcnNpb25lZGZha2U8L0tleT4KICA8RUM+MDAyNi0wMDAwMDAwMTwvRUM+CiAgPFJlY29tbWVuZERvYz5odHRwczovL2FwaS5hbGl5dW4uY29tL3Ryb3VibGVzaG9vdD9xPTAwMjYtMDAwMDAwMDE8L1JlY29tbWVuZERvYz4KPC9FcnJvcj4K",
+      "x-oss-err" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPEVycm9yPgogIDxDb2RlPk5vU3VjaEtleTwvQ29kZT4KICA8TWVzc2FnZT5UaGUgc3BlY2lmaWVkIGtleSBkb2VzIG5vdCBleGlzdC48L01lc3NhZ2U+CiAgPFJlcXVlc3RJZD42QTBGN0Y3RDFBQTVDRTM1MzEwRjkzMjM8L1JlcXVlc3RJZD4KICA8SG9zdElkPmNoYW1lbGVvbi1tdWx0aWNsb3Vkai10ZXN0LXZlcnNpb25lZC5vc3MtY24tc2hhbmdoYWkuYWxpeXVuY3MuY29tPC9Ib3N0SWQ+CiAgPEtleT5jb25mb3JtYW5jZS10ZXN0cy9kb2VzQmxvYkV4aXN0L3ZlcnNpb25lZGZha2U8L0tleT4KICA8RUM+MDAyNi0wMDAwMDAwMTwvRUM+CiAgPFJlY29tbWVuZERvYz5odHRwczovL2FwaS5hbGl5dW4uY29tL3Ryb3VibGVzaG9vdD9xPTAwMjYtMDAwMDAwMDE8L1JlY29tbWVuZERvYz4KPC9FcnJvcj4K",
       "x-oss-ec" : "0026-00000001",
-      "Date" : "Thu, 21 May 2026 03:21:16 GMT",
+      "Date" : "Thu, 21 May 2026 21:56:13 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "20b8a2ca-1ad2-4889-bc11-ce8a36718cbe",
+  "uuid" : "60b332e5-592c-4183-bbf6-4e8ceef21eb8",
   "persistent" : true,
-  "insertionIndex" : 417
+  "insertionIndex" : 385
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "1961b6c4-f48e-42a6-9523-7e87a7e4dde4",
+  "id" : "5b61a31a-24ba-4c79-8bd8-b9261ed6f68c",
   "name" : "AliBlobStoreIT_testBulkVersionedDelete_duplicateDeletion-DELETE-1",
   "request" : {
     "url" : "/conformance-tests/bulkDeleteByVersion/happy7",
@@ -13,15 +13,15 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYDA7p2bovIZIiBlNzExNmZhN2EzMzc0NjNlODQ1OWY2YzYxNjljMzQ0NA--",
-      "x-oss-request-id" : "6A0E7A4576ADAE3635FCF9E0",
-      "x-oss-server-time" : "4",
+      "x-oss-version-id" : "CAEQigEYgYDAoNGUsvIZIiBiZjU5YmI4ZTQzOTc0N2MwOTdjODczZmRjNzZlODg5YQ--",
+      "x-oss-request-id" : "6A0F7F911F90403232B22731",
+      "x-oss-server-time" : "9",
       "Server" : "AliyunOSS",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:21:41 GMT"
+      "Date" : "Thu, 21 May 2026 21:56:33 GMT"
     }
   },
-  "uuid" : "1961b6c4-f48e-42a6-9523-7e87a7e4dde4",
+  "uuid" : "5b61a31a-24ba-4c79-8bd8-b9261ed6f68c",
   "persistent" : true,
-  "insertionIndex" : 451
+  "insertionIndex" : 419
 }

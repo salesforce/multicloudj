@@ -1,5 +1,5 @@
 {
-  "id" : "ab1c6ff6-ce75-4f63-83a1-6bbb5ae6c72f",
+  "id" : "9bbf1b2e-a6de-4a89-9d8b-b937dbe8caf6",
   "name" : "AliBlobStoreIT_testRangedRead-GET-13",
   "request" : {
     "urlPath" : "/conformance-tests/testRangedRead_versioned",
@@ -15,7 +15,7 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "CAEQigEYgYDA.PmcovIZIiA3OTIzMGViMDI0ZmM0ZTczYWY2OWQzYTM3YzA4OWE5NA--"
+          "equalTo" : "CAEQigEYgYCA_IKWsvIZIiAwZjAzMDFiNzA4MDY0MTRkYTRiOTUwN2QwYzM3MzdlNw--"
         } ]
       }
     }
@@ -24,13 +24,13 @@
     "status" : 200,
     "base64Body" : "VGhpcyBpcyB0ZXN0IGRhdGEgZm9yIHRoZSByYW5nZWQgcmVhZCB0ZXN0IGZpbGU=",
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYDA.PmcovIZIiA3OTIzMGViMDI0ZmM0ZTczYWY2OWQzYTM3YzA4OWE5NA--",
-      "x-oss-request-id" : "6A0E7A824896753938E7C915",
-      "x-oss-server-time" : "6",
+      "x-oss-version-id" : "CAEQigEYgYCA_IKWsvIZIiAwZjAzMDFiNzA4MDY0MTRkYTRiOTUwN2QwYzM3MzdlNw--",
+      "x-oss-request-id" : "6A0F7FC365B5FD3931181106",
+      "x-oss-server-time" : "7",
       "Server" : "AliyunOSS",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:22:37 GMT",
-      "Date" : "Thu, 21 May 2026 03:22:42 GMT",
+      "Last-Modified" : "Thu, 21 May 2026 21:57:19 GMT",
+      "Date" : "Thu, 21 May 2026 21:57:23 GMT",
       "Content-MD5" : "T+WNlSpPVYjzKzCl+bYs2g==",
       "Accept-Ranges" : "bytes",
       "x-oss-storage-class" : "Standard",
@@ -39,10 +39,10 @@
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "ab1c6ff6-ce75-4f63-83a1-6bbb5ae6c72f",
+  "uuid" : "9bbf1b2e-a6de-4a89-9d8b-b937dbe8caf6",
   "persistent" : true,
   "scenarioName" : "scenario-4-conformance-tests-testRangedRead_versioned",
   "requiredScenarioState" : "scenario-4-conformance-tests-testRangedRead_versioned-6",
   "newScenarioState" : "scenario-4-conformance-tests-testRangedRead_versioned-7",
-  "insertionIndex" : 473
+  "insertionIndex" : 441
 }

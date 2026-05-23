@@ -1,5 +1,5 @@
 {
-  "id" : "c1db1a41-36fe-402a-a8c2-a71aced27119",
+  "id" : "b2b01991-9c1c-420d-b215-3ee6a82794dc",
   "name" : "AliBlobStoreIT_testBulkDelete-POST-18",
   "request" : {
     "urlPath" : "/",
@@ -9,10 +9,15 @@
         "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
       },
       "X-Query-Param-Count" : {
-        "equalTo" : "1"
+        "equalTo" : "2"
       }
     },
     "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
       "delete" : {
         "hasExactly" : [ {
           "equalTo" : ""
@@ -20,22 +25,19 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "<Delete><Quiet>false</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy4</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy5</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy6</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key></Object></Delete>",
-      "caseInsensitive" : false
+      "equalToXml" : "<Delete><Quiet>true</Quiet><Object><Key>conformance-tests/blob-for-bulk-delete_happy4</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy5</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_happy6</Key></Object><Object><Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key></Object></Delete>"
     } ]
   },
   "response" : {
     "status" : 200,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy4</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy5</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_happy6</Key>\n  </Deleted>\n  <Deleted>\n    <Key>conformance-tests/blob-for-bulk-delete_nonexisting2</Key>\n  </Deleted>\n</DeleteResult>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E78DC58FB013733BB623A",
-      "x-oss-server-time" : "64",
+      "x-oss-request-id" : "6A0F7E993D204E3830329FCA",
+      "x-oss-server-time" : "142",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:15:40 GMT",
-      "Content-Type" : "application/xml"
+      "Date" : "Thu, 21 May 2026 21:52:25 GMT"
     }
   },
-  "uuid" : "c1db1a41-36fe-402a-a8c2-a71aced27119",
+  "uuid" : "b2b01991-9c1c-420d-b215-3ee6a82794dc",
   "persistent" : true,
   "insertionIndex" : 27
 }

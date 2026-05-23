@@ -1,5 +1,5 @@
 {
-  "id" : "119c1bda-5caf-4d7b-86de-af68d82286bb",
+  "id" : "e024236c-c18c-4fe1-bd6a-d6966b834800",
   "name" : "AliBlobStoreIT_testRangedRead-DELETE-60",
   "request" : {
     "url" : "/conformance-tests/testRangedRead_unversioned",
@@ -13,16 +13,16 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E7A599E87C138395D54DB",
-      "x-oss-server-time" : "6",
+      "x-oss-request-id" : "6A0F7FA15E372634389DC147",
+      "x-oss-server-time" : "4",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:22:01 GMT"
+      "Date" : "Thu, 21 May 2026 21:56:49 GMT"
     }
   },
-  "uuid" : "119c1bda-5caf-4d7b-86de-af68d82286bb",
+  "uuid" : "e024236c-c18c-4fe1-bd6a-d6966b834800",
   "persistent" : true,
   "scenarioName" : "scenario-7-conformance-tests-testRangedRead_unversioned",
   "requiredScenarioState" : "scenario-7-conformance-tests-testRangedRead_unversioned-2",
   "newScenarioState" : "scenario-7-conformance-tests-testRangedRead_unversioned-3",
-  "insertionIndex" : 520
+  "insertionIndex" : 488
 }

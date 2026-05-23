@@ -1,5 +1,5 @@
 {
-  "id" : "50b6830a-655d-4ca5-8e3c-7c2f92204e4c",
+  "id" : "329ddd18-f9c9-4dbe-b8ab-c222da178ca2",
   "name" : "AliBlobStoreIT_testTagging-PUT-2",
   "request" : {
     "urlPath" : "/conformance-tests/blob-for-tagging-fake",
@@ -20,23 +20,22 @@
       }
     },
     "bodyPatterns" : [ {
-      "equalTo" : "<Tagging><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>",
-      "caseInsensitive" : false
+      "equalToXml" : "<Tagging><TagSet><Tag><Key>tag5</Key><Value>value5</Value></Tag></TagSet></Tagging>"
     } ]
   },
   "response" : {
     "status" : 404,
-    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0E78F75E372638308A8950</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/blob-for-tagging-fake</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A0F7EADA73E4C3632761AAB</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/blob-for-tagging-fake</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
     "headers" : {
-      "x-oss-request-id" : "6A0E78F75E372638308A8950",
-      "x-oss-server-time" : "3",
+      "x-oss-request-id" : "6A0F7EADA73E4C3632761AAB",
+      "x-oss-server-time" : "27",
       "Server" : "AliyunOSS",
       "x-oss-ec" : "0026-00000001",
-      "Date" : "Thu, 21 May 2026 03:16:07 GMT",
+      "Date" : "Thu, 21 May 2026 21:52:45 GMT",
       "Content-Type" : "application/xml"
     }
   },
-  "uuid" : "50b6830a-655d-4ca5-8e3c-7c2f92204e4c",
+  "uuid" : "329ddd18-f9c9-4dbe-b8ab-c222da178ca2",
   "persistent" : true,
   "insertionIndex" : 48
 }

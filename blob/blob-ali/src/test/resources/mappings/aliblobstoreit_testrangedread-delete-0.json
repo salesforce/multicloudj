@@ -1,5 +1,5 @@
 {
-  "id" : "5b473448-1bd5-463c-b567-1e2699fc318c",
+  "id" : "0c249588-8f01-47bc-9528-97bbb9b15a83",
   "name" : "AliBlobStoreIT_testRangedRead-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/testRangedRead_versioned",
@@ -13,17 +13,17 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCA8r2dovIZIiBmNzNiZTRmNWQ4MGU0MWMxYTkwMjA2ZDAxNDljYzc5OQ--",
-      "x-oss-request-id" : "6A0E7A8E9E87C13435CC20DD",
-      "x-oss-server-time" : "4",
+      "x-oss-version-id" : "CAEQigEYgYDAqbmWsvIZIiA4ZmI0MDUwNjRiOTc0ZDJhOTkxMzQ4ZWViOTkxOTMxYg--",
+      "x-oss-request-id" : "6A0F7FCDD891533930131A0A",
+      "x-oss-server-time" : "46",
       "Server" : "AliyunOSS",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:22:54 GMT"
+      "Date" : "Thu, 21 May 2026 21:57:33 GMT"
     }
   },
-  "uuid" : "5b473448-1bd5-463c-b567-1e2699fc318c",
+  "uuid" : "0c249588-8f01-47bc-9528-97bbb9b15a83",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-testRangedRead_versioned",
   "requiredScenarioState" : "scenario-1-conformance-tests-testRangedRead_versioned-4",
-  "insertionIndex" : 460
+  "insertionIndex" : 428
 }

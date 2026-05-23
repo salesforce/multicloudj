@@ -1,5 +1,5 @@
 {
-  "id" : "28045d1d-6a1f-41a5-9074-0f9c0c0e1c5c",
+  "id" : "93bec760-69e3-445c-8829-59857f68a804",
   "name" : "AliBlobStoreIT_testVersionedCopy-DELETE-2",
   "request" : {
     "url" : "/conformance-tests/versionedCopy/copied-blob-v1",
@@ -13,15 +13,15 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgoCA6aSVovIZIiAwMDBhZjEwOWQ3ODI0NjBhODg3OGQ1NzY4YmJmYmIyNA--",
-      "x-oss-request-id" : "6A0E79823A503C38399B5A44",
-      "x-oss-server-time" : "41",
+      "x-oss-version-id" : "CAEQigEYgoDA7cSQsvIZIiAyMzhjNDk5MzdjNmU0ODE5ODRiMzM4M2FlZGU5Nzc0Ng--",
+      "x-oss-request-id" : "6A0F7F0BDA12F93135849CE6",
+      "x-oss-server-time" : "50",
       "Server" : "AliyunOSS",
       "x-oss-delete-marker" : "true",
-      "Date" : "Thu, 21 May 2026 03:18:26 GMT"
+      "Date" : "Thu, 21 May 2026 21:54:19 GMT"
     }
   },
-  "uuid" : "28045d1d-6a1f-41a5-9074-0f9c0c0e1c5c",
+  "uuid" : "93bec760-69e3-445c-8829-59857f68a804",
   "persistent" : true,
-  "insertionIndex" : 180
+  "insertionIndex" : 163
 }

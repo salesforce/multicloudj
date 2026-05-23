@@ -1,5 +1,5 @@
 {
-  "id" : "5f7b1c3c-6634-4c7d-9d6d-59cdd1b69c42",
+  "id" : "421149c7-d68d-4887-9407-b3a0a5b5c7fd",
   "name" : "AliBlobStoreIT_testRangedReadWithKmsKey-PUT-5",
   "request" : {
     "url" : "/conformance-tests/kms/ranged-read",
@@ -16,16 +16,16 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-request-id" : "6A0E7A17FB200F333020BD0A",
-      "x-oss-server-time" : "40",
+      "x-oss-request-id" : "6A0F7F6E6D612F32304A9CF9",
+      "x-oss-server-time" : "13",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "17862811016356862860",
       "ETag" : "\"D78F126840EC9CBEFD5252BA8EF7EFD5\"",
-      "Date" : "Thu, 21 May 2026 03:20:55 GMT",
+      "Date" : "Thu, 21 May 2026 21:55:58 GMT",
       "Content-MD5" : "148SaEDsnL79UlK6jvfv1Q=="
     }
   },
-  "uuid" : "5f7b1c3c-6634-4c7d-9d6d-59cdd1b69c42",
+  "uuid" : "421149c7-d68d-4887-9407-b3a0a5b5c7fd",
   "persistent" : true,
-  "insertionIndex" : 397
+  "insertionIndex" : 365
 }

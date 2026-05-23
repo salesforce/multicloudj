@@ -1,5 +1,5 @@
 {
-  "id" : "7295943f-502a-4074-bbd0-5281f4295d03",
+  "id" : "361f000f-73ce-463d-96c6-767f4265425a",
   "name" : "AliBlobStoreIT_testDoesObjectExist_versioned-HEAD-3",
   "request" : {
     "urlPath" : "/conformance-tests/doesBlobExist/versioned",
@@ -15,7 +15,7 @@
     "queryParameters" : {
       "versionId" : {
         "hasExactly" : [ {
-          "equalTo" : "CAEQigEYgYCArq.aovIZIiBkMGZiODU4YzZiYmQ0YzdlYWViN2Y2YTM0N2NmZmViMA--"
+          "equalTo" : "CAEQigEYgYDA0_eTsvIZIiA3NDY0MDc1ODlhZDY0ZGNhOTlkODRiZmRlMWIyOGQ2ZQ--"
         } ]
       },
       "objectMeta" : {
@@ -28,18 +28,18 @@
   "response" : {
     "status" : 200,
     "headers" : {
-      "x-oss-version-id" : "CAEQigEYgYCArq.aovIZIiBkMGZiODU4YzZiYmQ0YzdlYWViN2Y2YTM0N2NmZmViMA--",
-      "x-oss-request-id" : "6A0E7A2AA55087353224FD1C",
-      "x-oss-server-time" : "36",
+      "x-oss-version-id" : "CAEQigEYgYDA0_eTsvIZIiA3NDY0MDc1ODlhZDY0ZGNhOTlkODRiZmRlMWIyOGQ2ZQ--",
+      "x-oss-request-id" : "6A0F7F7C51175F38379024DF",
+      "x-oss-server-time" : "3",
       "Server" : "AliyunOSS",
       "x-oss-hash-crc64ecma" : "6010060157167613046",
       "ETag" : "\"C0A508ABB648FF06209F605C1839820F\"",
       "x-oss-object-type" : "Normal",
-      "Last-Modified" : "Thu, 21 May 2026 03:21:12 GMT",
-      "Date" : "Thu, 21 May 2026 03:21:14 GMT"
+      "Last-Modified" : "Thu, 21 May 2026 21:56:10 GMT",
+      "Date" : "Thu, 21 May 2026 21:56:12 GMT"
     }
   },
-  "uuid" : "7295943f-502a-4074-bbd0-5281f4295d03",
+  "uuid" : "361f000f-73ce-463d-96c6-767f4265425a",
   "persistent" : true,
-  "insertionIndex" : 419
+  "insertionIndex" : 387
 }

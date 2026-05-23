@@ -1,5 +1,5 @@
 {
-  "id" : "c18893a9-7fc4-407f-a143-10a6f38ef1d4",
+  "id" : "8a68da5f-0242-4ece-9461-4b417ba8bb03",
   "name" : "AliBlobStoreIT_testDelete-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/blob-for-deleting",
@@ -13,15 +13,15 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0E7A3C8896FB39355BF267",
-      "x-oss-server-time" : "12",
+      "x-oss-request-id" : "6A0F7F8BD7BDE83430457393",
+      "x-oss-server-time" : "2",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 03:21:32 GMT"
+      "Date" : "Thu, 21 May 2026 21:56:27 GMT"
     }
   },
-  "uuid" : "c18893a9-7fc4-407f-a143-10a6f38ef1d4",
+  "uuid" : "8a68da5f-0242-4ece-9461-4b417ba8bb03",
   "persistent" : true,
   "scenarioName" : "scenario-1-conformance-tests-blob-for-deleting",
   "requiredScenarioState" : "scenario-1-conformance-tests-blob-for-deleting-2",
-  "insertionIndex" : 438
+  "insertionIndex" : 406
 }
