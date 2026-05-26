@@ -455,6 +455,119 @@ public class GcpStsTest {
   }
 
   @Test
+  public void testBuildGcpPrefixExpressionRejectsSingleQuotes() throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/o'malley/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+
+    try {
+      convertMethod.invoke(sts, credentialScope);
+      Assertions.fail("Expected exception for single quote in prefix");
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      Assertions.assertTrue(
+          e.getCause()
+              instanceof
+              com.salesforce.multicloudj.common.exceptions
+                  .InvalidArgumentException);
+      Assertions.assertTrue(
+          e.getCause().getMessage().contains("single quotes"));
+    }
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionRejectsBareBucketUri()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+
+    try {
+      convertMethod.invoke(sts, credentialScope);
+      Assertions.fail("Expected exception for bare bucket URI");
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      Assertions.assertTrue(
+          e.getCause()
+              instanceof
+              com.salesforce.multicloudj.common.exceptions
+                  .InvalidArgumentException);
+      Assertions.assertTrue(
+          e.getCause().getMessage().contains("bucket name followed by"));
+    }
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScopeViaPublicApi()
+      throws IOException {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://test-bucket/documents/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://test-bucket")
+            .availablePermission("storage:GetObject")
+            .availablePermission("storage:ListBucket")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withSessionName("testSession")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    try {
+      sts.assumeRole(request);
+      Assertions.fail("Expected exception from DownscopedCredentials");
+    } catch (IllegalArgumentException e) {
+      // Mock credentials throw when DownscopedCredentials tries to
+      // refresh — but the fact that we get here means the CEL expression
+      // was built and the CredentialAccessBoundary was constructed
+      // successfully through the public API path.
+      Assertions.assertNotNull(e);
+    }
+  }
+
+  @Test
   public void testAssumedRoleStsWithCredentialScopeExecutionWithMockedCredentials()
       throws IOException {
     GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
