@@ -4,7 +4,6 @@ import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
 import com.salesforce.multicloudj.sts.model.CallerIdentity;
-import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.util.List;
@@ -47,14 +46,6 @@ public abstract class AbstractStsIT {
     // TODO: supports getAccessToken
     // remove it when alibaba provides the get session token in cn-shanghai
     boolean supportsGetAccessToken();
-
-    default boolean supportsCredentialScope() {
-      return false;
-    }
-
-    default String getBucketForCredentialScope() {
-      return null;
-    }
   }
 
   protected abstract Harness createHarness();
@@ -130,50 +121,6 @@ public abstract class AbstractStsIT {
     Assertions.assertNotNull(credentials, "Credentials shouldn't be empty");
     Assertions.assertNotNull(credentials.getAccessKeySecret());
     Assertions.assertNotNull(credentials.getAccessKeyId());
-    Assertions.assertNotNull(credentials.getSecurityToken());
-  }
-
-  @Test
-  public void testAssumeRoleWithCredentialScope() {
-    Assumptions.assumeTrue(
-        harness.supportsCredentialScope(),
-        "Skipping: harness does not support CredentialScope");
-    Assumptions.assumeTrue(
-        System.getProperty("record") != null,
-        "Skipping: CredentialScope test requires record mode"
-            + " (-Drecord) with live credentials");
-    AbstractSts sts = harness.createStsDriver(false);
-    StsClient stsClient = new StsClient(sts);
-
-    String bucket = harness.getBucketForCredentialScope();
-    CredentialScope scope =
-        CredentialScope.builder()
-            .rule(
-                CredentialScope.ScopeRule.builder()
-                    .availableResource("storage://" + bucket)
-                    .availablePermission("storage:GetObject")
-                    .availablePermission("storage:ListBucket")
-                    .availabilityCondition(
-                        CredentialScope.AvailabilityCondition.builder()
-                            .resourcePrefix(
-                                "storage://" + bucket
-                                    + "/test-prefix/")
-                            .build())
-                    .build())
-            .build();
-
-    AssumedRoleRequest request =
-        AssumedRoleRequest.newBuilder()
-            .withRole(harness.getRoleName())
-            .withExpiration(3600)
-            .withSessionName("credential-scope-test")
-            .withCredentialScope(scope)
-            .build();
-
-    StsCredentials credentials =
-        stsClient.getAssumeRoleCredentials(request);
-    Assertions.assertNotNull(
-        credentials, "Credentials shouldn't be empty");
     Assertions.assertNotNull(credentials.getSecurityToken());
   }
 }

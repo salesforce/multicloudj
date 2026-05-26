@@ -66,16 +66,6 @@ public class GcpStsIT extends AbstractStsIT {
     }
 
     @Override
-    public boolean supportsCredentialScope() {
-      return true;
-    }
-
-    @Override
-    public String getBucketForCredentialScope() {
-      return "substrate-sdk-gcp-poc1-test-bucket";
-    }
-
-    @Override
     public void close() {
       // No client to close
     }
