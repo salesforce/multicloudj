@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -208,85 +209,39 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
+  // 200 HighScore docs (5 games × 10 players × 4 rounds). Larger dataset gives query planners
+  // a path that reflects real-world workloads — at 15 rows, providers can pick degenerate plans
+  // (e.g., DynamoDB skipping index lookups for full-table scan) that don't represent customer
+  // behavior. Score values are deterministic but well-distributed so range/orderBy benchmarks
+  // see meaningful spread.
   private void generateTestHighScores() {
-    List<HighScore> allScores =
-        List.of(
-            new HighScore(
-                game1, "pat", 49, "2024-03-13", false, (byte) 5, (short) 3, 45000L, 85.5f, 1.2),
-            new HighScore(
-                game1, "mel", 60, "2024-04-10", false, (byte) 7, (short) 2, 52000L, 90.0f, 1.5),
-            new HighScore(
-                game1, "andy", 81, "2024-02-01", false, (byte) 9, (short) 1, 63000L, 95.2f, 2.1),
-            new HighScore(
-                game1, "fran", 33, "2024-03-19", false, (byte) 3, (short) 4, 28000L, 75.8f, 1.0),
-            new HighScore(
-                game2, "pat", 120, "2024-04-01", true, (byte) 12, (short) 5, 89000L, 88.9f, 2.5),
-            new HighScore(
-                game2,
-                "billie",
-                111,
-                "2024-04-10",
-                false,
-                (byte) 11,
-                (short) 2,
-                78000L,
-                92.1f,
-                2.2),
-            new HighScore(
-                game2, "mel", 190, "2024-04-18", true, (byte) 15, (short) 1, 120000L, 97.3f, 3.1),
-            new HighScore(
-                game2, "fran", 33, "2024-03-20", false, (byte) 4, (short) 3, 31000L, 78.5f, 1.1),
-            new HighScore(
-                game3, "alex", 75, "2024-05-01", false, (byte) 8, (short) 2, 67000L, 89.7f, 1.8),
-            new HighScore(
-                game3, "sam", 95, "2024-05-15", true, (byte) 10, (short) 4, 84000L, 93.4f, 2.3),
-            new HighScore(
-                game1,
-                "chris",
-                200,
-                "2024-06-01",
-                false,
-                (byte) 20,
-                (short) 5,
-                145000L,
-                98.1f,
-                3.5),
-            new HighScore(
-                game1, "jamie", 150, "2024-06-05", true, (byte) 14, (short) 3, 110000L, 94.7f, 2.8),
-            new HighScore(
-                game2,
-                "taylor",
-                300,
-                "2024-06-10",
-                false,
-                (byte) 25,
-                (short) 2,
-                180000L,
-                99.2f,
-                4.2),
-            new HighScore(
-                game2,
-                "jordan",
-                250,
-                "2024-06-15",
-                true,
-                (byte) 22,
-                (short) 1,
-                165000L,
-                96.8f,
-                3.8),
-            new HighScore(
-                game3,
-                "morgan",
-                180,
-                "2024-06-20",
-                false,
-                (byte) 18,
-                (short) 4,
-                135000L,
-                95.5f,
-                3.2));
-    testHighScores.addAll(allScores);
+    String[] players = {
+      "pat", "mel", "andy", "fran", "billie", "alex", "sam", "chris", "jamie", "taylor"
+    };
+    for (int g = 0; g < games.length; g++) {
+      for (int p = 0; p < players.length; p++) {
+        for (int r = 0; r < 4; r++) {
+          int score = 10 + (g * 73 + p * 17 + r * 5) % 390;
+          int magic = (g * 11 + p * 3 + r) % 30;
+          int taken = (g * 7 + p * 2 + r) % 8;
+          long fld1 = (long) score * 1000L;
+          float fld2 = score / 4.0f;
+          double fld3 = score / 100.0;
+          testHighScores.add(
+              new HighScore(
+                  games[g],
+                  players[p] + r,
+                  score,
+                  "2024-0" + (g + 1) + "-" + (10 + p),
+                  score > 200,
+                  (byte) magic,
+                  (short) taken,
+                  fld1,
+                  fld2,
+                  fld3));
+        }
+      }
+    }
   }
 
   private void setupTestData() {
@@ -682,6 +637,157 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
+  /** Query with limit clause — measures cost of bounding result set size at the cloud. */
+  @Benchmark
+  @Threads(2)
+  public void benchmarkQueryWithLimit(Blackhole bh) {
+    DocumentIterator iter = null;
+    try {
+      iter =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .limit(10)
+              .get();
+
+      int count = 0;
+      while (iter.hasNext()) {
+        HighScore score = new HighScore();
+        iter.next(new Document(score));
+        count++;
+        bh.consume(score.getScore());
+      }
+      bh.consume(count);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with limit failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
+    }
+  }
+
+  /**
+   * Query with orderBy — fundamental cross-cloud variance: provider plans range over indexed vs.
+   * non-indexed sorts very differently. orderBy field must appear in a where clause (see
+   * Query#orderBy javadoc for cross-substrate consistency). Uses descending order
+   * ("leaderboard"-style highest score first). Requires Firestore composite index
+   * (Game ASC, Score DESC) on the composite-key collection.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkQueryWithOrderBy(Blackhole bh) {
+    DocumentIterator iter = null;
+    try {
+      iter =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .where("Score", FilterOperation.GREATER_THAN, 0)
+              .orderBy("Score", false)
+              .get();
+
+      int count = 0;
+      while (iter.hasNext()) {
+        HighScore score = new HighScore();
+        iter.next(new Document(score));
+        count++;
+        bh.consume(score.getScore());
+      }
+      bh.consume(count);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with orderBy failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
+    }
+  }
+
+  /**
+   * Two-page fetch using paginationToken — measures cursor overhead across providers. Different
+   * providers (DynamoDB LastEvaluatedKey, Firestore startAfter cursor, etc.) produce
+   * behaviorally significant cross-cloud differences here.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkQueryWithPagination(Blackhole bh) {
+    DocumentIterator firstPage = null;
+    DocumentIterator secondPage = null;
+    try {
+      firstPage =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .limit(20)
+              .get();
+
+      int firstCount = 0;
+      while (firstPage.hasNext()) {
+        HighScore score = new HighScore();
+        firstPage.next(new Document(score));
+        firstCount++;
+        bh.consume(score.getScore());
+      }
+
+      PaginationToken token = firstPage.getPaginationToken();
+      // Release the first cursor before opening the second so we never hold both at once.
+      firstPage.stop();
+      firstPage = null;
+      if (token != null) {
+        secondPage =
+            queryDocStoreClient
+                .query()
+                .where("Game", FilterOperation.EQUAL, game1)
+                .limit(20)
+                .paginationToken(token)
+                .get();
+
+        int secondCount = 0;
+        while (secondPage.hasNext()) {
+          HighScore score = new HighScore();
+          secondPage.next(new Document(score));
+          secondCount++;
+          bh.consume(score.getScore());
+        }
+        bh.consume(secondCount);
+      }
+      bh.consume(firstCount);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with pagination failed", e);
+    } finally {
+      if (firstPage != null) {
+        firstPage.stop();
+      }
+      if (secondPage != null) {
+        secondPage.stop();
+      }
+    }
+  }
+
+  /**
+   * Get with field projection — partial-field read. Each provider implements projection
+   * differently (DynamoDB ProjectionExpression, Firestore DocumentMask), so this quantifies the
+   * wire-transfer benefit of asking for fewer fields.
+   */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkGetWithProjection(Blackhole bh) {
+    try {
+      if (smallPlayerKeys == null || smallPlayerKeys.isEmpty()) {
+        return;
+      }
+      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      Player getPlayer = new Player();
+      getPlayer.setPName(key);
+      Document doc = new Document(getPlayer);
+      docStoreClient.get(doc, "pName", "i");
+      bh.consume(doc.getField("pName"));
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark get with projection failed", e);
+    }
+  }
+
   /** Helper — get from a pre-filtered, pre-computed key list (O(1), no allocation) */
   private void benchmarkGetByList(Blackhole bh, List<String> keys, String label) {
     try {
@@ -750,4 +856,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private static final String game1 = "Praise All Monsters";
   private static final String game2 = "Zombie DMV";
   private static final String game3 = "Days Gone";
+  private static final String game4 = "Space Drifter";
+  private static final String game5 = "Neon Abyss";
+  private static final String[] games = {game1, game2, game3, game4, game5};
 }
