@@ -183,24 +183,29 @@ public class GcpSts extends AbstractSts {
     int slashIdx = path.indexOf('/');
     if (slashIdx < 1) {
       throw new InvalidArgumentException(
-          "resourcePrefix must contain a bucket name followed by '/'. Found: "
-              + resourcePrefix);
+          "resourcePrefix must contain a bucket name followed by"
+              + " '/'. Found: " + resourcePrefix);
     }
-    String bucketName = path.substring(0, slashIdx);
-    String prefix = path.substring(slashIdx + 1);
+    String bucketName = escapeCelString(path.substring(0, slashIdx));
+    String prefix = escapeCelString(path.substring(slashIdx + 1));
 
-    if (bucketName.contains("'") || prefix.contains("'")) {
-      throw new InvalidArgumentException(
-          "resourcePrefix must not contain single quotes. Found: "
-              + resourcePrefix);
-    }
-
-    String gcpPath = "projects/_/buckets/" + bucketName + "/objects/" + prefix;
+    String gcpPath =
+        "projects/_/buckets/" + bucketName + "/objects/" + prefix;
     return "resource.name.startsWith('" + gcpPath + "')"
         + " || api.getAttribute("
-        + "'storage.googleapis.com/objectListPrefix', '').startsWith('"
-        + prefix
-        + "')";
+        + "'storage.googleapis.com/objectListPrefix', '')"
+        + ".startsWith('" + prefix + "')";
+  }
+
+  private static String escapeCelString(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      if (value.charAt(i) < 0x20) {
+        throw new InvalidArgumentException(
+            "resourcePrefix contains control character at index "
+                + i);
+      }
+    }
+    return value.replace("\\", "\\\\").replace("'", "\\'");
   }
 
   @Override

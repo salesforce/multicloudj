@@ -455,7 +455,8 @@ public class GcpStsTest {
   }
 
   @Test
-  public void testBuildGcpPrefixExpressionRejectsSingleQuotes() throws Exception {
+  public void testBuildGcpPrefixExpressionEscapesSingleQuotes()
+      throws Exception {
     GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
 
     CredentialScope.AvailabilityCondition condition =
@@ -463,14 +464,61 @@ public class GcpStsTest {
             .resourcePrefix("storage://my-bucket/o'malley/")
             .build();
 
-    CredentialScope.ScopeRule rule =
-        CredentialScope.ScopeRule.builder()
-            .availableResource("storage://my-bucket")
-            .availablePermission("storage:GetObject")
-            .availabilityCondition(condition)
+    CredentialScope credentialScope = buildScopeWith(condition);
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    String expr = boundary.getAccessBoundaryRules().get(0)
+        .getAvailabilityCondition().getExpression();
+
+    Assertions.assertTrue(
+        expr.contains("o\\'malley"),
+        "Single quotes should be escaped in expression");
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionEscapesBackslashes()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/path\\with\\slashes/")
             .build();
 
-    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+    CredentialScope credentialScope = buildScopeWith(condition);
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    String expr = boundary.getAccessBoundaryRules().get(0)
+        .getAvailabilityCondition().getExpression();
+
+    Assertions.assertTrue(
+        expr.contains("path\\\\with\\\\slashes"),
+        "Backslashes should be escaped in expression");
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionRejectsControlChars()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/bad\nprefix/")
+            .build();
+
+    CredentialScope credentialScope = buildScopeWith(condition);
 
     Method convertMethod =
         GcpSts.class.getDeclaredMethod(
@@ -479,7 +527,7 @@ public class GcpStsTest {
 
     try {
       convertMethod.invoke(sts, credentialScope);
-      Assertions.fail("Expected exception for single quote in prefix");
+      Assertions.fail("Expected exception for control character");
     } catch (java.lang.reflect.InvocationTargetException e) {
       Assertions.assertTrue(
           e.getCause()
@@ -487,8 +535,19 @@ public class GcpStsTest {
               com.salesforce.multicloudj.common.exceptions
                   .InvalidArgumentException);
       Assertions.assertTrue(
-          e.getCause().getMessage().contains("single quotes"));
+          e.getCause().getMessage().contains("control character"));
     }
+  }
+
+  private CredentialScope buildScopeWith(
+      CredentialScope.AvailabilityCondition condition) {
+    return CredentialScope.builder()
+        .rule(CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build())
+        .build();
   }
 
   @Test

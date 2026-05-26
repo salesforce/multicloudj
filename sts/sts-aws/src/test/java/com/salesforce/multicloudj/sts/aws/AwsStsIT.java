@@ -79,6 +79,16 @@ public class AwsStsIT extends AbstractStsIT {
     }
 
     @Override
+    public boolean supportsCredentialScope() {
+      return true;
+    }
+
+    @Override
+    public String getBucketForCredentialScope() {
+      return "chameleon-jcloud";
+    }
+
+    @Override
     public void close() {
       client.close();
       httpClient.close();
