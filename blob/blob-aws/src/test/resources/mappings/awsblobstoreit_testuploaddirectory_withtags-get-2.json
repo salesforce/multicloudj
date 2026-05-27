@@ -1,0 +1,33 @@
+{
+  "id" : "902d72f3-dcdb-4bec-9856-2b3a67ab8b52",
+  "name" : "AwsBlobStoreIT_testUploadDirectory_withTags-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud/conformance-tests/directory/upload-tags-v1/tagged-file.txt",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "tagging" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFRhZ2dpbmcgeG1sbnM9Imh0dHA6Ly9zMy5hbWF6b25hd3MuY29tL2RvYy8yMDA2LTAzLTAxLyI+PFRhZ1NldD48VGFnPjxLZXk+dGVhbTwvS2V5PjxWYWx1ZT5tdWx0aWNsb3VkajwvVmFsdWU+PC9UYWc+PFRhZz48S2V5PmVudjwvS2V5PjxWYWx1ZT50ZXN0PC9WYWx1ZT48L1RhZz48L1RhZ1NldD48L1RhZ2dpbmc+",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RHMBW14Y4XA7QP1X",
+      "x-amz-id-2" : "SAG7r9VfhMYlQEWfczIhrWKwcTFqaCqU9/HqwS5xoBN2BH7AZytJc+V/KJljC7HpJP2yuT+U/Ug=",
+      "Date" : "Wed, 27 May 2026 04:35:14 GMT"
+    }
+  },
+  "uuid" : "902d72f3-dcdb-4bec-9856-2b3a67ab8b52",
+  "persistent" : true,
+  "insertionIndex" : 783
+}

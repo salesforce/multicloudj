@@ -9,6 +9,8 @@ import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -4942,6 +4944,375 @@ public abstract class AbstractBlobStoreIT {
             "archived flag should be false for never-existed blob");
       }
     }
+  }
+
+  @Test
+  public void testUploadDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create test files with nested subdirectories
+    Path file1 = tempDir.resolve("file1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("file2.txt");
+    Path deepDir = subdir.resolve("deep");
+    Files.createDirectories(deepDir);
+    Path file3 = deepDir.resolve("file3.txt");
+
+    Files.write(file1, "content-file1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "content-file2".getBytes(StandardCharsets.UTF_8));
+    Files.write(file3, "content-file3".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-basic-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify all files were uploaded
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      Set<String> uploadedKeys = new HashSet<>();
+      while (blobs.hasNext()) {
+        uploadedKeys.add(blobs.next().getKey());
+      }
+
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/file1.txt"),
+          "file1.txt should be uploaded");
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/subdir/file2.txt"),
+          "subdir/file2.txt should be uploaded");
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/subdir/deep/file3.txt"),
+          "subdir/deep/file3.txt should be uploaded");
+      Assertions.assertEquals(3, uploadedKeys.size(), "Exactly 3 files should be uploaded");
+    } finally {
+      // Cleanup
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withoutSubFolders(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+
+    // Create test files with nested directory
+    Path file1 = tempDir.resolve("top-level.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("nested.txt");
+
+    Files.write(file1, "top-level-content".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "nested-content".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-no-subfolder-v1";
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(false)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify only top-level file was uploaded
+    try {
+      ListBlobsRequest listRequest = ListBlobsRequest.builder().withPrefix(prefix).build();
+      Iterator<BlobInfo> blobs = blobStore.list(listRequest);
+      Set<String> uploadedKeys = new HashSet<>();
+      while (blobs.hasNext()) {
+        uploadedKeys.add(blobs.next().getKey());
+      }
+
+      Assertions.assertTrue(
+          uploadedKeys.contains(prefix + "/top-level.txt"),
+          "top-level.txt should be uploaded");
+      Assertions.assertFalse(
+          uploadedKeys.contains(prefix + "/subdir/nested.txt"),
+          "nested.txt should NOT be uploaded when includeSubFolders is false");
+      Assertions.assertEquals(1, uploadedKeys.size(),
+          "Only 1 file should be uploaded when includeSubFolders is false");
+    } finally {
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testUploadDirectory_withTags(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create test file
+    Path file1 = tempDir.resolve("tagged-file.txt");
+    Files.write(file1, "tagged-content".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/upload-tags-v1";
+    Map<String, String> tags = new HashMap<>();
+    tags.put("env", "test");
+    tags.put("team", "multicloudj");
+
+    DirectoryUploadRequest request =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .tags(tags)
+            .build();
+
+    DirectoryUploadResponse response = blobStore.uploadDirectory(request);
+
+    Assertions.assertNotNull(response);
+    Assertions.assertTrue(
+        response.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify tags were applied
+    try {
+      String key = prefix + "/tagged-file.txt";
+      Map<String, String> retrievedTags = bucketClient.getTags(key);
+      Assertions.assertEquals("test", retrievedTags.get("env"),
+          "Tag 'env' should have value 'test'");
+      Assertions.assertEquals("multicloudj", retrievedTags.get("team"),
+          "Tag 'team' should have value 'multicloudj'");
+    } finally {
+      blobStore.deleteDirectory(prefix);
+    }
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create and upload test files
+    Path uploadDir = tempDir.resolve("upload");
+    Files.createDirectories(uploadDir);
+    Path file1 = uploadDir.resolve("file1.txt");
+    Path subdir = uploadDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("file2.txt");
+
+    String content1 = "download-test-content1";
+    String content2 = "download-test-content2";
+    Files.write(file1, content1.getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, content2.getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/download-basic-v1";
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(uploadDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse uploadResponse = blobStore.uploadDirectory(uploadRequest);
+    Assertions.assertTrue(
+        uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Now download to a different directory
+    Path downloadDir = tempDir.resolve("download");
+    Files.createDirectories(downloadDir);
+
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload(prefix)
+            .localDestinationDirectory(downloadDir.toString())
+            .build();
+
+    DirectoryDownloadResponse downloadResponse = blobStore.downloadDirectory(downloadRequest);
+
+    Assertions.assertNotNull(downloadResponse);
+    if (!downloadResponse.getFailedTransfers().isEmpty()) {
+      StringBuilder sb = new StringBuilder("Download failures: ");
+      downloadResponse.getFailedTransfers().forEach(f ->
+          sb.append(f.getDestination()).append(" -> ")
+              .append(f.getException().getClass().getName()).append(": ")
+              .append(f.getException().getMessage()).append("; "));
+      Assertions.fail(sb.toString());
+    }
+
+    // Verify downloaded files have correct content
+    Path downloadedFile1 = downloadDir.resolve("file1.txt");
+    Path downloadedFile2 = downloadDir.resolve("subdir/file2.txt");
+
+    Assertions.assertTrue(Files.exists(downloadedFile1), "file1.txt should be downloaded");
+    Assertions.assertTrue(
+        Files.exists(downloadedFile2), "subdir/file2.txt should be downloaded");
+
+    String downloadedContent1 =
+        new String(Files.readAllBytes(downloadedFile1), StandardCharsets.UTF_8);
+    String downloadedContent2 =
+        new String(Files.readAllBytes(downloadedFile2), StandardCharsets.UTF_8);
+
+    Assertions.assertEquals(content1, downloadedContent1,
+        "file1.txt content should match");
+    Assertions.assertEquals(content2, downloadedContent2,
+        "subdir/file2.txt content should match");
+
+    // Cleanup
+    safeDeleteBlobs(bucketClient, prefix + "/file1.txt", prefix + "/subdir/file2.txt");
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testDownloadDirectory_withPrefixExclusions(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create and upload test files
+    Path uploadDir = tempDir.resolve("upload");
+    Files.createDirectories(uploadDir);
+    Path includeDir = uploadDir.resolve("include");
+    Files.createDirectories(includeDir);
+    Path excludeDir = uploadDir.resolve("exclude");
+    Files.createDirectories(excludeDir);
+
+    Path file1 = includeDir.resolve("wanted.txt");
+    Path file2 = excludeDir.resolve("unwanted.txt");
+
+    Files.write(file1, "wanted-content".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "unwanted-content".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/download-exclusion-v1";
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(uploadDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse uploadResponse = blobStore.uploadDirectory(uploadRequest);
+    Assertions.assertTrue(
+        uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Download with exclusion
+    Path downloadDir = tempDir.resolve("download");
+    Files.createDirectories(downloadDir);
+
+    DirectoryDownloadRequest downloadRequest =
+        DirectoryDownloadRequest.builder()
+            .prefixToDownload(prefix)
+            .localDestinationDirectory(downloadDir.toString())
+            .prefixesToExclude(List.of(prefix + "/exclude/"))
+            .build();
+
+    DirectoryDownloadResponse downloadResponse = blobStore.downloadDirectory(downloadRequest);
+
+    Assertions.assertNotNull(downloadResponse);
+    Assertions.assertTrue(
+        downloadResponse.getFailedTransfers().isEmpty(),
+        "Download should succeed without failures");
+
+    // Verify only wanted file was downloaded
+    Path downloadedWanted = downloadDir.resolve("include/wanted.txt");
+    Path downloadedUnwanted = downloadDir.resolve("exclude/unwanted.txt");
+
+    Assertions.assertTrue(Files.exists(downloadedWanted),
+        "include/wanted.txt should be downloaded");
+    Assertions.assertFalse(Files.exists(downloadedUnwanted),
+        "exclude/unwanted.txt should NOT be downloaded");
+
+    // Cleanup
+    safeDeleteBlobs(bucketClient,
+        prefix + "/include/wanted.txt", prefix + "/exclude/unwanted.txt");
+
+    blobStore.close();
+  }
+
+  @Test
+  public void testDeleteDirectory_basic(@TempDir Path tempDir) throws Exception {
+    Assumptions.assumeTrue(
+        harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    // Create and upload test files
+    Path file1 = tempDir.resolve("delete1.txt");
+    Path subdir = tempDir.resolve("subdir");
+    Files.createDirectories(subdir);
+    Path file2 = subdir.resolve("delete2.txt");
+
+    Files.write(file1, "delete-content1".getBytes(StandardCharsets.UTF_8));
+    Files.write(file2, "delete-content2".getBytes(StandardCharsets.UTF_8));
+
+    String prefix = "conformance-tests/directory/delete-basic-v1";
+
+    DirectoryUploadRequest uploadRequest =
+        DirectoryUploadRequest.builder()
+            .localSourceDirectory(tempDir.toString())
+            .prefix(prefix)
+            .includeSubFolders(true)
+            .build();
+
+    DirectoryUploadResponse uploadResponse = blobStore.uploadDirectory(uploadRequest);
+    Assertions.assertTrue(
+        uploadResponse.getFailedTransfers().isEmpty(), "Upload should succeed without failures");
+
+    // Verify files exist using doesObjectExist
+    String key1 = prefix + "/delete1.txt";
+    String key2 = prefix + "/subdir/delete2.txt";
+    Assertions.assertTrue(blobStore.doesObjectExist(key1, null),
+        "delete1.txt should exist before delete");
+    Assertions.assertTrue(blobStore.doesObjectExist(key2, null),
+        "subdir/delete2.txt should exist before delete");
+
+    // Delete the directory
+    blobStore.deleteDirectory(prefix);
+
+    // Verify all files are gone
+    Assertions.assertFalse(blobStore.doesObjectExist(key1, null),
+        "delete1.txt should not exist after deleteDirectory");
+    Assertions.assertFalse(blobStore.doesObjectExist(key2, null),
+        "subdir/delete2.txt should not exist after deleteDirectory");
+
+    blobStore.close();
   }
 
   @Test

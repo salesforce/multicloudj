@@ -130,7 +130,7 @@ public class AwsBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public boolean isDirectoryUploadSupported() {
-      return false;
+      return true;
     }
 
     @Override

@@ -1,0 +1,40 @@
+{
+  "id" : "2fd6f58b-85a0-4188-a428-b7790bc888cd",
+  "name" : "AwsBlobStoreIT_testDeleteDirectory_basic-GET-3",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/delete-basic-v1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/directory/delete-basic-v1</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/directory/delete-basic-v1/delete1.txt</Key><LastModified>2026-05-27T04:35:09.000Z</LastModified><ETag>&quot;9f949ddecfe297a4c5a5a7fbca369561&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>15</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/directory/delete-basic-v1/subdir/delete2.txt</Key><LastModified>2026-05-27T04:35:09.000Z</LastModified><ETag>&quot;637adbd324f9305d67fdd6000a7d5dbf&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>15</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "3ZFWP45088J23PRN",
+      "x-amz-id-2" : "6Eb1a1tvMtxH1xeoqVam3qQpAIyEQxECz2JZWMjjb37PfnIo8A1ASMg45p8d6r1Mmjp7PgKdX0k=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 27 May 2026 04:35:11 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "2fd6f58b-85a0-4188-a428-b7790bc888cd",
+  "persistent" : true,
+  "insertionIndex" : 775
+}

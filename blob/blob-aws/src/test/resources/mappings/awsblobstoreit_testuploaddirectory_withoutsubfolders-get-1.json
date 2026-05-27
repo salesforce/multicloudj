@@ -1,0 +1,40 @@
+{
+  "id" : "0fc34ef4-7c77-43e3-85f0-31422487d4e1",
+  "name" : "AwsBlobStoreIT_testUploadDirectory_withoutSubFolders-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/upload-no-subfolder-v1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/directory/upload-no-subfolder-v1</Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/directory/upload-no-subfolder-v1/top-level.txt</Key><LastModified>2026-05-27T04:35:06.000Z</LastModified><ETag>&quot;163a7d517fa6edc0f42670311dde161f&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>17</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RJXP2EXG749ZN3SF",
+      "x-amz-id-2" : "CjWW7uvvvDv8h/0z+Mhc/Y6SiPc3yEw3rOMZ7JEB32MH6W2NiY176gudz6lqRbP5ZPIXV3SWbCA=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 27 May 2026 04:35:07 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "0fc34ef4-7c77-43e3-85f0-31422487d4e1",
+  "persistent" : true,
+  "insertionIndex" : 768
+}

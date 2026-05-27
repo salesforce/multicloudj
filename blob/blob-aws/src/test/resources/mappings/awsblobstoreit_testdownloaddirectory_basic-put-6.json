@@ -1,0 +1,27 @@
+{
+  "id" : "e78a8be9-f6b4-429d-ab48-5d79a7729dee",
+  "name" : "AwsBlobStoreIT_testDownloadDirectory_basic-PUT-6",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/directory/download-basic-v1/file1.txt",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "ZG93bmxvYWQtdGVzdC1jb250ZW50MQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"1f114be35500bbbf6ea80a069f9dcb41\"",
+      "x-amz-checksum-crc64nvme" : "RTo7gl3KDik=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "T09QEXZ11P3Q1EMJ",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "PxgqjQA8FzAef594moJRBpkmZHsOlTNsz1Gp7myVCIIyMCyEwAs2Dx9sBSqd8oHS3STCBU8EHrI=",
+      "Date" : "Wed, 27 May 2026 04:51:54 GMT"
+    }
+  },
+  "uuid" : "e78a8be9-f6b4-429d-ab48-5d79a7729dee",
+  "persistent" : true,
+  "insertionIndex" : 773
+}

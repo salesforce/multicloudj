@@ -1,0 +1,27 @@
+{
+  "id" : "50d32cbd-5907-443e-b555-263a5e57be0f",
+  "name" : "AwsBlobStoreIT_testDownloadDirectory_withPrefixExclusions-PUT-5",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/directory/download-exclusion-v1/exclude/unwanted.txt",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "dW53YW50ZWQtY29udGVudA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"01855360a59602e51927d0cefeb779c4\"",
+      "x-amz-checksum-crc64nvme" : "oNV1rGSGOHU=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "BHXNQ3DBQM82127H",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "WHFI9f1o3mEgJiGrE71YASbM/RlGt9J3+W3bOAlivckWufniuBUzwixg+BhEMFSwI6YQm0Nnke8=",
+      "Date" : "Wed, 27 May 2026 04:54:00 GMT"
+    }
+  },
+  "uuid" : "50d32cbd-5907-443e-b555-263a5e57be0f",
+  "persistent" : true,
+  "insertionIndex" : 779
+}

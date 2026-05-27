@@ -1,0 +1,40 @@
+{
+  "id" : "778b9934-25d1-4e39-b1cb-5d5309befba4",
+  "name" : "AwsBlobStoreIT_testUploadDirectory_withTags-GET-1",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/upload-tags-v1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/directory/upload-tags-v1</Prefix><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/directory/upload-tags-v1/tagged-file.txt</Key><LastModified>2026-05-27T04:35:13.000Z</LastModified><ETag>&quot;e65efe138d5d5712ff31a9eaf2a589c7&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>14</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "RHMADVKP93W4BDCF",
+      "x-amz-id-2" : "HgMK1zGazNXkgiPMcpFYl/7QNKR49AQRO5fbVYyL9O93urJbHTsKun/3qgMznINpdvXsMdAgIVs=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 27 May 2026 04:35:14 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "778b9934-25d1-4e39-b1cb-5d5309befba4",
+  "persistent" : true,
+  "insertionIndex" : 782
+}

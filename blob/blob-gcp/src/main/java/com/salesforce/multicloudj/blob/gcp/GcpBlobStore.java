@@ -1024,6 +1024,7 @@ public class GcpBlobStore extends AbstractBlobStore {
               Storage.BlobField.SIZE,
               Storage.BlobField.GENERATION));
 
+      List<String> prefixesToExclude = req.getPrefixesToExclude();
       List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
@@ -1031,9 +1032,23 @@ public class GcpBlobStore extends AbstractBlobStore {
         // Skip folder markers (matches AWS default). GCS TransferManager has no
         // built-in filter and would otherwise create a 0-byte file at the marker's
         // path, blocking the real files inside that virtual folder.
-        if (!isFolderMarker(blob)) {
-          blobInfos.add(blob);
+        if (isFolderMarker(blob)) {
+          continue;
         }
+        // Skip blobs matching any excluded prefix
+        if (prefixesToExclude != null && !prefixesToExclude.isEmpty()) {
+          boolean excluded = false;
+          for (String excludePrefix : prefixesToExclude) {
+            if (blob.getName().startsWith(excludePrefix)) {
+              excluded = true;
+              break;
+            }
+          }
+          if (excluded) {
+            continue;
+          }
+        }
+        blobInfos.add(blob);
       }
 
       List<FailedBlobDownload> failed = new ArrayList<>();

@@ -1,0 +1,45 @@
+{
+  "id" : "d480eea2-bbe0-4555-be1b-d938104f00b1",
+  "name" : "AwsBlobStoreIT_testUploadDirectory_basic-GET-2",
+  "request" : {
+    "urlPath" : "/chameleon-jcloud",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "1000"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/directory/upload-basic-v1"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Name>chameleon-jcloud</Name><Prefix>conformance-tests/directory/upload-basic-v1</Prefix><KeyCount>3</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>conformance-tests/directory/upload-basic-v1/file1.txt</Key><LastModified>2026-05-27T04:35:02.000Z</LastModified><ETag>&quot;f7ef1724167498b2f142cd68d71699c5&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>13</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/directory/upload-basic-v1/subdir/deep/file3.txt</Key><LastModified>2026-05-27T04:35:04.000Z</LastModified><ETag>&quot;fa85a9334c216ec929b836ccd62137fd&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>13</Size><StorageClass>STANDARD</StorageClass></Contents><Contents><Key>conformance-tests/directory/upload-basic-v1/subdir/file2.txt</Key><LastModified>2026-05-27T04:35:03.000Z</LastModified><ETag>&quot;a85bf6f4dd962b25608c8562f2343039&quot;</ETag><ChecksumAlgorithm>CRC64NVME</ChecksumAlgorithm><ChecksumType>FULL_OBJECT</ChecksumType><Size>13</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>",
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "H4VWSVKXJRC1MCAT",
+      "x-amz-id-2" : "qQ7PglOTBTA5KlZlo9PlH5qw8oXyX9tOi6YVul8mjMx2Q0briviRPG2NiHuGf/d4KYSVDHW5qb4=",
+      "x-amz-bucket-region" : "us-west-2",
+      "Date" : "Wed, 27 May 2026 04:35:04 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d480eea2-bbe0-4555-be1b-d938104f00b1",
+  "persistent" : true,
+  "insertionIndex" : 762
+}

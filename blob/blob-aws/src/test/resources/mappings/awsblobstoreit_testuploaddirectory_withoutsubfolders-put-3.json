@@ -1,0 +1,28 @@
+{
+  "id" : "843008ad-a706-4fc9-be85-82d981639c31",
+  "name" : "AwsBlobStoreIT_testUploadDirectory_withoutSubFolders-PUT-3",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/directory/upload-no-subfolder-v1/top-level.txt",
+    "method" : "PUT",
+    "bodyPatterns" : [ {
+      "equalTo" : "top-level-content",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "ETag" : "\"163a7d517fa6edc0f42670311dde161f\"",
+      "x-amz-checksum-crc64nvme" : "pokqUA+5aOw=",
+      "x-amz-checksum-type" : "FULL_OBJECT",
+      "x-amz-request-id" : "13KZRR6C9AFWNB0T",
+      "x-amz-server-side-encryption" : "AES256",
+      "x-amz-id-2" : "mqS49qstlB1eBBvj5EpK0Nzyv/1OYewXe3rXhEpRyMyWMKwSXfDXMtIz/4uNykTCBKlJ2kpDUzc=",
+      "Date" : "Wed, 27 May 2026 04:35:06 GMT"
+    }
+  },
+  "uuid" : "843008ad-a706-4fc9-be85-82d981639c31",
+  "persistent" : true,
+  "insertionIndex" : 770
+}
