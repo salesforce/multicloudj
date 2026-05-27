@@ -685,9 +685,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
   /** Helper — get from a pre-filtered, pre-computed key list (O(1), no allocation) */
   private void benchmarkGetByList(Blackhole bh, List<String> keys, String label) {
     try {
-      if (keys == null || keys.isEmpty()) {
-        return;
-      }
       String key = keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
