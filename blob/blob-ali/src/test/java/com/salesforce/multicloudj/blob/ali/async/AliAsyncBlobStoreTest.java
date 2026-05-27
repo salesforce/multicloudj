@@ -15,6 +15,8 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
@@ -32,6 +34,8 @@ import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -348,5 +352,28 @@ public class AliAsyncBlobStoreTest {
   void testDeleteEmptyCollection() {
     assertThrows(IllegalArgumentException.class,
         () -> store.delete(List.of()));
+  }
+
+  @Test
+  void testCopy() throws Exception {
+    CopyObjectResult mockResult = mock(CopyObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v-copy");
+    when(mockResult.eTag()).thenReturn("\"etag-copy\"");
+    when(mockResult.lastModified()).thenReturn("Wed, 27 May 2026 00:00:00 GMT");
+    when(mockAsyncClient.copyObjectAsync(
+        any(CopyObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    CopyRequest request = CopyRequest.builder()
+        .srcKey("src-key")
+        .destBucket("dest-bucket")
+        .destKey("dest-key")
+        .build();
+    CopyResponse response = store.copy(request).get();
+
+    assertNotNull(response);
+    assertEquals("dest-key", response.getKey());
+    assertEquals("v-copy", response.getVersionId());
+    assertEquals("etag-copy", response.getETag());
   }
 }

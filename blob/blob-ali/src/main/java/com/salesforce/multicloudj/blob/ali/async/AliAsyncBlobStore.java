@@ -314,7 +314,12 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   @Override
   protected CompletableFuture<CopyResponse> doCopy(CopyRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .copyObjectAsync(
+            transformer.toCopyObjectRequest(request),
+            OperationOptions.defaults())
+        .thenApply(result ->
+            transformer.toCopyResponse(request.getDestKey(), result));
   }
 
   @Override
