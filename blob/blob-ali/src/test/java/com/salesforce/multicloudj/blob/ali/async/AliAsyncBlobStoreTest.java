@@ -21,6 +21,7 @@ import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -46,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -423,5 +425,68 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.copy(request).get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testGetMetadata() throws Exception {
+    HeadObjectResult mockResult = mock(HeadObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v-meta");
+    when(mockResult.eTag()).thenReturn("\"etag-meta\"");
+    when(mockResult.contentLength()).thenReturn(1024L);
+    when(mockResult.lastModified()).thenReturn("Wed, 27 May 2026 00:00:00 GMT");
+    when(mockResult.contentType()).thenReturn("application/octet-stream");
+    when(mockResult.contentMd5()).thenReturn(null);
+    when(mockResult.metadata()).thenReturn(Map.of());
+    when(mockAsyncClient.headObjectAsync(
+        any(HeadObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    BlobMetadata metadata = store.getMetadata("meta-key", null).get();
+
+    assertNotNull(metadata);
+    assertEquals("meta-key", metadata.getKey());
+    assertEquals("v-meta", metadata.getVersionId());
+    assertEquals("etag-meta", metadata.getETag());
+    assertEquals(1024L, metadata.getObjectSize());
+    assertEquals("application/octet-stream", metadata.getContentType());
+    assertNotNull(metadata.getLastModified());
+  }
+
+  @Test
+  void testDoesObjectExistTrue() throws Exception {
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    boolean exists = store.doesObjectExist("existing-key", null).get();
+    assertEquals(true, exists);
+  }
+
+  @Test
+  void testDoesObjectExistFalse() throws Exception {
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.completedFuture(false));
+
+    boolean exists = store.doesObjectExist("missing-key", null).get();
+    assertEquals(false, exists);
+  }
+
+  @Test
+  void testDoesBucketExistTrue() throws Exception {
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    boolean exists = store.doesBucketExist().get();
+    assertEquals(true, exists);
+  }
+
+  @Test
+  void testDoesBucketExistFalse() throws Exception {
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.completedFuture(false));
+
+    boolean exists = store.doesBucketExist().get();
+    assertEquals(false, exists);
   }
 }
