@@ -18,12 +18,11 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
   private static final Logger logger = LoggerFactory.getLogger(AwsDocstoreBenchmarkTest.class);
-  private static final String singleKeyTableName = "docstore-benchmark-test1";
-  private static final String compositeKeyTableName = "docstore-benchmark-test2";
-  private static final String region = "us-east-2";
-  private static final String partitionKey = "pName";
-  private static final String queryPartitionKey = "Game";
-  private static final String querySortKey = "Player";
+
+  @Override
+  protected String getProviderId() {
+    return "aws";
+  }
 
   @Override
   protected Harness createHarness() {
@@ -36,74 +35,52 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
     @Override
     public AbstractDocStore createDocStore() {
       return createAwsDocStore(
-          singleKeyTableName,
-          partitionKey,
-          null, // no sort key for single key table
+          requireEnv("DOCSTORE_BENCHMARK_AWS_SINGLE_KEY_TABLE"),
+          "pName",
+          null,
           "single key");
     }
 
     @Override
     public AbstractDocStore createQueryDocStore() {
       return createAwsDocStore(
-          compositeKeyTableName, queryPartitionKey, querySortKey, "composite key query");
+          requireEnv("DOCSTORE_BENCHMARK_AWS_COMPOSITE_KEY_TABLE"),
+          "Game",
+          "Player",
+          "composite key query");
     }
 
-    /**
-     * Helper method to create AWS docstore with specified configuration
-     *
-     * @param tableName the DynamoDB table name
-     * @param partitionKeyName the partition key field name
-     * @param sortKeyName the sort key field name (null for single key tables)
-     * @param storeType description for logging purposes
-     * @return configured AbstractDocStore instance
-     */
     private AbstractDocStore createAwsDocStore(
         String tableName, String partitionKeyName, String sortKeyName, String storeType) {
+      String region = requireEnv("DOCSTORE_BENCHMARK_AWS_REGION");
       logger.info(
           "Creating AWS {} docstore with table: {}, region: {}", storeType, tableName, region);
 
       try {
-        logger.debug("Building DynamoDB client with region: {}", Region.US_EAST_2);
         DynamoDbClientBuilder builder =
             DynamoDbClient.builder()
-                .region(Region.US_EAST_2)
+                .region(Region.of(region))
                 .credentialsProvider(
                     StaticCredentialsProvider.create(
                         AwsSessionCredentials.create(
-                            System.getenv().getOrDefault("AWS_ACCESS_KEY_ID", "FAKE_ACCESS_KEY"),
-                            System.getenv()
-                                .getOrDefault("AWS_SECRET_ACCESS_KEY", "FAKE_SECRET_ACCESS_KEY"),
-                            System.getenv()
-                                .getOrDefault("AWS_SESSION_TOKEN", "FAKE_SESSION_TOKEN"))));
+                            requireEnv("AWS_ACCESS_KEY_ID"),
+                            requireEnv("AWS_SECRET_ACCESS_KEY"),
+                            requireEnv("AWS_SESSION_TOKEN"))));
 
         DynamoDbClient dynamoClient = builder.build();
-        logger.info("Successfully created DynamoDB client for {}", storeType);
 
-        // Store the client reference for cleanup (use the first one created)
         if (client == null) {
           client = dynamoClient;
         }
 
-        // Configure collection options
         CollectionOptions.CollectionOptionsBuilder optionsBuilder =
             new CollectionOptions.CollectionOptionsBuilder()
                 .withTableName(tableName)
                 .withPartitionKey(partitionKeyName)
                 .withAllowScans(true);
 
-        // Add sort key if provided
         if (sortKeyName != null) {
           optionsBuilder.withSortKey(sortKeyName);
-          logger.debug(
-              "Building AwsDocStore with table: {}, partition key: {}, sort key: {}",
-              tableName,
-              partitionKeyName,
-              sortKeyName);
-        } else {
-          logger.debug(
-              "Building AwsDocStore with table: {}, partition key: {}",
-              tableName,
-              partitionKeyName);
         }
 
         CollectionOptions collectionOptions = optionsBuilder.build();
@@ -124,11 +101,8 @@ public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
         if (client != null) {
           try {
             client.close();
-            logger.debug("Cleaned up DynamoDB client after failure");
           } catch (Exception cleanupException) {
-            logger.warn(
-                "Failed to cleanup DynamoDB client after docstore creation failure",
-                cleanupException);
+            logger.warn("Failed to cleanup DynamoDB client after failure", cleanupException);
           }
           client = null;
         }

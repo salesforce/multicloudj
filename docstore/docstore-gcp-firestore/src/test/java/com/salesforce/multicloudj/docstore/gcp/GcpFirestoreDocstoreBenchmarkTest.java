@@ -4,25 +4,20 @@ import com.google.cloud.firestore.v1.FirestoreClient;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreBenchmarkTest;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class GcpFSDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
+public class GcpFirestoreDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(GcpFSDocstoreBenchmarkTest.class);
-  private static final String projectId =
-      System.getProperty(
-          "gcp.project.id",
-          System.getenv().getOrDefault("GOOGLE_CLOUD_PROJECT", "substrate-sdk-gcp-poc1"));
-  private static final String singleKeyCollectionName = "firestore-benchmark-test1";
-  private static final String compositeKeyCollectionName = "firestore-benchmark-test2";
-  private static final String partitionKey = "pName";
-  private static final String queryPartitionKey = "Game";
-  private static final String querySortKey = "Player";
+  private static final Logger logger =
+      LoggerFactory.getLogger(GcpFirestoreDocstoreBenchmarkTest.class);
+
+  @Override
+  protected String getProviderId() {
+    return "gcp-firestore";
+  }
 
   @Override
   protected Harness createHarness() {
@@ -34,18 +29,26 @@ public class GcpFSDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
     @Override
     public AbstractDocStore createDocStore() throws Exception {
-      return createFirestoreDocStore(singleKeyCollectionName, partitionKey, null, "single key");
+      return createFirestoreDocStore(
+          requireEnv("DOCSTORE_BENCHMARK_GCP_SINGLE_KEY_COLLECTION"),
+          "pName",
+          null,
+          "single key");
     }
 
     @Override
     public AbstractDocStore createQueryDocStore() throws Exception {
       return createFirestoreDocStore(
-          compositeKeyCollectionName, queryPartitionKey, querySortKey, "composite key query");
+          requireEnv("DOCSTORE_BENCHMARK_GCP_COMPOSITE_KEY_COLLECTION"),
+          "Game",
+          "Player",
+          "composite key query");
     }
 
     private AbstractDocStore createFirestoreDocStore(
         String collectionName, String partitionKeyName, String sortKeyName, String storeType)
         throws Exception {
+      String projectId = requireEnv("DOCSTORE_BENCHMARK_GCP_PROJECT_ID");
       logger.info(
           "Creating GCP Firestore {} docstore with project: {}, collection: {}",
           storeType,
@@ -58,26 +61,14 @@ public class GcpFSDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
           firestoreClient = client;
         }
 
-        logger.info("Successfully created Firestore client for {}", storeType);
-
         CollectionOptions.CollectionOptionsBuilder optionsBuilder =
             new CollectionOptions.CollectionOptionsBuilder()
-                .withTableName(getCollectionPath(collectionName))
+                .withTableName(getCollectionPath(projectId, collectionName))
                 .withPartitionKey(partitionKeyName)
                 .withAllowScans(true);
 
         if (sortKeyName != null) {
           optionsBuilder.withSortKey(sortKeyName);
-          logger.debug(
-              "Building FSDocStore with collection: {}, partition key: {}, sort key: {}",
-              collectionName,
-              partitionKeyName,
-              sortKeyName);
-        } else {
-          logger.debug(
-              "Building FSDocStore with collection: {}, partition key: {}",
-              collectionName,
-              partitionKeyName);
         }
 
         CollectionOptions collectionOptions = optionsBuilder.build();
@@ -95,15 +86,11 @@ public class GcpFSDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
       } catch (Exception e) {
         logger.error("Failed to create GCP Firestore {} docstore", storeType, e);
 
-        // Cleanup on failure
         if (firestoreClient != null) {
           try {
             firestoreClient.close();
-            logger.debug("Cleaned up Firestore client after failure");
           } catch (Exception cleanupException) {
-            logger.warn(
-                "Failed to cleanup Firestore client after docstore creation failure",
-                cleanupException);
+            logger.warn("Failed to cleanup Firestore client after failure", cleanupException);
           }
           firestoreClient = null;
         }
@@ -117,7 +104,7 @@ public class GcpFSDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
       }
     }
 
-    private String getCollectionPath(String collectionName) {
+    private String getCollectionPath(String projectId, String collectionName) {
       return String.format(
           "projects/%s/databases/(default)/documents/%s", projectId, collectionName);
     }

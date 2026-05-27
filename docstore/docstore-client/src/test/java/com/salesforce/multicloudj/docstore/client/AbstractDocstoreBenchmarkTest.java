@@ -7,17 +7,19 @@ import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.Disabled;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -37,9 +39,10 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Disabled
-@BenchmarkMode({Mode.Throughput, Mode.AverageTime})
+@BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = TimeUnit.SECONDS)
@@ -48,21 +51,25 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDocstoreBenchmarkTest {
 
-  // Test data
+  private static final Logger logger =
+      LoggerFactory.getLogger(AbstractDocstoreBenchmarkTest.class);
+
+  // Pre-seeded test data
   protected List<String> documentKeys;
   protected List<Player> testPlayers;
   protected List<HighScore> testHighScores;
-  protected Random random;
   protected DocStoreClient docStoreClient;
   protected DocStoreClient queryDocStoreClient; // For composite key table queries
 
-  private final AtomicInteger nextPutId = new AtomicInteger(0);
-  private final AtomicInteger nextGetId = new AtomicInteger(0);
-  private final AtomicInteger nextCreateId = new AtomicInteger(0);
-  private final AtomicInteger nextReplaceId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
-  private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
+  // Keys created during benchmark invocations, cleaned up in teardown.
+  // ConcurrentHashMap.newKeySet() uses bucket-level locking — no global monitor contention
+  // under @Threads(4) unlike Collections.synchronizedSet().
+  private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
+
+  // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
+  private List<String> smallPlayerKeys;
+  private List<String> mediumPlayerKeys;
+  private List<String> largePlayerKeys;
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -75,6 +82,24 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   protected abstract Harness createHarness();
 
+  protected abstract String getProviderId();
+
+  /**
+   * Reads a required config value from OS environment first, then from -D system properties.
+   * Fails fast with a clear error if neither is set — avoids silent misconfiguration producing
+   * garbage benchmark results.
+   */
+  protected static String requireEnv(String name) {
+    String value = System.getenv(name);
+    if (StringUtils.isBlank(value)) {
+      value = System.getProperty(name);
+    }
+    if (StringUtils.isBlank(value)) {
+      throw new IllegalStateException("Required environment variable not set: " + name);
+    }
+    return value;
+  }
+
   @Setup(Level.Trial)
   public void setupBenchmark() throws Exception {
     try {
@@ -83,7 +108,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       documentKeys = new ArrayList<>();
       testPlayers = new ArrayList<>();
       testHighScores = new ArrayList<>();
-      random = new Random(42);
 
       // Setup single key table
       AbstractDocStore docStore = harness.createDocStore();
@@ -97,6 +121,20 @@ public abstract class AbstractDocstoreBenchmarkTest {
       generateTestPlayers();
       generateTestHighScores();
       setupTestData();
+
+      // Pre-filter key lists once so hot-path lookups are O(1)
+      smallPlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkSmall"))
+              .collect(Collectors.toList()));
+      mediumPlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkMedium"))
+              .collect(Collectors.toList()));
+      largePlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkLarge"))
+              .collect(Collectors.toList()));
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup benchmark", e);
     }
@@ -105,6 +143,19 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @TearDown(Level.Trial)
   public void teardownBenchmark() throws Exception {
     try {
+      if (!benchmarkCreatedKeys.isEmpty() && docStoreClient != null) {
+        for (String key : benchmarkCreatedKeys) {
+          try {
+            Player p = new Player();
+            p.setPName(key);
+            docStoreClient.delete(new Document(p));
+          } catch (Exception e) {
+            logger.warn("Failed to delete benchmark key {}: {}", key, e.getMessage());
+          }
+        }
+        benchmarkCreatedKeys.clear();
+      }
+
       cleanupTestData();
 
       if (docStoreClient != null) {
@@ -158,7 +209,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   private void generateTestHighScores() {
-    // Create test data for query benchmarks
     List<HighScore> allScores =
         List.of(
             new HighScore(
@@ -190,7 +240,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
                 game3, "alex", 75, "2024-05-01", false, (byte) 8, (short) 2, 67000L, 89.7f, 1.8),
             new HighScore(
                 game3, "sam", 95, "2024-05-15", true, (byte) 10, (short) 4, 84000L, 93.4f, 2.3),
-            // Add more test data for better benchmarking
             new HighScore(
                 game1,
                 "chris",
@@ -242,16 +291,14 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   private void setupTestData() {
     try {
-      for (Player player : testPlayers) {
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-      }
+      // Use batchPut to seed all data in 2 RPCs instead of 140 serial puts
+      List<Document> playerDocs =
+          testPlayers.stream().map(Document::new).collect(Collectors.toList());
+      docStoreClient.batchPut(playerDocs);
 
-      // Setup HighScore data in composite key table
-      for (HighScore highScore : testHighScores) {
-        Document doc = new Document(highScore);
-        queryDocStoreClient.put(doc);
-      }
+      List<Document> scoreDocs =
+          testHighScores.stream().map(Document::new).collect(Collectors.toList());
+      queryDocStoreClient.batchPut(scoreDocs);
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup test data", e);
     }
@@ -317,7 +364,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
     try {
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextPutId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
 
         Document doc = new Document(player);
@@ -343,8 +391,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<String> keys = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextGetId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
         keys.add(key);
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
 
         Document doc = new Document(player);
@@ -377,7 +426,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchPutId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         documents.add(new Document(player));
       }
@@ -403,7 +453,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     try {
       List<Document> documents = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchGetId.incrementAndGet();
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         Document doc = new Document(player);
         docStoreClient.put(doc);
@@ -427,8 +478,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     final int docSize = 500;
 
     try {
-      String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
-      Player player = createPlayer(key, random.nextInt(1000), docSize);
+      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      Player player = createPlayer(key, ThreadLocalRandom.current().nextInt(1000), docSize);
 
       Document writeDoc = new Document(player);
       docStoreClient.put(writeDoc);
@@ -466,19 +517,19 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(4)
   public void benchmarkGetSmall(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkSmall");
+    benchmarkGetByList(bh, smallPlayerKeys, "Small");
   }
 
   @Benchmark
   @Threads(2)
   public void benchmarkGetMedium(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkMedium");
+    benchmarkGetByList(bh, mediumPlayerKeys, "Medium");
   }
 
   @Benchmark
   @Threads(1)
   public void benchmarkGetLarge(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkLarge");
+    benchmarkGetByList(bh, largePlayerKeys, "Large");
   }
 
   /** Benchmark atomic writes */
@@ -490,7 +541,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
       ActionList actions = docStoreClient.getActions();
 
       for (int i = 0; i < 5; i++) {
-        String key = "AtomicDoc" + UUID.randomUUID().toString().substring(0, 8);
+        String key = "AtomicDoc" + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, 100);
         initialPlayers.add(player);
         actions.create(new Document(player));
@@ -529,10 +581,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkPartitionKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      // Query by Game (partition key)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
+      iter = queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -544,6 +595,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark partition key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -551,10 +606,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkSortKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      // Query by Player (sort key) - this may use Global Secondary Index
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
+      iter = queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -566,6 +620,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark sort key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -573,9 +631,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkCompositeKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-
-      DocumentIterator iter =
+      iter =
           queryDocStoreClient
               .query()
               .where("Game", FilterOperation.EQUAL, game1)
@@ -592,6 +650,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark composite key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -599,10 +661,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(1)
   public void benchmarkRangeQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      // Query by Score range (may use Local Secondary Index)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
+      iter = queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -614,20 +675,24 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark range query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
-  /** Helper method to get players by prefix */
-  private void benchmarkGetByPrefix(Blackhole bh, String prefix) {
+  /** Helper — get from a pre-filtered, pre-computed key list (O(1), no allocation) */
+  private void benchmarkGetByList(Blackhole bh, List<String> keys, String label) {
     try {
-      String key = getRandomPlayerKeyWithPrefix(prefix);
+      String key = keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
       Document doc = new Document(getPlayer);
       docStoreClient.get(doc);
       bh.consume(doc.getField("pName"));
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark get " + prefix + " failed", e);
+      throw new RuntimeException("Benchmark get " + label + " failed", e);
     }
   }
 
@@ -643,7 +708,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
     return new Player(
         pName,
         baseValue,
-        (float) (baseValue + random.nextFloat() * 100),
+        (float) (baseValue + ThreadLocalRandom.current().nextFloat() * 100),
         baseValue % 2 == 0,
         largeString,
         "randomString".getBytes(StandardCharsets.UTF_8));
@@ -657,31 +722,26 @@ public abstract class AbstractDocstoreBenchmarkTest {
     if (playerKeys.isEmpty()) {
       return "FallbackBenchmarkPlayer";
     }
-    return playerKeys.get(random.nextInt(playerKeys.size()));
-  }
-
-  /** Get a rand player key with specific prefix */
-  protected String getRandomPlayerKeyWithPrefix(String prefix) {
-    List<String> filteredKeys =
-        documentKeys.stream().filter(key -> key.contains(prefix)).collect(Collectors.toList());
-
-    if (filteredKeys.isEmpty()) {
-      return prefix + "fallback";
-    }
-
-    return filteredKeys.get(random.nextInt(filteredKeys.size()));
+    return playerKeys.get(ThreadLocalRandom.current().nextInt(playerKeys.size()));
   }
 
   @Test
+  @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
+    List<String> forwardedArgs = new ArrayList<>();
+    for (String key : System.getProperties().stringPropertyNames()) {
+      if (key.startsWith("DOCSTORE_BENCHMARK_")) {
+        forwardedArgs.add("-D" + key + "=" + System.getProperty(key));
+      }
+    }
+
     Options opt =
         new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".benchmarkPartitionKeyQuery.*")
+            .include(".*" + this.getClass().getName() + ".*")
             .forks(1)
-            .warmupIterations(3)
-            .measurementIterations(5)
             .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-results.json")
+            .result("target/jmh-docstore-results-" + getProviderId() + ".json")
+            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
             .build();
 
     new Runner(opt).run();
