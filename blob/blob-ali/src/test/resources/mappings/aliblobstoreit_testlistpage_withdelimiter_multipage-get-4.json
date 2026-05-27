@@ -1,0 +1,62 @@
+{
+  "id" : "cd9ce528-812e-4184-8d8f-703a35229ec5",
+  "name" : "AliBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-4",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "6"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "continuation-token" : {
+        "hasExactly" : [ {
+          "equalTo" : "Cixjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW11bHRpcGFnZS9iLxAA"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-multipage/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-multipage%2F</Prefix>\n  <ContinuationToken>Cixjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW11bHRpcGFnZS9iLxAA</ContinuationToken>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Contents>\n    <Key>conformance-tests%2Fcommon-prefix-multipage%2Froot.txt</Key>\n    <LastModified>2026-05-22T21:39:17.000Z</LastModified>\n    <ETag>\"098F6BCD4621D373CADE4E832627B4F6\"</ETag>\n    <Type>Normal</Type>\n    <Size>4</Size>\n    <StorageClass>Standard</StorageClass>\n  </Contents>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-multipage%2Fc%2F</Prefix>\n  </CommonPrefixes>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CD07B4C7B93639066406",
+      "x-oss-server-time" : "4",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:39:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "cd9ce528-812e-4184-8d8f-703a35229ec5",
+  "persistent" : true,
+  "insertionIndex" : 880
+}

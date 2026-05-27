@@ -1,0 +1,57 @@
+{
+  "id" : "fa0837eb-4c08-4e75-be34-452b68137b49",
+  "name" : "AliBlobStoreIT_testListPage_MaxResults1_WithDelimiter-GET-3",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "5"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "1"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-maxresults1/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-maxresults1%2F</Prefix>\n  <MaxKeys>1</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>true</IsTruncated>\n  <NextContinuationToken>CjFjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW1heHJlc3VsdHMxL2RpcjEvEAA-</NextContinuationToken>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-maxresults1%2Fdir1%2F</Prefix>\n  </CommonPrefixes>\n  <KeyCount>1</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CD7F83DA7336365F6A67",
+      "x-oss-server-time" : "2",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:41:19 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "fa0837eb-4c08-4e75-be34-452b68137b49",
+  "persistent" : true,
+  "insertionIndex" : 1060
+}

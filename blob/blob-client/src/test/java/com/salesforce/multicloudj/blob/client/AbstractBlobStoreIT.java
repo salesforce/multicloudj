@@ -2089,7 +2089,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithDelimiter_ReturnsCommonPrefixes() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2136,7 +2135,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithPrefixAndDelimiter_OneBlobOnePrefix() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2178,7 +2176,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_AllPrefixes_NoTopLevelBlobs() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2219,7 +2216,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_WithDelimiter_MultiPage() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2290,7 +2286,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_NoDelimiter_CommonPrefixesEmpty() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2326,7 +2321,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_MaxResults1_WithDelimiter() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2381,7 +2375,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListPage_CommonPrefixesNeverNull() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
