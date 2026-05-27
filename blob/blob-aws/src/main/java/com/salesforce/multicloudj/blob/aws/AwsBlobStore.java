@@ -9,14 +9,8 @@ import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
-import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
-import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
-import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -24,7 +18,6 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
-import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
@@ -43,25 +36,18 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.nio.file.FileVisitOption;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Getter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -84,8 +70,6 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.Delete;
-import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -99,17 +83,13 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
 import software.amazon.awssdk.services.s3.model.ListPartsResponse;
-import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
-import software.amazon.awssdk.services.s3.model.ObjectLockMode;
 import software.amazon.awssdk.services.s3.model.ObjectLockRetentionMode;
 import software.amazon.awssdk.services.s3.model.ObjectVersion;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.Tag;
-import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -710,227 +690,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   public void updateLegalHold(String key, String versionId, boolean legalHold) {
     s3Client.putObjectLegalHold(transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold));
-  }
-
-  /**
-   * Uploads a local directory to S3 under the given prefix. Files are uploaded individually using
-   * the sync S3 client. Sub-folders are included when {@link
-   * DirectoryUploadRequest#isIncludeSubFolders()} is true.
-   */
-  @Override
-  protected DirectoryUploadResponse doUploadDirectory(DirectoryUploadRequest request) {
-    try {
-      Path sourceDir = Paths.get(request.getLocalSourceDirectory()).toAbsolutePath();
-      int maxDepth = request.isIncludeSubFolders() ? Integer.MAX_VALUE : 1;
-      EnumSet<FileVisitOption> visitOptions =
-          request.isFollowSymbolicLinks()
-              ? EnumSet.of(FileVisitOption.FOLLOW_LINKS)
-              : EnumSet.noneOf(FileVisitOption.class);
-
-      List<Path> filePaths;
-      try (Stream<Path> stream = Files.walk(sourceDir, maxDepth, visitOptions.toArray(
-          new FileVisitOption[0]))) {
-        filePaths = stream.filter(Files::isRegularFile).collect(Collectors.toList());
-      }
-
-      if (filePaths.isEmpty()) {
-        return DirectoryUploadResponse.builder()
-            .failedTransfers(new ArrayList<>())
-            .build();
-      }
-
-      String prefix = request.getPrefix();
-      boolean hasTags = request.getTags() != null && !request.getTags().isEmpty();
-      boolean hasObjectLock = request.getObjectLock() != null;
-
-      List<Tag> tagSet = null;
-      if (hasTags) {
-        tagSet = request.getTags().entrySet().stream()
-            .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
-            .collect(Collectors.toList());
-      }
-
-      List<FailedBlobUpload> failedTransfers = new ArrayList<>();
-      for (Path filePath : filePaths) {
-        try {
-          String relativePath = sourceDir.relativize(filePath).toString().replace("\\", "/");
-          String blobKey = (prefix != null && !prefix.isEmpty())
-              ? prefix + "/" + relativePath
-              : relativePath;
-
-          PutObjectRequest.Builder putBuilder = PutObjectRequest.builder()
-              .bucket(bucket)
-              .key(blobKey)
-              .contentType("application/octet-stream");
-
-          if (hasTags) {
-            putBuilder.tagging(Tagging.builder().tagSet(tagSet).build());
-          }
-          if (hasObjectLock) {
-            applyObjectLockToPutRequest(putBuilder, request.getObjectLock());
-          }
-
-          s3Client.putObject(putBuilder.build(),
-              software.amazon.awssdk.core.sync.RequestBody.fromFile(filePath));
-        } catch (Exception e) {
-          failedTransfers.add(
-              FailedBlobUpload.builder().source(filePath).exception(e).build());
-        }
-      }
-
-      return DirectoryUploadResponse.builder()
-          .failedTransfers(failedTransfers)
-          .build();
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to upload directory", e);
-    }
-  }
-
-  /**
-   * Downloads all objects with the given prefix to a local directory. Each object's key (minus the
-   * prefix) becomes the relative path on disk.
-   */
-  @Override
-  protected DirectoryDownloadResponse doDownloadDirectory(DirectoryDownloadRequest request) {
-    try {
-      Path targetDir = Paths.get(request.getLocalDestinationDirectory()).toAbsolutePath();
-      Files.createDirectories(targetDir);
-
-      String prefix = request.getPrefixToDownload();
-      // Normalize prefix with trailing slash for consistent stripping
-      String normalizedPrefix =
-          (prefix != null && !prefix.isEmpty() && !prefix.endsWith("/"))
-              ? prefix + "/"
-              : prefix;
-
-      // List all objects with the prefix
-      ListObjectsV2Request.Builder listBuilder = ListObjectsV2Request.builder().bucket(bucket);
-      if (prefix != null && !prefix.isEmpty()) {
-        listBuilder.prefix(prefix);
-      }
-
-      List<String> prefixesToExclude = request.getPrefixesToExclude();
-      List<FailedBlobDownload> failedTransfers = new ArrayList<>();
-      ListObjectsV2Response listResponse;
-      String continuationToken = null;
-
-      do {
-        if (continuationToken != null) {
-          listBuilder.continuationToken(continuationToken);
-        }
-        listResponse = s3Client.listObjectsV2(listBuilder.build());
-
-        for (S3Object s3Object : listResponse.contents()) {
-          String key = s3Object.key();
-
-          // Skip if excluded
-          if (prefixesToExclude != null && !prefixesToExclude.isEmpty()) {
-            boolean excluded = false;
-            for (String excludePrefix : prefixesToExclude) {
-              if (key.startsWith(excludePrefix)) {
-                excluded = true;
-                break;
-              }
-            }
-            if (excluded) {
-              continue;
-            }
-          }
-
-          // Skip folder markers (0-byte objects ending with /)
-          if (key.endsWith("/") && s3Object.size() != null && s3Object.size() == 0L) {
-            continue;
-          }
-
-          // Compute relative path by stripping prefix
-          String relativePath;
-          if (normalizedPrefix != null && key.startsWith(normalizedPrefix)) {
-            relativePath = key.substring(normalizedPrefix.length());
-          } else {
-            relativePath = key;
-          }
-
-          Path destination = targetDir.resolve(relativePath).normalize();
-          try {
-            Files.createDirectories(destination.getParent());
-            GetObjectRequest getRequest = GetObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .build();
-            s3Client.getObject(getRequest, ResponseTransformer.toFile(destination));
-          } catch (Exception e) {
-            failedTransfers.add(
-                FailedBlobDownload.builder().destination(destination).exception(e).build());
-          }
-        }
-
-        continuationToken = listResponse.nextContinuationToken();
-      } while (listResponse.isTruncated());
-
-      return DirectoryDownloadResponse.builder()
-          .failedTransfers(failedTransfers)
-          .build();
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to download directory", e);
-    }
-  }
-
-  /**
-   * Deletes all objects under the given prefix.
-   */
-  @Override
-  protected void doDeleteDirectory(String prefix) {
-    ListObjectsV2Request.Builder listBuilder = ListObjectsV2Request.builder().bucket(bucket);
-    if (prefix != null && !prefix.isEmpty()) {
-      listBuilder.prefix(prefix);
-    }
-
-    ListObjectsV2Response listResponse;
-    String continuationToken = null;
-
-    do {
-      if (continuationToken != null) {
-        listBuilder.continuationToken(continuationToken);
-      }
-      listResponse = s3Client.listObjectsV2(listBuilder.build());
-
-      List<S3Object> objects = listResponse.contents();
-      if (!objects.isEmpty()) {
-        // Delete in batches of 1000 (S3 limit)
-        int batchSize = 1000;
-        for (int i = 0; i < objects.size(); i += batchSize) {
-          List<S3Object> batch = objects.subList(i, Math.min(i + batchSize, objects.size()));
-          List<ObjectIdentifier> identifiers = batch.stream()
-              .map(obj -> ObjectIdentifier.builder().key(obj.key()).build())
-              .collect(Collectors.toList());
-
-          s3Client.deleteObjects(DeleteObjectsRequest.builder()
-              .bucket(bucket)
-              .delete(Delete.builder().objects(identifiers).build())
-              .build());
-        }
-      }
-
-      continuationToken = listResponse.nextContinuationToken();
-    } while (listResponse.isTruncated());
-  }
-
-  /** Applies object lock configuration to a PutObjectRequest builder. */
-  private static void applyObjectLockToPutRequest(
-      PutObjectRequest.Builder builder, ObjectLockConfiguration objectLock) {
-    if (objectLock.getMode() != null) {
-      builder.objectLockMode(
-          objectLock.getMode() == RetentionMode.COMPLIANCE
-              ? ObjectLockMode.COMPLIANCE
-              : ObjectLockMode.GOVERNANCE);
-    }
-    if (objectLock.getRetainUntilDate() != null) {
-      builder.objectLockRetainUntilDate(objectLock.getRetainUntilDate());
-    }
-    if (objectLock.isLegalHold()) {
-      builder.objectLockLegalHoldStatus(
-          software.amazon.awssdk.services.s3.model.ObjectLockLegalHoldStatus.ON);
-    }
   }
 
   /** Closes the underlying S3 client and releases any resources. */
