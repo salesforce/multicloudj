@@ -15,6 +15,10 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -25,6 +29,7 @@ import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -36,6 +41,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -311,5 +317,36 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.download(request, file).get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteSingleObject() throws Exception {
+    DeleteObjectResult mockResult = mock(DeleteObjectResult.class);
+    when(mockAsyncClient.deleteObjectAsync(
+        any(DeleteObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    store.delete("key-to-delete", null).get();
+  }
+
+  @Test
+  void testDeleteMultipleObjects() throws Exception {
+    DeleteMultipleObjectsResult mockResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    List<BlobIdentifier> objects = List.of(
+        new BlobIdentifier("key1", null),
+        new BlobIdentifier("key2", "v1"));
+    store.delete(objects).get();
+  }
+
+  @Test
+  void testDeleteEmptyCollection() {
+    assertThrows(IllegalArgumentException.class,
+        () -> store.delete(List.of()));
   }
 }

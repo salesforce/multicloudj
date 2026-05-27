@@ -4,6 +4,8 @@ import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -290,12 +292,24 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   @Override
   protected CompletableFuture<Void> doDelete(String key, String versionId) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    DeleteObjectRequest request =
+        transformer.toDeleteObjectRequest(key, versionId);
+    return asyncClient
+        .deleteObjectAsync(request, OperationOptions.defaults())
+        .thenAccept(result -> {});
   }
 
   @Override
-  protected CompletableFuture<Void> doDelete(Collection<BlobIdentifier> objects) {
-    throw new UnsupportedOperationException("Not yet implemented");
+  protected CompletableFuture<Void> doDelete(
+      Collection<BlobIdentifier> objects) {
+    if (objects.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+    DeleteMultipleObjectsRequest request =
+        transformer.toDeleteMultipleObjectsRequest(objects);
+    return asyncClient
+        .deleteMultipleObjectsAsync(request, OperationOptions.defaults())
+        .thenAccept(result -> {});
   }
 
   @Override
