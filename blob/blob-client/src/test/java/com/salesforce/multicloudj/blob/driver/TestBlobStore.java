@@ -95,6 +95,11 @@ public class TestBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    return null;
+  }
+
+  @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
     return null;
   }

@@ -57,6 +57,7 @@ public class AbstractBlobStoreTest {
     doCallRealMethod().when(mockBlobStore).copy(any());
     doCallRealMethod().when(mockBlobStore).getMetadata(any(), any());
     doCallRealMethod().when(mockBlobStore).list(any());
+    doCallRealMethod().when(mockBlobStore).listBlobVersions(any());
     doCallRealMethod().when(mockBlobStore).initiateMultipartUpload(any());
     doCallRealMethod().when(mockBlobStore).uploadMultipartPart(any(), any());
     doCallRealMethod().when(mockBlobStore).completeMultipartUpload(any(), any());
@@ -313,6 +314,14 @@ public class AbstractBlobStoreTest {
     ListBlobsRequest request = new ListBlobsRequest.Builder().build();
     mockBlobStore.list(request);
     verify(mockBlobStore, times(1)).doList(request);
+  }
+
+  @Test
+  void testDoListBlobVersions() {
+    String key = "object-1";
+    mockBlobStore.listBlobVersions(key);
+    verify(validator, times(1)).validateKey(key);
+    verify(mockBlobStore, times(1)).doListBlobVersions(key);
   }
 
   @Test

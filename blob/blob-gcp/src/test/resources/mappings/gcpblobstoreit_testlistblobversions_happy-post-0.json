@@ -1,0 +1,31 @@
+{
+  "id" : "323ddda2-6c9a-4926-964c-35676f3f353f",
+  "name" : "GcpBlobStoreIT_testListBlobVersions_happy-POST-0",
+  "request" : {
+    "url" : "/batch/storage/v1",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "matches" : "(?s)\\Q\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 661\r\nContent-Type: application/http\r\ncontent-id: 1\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob?generation=1779919665983292 HTTP/1.1\r\nAuthorization: Bearer REDACTED_OAUTH_TOKEN\r\nx-goog-api-client: gl-java/17.0.18 gdcl/2.7.2 mac-os-x/26.5\r\nx-goog-user-project: substrate-sdk-gcp-poc1\r\nx-goog-gcs-idempotency-token: 3b0b7878-b24d-4f57-91a3-6a1f9924db63\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 661\r\nContent-Type: application/http\r\ncontent-id: 2\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob?generation=1779919667122155 HTTP/1.1\r\nAuthorization: Bearer REDACTED_OAUTH_TOKEN\r\nx-goog-api-client: gl-java/17.0.18 gdcl/2.7.2 mac-os-x/26.5\r\nx-goog-user-project: substrate-sdk-gcp-poc1\r\nx-goog-gcs-idempotency-token: 8af1aff0-8cb2-4d92-8b38-20725c952acf\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q\r\nContent-Length: 661\r\nContent-Type: application/http\r\ncontent-id: 3\r\ncontent-transfer-encoding: binary\r\n\r\nDELETE https://storage.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob?generation=1779919668322628 HTTP/1.1\r\nAuthorization: Bearer REDACTED_OAUTH_TOKEN\r\nx-goog-api-client: gl-java/17.0.18 gdcl/2.7.2 mac-os-x/26.5\r\nx-goog-user-project: substrate-sdk-gcp-poc1\r\nx-goog-gcs-idempotency-token: aecc9e23-ad93-47f8-b0ea-640b6ba9679e\r\n\r\n\r\n\\E--__END_OF_PART__[a-f0-9-]+__\\Q--\r\n\\E"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "base64Body" : "LS1iYXRjaF90Y3k2SDlOOVM4aG9iQ0Q0bzZhem84NjNrcDNrQTlPRg0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9odHRwDQpDb250ZW50LUlEOiByZXNwb25zZS0xDQoNCkhUVFAvMS4xIDIwNCBObyBDb250ZW50DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2pzb24NCkRhdGU6IFdlZCwgMjcgTWF5IDIwMjYgMjI6MDc6NTEgR01UDQpDYWNoZS1Db250cm9sOiBuby1jYWNoZSwgbm8tc3RvcmUsIG1heC1hZ2U9MCwgbXVzdC1yZXZhbGlkYXRlDQpFeHBpcmVzOiBNb24sIDAxIEphbiAxOTkwIDAwOjAwOjAwIEdNVA0KQ29udGVudC1MZW5ndGg6IDANCg0KDQotLWJhdGNoX3RjeTZIOU45Uzhob2JDRDRvNmF6bzg2M2twM2tBOU9GDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL2h0dHANCkNvbnRlbnQtSUQ6IHJlc3BvbnNlLTINCg0KSFRUUC8xLjEgMjA0IE5vIENvbnRlbnQNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vanNvbg0KRGF0ZTogV2VkLCAyNyBNYXkgMjAyNiAyMjowNzo1MSBHTVQNCkNhY2hlLUNvbnRyb2w6IG5vLWNhY2hlLCBuby1zdG9yZSwgbWF4LWFnZT0wLCBtdXN0LXJldmFsaWRhdGUNCkV4cGlyZXM6IE1vbiwgMDEgSmFuIDE5OTAgMDA6MDA6MDAgR01UDQpDb250ZW50LUxlbmd0aDogMA0KDQoNCi0tYmF0Y2hfdGN5Nkg5TjlTOGhvYkNENG82YXpvODYza3Aza0E5T0YNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vaHR0cA0KQ29udGVudC1JRDogcmVzcG9uc2UtMw0KDQpIVFRQLzEuMSAyMDQgTm8gQ29udGVudA0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9qc29uDQpEYXRlOiBXZWQsIDI3IE1heSAyMDI2IDIyOjA3OjUyIEdNVA0KQ2FjaGUtQ29udHJvbDogbm8tY2FjaGUsIG5vLXN0b3JlLCBtYXgtYWdlPTAsIG11c3QtcmV2YWxpZGF0ZQ0KRXhwaXJlczogTW9uLCAwMSBKYW4gMTk5MCAwMDowMDowMCBHTVQNCkNvbnRlbnQtTGVuZ3RoOiAwDQoNCg0KLS1iYXRjaF90Y3k2SDlOOVM4aG9iQ0Q0bzZhem84NjNrcDNrQTlPRi0tDQo=",
+    "headers" : {
+      "X-Frame-Options" : "SAMEORIGIN",
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Cache-Control" : "private, max-age=0",
+      "Server" : "Upload Server",
+      "X-Content-Type-Options" : "nosniff",
+      "X-GUploader-UploadID" : "AAVLpEghT0VMOfpzUfoKkC3WSeMGDb1dyT25XDVe4hBcYlp0lZ62YJFHAMJQvdcA4VIFgdiWh66CA9c",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Expires" : "Wed, 27 May 2026 22:07:51 GMT",
+      "X-XSS-Protection" : "1; mode=block",
+      "Date" : "Wed, 27 May 2026 22:07:51 GMT",
+      "Content-Type" : "multipart/mixed; boundary=batch_tcy6H9N9S8hobCD4o6azo863kp3kA9OF"
+    }
+  },
+  "uuid" : "323ddda2-6c9a-4926-964c-35676f3f353f",
+  "persistent" : true,
+  "insertionIndex" : 1382
+}

@@ -19,6 +19,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -444,6 +445,30 @@ public class BucketClient implements AutoCloseable {
   }
 
   /**
+   * Lists all available versions for a given blob key.
+   *
+   * @param key The target blob key
+   * @return Iterator object of BlobMetadata for each version
+   * @throws SubstrateSdkException Thrown if the operation fails
+   * @throws UnsupportedOperationException Thrown when the configured provider does not implement
+   *     version listing
+   */
+  public Iterator<BlobMetadata> listBlobVersions(String key) {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.LIST_BLOB_VERSIONS,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.listBlobVersions(key);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
+  }
+
+  /**
    * Initiates a multipartUpload for a Blob
    *
    * @param request Contains information about the blob to upload
@@ -693,7 +718,7 @@ public class BucketClient implements AutoCloseable {
    * Updates object retention date, preserving the object's current retention mode.
    *
    * <p><strong>Deprecated.</strong> Prefer {@link #updateObjectRetention(String, String,
-   * com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig)} which accepts an explicit mode
+   * ObjectRetentionConfig)} which accepts an explicit mode
    * and bypass flag. This method is retained for backward compatibility.
    *
    * <p><strong>Existing non-uniform behavior:</strong> The AWS provider has historically thrown
@@ -725,7 +750,7 @@ public class BucketClient implements AutoCloseable {
    * Updates per-object retention with explicit mode and bypass control.
    *
    * <p>See {@link com.salesforce.multicloudj.blob.driver.BlobStore#updateObjectRetention(String,
-   * String, com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig)} for the full rules
+   * String, ObjectRetentionConfig)} for the full rules
    * table governing every {@code (config.mode, config.bypassGovernanceRetention, current state,
    * new date vs current)} combination.
    *
@@ -738,7 +763,7 @@ public class BucketClient implements AutoCloseable {
   public void updateObjectRetention(
       String key,
       String versionId,
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config) {
+      ObjectRetentionConfig config) {
     try {
       blobStore.updateObjectRetention(key, versionId, config);
     } catch (Throwable t) {

@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -162,6 +163,13 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public Iterator<BlobMetadata> listBlobVersions(String key) {
+    validator.validateKey(key);
+    return doListBlobVersions(key);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return doInitiateMultipartUpload(request);
   }
@@ -266,8 +274,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    */
   @Override
   @Deprecated
-  public void updateObjectRetention(
-      String key, String versionId, java.time.Instant retainUntilDate) {
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
     updateObjectRetention(
         key,
         versionId,
@@ -317,6 +324,17 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract Iterator<BlobInfo> doList(ListBlobsRequest request);
 
   protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
+
+  /**
+   * Provider hook for listing blob versions.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    throw new UnsupportedOperationException(
+        "List object versions is not supported by this substrate implementation");
+  }
 
   protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 

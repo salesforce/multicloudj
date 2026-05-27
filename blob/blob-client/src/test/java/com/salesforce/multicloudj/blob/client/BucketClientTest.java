@@ -51,6 +51,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -408,6 +409,30 @@ public class BucketClientTest {
         UnAuthorizedException.class,
         () -> {
           client.list(request);
+        });
+  }
+
+  @Test
+  void testListBlobVersions() {
+    String key = "object-1";
+    @SuppressWarnings("unchecked")
+    Iterator<BlobMetadata> expectedIterator = mock(Iterator.class);
+    when(mockBlobStore.listBlobVersions(anyString())).thenReturn(expectedIterator);
+
+    Iterator<BlobMetadata> actualIterator = client.listBlobVersions(key);
+    verify(mockBlobStore, times(1)).listBlobVersions(eq(key));
+    assertEquals(expectedIterator, actualIterator);
+  }
+
+  @Test
+  void testListBlobVersionsThrowsException() {
+    String key = "object-1";
+    when(mockBlobStore.listBlobVersions(anyString())).thenThrow(RuntimeException.class);
+
+    assertThrows(
+        UnAuthorizedException.class,
+        () -> {
+          client.listBlobVersions(key);
         });
   }
 

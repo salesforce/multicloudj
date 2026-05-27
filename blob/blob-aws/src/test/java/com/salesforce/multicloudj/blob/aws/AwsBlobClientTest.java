@@ -29,6 +29,7 @@ import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.Bucket;
@@ -52,7 +53,7 @@ public class AwsBlobClientTest {
               ClientOverrideConfiguration.Builder configBuilder =
                   mock(ClientOverrideConfiguration.Builder.class);
               when(configBuilder.retryStrategy(
-                      any(software.amazon.awssdk.retries.api.RetryStrategy.class)))
+                      any(RetryStrategy.class)))
                   .thenReturn(configBuilder);
               when(configBuilder.apiCallAttemptTimeout(any(Duration.class)))
                   .thenReturn(configBuilder);

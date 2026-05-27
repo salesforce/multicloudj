@@ -425,6 +425,68 @@ public class AwsBlobStore extends AbstractBlobStore {
   }
 
   /**
+   * Lists versions for a single key using S3's paginated {@code ListObjectVersions} API.
+   *
+   * <p>This implementation is streaming/lazy: it walks paginator pages on demand and does not
+   * materialize all pages up front. Only versions for the requested key are returned.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    ListObjectVersionsRequest.Builder awsRequestBuilder =
+        ListObjectVersionsRequest.builder()
+            .bucket(getBucket())
+            .prefix(key);
+
+    Iterator<ListObjectVersionsResponse> responseIterator =
+        s3Client.listObjectVersionsPaginator(awsRequestBuilder.build()).iterator();
+
+    return new Iterator<>() {
+      private Iterator<ObjectVersion> current = List.<ObjectVersion>of().iterator();
+      private BlobMetadata next;
+
+      @Override
+      public boolean hasNext() {
+        if (next != null) {
+          return true;
+        }
+        while (true) {
+          while (current.hasNext()) {
+            ObjectVersion version = current.next();
+            // S3's prefix filter returns keys that START with the prefix, not exact matches.
+            // Filter to ensure we only return versions for the exact key requested.
+            if (!key.equals(version.key())) {
+              continue;
+            }
+            next =
+                BlobMetadata.builder()
+                    .key(version.key())
+                    .versionId(version.versionId())
+                    .eTag(version.eTag())
+                    .objectSize(version.size())
+                    .lastModified(version.lastModified())
+                    .build();
+            return true;
+          }
+          if (!responseIterator.hasNext()) {
+            return false;
+          }
+          current = responseIterator.next().versions().iterator();
+        }
+      }
+
+      @Override
+      public BlobMetadata next() {
+        if (!hasNext()) {
+          throw new java.util.NoSuchElementException();
+        }
+        BlobMetadata result = next;
+        next = null;
+        return result;
+      }
+    };
+  }
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request

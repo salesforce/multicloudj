@@ -85,6 +85,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
@@ -4355,9 +4356,9 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
@@ -4378,9 +4379,9 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .bypassGovernanceRetention(Boolean.TRUE)
             .build();
@@ -4406,14 +4407,14 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4429,15 +4430,15 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
             .retainUntilDate(newRetainUntil)
             .bypassGovernanceRetention(Boolean.TRUE)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4453,14 +4454,14 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4472,14 +4473,110 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(java.time.Instant.now().plusSeconds(3600))
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+
+  @Test
+  void testDoListBlobVersions() {
+    String key = TEST_KEY;
+
+    Blob matchingBlob = mock(Blob.class);
+    when(matchingBlob.getName()).thenReturn(TEST_KEY);
+    when(matchingBlob.getGeneration()).thenReturn(12345L);
+    when(matchingBlob.getEtag()).thenReturn(TEST_ETAG);
+    when(matchingBlob.getSize()).thenReturn(100L);
+
+    Blob nonMatchingBlob = mock(Blob.class);
+    when(nonMatchingBlob.getName()).thenReturn(TEST_KEY + "-extra");
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+
+    assertTrue(versions.hasNext());
+    BlobMetadata metadata = versions.next();
+    assertEquals(TEST_KEY, metadata.getKey());
+    assertEquals("12345", metadata.getVersionId());
+    assertEquals(TEST_ETAG, metadata.getETag());
+    assertEquals(100L, metadata.getObjectSize());
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_multipleVersions() {
+    String key = TEST_KEY;
+
+    Blob version1 = mock(Blob.class);
+    when(version1.getName()).thenReturn(TEST_KEY);
+    when(version1.getGeneration()).thenReturn(1000L);
+    when(version1.getEtag()).thenReturn("etag-v1");
+    when(version1.getSize()).thenReturn(100L);
+
+    Blob version2 = mock(Blob.class);
+    when(version2.getName()).thenReturn(TEST_KEY);
+    when(version2.getGeneration()).thenReturn(2000L);
+    when(version2.getEtag()).thenReturn("etag-v2");
+    when(version2.getSize()).thenReturn(200L);
+
+    Blob version3 = mock(Blob.class);
+    when(version3.getName()).thenReturn(TEST_KEY);
+    when(version3.getGeneration()).thenReturn(3000L);
+    when(version3.getEtag()).thenReturn("etag-v3");
+    when(version3.getSize()).thenReturn(300L);
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of(version1, version2, version3));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+
+    List<BlobMetadata> allVersions = new java.util.ArrayList<>();
+    versions.forEachRemaining(allVersions::add);
+
+    assertEquals(3, allVersions.size());
+    assertEquals("1000", allVersions.get(0).getVersionId());
+    assertEquals("2000", allVersions.get(1).getVersionId());
+    assertEquals("3000", allVersions.get(2).getVersionId());
+  }
+
+  @Test
+  void testDoListBlobVersions_emptyResult() {
+    String key = TEST_KEY;
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_noSuchElementException() {
+    String key = TEST_KEY;
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+
+    assertThrows(NoSuchElementException.class, versions::next);
   }
 }
