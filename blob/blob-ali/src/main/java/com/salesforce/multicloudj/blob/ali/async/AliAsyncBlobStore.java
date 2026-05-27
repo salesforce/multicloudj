@@ -2,7 +2,12 @@ package com.salesforce.multicloudj.blob.ali.async;
 
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
@@ -37,10 +42,13 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -98,54 +106,123 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    long contentLength = uploadRequest.getContentLength();
+    BinaryData body = BinaryData.fromStream(
+        inputStream, contentLength > 0 ? contentLength : null);
+    return doUploadInternal(uploadRequest, body);
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, byte[] content) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    BinaryData body = BinaryData.fromBytes(content);
+    return doUploadInternal(uploadRequest, body);
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, File file) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    try {
+      BinaryData body = BinaryData.fromStream(
+          Files.newInputStream(file.toPath()),
+          file.length());
+      return doUploadInternal(uploadRequest, body);
+    } catch (IOException e) {
+      return CompletableFuture.failedFuture(
+          new SubstrateSdkException(
+              "Failed to read file for upload: "
+                  + file.getPath(), e));
+    }
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, Path path) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doUpload(uploadRequest, path.toFile());
+  }
+
+  private CompletableFuture<UploadResponse> doUploadInternal(
+      UploadRequest uploadRequest, BinaryData body) {
+    PutObjectRequest request =
+        transformer.toPutObjectRequest(uploadRequest, body);
+    return asyncClient
+        .putObjectAsync(request, OperationOptions.defaults())
+        .thenApply(
+            result ->
+                transformer.toUploadResponse(uploadRequest, result));
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, OutputStream outputStream) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doDownloadInternal(request).thenApply(result -> {
+      try (InputStream body = result.body()) {
+        copyStream(body, outputStream);
+        return transformer.toDownloadResponse(request.getKey(), result);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to download blob: " + request.getKey(), e);
+      }
+    });
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, ByteArray byteArray) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    return doDownload(request, outputStream).thenApply(response -> {
+      byteArray.setBytes(outputStream.toByteArray());
+      return response;
+    });
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, File file) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doDownload(request, file.toPath());
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, Path path) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    Path destinationPath = createDownloadDestinationPath(request, path);
+    return doDownloadInternal(request).thenApply(result -> {
+      try (InputStream body = result.body()) {
+        Files.copy(body, destinationPath);
+        return transformer.toDownloadResponse(request.getKey(), result);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to download blob: " + request.getKey(), e);
+      }
+    });
   }
 
   @Override
-  protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+  protected CompletableFuture<DownloadResponse> doDownload(
+      DownloadRequest request) {
+    return doDownloadInternal(request).thenApply(result ->
+        transformer.toDownloadResponse(
+            request.getKey(), result, result.body()));
+  }
+
+  private CompletableFuture<GetObjectResult> doDownloadInternal(
+      DownloadRequest request) {
+    GetObjectRequest getRequest =
+        transformer.toGetObjectRequest(request);
+    return asyncClient
+        .getObjectAsync(getRequest, OperationOptions.defaults());
+  }
+
+  private void copyStream(InputStream in, OutputStream out) {
+    try {
+      byte[] buffer = new byte[1024];
+      int bytesRead;
+      while ((bytesRead = in.read(buffer)) != -1) {
+        out.write(buffer, 0, bytesRead);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
