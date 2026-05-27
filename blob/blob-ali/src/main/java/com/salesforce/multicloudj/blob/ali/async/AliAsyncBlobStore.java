@@ -376,30 +376,62 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
       MultipartUploadRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .initiateMultipartUploadAsync(
+            transformer.toInitiateMultipartUploadRequest(request),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toMultipartUpload(result, request));
   }
 
   @Override
   protected CompletableFuture<UploadPartResponse> doUploadMultipartPart(
       MultipartUpload mpu, MultipartPart mpp) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .uploadPartAsync(
+            transformer.toUploadPartRequest(mpu, mpp),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toUploadPartResponse(mpp, result));
   }
 
   @Override
   protected CompletableFuture<MultipartUploadResponse> doCompleteMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .completeMultipartUploadAsync(
+            transformer.toCompleteMultipartUploadRequest(mpu, parts),
+            OperationOptions.defaults())
+        .thenApply(result -> new MultipartUploadResponse(
+            stripQuotes(result.completeMultipartUpload().eTag())));
   }
 
   @Override
   protected CompletableFuture<List<UploadPartResponse>> doListMultipartUpload(
       MultipartUpload mpu) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .listPartsAsync(
+            transformer.toListPartsRequest(mpu),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toListUploadPartResponse(result));
   }
 
   @Override
   protected CompletableFuture<Void> doAbortMultipartUpload(MultipartUpload mpu) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .abortMultipartUploadAsync(
+            transformer.toAbortMultipartUploadRequest(mpu),
+            OperationOptions.defaults())
+        .thenAccept(result -> {});
+  }
+
+  private String stripQuotes(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() >= 2
+        && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
   }
 
   @Override
