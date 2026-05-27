@@ -774,9 +774,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Threads(4)
   public void benchmarkGetWithProjection(Blackhole bh) {
     try {
-      if (smallPlayerKeys == null || smallPlayerKeys.isEmpty()) {
-        return;
-      }
       String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
