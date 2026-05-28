@@ -40,6 +40,7 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
@@ -62,15 +63,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 
 /** Alibaba Cloud OSS native async implementation of AsyncBlobStore. */
@@ -517,7 +524,100 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return CompletableFuture.supplyAsync(() -> {
+      Path sourceDir = Paths.get(
+          directoryUploadRequest.getLocalSourceDirectory())
+          .toAbsolutePath().normalize();
+      List<Path> filePaths = collectFilePaths(
+          sourceDir, directoryUploadRequest);
+      if (filePaths.isEmpty()) {
+        return DirectoryUploadResponse.builder()
+            .failedTransfers(new ArrayList<>())
+            .build();
+      }
+
+      String prefix = directoryUploadRequest.getPrefix();
+      AtomicLong totalBytes = new AtomicLong(0L);
+      List<FailedBlobUpload> failures = new ArrayList<>();
+
+      Map<String, String> tags = directoryUploadRequest.getTags();
+      var objectLock = directoryUploadRequest.getObjectLock();
+
+      List<CompletableFuture<Void>> futures = filePaths.stream()
+          .map(filePath -> {
+            String key = toBlobKey(sourceDir, filePath, prefix);
+            UploadRequest.Builder uploadBuilder = UploadRequest.builder()
+                .withKey(key)
+                .withContentLength(filePath.toFile().length());
+            if (tags != null && !tags.isEmpty()) {
+              uploadBuilder.withTags(tags);
+            }
+            if (objectLock != null) {
+              uploadBuilder.withObjectLock(objectLock);
+            }
+            UploadRequest uploadRequest = uploadBuilder.build();
+            return doUpload(uploadRequest, filePath)
+                .thenAccept(response -> {
+                  if (directoryUploadRequest
+                      .isTransferStatusLoggingEnabled()) {
+                    totalBytes.addAndGet(filePath.toFile().length());
+                  }
+                })
+                .exceptionally(ex -> {
+                  synchronized (failures) {
+                    failures.add(FailedBlobUpload.builder()
+                        .source(filePath)
+                        .exception(ex)
+                        .build());
+                  }
+                  return null;
+                });
+          })
+          .collect(Collectors.toList());
+
+      CompletableFuture.allOf(
+          futures.toArray(new CompletableFuture[0])).join();
+
+      return DirectoryUploadResponse.builder()
+          .failedTransfers(failures)
+          .totalBytesTransferred(
+              directoryUploadRequest.isTransferStatusLoggingEnabled()
+                  ? totalBytes.get() : null)
+          .build();
+    }, executorService);
+  }
+
+  private List<Path> collectFilePaths(
+      Path sourceDir, DirectoryUploadRequest request) {
+    try (Stream<Path> paths = request.isFollowSymbolicLinks()
+        ? Files.walk(sourceDir, Integer.MAX_VALUE,
+            FileVisitOption.FOLLOW_LINKS)
+        : Files.walk(sourceDir)) {
+      return paths
+          .filter(Files::isRegularFile)
+          .filter(path -> {
+            if (!request.isIncludeSubFolders()) {
+              Path relativePath = sourceDir.relativize(path);
+              return relativePath.getParent() == null;
+            }
+            return true;
+          })
+          .collect(Collectors.toList());
+    } catch (IOException e) {
+      throw new SubstrateSdkException(
+          "Failed to traverse directory: " + sourceDir, e);
+    }
+  }
+
+  private String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+    Path relativePath = sourceDir.relativize(filePath);
+    String key = relativePath.toString().replace("\\", "/");
+    if (prefix != null && !prefix.isEmpty()) {
+      String normalizedPrefix =
+          prefix.endsWith("/") ? prefix : prefix + "/";
+      key = normalizedPrefix + key;
+    }
+    return key;
   }
 
   @Override

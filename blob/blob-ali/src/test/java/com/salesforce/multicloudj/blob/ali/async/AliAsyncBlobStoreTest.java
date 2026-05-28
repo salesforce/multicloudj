@@ -64,6 +64,8 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -1055,5 +1057,77 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.generatePresignedUrl(request).get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testUploadDirectory(@TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.writeString(tempDir.resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("upload-prefix")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertNotNull(response.getFailedTransfers());
+    assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testUploadDirectoryWithSubFolders(@TempDir Path tempDir)
+      throws Exception {
+    Files.writeString(tempDir.resolve("root.txt"), "root");
+    Path subDir = Files.createDirectory(tempDir.resolve("sub"));
+    Files.writeString(subDir.resolve("nested.txt"), "nested");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest requestWithSub = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse responseWithSub =
+        store.uploadDirectory(requestWithSub).get();
+    assertEquals(0, responseWithSub.getFailedTransfers().size());
+
+    DirectoryUploadRequest requestNoSub = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(false)
+        .build();
+    DirectoryUploadResponse responseNoSub =
+        store.uploadDirectory(requestNoSub).get();
+    assertEquals(0, responseNoSub.getFailedTransfers().size());
+  }
+
+  @Test
+  void testUploadDirectoryEmptyDir(@TempDir Path tempDir) throws Exception {
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("empty")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
   }
 }
