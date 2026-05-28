@@ -3,7 +3,6 @@ package com.salesforce.multicloudj.docstore.aws;
 import com.salesforce.multicloudj.docstore.client.AbstractDocstoreBenchmarkTest;
 import com.salesforce.multicloudj.docstore.driver.AbstractDocStore;
 import com.salesforce.multicloudj.docstore.driver.CollectionOptions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +12,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 
-@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsDocstoreBenchmarkTest extends AbstractDocstoreBenchmarkTest {
 
