@@ -6,7 +6,11 @@ import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
+import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
@@ -63,10 +67,14 @@ import lombok.Getter;
 public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkService {
 
   private final OSSAsyncClient asyncClient;
-  // syncClient is needed for presigned URLs — OSSAsyncClient does not implement Presignable
+  // syncClient is required for operations not available on OSSAsyncClient:
+  // 1. Presigned URLs — only OSSClient implements Presignable
+  // 2. Parallel downloads — the SDK's Downloader (transfer manager) only accepts OSSClient
+  // These sync operations are wrapped in supplyAsync/thenApplyAsync to remain non-blocking.
   private final OSSClient syncClient;
   private final AliTransformer transformer;
   private final ExecutorService executorService;
+  private final Downloader downloader;
 
   public AliAsyncBlobStore(
       String bucket,
@@ -77,12 +85,28 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
       OSSClient syncClient,
       AliTransformerSupplier transformerSupplier,
       ExecutorService executorService) {
+    this(bucket, region, credentialsOverrider, validator, asyncClient,
+        syncClient, transformerSupplier, executorService,
+        syncClient != null ? new Downloader(syncClient) : null);
+  }
+
+  AliAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      OSSAsyncClient asyncClient,
+      OSSClient syncClient,
+      AliTransformerSupplier transformerSupplier,
+      ExecutorService executorService,
+      Downloader downloader) {
     super(AliConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.asyncClient = asyncClient;
     this.syncClient = syncClient;
     this.transformer = transformerSupplier.get(bucket);
     this.executorService =
         executorService != null ? executorService : ForkJoinPool.commonPool();
+    this.downloader = downloader;
   }
 
   @Override
@@ -186,6 +210,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, Path path) {
     Path destinationPath = createDownloadDestinationPath(request, path);
+    if (request.isParallelDownload()
+        && request.getStart() == null
+        && request.getEnd() == null) {
+      return doParallelDownload(request, destinationPath);
+    }
     return doDownloadInternal(request).thenApply(result -> {
       try (InputStream body = result.body()) {
         Files.copy(body, destinationPath);
@@ -195,6 +224,40 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             "Failed to download blob: " + request.getKey(), e);
       }
     });
+  }
+
+  /**
+   * Parallel download using the OSS SDK's Downloader (transfer manager). The Downloader internally
+   * splits the object into chunks based on partSize, issues concurrent Range GET requests using its
+   * own thread pool, and writes each chunk at the correct offset via positional FileChannel writes.
+   * It also supports checkpointing for resumable downloads and CRC64 integrity verification.
+   *
+   * <p>Because the Downloader is sync-only (requires OSSClient), the blocking call is offloaded to
+   * the executorService via thenApplyAsync. A preceding async HEAD request fetches object metadata
+   * for the response, since the Downloader's DownloadResult only reports bytes written.
+   */
+  private CompletableFuture<DownloadResponse> doParallelDownload(
+      DownloadRequest request, Path destinationPath) {
+    HeadObjectRequest headRequest =
+        transformer.toHeadObjectRequest(request.getKey(), null);
+    return asyncClient
+        .headObjectAsync(headRequest, OperationOptions.defaults())
+        .thenApplyAsync(headResult -> {
+          GetObjectRequest getRequest =
+              transformer.toGetObjectRequest(request);
+          try {
+            downloader.downloadFile(getRequest,
+                destinationPath.toString());
+          } catch (DownloadError e) {
+            throw new SubstrateSdkException(
+                "Parallel download failed: " + request.getKey(), e);
+          }
+          return DownloadResponse.builder()
+              .key(request.getKey())
+              .metadata(transformer.toBlobMetadata(
+                  request.getKey(), headResult))
+              .build();
+        }, executorService);
   }
 
   @Override
@@ -215,7 +278,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   private void copyStream(InputStream in, OutputStream out) {
     try {
-      byte[] buffer = new byte[1024];
+      byte[] buffer = new byte[8192];
       int bytesRead;
       while ((bytesRead = in.read(buffer)) != -1) {
         out.write(buffer, 0, bytesRead);
@@ -381,6 +444,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
+        if (getSocketTimeout() != null) {
+          asyncBuilder.readWriteTimeout(getSocketTimeout());
+        }
         async = asyncBuilder.build();
       }
 
@@ -396,6 +462,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           syncBuilder.proxyHost(
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
+        }
+        if (getSocketTimeout() != null) {
+          syncBuilder.readWriteTimeout(getSocketTimeout());
         }
         sync = syncBuilder.build();
       }
