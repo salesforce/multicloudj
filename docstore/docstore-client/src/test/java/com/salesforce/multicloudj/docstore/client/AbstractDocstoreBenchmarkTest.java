@@ -74,10 +74,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   /**
    * Batch size parameter for the batch-mode benchmarks (benchmarkBatchPut, benchmarkBatchGet).
-   * Three points span the typical request-batch range; lets us see scaling behaviour without
-   * exploding the suite runtime.
+   * Two points span the typical request-batch range. We deliberately don't include 100 because
+   * benchmarkBatchPut@batchSize=100 × @Threads(4) × 5 measurement iterations generates ~2000 puts
+   * per benchmark run, accumulating as orphan docs before teardown — Firestore's quota / SDK pool
+   * stalls at that scale on cross-region runs. {10, 50} already shows the scaling trend.
    */
-  @Param({"10", "50", "100"})
+  @Param({"10", "50"})
   public int batchSize;
 
   // Harness interface
