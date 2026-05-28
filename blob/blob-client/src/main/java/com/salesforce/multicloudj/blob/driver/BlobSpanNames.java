@@ -21,6 +21,7 @@ public final class BlobSpanNames {
   public static final String GET_METADATA = "blob.getMetadata";
   public static final String LIST = "blob.list";
   public static final String LIST_PAGE = "blob.listPage";
+  public static final String LIST_BLOB_VERSIONS = "blob.listBlobVersions";
   public static final String GET_TAGS = "blob.getTags";
   public static final String SET_TAGS = "blob.setTags";
   public static final String GENERATE_PRESIGNED_URL = "blob.generatePresignedUrl";

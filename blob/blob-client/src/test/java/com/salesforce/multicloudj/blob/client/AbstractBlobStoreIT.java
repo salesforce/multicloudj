@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
@@ -210,12 +211,12 @@ public abstract class AbstractBlobStoreIT {
   public void setupTestEnvironment(TestInfo testInfo) {
     String testClassName = testInfo.getTestClass().map(Class::getSimpleName).orElse("Unknown");
     String testMethodName =
-        testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
+            testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
     TestsUtil.startWireMockRecording(
-        harness.getEndpoint(),
-        testClassName,
-        testMethodName,
-        harness.getRecordingCaptureHeaders());
+            harness.getEndpoint(),
+            testClassName,
+            testMethodName,
+            harness.getRecordingCaptureHeaders());
   }
 
   /**
@@ -2783,7 +2784,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.updateObjectRetention(
           key,
           null,
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .build());
@@ -2809,7 +2810,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.updateObjectRetention(
           key,
           null,
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.COMPLIANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .build());
@@ -2835,7 +2836,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.updateObjectRetention(
           key,
           null,
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_SHORTENED)
               .bypassGovernanceRetention(Boolean.TRUE)
@@ -2859,8 +2860,8 @@ public abstract class AbstractBlobStoreIT {
     try {
       uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_EXTENDED);
 
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_SHORTENED)
               .build();
@@ -2888,7 +2889,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.updateObjectRetention(
           key,
           null,
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.COMPLIANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .bypassGovernanceRetention(Boolean.TRUE)
@@ -2915,8 +2916,8 @@ public abstract class AbstractBlobStoreIT {
     try {
       uploadWithRetention(bucketClient, key, RetentionMode.GOVERNANCE, UPDATE_RETENTION_INITIAL);
 
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.COMPLIANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .build();
@@ -2938,8 +2939,8 @@ public abstract class AbstractBlobStoreIT {
     try {
       uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_INITIAL);
 
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .bypassGovernanceRetention(Boolean.TRUE)
@@ -2966,8 +2967,8 @@ public abstract class AbstractBlobStoreIT {
     try {
       uploadWithRetention(bucketClient, key, RetentionMode.COMPLIANCE, UPDATE_RETENTION_EXTENDED);
 
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.COMPLIANCE)
               .retainUntilDate(UPDATE_RETENTION_SHORTENED)
               .bypassGovernanceRetention(Boolean.TRUE)
@@ -2999,8 +3000,8 @@ public abstract class AbstractBlobStoreIT {
             inputStream);
       }
 
-      com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+      ObjectRetentionConfig cfg =
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .build();
@@ -3056,7 +3057,7 @@ public abstract class AbstractBlobStoreIT {
             bucketClient.updateObjectRetention(
                 "conformance-tests/objectlock/null-config",
                 null,
-                (com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig) null));
+                (ObjectRetentionConfig) null));
   }
 
   @Test
@@ -3068,8 +3069,8 @@ public abstract class AbstractBlobStoreIT {
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
             .mode(RetentionMode.GOVERNANCE)
             .build(); // retainUntilDate intentionally null
 
@@ -3110,7 +3111,7 @@ public abstract class AbstractBlobStoreIT {
       bucketClient.updateObjectRetention(
           key,
           null,
-          com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+          ObjectRetentionConfig.builder()
               .mode(RetentionMode.GOVERNANCE)
               .retainUntilDate(UPDATE_RETENTION_EXTENDED)
               .build());
@@ -5388,5 +5389,92 @@ public abstract class AbstractBlobStoreIT {
     } finally {
       safeDeleteBlobs(bucketClient, expectedKey);
     }
+  }
+
+  @Test
+  public void testListBlobVersions_happy() throws IOException {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    String key = "conformance-tests/list-object-versions/exact-three-versions-blob";
+
+    try {
+      Set<String> uploadedVersionIds = new HashSet<>();
+      for (int i = 1; i <= 3; i++) {
+        byte[] blobBytes = ("archived content v" + i).getBytes(StandardCharsets.UTF_8);
+        try (InputStream inputStream = new ByteArrayInputStream(blobBytes)) {
+          UploadRequest request =
+              new UploadRequest.Builder().withKey(key).withContentLength(blobBytes.length).build();
+          UploadResponse uploadResponse = bucketClient.upload(request, inputStream);
+          Assertions.assertNotNull(uploadResponse, "Upload response should not be null");
+          Assertions.assertTrue(
+              StringUtils.isNotBlank(uploadResponse.getVersionId()),
+              "Versioned upload should return a non-empty versionId");
+          uploadedVersionIds.add(uploadResponse.getVersionId());
+        }
+      }
+
+      Iterator<BlobMetadata> iterator =
+          bucketClient.listBlobVersions(key);
+
+      List<BlobMetadata> versions = new ArrayList<>();
+      while (iterator.hasNext()) {
+        versions.add(iterator.next());
+      }
+
+      Assertions.assertEquals(3, versions.size(), "Expected exactly 3 object versions");
+      Assertions.assertTrue(
+          versions.stream().allMatch(version -> key.equals(version.getKey())),
+          "All listed versions should match the requested key");
+      Assertions.assertTrue(
+          versions.stream().allMatch(version -> StringUtils.isNotBlank(version.getVersionId())),
+          "All listed versions should have non-empty versionIds");
+      Set<String> returnedVersionIds =
+          versions.stream().map(BlobMetadata::getVersionId).collect(Collectors.toSet());
+      Assertions.assertEquals(
+          uploadedVersionIds, returnedVersionIds, "Returned versionIds should match uploaded ones");
+      for (BlobMetadata version : versions) {
+        DownloadRequest versionedRequest =
+            new DownloadRequest.Builder()
+                .withKey(key)
+                .withVersionId(version.getVersionId())
+                .build();
+        DownloadResponse response = bucketClient.download(versionedRequest, new ByteArray());
+        Assertions.assertNotNull(
+            response, "Listed version should be downloadable by its versionId");
+      }
+    } finally {
+      // Delete all versions by their versionIds to ensure complete cleanup
+      try {
+        List<BlobIdentifier> toDelete = new ArrayList<>();
+        Iterator<BlobMetadata> allVersions = bucketClient.listBlobVersions(key);
+        allVersions.forEachRemaining(
+            v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
+        if (!toDelete.isEmpty()) {
+          bucketClient.delete(toDelete);
+        }
+      } catch (Throwable t) {
+        // Best effort cleanup - ignore failures
+      }
+    }
+  }
+
+  @Test
+  public void testListBlobVersions_nullKey() {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    InvalidArgumentException exception =
+        Assertions.assertThrows(
+            InvalidArgumentException.class,
+            () -> bucketClient.listBlobVersions(null));
+    Assertions.assertNotNull(
+        exception.getCause(), "Expected InvalidArgumentException to wrap cause");
+    Assertions.assertTrue(
+        exception.getCause() instanceof IllegalArgumentException,
+        "Expected cause to be IllegalArgumentException");
+    Assertions.assertEquals(
+        "Object name cannot be null or empty", exception.getCause().getMessage());
   }
 }
