@@ -373,17 +373,23 @@ public abstract class AbstractDocstoreBenchmarkTest {
    * old benchmarkActionListGet which embedded 100 puts before the batchGet — that pattern caused
    * suite hangs (~2000 orphan docs accumulating per run on Firestore) and conflated put + get in
    * the measurement. Reading only; every invocation is one batchGet RPC.
+   *
+   * <p>Keys are sampled without replacement because the SDK's ActionList rejects duplicate-key
+   * actions in a single batch (see {@code ActionList.toDriverActions}). The pre-seeded pool has
+   * 100 keys, so all three batch sizes (10/50/100) fit. We do an O(n) shuffle of a fresh copy
+   * each invocation — adds GC pressure but avoids the duplicate-key error and keeps the
+   * randomness signal across iterations.
    */
   @Benchmark
   @Threads(4)
   public void benchmarkBatchGet(Blackhole bh) {
     try {
-      List<Document> documents = new ArrayList<>();
+      List<String> shuffled = new ArrayList<>(smallPlayerKeys);
+      Collections.shuffle(shuffled, ThreadLocalRandom.current());
+      List<Document> documents = new ArrayList<>(batchSize);
       for (int i = 0; i < batchSize; i++) {
-        String key =
-            smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
         Player getPlayer = new Player();
-        getPlayer.setPName(key);
+        getPlayer.setPName(shuffled.get(i));
         documents.add(new Document(getPlayer));
       }
       docStoreClient.batchGet(documents);
