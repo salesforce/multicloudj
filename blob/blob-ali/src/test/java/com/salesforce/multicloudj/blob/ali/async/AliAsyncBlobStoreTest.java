@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CommonPrefix;
@@ -30,6 +31,8 @@ import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
@@ -41,8 +44,14 @@ import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
 import com.aliyun.sdk.service.oss2.models.ObjectSummary;
 import com.aliyun.sdk.service.oss2.models.Part;
+import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingResult;
+import com.aliyun.sdk.service.oss2.models.Tag;
+import com.aliyun.sdk.service.oss2.models.TagSet;
+import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
@@ -65,14 +74,18 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -917,5 +930,87 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.abortMultipartUpload(mpu).get());
     assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testGetTags() throws Exception {
+    Tag tag1 = mock(Tag.class);
+    when(tag1.key()).thenReturn("env");
+    when(tag1.value()).thenReturn("prod");
+    Tag tag2 = mock(Tag.class);
+    when(tag2.key()).thenReturn("team");
+    when(tag2.value()).thenReturn("platform");
+
+    TagSet tagSet = mock(TagSet.class);
+    when(tagSet.tags()).thenReturn(List.of(tag1, tag2));
+    Tagging tagging = mock(Tagging.class);
+    when(tagging.tagSet()).thenReturn(tagSet);
+
+    GetObjectTaggingResult mockResult =
+        mock(GetObjectTaggingResult.class);
+    when(mockResult.tagging()).thenReturn(tagging);
+    when(mockAsyncClient.getObjectTaggingAsync(
+        any(GetObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    Map<String, String> tags = store.getTags("tagged-key").get();
+
+    assertNotNull(tags);
+    assertEquals(2, tags.size());
+    assertEquals("prod", tags.get("env"));
+    assertEquals("platform", tags.get("team"));
+  }
+
+  @Test
+  void testSetTags() throws Exception {
+    PutObjectTaggingResult mockResult =
+        mock(PutObjectTaggingResult.class);
+    when(mockAsyncClient.putObjectTaggingAsync(
+        any(PutObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    Map<String, String> tags = Map.of("env", "staging", "version", "2");
+    store.setTags("tag-key", tags).get();
+  }
+
+  @Test
+  void testGeneratePresignedUrlDownload() throws Exception {
+    PresignResult mockResult = mock(PresignResult.class);
+    when(mockResult.url()).thenReturn("https://bucket.oss.aliyuncs.com/key?sig=abc");
+    when(mockSyncClient.presign(
+        any(GetObjectRequest.class), any(PresignOptions.class)))
+        .thenReturn(mockResult);
+
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .key("presign-key")
+        .type(PresignedOperation.DOWNLOAD)
+        .duration(Duration.ofMinutes(15))
+        .build();
+    URL url = store.generatePresignedUrl(request).get();
+
+    assertNotNull(url);
+    assertEquals("https", url.getProtocol());
+    assertEquals("bucket.oss.aliyuncs.com", url.getHost());
+  }
+
+  @Test
+  void testGeneratePresignedUrlUpload() throws Exception {
+    PresignResult mockResult = mock(PresignResult.class);
+    when(mockResult.url()).thenReturn("https://bucket.oss.aliyuncs.com/upload-key?sig=xyz");
+    when(mockSyncClient.presign(
+        any(PutObjectRequest.class), any(PresignOptions.class)))
+        .thenReturn(mockResult);
+
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .key("upload-key")
+        .type(PresignedOperation.UPLOAD)
+        .duration(Duration.ofMinutes(30))
+        .build();
+    URL url = store.generatePresignedUrl(request).get();
+
+    assertNotNull(url);
+    assertEquals("https", url.getProtocol());
   }
 }
