@@ -425,6 +425,16 @@ public class AwsBlobStore extends AbstractBlobStore {
   }
 
   /**
+   * Lists versions for a single key using S3's paginated {@code ListObjectVersions} API.
+   *
+   * <p>This implementation is streaming/lazy: it walks paginator pages on demand and does not
+   * materialize all pages up front. Only versions for the requested key are returned.
+   */
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    return new BlobMetadataIterator(s3Client, getBucket(), key);
+  }
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request
