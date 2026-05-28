@@ -345,11 +345,16 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   /**
-   * Batch put across {@code @Param batchSize} ∈ {10, 50, 100}. Renamed from benchmarkActionListPut
+   * Batch put across {@code @Param batchSize} ∈ {10, 50}. Renamed from benchmarkActionListPut
    * which was fixed at batch=50; the parameter exposes the batch-size scaling curve.
+   *
+   * <p>Single-threaded by design. {@code @Threads(4)} × batchSize=50 × 5 measurement iterations
+   * generated ~1000 puts per benchmark run, accumulating as orphan docs before teardown — Firestore
+   * stalled at that scale on cross-region runs (observed 2026-05-28). Single-thread batch put is
+   * also closer to typical usage anyway (apps usually batch from one writer at a time).
    */
   @Benchmark
-  @Threads(4)
+  @Threads(1)
   public void benchmarkBatchPut(Blackhole bh) {
     final String baseKey = "benchmarkbatchput-player-";
     final int docSize = 200;
@@ -371,19 +376,22 @@ public abstract class AbstractDocstoreBenchmarkTest {
   }
 
   /**
-   * Batch get from pre-seeded data across {@code @Param batchSize} ∈ {10, 50, 100}. Replaces the
-   * old benchmarkActionListGet which embedded 100 puts before the batchGet — that pattern caused
+   * Batch get from pre-seeded data across {@code @Param batchSize} ∈ {10, 50}. Replaces the old
+   * benchmarkActionListGet which embedded 100 puts before the batchGet — that pattern caused
    * suite hangs (~2000 orphan docs accumulating per run on Firestore) and conflated put + get in
    * the measurement. Reading only; every invocation is one batchGet RPC.
    *
    * <p>Keys are sampled without replacement because the SDK's ActionList rejects duplicate-key
    * actions in a single batch (see {@code ActionList.toDriverActions}). The pre-seeded pool has
-   * 100 keys, so all three batch sizes (10/50/100) fit. We do an O(n) shuffle of a fresh copy
-   * each invocation — adds GC pressure but avoids the duplicate-key error and keeps the
-   * randomness signal across iterations.
+   * 100 keys, so both batch sizes (10/50) fit. We do an O(n) shuffle of a fresh copy each
+   * invocation — adds GC pressure but avoids the duplicate-key error and keeps the randomness
+   * signal across iterations.
+   *
+   * <p>Single-threaded by design (matches {@code benchmarkBatchPut} for comparable batch
+   * concurrency, and avoids the same load-induced stall on cross-region Firestore).
    */
   @Benchmark
-  @Threads(4)
+  @Threads(1)
   public void benchmarkBatchGet(Blackhole bh) {
     try {
       List<String> shuffled = new ArrayList<>(smallPlayerKeys);
