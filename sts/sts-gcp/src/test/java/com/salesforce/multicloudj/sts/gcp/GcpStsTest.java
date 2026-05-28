@@ -380,8 +380,250 @@ public class GcpStsTest {
     Assertions.assertEquals(
         "Only allow access to objects in the documents folder", gcpCondition.getDescription());
     Assertions.assertEquals(
-        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')",
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('documents/')",
         gcpCondition.getExpression());
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionWithDeepPrefix() throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/a/b/c/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod("convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition gcpCondition =
+        boundary.getAccessBoundaryRules().get(0).getAvailabilityCondition();
+
+    Assertions.assertEquals(
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/a/b/c/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('a/b/c/')",
+        gcpCondition.getExpression());
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionWithRootPrefix() throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:ListBucket")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod("convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    CredentialAccessBoundary.AccessBoundaryRule.AvailabilityCondition gcpCondition =
+        boundary.getAccessBoundaryRules().get(0).getAvailabilityCondition();
+
+    Assertions.assertEquals(
+        "resource.name.startsWith('projects/_/buckets/my-bucket/objects/')"
+            + " || api.getAttribute('storage.googleapis.com/objectListPrefix', '')"
+            + ".startsWith('')",
+        gcpCondition.getExpression());
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionEscapesSingleQuotes()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/o'malley/")
+            .build();
+
+    CredentialScope credentialScope = buildScopeWith(condition);
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    String expr = boundary.getAccessBoundaryRules().get(0)
+        .getAvailabilityCondition().getExpression();
+
+    Assertions.assertTrue(
+        expr.contains("o\\'malley"),
+        "Single quotes should be escaped in expression");
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionEscapesBackslashes()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/path\\with\\slashes/")
+            .build();
+
+    CredentialScope credentialScope = buildScopeWith(condition);
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+    CredentialAccessBoundary boundary =
+        (CredentialAccessBoundary) convertMethod.invoke(sts, credentialScope);
+
+    String expr = boundary.getAccessBoundaryRules().get(0)
+        .getAvailabilityCondition().getExpression();
+
+    Assertions.assertTrue(
+        expr.contains("path\\\\with\\\\slashes"),
+        "Backslashes should be escaped in expression");
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionRejectsControlChars()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket/bad\nprefix/")
+            .build();
+
+    CredentialScope credentialScope = buildScopeWith(condition);
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+
+    try {
+      convertMethod.invoke(sts, credentialScope);
+      Assertions.fail("Expected exception for control character");
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      Assertions.assertTrue(
+          e.getCause()
+              instanceof
+              com.salesforce.multicloudj.common.exceptions
+                  .InvalidArgumentException);
+      Assertions.assertTrue(
+          e.getCause().getMessage().contains("control character"));
+    }
+  }
+
+  private CredentialScope buildScopeWith(
+      CredentialScope.AvailabilityCondition condition) {
+    return CredentialScope.builder()
+        .rule(CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build())
+        .build();
+  }
+
+  @Test
+  public void testBuildGcpPrefixExpressionRejectsBareBucketUri()
+      throws Exception {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://my-bucket")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://my-bucket")
+            .availablePermission("storage:GetObject")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    Method convertMethod =
+        GcpSts.class.getDeclaredMethod(
+            "convertToGcpAccessBoundary", CredentialScope.class);
+    convertMethod.setAccessible(true);
+
+    try {
+      convertMethod.invoke(sts, credentialScope);
+      Assertions.fail("Expected exception for bare bucket URI");
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      Assertions.assertTrue(
+          e.getCause()
+              instanceof
+              com.salesforce.multicloudj.common.exceptions
+                  .InvalidArgumentException);
+      Assertions.assertTrue(
+          e.getCause().getMessage().contains("bucket name followed by"));
+    }
+  }
+
+  @Test
+  public void testAssumeRoleWithCredentialScopeViaPublicApi()
+      throws IOException {
+    GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
+
+    CredentialScope.AvailabilityCondition condition =
+        CredentialScope.AvailabilityCondition.builder()
+            .resourcePrefix("storage://test-bucket/documents/")
+            .build();
+
+    CredentialScope.ScopeRule rule =
+        CredentialScope.ScopeRule.builder()
+            .availableResource("storage://test-bucket")
+            .availablePermission("storage:GetObject")
+            .availablePermission("storage:ListBucket")
+            .availabilityCondition(condition)
+            .build();
+
+    CredentialScope credentialScope = CredentialScope.builder().rule(rule).build();
+
+    AssumedRoleRequest request =
+        AssumedRoleRequest.newBuilder()
+            .withSessionName("testSession")
+            .withCredentialScope(credentialScope)
+            .build();
+
+    try {
+      sts.assumeRole(request);
+      Assertions.fail("Expected exception from DownscopedCredentials");
+    } catch (IllegalArgumentException e) {
+      // Mock credentials throw when DownscopedCredentials tries to
+      // refresh — but the fact that we get here means the CEL expression
+      // was built and the CredentialAccessBoundary was constructed
+      // successfully through the public API path.
+      Assertions.assertNotNull(e);
+    }
   }
 
   @Test
