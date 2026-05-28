@@ -559,6 +559,47 @@ public class GcpBlobStore extends AbstractBlobStore {
         blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
   }
 
+  /**
+   * Lists all generations for an exact object key using a bounded lexicographic range.
+   *
+   * <p>GCS version listing does not provide exact-name matching, and prefix-based listing can
+   * over-fetch sibling keys (for example, {@code key-1} when searching for {@code key}). To avoid
+   * that, this uses {@code [key, key + '\0')} bounds and still applies an exact-name filter as a
+   * defensive guard.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.startOffset(key));
+    listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    Iterable<Blob> blobs =
+        storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0])).iterateAll();
+    Iterator<Blob> blobIterator =
+        Iterators.filter(blobs.iterator(), blob -> key.equals(blob.getName()));
+
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return blobIterator.hasNext();
+      }
+
+      @Override
+      public BlobMetadata next() {
+        Blob blob = blobIterator.next();
+        java.time.OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        return BlobMetadata.builder()
+            .key(blob.getName())
+            .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
+            .eTag(blob.getEtag())
+            .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
+            .lastModified(versionTimestamp != null ? versionTimestamp.toInstant() : null)
+            .build();
+      }
+    };
+  }
+
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
     rejectSha256(request.getChecksumAlgorithm());
