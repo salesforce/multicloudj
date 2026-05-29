@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1312,5 +1313,92 @@ public class AliAsyncBlobStoreTest {
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
     assertEquals(1024L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDeleteDirectory() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("dir/file1.txt");
+    when(obj1.size()).thenReturn(100L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("dir/file2.txt");
+    when(obj2.size()).thenReturn(200L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    DeleteMultipleObjectsResult deleteResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+
+    store.deleteDirectory("dir/").get();
+
+    verify(mockAsyncClient, times(1)).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
+  }
+
+  @Test
+  void testDeleteDirectoryEmpty() throws Exception {
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of());
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    store.deleteDirectory("empty-dir/").get();
+
+    verify(mockAsyncClient, never()).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
+  }
+
+  @Test
+  void testDeleteDirectoryWithPagination() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("dir/page1.txt");
+    when(obj1.size()).thenReturn(50L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("dir/page2.txt");
+    when(obj2.size()).thenReturn(60L);
+
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(obj1));
+    when(firstPage.commonPrefixes()).thenReturn(null);
+    when(firstPage.isTruncated()).thenReturn(true);
+    when(firstPage.nextContinuationToken()).thenReturn("token1");
+
+    ListObjectsV2Result secondPage = mock(ListObjectsV2Result.class);
+    when(secondPage.contents()).thenReturn(List.of(obj2));
+    when(secondPage.commonPrefixes()).thenReturn(null);
+    when(secondPage.isTruncated()).thenReturn(false);
+
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(firstPage))
+        .thenReturn(CompletableFuture.completedFuture(secondPage));
+
+    DeleteMultipleObjectsResult deleteResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+
+    store.deleteDirectory("dir/").get();
+
+    verify(mockAsyncClient, times(2)).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
   }
 }

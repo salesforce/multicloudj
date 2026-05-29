@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -83,6 +84,8 @@ import lombok.Getter;
 
 /** Alibaba Cloud OSS native async implementation of AsyncBlobStore. */
 public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkService {
+
+  private static final int MAX_OBJECTS_PER_DELETE = 1000;
 
   private final OSSAsyncClient asyncClient;
   // syncClient is required for operations not available on OSSAsyncClient:
@@ -732,7 +735,21 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+    Consumer<ListBlobsBatch> consumer =
+        batch -> {
+          List<List<BlobInfo>> partitionedBlobLists =
+              transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
+          for (List<BlobInfo> blobList : partitionedBlobLists) {
+            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+          }
+        };
+    CompletableFuture<Void> listFuture =
+        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
+    futures.add(listFuture);
+    return listFuture.thenCompose(v ->
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])));
   }
 
   public static Builder builder() {
