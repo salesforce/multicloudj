@@ -375,6 +375,7 @@ public class AliAsyncBlobStoreTest {
     assertEquals("dest-key", response.getKey());
     assertEquals("v-copy", response.getVersionId());
     assertEquals("etag-copy", response.getETag());
+    assertNotNull(response.getLastModified());
   }
 
   @Test

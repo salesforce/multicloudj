@@ -302,9 +302,6 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<Void> doDelete(
       Collection<BlobIdentifier> objects) {
-    if (objects.isEmpty()) {
-      return CompletableFuture.completedFuture(null);
-    }
     DeleteMultipleObjectsRequest request =
         transformer.toDeleteMultipleObjectsRequest(objects);
     return asyncClient
