@@ -2,7 +2,16 @@ package com.salesforce.multicloudj.blob.ali.async;
 
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
+import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
+import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
+import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
+import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
+import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
@@ -37,10 +46,13 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -55,10 +67,14 @@ import lombok.Getter;
 public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkService {
 
   private final OSSAsyncClient asyncClient;
-  // syncClient is needed for presigned URLs — OSSAsyncClient does not implement Presignable
+  // syncClient is required for operations not available on OSSAsyncClient:
+  // 1. Presigned URLs — only OSSClient implements Presignable
+  // 2. Parallel downloads — the SDK's Downloader (transfer manager) only accepts OSSClient
+  // These sync operations are wrapped in supplyAsync/thenApplyAsync to remain non-blocking.
   private final OSSClient syncClient;
   private final AliTransformer transformer;
   private final ExecutorService executorService;
+  private final Downloader downloader;
 
   public AliAsyncBlobStore(
       String bucket,
@@ -69,12 +85,28 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
       OSSClient syncClient,
       AliTransformerSupplier transformerSupplier,
       ExecutorService executorService) {
+    this(bucket, region, credentialsOverrider, validator, asyncClient,
+        syncClient, transformerSupplier, executorService,
+        syncClient != null ? new Downloader(syncClient) : null);
+  }
+
+  AliAsyncBlobStore(
+      String bucket,
+      String region,
+      CredentialsOverrider credentialsOverrider,
+      BlobStoreValidator validator,
+      OSSAsyncClient asyncClient,
+      OSSClient syncClient,
+      AliTransformerSupplier transformerSupplier,
+      ExecutorService executorService,
+      Downloader downloader) {
     super(AliConstants.PROVIDER_ID, bucket, region, credentialsOverrider, validator);
     this.asyncClient = asyncClient;
     this.syncClient = syncClient;
     this.transformer = transformerSupplier.get(bucket);
     this.executorService =
         executorService != null ? executorService : ForkJoinPool.commonPool();
+    this.downloader = downloader;
   }
 
   @Override
@@ -98,54 +130,162 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, InputStream inputStream) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    long contentLength = uploadRequest.getContentLength();
+    BinaryData body = BinaryData.fromStream(
+        inputStream, contentLength > 0 ? contentLength : null);
+    return doUploadInternal(uploadRequest, body);
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, byte[] content) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    BinaryData body = BinaryData.fromBytes(content);
+    return doUploadInternal(uploadRequest, body);
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, File file) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    try {
+      BinaryData body = BinaryData.fromStream(
+          Files.newInputStream(file.toPath()),
+          file.length());
+      return doUploadInternal(uploadRequest, body);
+    } catch (IOException e) {
+      return CompletableFuture.failedFuture(
+          new SubstrateSdkException(
+              "Failed to read file for upload: "
+                  + file.getPath(), e));
+    }
   }
 
   @Override
   protected CompletableFuture<UploadResponse> doUpload(
       UploadRequest uploadRequest, Path path) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doUpload(uploadRequest, path.toFile());
+  }
+
+  private CompletableFuture<UploadResponse> doUploadInternal(
+      UploadRequest uploadRequest, BinaryData body) {
+    PutObjectRequest request =
+        transformer.toPutObjectRequest(uploadRequest, body);
+    return asyncClient
+        .putObjectAsync(request, OperationOptions.defaults())
+        .thenApply(
+            result ->
+                transformer.toUploadResponse(uploadRequest, result));
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, OutputStream outputStream) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doDownloadInternal(request).thenApply(result -> {
+      try (InputStream body = result.body()) {
+        copyStream(body, outputStream);
+        return transformer.toDownloadResponse(request.getKey(), result);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to download blob: " + request.getKey(), e);
+      }
+    });
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, ByteArray byteArray) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    return doDownload(request, outputStream).thenApply(response -> {
+      byteArray.setBytes(outputStream.toByteArray());
+      return response;
+    });
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, File file) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doDownload(request, file.toPath());
   }
 
   @Override
   protected CompletableFuture<DownloadResponse> doDownload(
       DownloadRequest request, Path path) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    Path destinationPath = createDownloadDestinationPath(request, path);
+    if (request.isParallelDownload()
+        && request.getStart() == null
+        && request.getEnd() == null) {
+      return doParallelDownload(request, destinationPath);
+    }
+    return doDownloadInternal(request).thenApply(result -> {
+      try (InputStream body = result.body()) {
+        Files.copy(body, destinationPath);
+        return transformer.toDownloadResponse(request.getKey(), result);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to download blob: " + request.getKey(), e);
+      }
+    });
+  }
+
+  /**
+   * Parallel download using the OSS SDK's Downloader (transfer manager). The Downloader internally
+   * splits the object into chunks based on partSize, issues concurrent Range GET requests using its
+   * own thread pool, and writes each chunk at the correct offset via positional FileChannel writes.
+   * It also supports checkpointing for resumable downloads and CRC64 integrity verification.
+   *
+   * <p>Because the Downloader is sync-only (requires OSSClient), the blocking call is offloaded to
+   * the executorService via thenApplyAsync. A preceding async HEAD request fetches object metadata
+   * for the response, since the Downloader's DownloadResult only reports bytes written.
+   */
+  private CompletableFuture<DownloadResponse> doParallelDownload(
+      DownloadRequest request, Path destinationPath) {
+    HeadObjectRequest headRequest =
+        transformer.toHeadObjectRequest(request.getKey(), null);
+    return asyncClient
+        .headObjectAsync(headRequest, OperationOptions.defaults())
+        .thenApplyAsync(headResult -> {
+          GetObjectRequest getRequest =
+              transformer.toGetObjectRequest(request);
+          try {
+            downloader.downloadFile(getRequest,
+                destinationPath.toString());
+          } catch (DownloadError e) {
+            throw new SubstrateSdkException(
+                "Parallel download failed: " + request.getKey(), e);
+          }
+          return DownloadResponse.builder()
+              .key(request.getKey())
+              .metadata(transformer.toBlobMetadata(
+                  request.getKey(), headResult))
+              .build();
+        }, executorService);
   }
 
   @Override
-  protected CompletableFuture<DownloadResponse> doDownload(DownloadRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+  protected CompletableFuture<DownloadResponse> doDownload(
+      DownloadRequest request) {
+    return doDownloadInternal(request).thenApply(result ->
+        transformer.toDownloadResponse(
+            request.getKey(), result, result.body()));
+  }
+
+  private CompletableFuture<GetObjectResult> doDownloadInternal(
+      DownloadRequest request) {
+    GetObjectRequest getRequest =
+        transformer.toGetObjectRequest(request);
+    return asyncClient
+        .getObjectAsync(getRequest, OperationOptions.defaults());
+  }
+
+  private void copyStream(InputStream in, OutputStream out) {
+    try {
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = in.read(buffer)) != -1) {
+        out.write(buffer, 0, bytesRead);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -304,6 +444,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
+        if (getSocketTimeout() != null) {
+          asyncBuilder.readWriteTimeout(getSocketTimeout());
+        }
         async = asyncBuilder.build();
       }
 
@@ -319,6 +462,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           syncBuilder.proxyHost(
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
+        }
+        if (getSocketTimeout() != null) {
+          syncBuilder.readWriteTimeout(getSocketTimeout());
         }
         sync = syncBuilder.build();
       }
