@@ -151,13 +151,26 @@ public abstract class AbstractDocstoreBenchmarkTest {
   public void teardownBenchmark() throws Exception {
     try {
       if (!benchmarkCreatedKeys.isEmpty() && docStoreClient != null) {
-        for (String key : benchmarkCreatedKeys) {
-          try {
+        // Bulk-delete via ActionList instead of one RPC per key. After a batch trial we can have
+        // ~1000+ keys to clean up; the per-key sequential delete loop took long enough that the
+        // Firestore SDK retry future stalled (observed 2026-05-29). Chunk to 400/batch to stay
+        // under Firestore's 500-write-per-CommitRequest limit and DynamoDB's 25/BatchWriteItem
+        // — the per-provider runWritesBatched does the wire-level batching from there.
+        List<String> keys = new ArrayList<>(benchmarkCreatedKeys);
+        int chunkSize = 400;
+        for (int start = 0; start < keys.size(); start += chunkSize) {
+          int end = Math.min(start + chunkSize, keys.size());
+          ActionList deletes = docStoreClient.getActions();
+          for (String key : keys.subList(start, end)) {
             Player p = new Player();
             p.setPName(key);
-            docStoreClient.delete(new Document(p));
+            deletes.delete(new Document(p));
+          }
+          try {
+            deletes.run();
           } catch (Exception e) {
-            logger.warn("Failed to delete benchmark key {}: {}", key, e.getMessage());
+            logger.warn(
+                "Failed to bulk-delete benchmark keys [{}..{}]: {}", start, end, e.getMessage());
           }
         }
         benchmarkCreatedKeys.clear();
