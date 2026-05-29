@@ -22,10 +22,13 @@ import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
 import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
@@ -74,6 +77,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
@@ -485,6 +489,62 @@ public class AliBlobStore extends AbstractBlobStore {
         blobs, commonPrefixes,
         Boolean.TRUE.equals(response.isTruncated()),
         response.nextContinuationToken());
+  }
+
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    ListObjectVersionsRequest request = ListObjectVersionsRequest.newBuilder()
+        .bucket(getBucket())
+        .prefix(key)
+        .build();
+
+    Iterator<ListObjectVersionsResult> pages =
+        ossClient.listObjectVersionsPaginator(request).iterator();
+
+    return new Iterator<>() {
+      private Iterator<ObjectVersion> current = List.<ObjectVersion>of().iterator();
+      private BlobMetadata next;
+
+      @Override
+      public boolean hasNext() {
+        if (next != null) {
+          return true;
+        }
+        next = advance();
+        return next != null;
+      }
+
+      @Override
+      public BlobMetadata next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        BlobMetadata result = next;
+        next = null;
+        return result;
+      }
+
+      private BlobMetadata advance() {
+        while (true) {
+          while (current.hasNext()) {
+            ObjectVersion v = current.next();
+            if (key.equals(v.key())) {
+              return BlobMetadata.builder()
+                  .key(v.key())
+                  .versionId(v.versionId())
+                  .eTag(v.eTag())
+                  .objectSize(v.size() != null ? v.size() : 0L)
+                  .lastModified(v.lastModified())
+                  .build();
+            }
+          }
+          if (!pages.hasNext()) {
+            return null;
+          }
+          current = pages.next().versions().iterator();
+        }
+      }
+    };
   }
 
   /**

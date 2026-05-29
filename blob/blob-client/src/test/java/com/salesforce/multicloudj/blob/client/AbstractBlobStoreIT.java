@@ -5393,7 +5393,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListBlobVersions_happy() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
     String key = "conformance-tests/list-object-versions/exact-three-versions-blob";
@@ -5461,7 +5460,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testListBlobVersions_nullKey() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
