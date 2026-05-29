@@ -6,6 +6,7 @@ import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -322,7 +323,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<BlobMetadata> doGetMetadata(
       String key, String versionId) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .headObjectAsync(
+            transformer.toHeadObjectRequest(key, versionId),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toBlobMetadata(key, result));
   }
 
   @Override
@@ -386,12 +391,19 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<Boolean> doDoesObjectExist(
       String key, String versionId) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    GetObjectMetaRequest.Builder reqBuilder =
+        GetObjectMetaRequest.newBuilder()
+            .bucket(getBucket())
+            .key(key);
+    if (versionId != null) {
+      reqBuilder.versionId(versionId);
+    }
+    return asyncClient.doesObjectExistAsync(reqBuilder.build());
   }
 
   @Override
   protected CompletableFuture<Boolean> doDoesBucketExist() {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient.doesBucketExistAsync(getBucket());
   }
 
   @Override
