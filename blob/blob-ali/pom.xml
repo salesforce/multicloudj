@@ -198,7 +198,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.5</version>
+            <version>5.5.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -209,7 +209,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5</artifactId>
-            <version>5.3.3</version>
+            <version>5.3.4</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
@@ -220,7 +220,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5-h2</artifactId>
-            <version>5.3.3</version>
+            <version>5.3.4</version>
             <exclusions>
                 <exclusion>
                     <groupId>*</groupId>
