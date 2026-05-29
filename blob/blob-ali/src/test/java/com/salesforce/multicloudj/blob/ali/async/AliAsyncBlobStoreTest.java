@@ -489,4 +489,39 @@ public class AliAsyncBlobStoreTest {
     boolean exists = store.doesBucketExist().get();
     assertEquals(false, exists);
   }
+
+  @Test
+  void testGetMetadataFailed() {
+    RuntimeException cause = new RuntimeException("object not found");
+    when(mockAsyncClient.headObjectAsync(
+        any(HeadObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.getMetadata("missing-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDoesObjectExistFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.doesObjectExist("forbidden-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDoesBucketExistFailed() {
+    RuntimeException cause = new RuntimeException("service unavailable");
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.doesBucketExist().get());
+    assertNotNull(ex.getCause());
+  }
 }
