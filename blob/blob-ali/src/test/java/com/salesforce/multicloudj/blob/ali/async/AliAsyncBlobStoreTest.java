@@ -64,6 +64,8 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
@@ -1129,5 +1131,186 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testDownloadDirectory(@TempDir Path tempDir) throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("prefix/file1.txt");
+    when(obj1.size()).thenReturn(6L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("prefix/sub/file2.txt");
+    when(obj2.size()).thenReturn(7L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "hello1".getBytes(StandardCharsets.UTF_8);
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          GetObjectResult result = mock(GetObjectResult.class);
+          when(result.body()).thenReturn(
+              new ByteArrayInputStream(content));
+          when(result.contentLength()).thenReturn((long) content.length);
+          when(result.eTag()).thenReturn("\"e\"");
+          return CompletableFuture.completedFuture(result);
+        });
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("prefix")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("file1.txt")));
+    assertTrue(Files.exists(tempDir.resolve("sub/file2.txt")));
+  }
+
+  @Test
+  void testDownloadDirectorySkipsFolderMarkers(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary realObj = mock(ObjectSummary.class);
+    when(realObj.key()).thenReturn("dir/file.txt");
+    when(realObj.size()).thenReturn(5L);
+    ObjectSummary folderMarker = mock(ObjectSummary.class);
+    when(folderMarker.key()).thenReturn("dir/subfolder/");
+    when(folderMarker.size()).thenReturn(0L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(realObj, folderMarker));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn((long) content.length);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("dir")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("file.txt")));
+    assertArrayEquals(content, Files.readAllBytes(tempDir.resolve("file.txt")));
+  }
+
+  @Test
+  void testDownloadDirectoryWithPrefixExclusions(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary included = mock(ObjectSummary.class);
+    when(included.key()).thenReturn("data/keep.txt");
+    when(included.size()).thenReturn(4L);
+    ObjectSummary excluded = mock(ObjectSummary.class);
+    when(excluded.key()).thenReturn("data/logs/debug.log");
+    when(excluded.size()).thenReturn(10L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(included, excluded));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "keep".getBytes(StandardCharsets.UTF_8);
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn((long) content.length);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("data")
+        .localDestinationDirectory(tempDir.toString())
+        .prefixesToExclude(List.of("data/logs/"))
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("keep.txt")));
+    assertTrue(Files.notExists(tempDir.resolve("logs/debug.log")));
+  }
+
+  @Test
+  void testDownloadDirectoryEmpty(@TempDir Path tempDir) throws Exception {
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of());
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("empty-prefix")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testDownloadDirectoryWithTransferLogging(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("log/data.bin");
+    when(obj.size()).thenReturn(1024L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = new byte[1024];
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn(1024L);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("log")
+        .localDestinationDirectory(tempDir.toString())
+        .transferStatusLoggingEnabled(true)
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertEquals(1024L, response.getTotalBytesTransferred());
   }
 }

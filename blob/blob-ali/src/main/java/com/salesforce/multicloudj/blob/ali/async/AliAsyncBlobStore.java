@@ -40,6 +40,7 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
@@ -518,7 +519,116 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return CompletableFuture.supplyAsync(() -> {
+      Path targetDir = Paths.get(
+          directoryDownloadRequest.getLocalDestinationDirectory())
+          .toAbsolutePath().normalize();
+      try {
+        Files.createDirectories(targetDir);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to create destination directory: " + targetDir, e);
+      }
+
+      String rawPrefix = directoryDownloadRequest.getPrefixToDownload();
+      String prefix = (rawPrefix != null && !rawPrefix.isEmpty()
+          && !rawPrefix.endsWith("/"))
+          ? rawPrefix + "/" : rawPrefix;
+
+      List<String> prefixesToExclude =
+          directoryDownloadRequest.getPrefixesToExclude();
+
+      List<BlobInfo> blobInfos = new ArrayList<>();
+      ListBlobsRequest listRequest = ListBlobsRequest.builder()
+          .withPrefix(prefix)
+          .build();
+      doList(listRequest, batch -> {
+        for (BlobInfo blob : batch.getBlobs()) {
+          if (isFolderMarker(blob)) {
+            continue;
+          }
+          if (isExcluded(blob.getKey(), prefixesToExclude)) {
+            continue;
+          }
+          synchronized (blobInfos) {
+            blobInfos.add(blob);
+          }
+        }
+      }).join();
+
+      if (blobInfos.isEmpty()) {
+        return DirectoryDownloadResponse.builder()
+            .failedTransfers(new ArrayList<>())
+            .build();
+      }
+
+      AtomicLong totalBytes = new AtomicLong(0L);
+      List<FailedBlobDownload> failures = new ArrayList<>();
+
+      List<CompletableFuture<Void>> futures = blobInfos.stream()
+          .map(blob -> {
+            String key = blob.getKey();
+            String relative = (prefix != null && key.startsWith(prefix))
+                ? key.substring(prefix.length()) : key;
+            Path destination = targetDir.resolve(relative).normalize();
+            Path parent = destination.getParent();
+            if (parent != null) {
+              try {
+                Files.createDirectories(parent);
+              } catch (IOException e) {
+                throw new SubstrateSdkException(
+                    "Failed to create directories: " + parent, e);
+              }
+            }
+
+            DownloadRequest downloadRequest = DownloadRequest.builder()
+                .withKey(key)
+                .build();
+            return doDownload(downloadRequest, destination)
+                .thenAccept(response -> {
+                  if (directoryDownloadRequest
+                      .isTransferStatusLoggingEnabled()) {
+                    totalBytes.addAndGet(blob.getObjectSize());
+                  }
+                })
+                .exceptionally(ex -> {
+                  synchronized (failures) {
+                    failures.add(FailedBlobDownload.builder()
+                        .destination(destination)
+                        .exception(ex)
+                        .build());
+                  }
+                  return null;
+                });
+          })
+          .collect(Collectors.toList());
+
+      CompletableFuture.allOf(
+          futures.toArray(new CompletableFuture[0])).join();
+
+      return DirectoryDownloadResponse.builder()
+          .failedTransfers(failures)
+          .totalBytesTransferred(
+              directoryDownloadRequest.isTransferStatusLoggingEnabled()
+                  ? totalBytes.get() : null)
+          .build();
+    }, executorService);
+  }
+
+  private boolean isFolderMarker(BlobInfo blob) {
+    return blob.getKey().endsWith("/") && blob.getObjectSize() == 0;
+  }
+
+  private boolean isExcluded(String key, List<String> prefixesToExclude) {
+    if (prefixesToExclude == null || prefixesToExclude.isEmpty()) {
+      return false;
+    }
+    for (String excludePrefix : prefixesToExclude) {
+      if (key.startsWith(excludePrefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
