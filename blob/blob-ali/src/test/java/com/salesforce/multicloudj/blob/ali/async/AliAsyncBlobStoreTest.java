@@ -376,4 +376,51 @@ public class AliAsyncBlobStoreTest {
     assertEquals("v-copy", response.getVersionId());
     assertEquals("etag-copy", response.getETag());
   }
+
+  @Test
+  void testDeleteSingleObjectFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.deleteObjectAsync(
+        any(DeleteObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.delete("forbidden-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteMultipleObjectsFailed() {
+    RuntimeException cause = new RuntimeException("batch delete error");
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    List<BlobIdentifier> objects = List.of(
+        new BlobIdentifier("key1", null),
+        new BlobIdentifier("key2", null));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.delete(objects).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testCopyFailed() {
+    RuntimeException cause = new RuntimeException("source not found");
+    when(mockAsyncClient.copyObjectAsync(
+        any(CopyObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    CopyRequest request = CopyRequest.builder()
+        .srcKey("missing-key")
+        .destBucket("dest-bucket")
+        .destKey("dest-key")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.copy(request).get());
+    assertNotNull(ex.getCause());
+  }
 }
