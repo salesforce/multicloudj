@@ -487,6 +487,11 @@ public class AliBlobStore extends AbstractBlobStore {
         response.nextContinuationToken());
   }
 
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+    return new BlobMetadataIterator(ossClient, getBucket(), key);
+  }
+
   /**
    * Initiates a multipart upload
    *
