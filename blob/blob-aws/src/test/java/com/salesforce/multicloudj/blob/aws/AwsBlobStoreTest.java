@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -2212,7 +2213,7 @@ public class AwsBlobStoreTest {
         .thenReturn(iterable);
 
     com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest request =
-        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+        ListBlobVersionsRequest.builder()
             .withKey(key)
             .build();
     Iterator<BlobMetadata> versions = aws.listBlobVersions(request);
@@ -2266,7 +2267,7 @@ public class AwsBlobStoreTest {
         .thenReturn(iterable);
 
     Iterator<BlobMetadata> versions = aws.listBlobVersions(
-        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+        ListBlobVersionsRequest.builder()
             .withKey(key).build());
 
     List<BlobMetadata> allVersions = new ArrayList<>();
@@ -2291,7 +2292,7 @@ public class AwsBlobStoreTest {
         .thenReturn(iterable);
 
     Iterator<BlobMetadata> versions = aws.listBlobVersions(
-        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+        ListBlobVersionsRequest.builder()
             .withKey(key).build());
 
     assertFalse(versions.hasNext());
@@ -2310,7 +2311,7 @@ public class AwsBlobStoreTest {
         .thenReturn(iterable);
 
     Iterator<BlobMetadata> versions = aws.listBlobVersions(
-        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+        ListBlobVersionsRequest.builder()
             .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
