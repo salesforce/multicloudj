@@ -89,6 +89,7 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.provider.Provider;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -189,16 +190,16 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest))) {
-      writer.write(ByteBuffer.wrap(content));
+    try {
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              new ByteArrayInputStream(content),
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from byte array", e);
     }
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
   }
 
   @Override

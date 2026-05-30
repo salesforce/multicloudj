@@ -354,19 +354,23 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray() {
+  void testDoUpload_WithByteArray() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
+        UploadResponse.builder()
+            .key(TEST_KEY)
+            .versionId(TEST_VERSION_ID)
+            .eTag(TEST_ETAG)
+            .build();
 
     when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -374,8 +378,8 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -2169,22 +2173,22 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray_EmptyArray() {
+  void testDoUpload_WithByteArray_EmptyArray() throws IOException {
     byte[] emptyArray = new byte[0];
     UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
     UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
 
     assertNotNull(response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
   }
 
   @Test
