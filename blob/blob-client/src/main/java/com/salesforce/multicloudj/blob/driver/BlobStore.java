@@ -177,11 +177,11 @@ public interface BlobStore extends SdkService, Provider {
   /**
    * Lists all available versions for a given blob key
    *
-   * @param key The target blob key
+   * @param request The request containing the target blob key and optional parameters
    * @return Iterator object of BlobMetadata for each version
    * @throws UnsupportedOperationException if the provider does not implement version listing
    */
-  Iterator<BlobMetadata> listBlobVersions(String key);
+  Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request);
 
   /**
    * Initiates a multipart upload

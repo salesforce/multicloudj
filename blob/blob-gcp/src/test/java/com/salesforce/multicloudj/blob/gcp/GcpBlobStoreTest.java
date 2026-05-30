@@ -19,7 +19,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -76,6 +75,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -4507,7 +4507,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertTrue(versions.hasNext());
     BlobMetadata metadata = versions.next();
@@ -4545,7 +4547,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(version1, version2, version3));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     List<BlobMetadata> allVersions = new java.util.ArrayList<>();
     versions.forEachRemaining(allVersions::add);
@@ -4565,7 +4569,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertFalse(versions.hasNext());
   }
@@ -4579,7 +4585,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
   }

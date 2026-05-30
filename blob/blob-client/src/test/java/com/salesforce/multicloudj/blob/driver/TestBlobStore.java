@@ -95,7 +95,7 @@ public class TestBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     return null;
   }
 

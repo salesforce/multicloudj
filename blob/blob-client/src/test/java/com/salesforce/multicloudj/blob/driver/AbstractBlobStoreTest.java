@@ -319,9 +319,10 @@ public class AbstractBlobStoreTest {
   @Test
   void testDoListBlobVersions() {
     String key = "object-1";
-    mockBlobStore.listBlobVersions(key);
+    ListBlobVersionsRequest request = ListBlobVersionsRequest.builder().withKey(key).build();
+    mockBlobStore.listBlobVersions(request);
     verify(validator, times(1)).validateKey(key);
-    verify(mockBlobStore, times(1)).doListBlobVersions(key);
+    verify(mockBlobStore, times(1)).doListBlobVersions(request);
   }
 
   @Test

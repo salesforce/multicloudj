@@ -62,6 +62,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -569,7 +570,8 @@ public class GcpBlobStore extends AbstractBlobStore {
    * defensive guard.
    */
   @Override
-  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    String key = request.getKey();
     List<Storage.BlobListOption> listOptions = new ArrayList<>();
     listOptions.add(Storage.BlobListOption.startOffset(key));
     listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
