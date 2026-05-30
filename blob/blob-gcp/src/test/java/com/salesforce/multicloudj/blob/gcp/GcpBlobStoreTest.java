@@ -4503,7 +4503,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertTrue(versions.hasNext());
     BlobMetadata metadata = versions.next();
@@ -4541,7 +4543,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(version1, version2, version3));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     List<BlobMetadata> allVersions = new java.util.ArrayList<>();
     versions.forEachRemaining(allVersions::add);
@@ -4561,7 +4565,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertFalse(versions.hasNext());
   }
@@ -4575,7 +4581,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
   }

@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -447,20 +448,20 @@ public class BucketClient implements AutoCloseable {
   /**
    * Lists all available versions for a given blob key.
    *
-   * @param key The target blob key
+   * @param request The request containing the target blob key and optional parameters
    * @return Iterator object of BlobMetadata for each version
    * @throws SubstrateSdkException Thrown if the operation fails
    * @throws UnsupportedOperationException Thrown when the configured provider does not implement
    *     version listing
    */
-  public Iterator<BlobMetadata> listBlobVersions(String key) {
+  public Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request) {
     return multiCloudJLogger.traceOperation(
         BlobSpanNames.LIST_BLOB_VERSIONS,
         bucketAttrs(),
         null,
         ctx -> {
           try {
-            return blobStore.listBlobVersions(key);
+            return blobStore.listBlobVersions(request);
           } catch (Throwable t) {
             propagate(t);
             return null;

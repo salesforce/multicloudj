@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -430,8 +431,8 @@ public class AwsBlobStore extends AbstractBlobStore {
    * <p>This implementation is streaming/lazy: it walks paginator pages on demand and does not
    * materialize all pages up front. Only versions for the requested key are returned.
    */
-  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
-    return new BlobMetadataIterator(s3Client, getBucket(), key);
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return new BlobMetadataIterator(s3Client, getBucket(), request.getKey());
   }
 
   /**

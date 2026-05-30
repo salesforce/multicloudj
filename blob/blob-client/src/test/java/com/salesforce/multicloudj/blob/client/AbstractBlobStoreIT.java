@@ -15,6 +15,7 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -5414,8 +5415,10 @@ public abstract class AbstractBlobStoreIT {
         }
       }
 
+      ListBlobVersionsRequest listVersionsRequest =
+          ListBlobVersionsRequest.builder().withKey(key).build();
       Iterator<BlobMetadata> iterator =
-          bucketClient.listBlobVersions(key);
+          bucketClient.listBlobVersions(listVersionsRequest);
 
       List<BlobMetadata> versions = new ArrayList<>();
       while (iterator.hasNext()) {
@@ -5447,7 +5450,9 @@ public abstract class AbstractBlobStoreIT {
       // Delete all versions by their versionIds to ensure complete cleanup
       try {
         List<BlobIdentifier> toDelete = new ArrayList<>();
-        Iterator<BlobMetadata> allVersions = bucketClient.listBlobVersions(key);
+        ListBlobVersionsRequest cleanupRequest =
+            ListBlobVersionsRequest.builder().withKey(key).build();
+        Iterator<BlobMetadata> allVersions = bucketClient.listBlobVersions(cleanupRequest);
         allVersions.forEachRemaining(
             v -> toDelete.add(new BlobIdentifier(v.getKey(), v.getVersionId())));
         if (!toDelete.isEmpty()) {
@@ -5465,10 +5470,12 @@ public abstract class AbstractBlobStoreIT {
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
+    ListBlobVersionsRequest nullKeyRequest =
+        ListBlobVersionsRequest.builder().withKey(null).build();
     InvalidArgumentException exception =
         Assertions.assertThrows(
             InvalidArgumentException.class,
-            () -> bucketClient.listBlobVersions(null));
+            () -> bucketClient.listBlobVersions(nullKeyRequest));
     Assertions.assertNotNull(
         exception.getCause(), "Expected InvalidArgumentException to wrap cause");
     Assertions.assertTrue(
