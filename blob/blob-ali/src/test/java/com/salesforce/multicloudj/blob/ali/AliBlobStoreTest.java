@@ -1165,7 +1165,9 @@ public class AliBlobStoreTest {
     when(mockOssClient.listObjectVersionsPaginator(
         any(ListObjectVersionsRequest.class))).thenReturn(iterable);
 
-    Iterator<BlobMetadata> iter = ali.listBlobVersions(key);
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertTrue(iter.hasNext());
     BlobMetadata first = iter.next();
@@ -1200,7 +1202,9 @@ public class AliBlobStoreTest {
     when(mockOssClient.listObjectVersionsPaginator(
         any(ListObjectVersionsRequest.class))).thenReturn(iterable);
 
-    Iterator<BlobMetadata> iter = ali.listBlobVersions(key);
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertTrue(iter.hasNext());
     BlobMetadata metadata = iter.next();
@@ -1229,7 +1233,9 @@ public class AliBlobStoreTest {
     when(mockOssClient.listObjectVersionsPaginator(
         any(ListObjectVersionsRequest.class))).thenReturn(iterable);
 
-    Iterator<BlobMetadata> iter = ali.listBlobVersions(key);
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
     List<BlobMetadata> all = new ArrayList<>();
     iter.forEachRemaining(all::add);
 
@@ -1250,7 +1256,9 @@ public class AliBlobStoreTest {
     when(mockOssClient.listObjectVersionsPaginator(
         any(ListObjectVersionsRequest.class))).thenReturn(iterable);
 
-    Iterator<BlobMetadata> iter = ali.listBlobVersions(key);
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest.builder()
+            .withKey(key).build());
     assertFalse(iter.hasNext());
     assertThrows(NoSuchElementException.class, iter::next);
   }
