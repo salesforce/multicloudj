@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 public class AliAsyncBlobStoreTest {
 
@@ -595,6 +596,14 @@ public class AliAsyncBlobStoreTest {
     assertEquals(true, response.isTruncated());
     assertEquals("token-abc", response.getNextPageToken());
     assertEquals(1, response.getBlobs().size());
+
+    ArgumentCaptor<ListObjectsV2Request> captor =
+        ArgumentCaptor.forClass(ListObjectsV2Request.class);
+    verify(mockAsyncClient).listObjectsV2Async(
+        captor.capture(), any(OperationOptions.class));
+    ListObjectsV2Request captured = captor.getValue();
+    assertEquals("prefix/", captured.prefix());
+    assertEquals(1L, captured.maxKeys());
   }
 
   @Test

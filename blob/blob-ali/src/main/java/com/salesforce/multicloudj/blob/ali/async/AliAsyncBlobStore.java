@@ -4,7 +4,6 @@ import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
-import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
@@ -13,7 +12,6 @@ import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
-import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
@@ -26,7 +24,6 @@ import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
-import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -68,7 +65,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import lombok.Getter;
 
 /** Alibaba Cloud OSS native async implementation of AsyncBlobStore. */
@@ -341,6 +337,13 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     return doListRecursive(request, null, consumer);
   }
 
+  /**
+   * Recursively fetches all pages of object listings by manually chaining continuation tokens.
+   * Unlike the sync OSSClient which provides a built-in {@code listObjectsV2Paginator()}, the
+   * async OSSAsyncClient only offers single-page {@code listObjectsV2Async()} with no async
+   * paginator or Publisher-style API. This method fills that gap by composing futures recursively
+   * until all pages are consumed.
+   */
   private CompletableFuture<Void> doListRecursive(
       ListBlobsRequest request, String continuationToken,
       Consumer<ListBlobsBatch> consumer) {
@@ -349,8 +352,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     return asyncClient
         .listObjectsV2Async(listRequest, OperationOptions.defaults())
         .thenCompose(result -> {
-          consumer.accept(toBatch(result));
-          if (Boolean.TRUE.equals(result.isTruncated())) {
+          consumer.accept(transformer.toListBlobsBatch(result));
+          if (Boolean.TRUE.equals(result.isTruncated())
+              && result.nextContinuationToken() != null) {
             return doListRecursive(
                 request, result.nextContinuationToken(), consumer);
           }
@@ -365,43 +369,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         transformer.toListObjectsRequest(request);
     return asyncClient
         .listObjectsV2Async(listRequest, OperationOptions.defaults())
-        .thenApply(result -> {
-          List<BlobInfo> blobs = result.contents().stream()
-              .map(obj -> new BlobInfo.Builder()
-                  .withKey(obj.key())
-                  .withObjectSize(obj.size() != null ? obj.size() : 0L)
-                  .build())
-              .collect(Collectors.toList());
-
-          List<String> commonPrefixes = result.commonPrefixes() != null
-              ? result.commonPrefixes().stream()
-                  .map(CommonPrefix::prefix)
-                  .collect(Collectors.toList())
-              : List.of();
-
-          return new ListBlobsPageResponse(
-              blobs, commonPrefixes,
-              Boolean.TRUE.equals(result.isTruncated()),
-              result.nextContinuationToken());
-        });
+        .thenApply(transformer::toListBlobsPageResponse);
   }
 
-  private ListBlobsBatch toBatch(ListObjectsV2Result result) {
-    List<BlobInfo> blobs = result.contents().stream()
-        .map(obj -> new BlobInfo.Builder()
-            .withKey(obj.key())
-            .withObjectSize(obj.size() != null ? obj.size() : 0L)
-            .build())
-        .collect(Collectors.toList());
-
-    List<String> commonPrefixes = result.commonPrefixes() != null
-        ? result.commonPrefixes().stream()
-            .map(CommonPrefix::prefix)
-            .collect(Collectors.toList())
-        : List.of();
-
-    return new ListBlobsBatch(blobs, commonPrefixes);
-  }
 
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
