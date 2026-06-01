@@ -450,13 +450,15 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(String key, String versionId) {
-    validateBucketExists();
+    validateBucketExists(key);
     storage.delete(transformer.toBlobId(bucket, key, versionId));
   }
 
   @Override
   protected void doDelete(Collection<BlobIdentifier> objects) {
-    validateBucketExists();
+    // Use any key from the collection as prefix for validation
+    String keyPrefix = objects.isEmpty() ? "" : objects.iterator().next().getKey();
+    validateBucketExists(keyPrefix);
     List<BlobId> blobIds =
         objects.stream()
             .map(obj -> transformer.toBlobId(bucket, obj.getKey(), obj.getVersionId()))
@@ -606,7 +608,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
     rejectSha256(request.getChecksumAlgorithm());
-    validateBucketExists();
+    validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
         CreateMultipartUploadRequest.builder().bucket(getBucket()).key(request.getKey());
@@ -821,13 +823,17 @@ public class GcpBlobStore extends AbstractBlobStore {
   /**
    * Validates that the bucket exists, throwing ResourceNotFoundException if not found. Uses
    * Objects.List with pageSize(1) instead of Buckets.Get so that only {@code storage.objects.list}
-   * is required on the bucket, not {@code storage.buckets.get}.
+   * is required on the bucket, not {@code storage.buckets.get}. When keyPrefix is provided, use it
+   * as the list prefix so access checks stay inside prefix-scoped IAM grants.
    *
    * @throws ResourceNotFoundException if the bucket does not exist
    */
-  private void validateBucketExists() {
+  private void validateBucketExists(String keyPrefix) {
     try {
-      storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
+      storage.list(
+          getBucket(),
+          Storage.BlobListOption.prefix(keyPrefix != null ? keyPrefix : ""),
+          Storage.BlobListOption.pageSize(1));
     } catch (StorageException e) {
       if (e.getCode() == 404) {
         throw new ResourceNotFoundException("Bucket not found: " + bucket, e);

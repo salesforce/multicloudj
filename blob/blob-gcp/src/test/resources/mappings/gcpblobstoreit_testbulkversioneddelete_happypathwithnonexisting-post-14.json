@@ -1,5 +1,5 @@
 {
-  "id" : "ad2400fe-78e7-4a8f-a157-db5eb485f998",
+  "id" : "5df89c04-4c13-4d36-a618-bff7e5dff2eb",
   "name" : "GcpBlobStoreIT_testBulkVersionedDelete_happyPathWithNonExisting-POST-14",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/bulkDeleteByVersion/happy6\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWxm5bNwlGpXTUHy3GuO0Y8wCKzNQRi6tV-i-yPMUM33B8cBupu2OlwCI73whBPu02-xuFAF9WT-vu2x0uSIG-ASWd5ceVMdABVn78WKCcw",
+      "X-GUploader-UploadID" : "AAVLpEjOv52Qdu2DxWTuih-AYJF2s8iekEkBdsPHZDR1yKwV6FnAdqsy87EMsskJ_j9MmdOETLxu_XY3kye5agIXWcVpV8X8hezK9P7QfGLASP0",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 04 Mar 2026 21:06:45 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/bulkDeleteByVersion/happy6&uploadType=resumable&upload_id=AGQBYWxm5bNwlGpXTUHy3GuO0Y8wCKzNQRi6tV-i-yPMUM33B8cBupu2OlwCI73whBPu02-xuFAF9WT-vu2x0uSIG-ASWd5ceVMdABVn78WKCcw",
+      "Date" : "Mon, 01 Jun 2026 22:22:41 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/bulkDeleteByVersion/happy6&uploadType=resumable&upload_id=AAVLpEjOv52Qdu2DxWTuih-AYJF2s8iekEkBdsPHZDR1yKwV6FnAdqsy87EMsskJ_j9MmdOETLxu_XY3kye5agIXWcVpV8X8hezK9P7QfGLASP0",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "ad2400fe-78e7-4a8f-a157-db5eb485f998",
+  "uuid" : "5df89c04-4c13-4d36-a618-bff7e5dff2eb",
   "persistent" : true,
-  "insertionIndex" : 612
+  "insertionIndex" : 1352
 }
