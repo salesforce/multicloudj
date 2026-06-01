@@ -633,4 +633,37 @@ public class AliAsyncBlobStoreTest {
     assertEquals("a/1.txt", batches.get(0).getBlobs().get(0).getKey());
     assertEquals("a/2.txt", batches.get(1).getBlobs().get(0).getKey());
   }
+
+  @Test
+  void testListPageFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+        .withPrefix("prefix/")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.listPage(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testListFailed() {
+    RuntimeException cause = new RuntimeException("service unavailable");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    List<ListBlobsBatch> batches = new ArrayList<>();
+    ListBlobsRequest request = ListBlobsRequest.builder()
+        .withPrefix("a/")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.list(request, batches::add).get());
+    assertNotNull(ex.getCause());
+  }
 }
