@@ -1401,4 +1401,93 @@ public class AliAsyncBlobStoreTest {
         any(DeleteMultipleObjectsRequest.class),
         any(OperationOptions.class));
   }
+
+  @Test
+  void testUploadDirectoryNonExistentPath() {
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory("/non/existent/path")
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.uploadDirectory(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testUploadDirectoryFileUploadFailed(@TempDir Path tempDir)
+      throws Exception {
+    Files.writeString(tempDir.resolve("fail.txt"), "will fail");
+
+    RuntimeException cause = new RuntimeException("upload error");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response = store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().size() > 0);
+  }
+
+  @Test
+  void testDownloadDirectoryListFailed() {
+    RuntimeException cause = new RuntimeException("list error");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("dir/")
+        .localDestinationDirectory("/tmp/download-dir")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.downloadDirectory(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryListFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteDirectory("dir/").get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryBatchDeleteFailed() throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("dir/file.txt");
+    when(obj.size()).thenReturn(100L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(listResult.nextContinuationToken()).thenReturn(null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    RuntimeException cause = new RuntimeException("batch delete error");
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteDirectory("dir/").get());
+    assertNotNull(ex.getCause());
+  }
 }
