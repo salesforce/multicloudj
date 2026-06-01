@@ -1,26 +1,38 @@
 {
-  "id" : "e8e804e3-bb19-4a49-9333-11a7c900e88f",
+  "id" : "c1a1f42e-6606-426d-9d16-7527d417b569",
   "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-GET-18",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt?projection=full",
-    "method" : "GET"
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-basic/dir1/a.txt/1775105159099518\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt?generation=1775105159099518&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-basic/dir1/a.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775105159099518\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CP7oyYOuzpMDEAE=\",\n  \"timeCreated\": \"2026-04-02T04:45:59.179Z\",\n  \"updated\": \"2026-04-02T04:45:59.179Z\",\n  \"timeStorageClassUpdated\": \"2026-04-02T04:45:59.179Z\",\n  \"timeFinalized\": \"2026-04-02T04:45:59.179Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-basic/dir1/a.txt/1780355193691296\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt?generation=1780355193691296&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-basic/dir1/a.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1780355193691296\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CKC5k/eT55QDEAE=\",\n  \"timeCreated\": \"2026-06-01T23:06:33.737Z\",\n  \"updated\": \"2026-06-01T23:06:33.737Z\",\n  \"timeStorageClassUpdated\": \"2026-06-01T23:06:33.737Z\",\n  \"timeFinalized\": \"2026-06-01T23:06:33.737Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "ETag" : "CP7oyYOuzpMDEAE=",
-      "X-GUploader-UploadID" : "AMNfjG3t_D2p4x6OUl2wcyT_JnPoqEIkt2VkOI61XQz0aLS8pXufE6cMOeH0IKLIYG9Hz0kVGZrIyr4",
+      "ETag" : "CKC5k/eT55QDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEhV4GlOUmfrWlRWU8n-DmAd3aeHBFKI0Arm8f5zILO2JymcZupds8BW_Y8AgTgebU3SiNbd3Q",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Thu, 02 Apr 2026 04:45:59 GMT",
-      "Date" : "Thu, 02 Apr 2026 04:45:59 GMT",
+      "Expires" : "Mon, 01 Jun 2026 23:06:33 GMT",
+      "Date" : "Mon, 01 Jun 2026 23:06:33 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "e8e804e3-bb19-4a49-9333-11a7c900e88f",
+  "uuid" : "c1a1f42e-6606-426d-9d16-7527d417b569",
   "persistent" : true,
-  "insertionIndex" : 1068
+  "insertionIndex" : 2466
 }

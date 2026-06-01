@@ -1,5 +1,5 @@
 {
-  "id" : "acb33aee-6d28-497b-889c-cc479d25b24f",
+  "id" : "7c159ae6-0c06-4a73-8a88-020b705aaa61",
   "name" : "GcpBlobStoreIT_testRangedReadWithKmsKey-GET-10",
   "request" : {
     "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read",
@@ -19,24 +19,24 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/ranged-read/1772658417534422\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read?generation=1772658417534422&alt=media\",\n  \"name\": \"conformance-tests/kms/ranged-read\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1772658417534422\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"51\",\n  \"md5Hash\": \"148SaEDsnL79UlK6jvfv1Q==\",\n  \"crc32c\": \"pKh0rA==\",\n  \"etag\": \"CNaLpJqTh5MDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-03-04T21:06:57.580Z\",\n  \"updated\": \"2026-03-04T21:06:57.580Z\",\n  \"timeStorageClassUpdated\": \"2026-03-04T21:06:57.580Z\",\n  \"timeFinalized\": \"2026-03-04T21:06:57.580Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/kms/ranged-read/1780355144958389\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fkms%2Franged-read?generation=1780355144958389&alt=media\",\n  \"name\": \"conformance-tests/kms/ranged-read\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1780355144958389\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"51\",\n  \"md5Hash\": \"148SaEDsnL79UlK6jvfv1Q==\",\n  \"crc32c\": \"pKh0rA==\",\n  \"etag\": \"CLWD9d+T55QDEAE=\",\n  \"kmsKeyName\": \"projects/substrate-sdk-gcp-poc1/locations/us/keyRings/chameleon-test/cryptoKeys/chameleon-test/cryptoKeyVersions/1\",\n  \"timeCreated\": \"2026-06-01T23:05:45.004Z\",\n  \"updated\": \"2026-06-01T23:05:45.004Z\",\n  \"timeStorageClassUpdated\": \"2026-06-01T23:05:45.004Z\",\n  \"timeFinalized\": \"2026-06-01T23:05:45.004Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CNaLpJqTh5MDEAE=",
-      "X-GUploader-UploadID" : "AGQBYWwzUMsCMEljr2S-joxnzWUpVB7xHHoL_8zHD3_bFQ2Mtx97gyFhfntfq_Io0_NlGHnWXFMGmmo",
+      "ETag" : "CLWD9d+T55QDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEjIZ6b3wux1hOm_zpseDIst8bhqMpZIEwl10DrYL_P8hYHaJQ3oL7Dgyi7dGhFDxTktrn804A",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "Pragma" : "no-cache",
-      "Date" : "Wed, 04 Mar 2026 21:06:57 GMT",
+      "Date" : "Mon, 01 Jun 2026 23:05:45 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "acb33aee-6d28-497b-889c-cc479d25b24f",
+  "uuid" : "7c159ae6-0c06-4a73-8a88-020b705aaa61",
   "persistent" : true,
   "scenarioName" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-ranged-read",
   "requiredScenarioState" : "Started",
   "newScenarioState" : "scenario-2-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-o-conformance-tests-kms-ranged-read-2",
-  "insertionIndex" : 643
+  "insertionIndex" : 2286
 }

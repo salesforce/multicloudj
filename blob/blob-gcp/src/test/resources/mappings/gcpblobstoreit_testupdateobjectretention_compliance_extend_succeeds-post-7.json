@@ -1,57 +1,48 @@
 {
-  "id": "fad8e41f-ad80-4b3e-9509-9417c373fe9a",
-  "name": "GcpBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-POST-7",
-  "request": {
-    "urlPath": "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
-    "method": "POST",
-    "headers": {
-      "X-Query-Param-Count": {
-        "equalTo": "2"
+  "id" : "db652997-a06f-406a-9769-945acf3cc63c",
+  "name" : "GcpBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-POST-7",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
       }
     },
-    "queryParameters": {
-      "name": {
-        "hasExactly": [
-          {
-            "equalTo": "conformance-tests/objectlock/update/comp-extend"
-          }
-        ]
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/update/comp-extend"
+        } ]
       },
-      "uploadType": {
-        "hasExactly": [
-          {
-            "equalTo": "resumable"
-          }
-        ]
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
       }
     },
-    "bodyPatterns": [
-      {
-        "equalToJson": "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/update/comp-extend\",\"retention\":{\"mode\":\"Locked\",\"retainUntilTime\":\"2030-01-01T00:00:00.000Z\"},\"temporaryHold\":false}",
-        "ignoreArrayOrder": true,
-        "ignoreExtraElements": true
-      }
-    ]
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"crc32c\":\"WUEpvQ==\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/update/comp-extend\",\"retention\":{\"mode\":\"Locked\",\"retainUntilTime\":\"2030-01-01T00:00:00.000Z\"},\"temporaryHold\":false}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
   },
-  "response": {
-    "status": 200,
-    "headers": {
-      "Alt-Svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
-      "Server": "UploadServer",
-      "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID": "AAVLpEjdA4mTOfgeNVFy20dYVirqfniTDtg6LefU9Zecq8ujkpvKF6hpLEjROWA6P10BXMyVzArQGpgXpROWnCD0o1h2vbPrTHkyikQTRy339g",
-      "Vary": [
-        "Origin",
-        "X-Origin"
-      ],
-      "Pragma": "no-cache",
-      "Expires": "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date": "Thu, 14 May 2026 07:40:02 GMT",
-      "Location": "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/objectlock/update/comp-extend&uploadType=resumable&upload_id=AAVLpEjdA4mTOfgeNVFy20dYVirqfniTDtg6LefU9Zecq8ujkpvKF6hpLEjROWA6P10BXMyVzArQGpgXpROWnCD0o1h2vbPrTHkyikQTRy339g",
-      "Content-Type": "text/plain; charset=utf-8"
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEhyXTPmnL8IJ8819bkK9N80c9j496DxPEZmJyrM3q6hM7JwoHbUW614H566No6E3MkvKFMRpudOJQxpf6x7pPxmrtLqs2lia1zsWEhLtBU",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 01 Jun 2026 23:05:01 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/objectlock/update/comp-extend&uploadType=resumable&upload_id=AAVLpEhyXTPmnL8IJ8819bkK9N80c9j496DxPEZmJyrM3q6hM7JwoHbUW614H566No6E3MkvKFMRpudOJQxpf6x7pPxmrtLqs2lia1zsWEhLtBU",
+      "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid": "fad8e41f-ad80-4b3e-9509-9417c373fe9a",
-  "persistent": true,
-  "insertionIndex": 1293
+  "uuid" : "db652997-a06f-406a-9769-945acf3cc63c",
+  "persistent" : true,
+  "insertionIndex" : 2130
 }

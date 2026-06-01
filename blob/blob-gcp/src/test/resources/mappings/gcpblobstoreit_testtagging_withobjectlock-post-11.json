@@ -1,13 +1,30 @@
 {
-  "id" : "4ca2a251-4d9d-4175-b8e1-a54e4033ce00",
+  "id" : "548ee764-e597-4482-af4b-720d682cd2a6",
   "name" : "GcpBlobStoreIT_testTagging_withObjectLock-POST-11",
   "request" : {
-    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/blob-for-tagging-objectlock&uploadType=resumable",
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
     "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/blob-for-tagging-objectlock"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{\"gcp-tag-tag1\":\"value1\"},\"name\":\"conformance-tests/blob-for-tagging-objectlock\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -16,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWw1lAXF9ni6HjgoEgDykp3mBpA34dGwENuo7Mq5m8r1r-qk8ZZNfpi8d8CkqRAH5EoClTPndO6UF61GgQ3VQkaff1Y1J7RbhLKcL3tDg_4",
+      "X-GUploader-UploadID" : "AAVLpEjKuV06xBBFUJzJC5B9tbDKXr9b57T5wFojQbcLaDuEW4F9HnRN4hR1t1MAq-H99xGE287oNuNkiCb2CjgKmKWpuRe5Jxr5mmIv-MxlJpo",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 11 Mar 2026 14:31:02 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/blob-for-tagging-objectlock&uploadType=resumable&upload_id=AGQBYWw1lAXF9ni6HjgoEgDykp3mBpA34dGwENuo7Mq5m8r1r-qk8ZZNfpi8d8CkqRAH5EoClTPndO6UF61GgQ3VQkaff1Y1J7RbhLKcL3tDg_4",
+      "Date" : "Mon, 01 Jun 2026 23:02:19 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/blob-for-tagging-objectlock&uploadType=resumable&upload_id=AAVLpEjKuV06xBBFUJzJC5B9tbDKXr9b57T5wFojQbcLaDuEW4F9HnRN4hR1t1MAq-H99xGE287oNuNkiCb2CjgKmKWpuRe5Jxr5mmIv-MxlJpo",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "4ca2a251-4d9d-4175-b8e1-a54e4033ce00",
+  "uuid" : "548ee764-e597-4482-af4b-720d682cd2a6",
   "persistent" : true,
-  "insertionIndex" : 934
+  "insertionIndex" : 1551
 }

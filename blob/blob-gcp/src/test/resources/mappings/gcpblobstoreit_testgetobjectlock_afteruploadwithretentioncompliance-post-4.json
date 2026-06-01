@@ -1,0 +1,48 @@
+{
+  "id" : "f040a21b-bf62-495b-aaa4-271d8a591713",
+  "name" : "GcpBlobStoreIT_testGetObjectLock_afterUploadWithRetentionCompliance-POST-4",
+  "request" : {
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
+    "method" : "POST",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/objectlock/retention-compliance"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"crc32c\":\"4z8aNg==\",\"metadata\":{},\"name\":\"conformance-tests/objectlock/retention-compliance\",\"retention\":{\"mode\":\"Locked\",\"retainUntilTime\":\"2026-03-11T15:47:25.512Z\"},\"temporaryHold\":false}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEjhPM-80Onh1kRgmbQ3Q9TzdJ07MO1NhoQ9GuAzG3-WJ-acCKBKXqLUWmoyaGuAjFLELSB61Kn6i9T8KNR2Ql_T33reEgVrNIcamUUJkw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Mon, 01 Jun 2026 23:05:52 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/objectlock/retention-compliance&uploadType=resumable&upload_id=AAVLpEjhPM-80Onh1kRgmbQ3Q9TzdJ07MO1NhoQ9GuAzG3-WJ-acCKBKXqLUWmoyaGuAjFLELSB61Kn6i9T8KNR2Ql_T33reEgVrNIcamUUJkw",
+      "Content-Type" : "text/plain; charset=utf-8"
+    }
+  },
+  "uuid" : "f040a21b-bf62-495b-aaa4-271d8a591713",
+  "persistent" : true,
+  "insertionIndex" : 2310
+}

@@ -1,5 +1,5 @@
 {
-  "id" : "e43db2c9-435c-4f27-9c4e-0c57b6028081",
+  "id" : "fefd8138-c85c-4335-bf2a-941b5a1fba3a",
   "name" : "GcpBlobStoreIT_testCopy-POST-15",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket\",\"metadata\":{\"key3\":\"value3\",\"key4\":\"value4\"},\"name\":\"conformance-tests/clobbered-blob\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AGQBYWyBILA3Dl28ifVMWi3AjocGfpUHSZfsS6xnDKpof37FxzH2bJKpnPVWyaXkAQqFZLF-KIPbz6ECBBhJjLCH54Kde65eCO5gD9y0BrKVfw",
+      "X-GUploader-UploadID" : "AAVLpEhAlDzwX9worazOhJWjVVtWwHwdcvL3RPe6883ZOdBhoNVj3I-HfCdpF4AjRvKoMfdQ2hQ5XjT-s9deERuwhgy2nXr5aXBMQQjIv8QcWJ0",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 04 Mar 2026 21:04:54 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/clobbered-blob&uploadType=resumable&upload_id=AGQBYWyBILA3Dl28ifVMWi3AjocGfpUHSZfsS6xnDKpof37FxzH2bJKpnPVWyaXkAQqFZLF-KIPbz6ECBBhJjLCH54Kde65eCO5gD9y0BrKVfw",
+      "Date" : "Mon, 01 Jun 2026 23:03:11 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/clobbered-blob&uploadType=resumable&upload_id=AAVLpEhAlDzwX9worazOhJWjVVtWwHwdcvL3RPe6883ZOdBhoNVj3I-HfCdpF4AjRvKoMfdQ2hQ5XjT-s9deERuwhgy2nXr5aXBMQQjIv8QcWJ0",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "e43db2c9-435c-4f27-9c4e-0c57b6028081",
+  "uuid" : "fefd8138-c85c-4335-bf2a-941b5a1fba3a",
   "persistent" : true,
-  "insertionIndex" : 296
+  "insertionIndex" : 1722
 }

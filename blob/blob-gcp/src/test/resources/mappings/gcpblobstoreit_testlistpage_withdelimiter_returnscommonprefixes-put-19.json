@@ -1,9 +1,31 @@
 {
-  "id" : "dd068462-d6d4-497b-a038-31339e445dea",
+  "id" : "d4ea5392-3e75-4031-81d8-d7e8ed484725",
   "name" : "GcpBlobStoreIT_testListPage_WithDelimiter_ReturnsCommonPrefixes-PUT-19",
   "request" : {
-    "url" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o?name=conformance-tests/common-prefix-basic/dir1/a.txt&uploadType=resumable&upload_id=AMNfjG0djCP_h9qL6vJqOfPfjg8bE99C1U03eX9k4ATEzfQZSTEmXSOKiFQ4GaeQmUlvG8MSVzrZHO7NfHGdESgHrUcz15t-kmiRh-uO7QVl3YE",
+    "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o",
     "method" : "PUT",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "name" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-basic/dir1/a.txt"
+        } ]
+      },
+      "uploadType" : {
+        "hasExactly" : [ {
+          "equalTo" : "resumable"
+        } ]
+      },
+      "upload_id" : {
+        "hasExactly" : [ {
+          "equalTo" : "AAVLpEjd30dsa4FMdMOfc48Ll_ser1BZlJy4NJmPM3jSSdCXr4Xqvc9jK_bDRja8fQvEch_s2q5ENkgEaPsnMKP5nCzO0Djj4tkeaI81jjyGMkM"
+        } ]
+      }
+    },
     "bodyPatterns" : [ {
       "equalTo" : "test",
       "caseInsensitive" : false
@@ -11,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-basic/dir1/a.txt/1775105159099518\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt?generation=1775105159099518&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-basic/dir1/a.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1775105159099518\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CP7oyYOuzpMDEAE=\",\n  \"timeCreated\": \"2026-04-02T04:45:59.179Z\",\n  \"updated\": \"2026-04-02T04:45:59.179Z\",\n  \"timeStorageClassUpdated\": \"2026-04-02T04:45:59.179Z\",\n  \"timeFinalized\": \"2026-04-02T04:45:59.179Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket/conformance-tests/common-prefix-basic/dir1/a.txt/1780355193691296\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fcommon-prefix-basic%2Fdir1%2Fa.txt?generation=1780355193691296&alt=media\",\n  \"name\": \"conformance-tests/common-prefix-basic/dir1/a.txt\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket\",\n  \"generation\": \"1780355193691296\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"4\",\n  \"md5Hash\": \"CY9rzUYh03PK3k6DJie09g==\",\n  \"crc32c\": \"hqBywA==\",\n  \"etag\": \"CKC5k/eT55QDEAE=\",\n  \"timeCreated\": \"2026-06-01T23:06:33.737Z\",\n  \"updated\": \"2026-06-01T23:06:33.737Z\",\n  \"timeStorageClassUpdated\": \"2026-06-01T23:06:33.737Z\",\n  \"timeFinalized\": \"2026-06-01T23:06:33.737Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CP7oyYOuzpMDEAE=",
-      "X-GUploader-UploadID" : "AMNfjG0djCP_h9qL6vJqOfPfjg8bE99C1U03eX9k4ATEzfQZSTEmXSOKiFQ4GaeQmUlvG8MSVzrZHO7NfHGdESgHrUcz15t-kmiRh-uO7QVl3YE",
+      "ETag" : "CKC5k/eT55QDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEjd30dsa4FMdMOfc48Ll_ser1BZlJy4NJmPM3jSSdCXr4Xqvc9jK_bDRja8fQvEch_s2q5ENkgEaPsnMKP5nCzO0Djj4tkeaI81jjyGMkM",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Thu, 02 Apr 2026 04:45:59 GMT",
+      "Date" : "Mon, 01 Jun 2026 23:06:33 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "dd068462-d6d4-497b-a038-31339e445dea",
+  "uuid" : "d4ea5392-3e75-4031-81d8-d7e8ed484725",
   "persistent" : true,
-  "insertionIndex" : 1069
+  "insertionIndex" : 2467
 }
