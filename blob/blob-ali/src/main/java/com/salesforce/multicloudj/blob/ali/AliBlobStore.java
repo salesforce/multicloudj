@@ -6,7 +6,6 @@ import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
-import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
@@ -75,7 +74,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
@@ -465,27 +463,7 @@ public class AliBlobStore extends AbstractBlobStore {
     ListObjectsV2Result response =
         ossClient.listObjectsV2(listRequest,
             OperationOptions.defaults());
-
-    List<BlobInfo> blobs =
-        response.contents().stream()
-            .map(
-                objSum ->
-                    new BlobInfo.Builder()
-                        .withKey(objSum.key())
-                        .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
-                        .build())
-            .collect(Collectors.toList());
-
-    List<String> commonPrefixes = response.commonPrefixes() != null
-        ? response.commonPrefixes().stream()
-            .map(CommonPrefix::prefix)
-            .collect(Collectors.toList())
-        : List.of();
-
-    return new ListBlobsPageResponse(
-        blobs, commonPrefixes,
-        Boolean.TRUE.equals(response.isTruncated()),
-        response.nextContinuationToken());
+    return transformer.toListBlobsPageResponse(response);
   }
 
   @Override

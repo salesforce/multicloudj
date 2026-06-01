@@ -11,6 +11,7 @@ import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
@@ -333,14 +334,44 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<Void> doList(
       ListBlobsRequest request, Consumer<ListBlobsBatch> consumer) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doListRecursive(request, null, consumer);
+  }
+
+  /**
+   * Recursively fetches all pages of object listings by manually chaining continuation tokens.
+   * Unlike the sync OSSClient which provides a built-in {@code listObjectsV2Paginator()}, the
+   * async OSSAsyncClient only offers single-page {@code listObjectsV2Async()} with no async
+   * paginator or Publisher-style API. This method fills that gap by composing futures recursively
+   * until all pages are consumed.
+   */
+  private CompletableFuture<Void> doListRecursive(
+      ListBlobsRequest request, String continuationToken,
+      Consumer<ListBlobsBatch> consumer) {
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request, continuationToken);
+    return asyncClient
+        .listObjectsV2Async(listRequest, OperationOptions.defaults())
+        .thenCompose(result -> {
+          consumer.accept(transformer.toListBlobsBatch(result));
+          if (Boolean.TRUE.equals(result.isTruncated())
+              && result.nextContinuationToken() != null) {
+            return doListRecursive(
+                request, result.nextContinuationToken(), consumer);
+          }
+          return CompletableFuture.completedFuture(null);
+        });
   }
 
   @Override
   protected CompletableFuture<ListBlobsPageResponse> doListPage(
       ListBlobsPageRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request);
+    return asyncClient
+        .listObjectsV2Async(listRequest, OperationOptions.defaults())
+        .thenApply(transformer::toListBlobsPageResponse);
   }
+
 
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(

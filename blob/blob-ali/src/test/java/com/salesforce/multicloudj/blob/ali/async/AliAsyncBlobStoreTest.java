@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
@@ -26,6 +27,9 @@ import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
+import com.aliyun.sdk.service.oss2.models.ObjectSummary;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
@@ -33,12 +37,17 @@ import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import java.io.ByteArrayInputStream;
@@ -46,6 +55,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 public class AliAsyncBlobStoreTest {
 
@@ -522,6 +533,146 @@ public class AliAsyncBlobStoreTest {
 
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.doesBucketExist().get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testListPage() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("prefix/file1.txt");
+    when(obj1.size()).thenReturn(100L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("prefix/file2.txt");
+    when(obj2.size()).thenReturn(200L);
+
+    CommonPrefix cp = mock(CommonPrefix.class);
+    when(cp.prefix()).thenReturn("prefix/subdir/");
+
+    ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
+    when(mockResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(mockResult.commonPrefixes()).thenReturn(List.of(cp));
+    when(mockResult.isTruncated()).thenReturn(false);
+    when(mockResult.nextContinuationToken()).thenReturn(null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+        .withPrefix("prefix/")
+        .build();
+    ListBlobsPageResponse response = store.listPage(request).get();
+
+    assertNotNull(response);
+    assertEquals(2, response.getBlobs().size());
+    assertEquals("prefix/file1.txt", response.getBlobs().get(0).getKey());
+    assertEquals(100L, response.getBlobs().get(0).getObjectSize());
+    assertEquals("prefix/file2.txt", response.getBlobs().get(1).getKey());
+    assertEquals(1, response.getCommonPrefixes().size());
+    assertEquals("prefix/subdir/", response.getCommonPrefixes().get(0));
+    assertEquals(false, response.isTruncated());
+  }
+
+  @Test
+  void testListPageTruncated() throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("key1");
+    when(obj.size()).thenReturn(50L);
+
+    ListObjectsV2Result mockResult = mock(ListObjectsV2Result.class);
+    when(mockResult.contents()).thenReturn(List.of(obj));
+    when(mockResult.commonPrefixes()).thenReturn(null);
+    when(mockResult.isTruncated()).thenReturn(true);
+    when(mockResult.nextContinuationToken()).thenReturn("token-abc");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+        .withPrefix("prefix/")
+        .withMaxResults(1)
+        .build();
+    ListBlobsPageResponse response = store.listPage(request).get();
+
+    assertEquals(true, response.isTruncated());
+    assertEquals("token-abc", response.getNextPageToken());
+    assertEquals(1, response.getBlobs().size());
+
+    ArgumentCaptor<ListObjectsV2Request> captor =
+        ArgumentCaptor.forClass(ListObjectsV2Request.class);
+    verify(mockAsyncClient).listObjectsV2Async(
+        captor.capture(), any(OperationOptions.class));
+    ListObjectsV2Request captured = captor.getValue();
+    assertEquals("prefix/", captured.prefix());
+    assertEquals(1L, captured.maxKeys());
+  }
+
+  @Test
+  void testList() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("a/1.txt");
+    when(obj1.size()).thenReturn(10L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("a/2.txt");
+    when(obj2.size()).thenReturn(20L);
+
+    ListObjectsV2Result page1 = mock(ListObjectsV2Result.class);
+    when(page1.contents()).thenReturn(List.of(obj1));
+    when(page1.commonPrefixes()).thenReturn(null);
+    when(page1.isTruncated()).thenReturn(true);
+    when(page1.nextContinuationToken()).thenReturn("token-2");
+
+    ListObjectsV2Result page2 = mock(ListObjectsV2Result.class);
+    when(page2.contents()).thenReturn(List.of(obj2));
+    when(page2.commonPrefixes()).thenReturn(null);
+    when(page2.isTruncated()).thenReturn(false);
+    when(page2.nextContinuationToken()).thenReturn(null);
+
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(page1))
+        .thenReturn(CompletableFuture.completedFuture(page2));
+
+    List<ListBlobsBatch> batches = new ArrayList<>();
+    ListBlobsRequest request = ListBlobsRequest.builder()
+        .withPrefix("a/")
+        .build();
+    store.list(request, batches::add).get();
+
+    assertEquals(2, batches.size());
+    assertEquals("a/1.txt", batches.get(0).getBlobs().get(0).getKey());
+    assertEquals("a/2.txt", batches.get(1).getBlobs().get(0).getKey());
+  }
+
+  @Test
+  void testListPageFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ListBlobsPageRequest request = ListBlobsPageRequest.builder()
+        .withPrefix("prefix/")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.listPage(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testListFailed() {
+    RuntimeException cause = new RuntimeException("service unavailable");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    List<ListBlobsBatch> batches = new ArrayList<>();
+    ListBlobsRequest request = ListBlobsRequest.builder()
+        .withPrefix("a/")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.list(request, batches::add).get());
     assertNotNull(ex.getCause());
   }
 }
