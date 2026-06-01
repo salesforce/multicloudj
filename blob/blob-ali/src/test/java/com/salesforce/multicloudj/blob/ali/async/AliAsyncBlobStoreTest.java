@@ -15,6 +15,13 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
+import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsResult;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.DeleteObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
@@ -25,8 +32,11 @@ import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
+import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
+import com.salesforce.multicloudj.blob.driver.CopyRequest;
+import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -36,6 +46,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -310,6 +322,206 @@ public class AliAsyncBlobStoreTest {
 
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.download(request, file).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteSingleObject() throws Exception {
+    DeleteObjectResult mockResult = mock(DeleteObjectResult.class);
+    when(mockAsyncClient.deleteObjectAsync(
+        any(DeleteObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    store.delete("key-to-delete", null).get();
+  }
+
+  @Test
+  void testDeleteMultipleObjects() throws Exception {
+    DeleteMultipleObjectsResult mockResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    List<BlobIdentifier> objects = List.of(
+        new BlobIdentifier("key1", null),
+        new BlobIdentifier("key2", "v1"));
+    store.delete(objects).get();
+  }
+
+  @Test
+  void testDeleteEmptyCollection() {
+    assertThrows(IllegalArgumentException.class,
+        () -> store.delete(List.of()));
+  }
+
+  @Test
+  void testCopy() throws Exception {
+    CopyObjectResult mockResult = mock(CopyObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v-copy");
+    when(mockResult.eTag()).thenReturn("\"etag-copy\"");
+    when(mockResult.lastModified()).thenReturn("Wed, 27 May 2026 00:00:00 GMT");
+    when(mockAsyncClient.copyObjectAsync(
+        any(CopyObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    CopyRequest request = CopyRequest.builder()
+        .srcKey("src-key")
+        .destBucket("dest-bucket")
+        .destKey("dest-key")
+        .build();
+    CopyResponse response = store.copy(request).get();
+
+    assertNotNull(response);
+    assertEquals("dest-key", response.getKey());
+    assertEquals("v-copy", response.getVersionId());
+    assertEquals("etag-copy", response.getETag());
+    assertNotNull(response.getLastModified());
+  }
+
+  @Test
+  void testDeleteSingleObjectFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.deleteObjectAsync(
+        any(DeleteObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.delete("forbidden-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteMultipleObjectsFailed() {
+    RuntimeException cause = new RuntimeException("batch delete error");
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    List<BlobIdentifier> objects = List.of(
+        new BlobIdentifier("key1", null),
+        new BlobIdentifier("key2", null));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.delete(objects).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testCopyFailed() {
+    RuntimeException cause = new RuntimeException("source not found");
+    when(mockAsyncClient.copyObjectAsync(
+        any(CopyObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    CopyRequest request = CopyRequest.builder()
+        .srcKey("missing-key")
+        .destBucket("dest-bucket")
+        .destKey("dest-key")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.copy(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testGetMetadata() throws Exception {
+    HeadObjectResult mockResult = mock(HeadObjectResult.class);
+    when(mockResult.versionId()).thenReturn("v-meta");
+    when(mockResult.eTag()).thenReturn("\"etag-meta\"");
+    when(mockResult.contentLength()).thenReturn(1024L);
+    when(mockResult.lastModified()).thenReturn("Wed, 27 May 2026 00:00:00 GMT");
+    when(mockResult.contentType()).thenReturn("application/octet-stream");
+    when(mockResult.contentMd5()).thenReturn(null);
+    when(mockResult.metadata()).thenReturn(Map.of());
+    when(mockAsyncClient.headObjectAsync(
+        any(HeadObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    BlobMetadata metadata = store.getMetadata("meta-key", null).get();
+
+    assertNotNull(metadata);
+    assertEquals("meta-key", metadata.getKey());
+    assertEquals("v-meta", metadata.getVersionId());
+    assertEquals("etag-meta", metadata.getETag());
+    assertEquals(1024L, metadata.getObjectSize());
+    assertEquals("application/octet-stream", metadata.getContentType());
+    assertNotNull(metadata.getLastModified());
+  }
+
+  @Test
+  void testDoesObjectExistTrue() throws Exception {
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    boolean exists = store.doesObjectExist("existing-key", null).get();
+    assertEquals(true, exists);
+  }
+
+  @Test
+  void testDoesObjectExistFalse() throws Exception {
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.completedFuture(false));
+
+    boolean exists = store.doesObjectExist("missing-key", null).get();
+    assertEquals(false, exists);
+  }
+
+  @Test
+  void testDoesBucketExistTrue() throws Exception {
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    boolean exists = store.doesBucketExist().get();
+    assertEquals(true, exists);
+  }
+
+  @Test
+  void testDoesBucketExistFalse() throws Exception {
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.completedFuture(false));
+
+    boolean exists = store.doesBucketExist().get();
+    assertEquals(false, exists);
+  }
+
+  @Test
+  void testGetMetadataFailed() {
+    RuntimeException cause = new RuntimeException("object not found");
+    when(mockAsyncClient.headObjectAsync(
+        any(HeadObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.getMetadata("missing-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDoesObjectExistFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.doesObjectExistAsync(
+        any(GetObjectMetaRequest.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.doesObjectExist("forbidden-key", null).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDoesBucketExistFailed() {
+    RuntimeException cause = new RuntimeException("service unavailable");
+    when(mockAsyncClient.doesBucketExistAsync(BUCKET))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.doesBucketExist().get());
     assertNotNull(ex.getCause());
   }
 }

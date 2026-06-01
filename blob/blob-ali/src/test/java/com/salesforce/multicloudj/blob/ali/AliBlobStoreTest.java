@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -19,6 +18,10 @@ import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
+import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -28,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -1141,5 +1145,121 @@ public class AliBlobStoreTest {
         () -> {
           ali.updateLegalHold(key, versionId, true);
         });
+  }
+
+  @Test
+  void testListBlobVersions() {
+    String key = "my-object";
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("etag1").size(100L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("etag2").size(200L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(v1, v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata first = iter.next();
+    assertEquals(key, first.getKey());
+    assertEquals("v1", first.getVersionId());
+    assertEquals("etag1", first.getETag());
+    assertEquals(100L, first.getObjectSize());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata second = iter.next();
+    assertEquals("v2", second.getVersionId());
+    assertEquals(200L, second.getObjectSize());
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsFiltersPrefixMatches() {
+    String key = "obj-1";
+    ObjectVersion matching = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion nonMatching = ObjectVersion.newBuilder()
+        .key("obj-1-extra").versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(matching, nonMatching));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata metadata = iter.next();
+    assertEquals(key, metadata.getKey());
+    assertEquals("v1", metadata.getVersionId());
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsMultiplePages() {
+    String key = "paged-obj";
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(v1));
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    List<BlobMetadata> all = new ArrayList<>();
+    iter.forEachRemaining(all::add);
+
+    assertEquals(2, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertEquals("v2", all.get(1).getVersionId());
+  }
+
+  @Test
+  void testListBlobVersionsEmpty() {
+    String key = "no-versions";
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of());
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    assertFalse(iter.hasNext());
+    assertThrows(NoSuchElementException.class, iter::next);
   }
 }

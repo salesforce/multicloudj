@@ -44,6 +44,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -485,6 +486,11 @@ public class AliBlobStore extends AbstractBlobStore {
         blobs, commonPrefixes,
         Boolean.TRUE.equals(response.isTruncated()),
         response.nextContinuationToken());
+  }
+
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return new BlobMetadataIterator(ossClient, getBucket(), request.getKey());
   }
 
   /**

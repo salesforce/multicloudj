@@ -27,6 +27,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -2211,7 +2212,11 @@ public class AwsBlobStoreTest {
     when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
         .thenReturn(iterable);
 
-    Iterator<BlobMetadata> versions = aws.listBlobVersions(key);
+    com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest request =
+        ListBlobVersionsRequest.builder()
+            .withKey(key)
+            .build();
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(request);
 
     assertTrue(versions.hasNext());
     BlobMetadata metadata = versions.next();
@@ -2261,7 +2266,9 @@ public class AwsBlobStoreTest {
     when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
         .thenReturn(iterable);
 
-    Iterator<BlobMetadata> versions = aws.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     List<BlobMetadata> allVersions = new ArrayList<>();
     versions.forEachRemaining(allVersions::add);
@@ -2284,7 +2291,9 @@ public class AwsBlobStoreTest {
     when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
         .thenReturn(iterable);
 
-    Iterator<BlobMetadata> versions = aws.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertFalse(versions.hasNext());
   }
@@ -2301,7 +2310,9 @@ public class AwsBlobStoreTest {
     when(mockS3Client.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
         .thenReturn(iterable);
 
-    Iterator<BlobMetadata> versions = aws.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = aws.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
   }
