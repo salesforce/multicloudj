@@ -15,7 +15,12 @@ import static org.mockito.Mockito.when;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CommonPrefix;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
@@ -27,11 +32,19 @@ import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
+import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
+import com.aliyun.sdk.service.oss2.models.ListPartsResult;
 import com.aliyun.sdk.service.oss2.models.ObjectSummary;
+import com.aliyun.sdk.service.oss2.models.Part;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
+import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
@@ -48,6 +61,11 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartPart;
+import com.salesforce.multicloudj.blob.driver.MultipartUpload;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import java.io.ByteArrayInputStream;
@@ -673,6 +691,231 @@ public class AliAsyncBlobStoreTest {
 
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.list(request, batches::add).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testInitiateMultipartUpload() throws Exception {
+    InitiateMultipartUpload upload = mock(InitiateMultipartUpload.class);
+    when(upload.bucket()).thenReturn(BUCKET);
+    when(upload.key()).thenReturn("mpu-key");
+    when(upload.uploadId()).thenReturn("upload-id-123");
+
+    InitiateMultipartUploadResult mockResult =
+        mock(InitiateMultipartUploadResult.class);
+    when(mockResult.initiateMultipartUpload()).thenReturn(upload);
+    when(mockAsyncClient.initiateMultipartUploadAsync(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("mpu-key").build();
+    MultipartUpload mpu = store.initiateMultipartUpload(request).get();
+
+    assertNotNull(mpu);
+    assertEquals(BUCKET, mpu.getBucket());
+    assertEquals("mpu-key", mpu.getKey());
+    assertEquals("upload-id-123", mpu.getId());
+  }
+
+  @Test
+  void testUploadMultipartPart() throws Exception {
+    UploadPartResult mockResult = mock(UploadPartResult.class);
+    when(mockResult.eTag()).thenReturn("\"part-etag-1\"");
+    when(mockAsyncClient.uploadPartAsync(
+        any(UploadPartRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    byte[] content = "part content".getBytes(StandardCharsets.UTF_8);
+    MultipartPart mpp = new MultipartPart(
+        1, new ByteArrayInputStream(content), content.length, null);
+    UploadPartResponse response =
+        store.uploadMultipartPart(mpu, mpp).get();
+
+    assertNotNull(response);
+    assertEquals(1, response.getPartNumber());
+    assertEquals("part-etag-1", response.getEtag());
+    assertEquals(content.length, response.getSizeInBytes());
+  }
+
+  @Test
+  void testCompleteMultipartUpload() throws Exception {
+    CompleteMultipartUploadResultXml xml =
+        mock(CompleteMultipartUploadResultXml.class);
+    when(xml.eTag()).thenReturn("\"final-etag\"");
+    CompleteMultipartUploadResult mockResult =
+        mock(CompleteMultipartUploadResult.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(xml);
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    List<UploadPartResponse> parts = List.of(
+        new UploadPartResponse(1, "part-etag-1", 1024),
+        new UploadPartResponse(2, "part-etag-2", 1024));
+    MultipartUploadResponse response =
+        store.completeMultipartUpload(mpu, parts).get();
+
+    assertNotNull(response);
+    assertEquals("final-etag", response.getEtag());
+  }
+
+  @Test
+  void testListMultipartUpload() throws Exception {
+    Part part1 = mock(Part.class);
+    when(part1.partNumber()).thenReturn(1L);
+    when(part1.eTag()).thenReturn("\"etag-p1\"");
+    when(part1.size()).thenReturn(512L);
+    Part part2 = mock(Part.class);
+    when(part2.partNumber()).thenReturn(2L);
+    when(part2.eTag()).thenReturn("\"etag-p2\"");
+    when(part2.size()).thenReturn(1024L);
+
+    ListPartsResult mockResult = mock(ListPartsResult.class);
+    when(mockResult.parts()).thenReturn(List.of(part1, part2));
+    when(mockAsyncClient.listPartsAsync(
+        any(ListPartsRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    List<UploadPartResponse> parts =
+        store.listMultipartUpload(mpu).get();
+
+    assertNotNull(parts);
+    assertEquals(2, parts.size());
+    assertEquals(1, parts.get(0).getPartNumber());
+    assertEquals("etag-p1", parts.get(0).getEtag());
+    assertEquals(512L, parts.get(0).getSizeInBytes());
+    assertEquals(2, parts.get(1).getPartNumber());
+    assertEquals("etag-p2", parts.get(1).getEtag());
+    assertEquals(1024L, parts.get(1).getSizeInBytes());
+  }
+
+  @Test
+  void testAbortMultipartUpload() throws Exception {
+    AbortMultipartUploadResult mockResult =
+        mock(AbortMultipartUploadResult.class);
+    when(mockAsyncClient.abortMultipartUploadAsync(
+        any(AbortMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    store.abortMultipartUpload(mpu).get();
+  }
+
+  @Test
+  void testInitiateMultipartUploadFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.initiateMultipartUploadAsync(
+        any(InitiateMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("fail-key").build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.initiateMultipartUpload(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testUploadMultipartPartFailed() {
+    RuntimeException cause = new RuntimeException("network error");
+    when(mockAsyncClient.uploadPartAsync(
+        any(UploadPartRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    byte[] content = "part content".getBytes(StandardCharsets.UTF_8);
+    MultipartPart mpp = new MultipartPart(
+        1, new ByteArrayInputStream(content), content.length, null);
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.uploadMultipartPart(mpu, mpp).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testCompleteMultipartUploadFailed() {
+    RuntimeException cause = new RuntimeException("invalid part order");
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+    List<UploadPartResponse> parts = List.of(
+        new UploadPartResponse(1, "part-etag-1", 1024));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.completeMultipartUpload(mpu, parts).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testListMultipartUploadFailed() {
+    RuntimeException cause = new RuntimeException("upload not found");
+    when(mockAsyncClient.listPartsAsync(
+        any(ListPartsRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.listMultipartUpload(mpu).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testAbortMultipartUploadFailed() {
+    RuntimeException cause = new RuntimeException("upload already completed");
+    when(mockAsyncClient.abortMultipartUploadAsync(
+        any(AbortMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET)
+        .key("mpu-key")
+        .id("upload-id-123")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.abortMultipartUpload(mpu).get());
     assertNotNull(ex.getCause());
   }
 }
