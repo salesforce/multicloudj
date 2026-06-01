@@ -1013,4 +1013,47 @@ public class AliAsyncBlobStoreTest {
     assertNotNull(url);
     assertEquals("https", url.getProtocol());
   }
+
+  @Test
+  void testGetTagsFailed() {
+    RuntimeException cause = new RuntimeException("object not found");
+    when(mockAsyncClient.getObjectTaggingAsync(
+        any(GetObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.getTags("missing-key").get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testSetTagsFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.putObjectTaggingAsync(
+        any(PutObjectTaggingRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.setTags("forbidden-key", Map.of("k", "v")).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testGeneratePresignedUrlFailed() {
+    when(mockSyncClient.presign(
+        any(GetObjectRequest.class), any(PresignOptions.class)))
+        .thenThrow(new RuntimeException("presign error"));
+
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .key("fail-key")
+        .type(PresignedOperation.DOWNLOAD)
+        .duration(Duration.ofMinutes(15))
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.generatePresignedUrl(request).get());
+    assertNotNull(ex.getCause());
+  }
 }
