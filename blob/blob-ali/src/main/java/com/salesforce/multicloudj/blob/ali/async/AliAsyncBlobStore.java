@@ -3,15 +3,20 @@ package com.salesforce.multicloudj.blob.ali.async;
 import com.aliyun.sdk.service.oss2.OSSAsyncClient;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
+import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
+import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
@@ -47,6 +52,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.ByteArrayOutputStream;
@@ -333,59 +339,154 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<Void> doList(
       ListBlobsRequest request, Consumer<ListBlobsBatch> consumer) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return doListRecursive(request, null, consumer);
+  }
+
+  /**
+   * Recursively fetches all pages of object listings by manually chaining continuation tokens.
+   * Unlike the sync OSSClient which provides a built-in {@code listObjectsV2Paginator()}, the
+   * async OSSAsyncClient only offers single-page {@code listObjectsV2Async()} with no async
+   * paginator or Publisher-style API. This method fills that gap by composing futures recursively
+   * until all pages are consumed.
+   */
+  private CompletableFuture<Void> doListRecursive(
+      ListBlobsRequest request, String continuationToken,
+      Consumer<ListBlobsBatch> consumer) {
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request, continuationToken);
+    return asyncClient
+        .listObjectsV2Async(listRequest, OperationOptions.defaults())
+        .thenCompose(result -> {
+          consumer.accept(transformer.toListBlobsBatch(result));
+          if (Boolean.TRUE.equals(result.isTruncated())
+              && result.nextContinuationToken() != null) {
+            return doListRecursive(
+                request, result.nextContinuationToken(), consumer);
+          }
+          return CompletableFuture.completedFuture(null);
+        });
   }
 
   @Override
   protected CompletableFuture<ListBlobsPageResponse> doListPage(
       ListBlobsPageRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    ListObjectsV2Request listRequest =
+        transformer.toListObjectsRequest(request);
+    return asyncClient
+        .listObjectsV2Async(listRequest, OperationOptions.defaults())
+        .thenApply(transformer::toListBlobsPageResponse);
   }
+
 
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
       MultipartUploadRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .initiateMultipartUploadAsync(
+            transformer.toInitiateMultipartUploadRequest(request),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toMultipartUpload(result, request));
   }
 
   @Override
   protected CompletableFuture<UploadPartResponse> doUploadMultipartPart(
       MultipartUpload mpu, MultipartPart mpp) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .uploadPartAsync(
+            transformer.toUploadPartRequest(mpu, mpp),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toUploadPartResponse(mpp, result));
   }
 
   @Override
   protected CompletableFuture<MultipartUploadResponse> doCompleteMultipartUpload(
       MultipartUpload mpu, List<UploadPartResponse> parts) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .completeMultipartUploadAsync(
+            transformer.toCompleteMultipartUploadRequest(mpu, parts),
+            OperationOptions.defaults())
+        .thenApply(result -> new MultipartUploadResponse(
+            stripQuotes(result.completeMultipartUpload().eTag())));
   }
 
   @Override
   protected CompletableFuture<List<UploadPartResponse>> doListMultipartUpload(
       MultipartUpload mpu) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .listPartsAsync(
+            transformer.toListPartsRequest(mpu),
+            OperationOptions.defaults())
+        .thenApply(result -> transformer.toListUploadPartResponse(result));
   }
 
   @Override
   protected CompletableFuture<Void> doAbortMultipartUpload(MultipartUpload mpu) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return asyncClient
+        .abortMultipartUploadAsync(
+            transformer.toAbortMultipartUploadRequest(mpu),
+            OperationOptions.defaults())
+        .thenAccept(result -> {});
+  }
+
+  private String stripQuotes(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.length() >= 2
+        && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1);
+    }
+    return value;
   }
 
   @Override
   protected CompletableFuture<Map<String, String>> doGetTags(String key) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    GetObjectTaggingRequest request =
+        GetObjectTaggingRequest.newBuilder()
+            .bucket(getBucket())
+            .key(key)
+            .build();
+    return asyncClient
+        .getObjectTaggingAsync(request, OperationOptions.defaults())
+        .thenApply(result -> transformer.toTagMap(result));
   }
 
   @Override
   protected CompletableFuture<Void> doSetTags(
       String key, Map<String, String> tags) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    PutObjectTaggingRequest request =
+        transformer.toPutObjectTaggingRequest(key, tags);
+    return asyncClient
+        .putObjectTaggingAsync(request, OperationOptions.defaults())
+        .thenAccept(result -> {});
   }
 
   @Override
   protected CompletableFuture<URL> doGeneratePresignedUrl(
       PresignedUrlRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return CompletableFuture.supplyAsync(() -> {
+      PresignOptions options = transformer.toPresignOptions(request);
+      PresignResult result;
+      switch (request.getType()) {
+        case UPLOAD:
+          result = syncClient.presign(
+              transformer.toPresignedPutObjectRequest(request), options);
+          break;
+        case DOWNLOAD:
+          result = syncClient.presign(
+              transformer.toPresignedGetObjectRequest(request), options);
+          break;
+        default:
+          throw new InvalidArgumentException(
+              "Unsupported PresignedOperation. type=" + request.getType());
+      }
+      try {
+        return new URL(result.url());
+      } catch (java.net.MalformedURLException e) {
+        throw new SubstrateSdkException(
+            "Invalid presigned URL: " + result.url(), e);
+      }
+    }, executorService);
   }
 
   @Override

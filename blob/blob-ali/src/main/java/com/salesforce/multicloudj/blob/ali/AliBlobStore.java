@@ -6,7 +6,6 @@ import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
-import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
@@ -44,6 +43,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -74,7 +74,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
@@ -464,32 +463,12 @@ public class AliBlobStore extends AbstractBlobStore {
     ListObjectsV2Result response =
         ossClient.listObjectsV2(listRequest,
             OperationOptions.defaults());
-
-    List<BlobInfo> blobs =
-        response.contents().stream()
-            .map(
-                objSum ->
-                    new BlobInfo.Builder()
-                        .withKey(objSum.key())
-                        .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
-                        .build())
-            .collect(Collectors.toList());
-
-    List<String> commonPrefixes = response.commonPrefixes() != null
-        ? response.commonPrefixes().stream()
-            .map(CommonPrefix::prefix)
-            .collect(Collectors.toList())
-        : List.of();
-
-    return new ListBlobsPageResponse(
-        blobs, commonPrefixes,
-        Boolean.TRUE.equals(response.isTruncated()),
-        response.nextContinuationToken());
+    return transformer.toListBlobsPageResponse(response);
   }
 
   @Override
-  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
-    return new BlobMetadataIterator(ossClient, getBucket(), key);
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return new BlobMetadataIterator(ossClient, getBucket(), request.getKey());
   }
 
   /**
