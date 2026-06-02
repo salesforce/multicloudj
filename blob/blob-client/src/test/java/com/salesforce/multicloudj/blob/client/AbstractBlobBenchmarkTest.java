@@ -63,6 +63,10 @@ import org.slf4j.LoggerFactory;
  * <p>Each benchmark method performs exactly one logical operation per invocation so that JMH
  * reports true per-op latency and throughput. Pre-seeded data is used for read-path benchmarks
  * to avoid conflating write cost into read measurements.
+ *
+ * <p>{@link #cleanupBenchmarkData()} runs at both {@code @Setup} and {@code @TearDown} on
+ * purpose, to clear residue from interrupted prior runs. Blob content uses a fixed seed
+ * ({@code new Random(42)}) for reproducibility, which may flatter dedup/compression vs. real data.
  */
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
