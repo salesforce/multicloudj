@@ -576,16 +576,19 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
-        if (getSocketTimeout() != null) {
-          asyncBuilder.readWriteTimeout(getSocketTimeout());
-        }
         if (retryer != null) {
           asyncBuilder.retryer(retryer);
         }
+        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
+        // single readWriteTimeout setting. When both are set, attemptTimeout (the
+        // more specific per-attempt deadline) takes precedence over the
+        // transport-level socketTimeout.
         if (getRetryConfig() != null
             && getRetryConfig().getAttemptTimeout() != null) {
           asyncBuilder.readWriteTimeout(
               java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+        } else if (getSocketTimeout() != null) {
+          asyncBuilder.readWriteTimeout(getSocketTimeout());
         }
         async = asyncBuilder.build();
       }
@@ -603,16 +606,19 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
-        if (getSocketTimeout() != null) {
-          syncBuilder.readWriteTimeout(getSocketTimeout());
-        }
         if (retryer != null) {
           syncBuilder.retryer(retryer);
         }
+        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
+        // single readWriteTimeout setting. When both are set, attemptTimeout (the
+        // more specific per-attempt deadline) takes precedence over the
+        // transport-level socketTimeout.
         if (getRetryConfig() != null
             && getRetryConfig().getAttemptTimeout() != null) {
           syncBuilder.readWriteTimeout(
               java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+        } else if (getSocketTimeout() != null) {
+          syncBuilder.readWriteTimeout(getSocketTimeout());
         }
         sync = syncBuilder.build();
       }

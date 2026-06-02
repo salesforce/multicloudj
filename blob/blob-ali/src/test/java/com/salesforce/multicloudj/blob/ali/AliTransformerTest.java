@@ -618,7 +618,7 @@ public class AliTransformerTest {
     // Verify delay is within expected range (EqualJitterBackoff adds jitter)
     Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
     assertNotNull(delay);
-    assertTrue(delay.toMillis() >= 0);
+    assertTrue(delay.toMillis() >= 100);
     assertTrue(delay.toMillis() <= 10000);
   }
 
@@ -653,6 +653,11 @@ public class AliTransformerTest {
 
     assertNotNull(retryer);
     assertEquals(4, retryer.maxAttempts());
+    // Verify SDK default backoff produces a sane delay (not zero or negative)
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertNotNull(delay);
+    assertTrue(delay.toMillis() > 0,
+        "Default backoff should produce a positive delay, got: " + delay.toMillis());
   }
 
   @Test
