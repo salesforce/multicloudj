@@ -479,11 +479,10 @@ public abstract class AbstractBlobStoreIT {
    * Alibaba is excluded because recording 16 MiB fixtures for every provider triples test-resource
    * size with no additional bug coverage.
    *
-   * <p>Recording note: after running with {@code -Drecord}, the upload PUT mapping must have its
-   * {@code bodyPatterns} field removed because WireMock cannot evaluate a 16 MiB body-match regex
-   * against streaming chunked uploads in replay. Truncation is still caught — replay matches by
-   * URL/method, and the {@code assertArrayEquals} of the downloaded bytes against the original
-   * payload detects any size or content discrepancy that the bug would produce.
+   * <p>Fixture convention: payload is filled with a single repeating byte ({@code 'A'}) so that the
+   * recorded WireMock {@code bodyPatterns} compress trivially in git pack (matching the
+   * {@code testMultipartUpload_multipleParts} convention). This keeps recorded fixtures small in
+   * the git object store while preserving full body-match validation in replay mode.
    */
   @Test
   public void testUpload_largeByteArray_doesNotTruncate() {
@@ -495,7 +494,8 @@ public abstract class AbstractBlobStoreIT {
 
     String testName = "testUpload_largeByteArray_doesNotTruncate";
     String key = "conformance-tests/upload/largeByteArray16MiB";
-    byte[] content = generateDeterministicBytes(16 * 1024 * 1024);
+    byte[] content = new byte[16 * 1024 * 1024];
+    Arrays.fill(content, (byte) 'A');
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -530,19 +530,6 @@ public abstract class AbstractBlobStoreIT {
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
-  }
-
-  /**
-   * Generates a deterministic byte sequence so test fixtures recorded in record mode are stable
-   * across runs. Pattern is byte = (i % 251) which avoids long runs of zeros and produces
-   * repeatable content without depending on a random seed.
-   */
-  private static byte[] generateDeterministicBytes(int size) {
-    byte[] bytes = new byte[size];
-    for (int i = 0; i < size; i++) {
-      bytes[i] = (byte) (i % 251);
-    }
-    return bytes;
   }
 
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
