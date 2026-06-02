@@ -71,6 +71,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -735,7 +736,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    List<CompletableFuture<Void>> futures = new ArrayList<>();
+    List<CompletableFuture<Void>> futures =
+        Collections.synchronizedList(new ArrayList<>());
 
     Consumer<ListBlobsBatch> consumer =
         batch -> {
