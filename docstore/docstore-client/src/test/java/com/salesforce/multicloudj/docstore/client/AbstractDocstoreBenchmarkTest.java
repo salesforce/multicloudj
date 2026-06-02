@@ -73,14 +73,19 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private List<String> largePlayerKeys;
 
   /**
-   * Batch size parameter for the batch-mode benchmarks (benchmarkBatchPut, benchmarkBatchGet).
-   * Two points span the typical request-batch range. We deliberately don't include 100 because
-   * benchmarkBatchPut@batchSize=100 × @Threads(4) × 5 measurement iterations generates ~2000 puts
-   * per benchmark run, accumulating as orphan docs before teardown — Firestore's quota / SDK pool
-   * stalls at that scale on cross-region runs. {10, 50} already shows the scaling trend.
+   * Batch-size param scoped to {@link #benchmarkBatchPut} / {@link #benchmarkBatchGet} only.
+   * Method-level injection (vs. a class-level @Param field) prevents JMH from cross-producting
+   * batchSize across the 12 non-batch benchmarks and doubling suite runtime for no signal.
+   *
+   * <p>Two points {10, 50} span the typical request-batch range. Excluding 100 because at
+   * batchSize=100 × 5 measurement iterations + warmups, Firestore's quota / SDK pool stalls
+   * on cross-region runs. {10, 50} already shows the scaling trend.
    */
-  @Param({"10", "50"})
-  public int batchSize;
+  @State(Scope.Benchmark)
+  public static class BatchParams {
+    @Param({"10", "50"})
+    public int batchSize;
+  }
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -286,12 +291,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
               actionList.delete(new Document(deleteDoc));
             }
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn("Failed to add cleanup delete for key {}: {}", key, e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("Player cleanup ActionList run failed: {}", e.getMessage());
       }
     }
 
@@ -306,12 +311,16 @@ public abstract class AbstractDocstoreBenchmarkTest {
             deleteScore.setPlayer(highScore.getPlayer());
             actionList.delete(new Document(deleteScore));
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn(
+                "Failed to add cleanup delete for highscore {}/{}: {}",
+                highScore.getGame(),
+                highScore.getPlayer(),
+                e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("HighScore cleanup ActionList run failed: {}", e.getMessage());
       }
     }
   }
@@ -368,13 +377,13 @@ public abstract class AbstractDocstoreBenchmarkTest {
    */
   @Benchmark
   @Threads(1)
-  public void benchmarkBatchPut(Blackhole bh) {
+  public void benchmarkBatchPut(Blackhole bh, BatchParams p) {
     final String baseKey = "benchmarkbatchput-player-";
     final int docSize = 200;
 
     try {
       List<Document> documents = new ArrayList<>();
-      for (int i = 0; i < batchSize; i++) {
+      for (int i = 0; i < p.batchSize; i++) {
         String key = baseKey + ThreadLocalRandom.current().nextLong();
         benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
@@ -405,12 +414,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
    */
   @Benchmark
   @Threads(1)
-  public void benchmarkBatchGet(Blackhole bh) {
+  public void benchmarkBatchGet(Blackhole bh, BatchParams p) {
     try {
       List<String> shuffled = new ArrayList<>(smallPlayerKeys);
       Collections.shuffle(shuffled, ThreadLocalRandom.current());
-      List<Document> documents = new ArrayList<>(batchSize);
-      for (int i = 0; i < batchSize; i++) {
+      List<Document> documents = new ArrayList<>(p.batchSize);
+      for (int i = 0; i < p.batchSize; i++) {
         Player getPlayer = new Player();
         getPlayer.setPName(shuffled.get(i));
         documents.add(new Document(getPlayer));
