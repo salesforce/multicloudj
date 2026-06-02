@@ -21,8 +21,7 @@ public class GcpAsyncBlobBenchmarkTest extends AbstractAsyncBlobBenchmarkTest {
     @Override
     protected AsyncBlobStore buildStore() {
       String bucket = requireEnv("BLOB_BENCHMARK_GCP_BUCKET");
-      String region = requireEnv("BLOB_BENCHMARK_GCP_REGION");
-      return GcpAsyncBlobStore.builder().withBucket(bucket).withRegion(region).build();
+      return GcpAsyncBlobStore.builder().withBucket(bucket).build();
     }
   }
 }
