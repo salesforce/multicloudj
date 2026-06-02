@@ -19,7 +19,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -76,6 +75,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -354,19 +354,23 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray() {
+  void testDoUpload_WithByteArray() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
+        UploadResponse.builder()
+            .key(TEST_KEY)
+            .versionId(TEST_VERSION_ID)
+            .eTag(TEST_ETAG)
+            .build();
 
     when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -374,8 +378,8 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -2169,22 +2173,22 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray_EmptyArray() {
+  void testDoUpload_WithByteArray_EmptyArray() throws IOException {
     byte[] emptyArray = new byte[0];
     UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
     UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
 
     assertNotNull(response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
   }
 
   @Test
@@ -4503,7 +4507,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertTrue(versions.hasNext());
     BlobMetadata metadata = versions.next();
@@ -4541,7 +4547,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of(version1, version2, version3));
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     List<BlobMetadata> allVersions = new java.util.ArrayList<>();
     versions.forEachRemaining(allVersions::add);
@@ -4561,7 +4569,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertFalse(versions.hasNext());
   }
@@ -4575,7 +4585,9 @@ class GcpBlobStoreTest {
     when(page.iterateAll()).thenReturn(List.of());
     when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
 
-    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(key);
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
 
     assertThrows(NoSuchElementException.class, versions::next);
   }

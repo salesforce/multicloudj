@@ -163,9 +163,9 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
-  public Iterator<BlobMetadata> listBlobVersions(String key) {
-    validator.validateKey(key);
-    return doListBlobVersions(key);
+  public Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request) {
+    validator.validateKey(request.getKey());
+    return doListBlobVersions(request);
   }
 
   /** {@inheritDoc} */
@@ -331,7 +331,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
    * overriding this method.
    */
-  protected Iterator<BlobMetadata> doListBlobVersions(String key) {
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
     throw new UnsupportedOperationException(
         "List object versions is not supported by this substrate implementation");
   }
