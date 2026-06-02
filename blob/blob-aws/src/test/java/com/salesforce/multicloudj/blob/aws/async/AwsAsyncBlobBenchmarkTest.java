@@ -2,28 +2,27 @@ package com.salesforce.multicloudj.blob.aws.async;
 
 import com.salesforce.multicloudj.blob.async.client.AbstractAsyncBlobBenchmarkTest;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
+import org.junit.jupiter.api.TestInstance;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AwsAsyncBlobBenchmarkTest extends AbstractAsyncBlobBenchmarkTest {
-
-  private static final String BUCKET_NAME =
-      System.getProperty("benchmark.aws.bucket", "multicloudj-dir-benchmark-uswest2");
-  private static final String REGION =
-      System.getProperty("benchmark.aws.region", "us-west-2");
-
-  @Override
-  protected Harness createHarness() {
-    return new HarnessImpl();
-  }
 
   @Override
   protected String getProviderId() {
     return "aws";
   }
 
+  @Override
+  protected Harness createHarness() {
+    return new HarnessImpl();
+  }
+
   public static class HarnessImpl extends BaseHarnessImpl {
     @Override
     protected AsyncBlobStore buildStore() {
-      return AwsAsyncBlobStore.builder().withBucket(BUCKET_NAME).withRegion(REGION).build();
+      String bucket = requireEnv("BLOB_BENCHMARK_AWS_BUCKET");
+      String region = requireEnv("BLOB_BENCHMARK_AWS_REGION");
+      return AwsAsyncBlobStore.builder().withBucket(bucket).withRegion(region).build();
     }
   }
 }

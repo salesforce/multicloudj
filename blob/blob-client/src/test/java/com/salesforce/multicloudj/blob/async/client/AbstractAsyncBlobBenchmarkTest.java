@@ -34,7 +34,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -53,6 +55,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.results.format.ResultFormatType;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,34 +66,38 @@ import org.slf4j.LoggerFactory;
  * <p>Covers single-object upload/download (small/medium/large), write-read-delete lifecycle,
  * multipart upload, metadata, list, listPage, copy, and directory upload/download.
  *
- * <p>Single-object benchmarks use class-level defaults (3 warmup x 2s + 5 measurement x 3s).
- * Directory benchmarks override with method-level annotations (1 warmup x 60s + 5 measurement
- * x 60s) because each op takes seconds to minutes.
+ * <p>Each benchmark method performs exactly one logical operation per invocation so that JMH
+ * reports true per-op latency and throughput. Pre-seeded data is used for read-path benchmarks
+ * to avoid conflating write cost into read measurements.
+ *
+ * <p>Most benchmarks use class-level timing (3 warmup x 2s + 5 measurement x 3s) with per-method
+ * {@code @Threads}: 4 for light ops, 2 for medium, 1 for large/MPU. The two large-payload
+ * benchmarks ({@code benchmarkUploadLarge}, {@code benchmarkDownloadLarge}) and the two large
+ * directory benchmarks ({@code benchmarkUploadDirectoryLarge},
+ * {@code benchmarkDownloadDirectoryLarge}) override measurement to 5 x 30s because a single
+ * operation takes tens of seconds — short iterations would not capture a complete sample.
  *
  * <p>Intentionally avoids {@code @Setup(Level.Invocation)} because JMH does not reliably invoke
  * it on every worker thread in Throughput mode. Per-invocation resources are set up inside the
  * benchmark methods themselves.
- *
- * <p>Directory benchmarks use only 1 warmup iteration (vs JMH's recommended 3-5) because the
- * bottleneck is network/cloud IO rather than JVM hot-path compilation — C2 optimizations save
- * microseconds while each operation takes seconds.
  */
-@BenchmarkMode({Mode.SampleTime, Mode.Throughput})
+@BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
-@Threads(AbstractAsyncBlobBenchmarkTest.THREAD_COUNT)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractAsyncBlobBenchmarkTest {
 
-  private static final Logger log = LoggerFactory.getLogger(AbstractAsyncBlobBenchmarkTest.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(AbstractAsyncBlobBenchmarkTest.class);
 
   protected static final int SMALL_FILE = 1024; // 1KB
   protected static final int MEDIUM_FILE = 1024 * 1024; // 1MB
   protected static final int LARGE_FILE = 10 * 1024 * 1024; // 10MB
 
-  // Sized to keep per-invocation request rate under S3/GCS per-prefix limits at THREAD_COUNT=4.
+  // Sized to keep per-invocation request rate under S3/GCS per-prefix limits.
   protected static final int DIR_SMALL_COUNT = 50;
   protected static final int DIR_MEDIUM_COUNT = 10;
   protected static final int DIR_LARGE_COUNT = 5;
@@ -115,7 +122,9 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   protected static final String MULTIPART_PREFIX = "bench-multipart/";
   protected static final String COPY_DEST_PREFIX = "bench-copy-dest/";
 
-  static final int THREAD_COUNT = 4;
+  // Number of pre-staged download corpus prefixes; matches the highest @Threads value below
+  // so each thread reads from a distinct prefix to avoid hot-key effects under concurrent load.
+  private static final int DIR_DOWNLOAD_SHARDS = 4;
   private static final long OP_TIMEOUT_SECONDS = 600;
 
   protected AsyncBucketClient asyncClient;
@@ -193,9 +202,25 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   /** Returns provider ID for JMH result file naming, e.g., "aws", "gcp". */
   protected abstract String getProviderId();
 
+  /**
+   * Reads a required config value from OS environment first, then from -D system properties.
+   * Fails fast with a clear error if neither is set — avoids silent misconfiguration producing
+   * garbage benchmark results.
+   */
+  protected static String requireEnv(String name) {
+    String value = System.getenv(name);
+    if (StringUtils.isBlank(value)) {
+      value = System.getProperty(name);
+    }
+    if (StringUtils.isBlank(value)) {
+      throw new IllegalStateException("Required environment variable not set: " + name);
+    }
+    return value;
+  }
+
   @Setup(Level.Trial)
   public void setupBenchmark() {
-    log.info("Creating {} async blob store", getProviderId());
+    logger.info("Creating {} async blob store", getProviderId());
     try {
       harness = createHarness();
       AsyncBlobStore store = harness.createAsyncBlobStore();
@@ -220,50 +245,46 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
         try {
           harness.close();
         } catch (Exception e) {
-          log.warn("Failed to close {} async blob store", getProviderId(), e);
+          logger.warn("Failed to close {} async blob store", getProviderId(), e);
         }
       }
     }
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(4)
   public void benchmarkUploadDirectorySmall(Blackhole bh) {
     runDirectoryUpload(bh, dirSmallSource);
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(2)
   public void benchmarkUploadDirectoryMedium(Blackhole bh) {
     runDirectoryUpload(bh, dirMediumSource);
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(1)
+  @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkUploadDirectoryLarge(Blackhole bh) {
     runDirectoryUpload(bh, dirLargeSource);
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(4)
   public void benchmarkDownloadDirectorySmall(Blackhole bh) throws IOException {
     runDirectoryDownload(bh, pickRandom(dirSmallDownloadPrefixes));
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(2)
   public void benchmarkDownloadDirectoryMedium(Blackhole bh) throws IOException {
     runDirectoryDownload(bh, pickRandom(dirMediumDownloadPrefixes));
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 60, timeUnit = TimeUnit.SECONDS)
-  @Measurement(iterations = 5, time = 60, timeUnit = TimeUnit.SECONDS)
+  @Threads(1)
+  @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkDownloadDirectoryLarge(Blackhole bh) throws IOException {
     runDirectoryDownload(bh, pickRandom(dirLargeDownloadPrefixes));
   }
@@ -324,8 +345,8 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   private List<String> uploadCorpusShards(Path source, String sizeTag) {
-    List<String> prefixes = new ArrayList<>(THREAD_COUNT);
-    for (int i = 0; i < THREAD_COUNT; i++) {
+    List<String> prefixes = new ArrayList<>(DIR_DOWNLOAD_SHARDS);
+    for (int i = 0; i < DIR_DOWNLOAD_SHARDS; i++) {
       String prefix = "async-dir-bench-corpus-" + sizeTag + "-" + UUID.randomUUID() + "/";
       uploadCorpus(source, prefix);
       prefixes.add(prefix);
@@ -382,13 +403,14 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       asyncClient.deleteDirectory(prefix).orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
     } catch (Exception e) {
       // Best-effort cleanup.
-      log.warn("Failed to delete benchmark prefix {}", prefix, e);
+      logger.warn("Failed to delete benchmark prefix {}", prefix, e);
     }
   }
 
   // ─── Single-object benchmark methods ───
 
   @Benchmark
+  @Threads(4)
   public void benchmarkUploadSmall(Blackhole bh) {
     String key = UPLOAD_SMALL_PREFIX + nextUploadSmallId.incrementAndGet() + ".dat";
     UploadRequest request =
@@ -400,6 +422,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(2)
   public void benchmarkUploadMedium(Blackhole bh) {
     String key = UPLOAD_MEDIUM_PREFIX + nextUploadMediumId.incrementAndGet() + ".dat";
     UploadRequest request =
@@ -412,6 +435,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // 10MB upload needs longer iterations to collect enough samples for stable P99.
   @Benchmark
+  @Threads(1)
   @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkUploadLarge(Blackhole bh) {
     String key = UPLOAD_LARGE_PREFIX + nextUploadLargeId.incrementAndGet() + ".dat";
@@ -424,6 +448,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(4)
   public void benchmarkDownloadSmall(Blackhole bh) {
     String key = pickRandom(smallKeys);
     ByteArray byteArray = new ByteArray();
@@ -434,6 +459,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(2)
   public void benchmarkDownloadMedium(Blackhole bh) {
     String key = pickRandom(mediumKeys);
     ByteArray byteArray = new ByteArray();
@@ -445,6 +471,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // 10MB download needs longer iterations to collect enough samples for stable P99.
   @Benchmark
+  @Threads(1)
   @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
   public void benchmarkDownloadLarge(Blackhole bh) {
     String key = pickRandom(largeKeys);
@@ -456,6 +483,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(4)
   public void benchmarkWriteReadDelete(Blackhole bh) {
     String key = WRITE_READ_DELETE_PREFIX + nextWriteReadDeleteId.incrementAndGet() + ".dat";
     UploadRequest uploadRequest =
@@ -476,6 +504,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // Explicit MPU (initiate + uploadParts + complete) with parts uploaded concurrently.
   @Benchmark
+  @Threads(2)
   public void benchmarkMultipartUpload(Blackhole bh) {
     String key = MULTIPART_PREFIX + nextMultipartUploadId.incrementAndGet() + ".dat";
     MultipartUploadRequest request = new MultipartUploadRequest.Builder().withKey(key).build();
@@ -507,6 +536,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
 
   // HEAD request only — file size does not affect latency, so a single small key suffices.
   @Benchmark
+  @Threads(4)
   public void benchmarkGetMetadata(Blackhole bh) {
     String key = pickRandom(smallKeys);
     BlobMetadata metadata =
@@ -516,6 +546,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(4)
   public void benchmarkList(Blackhole bh) {
     List<BlobInfo> results = new ArrayList<>();
     ListBlobsRequest request =
@@ -526,6 +557,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(4)
   public void benchmarkListPage(Blackhole bh) {
     ListBlobsPageRequest request = ListBlobsPageRequest.builder()
         .withPrefix(SMALL_BLOBS_PREFIX)
@@ -538,6 +570,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
   }
 
   @Benchmark
+  @Threads(4)
   public void benchmarkCopy(Blackhole bh) {
     String destKey = COPY_DEST_PREFIX + nextCopyId.incrementAndGet() + ".dat";
     CopyRequest request = CopyRequest.builder()
@@ -582,11 +615,11 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
       uploadBlob(key, largeBlob);
       largeKeys.add(key);
     }
-    log.info("Uploaded {} large blobs, verifying existence...", LARGE_COUNT);
+    logger.info("Uploaded {} large blobs, verifying existence...", LARGE_COUNT);
     for (String key : largeKeys) {
       asyncClient.getMetadata(key, null).orTimeout(60, TimeUnit.SECONDS).join();
     }
-    log.info("All large blobs verified");
+    logger.info("All large blobs verified");
 
     copySourceKey = smallKeys.get(0);
   }
@@ -611,7 +644,7 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
         asyncClient.deleteDirectory(prefix)
             .orTimeout(OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
       } catch (Exception e) {
-        log.warn("Failed to cleanup prefix {}", prefix, e);
+        logger.warn("Failed to cleanup prefix {}", prefix, e);
       }
     }
   }
@@ -632,24 +665,34 @@ public abstract class AbstractAsyncBlobBenchmarkTest {
                   try {
                     Files.deleteIfExists(p);
                   } catch (IOException e) {
-                    log.warn("Failed to delete local benchmark file {}", p, e);
+                    logger.warn("Failed to delete local benchmark file {}", p, e);
                   }
                 });
       }
     } catch (IOException e) {
-      log.warn("Failed to walk local benchmark directory {} during cleanup", root, e);
+      logger.warn("Failed to walk local benchmark directory {} during cleanup", root, e);
     }
   }
 
   @Test
   @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
-    new Runner(
-            new OptionsBuilder()
-                .include(".*" + this.getClass().getName() + ".*")
-                .resultFormat(ResultFormatType.JSON)
-                .result("target/jmh-async-results-" + getProviderId() + ".json")
-                .build())
-        .run();
+    List<String> forwardedArgs = new ArrayList<>();
+    for (String key : System.getProperties().stringPropertyNames()) {
+      if (key.startsWith("BLOB_BENCHMARK_")) {
+        forwardedArgs.add("-D" + key + "=" + System.getProperty(key));
+      }
+    }
+
+    Options opt =
+        new OptionsBuilder()
+            .include(".*" + this.getClass().getName() + ".*")
+            .forks(1)
+            .resultFormat(ResultFormatType.JSON)
+            .result("target/jmh-async-results-" + getProviderId() + ".json")
+            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
+            .build();
+
+    new Runner(opt).run();
   }
 }

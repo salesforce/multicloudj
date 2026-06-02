@@ -2,28 +2,27 @@ package com.salesforce.multicloudj.blob.gcp.async;
 
 import com.salesforce.multicloudj.blob.async.client.AbstractAsyncBlobBenchmarkTest;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
+import org.junit.jupiter.api.TestInstance;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GcpAsyncBlobBenchmarkTest extends AbstractAsyncBlobBenchmarkTest {
-
-  private static final String BUCKET_NAME =
-      System.getProperty("benchmark.gcp.bucket", "multicloudj-dir-benchmark-uswest1");
-  private static final String REGION =
-      System.getProperty("benchmark.gcp.region", "us-west1");
-
-  @Override
-  protected Harness createHarness() {
-    return new HarnessImpl();
-  }
 
   @Override
   protected String getProviderId() {
     return "gcp";
   }
 
+  @Override
+  protected Harness createHarness() {
+    return new HarnessImpl();
+  }
+
   public static class HarnessImpl extends BaseHarnessImpl {
     @Override
     protected AsyncBlobStore buildStore() {
-      return GcpAsyncBlobStore.builder().withBucket(BUCKET_NAME).withRegion(REGION).build();
+      String bucket = requireEnv("BLOB_BENCHMARK_GCP_BUCKET");
+      String region = requireEnv("BLOB_BENCHMARK_GCP_REGION");
+      return GcpAsyncBlobStore.builder().withBucket(bucket).withRegion(region).build();
     }
   }
 }
