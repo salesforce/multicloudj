@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.ali;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -21,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
@@ -598,5 +600,133 @@ public class AliTransformerTest {
     assertEquals(BUCKET, result.bucket());
     assertEquals("test-key", result.key());
     assertEquals("text/plain", result.contentType());
+  }
+
+  @Test
+  void testToAliRetryerExponentialMode() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(5)
+        .initialDelayMillis(200L)
+        .maxDelayMillis(10000L)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(5, retryer.maxAttempts());
+    // Verify delay is within expected range (EqualJitterBackoff adds jitter)
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertNotNull(delay);
+    assertTrue(delay.toMillis() >= 0);
+    assertTrue(delay.toMillis() <= 10000);
+  }
+
+  @Test
+  void testToAliRetryerFixedMode() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(3)
+        .fixedDelayMillis(500L)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(3, retryer.maxAttempts());
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertEquals(500L, delay.toMillis());
+  }
+
+  @Test
+  void testToAliRetryerNullConfigReturnsNull() {
+    assertNull(AliTransformer.toAliRetryer(null));
+  }
+
+  @Test
+  void testToAliRetryerNoModeUsesDefaults() {
+    RetryConfig config = RetryConfig.builder()
+        .maxAttempts(4)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(4, retryer.maxAttempts());
+  }
+
+  @Test
+  void testToAliRetryerInvalidMaxAttempts() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(0)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerNegativeMaxAttempts() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(-1)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerExponentialInvalidInitialDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(3)
+        .initialDelayMillis(0L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
+        ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerExponentialInvalidMaxDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(3)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(0L)
+        .build();
+
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
+        ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerFixedInvalidDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(3)
+        .fixedDelayMillis(0L)
+        .build();
+
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
+        ex.getMessage());
   }
 }

@@ -17,6 +17,7 @@ import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
@@ -560,6 +561,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           OSSCredentialsProvider.getCredentialsProvider(
               getCredentialsOverrider(), getRegion());
 
+      Retryer retryer = AliTransformer.toAliRetryer(getRetryConfig());
+
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {
         var asyncBuilder = OSSAsyncClient.newBuilder()
@@ -575,6 +578,14 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         }
         if (getSocketTimeout() != null) {
           asyncBuilder.readWriteTimeout(getSocketTimeout());
+        }
+        if (retryer != null) {
+          asyncBuilder.retryer(retryer);
+        }
+        if (getRetryConfig() != null
+            && getRetryConfig().getAttemptTimeout() != null) {
+          asyncBuilder.readWriteTimeout(
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
         }
         async = asyncBuilder.build();
       }
@@ -594,6 +605,14 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         }
         if (getSocketTimeout() != null) {
           syncBuilder.readWriteTimeout(getSocketTimeout());
+        }
+        if (retryer != null) {
+          syncBuilder.retryer(retryer);
+        }
+        if (getRetryConfig() != null
+            && getRetryConfig().getAttemptTimeout() != null) {
+          syncBuilder.readWriteTimeout(
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
         }
         sync = syncBuilder.build();
       }
