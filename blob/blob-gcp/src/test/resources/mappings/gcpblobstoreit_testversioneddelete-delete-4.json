@@ -1,9 +1,21 @@
 {
-  "id" : "ff299599-b2cf-437f-9589-a53485ce4b2a",
+  "id" : "d99e8fd1-c0c4-4497-b71b-0fba42f47987",
   "name" : "GcpBlobStoreIT_testVersionedDelete-DELETE-4",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?generation=1774433123181096",
-    "method" : "DELETE"
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath",
+    "method" : "DELETE",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1780382422317762"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 404,
@@ -12,17 +24,17 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AMNfjG3mjKjjcDhTC1SrGi6Mh46h0ueg5Q9xAZzJZQg9kv8jFl62Gm5BiBWI1BUmZUr5NNpC",
+      "X-GUploader-UploadID" : "AAVLpEj5CnkWtrGQvd2s5NyWx-gP4K6HMjUKeD-vaNi--YuAqniRzOsrJGjDlwVtbyQARt3XZVEaSsig1da6",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 25 Mar 2026 10:05:29 GMT",
+      "Date" : "Tue, 02 Jun 2026 06:40:26 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "ff299599-b2cf-437f-9589-a53485ce4b2a",
+  "uuid" : "d99e8fd1-c0c4-4497-b71b-0fba42f47987",
   "persistent" : true,
-  "scenarioName" : "testversioneddelete-scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath",
-  "requiredScenarioState" : "testversioneddelete-scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath-2",
-  "insertionIndex" : 967
+  "scenarioName" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath",
+  "requiredScenarioState" : "scenario-3-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath-2",
+  "insertionIndex" : 1441
 }

@@ -1,5 +1,5 @@
 {
-  "id" : "f7ed60f7-cc9c-4f24-8f32-8e04d61cbad2",
+  "id" : "fcdbb5a0-5d09-4a71-82c9-d3d12e919dfc",
   "name" : "GcpBlobStoreIT_testDownload_checkArchived-POST-10",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -24,7 +24,7 @@
     "bodyPatterns" : [ {
       "equalToJson" : "{\"bucket\":\"substrate-sdk-gcp-poc1-test-bucket-versioned\",\"metadata\":{},\"name\":\"conformance-tests/check-archived/archived-blob\"}",
       "ignoreArrayOrder" : true,
-      "ignoreExtraElements" : true
+      "ignoreExtraElements" : false
     } ]
   },
   "response" : {
@@ -33,16 +33,16 @@
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "X-GUploader-UploadID" : "AAVLpEgLOZ0M83F2O_IlD3UWac-PVe0yz9q_zUYKHeBidR4TCpBK6DOyZcQxbt2E9xDedmXe9Gx4-vR_2lBN8YUOp30j0OXX-FWzWRsR4R8MIg",
+      "X-GUploader-UploadID" : "AAVLpEhpbT3JvmtmYY-zxdKU62gLQTdOV4Tm0WLm7pgPRphUgxKYpNknp-a7lHWkKXUKWkTXHKYVZUZxkzVpXCTdV7U3Iv5Q1eSiAffICb8c8A",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 06 May 2026 20:00:04 GMT",
-      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/check-archived/archived-blob&uploadType=resumable&upload_id=AAVLpEgLOZ0M83F2O_IlD3UWac-PVe0yz9q_zUYKHeBidR4TCpBK6DOyZcQxbt2E9xDedmXe9Gx4-vR_2lBN8YUOp30j0OXX-FWzWRsR4R8MIg",
+      "Date" : "Tue, 02 Jun 2026 00:27:20 GMT",
+      "Location" : "https://storage.googleapis.com/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o?name=conformance-tests/check-archived/archived-blob&uploadType=resumable&upload_id=AAVLpEhpbT3JvmtmYY-zxdKU62gLQTdOV4Tm0WLm7pgPRphUgxKYpNknp-a7lHWkKXUKWkTXHKYVZUZxkzVpXCTdV7U3Iv5Q1eSiAffICb8c8A",
       "Content-Type" : "text/plain; charset=utf-8"
     }
   },
-  "uuid" : "f7ed60f7-cc9c-4f24-8f32-8e04d61cbad2",
+  "uuid" : "fcdbb5a0-5d09-4a71-82c9-d3d12e919dfc",
   "persistent" : true,
-  "insertionIndex" : 1251
+  "insertionIndex" : 1451
 }

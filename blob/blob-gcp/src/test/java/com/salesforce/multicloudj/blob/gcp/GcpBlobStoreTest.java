@@ -790,7 +790,7 @@ class GcpBlobStoreTest {
   void testDoDelete_WithKeyAndVersionId() {
     // Given
     when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
-    when(mockStorage.list(anyString(), any())).thenReturn(null);
+    when(mockStorage.list(anyString(), any(Storage.BlobListOption[].class))).thenReturn(null);
 
     // When
     gcpBlobStore.doDelete(TEST_KEY, TEST_VERSION_ID);
