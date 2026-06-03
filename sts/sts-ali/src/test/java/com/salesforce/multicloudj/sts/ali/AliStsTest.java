@@ -175,4 +175,74 @@ public class AliStsTest {
 
     Assertions.assertEquals(Boolean.FALSE, builder.getUseEnvironmentVariableProxyValues());
   }
+
+  @Test
+  public void testClientCreationWithProxyEndpoint() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
+
+    // Build the client to exercise proxy configuration code
+    AliSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("ali", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithSystemPropertyProxyValues() {
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AliSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("ali", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithEnvironmentVariableProxyValues() {
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AliSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("ali", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithAllProxySettingsEnabled() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AliSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("ali", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithDisabledProxyFlags() {
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withUseSystemPropertyProxyValues(false)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    // Build the client to exercise proxy configuration code
+    // Even with flags set to false, the SDK will still auto-detect (documented limitation)
+    AliSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("ali", sts.getProviderId());
+  }
 }
