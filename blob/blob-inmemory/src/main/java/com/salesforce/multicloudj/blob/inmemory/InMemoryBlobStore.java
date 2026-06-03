@@ -682,6 +682,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
         .contentType(request.getContentType())
+        .objectLock(request.getObjectLock())
         .build();
   }
 
@@ -767,6 +768,20 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
+
+      // Store object lock configuration if provided on the multipart upload
+      if (mpu.getObjectLock() != null) {
+        ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+        OBJECT_LOCKS.put(
+            versionedKey,
+            ObjectLockInfo.builder()
+                .mode(lockConfig.getMode())
+                .retainUntilDate(lockConfig.getRetainUntilDate())
+                .legalHold(lockConfig.isLegalHold())
+                .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                .build());
+      }
+
       MULTIPART_UPLOADS.remove(mpu.getId());
       String checksumValue = computeCrc32cChecksum(finalData);
 
