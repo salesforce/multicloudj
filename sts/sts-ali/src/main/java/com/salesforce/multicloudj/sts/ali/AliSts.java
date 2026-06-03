@@ -119,7 +119,7 @@ public class AliSts extends AbstractSts {
    * @param builder The builder containing proxy configuration
    * @return Configured HttpClientConfig
    */
-  private static HttpClientConfig buildHttpClientConfig(Builder builder) {
+  static HttpClientConfig buildHttpClientConfig(Builder builder) {
     HttpClientConfig clientConfig = HttpClientConfig.getDefault();
 
     if (builder.getProxyEndpoint() != null) {

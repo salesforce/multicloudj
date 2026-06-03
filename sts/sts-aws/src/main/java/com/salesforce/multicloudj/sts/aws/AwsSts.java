@@ -268,7 +268,7 @@ public class AwsSts extends AbstractSts {
    * @param builder The builder containing proxy configuration
    * @return Configured SdkHttpClient
    */
-  private static SdkHttpClient buildHttpClient(Builder builder) {
+  static SdkHttpClient buildHttpClient(Builder builder) {
     ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
 
     if (builder.getProxyEndpoint() != null

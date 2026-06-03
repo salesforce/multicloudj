@@ -177,44 +177,42 @@ public class AliStsTest {
   }
 
   @Test
-  public void testClientCreationWithProxyEndpoint() {
+  public void testBuildHttpClientConfigWithProxyEndpoint() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
-    // Build the client to exercise proxy configuration code
-    AliSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("ali", sts.getProviderId());
+    // Directly test buildHttpClientConfig to exercise proxy configuration code
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
   }
 
   @Test
-  public void testClientCreationWithSystemPropertyProxyValues() {
+  public void testBuildHttpClientConfigWithSystemPropertyProxyValues() {
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AliSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("ali", sts.getProviderId());
+    // Directly test buildHttpClientConfig to exercise proxy configuration code
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
   }
 
   @Test
-  public void testClientCreationWithEnvironmentVariableProxyValues() {
+  public void testBuildHttpClientConfigWithEnvironmentVariableProxyValues() {
     AliSts.Builder builder =
         new AliSts()
             .builder()
             .withRegion("cn-hangzhou")
             .withUseEnvironmentVariableProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AliSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("ali", sts.getProviderId());
+    // Directly test buildHttpClientConfig to exercise proxy configuration code
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
   }
 
   @Test
-  public void testClientCreationWithAllProxySettingsEnabled() {
+  public void testBuildHttpClientConfigWithAllProxySettingsEnabled() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts()
@@ -224,14 +222,14 @@ public class AliStsTest {
             .withUseSystemPropertyProxyValues(true)
             .withUseEnvironmentVariableProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AliSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("ali", sts.getProviderId());
+    // Directly test buildHttpClientConfig to exercise proxy configuration code
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
   }
 
   @Test
-  public void testClientCreationWithDisabledProxyFlags() {
+  public void testBuildHttpClientConfigWithDisabledProxyFlags() {
     AliSts.Builder builder =
         new AliSts()
             .builder()
@@ -239,10 +237,9 @@ public class AliStsTest {
             .withUseSystemPropertyProxyValues(false)
             .withUseEnvironmentVariableProxyValues(false);
 
-    // Build the client to exercise proxy configuration code
+    // Directly test buildHttpClientConfig to exercise proxy configuration code
     // Even with flags set to false, the SDK will still auto-detect (documented limitation)
-    AliSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("ali", sts.getProviderId());
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
   }
 }

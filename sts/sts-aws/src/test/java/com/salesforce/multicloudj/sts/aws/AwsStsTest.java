@@ -240,41 +240,38 @@ public class AwsStsTest {
   }
 
   @Test
-  public void testClientCreationWithProxyEndpoint() {
+  public void testBuildHttpClientWithProxyEndpoint() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AwsSts.Builder builder =
         new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
 
-    // Build the client to exercise proxy configuration code
-    AwsSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("aws", sts.getProviderId());
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
   }
 
   @Test
-  public void testClientCreationWithSystemPropertyProxyValues() {
+  public void testBuildHttpClientWithSystemPropertyProxyValues() {
     AwsSts.Builder builder =
         new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AwsSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("aws", sts.getProviderId());
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
   }
 
   @Test
-  public void testClientCreationWithEnvironmentVariableProxyValues() {
+  public void testBuildHttpClientWithEnvironmentVariableProxyValues() {
     AwsSts.Builder builder =
         new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AwsSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("aws", sts.getProviderId());
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
   }
 
   @Test
-  public void testClientCreationWithAllProxySettingsEnabled() {
+  public void testBuildHttpClientWithAllProxySettingsEnabled() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AwsSts.Builder builder =
         new AwsSts()
@@ -284,14 +281,13 @@ public class AwsStsTest {
             .withUseSystemPropertyProxyValues(true)
             .withUseEnvironmentVariableProxyValues(true);
 
-    // Build the client to exercise proxy configuration code
-    AwsSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("aws", sts.getProviderId());
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
   }
 
   @Test
-  public void testClientCreationWithDisabledProxyFlags() {
+  public void testBuildHttpClientWithDisabledProxyFlags() {
     AwsSts.Builder builder =
         new AwsSts()
             .builder()
@@ -299,9 +295,8 @@ public class AwsStsTest {
             .withUseSystemPropertyProxyValues(false)
             .withUseEnvironmentVariableProxyValues(false);
 
-    // Build the client to exercise proxy configuration code
-    AwsSts sts = builder.build(mockStsClient);
-    Assertions.assertNotNull(sts);
-    Assertions.assertEquals("aws", sts.getProviderId());
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
   }
 }
