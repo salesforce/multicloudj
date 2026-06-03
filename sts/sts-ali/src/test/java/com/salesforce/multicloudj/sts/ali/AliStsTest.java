@@ -156,4 +156,23 @@ public class AliStsTest {
     Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
     Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
   }
+
+  @Test
+  public void testBuilderWithDisabledSystemPropertyProxyValues() {
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(false);
+
+    Assertions.assertEquals(Boolean.FALSE, builder.getUseSystemPropertyProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithDisabledEnvironmentVariableProxyValues() {
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withUseEnvironmentVariableProxyValues(false);
+
+    Assertions.assertEquals(Boolean.FALSE, builder.getUseEnvironmentVariableProxyValues());
+  }
 }
