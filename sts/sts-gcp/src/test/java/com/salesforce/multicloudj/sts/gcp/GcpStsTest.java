@@ -30,6 +30,7 @@ import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.Collection;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
@@ -671,7 +672,7 @@ public class GcpStsTest {
 
   @Test
   public void testBuilderWithProxyEndpoint() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     GcpSts.Builder builder = new GcpSts().builder().withProxyEndpoint(proxyEndpoint);
 
     Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
@@ -693,7 +694,7 @@ public class GcpStsTest {
 
   @Test
   public void testBuilderWithAllProxySettings() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     GcpSts.Builder builder =
         new GcpSts()
             .builder()
@@ -704,5 +705,66 @@ public class GcpStsTest {
     Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
     Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
     Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testClientCreationWithProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    GcpSts.Builder builder = new GcpSts().builder().withProxyEndpoint(proxyEndpoint);
+
+    // Build the client to exercise proxy configuration code
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithSystemPropertyProxyValues() {
+    GcpSts.Builder builder = new GcpSts().builder().withUseSystemPropertyProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithEnvironmentVariableProxyValues() {
+    GcpSts.Builder builder = new GcpSts().builder().withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithAllProxySettingsEnabled() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    GcpSts.Builder builder =
+        new GcpSts()
+            .builder()
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithDisabledProxyFlags() {
+    GcpSts.Builder builder =
+        new GcpSts()
+            .builder()
+            .withUseSystemPropertyProxyValues(false)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    // Build the client to exercise proxy configuration code
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
   }
 }

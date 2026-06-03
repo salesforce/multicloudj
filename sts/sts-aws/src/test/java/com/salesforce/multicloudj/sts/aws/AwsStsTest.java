@@ -238,4 +238,70 @@ public class AwsStsTest {
     Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
     Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
   }
+
+  @Test
+  public void testClientCreationWithProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    // Build the client to exercise proxy configuration code
+    AwsSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("aws", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithSystemPropertyProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AwsSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("aws", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithEnvironmentVariableProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AwsSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("aws", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithAllProxySettingsEnabled() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client to exercise proxy configuration code
+    AwsSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("aws", sts.getProviderId());
+  }
+
+  @Test
+  public void testClientCreationWithDisabledProxyFlags() {
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withUseSystemPropertyProxyValues(false)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    // Build the client to exercise proxy configuration code
+    AwsSts sts = builder.build(mockStsClient);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("aws", sts.getProviderId());
+  }
 }

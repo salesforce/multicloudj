@@ -115,7 +115,7 @@ public class AliStsTest {
 
   @Test
   public void testBuilderWithProxyEndpoint() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
@@ -143,7 +143,7 @@ public class AliStsTest {
 
   @Test
   public void testBuilderWithAllProxySettings() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts()
             .builder()
@@ -178,7 +178,7 @@ public class AliStsTest {
 
   @Test
   public void testClientCreationWithProxyEndpoint() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
@@ -215,7 +215,7 @@ public class AliStsTest {
 
   @Test
   public void testClientCreationWithAllProxySettingsEnabled() {
-    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts()
             .builder()
