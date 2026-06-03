@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.ali;
 
 import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.models.AbortMultipartUploadRequest;
+import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUpload;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
@@ -18,6 +19,7 @@ import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
+import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
 import com.aliyun.sdk.service.oss2.models.ObjectIdentifier;
@@ -32,6 +34,7 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
@@ -39,7 +42,9 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -565,5 +570,30 @@ public class AliTransformer {
     }
 
     return builder.build();
+  }
+
+  public ListBlobsPageResponse toListBlobsPageResponse(ListObjectsV2Result result) {
+    ListBlobsBatch batch = toListBlobsBatch(result);
+    return new ListBlobsPageResponse(
+        batch.getBlobs(), batch.getCommonPrefixes(),
+        Boolean.TRUE.equals(result.isTruncated()),
+        result.nextContinuationToken());
+  }
+
+  public ListBlobsBatch toListBlobsBatch(ListObjectsV2Result result) {
+    List<BlobInfo> blobs = result.contents().stream()
+        .map(obj -> new BlobInfo.Builder()
+            .withKey(obj.key())
+            .withObjectSize(obj.size() != null ? obj.size() : 0L)
+            .build())
+        .collect(Collectors.toList());
+
+    List<String> commonPrefixes = result.commonPrefixes() != null
+        ? result.commonPrefixes().stream()
+            .map(CommonPrefix::prefix)
+            .collect(Collectors.toList())
+        : List.of();
+
+    return new ListBlobsBatch(blobs, commonPrefixes);
   }
 }

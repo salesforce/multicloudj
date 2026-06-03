@@ -90,7 +90,7 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public boolean isObjectLockSupported() {
-      return false;
+      return true;
     }
 
     @Override
