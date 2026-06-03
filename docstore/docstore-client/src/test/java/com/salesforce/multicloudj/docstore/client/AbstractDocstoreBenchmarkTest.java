@@ -28,6 +28,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -69,8 +70,22 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
   private List<String> smallPlayerKeys;
-  private List<String> mediumPlayerKeys;
   private List<String> largePlayerKeys;
+
+  /**
+   * Batch-size param scoped to {@link #benchmarkBatchPut} / {@link #benchmarkBatchGet} only.
+   * Method-level injection (vs. a class-level @Param field) prevents JMH from cross-producting
+   * batchSize across the 12 non-batch benchmarks and doubling suite runtime for no signal.
+   *
+   * <p>Two points {10, 50} span the typical request-batch range. Excluding 100 because at
+   * batchSize=100 × 5 measurement iterations + warmups, Firestore's quota / SDK pool stalls
+   * on cross-region runs. {10, 50} already shows the scaling trend.
+   */
+  @State(Scope.Benchmark)
+  public static class BatchParams {
+    @Param({"10", "50"})
+    public int batchSize;
+  }
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -128,10 +143,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
           documentKeys.stream()
               .filter(k -> k.contains("BenchmarkSmall"))
               .collect(Collectors.toList()));
-      mediumPlayerKeys = Collections.unmodifiableList(
-          documentKeys.stream()
-              .filter(k -> k.contains("BenchmarkMedium"))
-              .collect(Collectors.toList()));
       largePlayerKeys = Collections.unmodifiableList(
           documentKeys.stream()
               .filter(k -> k.contains("BenchmarkLarge"))
@@ -145,13 +156,26 @@ public abstract class AbstractDocstoreBenchmarkTest {
   public void teardownBenchmark() throws Exception {
     try {
       if (!benchmarkCreatedKeys.isEmpty() && docStoreClient != null) {
-        for (String key : benchmarkCreatedKeys) {
-          try {
+        // Bulk-delete via ActionList instead of one RPC per key. After a batch trial we can have
+        // ~1000+ keys to clean up; the per-key sequential delete loop took long enough that the
+        // Firestore SDK retry future stalled (observed 2026-05-29). Chunk to 400/batch to stay
+        // under Firestore's 500-write-per-CommitRequest limit and DynamoDB's 25/BatchWriteItem
+        // — the per-provider runWritesBatched does the wire-level batching from there.
+        List<String> keys = new ArrayList<>(benchmarkCreatedKeys);
+        int chunkSize = 400;
+        for (int start = 0; start < keys.size(); start += chunkSize) {
+          int end = Math.min(start + chunkSize, keys.size());
+          ActionList deletes = docStoreClient.getActions();
+          for (String key : keys.subList(start, end)) {
             Player p = new Player();
             p.setPName(key);
-            docStoreClient.delete(new Document(p));
+            deletes.delete(new Document(p));
+          }
+          try {
+            deletes.run();
           } catch (Exception e) {
-            logger.warn("Failed to delete benchmark key {}: {}", key, e.getMessage());
+            logger.warn(
+                "Failed to bulk-delete benchmark keys [{}..{}]: {}", start, end, e.getMessage());
           }
         }
         benchmarkCreatedKeys.clear();
@@ -185,15 +209,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       String baseName = baseNames[i % baseNames.length];
       String pName = baseName + "BenchmarkSmall" + i;
       Player player = createPlayer(pName, i, smallDocSize);
-      documentKeys.add(pName);
-      testPlayers.add(player);
-    }
-
-    int mediumDocSize = 9900;
-    for (int i = 0; i < 20; i++) {
-      String baseName = baseNames[i % baseNames.length];
-      String pName = baseName + "BenchmarkMedium" + i;
-      Player player = createPlayer(pName, i, mediumDocSize);
       documentKeys.add(pName);
       testPlayers.add(player);
     }
@@ -276,12 +291,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
               actionList.delete(new Document(deleteDoc));
             }
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn("Failed to add cleanup delete for key {}: {}", key, e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("Player cleanup ActionList run failed: {}", e.getMessage());
       }
     }
 
@@ -296,91 +311,79 @@ public abstract class AbstractDocstoreBenchmarkTest {
             deleteScore.setPlayer(highScore.getPlayer());
             actionList.delete(new Document(deleteScore));
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn(
+                "Failed to add cleanup delete for highscore {}/{}: {}",
+                highScore.getGame(),
+                highScore.getPlayer(),
+                e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("HighScore cleanup ActionList run failed: {}", e.getMessage());
       }
     }
   }
 
-  /** Single Action Put */
+  /**
+   * Single-document put baseline. Renamed from benchmarkSingleActionPut, which executed 10 puts
+   * in a loop per invocation — that conflated batch effects with single-op cost. One put per
+   * invocation gives the true per-op latency and ops/s baseline.
+   */
   @Benchmark
   @Threads(4)
-  public void benchmarkSingleActionPut(Blackhole bh) {
-    benchmarkSingleActionPut(bh, 10);
-  }
-
-  private void benchmarkSingleActionPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-put-player-";
+  public void benchmarkPut(Blackhole bh) {
+    final String baseKey = "benchmarkput-player-";
     final int docSize = 500;
-
     try {
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + ThreadLocalRandom.current().nextLong();
-        benchmarkCreatedKeys.add(key);
-        Player player = createPlayer(key, i, docSize);
-
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-        bh.consume(player.getPName());
-      }
+      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      benchmarkCreatedKeys.add(key);
+      Player player = createPlayer(key, 0, docSize);
+      docStoreClient.put(new Document(player));
+      bh.consume(player.getPName());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action put failed", e);
+      throw new RuntimeException("Benchmark put failed", e);
     }
   }
 
-  /** Single Action Get */
+  /**
+   * Single-document get from pre-seeded data. Replaces the old benchmarkSingleActionGet which
+   * embedded 10 puts before the get, conflating put + get in the measurement. This version
+   * reads only — every invocation is a single get RPC, so the number reflects get latency.
+   */
   @Benchmark
   @Threads(4)
-  public void benchmarkSingleActionGet(Blackhole bh) {
-    benchmarkSingleActionGet(bh, 10);
-  }
-
-  private void benchmarkSingleActionGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-get-player-";
-    final int docSize = 500;
-
+  public void benchmarkGet(Blackhole bh) {
     try {
-      List<String> keys = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + ThreadLocalRandom.current().nextLong();
-        keys.add(key);
-        benchmarkCreatedKeys.add(key);
-        Player player = createPlayer(key, i, docSize);
-
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-      }
-
-      for (String key : keys) {
-        Player getPlayer = new Player();
-        getPlayer.setPName(key);
-        Document doc = new Document(getPlayer);
-        docStoreClient.get(doc);
-        bh.consume(doc.getField("pName"));
-      }
+      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      Player getPlayer = new Player();
+      getPlayer.setPName(key);
+      Document doc = new Document(getPlayer);
+      docStoreClient.get(doc);
+      bh.consume(doc.getField("pName"));
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action get failed", e);
+      throw new RuntimeException("Benchmark get failed", e);
     }
   }
 
-  /** Batch Action Put */
+  /**
+   * Batch put across {@code @Param batchSize} ∈ {10, 50}. Renamed from benchmarkActionListPut
+   * which was fixed at batch=50; the parameter exposes the batch-size scaling curve.
+   *
+   * <p>Single-threaded by design. {@code @Threads(4)} × batchSize=50 × 5 measurement iterations
+   * generated ~1000 puts per benchmark run, accumulating as orphan docs before teardown — Firestore
+   * stalled at that scale on cross-region runs (observed 2026-05-28). Single-thread batch put is
+   * also closer to typical usage anyway (apps usually batch from one writer at a time).
+   */
   @Benchmark
-  @Threads(4)
-  public void benchmarkActionListPut(Blackhole bh) {
-    benchmarkActionListPut(bh, 50);
-  }
-
-  private void benchmarkActionListPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-put-player-";
+  @Threads(1)
+  public void benchmarkBatchPut(Blackhole bh, BatchParams p) {
+    final String baseKey = "benchmarkbatchput-player-";
     final int docSize = 200;
 
     try {
       List<Document> documents = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
+      for (int i = 0; i < p.batchSize; i++) {
         String key = baseKey + ThreadLocalRandom.current().nextLong();
         benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
@@ -390,38 +393,41 @@ public abstract class AbstractDocstoreBenchmarkTest {
       docStoreClient.batchPut(documents);
       bh.consume(documents.size());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list put failed", e);
+      throw new RuntimeException("Benchmark batch put failed", e);
     }
   }
 
-  /** Batch Action Get */
+  /**
+   * Batch get from pre-seeded data across {@code @Param batchSize} ∈ {10, 50}. Replaces the old
+   * benchmarkActionListGet which embedded 100 puts before the batchGet — that pattern caused
+   * suite hangs (~2000 orphan docs accumulating per run on Firestore) and conflated put + get in
+   * the measurement. Reading only; every invocation is one batchGet RPC.
+   *
+   * <p>Keys are sampled without replacement because the SDK's ActionList rejects duplicate-key
+   * actions in a single batch (see {@code ActionList.toDriverActions}). The pre-seeded pool has
+   * 100 keys, so both batch sizes (10/50) fit. We do an O(n) shuffle of a fresh copy each
+   * invocation — adds GC pressure but avoids the duplicate-key error and keeps the randomness
+   * signal across iterations.
+   *
+   * <p>Single-threaded by design (matches {@code benchmarkBatchPut} for comparable batch
+   * concurrency, and avoids the same load-induced stall on cross-region Firestore).
+   */
   @Benchmark
-  @Threads(4)
-  public void benchmarkActionListGet(Blackhole bh) {
-    benchmarkActionListGet(bh, 100);
-  }
-
-  private void benchmarkActionListGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-get-player-";
-    final int docSize = 200;
-
+  @Threads(1)
+  public void benchmarkBatchGet(Blackhole bh, BatchParams p) {
     try {
-      List<Document> documents = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + ThreadLocalRandom.current().nextLong();
-        benchmarkCreatedKeys.add(key);
-        Player player = createPlayer(key, i, docSize);
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-
+      List<String> shuffled = new ArrayList<>(smallPlayerKeys);
+      Collections.shuffle(shuffled, ThreadLocalRandom.current());
+      List<Document> documents = new ArrayList<>(p.batchSize);
+      for (int i = 0; i < p.batchSize; i++) {
         Player getPlayer = new Player();
-        getPlayer.setPName(key);
+        getPlayer.setPName(shuffled.get(i));
         documents.add(new Document(getPlayer));
       }
       docStoreClient.batchGet(documents);
       bh.consume(documents.size());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list get failed", e);
+      throw new RuntimeException("Benchmark batch get failed", e);
     }
   }
 
@@ -453,34 +459,11 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
-  /** Benchmark gets using test data */
-  @Benchmark
-  public void benchmarkGetFromTestData(Blackhole bh) {
-    try {
-      String key = getRandomPlayerKey();
-      Player getPlayer = new Player();
-      getPlayer.setPName(key);
-      Document doc = new Document(getPlayer);
-      docStoreClient.get(doc);
-      bh.consume(doc.getField("pName"));
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark get from test data failed", e);
-    }
-  }
-
-  /** Benchmark operations by data size */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkGetSmall(Blackhole bh) {
-    benchmarkGetByList(bh, smallPlayerKeys, "Small");
-  }
-
-  @Benchmark
-  @Threads(2)
-  public void benchmarkGetMedium(Blackhole bh) {
-    benchmarkGetByList(bh, mediumPlayerKeys, "Medium");
-  }
-
+  /**
+   * Single-document get of a large (~100 KB) Player. Pairs with benchmarkGet (small ~900 B) to
+   * bracket the document-size range. The middle "medium" benchmark was dropped — small + large
+   * already capture the scaling trend.
+   */
   @Benchmark
   @Threads(1)
   public void benchmarkGetLarge(Blackhole bh) {
@@ -550,31 +533,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark partition key query failed", e);
-    } finally {
-      if (iter != null) {
-        iter.stop();
-      }
-    }
-  }
-
-  /** Query Benchmark 2: Sort Key Queries */
-  @Benchmark
-  @Threads(2)
-  public void benchmarkSortKeyQuery(Blackhole bh) {
-    DocumentIterator iter = null;
-    try {
-      iter = queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
-
-      int count = 0;
-      while (iter.hasNext()) {
-        HighScore score = new HighScore();
-        iter.next(new Document(score));
-        count++;
-        bh.consume(score.getPlayer());
-      }
-      bh.consume(count);
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark sort key query failed", e);
     } finally {
       if (iter != null) {
         iter.stop();
@@ -815,17 +773,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
         baseValue % 2 == 0,
         largeString,
         "randomString".getBytes(StandardCharsets.UTF_8));
-  }
-
-  /** Get a random player key from pre-populated test data */
-  protected String getRandomPlayerKey() {
-    List<String> playerKeys =
-        documentKeys.stream().filter(key -> key.contains("Benchmark")).collect(Collectors.toList());
-
-    if (playerKeys.isEmpty()) {
-      return "FallbackBenchmarkPlayer";
-    }
-    return playerKeys.get(ThreadLocalRandom.current().nextInt(playerKeys.size()));
   }
 
   @Test
