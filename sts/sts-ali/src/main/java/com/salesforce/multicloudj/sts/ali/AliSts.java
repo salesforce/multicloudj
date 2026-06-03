@@ -5,6 +5,7 @@ import com.aliyuncs.IAcsClient;
 import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
+import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -42,11 +43,14 @@ public class AliSts extends AbstractSts {
       clientProfile = DefaultProfile.getProfile(builder.getRegion());
     }
 
-    // Note: Proxy configuration for Alibaba Cloud STS is acknowledged via builder fields
-    // (proxyEndpoint, useSystemPropertyProxyValues, useEnvironmentVariableProxyValues).
-    // However, the Alibaba SDK's DefaultAcsClient may automatically honor system properties
-    // and environment variables for HTTP proxy configuration. Explicit proxy configuration
-    // via SDK API is limited in the version of aliyun-java-sdk-core used here.
+    // Configure proxy if any proxy settings are provided
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      HttpClientConfig httpClientConfig = buildHttpClientConfig(builder);
+      clientProfile.setHttpClientConfig(httpClientConfig);
+    }
+
     this.stsClient = new DefaultAcsClient(clientProfile);
   }
 
@@ -83,6 +87,46 @@ public class AliSts extends AbstractSts {
     }
 
     return profile;
+  }
+
+  /**
+   * Builds HttpClientConfig with proxy configuration.
+   *
+   * <p>The Alibaba Cloud SDK supports three proxy configuration methods: 1. Explicit proxy
+   * endpoint via HttpClientConfig 2. Environment variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY) -
+   * automatically honored 3. System properties (http.proxyHost, http.proxyPort, etc.) -
+   * automatically honored by underlying Apache HttpClient
+   *
+   * <p>When an explicit proxyEndpoint is provided, it is set for both HTTP and HTTPS. The SDK
+   * determines which to use based on the target endpoint protocol.
+   *
+   * <p>When useSystemPropertyProxyValues or useEnvironmentVariableProxyValues are set, the
+   * underlying Apache HttpClient and SDK automatically pick up the respective configuration
+   * sources without explicit configuration needed here.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured HttpClientConfig
+   */
+  private static HttpClientConfig buildHttpClientConfig(Builder builder) {
+    HttpClientConfig clientConfig = HttpClientConfig.getDefault();
+
+    if (builder.getProxyEndpoint() != null) {
+      URI proxy = builder.getProxyEndpoint();
+      String proxyUrl = proxy.toString();
+
+      // Set both HTTP and HTTPS proxy to the same endpoint
+      // Alibaba SDK determines which to use based on the target endpoint protocol
+      clientConfig.setHttpProxy(proxyUrl);
+      clientConfig.setHttpsProxy(proxyUrl);
+    }
+
+    // Note: useSystemPropertyProxyValues and useEnvironmentVariableProxyValues
+    // are implicitly honored by the underlying Apache HttpClient used by Alibaba SDK.
+    // The SDK automatically picks up HTTP_PROXY, HTTPS_PROXY, NO_PROXY environment variables
+    // and standard Java proxy system properties (http.proxyHost, http.proxyPort, etc.)
+    // when no explicit proxy is configured.
+
+    return clientConfig;
   }
 
   @Override
