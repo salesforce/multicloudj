@@ -668,4 +668,41 @@ public class GcpStsTest {
         actualExceptionClass,
         "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
   }
+
+  @Test
+  public void testBuilderWithProxyEndpoint() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    GcpSts.Builder builder = new GcpSts().builder().withProxyEndpoint(proxyEndpoint);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+  }
+
+  @Test
+  public void testBuilderWithUseSystemPropertyProxyValues() {
+    GcpSts.Builder builder = new GcpSts().builder().withUseSystemPropertyProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithUseEnvironmentVariableProxyValues() {
+    GcpSts.Builder builder = new GcpSts().builder().withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithAllProxySettings() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    GcpSts.Builder builder =
+        new GcpSts()
+            .builder()
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
 }

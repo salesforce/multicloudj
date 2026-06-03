@@ -41,6 +41,12 @@ public class AliSts extends AbstractSts {
     } else {
       clientProfile = DefaultProfile.getProfile(builder.getRegion());
     }
+
+    // Note: Proxy configuration for Alibaba Cloud STS is acknowledged via builder fields
+    // (proxyEndpoint, useSystemPropertyProxyValues, useEnvironmentVariableProxyValues).
+    // However, the Alibaba SDK's DefaultAcsClient may automatically honor system properties
+    // and environment variables for HTTP proxy configuration. Explicit proxy configuration
+    // via SDK API is limited in the version of aliyun-java-sdk-core used here.
     this.stsClient = new DefaultAcsClient(clientProfile);
   }
 

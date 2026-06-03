@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -195,5 +196,46 @@ public class AwsStsTest {
             + "\"Resource\":\"arn:aws:s3:::my-bucket/*\","
             + "\"Condition\":{\"StringLike\":{\"s3:prefix\":\"documents/\"}}}]}";
     assertJsonEquals(expectedPolicy, capturedRequest.policy());
+  }
+
+  @Test
+  public void testBuilderWithProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+  }
+
+  @Test
+  public void testBuilderWithUseSystemPropertyProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithUseEnvironmentVariableProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithAllProxySettings() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
   }
 }

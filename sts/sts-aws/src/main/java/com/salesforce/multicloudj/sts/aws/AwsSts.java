@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -47,6 +50,14 @@ public class AwsSts extends AbstractSts {
     if (builder.getEndpoint() != null) {
       sb = sb.endpointOverride(builder.getEndpoint());
     }
+
+    // Configure proxy if any proxy settings are provided
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      sb = sb.httpClient(buildHttpClient(builder));
+    }
+
     this.stsClient = sb.build();
   }
 
@@ -249,6 +260,35 @@ public class AwsSts extends AbstractSts {
     map.put("SignatureDoesNotMatch", UnAuthorizedException.class);
     ERROR_MAPPING = Collections.unmodifiableMap(map);
     // Add more mappings as needed
+  }
+
+  /**
+   * Builds an HTTP client with proxy configuration if any proxy settings are provided.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured SdkHttpClient
+   */
+  private static SdkHttpClient buildHttpClient(Builder builder) {
+    ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
+
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      ProxyConfiguration.Builder proxyConfigBuilder = ProxyConfiguration.builder();
+      if (builder.getProxyEndpoint() != null) {
+        proxyConfigBuilder.endpoint(builder.getProxyEndpoint());
+      }
+      if (builder.getUseSystemPropertyProxyValues() != null) {
+        proxyConfigBuilder.useSystemPropertyValues(builder.getUseSystemPropertyProxyValues());
+      }
+      if (builder.getUseEnvironmentVariableProxyValues() != null) {
+        proxyConfigBuilder.useEnvironmentVariableValues(
+            builder.getUseEnvironmentVariableProxyValues());
+      }
+      httpClientBuilder.proxyConfiguration(proxyConfigBuilder.build());
+    }
+
+    return httpClientBuilder.build();
   }
 
   public static class Builder extends AbstractSts.Builder<AwsSts, Builder> {

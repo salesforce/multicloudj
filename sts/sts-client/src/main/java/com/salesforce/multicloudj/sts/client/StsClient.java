@@ -206,6 +206,42 @@ public class StsClient {
     }
 
     /**
+     * Sets the proxy endpoint to override for the STS client.
+     *
+     * @param proxyEndpoint The proxy endpoint to set.
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withProxyEndpoint(URI proxyEndpoint) {
+      this.stsBuilder.withProxyEndpoint(proxyEndpoint);
+      return this;
+    }
+
+    /**
+     * Sets whether to use system property values for proxy configuration.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy
+     *     configuration
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+      this.stsBuilder.withUseSystemPropertyProxyValues(useSystemPropertyProxyValues);
+      return this;
+    }
+
+    /**
+     * Sets whether to use environment variable values for proxy configuration.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy
+     *     configuration
+     * @return This StsBuilder instance.
+     */
+    public StsBuilder withUseEnvironmentVariableProxyValues(
+        Boolean useEnvironmentVariableProxyValues) {
+      this.stsBuilder.withUseEnvironmentVariableProxyValues(useEnvironmentVariableProxyValues);
+      return this;
+    }
+
+    /**
      * Builds and returns an StsClient instance.
      *
      * @return A new StsClient instance.

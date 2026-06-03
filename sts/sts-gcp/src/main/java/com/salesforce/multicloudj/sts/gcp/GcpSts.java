@@ -4,6 +4,7 @@ import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -44,6 +45,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHost;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
@@ -55,11 +60,23 @@ public class GcpSts extends AbstractSts {
 
   public GcpSts(Builder builder) {
     super(builder);
+    // Build HttpTransportFactory with proxy configuration if proxy settings are provided
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      this.httpTransportFactory = buildHttpTransportFactory(builder);
+    }
   }
 
   public GcpSts(Builder builder, GoogleCredentials credentials) {
     super(builder);
     this.googleCredentials = credentials;
+    // Build HttpTransportFactory with proxy configuration if proxy settings are provided
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      this.httpTransportFactory = buildHttpTransportFactory(builder);
+    }
   }
 
   public GcpSts(Builder builder, HttpTransportFactory httpTransportFactory) {
@@ -393,6 +410,53 @@ public class GcpSts extends AbstractSts {
     ERROR_MAPPING.put(StatusCode.Code.UNAVAILABLE, UnknownException.class);
     ERROR_MAPPING.put(StatusCode.Code.DATA_LOSS, UnknownException.class);
     ERROR_MAPPING.put(StatusCode.Code.UNAUTHENTICATED, UnAuthorizedException.class);
+  }
+
+  /**
+   * Builds an HttpTransportFactory with proxy configuration.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured HttpTransportFactory
+   */
+  private static HttpTransportFactory buildHttpTransportFactory(Builder builder) {
+    CloseableHttpClient httpClient = buildHttpClient(builder);
+    ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+    return () -> transport;
+  }
+
+  /**
+   * Builds an HTTP client with proxy configuration.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured CloseableHttpClient
+   */
+  private static CloseableHttpClient buildHttpClient(Builder builder) {
+    HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+    RequestConfig requestConfig = buildRequestConfig(builder);
+    httpClientBuilder.setDefaultRequestConfig(requestConfig);
+    return httpClientBuilder.build();
+  }
+
+  /**
+   * Builds request configuration with proxy settings.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured RequestConfig
+   */
+  private static RequestConfig buildRequestConfig(Builder builder) {
+    RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
+    if (builder.getProxyEndpoint() != null) {
+      HttpHost proxyHost =
+          new HttpHost(
+              builder.getProxyEndpoint().getHost(),
+              builder.getProxyEndpoint().getPort(),
+              builder.getProxyEndpoint().getScheme());
+      requestConfigBuilder.setProxy(proxyHost);
+    }
+    // Note: System property and environment variable proxy values are automatically
+    // honored by Apache HttpClient when useSystemPropertyProxyValues or
+    // useEnvironmentVariableProxyValues are set. No explicit configuration needed here.
+    return requestConfigBuilder.build();
   }
 
   public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {

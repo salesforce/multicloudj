@@ -112,4 +112,48 @@ public class AliStsTest {
     AliSts sts = new AliSts().builder().build(mockStsClient);
     Assertions.assertEquals(UnknownException.class, sts.getException(new RuntimeException()));
   }
+
+  @Test
+  public void testBuilderWithProxyEndpoint() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+  }
+
+  @Test
+  public void testBuilderWithUseSystemPropertyProxyValues() {
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithUseEnvironmentVariableProxyValues() {
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithAllProxySettings() {
+    java.net.URI proxyEndpoint = java.net.URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
 }

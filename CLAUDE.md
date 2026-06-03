@@ -94,6 +94,18 @@ Conformance tests require valid cloud credentials:
 
 ## Development Guidelines
 
+### Feature Development Workflow
+
+**CRITICAL: When implementing ANY new feature in multicloudj, you MUST invoke the `/multicloudj-feature-dev` skill BEFORE starting any implementation work.**
+
+This skill is REQUIRED for:
+- Adding new operations or methods to any service (blob, docstore, pubsub, sts, etc.)
+- Adding new service modules
+- Any feature that spans multiple cloud providers (AWS/GCP/Ali)
+- Implementing conformance tests
+
+DO NOT skip this skill - it ensures proper cross-cloud implementation, semantic uniformity, and prevents costly rework from discovering provider incompatibilities late.
+
 ### Dependency management
 - Never add cloud specific dependency in cloud-agnostic package.
   - for example, `docstore-client` should never depend upon `multicloud-common-gcp`, `docstore-aws` etc
