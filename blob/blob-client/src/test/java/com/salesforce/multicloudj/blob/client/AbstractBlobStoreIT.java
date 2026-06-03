@@ -479,10 +479,13 @@ public abstract class AbstractBlobStoreIT {
    * Alibaba is excluded because recording 16 MiB fixtures for every provider triples test-resource
    * size with no additional bug coverage.
    *
-   * <p>Fixture convention: payload is filled with a single repeating byte ({@code 'A'}) so that the
-   * recorded WireMock {@code bodyPatterns} compress trivially in git pack (matching the
-   * {@code testMultipartUpload_multipleParts} convention). This keeps recorded fixtures small in
-   * the git object store while preserving full body-match validation in replay mode.
+   * <p>Fixture convention: payload is filled with a single repeating byte ({@code 'A'}) so
+   * that the recorded WireMock {@code bodyPatterns} compress trivially in git pack (matching
+   * the {@code testMultipartUpload_multipleParts} convention). Response body mappings use the
+   * {@code [GENERATED:A:16777216]} marker expanded at serve-time by
+   * {@code TestsUtil.GeneratedResponseBodyTransformer} to avoid committing large files. This
+   * keeps recorded fixtures small in the git object store while preserving full body-match
+   * validation in replay mode.
    */
   @Test
   public void testUpload_largeByteArray_doesNotTruncate() {
