@@ -17,6 +17,7 @@ import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
@@ -560,6 +561,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           OSSCredentialsProvider.getCredentialsProvider(
               getCredentialsOverrider(), getRegion());
 
+      Retryer retryer =
+          getRetryConfig() != null ? AliTransformer.toAliRetryer(getRetryConfig()) : null;
+
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {
         var asyncBuilder = OSSAsyncClient.newBuilder()
@@ -573,7 +577,18 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
-        if (getSocketTimeout() != null) {
+        if (retryer != null) {
+          asyncBuilder.retryer(retryer);
+        }
+        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
+        // single readWriteTimeout setting. When both are set, attemptTimeout (the
+        // more specific per-attempt deadline) takes precedence over the
+        // transport-level socketTimeout.
+        if (getRetryConfig() != null
+            && getRetryConfig().getAttemptTimeout() != null) {
+          asyncBuilder.readWriteTimeout(
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+        } else if (getSocketTimeout() != null) {
           asyncBuilder.readWriteTimeout(getSocketTimeout());
         }
         async = asyncBuilder.build();
@@ -592,7 +607,18 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               getProxyEndpoint().getHost()
                   + ":" + getProxyEndpoint().getPort());
         }
-        if (getSocketTimeout() != null) {
+        if (retryer != null) {
+          syncBuilder.retryer(retryer);
+        }
+        // socketTimeout and RetryConfig.attemptTimeout both map to the Ali SDK's
+        // single readWriteTimeout setting. When both are set, attemptTimeout (the
+        // more specific per-attempt deadline) takes precedence over the
+        // transport-level socketTimeout.
+        if (getRetryConfig() != null
+            && getRetryConfig().getAttemptTimeout() != null) {
+          syncBuilder.readWriteTimeout(
+              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
+        } else if (getSocketTimeout() != null) {
           syncBuilder.readWriteTimeout(getSocketTimeout());
         }
         sync = syncBuilder.build();

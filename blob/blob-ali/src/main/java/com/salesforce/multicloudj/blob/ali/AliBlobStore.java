@@ -31,6 +31,7 @@ import com.aliyun.sdk.service.oss2.models.PutObjectResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -70,6 +71,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -717,6 +719,16 @@ public class AliBlobStore extends AbstractBlobStore {
         clientBuilder.proxyHost(
             builder.getProxyEndpoint().getHost()
                 + ":" + builder.getProxyEndpoint().getPort());
+      }
+      if (builder.getRetryConfig() != null) {
+        Retryer retryer = AliTransformer.toAliRetryer(builder.getRetryConfig());
+        if (retryer != null) {
+          clientBuilder.retryer(retryer);
+        }
+        if (builder.getRetryConfig().getAttemptTimeout() != null) {
+          clientBuilder.readWriteTimeout(
+              Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+        }
       }
 
       return clientBuilder.build();
