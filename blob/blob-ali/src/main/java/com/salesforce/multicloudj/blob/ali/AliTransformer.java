@@ -32,6 +32,11 @@ import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.retry.BackoffDelayer;
+import com.aliyun.sdk.service.oss2.retry.EqualJitterBackoff;
+import com.aliyun.sdk.service.oss2.retry.FixedDelayBackoff;
+import com.aliyun.sdk.service.oss2.retry.Retryer;
+import com.aliyun.sdk.service.oss2.retry.StandardRetryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
@@ -53,8 +58,11 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -595,5 +603,67 @@ public class AliTransformer {
         : List.of();
 
     return new ListBlobsBatch(blobs, commonPrefixes);
+  }
+
+  /**
+   * Converts a cloud-agnostic {@link RetryConfig} to an Ali OSS v2 SDK {@link Retryer}.
+   *
+   * <p>Mapping:
+   * <ul>
+   *   <li>EXPONENTIAL mode → {@link EqualJitterBackoff} with baseDelay and maxBackoff</li>
+   *   <li>FIXED mode → {@link FixedDelayBackoff} with constant delay</li>
+   *   <li>maxAttempts → {@link StandardRetryer.Builder#maxAttempts(Integer)}</li>
+   * </ul>
+   *
+   * <p>Note: The Ali OSS v2 SDK does not support a totalTimeout equivalent (a hard deadline
+   * across all retry attempts combined). This field from RetryConfig is not applied. The
+   * attemptTimeout is handled separately via readWriteTimeout on the client builder.
+   * The multiplier field is not directly configurable — EqualJitterBackoff uses 2x internally.
+   */
+  public static Retryer toAliRetryer(RetryConfig config) {
+    if (config == null) {
+      throw new InvalidArgumentException("RetryConfig cannot be null");
+    }
+
+    StandardRetryer.Builder builder = StandardRetryer.newBuilder();
+
+    if (config.getMaxAttempts() != null) {
+      if (config.getMaxAttempts() <= 0) {
+        throw new InvalidArgumentException(
+            "RetryConfig.maxAttempts must be greater than 0, got: "
+                + config.getMaxAttempts());
+      }
+      builder.maxAttempts(config.getMaxAttempts());
+    }
+
+    if (config.getMode() != null) {
+      BackoffDelayer backoff;
+      if (config.getMode() == RetryConfig.Mode.EXPONENTIAL) {
+        if (config.getInitialDelayMillis() <= 0) {
+          throw new InvalidArgumentException(
+              "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                  + config.getInitialDelayMillis());
+        }
+        if (config.getMaxDelayMillis() <= 0) {
+          throw new InvalidArgumentException(
+              "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
+                  + config.getMaxDelayMillis());
+        }
+        backoff = new EqualJitterBackoff(
+            Duration.ofMillis(config.getInitialDelayMillis()),
+            Duration.ofMillis(config.getMaxDelayMillis()));
+      } else {
+        if (config.getFixedDelayMillis() <= 0) {
+          throw new InvalidArgumentException(
+              "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
+                  + config.getFixedDelayMillis());
+        }
+        backoff = new FixedDelayBackoff(
+            Duration.ofMillis(config.getFixedDelayMillis()));
+      }
+      builder.backoffDelayer(backoff);
+    }
+
+    return builder.build();
   }
 }
