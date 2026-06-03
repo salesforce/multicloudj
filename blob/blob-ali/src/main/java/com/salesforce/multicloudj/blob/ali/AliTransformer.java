@@ -58,6 +58,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -621,14 +622,14 @@ public class AliTransformer {
    */
   public static Retryer toAliRetryer(RetryConfig config) {
     if (config == null) {
-      return null;
+      throw new InvalidArgumentException("RetryConfig cannot be null");
     }
 
     StandardRetryer.Builder builder = StandardRetryer.newBuilder();
 
     if (config.getMaxAttempts() != null) {
       if (config.getMaxAttempts() <= 0) {
-        throw new IllegalArgumentException(
+        throw new InvalidArgumentException(
             "RetryConfig.maxAttempts must be greater than 0, got: "
                 + config.getMaxAttempts());
       }
@@ -639,12 +640,12 @@ public class AliTransformer {
       BackoffDelayer backoff;
       if (config.getMode() == RetryConfig.Mode.EXPONENTIAL) {
         if (config.getInitialDelayMillis() <= 0) {
-          throw new IllegalArgumentException(
+          throw new InvalidArgumentException(
               "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
                   + config.getInitialDelayMillis());
         }
         if (config.getMaxDelayMillis() <= 0) {
-          throw new IllegalArgumentException(
+          throw new InvalidArgumentException(
               "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: "
                   + config.getMaxDelayMillis());
         }
@@ -653,7 +654,7 @@ public class AliTransformer {
             Duration.ofMillis(config.getMaxDelayMillis()));
       } else {
         if (config.getFixedDelayMillis() <= 0) {
-          throw new IllegalArgumentException(
+          throw new InvalidArgumentException(
               "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: "
                   + config.getFixedDelayMillis());
         }

@@ -561,7 +561,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           OSSCredentialsProvider.getCredentialsProvider(
               getCredentialsOverrider(), getRegion());
 
-      Retryer retryer = AliTransformer.toAliRetryer(getRetryConfig());
+      Retryer retryer =
+          getRetryConfig() != null ? AliTransformer.toAliRetryer(getRetryConfig()) : null;
 
       OSSAsyncClient async = this.asyncClient;
       if (async == null && creds != null) {

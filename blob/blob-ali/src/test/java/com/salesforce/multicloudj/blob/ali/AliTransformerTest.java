@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -639,8 +640,10 @@ public class AliTransformerTest {
   }
 
   @Test
-  void testToAliRetryerNullConfigReturnsNull() {
-    assertNull(AliTransformer.toAliRetryer(null));
+  void testToAliRetryerNullConfigThrows() {
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(null));
+    assertEquals("RetryConfig cannot be null", ex.getMessage());
   }
 
   @Test
@@ -669,7 +672,7 @@ public class AliTransformerTest {
         .maxDelayMillis(5000L)
         .build();
 
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
         () -> AliTransformer.toAliRetryer(config));
     assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", ex.getMessage());
   }
@@ -683,7 +686,7 @@ public class AliTransformerTest {
         .maxDelayMillis(5000L)
         .build();
 
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
         () -> AliTransformer.toAliRetryer(config));
     assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", ex.getMessage());
   }
@@ -697,7 +700,7 @@ public class AliTransformerTest {
         .maxDelayMillis(5000L)
         .build();
 
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
         () -> AliTransformer.toAliRetryer(config));
     assertEquals(
         "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
@@ -713,7 +716,7 @@ public class AliTransformerTest {
         .maxDelayMillis(0L)
         .build();
 
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
         () -> AliTransformer.toAliRetryer(config));
     assertEquals(
         "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
@@ -728,7 +731,7 @@ public class AliTransformerTest {
         .fixedDelayMillis(0L)
         .build();
 
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
         () -> AliTransformer.toAliRetryer(config));
     assertEquals(
         "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
