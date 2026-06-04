@@ -66,6 +66,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -665,5 +666,22 @@ public class AliTransformer {
     }
 
     return builder.build();
+  }
+
+  public List<List<BlobInfo>> partitionList(List<BlobInfo> blobInfos, int partitionSize) {
+    List<List<BlobInfo>> partitionedList = new ArrayList<>();
+    int listSize = blobInfos.size();
+
+    for (int i = 0; i < listSize; i += partitionSize) {
+      int endIndex = Math.min(i + partitionSize, listSize);
+      partitionedList.add(new ArrayList<>(blobInfos.subList(i, endIndex)));
+    }
+    return partitionedList;
+  }
+
+  public List<BlobIdentifier> toBlobIdentifiers(List<BlobInfo> blobList) {
+    return blobList.stream()
+        .map(blob -> new BlobIdentifier(blob.getKey(), null))
+        .collect(Collectors.toList());
   }
 }
