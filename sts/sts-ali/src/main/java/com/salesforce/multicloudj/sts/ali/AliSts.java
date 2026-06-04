@@ -104,12 +104,11 @@ public class AliSts extends AbstractSts {
    * <p>When an explicit proxyEndpoint is provided, it is set for both HTTP and HTTPS. The SDK
    * determines which to use based on the target endpoint protocol.
    *
-   * <p><b>SDK Limitation:</b> Unlike AWS SDK v2, the Alibaba SDK (aliyun-java-sdk-core 4.7.2)
-   * does not provide API methods to selectively disable proxy auto-detection from system
-   * properties or environment variables. When useSystemPropertyProxyValues or
-   * useEnvironmentVariableProxyValues are set to false, the SDK will still honor those sources if
-   * an explicit proxyEndpoint is not provided. To avoid using system/environment proxy settings,
-   * users must either:
+   * <p><b>SDK Limitation:</b> The Alibaba SDK (aliyun-java-sdk-core 4.7.2) does not provide API
+   * methods to selectively disable proxy auto-detection from system properties or environment
+   * variables. When useSystemPropertyProxyValues or useEnvironmentVariableProxyValues are set to
+   * false, the SDK will still honor those sources if an explicit proxyEndpoint is not provided. To
+   * avoid using system/environment proxy settings, users must either:
    *
    * <ul>
    *   <li>Explicitly set a proxyEndpoint (which takes precedence)
