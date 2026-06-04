@@ -4259,6 +4259,35 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Helper for presign v2 tests: uploads to a presigned URL replaying the signed headers verbatim
+   * (no metadata-prefix wrapping).
+   */
+  void uploadWithSignedHeaders(URL presignedUrl, byte[] content, Map<String, String> signedHeaders)
+      throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
+    connection.setDoOutput(true);
+    connection.setRequestMethod("PUT");
+
+    // Replay signed headers exactly as returned by presign()
+    if (signedHeaders != null) {
+      signedHeaders.forEach((k, v) -> {
+        if (!"host".equalsIgnoreCase(k)) {
+          connection.setRequestProperty(k, v);
+        }
+      });
+    }
+
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(content);
+    }
+    int responseCode = connection.getResponseCode();
+    if (responseCode != 200) {
+      throw new IOException(
+          "Failed to upload using presignedUrl with signed headers. responseCode=" + responseCode);
+    }
+  }
+
+  /**
    * Helper function for downloading from a presignedUrl
    */
   public byte[] useHttpUrlConnectionToGet(URL presignedUrl) throws IOException {
@@ -4527,8 +4556,9 @@ public abstract class AbstractBlobStoreIT {
   // =====================================================================
 
   @Test
-  @Disabled("Enable after recording: presign with contentLength constraint")
+  //@Disabled("Enable after recording: presign with contentLength constraint")
   public void testPresignV2_contentLengthBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-length-binding";
     byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
 
@@ -4548,17 +4578,17 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getSignedHeaders());
       Assertions.assertFalse(response.getSignedHeaders().isEmpty());
 
-      // Upload with correct length should succeed
-      useHttpUrlConnectionToPut(harness, response.getUrl(), content,
-          response.getSignedHeaders(), Map.of());
+      // Upload replaying signed headers verbatim should succeed
+      uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
   }
 
   @Test
-  @Disabled("Enable after recording: presign with contentType constraint")
+  //@Disabled("Enable after recording: presign with contentType constraint")
   public void testPresignV2_contentTypeBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-type-binding";
     byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
 
@@ -4582,8 +4612,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("Enable after recording: presign with CRC32C checksum constraint")
+  //@Disabled("Enable after recording: presign with CRC32C checksum constraint")
   public void testPresignV2_checksumCrc32cBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
     byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
 
@@ -4608,8 +4639,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("Enable after recording: presign response contains signedHeaders")
+  //@Disabled("Enable after recording: presign response contains signedHeaders")
   public void testPresignV2_signedHeadersNonEmpty() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/signed-headers-present";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -4637,8 +4669,9 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  @Disabled("Enable after recording: presign with all constraints bound together")
+  //@Disabled("Enable after recording: presign with all constraints bound together")
   public void testPresignV2_allConstraintsCombined() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/all-constraints-combined";
     byte[] content = "combined constraint test data".getBytes(StandardCharsets.UTF_8);
 
@@ -4665,16 +4698,16 @@ public abstract class AbstractBlobStoreIT {
           "expiration should be present");
 
       // Upload replaying all signed headers should succeed
-      useHttpUrlConnectionToPut(harness, response.getUrl(), content,
-          response.getSignedHeaders(), Map.of());
+      uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
   }
 
   @Test
-  @Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
+  //@Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
   public void testPresignV2_backwardCompatibility() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/backward-compat";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
