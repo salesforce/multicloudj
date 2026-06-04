@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,6 +65,10 @@ import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryDownloadResponse;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
+import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
@@ -1054,6 +1059,435 @@ public class AliAsyncBlobStoreTest {
 
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.generatePresignedUrl(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testUploadDirectory(@TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("file1.txt"), "content1");
+    Files.writeString(tempDir.resolve("file2.txt"), "content2");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("upload-prefix")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertNotNull(response.getFailedTransfers());
+    assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testUploadDirectoryWithSubFolders(@TempDir Path tempDir)
+      throws Exception {
+    Files.writeString(tempDir.resolve("root.txt"), "root");
+    Path subDir = Files.createDirectory(tempDir.resolve("sub"));
+    Files.writeString(subDir.resolve("nested.txt"), "nested");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    DirectoryUploadRequest requestWithSub = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse responseWithSub =
+        store.uploadDirectory(requestWithSub).get();
+    assertEquals(0, responseWithSub.getFailedTransfers().size());
+
+    DirectoryUploadRequest requestNoSub = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(false)
+        .build();
+    DirectoryUploadResponse responseNoSub =
+        store.uploadDirectory(requestNoSub).get();
+    assertEquals(0, responseNoSub.getFailedTransfers().size());
+  }
+
+  @Test
+  void testUploadDirectoryEmptyDir(@TempDir Path tempDir) throws Exception {
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("empty")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testDownloadDirectory(@TempDir Path tempDir) throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("prefix/file1.txt");
+    when(obj1.size()).thenReturn(6L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("prefix/sub/file2.txt");
+    when(obj2.size()).thenReturn(7L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "hello1".getBytes(StandardCharsets.UTF_8);
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          GetObjectResult result = mock(GetObjectResult.class);
+          when(result.body()).thenReturn(
+              new ByteArrayInputStream(content));
+          when(result.contentLength()).thenReturn((long) content.length);
+          when(result.eTag()).thenReturn("\"e\"");
+          return CompletableFuture.completedFuture(result);
+        });
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("prefix")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("file1.txt")));
+    assertTrue(Files.exists(tempDir.resolve("sub/file2.txt")));
+  }
+
+  @Test
+  void testDownloadDirectorySkipsFolderMarkers(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary realObj = mock(ObjectSummary.class);
+    when(realObj.key()).thenReturn("dir/file.txt");
+    when(realObj.size()).thenReturn(5L);
+    ObjectSummary folderMarker = mock(ObjectSummary.class);
+    when(folderMarker.key()).thenReturn("dir/subfolder/");
+    when(folderMarker.size()).thenReturn(0L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(realObj, folderMarker));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn((long) content.length);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("dir")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("file.txt")));
+    assertArrayEquals(content, Files.readAllBytes(tempDir.resolve("file.txt")));
+  }
+
+  @Test
+  void testDownloadDirectoryWithPrefixExclusions(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary included = mock(ObjectSummary.class);
+    when(included.key()).thenReturn("data/keep.txt");
+    when(included.size()).thenReturn(4L);
+    ObjectSummary excluded = mock(ObjectSummary.class);
+    when(excluded.key()).thenReturn("data/logs/debug.log");
+    when(excluded.size()).thenReturn(10L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(included, excluded));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = "keep".getBytes(StandardCharsets.UTF_8);
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn((long) content.length);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("data")
+        .localDestinationDirectory(tempDir.toString())
+        .prefixesToExclude(List.of("data/logs/"))
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertTrue(Files.exists(tempDir.resolve("keep.txt")));
+    assertTrue(Files.notExists(tempDir.resolve("logs/debug.log")));
+  }
+
+  @Test
+  void testDownloadDirectoryEmpty(@TempDir Path tempDir) throws Exception {
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of());
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("empty-prefix")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+  }
+
+  @Test
+  void testDownloadDirectoryWithTransferLogging(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("log/data.bin");
+    when(obj.size()).thenReturn(1024L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = new byte[1024];
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn(1024L);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("log")
+        .localDestinationDirectory(tempDir.toString())
+        .transferStatusLoggingEnabled(true)
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertEquals(1024L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDeleteDirectory() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("dir/file1.txt");
+    when(obj1.size()).thenReturn(100L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("dir/file2.txt");
+    when(obj2.size()).thenReturn(200L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    DeleteMultipleObjectsResult deleteResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+
+    store.deleteDirectory("dir/").get();
+
+    verify(mockAsyncClient, times(1)).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
+  }
+
+  @Test
+  void testDeleteDirectoryEmpty() throws Exception {
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of());
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    store.deleteDirectory("empty-dir/").get();
+
+    verify(mockAsyncClient, never()).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
+  }
+
+  @Test
+  void testDeleteDirectoryWithPagination() throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("dir/page1.txt");
+    when(obj1.size()).thenReturn(50L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("dir/page2.txt");
+    when(obj2.size()).thenReturn(60L);
+
+    ListObjectsV2Result firstPage = mock(ListObjectsV2Result.class);
+    when(firstPage.contents()).thenReturn(List.of(obj1));
+    when(firstPage.commonPrefixes()).thenReturn(null);
+    when(firstPage.isTruncated()).thenReturn(true);
+    when(firstPage.nextContinuationToken()).thenReturn("token1");
+
+    ListObjectsV2Result secondPage = mock(ListObjectsV2Result.class);
+    when(secondPage.contents()).thenReturn(List.of(obj2));
+    when(secondPage.commonPrefixes()).thenReturn(null);
+    when(secondPage.isTruncated()).thenReturn(false);
+
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(firstPage))
+        .thenReturn(CompletableFuture.completedFuture(secondPage));
+
+    DeleteMultipleObjectsResult deleteResult =
+        mock(DeleteMultipleObjectsResult.class);
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+
+    store.deleteDirectory("dir/").get();
+
+    verify(mockAsyncClient, times(2)).deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class));
+  }
+
+  @Test
+  void testUploadDirectoryNonExistentPath() {
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory("/non/existent/path")
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.uploadDirectory(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testUploadDirectoryFileUploadFailed(@TempDir Path tempDir)
+      throws Exception {
+    Files.writeString(tempDir.resolve("fail.txt"), "will fail");
+
+    RuntimeException cause = new RuntimeException("upload error");
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response = store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertTrue(response.getFailedTransfers().size() > 0);
+  }
+
+  @Test
+  void testDownloadDirectoryListFailed() {
+    RuntimeException cause = new RuntimeException("list error");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("dir/")
+        .localDestinationDirectory("/tmp/download-dir")
+        .build();
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.downloadDirectory(request).get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryListFailed() {
+    RuntimeException cause = new RuntimeException("access denied");
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteDirectory("dir/").get());
+    assertNotNull(ex.getCause());
+  }
+
+  @Test
+  void testDeleteDirectoryBatchDeleteFailed() throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("dir/file.txt");
+    when(obj.size()).thenReturn(100L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(listResult.nextContinuationToken()).thenReturn(null);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    RuntimeException cause = new RuntimeException("batch delete error");
+    when(mockAsyncClient.deleteMultipleObjectsAsync(
+        any(DeleteMultipleObjectsRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.failedFuture(cause));
+
+    ExecutionException ex = assertThrows(ExecutionException.class,
+        () -> store.deleteDirectory("dir/").get());
     assertNotNull(ex.getCause());
   }
 }

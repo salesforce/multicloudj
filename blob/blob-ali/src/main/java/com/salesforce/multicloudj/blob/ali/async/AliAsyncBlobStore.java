@@ -29,6 +29,7 @@ import com.salesforce.multicloudj.blob.async.driver.AbstractAsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStoreProvider;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
+import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobStoreValidator;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
@@ -40,6 +41,8 @@ import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
+import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
 import com.salesforce.multicloudj.blob.driver.ListBlobsBatch;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
@@ -62,19 +65,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 
 /** Alibaba Cloud OSS native async implementation of AsyncBlobStore. */
 public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkService {
+
+  private static final int MAX_OBJECTS_PER_DELETE = 1000;
 
   private final OSSAsyncClient asyncClient;
   // syncClient is required for operations not available on OSSAsyncClient:
@@ -511,18 +523,247 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    Path targetDir = Paths.get(
+        directoryDownloadRequest.getLocalDestinationDirectory())
+        .toAbsolutePath().normalize();
+
+    String rawPrefix = directoryDownloadRequest.getPrefixToDownload();
+    String prefix = (rawPrefix != null && !rawPrefix.isEmpty()
+        && !rawPrefix.endsWith("/"))
+        ? rawPrefix + "/" : rawPrefix;
+
+    List<String> prefixesToExclude =
+        directoryDownloadRequest.getPrefixesToExclude();
+
+    List<BlobInfo> blobInfos = Collections.synchronizedList(new ArrayList<>());
+    AtomicLong totalBytes = new AtomicLong(0L);
+    List<FailedBlobDownload> failures =
+        Collections.synchronizedList(new ArrayList<>());
+
+    // Stage 1: short blocking filesystem prep on an executor thread; released after.
+    return CompletableFuture.runAsync(() -> {
+      try {
+        Files.createDirectories(targetDir);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to create destination directory: " + targetDir, e);
+      }
+    }, executorService)
+        // Stage 2: async paginated listing; consumer collects matching blobs.
+        .thenCompose(v -> doList(
+            ListBlobsRequest.builder().withPrefix(prefix).build(),
+            batch -> {
+              for (BlobInfo blob : batch.getBlobs()) {
+                if (isFolderMarker(blob)
+                    || isExcluded(blob.getKey(), prefixesToExclude)) {
+                  continue;
+                }
+                blobInfos.add(blob);
+              }
+            }))
+        // Stage 3: create all destination directories upfront, then fan out downloads.
+        // Uses thenComposeAsync to ensure directory I/O runs on our executor,
+        // not on the SDK's async-completion thread that resolved the listing.
+        .thenComposeAsync(v -> {
+          // Pre-create all unique parent directories before starting downloads.
+          for (BlobInfo blob : blobInfos) {
+            String key = blob.getKey();
+            String relative = (prefix != null && key.startsWith(prefix))
+                ? key.substring(prefix.length()) : key;
+            Path destination = targetDir.resolve(relative).normalize();
+            if (!destination.startsWith(targetDir)) {
+              throw new SubstrateSdkException(
+                  "Path traversal detected: key '" + key
+                      + "' resolves outside target directory");
+            }
+            Path parent = destination.getParent();
+            if (parent != null) {
+              try {
+                Files.createDirectories(parent);
+              } catch (IOException e) {
+                throw new SubstrateSdkException(
+                    "Failed to create directories: " + parent, e);
+              }
+            }
+          }
+
+          // Fan out per-file downloads.
+          List<CompletableFuture<Void>> futures = blobInfos.stream()
+              .map(blob -> {
+                String key = blob.getKey();
+                String relative = (prefix != null && key.startsWith(prefix))
+                    ? key.substring(prefix.length()) : key;
+                Path destination = targetDir.resolve(relative).normalize();
+
+                DownloadRequest downloadRequest = DownloadRequest.builder()
+                    .withKey(key)
+                    .build();
+                return doDownload(downloadRequest, destination)
+                    .thenAccept(response -> {
+                      if (directoryDownloadRequest
+                          .isTransferStatusLoggingEnabled()) {
+                        totalBytes.addAndGet(blob.getObjectSize());
+                      }
+                    })
+                    .exceptionally(ex -> {
+                      failures.add(FailedBlobDownload.builder()
+                          .destination(destination)
+                          .exception(ex)
+                          .build());
+                      return null;
+                    });
+              })
+              .collect(Collectors.toList());
+          return CompletableFuture.allOf(
+              futures.toArray(new CompletableFuture[0]));
+        }, executorService)
+        // Stage 4: build response after all downloads complete.
+        .thenApply(v -> DirectoryDownloadResponse.builder()
+            .failedTransfers(new ArrayList<>(failures))
+            .totalBytesTransferred(
+                directoryDownloadRequest.isTransferStatusLoggingEnabled()
+                    ? totalBytes.get() : null)
+            .build());
+  }
+
+  private boolean isFolderMarker(BlobInfo blob) {
+    return blob.getKey().endsWith("/") && blob.getObjectSize() == 0;
+  }
+
+  private boolean isExcluded(String key, List<String> prefixesToExclude) {
+    if (prefixesToExclude == null || prefixesToExclude.isEmpty()) {
+      return false;
+    }
+    for (String excludePrefix : prefixesToExclude) {
+      if (key.startsWith(excludePrefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    Path sourceDir = Paths.get(
+        directoryUploadRequest.getLocalSourceDirectory())
+        .toAbsolutePath().normalize();
+    String prefix = directoryUploadRequest.getPrefix();
+    Map<String, String> tags = directoryUploadRequest.getTags();
+    var objectLock = directoryUploadRequest.getObjectLock();
+    AtomicLong totalBytes = new AtomicLong(0L);
+    List<FailedBlobUpload> failures =
+        Collections.synchronizedList(new ArrayList<>());
+
+    // Stage 1: blocking directory walk + file size stat on an executor thread.
+    return CompletableFuture.supplyAsync(
+        () -> {
+          List<Path> paths = collectFilePaths(sourceDir, directoryUploadRequest);
+          // Compute file sizes upfront so Stage 2 avoids I/O on completion threads.
+          Map<Path, Long> fileSizes = paths.stream()
+              .collect(Collectors.toMap(p -> p, p -> p.toFile().length()));
+          return fileSizes;
+        },
+        executorService)
+        // Stage 2: fan out per-file uploads and compose; no blocking join.
+        .thenCompose(fileSizes -> {
+          if (fileSizes.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+          }
+          List<CompletableFuture<Void>> futures = fileSizes.entrySet().stream()
+              .map(entry -> {
+                Path filePath = entry.getKey();
+                long fileSize = entry.getValue();
+                String key = toBlobKey(sourceDir, filePath, prefix);
+                UploadRequest.Builder uploadBuilder = UploadRequest.builder()
+                    .withKey(key)
+                    .withContentLength(fileSize);
+                if (tags != null && !tags.isEmpty()) {
+                  uploadBuilder.withTags(tags);
+                }
+                if (objectLock != null) {
+                  uploadBuilder.withObjectLock(objectLock);
+                }
+                UploadRequest uploadRequest = uploadBuilder.build();
+                return doUpload(uploadRequest, filePath)
+                    .thenAccept(response -> {
+                      if (directoryUploadRequest
+                          .isTransferStatusLoggingEnabled()) {
+                        totalBytes.addAndGet(fileSize);
+                      }
+                    })
+                    .exceptionally(ex -> {
+                      failures.add(FailedBlobUpload.builder()
+                          .source(filePath)
+                          .exception(ex)
+                          .build());
+                      return null;
+                    });
+              })
+              .collect(Collectors.toList());
+          return CompletableFuture.allOf(
+              futures.toArray(new CompletableFuture[0]));
+        })
+        // Stage 3: build response after all uploads complete.
+        .thenApply(v -> DirectoryUploadResponse.builder()
+            .failedTransfers(new ArrayList<>(failures))
+            .totalBytesTransferred(
+                directoryUploadRequest.isTransferStatusLoggingEnabled()
+                    ? totalBytes.get() : null)
+            .build());
+  }
+
+  private List<Path> collectFilePaths(
+      Path sourceDir, DirectoryUploadRequest request) {
+    try (Stream<Path> paths = request.isFollowSymbolicLinks()
+        ? Files.walk(sourceDir, Integer.MAX_VALUE,
+            FileVisitOption.FOLLOW_LINKS)
+        : Files.walk(sourceDir)) {
+      return paths
+          .filter(Files::isRegularFile)
+          .filter(path -> {
+            if (!request.isIncludeSubFolders()) {
+              Path relativePath = sourceDir.relativize(path);
+              return relativePath.getParent() == null;
+            }
+            return true;
+          })
+          .collect(Collectors.toList());
+    } catch (IOException e) {
+      throw new SubstrateSdkException(
+          "Failed to traverse directory: " + sourceDir, e);
+    }
+  }
+
+  private String toBlobKey(Path sourceDir, Path filePath, String prefix) {
+    Path relativePath = sourceDir.relativize(filePath);
+    String key = relativePath.toString().replace("\\", "/");
+    if (prefix != null && !prefix.isEmpty()) {
+      String normalizedPrefix =
+          prefix.endsWith("/") ? prefix : prefix + "/";
+      key = normalizedPrefix + key;
+    }
+    return key;
   }
 
   @Override
   protected CompletableFuture<Void> doDeleteDirectory(String prefix) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    List<CompletableFuture<Void>> futures =
+        Collections.synchronizedList(new ArrayList<>());
+
+    Consumer<ListBlobsBatch> consumer =
+        batch -> {
+          List<List<BlobInfo>> partitionedBlobLists =
+              transformer.partitionList(batch.getBlobs(), MAX_OBJECTS_PER_DELETE);
+          for (List<BlobInfo> blobList : partitionedBlobLists) {
+            futures.add(doDelete(transformer.toBlobIdentifiers(blobList)));
+          }
+        };
+    CompletableFuture<Void> listFuture =
+        doList(ListBlobsRequest.builder().withPrefix(prefix).build(), consumer);
+    futures.add(listFuture);
+    return listFuture.thenCompose(v ->
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])));
   }
 
   public static Builder builder() {
