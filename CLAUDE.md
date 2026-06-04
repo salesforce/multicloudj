@@ -124,6 +124,51 @@ DO NOT skip this skill - it ensures proper cross-cloud implementation, semantic 
 
 Features must be implementable across all supported cloud providers. If a feature is provider-specific, discuss in an issue before implementing. The SDK prioritizes cross-cloud compatibility over provider-specific capabilities.
 
+### Provider Isolation
+
+**CRITICAL RULE:** Provider implementations (AWS, GCP, Alibaba) are completely independent and must NEVER reference each other.
+
+Each provider implementation:
+- Independently implements the abstract driver contract (e.g., `AbstractBlobStore`, `AbstractDocstore`)
+- Has NO knowledge of other provider implementations
+- Has NO dependencies on other provider modules
+- Has NO comparisons or references to other providers in code OR comments
+
+**Forbidden patterns:**
+- Importing classes from another provider module (e.g., `AwsBlobStore` importing from `blob-gcp`)
+- Adding dependencies between provider modules in `pom.xml`
+- Comments like "Unlike GCP, AWS does X" or "Similar to Alibaba's approach"
+- Comments like "GCP handles this differently" or "AWS uses a different pattern"
+- Copying code between providers with comments referencing the source provider
+- Comparing implementation approaches in javadoc or inline comments
+
+**Correct approach:**
+- Each provider implements the driver contract independently based on its own cloud SDK
+- Document WHY a provider does something based on that provider's SDK behavior only
+- Focus comments on the cloud provider's native SDK, not other multicloudj providers
+- Let conformance tests verify behavioral parity across providers
+
+**Example - WRONG ❌:**
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // Unlike GCP which uses resumable uploads, AWS uses multipart
+    return s3Client.putObject(...);
+}
+```
+
+**Example - CORRECT ✅:**
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // S3 automatically handles objects up to 5GB in a single PUT operation
+    return s3Client.putObject(...);
+}
+```
+
+The driver contract and conformance tests ensure all providers behave the same for end users. Providers achieve this independently, not by copying or comparing with each other.
 
 ### Git operations
 

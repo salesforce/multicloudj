@@ -16,6 +16,67 @@ priority: CRITICAL - invoke BEFORE any code exploration or implementation
 
 Implements a new feature across the multicloudj SDK through structured phases: requirements gathering via user interview, cross-cloud research for semantic uniformity, client/driver API design, provider implementations, unit tests, and conformance tests with WireMock record/replay.
 
+## Provider Isolation Principle
+
+**CRITICAL:** Each provider implementation (AWS, GCP, Alibaba) is completely independent and must NEVER reference another provider in any way.
+
+### The Rule
+
+Providers are isolated islands that:
+- Each independently implements the abstract driver contract (e.g., `AbstractBlobStore`, `AbstractDocstore`)
+- Have NO knowledge of other provider implementations
+- Have NO dependencies on other provider modules
+- Have NO comparisons or references to other providers in code OR comments
+
+### What This Means in Practice
+
+**NEVER:**
+- Import classes from another provider module (e.g., `AwsBlobStore` importing from `blob-gcp`)
+- Add dependencies between provider modules in `pom.xml`
+- Write comments like "Unlike GCP, AWS does X" or "Similar to Alibaba's approach"
+- Write comments like "GCP handles this differently" or "AWS uses a different pattern"
+- Copy code between providers with comments referencing the source
+- Compare implementation approaches in javadoc or inline comments
+
+**DO:**
+- Each provider implements the driver contract independently
+- Document WHY a provider does something based on that provider's SDK behavior
+- Focus comments on the cloud provider's native SDK, not other multicloudj providers
+- Let conformance tests verify behavioral parity, not implementation similarity
+
+### Example: WRONG ❌
+
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // Unlike GCP which uses resumable uploads, AWS uses multipart
+    // Similar to how AliOss handles large objects
+    return s3Client.putObject(...);
+}
+```
+
+### Example: CORRECT ✅
+
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // S3 automatically handles objects up to 5GB in a single PUT operation
+    return s3Client.putObject(...);
+}
+```
+
+### Why Provider Isolation Matters
+
+1. **Maintainability:** Each provider evolves independently based on its cloud SDK changes
+2. **Testability:** Provider tests don't break when other providers change
+3. **Clarity:** Implementation decisions are based on the provider's SDK, not other providers
+4. **Extensibility:** New providers can be added without touching existing ones
+5. **Semantic Uniformity:** The driver contract (abstract class) defines the unified behavior, not cross-provider comparisons
+
+The driver contract and conformance tests ensure all providers behave the same for the end user. Providers achieve this independently, not by copying or comparing with each other.
+
 ## When to Use
 
 - Adding a new operation or capability to an existing service (blob, docstore, pubsub, sts)
@@ -390,3 +451,5 @@ For a feature added to an existing service (e.g., blob), you will typically touc
 - You're running record mode without asking the user for credentials first
 - You're about to manually edit a WireMock mapping JSON file - STOP: delete and re-record instead
 - You're running the full IT class in record mode when only one test method is new/changed - use `#testMethodName` filter
+- **You're writing a comment in a provider that references another provider** (e.g., "Unlike GCP", "Similar to AWS") - STOP: providers must be isolated
+- **You're importing classes from another provider module** (e.g., `blob-aws` importing from `blob-gcp`) - STOP: providers cannot depend on each other
