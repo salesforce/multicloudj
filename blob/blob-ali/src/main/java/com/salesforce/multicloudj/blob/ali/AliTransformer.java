@@ -593,6 +593,11 @@ public class AliTransformer {
     }
 
     if (request.getContentLength() > 0) {
+      if (request.getContentLength() > Integer.MAX_VALUE) {
+        throw new InvalidArgumentException(
+            "contentLength exceeds maximum supported by Ali OSS ("
+                + Integer.MAX_VALUE + " bytes)");
+      }
       builder.contentLength((int) request.getContentLength());
     }
 

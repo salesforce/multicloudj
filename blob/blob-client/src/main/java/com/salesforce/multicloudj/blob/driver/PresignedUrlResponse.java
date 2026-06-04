@@ -22,7 +22,8 @@ public class PresignedUrlResponse {
    * omitting or modifying any of them causes the substrate to reject the request. Never null;
    * empty map when no constraint headers were signed (e.g. download URLs).
    */
-  private final Map<String, String> signedHeaders;
+  @Builder.Default
+  private final Map<String, String> signedHeaders = Map.of();
 
   /** When the URL stops being valid. Null only if the substrate doesn't expose it. */
   private final Instant expiration;

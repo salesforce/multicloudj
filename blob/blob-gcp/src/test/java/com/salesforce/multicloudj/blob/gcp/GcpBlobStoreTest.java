@@ -1609,7 +1609,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1622,7 +1622,7 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedUrl, presignedResponse.getUrl());
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1644,7 +1644,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-download.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1657,7 +1657,7 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedUrl, presignedResponse.getUrl());
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1679,7 +1679,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://long-term-signed-url.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1716,7 +1716,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1729,7 +1729,7 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedUrl, presignedResponse.getUrl());
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     // Verify signUrl was called with the correct parameters including KMS extension header
     verify(mockStorage)
         .signUrl(
@@ -1752,7 +1752,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-without-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1765,7 +1765,7 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedUrl, presignedResponse.getUrl());
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1788,7 +1788,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-cd.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -1827,7 +1827,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -2100,7 +2100,7 @@ class GcpBlobStoreTest {
             .duration(Duration.ofHours(1))
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(null);
@@ -2121,7 +2121,7 @@ class GcpBlobStoreTest {
             .duration(Duration.ZERO)
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(new URL("https://example.com"));
 

@@ -4596,7 +4596,7 @@ public abstract class AbstractBlobStoreIT {
               .type(PresignedOperation.UPLOAD)
               .key(key)
               .duration(Duration.ofHours(1))
-              .checksumValue("AAAAAA==")
+              .checksumValue("q50emA==")
               .checksumAlgorithm(ChecksumMethod.CRC32C)
               .build());
 
@@ -4653,7 +4653,7 @@ public abstract class AbstractBlobStoreIT {
               .duration(Duration.ofHours(1))
               .contentLength(content.length)
               .contentType("text/plain")
-              .checksumValue("AAAAAA==")
+              .checksumValue("0gBWRg==")
               .checksumAlgorithm(ChecksumMethod.CRC32C)
               .build());
 

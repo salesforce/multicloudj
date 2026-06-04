@@ -85,6 +85,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
@@ -914,7 +915,8 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
-    var blobInfo = transformer.toBlobInfo(request);
+    Instant expiration = Instant.now().plus(request.getDuration());
+    var blobInfo = transformer.toPresignBlobInfo(request);
     HttpMethod httpMethod = null;
     switch (request.getType()) {
       case UPLOAD:
@@ -924,37 +926,45 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpMethod = HttpMethod.GET;
         break;
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
     }
 
+    Map<String, String> signedHeaders = new LinkedHashMap<>();
     Map<String, String> extHeaders = new LinkedHashMap<>();
     if (request.getMetadata() != null) {
       extHeaders.putAll(request.getMetadata());
-    }
-    if (request.getType() == PresignedOperation.UPLOAD) {
-      if (request.getContentType() != null) {
-        extHeaders.put("Content-Type", request.getContentType());
-      }
-      if (request.getContentLength() > 0) {
-        extHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
-      }
-      if (request.getChecksumValue() != null) {
-        ChecksumMethod algo = request.getChecksumAlgorithm() != null
-            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
-        if (algo == ChecksumMethod.SHA256) {
-          throw new UnsupportedOperationException(
-              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
-        }
-        extHeaders.put("x-goog-hash", "crc32c=" + request.getChecksumValue());
-      }
     }
 
     List<Storage.SignUrlOption> options = new ArrayList<>();
     options.add(Storage.SignUrlOption.httpMethod(httpMethod));
     options.add(Storage.SignUrlOption.withV4Signature());
+
+    if (request.getType() == PresignedOperation.UPLOAD) {
+      if (request.getContentType() != null) {
+        options.add(Storage.SignUrlOption.withContentType());
+        signedHeaders.put("Content-Type", request.getContentType());
+      }
+      if (request.getContentLength() > 0) {
+        extHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+        signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+      }
+      if (request.getChecksumValue() != null) {
+        ChecksumMethod algo = request.getChecksumAlgorithm() != null
+            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+        if (algo == ChecksumMethod.SHA256) {
+          throw new UnSupportedOperationException(
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+        }
+        String hashHeader = "crc32c=" + request.getChecksumValue();
+        extHeaders.put("x-goog-hash", hashHeader);
+        signedHeaders.put("x-goog-hash", hashHeader);
+      }
+    }
+
     if (!extHeaders.isEmpty()) {
       options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+      signedHeaders.putAll(extHeaders);
     }
     if (request.getContentDisposition() != null
         && request.getType() == PresignedOperation.DOWNLOAD) {
@@ -971,8 +981,8 @@ public class GcpBlobStore extends AbstractBlobStore {
 
     return PresignedUrlResponse.builder()
         .url(url)
-        .signedHeaders(extHeaders)
-        .expiration(Instant.now().plus(request.getDuration()))
+        .signedHeaders(signedHeaders)
+        .expiration(expiration)
         .build();
   }
 
