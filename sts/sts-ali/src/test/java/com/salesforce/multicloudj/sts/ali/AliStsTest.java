@@ -126,20 +126,24 @@ public class AliStsTest {
   }
 
   @Test
-  public void testConstructorWithProxyConfiguration() {
+  public void testBuildHttpClientConfigWithNullProxyEndpoint() {
+    AliSts.Builder builder = new AliSts().builder().withRegion("cn-hangzhou");
+
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
+    Assertions.assertNull(config.getHttpProxy());
+    Assertions.assertNull(config.getHttpsProxy());
+  }
+
+  @Test
+  public void testBuildHttpClientConfigVerifiesBothHttpAndHttps() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withProxyEndpoint(proxyEndpoint)
-            .withUseEnvironmentVariableProxyValues(false);
+        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
-    try {
-      AliSts sts = builder.build();
-      Assertions.assertNotNull(sts);
-    } catch (Exception e) {
-      Assertions.assertTrue(e.getMessage() != null);
-    }
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    String expectedUrl = "http://proxy.example.com:8080";
+    Assertions.assertEquals(expectedUrl, config.getHttpProxy());
+    Assertions.assertEquals(expectedUrl, config.getHttpsProxy());
   }
 }
