@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -204,7 +205,7 @@ public class AwsStsTest {
     AwsSts.Builder builder =
         new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
 
-    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
     Assertions.assertNotNull(httpClient);
     httpClient.close();
   }
@@ -218,7 +219,7 @@ public class AwsStsTest {
             .withUseSystemPropertyProxyValues(false)
             .withUseEnvironmentVariableProxyValues(false);
 
-    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
     Assertions.assertNotNull(httpClient);
     httpClient.close();
   }
