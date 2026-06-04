@@ -4268,10 +4268,11 @@ public abstract class AbstractBlobStoreIT {
     connection.setDoOutput(true);
     connection.setRequestMethod("PUT");
 
-    // Replay signed headers exactly as returned by presign()
+    // Replay signed headers exactly as returned by presign().
+    // Skip host (set by connection) and content-length (set automatically from body size).
     if (signedHeaders != null) {
       signedHeaders.forEach((k, v) -> {
-        if (!"host".equalsIgnoreCase(k)) {
+        if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
           connection.setRequestProperty(k, v);
         }
       });
