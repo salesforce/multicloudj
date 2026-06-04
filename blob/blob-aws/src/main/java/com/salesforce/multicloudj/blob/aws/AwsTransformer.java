@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -647,6 +649,18 @@ public class AwsTransformer {
     return GetObjectPresignRequest.builder()
         .signatureDuration(request.getDuration())
         .getObjectRequest(getObjectBuilder.build())
+        .build();
+  }
+
+  public PresignedUrlResponse toPresignedUrlResponse(
+      software.amazon.awssdk.awscore.presigner.PresignedRequest presigned) {
+    Map<String, String> flatHeaders = new LinkedHashMap<>();
+    presigned.signedHeaders().forEach((k, values) ->
+        flatHeaders.put(k, String.join(", ", values)));
+    return PresignedUrlResponse.builder()
+        .url(presigned.url())
+        .signedHeaders(flatHeaders)
+        .expiration(presigned.expiration())
         .build();
   }
 

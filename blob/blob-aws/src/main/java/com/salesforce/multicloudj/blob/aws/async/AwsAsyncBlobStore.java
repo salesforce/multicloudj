@@ -429,14 +429,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
                 throw new InvalidArgumentException(
                     "Unsupported PresignedOperation. type=" + request.getType());
             }
-            java.util.Map<String, String> flatHeaders = new java.util.LinkedHashMap<>();
-            presigned.signedHeaders().forEach((k, values) ->
-                flatHeaders.put(k, String.join(", ", values)));
-            return PresignedUrlResponse.builder()
-                .url(presigned.url())
-                .signedHeaders(flatHeaders)
-                .expiration(presigned.expiration())
-                .build();
+            return transformer.toPresignedUrlResponse(presigned);
           }
         });
   }
