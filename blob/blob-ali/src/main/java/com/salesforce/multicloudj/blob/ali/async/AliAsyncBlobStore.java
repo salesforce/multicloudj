@@ -569,6 +569,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                 String relative = (prefix != null && key.startsWith(prefix))
                     ? key.substring(prefix.length()) : key;
                 Path destination = targetDir.resolve(relative).normalize();
+                if (!destination.startsWith(targetDir)) {
+                  throw new SubstrateSdkException(
+                      "Path traversal detected: key '" + key
+                          + "' resolves outside target directory");
+                }
                 Path parent = destination.getParent();
                 if (parent != null) {
                   try {
