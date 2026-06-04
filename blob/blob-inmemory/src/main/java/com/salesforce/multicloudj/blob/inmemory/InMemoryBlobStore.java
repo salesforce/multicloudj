@@ -850,7 +850,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
       return PresignedUrlResponse.builder()
           .url(url)
-          .signedHeaders(java.util.Map.of())
+          .signedHeaders(Map.of())
           .build();
     } catch (MalformedURLException e) {
       throw new UnknownException("Failed to generate presigned URL", e);

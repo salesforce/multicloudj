@@ -972,7 +972,7 @@ public class GcpBlobStore extends AbstractBlobStore {
     return PresignedUrlResponse.builder()
         .url(url)
         .signedHeaders(extHeaders)
-        .expiration(java.time.Instant.now().plus(request.getDuration()))
+        .expiration(Instant.now().plus(request.getDuration()))
         .build();
   }
 

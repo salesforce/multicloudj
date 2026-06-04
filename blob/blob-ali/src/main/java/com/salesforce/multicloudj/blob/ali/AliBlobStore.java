@@ -780,7 +780,7 @@ public class AliBlobStore extends AbstractBlobStore {
     try {
       return PresignedUrlResponse.builder()
           .url(new URL(result.url()))
-          .signedHeaders(result.signedHeaders().orElse(java.util.Map.of()))
+          .signedHeaders(result.signedHeaders().orElse(Map.of()))
           .expiration(result.expiration().orElse(null))
           .build();
     } catch (java.net.MalformedURLException e) {

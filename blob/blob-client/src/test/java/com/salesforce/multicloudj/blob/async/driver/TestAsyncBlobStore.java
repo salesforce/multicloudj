@@ -178,7 +178,7 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
   @Override
   protected CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request) {
     return CompletableFuture.completedFuture(
-        PresignedUrlResponse.builder().url(null).signedHeaders(java.util.Map.of()).build());
+        PresignedUrlResponse.builder().url(null).signedHeaders(Map.of()).build());
   }
 
   @Override

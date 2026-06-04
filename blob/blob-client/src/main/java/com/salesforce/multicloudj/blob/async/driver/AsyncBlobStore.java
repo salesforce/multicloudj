@@ -257,7 +257,7 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
     return generatePresignedUrl(request)
         .thenApply(url -> PresignedUrlResponse.builder()
             .url(url)
-            .signedHeaders(java.util.Map.of())
+            .signedHeaders(Map.of())
             .build());
   }
 
