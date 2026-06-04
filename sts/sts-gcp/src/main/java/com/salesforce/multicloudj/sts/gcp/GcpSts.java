@@ -49,8 +49,12 @@ import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.conn.routing.HttpRoute;
+import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.DefaultRoutePlanner;
+import org.apache.http.impl.conn.DefaultSchemePortResolver;
 
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
@@ -188,8 +192,7 @@ public class GcpSts extends AbstractSts {
    *
    * <p>When prefix is empty (root-level, e.g. "storage://bucket/"), the objectListPrefix clause
    * becomes {@code .startsWith('')} which is always true — this is intentional and grants
-   * unrestricted LIST on the bucket, matching AWS semantics where an empty s3:prefix condition
-   * matches all LIST requests.
+   * unrestricted LIST on the bucket.
    *
    * <p>Example: "storage://my-bucket/documents/" produces:
    * "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/') ||
@@ -433,8 +436,6 @@ public class GcpSts extends AbstractSts {
   /**
    * Builds an HTTP client with proxy configuration.
    *
-   * <p>Mirrors AWS SDK's ProxyConfiguration behavior:
-   *
    * <ul>
    *   <li>useSystemPropertyValues controls whether to read http.proxyHost, https.proxyHost, etc.
    *   <li>useEnvironmentVariableValues controls whether to read HTTP_PROXY, HTTPS_PROXY env vars
@@ -447,12 +448,25 @@ public class GcpSts extends AbstractSts {
   private static CloseableHttpClient buildHttpClient(Builder builder) {
     HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
 
-    // Control system properties behavior
-    // Default (null): Apache HttpClient uses system properties by default via useSystemProperties()
-    // True: Explicitly enable system properties
-    // False: Disable by not calling useSystemProperties() and setting explicit config
-    if (!Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
-      // Enable system properties (default behavior)
+    // When useSystemPropertyProxyValues is explicitly FALSE, we must disable system property
+    // reading. Apache HttpClient reads system properties by default via SystemDefaultRoutePlanner.
+    // To disable, we set a custom DefaultRoutePlanner that never returns a proxy.
+    if (Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
+      // Explicitly disable system properties by setting a route planner that ignores proxies
+      // This prevents Apache HttpClient from reading http.proxyHost, https.proxyHost, etc.
+      HttpRoutePlanner routePlanner = new DefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE) {
+        @Override
+        protected HttpHost determineProxy(
+            HttpHost target,
+            org.apache.http.HttpRequest request,
+            org.apache.http.protocol.HttpContext context) {
+          // Always return null (no proxy) to override system property defaults
+          return null;
+        }
+      };
+      httpClientBuilder.setRoutePlanner(routePlanner);
+    } else {
+      // Default (null) or true: enable system properties
       httpClientBuilder.useSystemProperties();
     }
 
@@ -471,11 +485,6 @@ public class GcpSts extends AbstractSts {
    *   <li>Environment variables (if useEnvironmentVariableProxyValues is true)
    *   <li>System properties (handled by HttpClientBuilder.useSystemProperties(), not here)
    * </ol>
-   *
-   * <p>Note: System properties are NOT explicitly set here. Instead, they're controlled by
-   * HttpClientBuilder.useSystemProperties() in buildHttpClient(). This matches AWS SDK's approach
-   * where ProxyConfiguration.useSystemPropertyValues() controls the behavior at the HTTP client
-   * level, not per-request.
    *
    * @param builder The builder containing proxy configuration
    * @return Configured RequestConfig
