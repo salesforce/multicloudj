@@ -1,0 +1,20 @@
+{
+  "id" : "2f29848a-748f-4069-be3e-f4817a50246d",
+  "name" : "AwsBlobStoreIT_testPresignV2_signedHeadersNonEmpty-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presign-v2/signed-headers-present",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "6H625K4JS3BBJ0K2",
+      "x-amz-id-2" : "LX9KAWWBM+acW3zKmzg5R96N7drXH9HX9umK87d4ShK+EAnoId1ZRtSc1l6Q94i5DpvqKt5SH4U=",
+      "Date" : "Thu, 04 Jun 2026 10:51:01 GMT"
+    }
+  },
+  "uuid" : "2f29848a-748f-4069-be3e-f4817a50246d",
+  "persistent" : true,
+  "insertionIndex" : 769
+}

@@ -4267,9 +4267,10 @@ public abstract class AbstractBlobStoreIT {
     HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
     connection.setDoOutput(true);
     connection.setRequestMethod("PUT");
+    connection.setFixedLengthStreamingMode(content.length);
 
     // Replay signed headers exactly as returned by presign().
-    // Skip host (set by connection) and content-length (set automatically from body size).
+    // Skip host (set by connection) and content-length (handled via setFixedLengthStreamingMode).
     if (signedHeaders != null) {
       signedHeaders.forEach((k, v) -> {
         if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
@@ -4277,14 +4278,26 @@ public abstract class AbstractBlobStoreIT {
         }
       });
     }
+    // If Content-Type wasn't in signedHeaders, set empty to prevent HttpURLConnection from
+    // sending a default that would cause GCS V4 signature mismatch.
+    if (signedHeaders == null || !signedHeaders.containsKey("Content-Type")) {
+      connection.setRequestProperty("Content-Type", "");
+    }
 
     try (OutputStream out = connection.getOutputStream()) {
       out.write(content);
     }
     int responseCode = connection.getResponseCode();
     if (responseCode != 200) {
+      String errorBody = "";
+      try (InputStream err = connection.getErrorStream()) {
+        if (err != null) {
+          errorBody = new String(err.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
       throw new IOException(
-          "Failed to upload using presignedUrl with signed headers. responseCode=" + responseCode);
+          "Failed to upload using presignedUrl with signed headers. responseCode=" + responseCode
+              + "\nError body: " + errorBody);
     }
   }
 
@@ -4557,7 +4570,6 @@ public abstract class AbstractBlobStoreIT {
   // =====================================================================
 
   @Test
-  //@Disabled("Enable after recording: presign with contentLength constraint")
   public void testPresignV2_contentLengthBinding() throws Exception {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-length-binding";
@@ -4579,15 +4591,16 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getSignedHeaders());
       Assertions.assertFalse(response.getSignedHeaders().isEmpty());
 
-      // Upload replaying signed headers verbatim should succeed
-      uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
   }
 
   @Test
-  //@Disabled("Enable after recording: presign with contentType constraint")
   public void testPresignV2_contentTypeBinding() throws Exception {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-type-binding";
@@ -4607,13 +4620,17 @@ public abstract class AbstractBlobStoreIT {
 
       Assertions.assertNotNull(response.getUrl());
       Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
   }
 
   @Test
-  //@Disabled("Enable after recording: presign with CRC32C checksum constraint")
   public void testPresignV2_checksumCrc32cBinding() throws Exception {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
@@ -4634,13 +4651,17 @@ public abstract class AbstractBlobStoreIT {
 
       Assertions.assertNotNull(response.getUrl());
       Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
   }
 
   @Test
-  //@Disabled("Enable after recording: presign response contains signedHeaders")
   public void testPresignV2_signedHeadersNonEmpty() throws Exception {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/signed-headers-present";
@@ -4670,7 +4691,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
-  //@Disabled("Enable after recording: presign with all constraints bound together")
   public void testPresignV2_allConstraintsCombined() throws Exception {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/all-constraints-combined";
@@ -4698,8 +4718,10 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getExpiration(),
           "expiration should be present");
 
-      // Upload replaying all signed headers should succeed
-      uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }

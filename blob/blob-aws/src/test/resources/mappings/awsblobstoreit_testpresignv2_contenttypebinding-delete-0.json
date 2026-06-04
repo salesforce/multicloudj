@@ -1,0 +1,20 @@
+{
+  "id" : "c0fd6589-9e91-4448-bd86-c856bb4e44f3",
+  "name" : "AwsBlobStoreIT_testPresignV2_contentTypeBinding-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presign-v2/content-type-binding",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "P1BS9470A60558DP",
+      "x-amz-id-2" : "vZSTQoeVgrBNLXaE8r+95IktSa0oHV7JKPyNpPI6xhzo6c1GDYM8WPUEatDXFQLMgHUhm4hKhH0=",
+      "Date" : "Thu, 04 Jun 2026 10:50:55 GMT"
+    }
+  },
+  "uuid" : "c0fd6589-9e91-4448-bd86-c856bb4e44f3",
+  "persistent" : true,
+  "insertionIndex" : 761
+}
