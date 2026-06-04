@@ -41,6 +41,7 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -440,11 +441,21 @@ public class GcpSts extends AbstractSts {
   /**
    * Builds request configuration with proxy settings.
    *
+   * <p>Proxy resolution follows this priority order:
+   *
+   * <ol>
+   *   <li>Explicit proxyEndpoint (if provided) - highest priority
+   *   <li>Environment variables (if useEnvironmentVariableProxyValues is true)
+   *   <li>System properties (if useSystemPropertyProxyValues is true or null) - default behavior
+   * </ol>
+   *
    * @param builder The builder containing proxy configuration
    * @return Configured RequestConfig
    */
   private static RequestConfig buildRequestConfig(Builder builder) {
     RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
+
+    // Priority 1: Explicit proxy endpoint
     if (builder.getProxyEndpoint() != null) {
       HttpHost proxyHost =
           new HttpHost(
@@ -452,11 +463,88 @@ public class GcpSts extends AbstractSts {
               builder.getProxyEndpoint().getPort(),
               builder.getProxyEndpoint().getScheme());
       requestConfigBuilder.setProxy(proxyHost);
+      return requestConfigBuilder.build();
     }
-    // Note: System property and environment variable proxy values are automatically
-    // honored by Apache HttpClient when useSystemPropertyProxyValues or
-    // useEnvironmentVariableProxyValues are set. No explicit configuration needed here.
+
+    // Priority 2: Environment variables (if explicitly enabled)
+    if (Boolean.TRUE.equals(builder.getUseEnvironmentVariableProxyValues())) {
+      HttpHost envProxy = getProxyFromEnvironment();
+      if (envProxy != null) {
+        requestConfigBuilder.setProxy(envProxy);
+        return requestConfigBuilder.build();
+      }
+    }
+
+    // Priority 3: System properties (default behavior unless explicitly disabled)
+    if (!Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
+      HttpHost sysProxy = getProxyFromSystemProperties();
+      if (sysProxy != null) {
+        requestConfigBuilder.setProxy(sysProxy);
+        return requestConfigBuilder.build();
+      }
+    }
+
     return requestConfigBuilder.build();
+  }
+
+  /**
+   * Reads proxy configuration from environment variables (HTTP_PROXY, HTTPS_PROXY).
+   *
+   * <p>Prefers HTTPS_PROXY over HTTP_PROXY for GCP services which use HTTPS.
+   *
+   * @return HttpHost configured from environment variables, or null if not set
+   */
+  private static HttpHost getProxyFromEnvironment() {
+    String proxyUrl = System.getenv("HTTPS_PROXY");
+    if (proxyUrl == null || proxyUrl.isEmpty()) {
+      proxyUrl = System.getenv("https_proxy");
+    }
+    if (proxyUrl == null || proxyUrl.isEmpty()) {
+      proxyUrl = System.getenv("HTTP_PROXY");
+    }
+    if (proxyUrl == null || proxyUrl.isEmpty()) {
+      proxyUrl = System.getenv("http_proxy");
+    }
+
+    if (proxyUrl != null && !proxyUrl.isEmpty()) {
+      try {
+        URI uri = URI.create(proxyUrl);
+        return new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme());
+      } catch (Exception e) {
+        // Invalid proxy URL format - ignore
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Reads proxy configuration from Java system properties (https.proxyHost, http.proxyHost, etc.).
+   *
+   * <p>Prefers HTTPS proxy settings over HTTP for GCP services which use HTTPS.
+   *
+   * @return HttpHost configured from system properties, or null if not set
+   */
+  private static HttpHost getProxyFromSystemProperties() {
+    String proxyHost = System.getProperty("https.proxyHost");
+    String proxyPort = System.getProperty("https.proxyPort");
+
+    if (proxyHost == null || proxyHost.isEmpty()) {
+      proxyHost = System.getProperty("http.proxyHost");
+      proxyPort = System.getProperty("http.proxyPort");
+    }
+
+    if (proxyHost != null && !proxyHost.isEmpty()) {
+      int port = 80; // Default HTTP port
+      if (proxyPort != null && !proxyPort.isEmpty()) {
+        try {
+          port = Integer.parseInt(proxyPort);
+        } catch (NumberFormatException e) {
+          // Use default port if parsing fails
+        }
+      }
+      return new HttpHost(proxyHost, port);
+    }
+    return null;
   }
 
   public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {

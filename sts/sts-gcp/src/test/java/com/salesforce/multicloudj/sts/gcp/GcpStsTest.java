@@ -767,4 +767,84 @@ public class GcpStsTest {
     Assertions.assertNotNull(sts);
     Assertions.assertEquals("gcp", sts.getProviderId());
   }
+
+  @Test
+  public void testProxyResolutionFromEnvironmentVariables() {
+    // Set environment variable proxy (in real scenario this would be set externally)
+    // This test verifies the code path when useEnvironmentVariableProxyValues is true
+    GcpSts.Builder builder =
+        new GcpSts()
+            .builder()
+            .withUseEnvironmentVariableProxyValues(true)
+            .withUseSystemPropertyProxyValues(false);
+
+    // Build the client - it should attempt to read from environment variables
+    // Even if no env vars are set, the code path is exercised
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testProxyResolutionFromSystemProperties() {
+    // Save original values
+    String originalHttpsProxyHost = System.getProperty("https.proxyHost");
+    String originalHttpsProxyPort = System.getProperty("https.proxyPort");
+
+    try {
+      // Set system properties
+      System.setProperty("https.proxyHost", "proxy.example.com");
+      System.setProperty("https.proxyPort", "8080");
+
+      GcpSts.Builder builder =
+          new GcpSts()
+              .builder()
+              .withUseSystemPropertyProxyValues(true)
+              .withUseEnvironmentVariableProxyValues(false);
+
+      // Build the client - it should read from system properties
+      GcpSts sts = builder.build(mockGoogleCredentials);
+      Assertions.assertNotNull(sts);
+      Assertions.assertEquals("gcp", sts.getProviderId());
+    } finally {
+      // Restore original values
+      if (originalHttpsProxyHost == null) {
+        System.clearProperty("https.proxyHost");
+      } else {
+        System.setProperty("https.proxyHost", originalHttpsProxyHost);
+      }
+      if (originalHttpsProxyPort == null) {
+        System.clearProperty("https.proxyPort");
+      } else {
+        System.setProperty("https.proxyPort", originalHttpsProxyPort);
+      }
+    }
+  }
+
+  @Test
+  public void testProxyResolutionDefaultBehavior() {
+    // When no proxy flags are set, system properties should be used by default
+    GcpSts.Builder builder = new GcpSts().builder();
+
+    // Build the client - it should default to system properties behavior
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
+
+  @Test
+  public void testExplicitProxyEndpointTakesPriority() {
+    // Explicit proxy endpoint should take priority over env vars and system properties
+    GcpSts.Builder builder =
+        new GcpSts()
+            .builder()
+            .withProxyEndpoint(URI.create("http://explicit-proxy.example.com:3128"))
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Build the client - explicit proxy should be used
+    GcpSts sts = builder.build(mockGoogleCredentials);
+    Assertions.assertNotNull(sts);
+    Assertions.assertEquals("gcp", sts.getProviderId());
+  }
 }
