@@ -561,28 +561,39 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                 blobInfos.add(blob);
               }
             }))
-        // Stage 3: fan out per-file downloads and compose; no blocking join.
-        .thenCompose(v -> {
+        // Stage 3: create all destination directories upfront, then fan out downloads.
+        // Uses thenComposeAsync to ensure directory I/O runs on our executor,
+        // not on the SDK's async-completion thread that resolved the listing.
+        .thenComposeAsync(v -> {
+          // Pre-create all unique parent directories before starting downloads.
+          for (BlobInfo blob : blobInfos) {
+            String key = blob.getKey();
+            String relative = (prefix != null && key.startsWith(prefix))
+                ? key.substring(prefix.length()) : key;
+            Path destination = targetDir.resolve(relative).normalize();
+            if (!destination.startsWith(targetDir)) {
+              throw new SubstrateSdkException(
+                  "Path traversal detected: key '" + key
+                      + "' resolves outside target directory");
+            }
+            Path parent = destination.getParent();
+            if (parent != null) {
+              try {
+                Files.createDirectories(parent);
+              } catch (IOException e) {
+                throw new SubstrateSdkException(
+                    "Failed to create directories: " + parent, e);
+              }
+            }
+          }
+
+          // Fan out per-file downloads.
           List<CompletableFuture<Void>> futures = blobInfos.stream()
               .map(blob -> {
                 String key = blob.getKey();
                 String relative = (prefix != null && key.startsWith(prefix))
                     ? key.substring(prefix.length()) : key;
                 Path destination = targetDir.resolve(relative).normalize();
-                if (!destination.startsWith(targetDir)) {
-                  throw new SubstrateSdkException(
-                      "Path traversal detected: key '" + key
-                          + "' resolves outside target directory");
-                }
-                Path parent = destination.getParent();
-                if (parent != null) {
-                  try {
-                    Files.createDirectories(parent);
-                  } catch (IOException e) {
-                    throw new SubstrateSdkException(
-                        "Failed to create directories: " + parent, e);
-                  }
-                }
 
                 DownloadRequest downloadRequest = DownloadRequest.builder()
                     .withKey(key)
@@ -605,7 +616,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               .collect(Collectors.toList());
           return CompletableFuture.allOf(
               futures.toArray(new CompletableFuture[0]));
-        })
+        }, executorService)
         // Stage 4: build response after all downloads complete.
         .thenApply(v -> DirectoryDownloadResponse.builder()
             .failedTransfers(new ArrayList<>(failures))
@@ -644,21 +655,29 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     List<FailedBlobUpload> failures =
         Collections.synchronizedList(new ArrayList<>());
 
-    // Stage 1: blocking directory walk on an executor thread; released after.
+    // Stage 1: blocking directory walk + file size stat on an executor thread.
     return CompletableFuture.supplyAsync(
-        () -> collectFilePaths(sourceDir, directoryUploadRequest),
+        () -> {
+          List<Path> paths = collectFilePaths(sourceDir, directoryUploadRequest);
+          // Compute file sizes upfront so Stage 2 avoids I/O on completion threads.
+          Map<Path, Long> fileSizes = paths.stream()
+              .collect(Collectors.toMap(p -> p, p -> p.toFile().length()));
+          return fileSizes;
+        },
         executorService)
         // Stage 2: fan out per-file uploads and compose; no blocking join.
-        .thenCompose(filePaths -> {
-          if (filePaths.isEmpty()) {
+        .thenCompose(fileSizes -> {
+          if (fileSizes.isEmpty()) {
             return CompletableFuture.completedFuture(null);
           }
-          List<CompletableFuture<Void>> futures = filePaths.stream()
-              .map(filePath -> {
+          List<CompletableFuture<Void>> futures = fileSizes.entrySet().stream()
+              .map(entry -> {
+                Path filePath = entry.getKey();
+                long fileSize = entry.getValue();
                 String key = toBlobKey(sourceDir, filePath, prefix);
                 UploadRequest.Builder uploadBuilder = UploadRequest.builder()
                     .withKey(key)
-                    .withContentLength(filePath.toFile().length());
+                    .withContentLength(fileSize);
                 if (tags != null && !tags.isEmpty()) {
                   uploadBuilder.withTags(tags);
                 }
@@ -670,7 +689,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                     .thenAccept(response -> {
                       if (directoryUploadRequest
                           .isTransferStatusLoggingEnabled()) {
-                        totalBytes.addAndGet(filePath.toFile().length());
+                        totalBytes.addAndGet(fileSize);
                       }
                     })
                     .exceptionally(ex -> {
