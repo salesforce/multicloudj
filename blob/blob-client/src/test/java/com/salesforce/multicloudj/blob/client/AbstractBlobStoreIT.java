@@ -4637,6 +4637,42 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  @Disabled("Enable after recording: presign with all constraints bound together")
+  public void testPresignV2_allConstraintsCombined() throws Exception {
+    String key = "conformance-tests/presign-v2/all-constraints-combined";
+    byte[] content = "combined constraint test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .contentType("text/plain")
+              .checksumValue("AAAAAA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should contain all constraint headers");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+
+      // Upload replaying all signed headers should succeed
+      useHttpUrlConnectionToPut(harness, response.getUrl(), content,
+          response.getSignedHeaders(), Map.of());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
   @Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
   public void testPresignV2_backwardCompatibility() throws Exception {
     String key = "conformance-tests/presign-v2/backward-compat";
