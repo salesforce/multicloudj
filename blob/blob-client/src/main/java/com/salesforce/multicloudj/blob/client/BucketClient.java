@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -636,6 +637,28 @@ public class BucketClient implements AutoCloseable {
         ctx -> {
           try {
             return blobStore.generatePresignedUrl(request);
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
+  }
+
+  /**
+   * Generates a presigned URL with full response including signed headers and expiration.
+   *
+   * @param request The presigned request (supports constraint fields)
+   * @return Response containing the URL, signed headers map, and expiration
+   * @throws SubstrateSdkException Thrown if the operation fails
+   */
+  public PresignedUrlResponse presign(PresignedUrlRequest request) {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.PRESIGN,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> {
+          try {
+            return blobStore.presign(request);
           } catch (Throwable t) {
             propagate(t);
             return null;

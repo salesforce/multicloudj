@@ -59,6 +59,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -761,14 +762,8 @@ public class AliBlobStore extends AbstractBlobStore {
         OperationOptions.defaults());
   }
 
-  /**
-   * Generates a presigned URL for uploading/downloading blobs
-   *
-   * @param request The PresignedUrlRequest
-   * @return Returns the presigned URL
-   */
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     PresignOptions options = transformer.toPresignOptions(request);
     PresignResult result;
     switch (request.getType()) {
@@ -783,7 +778,11 @@ public class AliBlobStore extends AbstractBlobStore {
             "Unsupported PresignedOperation. type=" + request.getType());
     }
     try {
-      return new URL(result.url());
+      return PresignedUrlResponse.builder()
+          .url(new URL(result.url()))
+          .signedHeaders(result.signedHeaders().orElse(java.util.Map.of()))
+          .expiration(result.expiration().orElse(null))
+          .build();
     } catch (java.net.MalformedURLException e) {
       throw new RuntimeException("Invalid presigned URL: " + result.url(), e);
     }

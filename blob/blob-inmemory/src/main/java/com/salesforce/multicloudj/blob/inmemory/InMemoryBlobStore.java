@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -844,11 +845,13 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    // Don't validate bucket existence - presigned URLs are client-side operations
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
-      // For in-memory implementation, just return a fake URL
-      return new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      return PresignedUrlResponse.builder()
+          .url(url)
+          .signedHeaders(java.util.Map.of())
+          .build();
     } catch (MalformedURLException e) {
       throw new UnknownException("Failed to generate presigned URL", e);
     }

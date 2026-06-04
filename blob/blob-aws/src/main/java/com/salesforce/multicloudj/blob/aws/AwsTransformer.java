@@ -617,6 +617,19 @@ public class AwsTransformer {
     if (request.getKmsKeyId() != null) {
       builder.withKmsKeyId(request.getKmsKeyId());
     }
+    if (request.getContentLength() > 0) {
+      builder.withContentLength(request.getContentLength());
+    }
+    if (request.getContentType() != null) {
+      builder.withContentType(request.getContentType());
+    }
+    if (request.getChecksumValue() != null) {
+      builder.withChecksumValue(request.getChecksumValue());
+      builder.withChecksumAlgorithm(
+          request.getChecksumAlgorithm() != null
+              ? request.getChecksumAlgorithm()
+              : ChecksumMethod.CRC32C);
+    }
     UploadRequest uploadRequest = builder.build();
 
     return PutObjectPresignRequest.builder()

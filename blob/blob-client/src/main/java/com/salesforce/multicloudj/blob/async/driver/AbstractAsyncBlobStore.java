@@ -21,6 +21,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -224,7 +225,14 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
   @Override
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doGeneratePresignedUrl(request);
+    return doPresign(request).thenApply(PresignedUrlResponse::getUrl);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    validator.validate(request);
+    return doPresign(request);
   }
 
   /** {@inheritDoc} */
@@ -318,7 +326,7 @@ public abstract class AbstractAsyncBlobStore implements AsyncBlobStore {
 
   protected abstract CompletableFuture<Void> doSetTags(String key, Map<String, String> tags);
 
-  protected abstract CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request);
+  protected abstract CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request);
 
   protected abstract CompletableFuture<Boolean> doDoesObjectExist(String key, String versionId);
 

@@ -33,9 +33,34 @@ public class PresignedUrlRequest {
   private final String kmsKeyId;
 
   /**
-   * Optional: Specify the Content-Disposition header to override in a presigned download URL. 
+   * Optional: Specify the Content-Disposition header to override in a presigned download URL.
    */
   private final String contentDisposition;
+
+  /**
+   * (Optional) The length of the content in bytes to be signed into the presigned upload URL.
+   * When set, the substrate will reject uploads whose body size does not match.
+   * A value of 0 means unset (no content-length constraint).
+   */
+  private final long contentLength;
+
+  /**
+   * (Optional) The content type to be signed into the presigned upload URL.
+   * When set, the substrate will reject uploads whose Content-Type header does not match.
+   */
+  private final String contentType;
+
+  /**
+   * (Optional) The base64-encoded checksum value to be signed into the presigned upload URL.
+   * When set, the substrate will reject uploads whose content hash does not match.
+   */
+  private final String checksumValue;
+
+  /**
+   * (Optional) The checksum algorithm used for the checksumValue.
+   * Defaults to CRC32C when checksumValue is set but no algorithm is specified.
+   */
+  private final ChecksumMethod checksumAlgorithm;
 
   /**
    * (Optional) Per-call observability context carrying the correlation ID. If null or if its

@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -410,23 +411,32 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   }
 
   @Override
-  protected CompletableFuture<URL> doGeneratePresignedUrl(PresignedUrlRequest request) {
+  protected CompletableFuture<PresignedUrlResponse> doPresign(PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(
         () -> {
           try (S3Presigner presigner = getPresigner()) {
+            software.amazon.awssdk.awscore.presigner.PresignedRequest presigned;
             switch (request.getType()) {
               case UPLOAD:
-                return presigner
-                    .presignPutObject(transformer.toPutObjectPresignRequest(request))
-                    .url();
+                presigned =
+                    presigner.presignPutObject(transformer.toPutObjectPresignRequest(request));
+                break;
               case DOWNLOAD:
-                return presigner
-                    .presignGetObject(transformer.toGetObjectPresignRequest(request))
-                    .url();
+                presigned =
+                    presigner.presignGetObject(transformer.toGetObjectPresignRequest(request));
+                break;
               default:
                 throw new InvalidArgumentException(
                     "Unsupported PresignedOperation. type=" + request.getType());
             }
+            java.util.Map<String, String> flatHeaders = new java.util.LinkedHashMap<>();
+            presigned.signedHeaders().forEach((k, values) ->
+                flatHeaders.put(k, String.join(", ", values)));
+            return PresignedUrlResponse.builder()
+                .url(presigned.url())
+                .signedHeaders(flatHeaders)
+                .expiration(presigned.expiration())
+                .build();
           }
         });
   }

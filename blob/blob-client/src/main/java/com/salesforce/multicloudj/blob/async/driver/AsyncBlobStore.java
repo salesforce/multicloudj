@@ -20,6 +20,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -245,6 +246,20 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
    * @return Returns the presigned URL
    */
   CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request);
+
+  /**
+   * Generates a presigned URL with full response including signed headers and expiration.
+   *
+   * @param request The presigned request
+   * @return Response containing the URL, signed headers map, and expiration
+   */
+  default CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    return generatePresignedUrl(request)
+        .thenApply(url -> PresignedUrlResponse.builder()
+            .url(url)
+            .signedHeaders(java.util.Map.of())
+            .build());
+  }
 
   /**
    * Determines if an object exists for a given key/versionId

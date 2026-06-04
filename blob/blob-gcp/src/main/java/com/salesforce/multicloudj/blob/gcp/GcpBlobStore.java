@@ -76,6 +76,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -113,6 +114,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -911,7 +913,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     var blobInfo = transformer.toBlobInfo(request);
     HttpMethod httpMethod = null;
     switch (request.getType()) {
@@ -925,11 +927,34 @@ public class GcpBlobStore extends AbstractBlobStore {
         throw new IllegalArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
     }
+
+    Map<String, String> extHeaders = new LinkedHashMap<>();
+    if (request.getMetadata() != null) {
+      extHeaders.putAll(request.getMetadata());
+    }
+    if (request.getType() == PresignedOperation.UPLOAD) {
+      if (request.getContentType() != null) {
+        extHeaders.put("Content-Type", request.getContentType());
+      }
+      if (request.getContentLength() > 0) {
+        extHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+      }
+      if (request.getChecksumValue() != null) {
+        ChecksumMethod algo = request.getChecksumAlgorithm() != null
+            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+        if (algo == ChecksumMethod.SHA256) {
+          throw new UnsupportedOperationException(
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+        }
+        extHeaders.put("x-goog-hash", "crc32c=" + request.getChecksumValue());
+      }
+    }
+
     List<Storage.SignUrlOption> options = new ArrayList<>();
     options.add(Storage.SignUrlOption.httpMethod(httpMethod));
     options.add(Storage.SignUrlOption.withV4Signature());
-    if (request.getMetadata() != null) {
-      options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+    if (!extHeaders.isEmpty()) {
+      options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
     }
     if (request.getContentDisposition() != null
         && request.getType() == PresignedOperation.DOWNLOAD) {
@@ -938,11 +963,17 @@ public class GcpBlobStore extends AbstractBlobStore {
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
-    return storage.signUrl(
+    URL url = storage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
         options.toArray(new Storage.SignUrlOption[0]));
+
+    return PresignedUrlResponse.builder()
+        .url(url)
+        .signedHeaders(extHeaders)
+        .expiration(java.time.Instant.now().plus(request.getDuration()))
+        .build();
   }
 
   @Override

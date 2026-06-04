@@ -285,6 +285,13 @@ public class BlobStoreValidator {
     validatePresignedOperationType(request.getType());
     validateKey(request.getKey());
     validateDuration(request.getDuration());
+    if (request.getContentLength() < 0) {
+      throw new IllegalArgumentException("contentLength must be >= 0");
+    }
+    if (request.getChecksumAlgorithm() != null && request.getChecksumValue() == null) {
+      throw new IllegalArgumentException(
+          "checksumAlgorithm requires checksumValue to be set");
+    }
   }
 
   /**

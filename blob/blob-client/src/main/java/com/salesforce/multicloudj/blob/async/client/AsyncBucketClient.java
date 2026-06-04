@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -320,6 +321,15 @@ public class AsyncBucketClient implements AutoCloseable {
         bucketAttrs(),
         request.getOperationContext(),
         ctx -> blobStore.generatePresignedUrl(request).exceptionally(this::handleException));
+  }
+
+  /** Generates a presigned URL with full response including signed headers and expiration. */
+  public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    return multiCloudJLogger.traceAsyncOperation(
+        BlobSpanNames.PRESIGN,
+        bucketAttrs(),
+        request.getOperationContext(),
+        ctx -> blobStore.presign(request).exceptionally(this::handleException));
   }
 
   /** Determines if an object exists for a given key/versionId */

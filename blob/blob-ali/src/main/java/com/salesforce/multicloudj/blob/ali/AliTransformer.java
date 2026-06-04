@@ -592,6 +592,14 @@ public class AliTransformer {
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
+    if (request.getContentLength() > 0) {
+      builder.contentLength((int) request.getContentLength());
+    }
+
+    if (StringUtils.isNotEmpty(request.getContentType())) {
+      builder.contentType(request.getContentType());
+    }
+
     return builder.build();
   }
 
