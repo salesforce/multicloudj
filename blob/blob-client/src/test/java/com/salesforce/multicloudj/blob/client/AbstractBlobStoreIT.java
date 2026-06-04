@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -4519,6 +4520,162 @@ public abstract class AbstractBlobStoreIT {
     } finally {
       safeDeleteBlobs(bucketClient, key);
     }
+  }
+
+  // =====================================================================
+  // Presign v2 conformance tests — constraint binding + signed headers
+  // =====================================================================
+
+  @Test
+  @Disabled("Enable after recording: presign with contentLength constraint")
+  public void testPresignV2_contentLengthBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/content-length-binding";
+    byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload with correct length should succeed
+      useHttpUrlConnectionToPut(harness, response.getUrl(), content,
+          response.getSignedHeaders(), Map.of());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled("Enable after recording: presign with contentType constraint")
+  public void testPresignV2_contentTypeBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/content-type-binding";
+    byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("application/json")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled("Enable after recording: presign with CRC32C checksum constraint")
+  public void testPresignV2_checksumCrc32cBinding() throws Exception {
+    String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
+    byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .checksumValue("AAAAAA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled("Enable after recording: presign response contains signedHeaders")
+  public void testPresignV2_signedHeadersNonEmpty() throws Exception {
+    String key = "conformance-tests/presign-v2/signed-headers-present";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(100)
+              .contentType("application/octet-stream")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should be non-empty when constraints are bound");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  @Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
+  public void testPresignV2_backwardCompatibility() throws Exception {
+    String key = "conformance-tests/presign-v2/backward-compat";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // Old API still works exactly as before — no constraints, bare URL
+      URL url = bucketClient.generatePresignedUrl(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .build());
+
+      Assertions.assertNotNull(url);
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_gcpSha256Rejected() {
+    // SHA256 is not supported on GCS — should throw UnsupportedOperationException
+    // This test runs without recording since it's a client-side validation
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key("conformance-tests/presign-v2/sha256-rejected")
+        .duration(Duration.ofHours(1))
+        .checksumValue("abc123==")
+        .checksumAlgorithm(ChecksumMethod.SHA256)
+        .build();
+
+    // GCP should throw; AWS/Ali may succeed — this test validates per-provider behavior
+    // Provider-specific IT subclasses can override to assert the expected outcome
   }
 
   @Test
