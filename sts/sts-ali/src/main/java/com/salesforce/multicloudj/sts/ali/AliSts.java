@@ -25,6 +25,7 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.net.URI;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -121,15 +122,16 @@ public class AliSts extends AbstractSts {
   static HttpClientConfig buildHttpClientConfig(Builder builder) {
     HttpClientConfig clientConfig = HttpClientConfig.getDefault();
 
-    if (builder.getProxyEndpoint() != null) {
-      URI proxy = builder.getProxyEndpoint();
-      String proxyUrl = proxy.toString();
+    Optional.ofNullable(builder.getProxyEndpoint())
+        .ifPresent(
+            proxy -> {
+              String proxyUrl = proxy.toString();
+              // Set both HTTP and HTTPS proxy to the same endpoint
+              // Alibaba SDK determines which to use based on the target endpoint protocol
+              clientConfig.setHttpProxy(proxyUrl);
+              clientConfig.setHttpsProxy(proxyUrl);
+            });
 
-      // Set both HTTP and HTTPS proxy to the same endpoint
-      // Alibaba SDK determines which to use based on the target endpoint protocol
-      clientConfig.setHttpProxy(proxyUrl);
-      clientConfig.setHttpsProxy(proxyUrl);
-    }
     // Note: When proxyEndpoint is null and useSystemPropertyProxyValues or
     // useEnvironmentVariableProxyValues are set (true or false), the SDK still automatically
     // picks up system properties and environment variables.

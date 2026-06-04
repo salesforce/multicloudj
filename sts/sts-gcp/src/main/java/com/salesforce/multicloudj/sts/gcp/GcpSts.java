@@ -45,6 +45,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -456,32 +457,28 @@ public class GcpSts extends AbstractSts {
     RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
 
     // Priority 1: Explicit proxy endpoint
+    Optional.ofNullable(builder.getProxyEndpoint())
+        .map(
+            endpoint ->
+                new HttpHost(endpoint.getHost(), endpoint.getPort(), endpoint.getScheme()))
+        .ifPresent(requestConfigBuilder::setProxy);
+
     if (builder.getProxyEndpoint() != null) {
-      HttpHost proxyHost =
-          new HttpHost(
-              builder.getProxyEndpoint().getHost(),
-              builder.getProxyEndpoint().getPort(),
-              builder.getProxyEndpoint().getScheme());
-      requestConfigBuilder.setProxy(proxyHost);
       return requestConfigBuilder.build();
     }
 
     // Priority 2: Environment variables (if explicitly enabled)
     if (Boolean.TRUE.equals(builder.getUseEnvironmentVariableProxyValues())) {
-      HttpHost envProxy = getProxyFromEnvironment();
-      if (envProxy != null) {
-        requestConfigBuilder.setProxy(envProxy);
+      Optional<HttpHost> envProxy = getProxyFromEnvironment();
+      if (envProxy.isPresent()) {
+        requestConfigBuilder.setProxy(envProxy.get());
         return requestConfigBuilder.build();
       }
     }
 
     // Priority 3: System properties (default behavior unless explicitly disabled)
     if (!Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
-      HttpHost sysProxy = getProxyFromSystemProperties();
-      if (sysProxy != null) {
-        requestConfigBuilder.setProxy(sysProxy);
-        return requestConfigBuilder.build();
-      }
+      getProxyFromSystemProperties().ifPresent(requestConfigBuilder::setProxy);
     }
 
     return requestConfigBuilder.build();
@@ -492,29 +489,25 @@ public class GcpSts extends AbstractSts {
    *
    * <p>Prefers HTTPS_PROXY over HTTP_PROXY for GCP services which use HTTPS.
    *
-   * @return HttpHost configured from environment variables, or null if not set
+   * @return Optional containing HttpHost configured from environment variables, or empty if not set
    */
-  private static HttpHost getProxyFromEnvironment() {
-    String proxyUrl = System.getenv("HTTPS_PROXY");
-    if (proxyUrl == null || proxyUrl.isEmpty()) {
-      proxyUrl = System.getenv("https_proxy");
-    }
-    if (proxyUrl == null || proxyUrl.isEmpty()) {
-      proxyUrl = System.getenv("HTTP_PROXY");
-    }
-    if (proxyUrl == null || proxyUrl.isEmpty()) {
-      proxyUrl = System.getenv("http_proxy");
-    }
-
-    if (proxyUrl != null && !proxyUrl.isEmpty()) {
-      try {
-        URI uri = URI.create(proxyUrl);
-        return new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme());
-      } catch (Exception e) {
-        // Invalid proxy URL format - ignore
-      }
-    }
-    return null;
+  private static Optional<HttpHost> getProxyFromEnvironment() {
+    return Optional.ofNullable(System.getenv("HTTPS_PROXY"))
+        .or(() -> Optional.ofNullable(System.getenv("https_proxy")))
+        .or(() -> Optional.ofNullable(System.getenv("HTTP_PROXY")))
+        .or(() -> Optional.ofNullable(System.getenv("http_proxy")))
+        .filter(url -> !url.isEmpty())
+        .flatMap(
+            url -> {
+              try {
+                URI uri = URI.create(url);
+                return Optional.of(
+                    new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()));
+              } catch (Exception e) {
+                // Invalid proxy URL format - ignore
+                return Optional.empty();
+              }
+            });
   }
 
   /**
@@ -522,29 +515,30 @@ public class GcpSts extends AbstractSts {
    *
    * <p>Prefers HTTPS proxy settings over HTTP for GCP services which use HTTPS.
    *
-   * @return HttpHost configured from system properties, or null if not set
+   * @return Optional containing HttpHost configured from system properties, or empty if not set
    */
-  private static HttpHost getProxyFromSystemProperties() {
-    String proxyHost = System.getProperty("https.proxyHost");
-    String proxyPort = System.getProperty("https.proxyPort");
+  private static Optional<HttpHost> getProxyFromSystemProperties() {
+    Optional<String> httpsHost = Optional.ofNullable(System.getProperty("https.proxyHost"))
+        .filter(host -> !host.isEmpty());
+    Optional<String> httpsPort = Optional.ofNullable(System.getProperty("https.proxyPort"));
 
-    if (proxyHost == null || proxyHost.isEmpty()) {
-      proxyHost = System.getProperty("http.proxyHost");
-      proxyPort = System.getProperty("http.proxyPort");
+    Optional<String> httpHost = Optional.ofNullable(System.getProperty("http.proxyHost"))
+        .filter(host -> !host.isEmpty());
+    Optional<String> httpPort = Optional.ofNullable(System.getProperty("http.proxyPort"));
+
+    // Prefer HTTPS proxy if available
+    if (httpsHost.isPresent()) {
+      int port = httpsPort.map(Integer::parseInt).orElse(443); // Default HTTPS port
+      return Optional.of(new HttpHost(httpsHost.get(), port));
     }
 
-    if (proxyHost != null && !proxyHost.isEmpty()) {
-      int port = 80; // Default HTTP port
-      if (proxyPort != null && !proxyPort.isEmpty()) {
-        try {
-          port = Integer.parseInt(proxyPort);
-        } catch (NumberFormatException e) {
-          // Use default port if parsing fails
-        }
-      }
-      return new HttpHost(proxyHost, port);
+    // Fall back to HTTP proxy
+    if (httpHost.isPresent()) {
+      int port = httpPort.map(Integer::parseInt).orElse(80); // Default HTTP port
+      return Optional.of(new HttpHost(httpHost.get(), port));
     }
-    return null;
+
+    return Optional.empty();
   }
 
   public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {
