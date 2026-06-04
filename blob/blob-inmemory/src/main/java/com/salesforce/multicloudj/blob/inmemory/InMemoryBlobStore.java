@@ -23,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
@@ -848,9 +849,24 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
       URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      Map<String, String> signedHeaders = new HashMap<>();
+      if (request.getType() == PresignedOperation.UPLOAD) {
+        if (request.getContentLength() > 0) {
+          signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+        }
+        if (request.getContentType() != null) {
+          signedHeaders.put("Content-Type", request.getContentType());
+        }
+        if (request.getChecksumValue() != null) {
+          String algo = request.getChecksumAlgorithm() != null
+              ? request.getChecksumAlgorithm().name() : "CRC32C";
+          signedHeaders.put("x-checksum", algo + "=" + request.getChecksumValue());
+        }
+      }
       return PresignedUrlResponse.builder()
           .url(url)
-          .signedHeaders(Map.of())
+          .signedHeaders(signedHeaders)
+          .expiration(Instant.now().plus(request.getDuration()))
           .build();
     } catch (MalformedURLException e) {
       throw new UnknownException("Failed to generate presigned URL", e);
