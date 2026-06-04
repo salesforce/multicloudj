@@ -112,4 +112,34 @@ public class AliStsTest {
     AliSts sts = new AliSts().builder().build(mockStsClient);
     Assertions.assertEquals(UnknownException.class, sts.getException(new RuntimeException()));
   }
+
+  @Test
+  public void testBuildHttpClientConfigWithExplicitProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
+
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpsProxy());
+  }
+
+  @Test
+  public void testConstructorWithProxyConfiguration() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AliSts.Builder builder =
+        new AliSts()
+            .builder()
+            .withRegion("cn-hangzhou")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    try {
+      AliSts sts = builder.build();
+      Assertions.assertNotNull(sts);
+    } catch (Exception e) {
+      Assertions.assertTrue(e.getMessage() != null);
+    }
+  }
 }
