@@ -4,6 +4,7 @@ import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.apache.v2.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -40,10 +41,20 @@ import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.GetCallerIdentityRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHost;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.conn.routing.HttpRoute;
+import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.DefaultRoutePlanner;
+import org.apache.http.impl.conn.DefaultSchemePortResolver;
 
 @AutoService(AbstractSts.class)
 public class GcpSts extends AbstractSts {
@@ -55,11 +66,13 @@ public class GcpSts extends AbstractSts {
 
   public GcpSts(Builder builder) {
     super(builder);
+    initializeHttpTransportFactory(builder);
   }
 
   public GcpSts(Builder builder, GoogleCredentials credentials) {
     super(builder);
     this.googleCredentials = credentials;
+    initializeHttpTransportFactory(builder);
   }
 
   public GcpSts(Builder builder, HttpTransportFactory httpTransportFactory) {
@@ -76,6 +89,20 @@ public class GcpSts extends AbstractSts {
 
   public GcpSts() {
     super(new Builder());
+  }
+
+  /**
+   * Initializes the HTTP transport factory with proxy configuration if any proxy settings are
+   * provided.
+   *
+   * @param builder The builder containing proxy configuration
+   */
+  private void initializeHttpTransportFactory(Builder builder) {
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      this.httpTransportFactory = buildHttpTransportFactory(builder);
+    }
   }
 
   /**
@@ -165,8 +192,7 @@ public class GcpSts extends AbstractSts {
    *
    * <p>When prefix is empty (root-level, e.g. "storage://bucket/"), the objectListPrefix clause
    * becomes {@code .startsWith('')} which is always true — this is intentional and grants
-   * unrestricted LIST on the bucket, matching AWS semantics where an empty s3:prefix condition
-   * matches all LIST requests.
+   * unrestricted LIST on the bucket.
    *
    * <p>Example: "storage://my-bucket/documents/" produces:
    * "resource.name.startsWith('projects/_/buckets/my-bucket/objects/documents/') ||
@@ -393,6 +419,128 @@ public class GcpSts extends AbstractSts {
     ERROR_MAPPING.put(StatusCode.Code.UNAVAILABLE, UnknownException.class);
     ERROR_MAPPING.put(StatusCode.Code.DATA_LOSS, UnknownException.class);
     ERROR_MAPPING.put(StatusCode.Code.UNAUTHENTICATED, UnAuthorizedException.class);
+  }
+
+  /**
+   * Builds an HttpTransportFactory with proxy configuration.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured HttpTransportFactory
+   */
+  private static HttpTransportFactory buildHttpTransportFactory(Builder builder) {
+    CloseableHttpClient httpClient = buildHttpClient(builder);
+    ApacheHttpTransport transport = new ApacheHttpTransport(httpClient);
+    return () -> transport;
+  }
+
+  /**
+   * Builds an HTTP client with proxy configuration.
+   *
+   * <ul>
+   *   <li>useSystemPropertyValues controls whether to read http.proxyHost, https.proxyHost, etc.
+   *   <li>useEnvironmentVariableValues controls whether to read HTTP_PROXY, HTTPS_PROXY env vars
+   *   <li>Default behavior (null flags): system properties enabled, environment variables disabled
+   * </ul>
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured CloseableHttpClient
+   */
+  private static CloseableHttpClient buildHttpClient(Builder builder) {
+    HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+
+    // Control system properties behavior (default: enabled)
+    // useSystemProperties() enables SystemDefaultRoutePlanner which reads system properties
+    // When explicitly false, use custom route planner that ignores system properties
+    Boolean useSystemProps = builder.getUseSystemPropertyProxyValues();
+    if (Boolean.FALSE.equals(useSystemProps)) {
+      // Explicitly disabled: set custom route planner that never returns a proxy
+      HttpRoutePlanner routePlanner = new DefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE) {
+        @Override
+        protected HttpHost determineProxy(
+            HttpHost target,
+            org.apache.http.HttpRequest request,
+            org.apache.http.protocol.HttpContext context) {
+          return null; // No proxy, ignore system properties
+        }
+      };
+      httpClientBuilder.setRoutePlanner(routePlanner);
+    } else {
+      // null or true: enable system properties (default Java behavior)
+      httpClientBuilder.useSystemProperties();
+    }
+
+    RequestConfig requestConfig = buildRequestConfig(builder);
+    httpClientBuilder.setDefaultRequestConfig(requestConfig);
+    return httpClientBuilder.build();
+  }
+
+  /**
+   * Builds request configuration with proxy settings.
+   *
+   * <p>Proxy resolution follows this priority order:
+   *
+   * <ol>
+   *   <li>Explicit proxyEndpoint (if provided) - highest priority
+   *   <li>Environment variables (if useEnvironmentVariableProxyValues is true)
+   *   <li>System properties (handled by HttpClientBuilder.useSystemProperties(), not here)
+   * </ol>
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured RequestConfig
+   */
+  private static RequestConfig buildRequestConfig(Builder builder) {
+    RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
+
+    // Priority 1: Explicit proxy endpoint (overrides everything)
+    Optional.ofNullable(builder.getProxyEndpoint())
+        .map(
+            endpoint ->
+                new HttpHost(endpoint.getHost(), endpoint.getPort(), endpoint.getScheme()))
+        .ifPresent(requestConfigBuilder::setProxy);
+
+    if (builder.getProxyEndpoint() != null) {
+      return requestConfigBuilder.build();
+    }
+
+    // Priority 2: Environment variables (default: disabled, must explicitly enable)
+    // Apache HttpClient doesn't natively support env vars, so we read and set them explicitly
+    Boolean useEnvVars = builder.getUseEnvironmentVariableProxyValues();
+    if (Boolean.TRUE.equals(useEnvVars)) {
+      getProxyFromEnvironment().ifPresent(requestConfigBuilder::setProxy);
+    }
+    // Note: null or false = disabled (not a Java standard, opt-in only)
+
+    // Priority 3: System properties are handled automatically by
+    // HttpClientBuilder.useSystemProperties()
+    // We DON'T need to read and set them here - that's redundant
+
+    return requestConfigBuilder.build();
+  }
+
+  /**
+   * Reads proxy configuration from environment variables (HTTP_PROXY, HTTPS_PROXY).
+   *
+   * <p>Prefers HTTPS_PROXY over HTTP_PROXY for GCP services which use HTTPS.
+   *
+   * @return Optional containing HttpHost configured from environment variables, or empty if not set
+   */
+  private static Optional<HttpHost> getProxyFromEnvironment() {
+    return Optional.ofNullable(System.getenv("HTTPS_PROXY"))
+        .or(() -> Optional.ofNullable(System.getenv("https_proxy")))
+        .or(() -> Optional.ofNullable(System.getenv("HTTP_PROXY")))
+        .or(() -> Optional.ofNullable(System.getenv("http_proxy")))
+        .filter(url -> !url.isEmpty())
+        .flatMap(
+            url -> {
+              try {
+                URI uri = URI.create(url);
+                return Optional.of(
+                    new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()));
+              } catch (Exception e) {
+                // Invalid proxy URL format - ignore
+                return Optional.empty();
+              }
+            });
   }
 
   public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {

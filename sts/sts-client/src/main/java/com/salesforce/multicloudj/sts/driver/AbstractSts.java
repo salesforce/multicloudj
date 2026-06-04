@@ -139,6 +139,9 @@ public abstract class AbstractSts implements Provider {
       implements Provider.Builder {
     @Getter protected String region;
     @Getter protected URI endpoint;
+    @Getter protected URI proxyEndpoint;
+    @Getter protected Boolean useSystemPropertyProxyValues;
+    @Getter protected Boolean useEnvironmentVariableProxyValues;
     protected String providerId;
 
     /**
@@ -160,6 +163,46 @@ public abstract class AbstractSts implements Provider {
      */
     public T withEndpoint(URI endpoint) {
       this.endpoint = endpoint;
+      return self();
+    }
+
+    /**
+     * Sets the proxy endpoint to override.
+     *
+     * @param proxyEndpoint The proxy endpoint to set.
+     * @return This Builder instance.
+     */
+    public T withProxyEndpoint(URI proxyEndpoint) {
+      this.proxyEndpoint = proxyEndpoint;
+      return self();
+    }
+
+    /**
+     * Method to control whether system property values (e.g., http.proxyHost, http.proxyPort,
+     * https.proxyHost, https.proxyPort) should be used for proxy configuration. When set to false,
+     * these system properties will be ignored.
+     *
+     * @param useSystemPropertyProxyValues Whether to use system property values for proxy
+     *     configuration
+     * @return This Builder instance.
+     */
+    public T withUseSystemPropertyProxyValues(Boolean useSystemPropertyProxyValues) {
+      this.useSystemPropertyProxyValues = useSystemPropertyProxyValues;
+      return self();
+    }
+
+    /**
+     * Method to control whether environment variable values (e.g., HTTP_PROXY, HTTPS_PROXY,
+     * NO_PROXY) should be used for proxy configuration. When set to false, these environment
+     * variables will be ignored.
+     *
+     * @param useEnvironmentVariableProxyValues Whether to use environment variable values for proxy
+     *     configuration
+     * @return This Builder instance.
+     */
+    public T withUseEnvironmentVariableProxyValues(
+        Boolean useEnvironmentVariableProxyValues) {
+      this.useEnvironmentVariableProxyValues = useEnvironmentVariableProxyValues;
       return self();
     }
 
