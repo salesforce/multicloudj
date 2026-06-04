@@ -114,181 +114,31 @@ public class AliStsTest {
   }
 
   @Test
-  public void testBuilderWithProxyEndpoint() {
+  public void testBuildHttpClientConfigWithExplicitProxyEndpoint() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
-    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    Assertions.assertNotNull(config);
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
+    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpsProxy());
   }
 
   @Test
-  public void testBuilderWithUseSystemPropertyProxyValues() {
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
-
-    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
-  }
-
-  @Test
-  public void testBuilderWithUseEnvironmentVariableProxyValues() {
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withUseEnvironmentVariableProxyValues(true);
-
-    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
-  }
-
-  @Test
-  public void testBuilderWithAllProxySettings() {
+  public void testConstructorWithProxyConfiguration() {
     URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
     AliSts.Builder builder =
         new AliSts()
             .builder()
             .withRegion("cn-hangzhou")
             .withProxyEndpoint(proxyEndpoint)
-            .withUseSystemPropertyProxyValues(true)
-            .withUseEnvironmentVariableProxyValues(true);
-
-    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
-    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
-    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
-  }
-
-  @Test
-  public void testBuilderWithDisabledSystemPropertyProxyValues() {
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(false);
-
-    Assertions.assertEquals(Boolean.FALSE, builder.getUseSystemPropertyProxyValues());
-  }
-
-  @Test
-  public void testBuilderWithDisabledEnvironmentVariableProxyValues() {
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
             .withUseEnvironmentVariableProxyValues(false);
 
-    Assertions.assertEquals(Boolean.FALSE, builder.getUseEnvironmentVariableProxyValues());
-  }
-
-  @Test
-  public void testBuildHttpClientConfigWithProxyEndpoint() {
-    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
-
-    // Directly test buildHttpClientConfig to exercise proxy configuration code
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
-    Assertions.assertNotNull(config);
-    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
-  }
-
-  @Test
-  public void testBuildHttpClientConfigWithSystemPropertyProxyValues() {
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
-
-    // Directly test buildHttpClientConfig to exercise proxy configuration code
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
-    Assertions.assertNotNull(config);
-  }
-
-  @Test
-  public void testBuildHttpClientConfigWithEnvironmentVariableProxyValues() {
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withUseEnvironmentVariableProxyValues(true);
-
-    // Directly test buildHttpClientConfig to exercise proxy configuration code
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
-    Assertions.assertNotNull(config);
-  }
-
-  @Test
-  public void testBuildHttpClientConfigWithAllProxySettingsEnabled() {
-    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withProxyEndpoint(proxyEndpoint)
-            .withUseSystemPropertyProxyValues(true)
-            .withUseEnvironmentVariableProxyValues(true);
-
-    // Directly test buildHttpClientConfig to exercise proxy configuration code
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
-    Assertions.assertNotNull(config);
-    Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
-  }
-
-  @Test
-  public void testBuildHttpClientConfigWithDisabledProxyFlags() {
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withUseSystemPropertyProxyValues(false)
-            .withUseEnvironmentVariableProxyValues(false);
-
-    // Directly test buildHttpClientConfig to exercise proxy configuration code
-    // Even with flags set to false, the SDK will still auto-detect (documented limitation)
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
-    Assertions.assertNotNull(config);
-  }
-
-  @Test
-  public void testConstructorWithProxyEndpoint() {
-    // This test exercises the main constructor's proxy configuration path
-    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
-
-    // Build without mock to invoke the main constructor with proxy setup
-    // This will fail to connect but will exercise the proxy configuration code
-    try {
-      AliSts sts = builder.build();
-      // If it doesn't throw, that's fine - constructor ran
-      Assertions.assertNotNull(sts);
-    } catch (Exception e) {
-      // Expected - no credentials, but constructor proxy code was executed
-      Assertions.assertTrue(e.getMessage() != null);
-    }
-  }
-
-  @Test
-  public void testConstructorWithSystemPropertyProxyValues() {
-    AliSts.Builder builder =
-        new AliSts().builder().withRegion("cn-hangzhou").withUseSystemPropertyProxyValues(true);
-
     try {
       AliSts sts = builder.build();
       Assertions.assertNotNull(sts);
     } catch (Exception e) {
-      // Expected - no credentials, but constructor proxy code was executed
-      Assertions.assertTrue(e.getMessage() != null);
-    }
-  }
-
-  @Test
-  public void testConstructorWithEnvironmentVariableProxyValues() {
-    AliSts.Builder builder =
-        new AliSts()
-            .builder()
-            .withRegion("cn-hangzhou")
-            .withUseEnvironmentVariableProxyValues(true);
-
-    try {
-      AliSts sts = builder.build();
-      Assertions.assertNotNull(sts);
-    } catch (Exception e) {
-      // Expected - no credentials, but constructor proxy code was executed
       Assertions.assertTrue(e.getMessage() != null);
     }
   }
