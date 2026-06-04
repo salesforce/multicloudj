@@ -448,25 +448,24 @@ public class GcpSts extends AbstractSts {
   private static CloseableHttpClient buildHttpClient(Builder builder) {
     HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
 
-    // When useSystemPropertyProxyValues is explicitly FALSE, we must disable system property
-    // reading. Apache HttpClient reads system properties by default via SystemDefaultRoutePlanner.
-    // To disable, we set a custom DefaultRoutePlanner that never returns a proxy.
-    if (Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
-      // Explicitly disable system properties by setting a route planner that ignores proxies
-      // This prevents Apache HttpClient from reading http.proxyHost, https.proxyHost, etc.
+    // Control system properties behavior (default: enabled)
+    // useSystemProperties() enables SystemDefaultRoutePlanner which reads system properties
+    // When explicitly false, use custom route planner that ignores system properties
+    Boolean useSystemProps = builder.getUseSystemPropertyProxyValues();
+    if (Boolean.FALSE.equals(useSystemProps)) {
+      // Explicitly disabled: set custom route planner that never returns a proxy
       HttpRoutePlanner routePlanner = new DefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE) {
         @Override
         protected HttpHost determineProxy(
             HttpHost target,
             org.apache.http.HttpRequest request,
             org.apache.http.protocol.HttpContext context) {
-          // Always return null (no proxy) to override system property defaults
-          return null;
+          return null; // No proxy, ignore system properties
         }
       };
       httpClientBuilder.setRoutePlanner(routePlanner);
     } else {
-      // Default (null) or true: enable system properties
+      // null or true: enable system properties (default Java behavior)
       httpClientBuilder.useSystemProperties();
     }
 
@@ -503,11 +502,13 @@ public class GcpSts extends AbstractSts {
       return requestConfigBuilder.build();
     }
 
-    // Priority 2: Environment variables (if explicitly enabled)
+    // Priority 2: Environment variables (default: disabled, must explicitly enable)
     // Apache HttpClient doesn't natively support env vars, so we read and set them explicitly
-    if (Boolean.TRUE.equals(builder.getUseEnvironmentVariableProxyValues())) {
+    Boolean useEnvVars = builder.getUseEnvironmentVariableProxyValues();
+    if (Boolean.TRUE.equals(useEnvVars)) {
       getProxyFromEnvironment().ifPresent(requestConfigBuilder::setProxy);
     }
+    // Note: null or false = disabled (not a Java standard, opt-in only)
 
     // Priority 3: System properties are handled automatically by
     // HttpClientBuilder.useSystemProperties()
