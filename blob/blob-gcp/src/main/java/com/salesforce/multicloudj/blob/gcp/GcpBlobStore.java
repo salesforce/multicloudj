@@ -946,7 +946,6 @@ public class GcpBlobStore extends AbstractBlobStore {
         signedHeaders.put("Content-Type", request.getContentType());
       }
       if (request.getContentLength() > 0) {
-        extHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
         signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
       }
       if (request.getChecksumValue() != null) {
