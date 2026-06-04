@@ -1,6 +1,13 @@
 ---
-name: feature-dev
-description: Use when implementing a new feature end-to-end in multicloudj - adding APIs to client, driver abstract classes, provider implementations (AWS/GCP/Ali), unit tests, and conformance tests with record/replay
+name: multicloudj-feature-dev
+description: **REQUIRED for ANY feature development in multicloudj** - implements features end-to-end across client APIs, driver abstract classes, provider implementations (AWS/GCP/Ali), unit tests, and conformance tests with record/replay
+trigger: |
+  - User asks to "add", "implement", "create" any feature in multicloudj
+  - Any new method/operation across cloud providers
+  - Implementing conformance tests
+  - Cross-provider feature parity work
+  - Adding new service modules
+priority: CRITICAL - invoke BEFORE any code exploration or implementation
 ---
 
 # MultiCloudJ End-to-End Feature Development
@@ -8,6 +15,67 @@ description: Use when implementing a new feature end-to-end in multicloudj - add
 ## Overview
 
 Implements a new feature across the multicloudj SDK through structured phases: requirements gathering via user interview, cross-cloud research for semantic uniformity, client/driver API design, provider implementations, unit tests, and conformance tests with WireMock record/replay.
+
+## Provider Isolation Principle
+
+**CRITICAL:** Each provider implementation (AWS, GCP, Alibaba) is completely independent and must NEVER reference another provider in any way.
+
+### The Rule
+
+Providers are isolated islands that:
+- Each independently implements the abstract driver contract (e.g., `AbstractBlobStore`, `AbstractDocstore`)
+- Have NO knowledge of other provider implementations
+- Have NO dependencies on other provider modules
+- Have NO comparisons or references to other providers in code OR comments
+
+### What This Means in Practice
+
+**NEVER:**
+- Import classes from another provider module (e.g., `AwsBlobStore` importing from `blob-gcp`)
+- Add dependencies between provider modules in `pom.xml`
+- Write comments like "Unlike GCP, AWS does X" or "Similar to Alibaba's approach"
+- Write comments like "GCP handles this differently" or "AWS uses a different pattern"
+- Copy code between providers with comments referencing the source
+- Compare implementation approaches in javadoc or inline comments
+
+**DO:**
+- Each provider implements the driver contract independently
+- Document WHY a provider does something based on that provider's SDK behavior
+- Focus comments on the cloud provider's native SDK, not other multicloudj providers
+- Let conformance tests verify behavioral parity, not implementation similarity
+
+### Example: WRONG ❌
+
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // Unlike GCP which uses resumable uploads, AWS uses multipart
+    // Similar to how AliOss handles large objects
+    return s3Client.putObject(...);
+}
+```
+
+### Example: CORRECT ✅
+
+```java
+// AWS implementation
+@Override
+protected PutObjectResponse doPutObject(PutObjectRequest request) {
+    // S3 automatically handles objects up to 5GB in a single PUT operation
+    return s3Client.putObject(...);
+}
+```
+
+### Why Provider Isolation Matters
+
+1. **Maintainability:** Each provider evolves independently based on its cloud SDK changes
+2. **Testability:** Provider tests don't break when other providers change
+3. **Clarity:** Implementation decisions are based on the provider's SDK, not other providers
+4. **Extensibility:** New providers can be added without touching existing ones
+5. **Semantic Uniformity:** The driver contract (abstract class) defines the unified behavior, not cross-provider comparisons
+
+The driver contract and conformance tests ensure all providers behave the same for the end user. Providers achieve this independently, not by copying or comparing with each other.
 
 ## When to Use
 
@@ -39,8 +107,9 @@ flowchart TD
     J --> K{Run record mode?}
     K -->|yes| L[Collect credentials and record]
     K -->|later| M[Write abstract IT only]
-    L --> N([Done])
+    L --> N[Phase 7: Create PR]
     M --> N
+    N --> O([Done])
 ```
 
 ## Phase 1: User Interview
@@ -252,6 +321,87 @@ mvn test -pl {service}/{service}-gcp -Dtest="{Provider}{Service}StoreIT#{testMet
 
 Write the abstract conformance test (it runs for all providers). The Ali-specific IT class extends it just like AWS/GCP, but recording happens on dedicated machines. The IT harness class already exists (e.g., `AliBlobStoreIT`) — do not attempt to record locally for Ali.
 
+## Phase 7: Create Pull Request
+
+After implementation and testing are complete, create a PR following MultiCloudJ conventions.
+
+### 7a. Commit Changes
+
+```bash
+# Stage all changes
+git add -A
+
+# Create commit with descriptive message
+git commit -m "{service}: {brief description of feature}
+
+{Detailed description of what was changed and why}
+
+- Added X to Y
+- Updated Z for compatibility
+- Tests: {description of tests added}
+"
+```
+
+### 7b. Push Branch
+
+```bash
+# Push to origin
+git push origin {branch-name}
+```
+
+### 7c. Create PR with Proper Title
+
+**PR Title Format:** `{service}: {concise description}`
+
+Examples:
+- `sts: onboard proxy configurations for sts interface`
+- `blob: add object versioning support`
+- `docstore: implement batch delete with filters`
+- `pubsub: add dead-letter queue configuration`
+
+**PR Description Template:**
+
+```markdown
+## Summary
+{1-2 sentence overview of the feature}
+
+## Changes
+- Added `{MethodName}` to `{ClassName}`
+- Implemented {feature} for AWS, GCP, and Alibaba Cloud
+- Added unit tests for {components}
+- {If applicable} Added conformance tests with WireMock recording
+
+## API Example
+```java
+// Show how users will call the new API
+{ServiceClient} client = {ServiceClient}.builder("aws")
+    .withRegion("us-west-2")
+    .{newMethod}({parameters})
+    .build();
+```
+
+## Testing
+- Unit tests: `mvn test -pl {service}/{service}-{provider}`
+- {If applicable} Conformance tests: recorded for AWS/GCP, replay mode verified
+
+## Cross-Cloud Compatibility
+- AWS: {describe implementation or limitations}
+- GCP: {describe implementation or limitations}  
+- Alibaba: {describe implementation or limitations}
+```
+
+### 7d. Verify PR Checklist
+
+Before submitting, verify:
+- [ ] PR title follows `{service}: {description}` format
+- [ ] All unit tests pass locally
+- [ ] Conformance tests pass (if applicable)
+- [ ] Checkstyle passes (Google Java Style)
+- [ ] No provider-specific code in `-client` modules
+- [ ] Documentation/examples added (if needed)
+- [ ] WireMock mappings committed (if recorded)
+- [ ] No credentials leaked in mapping files
+
 ## File Checklist
 
 For a feature added to an existing service (e.g., blob), you will typically touch:
@@ -301,3 +451,5 @@ For a feature added to an existing service (e.g., blob), you will typically touc
 - You're running record mode without asking the user for credentials first
 - You're about to manually edit a WireMock mapping JSON file - STOP: delete and re-record instead
 - You're running the full IT class in record mode when only one test method is new/changed - use `#testMethodName` filter
+- **You're writing a comment in a provider that references another provider** (e.g., "Unlike GCP", "Similar to AWS") - STOP: providers must be isolated
+- **You're importing classes from another provider module** (e.g., `blob-aws` importing from `blob-gcp`) - STOP: providers cannot depend on each other

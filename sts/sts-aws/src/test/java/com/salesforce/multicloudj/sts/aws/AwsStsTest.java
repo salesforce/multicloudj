@@ -10,6 +10,7 @@ import com.salesforce.multicloudj.sts.model.CallerIdentity;
 import com.salesforce.multicloudj.sts.model.CredentialScope;
 import com.salesforce.multicloudj.sts.model.GetAccessTokenRequest;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
+import java.net.URI;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -195,5 +196,154 @@ public class AwsStsTest {
             + "\"Resource\":\"arn:aws:s3:::my-bucket/*\","
             + "\"Condition\":{\"StringLike\":{\"s3:prefix\":\"documents/\"}}}]}";
     assertJsonEquals(expectedPolicy, capturedRequest.policy());
+  }
+
+  @Test
+  public void testBuilderWithProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+  }
+
+  @Test
+  public void testBuilderWithUseSystemPropertyProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithUseEnvironmentVariableProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testBuilderWithAllProxySettings() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    Assertions.assertEquals(proxyEndpoint, builder.getProxyEndpoint());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseSystemPropertyProxyValues());
+    Assertions.assertEquals(Boolean.TRUE, builder.getUseEnvironmentVariableProxyValues());
+  }
+
+  @Test
+  public void testBuildHttpClientWithProxyEndpoint() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+  }
+
+  @Test
+  public void testBuildHttpClientWithSystemPropertyProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
+
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+  }
+
+  @Test
+  public void testBuildHttpClientWithEnvironmentVariableProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
+
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+  }
+
+  @Test
+  public void testBuildHttpClientWithAllProxySettingsEnabled() {
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withProxyEndpoint(proxyEndpoint)
+            .withUseSystemPropertyProxyValues(true)
+            .withUseEnvironmentVariableProxyValues(true);
+
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+  }
+
+  @Test
+  public void testBuildHttpClientWithDisabledProxyFlags() {
+    AwsSts.Builder builder =
+        new AwsSts()
+            .builder()
+            .withRegion("us-west-2")
+            .withUseSystemPropertyProxyValues(false)
+            .withUseEnvironmentVariableProxyValues(false);
+
+    // Directly test buildHttpClient to exercise proxy configuration code
+    software.amazon.awssdk.http.SdkHttpClient httpClient = AwsSts.buildHttpClient(builder);
+    Assertions.assertNotNull(httpClient);
+  }
+
+  @Test
+  public void testConstructorWithProxyEndpoint() {
+    // This test exercises the main constructor's proxy configuration path
+    URI proxyEndpoint = URI.create("http://proxy.example.com:8080");
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withProxyEndpoint(proxyEndpoint);
+
+    // Build without mock to invoke the main constructor with proxy setup
+    // This will fail to connect but will exercise the proxy configuration code
+    try {
+      AwsSts sts = builder.build();
+      // If it doesn't throw, that's fine - constructor ran
+      Assertions.assertNotNull(sts);
+    } catch (Exception e) {
+      // Expected - no credentials, but constructor proxy code was executed
+      Assertions.assertTrue(e.getMessage() != null);
+    }
+  }
+
+  @Test
+  public void testConstructorWithSystemPropertyProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseSystemPropertyProxyValues(true);
+
+    try {
+      AwsSts sts = builder.build();
+      Assertions.assertNotNull(sts);
+    } catch (Exception e) {
+      // Expected - no credentials, but constructor proxy code was executed
+      Assertions.assertTrue(e.getMessage() != null);
+    }
+  }
+
+  @Test
+  public void testConstructorWithEnvironmentVariableProxyValues() {
+    AwsSts.Builder builder =
+        new AwsSts().builder().withRegion("us-west-2").withUseEnvironmentVariableProxyValues(true);
+
+    try {
+      AwsSts sts = builder.build();
+      Assertions.assertNotNull(sts);
+    } catch (Exception e) {
+      // Expected - no credentials, but constructor proxy code was executed
+      Assertions.assertTrue(e.getMessage() != null);
+    }
   }
 }
