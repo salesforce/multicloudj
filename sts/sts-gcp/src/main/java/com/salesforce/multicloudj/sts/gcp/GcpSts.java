@@ -62,23 +62,13 @@ public class GcpSts extends AbstractSts {
 
   public GcpSts(Builder builder) {
     super(builder);
-    // Build HttpTransportFactory with proxy configuration if proxy settings are provided
-    if (builder.getProxyEndpoint() != null
-        || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null) {
-      this.httpTransportFactory = buildHttpTransportFactory(builder);
-    }
+    initializeHttpTransportFactory(builder);
   }
 
   public GcpSts(Builder builder, GoogleCredentials credentials) {
     super(builder);
     this.googleCredentials = credentials;
-    // Build HttpTransportFactory with proxy configuration if proxy settings are provided
-    if (builder.getProxyEndpoint() != null
-        || builder.getUseSystemPropertyProxyValues() != null
-        || builder.getUseEnvironmentVariableProxyValues() != null) {
-      this.httpTransportFactory = buildHttpTransportFactory(builder);
-    }
+    initializeHttpTransportFactory(builder);
   }
 
   public GcpSts(Builder builder, HttpTransportFactory httpTransportFactory) {
@@ -95,6 +85,20 @@ public class GcpSts extends AbstractSts {
 
   public GcpSts() {
     super(new Builder());
+  }
+
+  /**
+   * Initializes the HTTP transport factory with proxy configuration if any proxy settings are
+   * provided.
+   *
+   * @param builder The builder containing proxy configuration
+   */
+  private void initializeHttpTransportFactory(Builder builder) {
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      this.httpTransportFactory = buildHttpTransportFactory(builder);
+    }
   }
 
   /**
