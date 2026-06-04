@@ -433,11 +433,29 @@ public class GcpSts extends AbstractSts {
   /**
    * Builds an HTTP client with proxy configuration.
    *
+   * <p>Mirrors AWS SDK's ProxyConfiguration behavior:
+   *
+   * <ul>
+   *   <li>useSystemPropertyValues controls whether to read http.proxyHost, https.proxyHost, etc.
+   *   <li>useEnvironmentVariableValues controls whether to read HTTP_PROXY, HTTPS_PROXY env vars
+   *   <li>Default behavior (null flags): system properties enabled, environment variables disabled
+   * </ul>
+   *
    * @param builder The builder containing proxy configuration
    * @return Configured CloseableHttpClient
    */
   private static CloseableHttpClient buildHttpClient(Builder builder) {
     HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+
+    // Control system properties behavior
+    // Default (null): Apache HttpClient uses system properties by default via useSystemProperties()
+    // True: Explicitly enable system properties
+    // False: Disable by not calling useSystemProperties() and setting explicit config
+    if (!Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
+      // Enable system properties (default behavior)
+      httpClientBuilder.useSystemProperties();
+    }
+
     RequestConfig requestConfig = buildRequestConfig(builder);
     httpClientBuilder.setDefaultRequestConfig(requestConfig);
     return httpClientBuilder.build();
@@ -451,8 +469,13 @@ public class GcpSts extends AbstractSts {
    * <ol>
    *   <li>Explicit proxyEndpoint (if provided) - highest priority
    *   <li>Environment variables (if useEnvironmentVariableProxyValues is true)
-   *   <li>System properties (if useSystemPropertyProxyValues is true or null) - default behavior
+   *   <li>System properties (handled by HttpClientBuilder.useSystemProperties(), not here)
    * </ol>
+   *
+   * <p>Note: System properties are NOT explicitly set here. Instead, they're controlled by
+   * HttpClientBuilder.useSystemProperties() in buildHttpClient(). This matches AWS SDK's approach
+   * where ProxyConfiguration.useSystemPropertyValues() controls the behavior at the HTTP client
+   * level, not per-request.
    *
    * @param builder The builder containing proxy configuration
    * @return Configured RequestConfig
@@ -460,7 +483,7 @@ public class GcpSts extends AbstractSts {
   private static RequestConfig buildRequestConfig(Builder builder) {
     RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
 
-    // Priority 1: Explicit proxy endpoint
+    // Priority 1: Explicit proxy endpoint (overrides everything)
     Optional.ofNullable(builder.getProxyEndpoint())
         .map(
             endpoint ->
@@ -472,18 +495,14 @@ public class GcpSts extends AbstractSts {
     }
 
     // Priority 2: Environment variables (if explicitly enabled)
+    // Apache HttpClient doesn't natively support env vars, so we read and set them explicitly
     if (Boolean.TRUE.equals(builder.getUseEnvironmentVariableProxyValues())) {
-      Optional<HttpHost> envProxy = getProxyFromEnvironment();
-      if (envProxy.isPresent()) {
-        requestConfigBuilder.setProxy(envProxy.get());
-        return requestConfigBuilder.build();
-      }
+      getProxyFromEnvironment().ifPresent(requestConfigBuilder::setProxy);
     }
 
-    // Priority 3: System properties (default behavior unless explicitly disabled)
-    if (!Boolean.FALSE.equals(builder.getUseSystemPropertyProxyValues())) {
-      getProxyFromSystemProperties().ifPresent(requestConfigBuilder::setProxy);
-    }
+    // Priority 3: System properties are handled automatically by
+    // HttpClientBuilder.useSystemProperties()
+    // We DON'T need to read and set them here - that's redundant
 
     return requestConfigBuilder.build();
   }
@@ -512,37 +531,6 @@ public class GcpSts extends AbstractSts {
                 return Optional.empty();
               }
             });
-  }
-
-  /**
-   * Reads proxy configuration from Java system properties (https.proxyHost, http.proxyHost, etc.).
-   *
-   * <p>Prefers HTTPS proxy settings over HTTP for GCP services which use HTTPS.
-   *
-   * @return Optional containing HttpHost configured from system properties, or empty if not set
-   */
-  private static Optional<HttpHost> getProxyFromSystemProperties() {
-    Optional<String> httpsHost = Optional.ofNullable(System.getProperty("https.proxyHost"))
-        .filter(host -> !host.isEmpty());
-    Optional<String> httpsPort = Optional.ofNullable(System.getProperty("https.proxyPort"));
-
-    Optional<String> httpHost = Optional.ofNullable(System.getProperty("http.proxyHost"))
-        .filter(host -> !host.isEmpty());
-    Optional<String> httpPort = Optional.ofNullable(System.getProperty("http.proxyPort"));
-
-    // Prefer HTTPS proxy if available
-    if (httpsHost.isPresent()) {
-      int port = httpsPort.map(Integer::parseInt).orElse(443); // Default HTTPS port
-      return Optional.of(new HttpHost(httpsHost.get(), port));
-    }
-
-    // Fall back to HTTP proxy
-    if (httpHost.isPresent()) {
-      int port = httpPort.map(Integer::parseInt).orElse(80); // Default HTTP port
-      return Optional.of(new HttpHost(httpHost.get(), port));
-    }
-
-    return Optional.empty();
   }
 
   public static class Builder extends AbstractSts.Builder<GcpSts, Builder> {
