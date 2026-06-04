@@ -143,12 +143,10 @@ public class AliSts extends AbstractSts {
             });
 
     // Priority 2 & 3: System properties and environment variables
-    // SDK LIMITATION: Cannot control these via API
-    // The Alibaba SDK automatically reads:
-    // - System properties (http.proxyHost, https.proxyHost, etc.)
-    // - Environment variables (HTTP_PROXY, HTTPS_PROXY, etc.)
-    // When useSystemPropertyProxyValues or useEnvironmentVariableProxyValues are false,
-    // the SDK will still honor those sources. This is a known limitation.
+    // System properties: NOT read by Alibaba SDK (no useSystemProperties() call)
+    // Environment variables: Handled by EnvironmentUtils workaround in constructor
+    //   - When useEnvironmentVariableProxyValues=false, constructor sets EnvironmentUtils to ""
+    //   - When null/true, SDK automatically reads HTTP_PROXY/HTTPS_PROXY via EnvironmentUtils
 
     return clientConfig;
   }
