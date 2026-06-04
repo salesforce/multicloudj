@@ -517,11 +517,7 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(response.getETag(), testName + ": No eTag was returned!");
 
       ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      try (outputStream) {
-        bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
-      } catch (IOException e) {
-        Assertions.fail(testName + ": Download failed: " + e.getMessage());
-      }
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
 
       byte[] downloaded = outputStream.toByteArray();
       Assertions.assertEquals(

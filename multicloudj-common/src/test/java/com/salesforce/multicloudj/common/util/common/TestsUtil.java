@@ -262,13 +262,24 @@ public class TestsUtil {
       if (!matcher.matches()) {
         return responseDefinition;
       }
-      char fillChar = matcher.group(1).charAt(0);
-      int size = Integer.parseInt(matcher.group(2));
-      char[] generated = new char[size];
-      Arrays.fill(generated, fillChar);
+      byte fillByte = (byte) matcher.group(1).charAt(0);
+      long sizeLong;
+      try {
+        sizeLong = Long.parseLong(matcher.group(2));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException(
+            "Invalid size in GENERATED body marker: '" + matcher.group(2) + "'", e);
+      }
+      if (sizeLong > Integer.MAX_VALUE) {
+        throw new IllegalArgumentException(
+            "GENERATED body size exceeds Integer.MAX_VALUE: " + sizeLong);
+      }
+      int size = (int) sizeLong;
+      byte[] generated = new byte[size];
+      Arrays.fill(generated, fillByte);
       return ResponseDefinitionBuilder.like(responseDefinition)
           .but()
-          .withBody(new String(generated))
+          .withBody(generated)
           .build();
     }
 
