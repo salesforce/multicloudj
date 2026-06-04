@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 
 import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.exceptions.ClientException;
+import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.IClientProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
@@ -119,7 +120,7 @@ public class AliStsTest {
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
     Assertions.assertNotNull(config);
     Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpProxy());
     Assertions.assertEquals("http://proxy.example.com:8080", config.getHttpsProxy());
@@ -129,7 +130,7 @@ public class AliStsTest {
   public void testBuildHttpClientConfigWithNullProxyEndpoint() {
     AliSts.Builder builder = new AliSts().builder().withRegion("cn-hangzhou");
 
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
     Assertions.assertNotNull(config);
     Assertions.assertNull(config.getHttpProxy());
     Assertions.assertNull(config.getHttpsProxy());
@@ -141,7 +142,7 @@ public class AliStsTest {
     AliSts.Builder builder =
         new AliSts().builder().withRegion("cn-hangzhou").withProxyEndpoint(proxyEndpoint);
 
-    com.aliyuncs.http.HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
+    HttpClientConfig config = AliSts.buildHttpClientConfig(builder);
     String expectedUrl = "http://proxy.example.com:8080";
     Assertions.assertEquals(expectedUrl, config.getHttpProxy());
     Assertions.assertEquals(expectedUrl, config.getHttpsProxy());
