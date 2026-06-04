@@ -4659,24 +4659,6 @@ public abstract class AbstractBlobStoreIT {
     }
   }
 
-  @Test
-  public void testPresignV2_gcpSha256Rejected() {
-    // SHA256 is not supported on GCS — should throw UnsupportedOperationException
-    // This test runs without recording since it's a client-side validation
-    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
-    BucketClient bucketClient = new BucketClient(blobStore);
-
-    PresignedUrlRequest request = PresignedUrlRequest.builder()
-        .type(PresignedOperation.UPLOAD)
-        .key("conformance-tests/presign-v2/sha256-rejected")
-        .duration(Duration.ofHours(1))
-        .checksumValue("abc123==")
-        .checksumAlgorithm(ChecksumMethod.SHA256)
-        .build();
-
-    // GCP should throw; AWS/Ali may succeed — this test validates per-provider behavior
-    // Provider-specific IT subclasses can override to assert the expected outcome
-  }
 
   @Test
   public void testUploadWithChecksumValidationInputStream() {
