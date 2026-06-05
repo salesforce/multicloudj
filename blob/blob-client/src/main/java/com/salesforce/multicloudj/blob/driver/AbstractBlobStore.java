@@ -222,7 +222,12 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doPresign(request).getUrl();
+    PresignedUrlResponse response = doPresign(request);
+    if (response == null || response.getUrl() == null) {
+      throw new SubstrateSdkException(
+          "doPresign must return a non-null response with a non-null URL");
+    }
+    return response.getUrl();
   }
 
   /** {@inheritDoc} */

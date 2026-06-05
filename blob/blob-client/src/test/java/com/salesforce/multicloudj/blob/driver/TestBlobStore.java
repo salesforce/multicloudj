@@ -134,7 +134,14 @@ public class TestBlobStore extends AbstractBlobStore {
 
   @Override
   protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
-    return PresignedUrlResponse.builder().url(null).signedHeaders(Map.of()).build();
+    try {
+      return PresignedUrlResponse.builder()
+          .url(new java.net.URL("http://localhost/test"))
+          .signedHeaders(Map.of())
+          .build();
+    } catch (java.net.MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

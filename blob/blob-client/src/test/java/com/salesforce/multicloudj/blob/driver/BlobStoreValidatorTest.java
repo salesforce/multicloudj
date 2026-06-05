@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -269,7 +270,7 @@ public class BlobStoreValidatorTest {
   @Test
   void testValidatePresignedRequest_negativeContentLength() {
     assertThrows(
-        IllegalArgumentException.class,
+        InvalidArgumentException.class,
         () ->
             validator.validate(
                 PresignedUrlRequest.builder()
@@ -283,7 +284,7 @@ public class BlobStoreValidatorTest {
   @Test
   void testValidatePresignedRequest_checksumAlgorithmWithoutValue() {
     assertThrows(
-        IllegalArgumentException.class,
+        InvalidArgumentException.class,
         () ->
             validator.validate(
                 PresignedUrlRequest.builder()
@@ -291,6 +292,20 @@ public class BlobStoreValidatorTest {
                     .key("key")
                     .duration(Duration.ofHours(1))
                     .checksumAlgorithm(ChecksumMethod.CRC32C)
+                    .build()));
+  }
+
+  @Test
+  void testValidatePresignedRequest_constraintsOnDownloadRejected() {
+    assertThrows(
+        InvalidArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.DOWNLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .contentLength(100)
                     .build()));
   }
 

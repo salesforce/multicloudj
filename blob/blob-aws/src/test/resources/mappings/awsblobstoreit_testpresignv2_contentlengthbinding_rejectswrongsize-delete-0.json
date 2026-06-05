@@ -1,0 +1,20 @@
+{
+  "id" : "c7081d9d-1fbd-4051-81a4-3e91daeb9df0",
+  "name" : "AwsBlobStoreIT_testPresignV2_contentLengthBinding_rejectsWrongSize-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/presign-v2/negative/wrong-size",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "TZ8ZH0T2PKRZF40S",
+      "x-amz-id-2" : "ptab1dvbCLqoobImHS+lZP44PYBTIXhDjqkDHMvNnRqNzD0VnYrjD9ZupL+KcMTS/9igSrAqd1yQRxU4meg1PztmKzu7WFk+",
+      "Date" : "Fri, 05 Jun 2026 09:03:13 GMT"
+    }
+  },
+  "uuid" : "c7081d9d-1fbd-4051-81a4-3e91daeb9df0",
+  "persistent" : true,
+  "insertionIndex" : 759
+}

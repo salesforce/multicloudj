@@ -18,9 +18,12 @@ public class PresignedUrlResponse {
   private final URL url;
 
   /**
-   * Headers the uploader must replay verbatim. Each header was bound into the URL signature, so
-   * omitting or modifying any of them causes the substrate to reject the request. Never null;
-   * empty map when no constraint headers were signed (e.g. download URLs).
+   * Headers the uploader must replay verbatim. On most substrates, each header was bound into the
+   * URL signature — omitting or modifying any of them causes the substrate to reject the request.
+   * <b>Substrate caveat:</b> not all substrates can sign all constraint headers (e.g. GCS cannot
+   * sign Content-Length). Only headers that appear in this map were actually signed; callers should
+   * not assume constraints beyond what is reported here are enforced. Never null; empty map when no
+   * constraint headers were signed (e.g. download URLs).
    */
   @Builder.Default
   private final Map<String, String> signedHeaders = Map.of();

@@ -661,7 +661,7 @@ public class AwsTransformer {
       software.amazon.awssdk.awscore.presigner.PresignedRequest presigned) {
     Map<String, String> flatHeaders = new LinkedHashMap<>();
     presigned.signedHeaders().forEach((k, values) ->
-        flatHeaders.put(k, String.join(", ", values)));
+        flatHeaders.put(k, String.join(",", values)));
     return PresignedUrlResponse.builder()
         .url(presigned.url())
         .signedHeaders(flatHeaders)

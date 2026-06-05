@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.driver;
 
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collection;
@@ -286,11 +287,21 @@ public class BlobStoreValidator {
     validateKey(request.getKey());
     validateDuration(request.getDuration());
     if (request.getContentLength() < 0) {
-      throw new IllegalArgumentException("contentLength must be >= 0");
+      throw new InvalidArgumentException("contentLength must be >= 0");
     }
     if (request.getChecksumAlgorithm() != null && request.getChecksumValue() == null) {
-      throw new IllegalArgumentException(
+      throw new InvalidArgumentException(
           "checksumAlgorithm requires checksumValue to be set");
+    }
+    if (request.getType() != PresignedOperation.UPLOAD) {
+      if (request.getContentLength() > 0
+          || request.getContentType() != null
+          || request.getChecksumValue() != null
+          || request.getChecksumAlgorithm() != null) {
+        throw new InvalidArgumentException(
+            "contentLength/contentType/checksumValue/checksumAlgorithm"
+                + " are only valid for UPLOAD presigned URLs");
+      }
     }
   }
 

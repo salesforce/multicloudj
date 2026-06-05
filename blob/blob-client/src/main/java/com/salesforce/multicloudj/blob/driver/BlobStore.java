@@ -258,12 +258,7 @@ public interface BlobStore extends SdkService, Provider {
    *     checksumValue, checksumAlgorithm)
    * @return Response containing the URL, signed headers map, and expiration
    */
-  default PresignedUrlResponse presign(PresignedUrlRequest request) {
-    return PresignedUrlResponse.builder()
-        .url(generatePresignedUrl(request))
-        .signedHeaders(Map.of())
-        .build();
-  }
+  PresignedUrlResponse presign(PresignedUrlRequest request);
 
   /**
    * Determines if an object exists for a given key/versionId

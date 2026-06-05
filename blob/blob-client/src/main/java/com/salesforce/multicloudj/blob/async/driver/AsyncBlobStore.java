@@ -253,13 +253,7 @@ public interface AsyncBlobStore extends SdkService, AutoCloseable {
    * @param request The presigned request
    * @return Response containing the URL, signed headers map, and expiration
    */
-  default CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
-    return generatePresignedUrl(request)
-        .thenApply(url -> PresignedUrlResponse.builder()
-            .url(url)
-            .signedHeaders(Map.of())
-            .build());
-  }
+  CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request);
 
   /**
    * Determines if an object exists for a given key/versionId
