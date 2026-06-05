@@ -605,6 +605,16 @@ public class AliTransformer {
       builder.contentType(request.getContentType());
     }
 
+    if (StringUtils.isNotEmpty(request.getChecksumValue())) {
+      ChecksumMethod algo = request.getChecksumAlgorithm() != null
+          ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+      if (algo == ChecksumMethod.SHA256) {
+        builder.header("x-oss-content-sha256", request.getChecksumValue());
+      } else {
+        builder.header("x-oss-hash-crc64ecma", request.getChecksumValue());
+      }
+    }
+
     return builder.build();
   }
 

@@ -2132,6 +2132,24 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoPresign_sha256Rejected() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException.class,
+        () -> gcpBlobStore.doPresign(request));
+  }
+
+  @Test
   void testDoUpload_WithPath_EmptyFile() throws IOException {
     Path tempFile = Files.createTempFile("empty", ".txt");
     try {

@@ -945,9 +945,8 @@ public class GcpBlobStore extends AbstractBlobStore {
         options.add(Storage.SignUrlOption.withContentType());
         signedHeaders.put("Content-Type", request.getContentType());
       }
-      if (request.getContentLength() > 0) {
-        signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
-      }
+      // Content-Length is not signable on GCS (extHeaders must be x-goog-* prefixed).
+      // HTTP enforces content-length naturally; no signature-level enforcement available.
       if (request.getChecksumValue() != null) {
         ChecksumMethod algo = request.getChecksumAlgorithm() != null
             ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;

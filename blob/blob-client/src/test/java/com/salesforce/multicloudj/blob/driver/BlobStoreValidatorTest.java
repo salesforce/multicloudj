@@ -267,6 +267,34 @@ public class BlobStoreValidatorTest {
   }
 
   @Test
+  void testValidatePresignedRequest_negativeContentLength() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .contentLength(-1)
+                    .build()));
+  }
+
+  @Test
+  void testValidatePresignedRequest_checksumAlgorithmWithoutValue() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            validator.validate(
+                PresignedUrlRequest.builder()
+                    .type(PresignedOperation.UPLOAD)
+                    .key("key")
+                    .duration(Duration.ofHours(1))
+                    .checksumAlgorithm(ChecksumMethod.CRC32C)
+                    .build()));
+  }
+
+  @Test
   void testValidateEndpoint() {
 
     for (String protocol : Arrays.asList(null, "", "  ", "ftp", "http", "HTTP", "https", "HTTPS")) {

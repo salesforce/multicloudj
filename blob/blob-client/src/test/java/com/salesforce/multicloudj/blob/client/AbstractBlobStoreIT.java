@@ -4279,8 +4279,11 @@ public abstract class AbstractBlobStoreIT {
       });
     }
     // If Content-Type wasn't in signedHeaders, set empty to prevent HttpURLConnection from
-    // sending a default that would cause GCS V4 signature mismatch.
-    if (signedHeaders == null || !signedHeaders.containsKey("Content-Type")) {
+    // sending a default that would cause signature mismatch.
+    // Use case-insensitive check because AWS SDK returns lowercase header names.
+    boolean hasContentType = signedHeaders != null
+        && signedHeaders.keySet().stream().anyMatch(k -> k.equalsIgnoreCase("Content-Type"));
+    if (!hasContentType) {
       connection.setRequestProperty("Content-Type", "");
     }
 
@@ -4585,6 +4588,7 @@ public abstract class AbstractBlobStoreIT {
               .key(key)
               .duration(Duration.ofHours(1))
               .contentLength(content.length)
+              .contentType("application/octet-stream")
               .build());
 
       Assertions.assertNotNull(response.getUrl());

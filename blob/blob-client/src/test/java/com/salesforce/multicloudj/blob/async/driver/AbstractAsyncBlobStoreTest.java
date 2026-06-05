@@ -422,6 +422,21 @@ public class AbstractAsyncBlobStoreTest {
   }
 
   @Test
+  void testPresign() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofMinutes(10))
+            .contentLength(100)
+            .build();
+
+    mockBlobStore.presign(request);
+    verify(mockBlobStore, times(1)).doPresign(request);
+    verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
+  }
+
+  @Test
   void testDoDoesObjectExist() {
     mockBlobStore.doesObjectExist("object-1", "version-1");
     verify(validator, times(1)).validateKey(any());

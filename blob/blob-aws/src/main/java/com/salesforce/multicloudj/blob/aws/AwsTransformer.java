@@ -229,6 +229,11 @@ public class AwsTransformer {
       }
     }
 
+    // Set content length if provided (required for presigned URL constraint enforcement)
+    if (request.getContentLength() > 0) {
+      builder.contentLength(request.getContentLength());
+    }
+
     // Set object lock if provided
     if (request.getObjectLock() != null) {
       applyObjectLockToPutObjectBuilder(builder, request.getObjectLock());
