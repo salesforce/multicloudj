@@ -492,13 +492,10 @@ public class GcpSts extends AbstractSts {
     RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
 
     // Priority 1: Explicit proxy endpoint (overrides everything)
-    Optional.ofNullable(builder.getProxyEndpoint())
-        .map(
-            endpoint ->
-                new HttpHost(endpoint.getHost(), endpoint.getPort(), endpoint.getScheme()))
-        .ifPresent(requestConfigBuilder::setProxy);
-
     if (builder.getProxyEndpoint() != null) {
+      URI endpoint = builder.getProxyEndpoint();
+      requestConfigBuilder.setProxy(
+          new HttpHost(endpoint.getHost(), endpoint.getPort(), endpoint.getScheme()));
       return requestConfigBuilder.build();
     }
 
