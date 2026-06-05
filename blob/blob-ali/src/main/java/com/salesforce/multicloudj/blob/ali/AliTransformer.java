@@ -607,6 +607,7 @@ public class AliTransformer {
         .map(obj -> new BlobInfo.Builder()
             .withKey(obj.key())
             .withObjectSize(obj.size() != null ? obj.size() : 0L)
+            .withLastModified(obj.lastModified())
             .build())
         .collect(Collectors.toList());
 
