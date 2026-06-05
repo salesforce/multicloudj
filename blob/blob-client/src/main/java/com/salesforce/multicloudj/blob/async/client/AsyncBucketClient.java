@@ -326,7 +326,7 @@ public class AsyncBucketClient implements AutoCloseable {
   /** Generates a presigned URL with full response including signed headers and expiration. */
   public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
     return multiCloudJLogger.traceAsyncOperation(
-        BlobSpanNames.PRESIGN,
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
         bucketAttrs(),
         request.getOperationContext(),
         ctx -> blobStore.presign(request).exceptionally(this::handleException));

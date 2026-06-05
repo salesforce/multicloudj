@@ -653,7 +653,7 @@ public class BucketClient implements AutoCloseable {
    */
   public PresignedUrlResponse presign(PresignedUrlRequest request) {
     return multiCloudJLogger.traceOperation(
-        BlobSpanNames.PRESIGN,
+        BlobSpanNames.GENERATE_PRESIGNED_URL,
         bucketAttrs(),
         request.getOperationContext(),
         ctx -> {
