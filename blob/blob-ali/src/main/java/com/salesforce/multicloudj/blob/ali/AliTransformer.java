@@ -10,23 +10,33 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.Delete;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectRetentionRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.LegalHold;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
 import com.aliyun.sdk.service.oss2.models.ObjectIdentifier;
+import com.aliyun.sdk.service.oss2.models.ObjectLegalHoldStatusType;
+import com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType;
 import com.aliyun.sdk.service.oss2.models.Part;
+import com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
+import com.aliyun.sdk.service.oss2.models.PutObjectRetentionRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
+import com.aliyun.sdk.service.oss2.models.Retention;
 import com.aliyun.sdk.service.oss2.models.Tag;
 import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
@@ -54,7 +64,9 @@ import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
+import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -421,6 +433,7 @@ public class AliTransformer {
         .checksumEnabled(request.isChecksumEnabled())
         .checksumAlgorithm(request.getChecksumAlgorithm())
         .contentType(request.getContentType())
+        .objectLock(request.getObjectLock())
         .build();
   }
 
@@ -683,5 +696,119 @@ public class AliTransformer {
     return blobList.stream()
         .map(blob -> new BlobIdentifier(blob.getKey(), null))
         .collect(Collectors.toList());
+  }
+
+  public GetObjectRetentionRequest toGetObjectRetentionRequest(
+      String key, String versionId) {
+    GetObjectRetentionRequest.Builder builder = GetObjectRetentionRequest.newBuilder()
+        .bucket(bucket)
+        .key(key);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    return builder.build();
+  }
+
+  public GetObjectLegalHoldRequest toGetObjectLegalHoldRequest(
+      String key, String versionId) {
+    GetObjectLegalHoldRequest.Builder builder = GetObjectLegalHoldRequest.newBuilder()
+        .bucket(bucket)
+        .key(key);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    return builder.build();
+  }
+
+  public ObjectLockInfo toObjectLockInfo(
+      GetObjectRetentionResult retentionResult,
+      GetObjectLegalHoldResult legalHoldResult) {
+    RetentionMode mode = null;
+    Instant retainUntilDate = null;
+
+    if (retentionResult != null && retentionResult.retention() != null) {
+      Retention retention = retentionResult.retention();
+      mode = toRetentionMode(
+          ObjectRetentionModeType.fromString(retention.mode()));
+      if (retention.retainUntilDate() != null) {
+        retainUntilDate = Instant.parse(retention.retainUntilDate());
+      }
+    }
+
+    boolean legalHold = false;
+    if (legalHoldResult != null && legalHoldResult.legalHold() != null) {
+      legalHold = ObjectLegalHoldStatusType.ON.toString()
+          .equalsIgnoreCase(legalHoldResult.legalHold().status());
+    }
+
+    return ObjectLockInfo.builder()
+        .mode(mode)
+        .retainUntilDate(retainUntilDate)
+        .legalHold(legalHold)
+        .build();
+  }
+
+  public PutObjectRetentionRequest toPutObjectRetentionRequest(
+      String key, String versionId, RetentionMode mode,
+      Instant retainUntilDate, Boolean bypassGovernance) {
+    Retention retention = Retention.newBuilder()
+        .mode(toOssRetentionMode(mode))
+        .retainUntilDate(
+            DateTimeFormatter.ISO_INSTANT.format(retainUntilDate))
+        .build();
+
+    PutObjectRetentionRequest.Builder builder =
+        PutObjectRetentionRequest.newBuilder()
+            .bucket(bucket)
+            .key(key)
+            .retention(retention);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    if (Boolean.TRUE.equals(bypassGovernance)) {
+      builder.bypassGovernanceRetention(true);
+    }
+    return builder.build();
+  }
+
+  public PutObjectLegalHoldRequest toPutObjectLegalHoldRequest(
+      String key, String versionId, boolean legalHold) {
+    LegalHold hold = LegalHold.newBuilder()
+        .status(legalHold
+            ? ObjectLegalHoldStatusType.ON
+            : ObjectLegalHoldStatusType.OFF)
+        .build();
+
+    PutObjectLegalHoldRequest.Builder builder =
+        PutObjectLegalHoldRequest.newBuilder()
+            .bucket(bucket)
+            .key(key)
+            .legalHold(hold);
+    if (versionId != null) {
+      builder.versionId(versionId);
+    }
+    return builder.build();
+  }
+
+  public static RetentionMode toRetentionMode(ObjectRetentionModeType ossMode) {
+    switch (ossMode) {
+      case GOVERNANCE:
+        return RetentionMode.GOVERNANCE;
+      case COMPLIANCE:
+        return RetentionMode.COMPLIANCE;
+      default:
+        return null;
+    }
+  }
+
+  public static ObjectRetentionModeType toOssRetentionMode(RetentionMode mode) {
+    switch (mode) {
+      case GOVERNANCE:
+        return ObjectRetentionModeType.GOVERNANCE;
+      case COMPLIANCE:
+        return ObjectRetentionModeType.COMPLIANCE;
+      default:
+        throw new InvalidArgumentException("Unsupported retention mode: " + mode);
+    }
   }
 }
