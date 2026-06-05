@@ -450,7 +450,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(String key, String versionId) {
-    validateBucketExists();
+    validateBucketExists(key);
     storage.delete(transformer.toBlobId(bucket, key, versionId));
   }
 
@@ -606,7 +606,7 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
     rejectSha256(request.getChecksumAlgorithm());
-    validateBucketExists();
+    validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
         CreateMultipartUploadRequest.builder().bucket(getBucket()).key(request.getKey());
@@ -819,15 +819,50 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Validates that the bucket exists, throwing ResourceNotFoundException if not found. Uses
-   * Objects.List with pageSize(1) instead of Buckets.Get so that only {@code storage.objects.list}
-   * is required on the bucket, not {@code storage.buckets.get}.
+   * Validates that the bucket is accessible by attempting to list objects.
    *
-   * @throws ResourceNotFoundException if the bucket does not exist
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
+   * This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
    */
   private void validateBucketExists() {
     try {
       storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
+    } catch (StorageException e) {
+      if (e.getCode() == 404) {
+        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+      }
+      throw new UnknownException("Failed to check bucket existence", e);
+    }
+  }
+
+  /**
+   * Validates that the bucket is accessible by attempting to list objects with a prefix filter.
+   *
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)} and
+   * a prefix filter. This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * Using a prefix filter enables validation when IAM permissions are scoped to specific
+   * prefixes within the bucket. For example, a service account with permission to list only
+   * objects under {@code "user-data/"} can validate access by passing that prefix.
+   *
+   * @param keyPrefix the object key prefix to filter by; must match the caller's IAM
+   *     permission scope for validation to succeed
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
+   */
+  private void validateBucketExists(String keyPrefix) {
+    try {
+      storage.list(
+          getBucket(),
+          Storage.BlobListOption.prefix(keyPrefix),
+          Storage.BlobListOption.pageSize(1));
     } catch (StorageException e) {
       if (e.getCode() == 404) {
         throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
