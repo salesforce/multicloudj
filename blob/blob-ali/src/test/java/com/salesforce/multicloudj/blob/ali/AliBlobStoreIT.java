@@ -115,7 +115,7 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public boolean isObjectLockSupported() {
-      return false;
+      return true;
     }
 
     @Override
