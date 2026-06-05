@@ -1,0 +1,32 @@
+{
+  "id" : "e512802c-0107-44ad-8a5e-8eae111fb3ad",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_compliance_extend_succeeds-PUT-6",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/comp-extend",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmV0ZW50aW9uLXVwZGF0ZS1jb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL3VwZGF0ZS9jb21wLWV4dGVuZA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYwo7esNCD1fQZIiA3NjZjN2E5ZTVmNDE0NzFmYjk3N2M0MTkyMzk3YzgxZg--",
+      "x-oss-request-id" : "6A221D2258FB013433A685B0",
+      "x-oss-server-time" : "33",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "15522380419852632896",
+      "ETag" : "\"BD63E27D8E1FFC7B2A7E82AB64A21FEA\"",
+      "Date" : "Fri, 05 Jun 2026 00:49:38 GMT",
+      "Content-MD5" : "vWPifY4f/HsqfoKrZKIf6g=="
+    }
+  },
+  "uuid" : "e512802c-0107-44ad-8a5e-8eae111fb3ad",
+  "persistent" : true,
+  "insertionIndex" : 911
+}

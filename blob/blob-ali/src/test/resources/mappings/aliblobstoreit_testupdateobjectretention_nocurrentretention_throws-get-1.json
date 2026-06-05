@@ -1,0 +1,37 @@
+{
+  "id" : "d2114aba-a0de-4824-8177-55653b52926e",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_noCurrentRetention_throws-GET-1",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/no-current-retention",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchObjectRetentionConfiguration</Code>\n  <Message>The specified object does not have an object retention configuration.</Message>\n  <RequestId>6A221CE15C5E113837CD4084</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ObjectName>conformance-tests/objectlock/update/no-current-retention</ObjectName>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A221CE15C5E113837CD4084",
+      "x-oss-server-time" : "5",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:48:33 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "d2114aba-a0de-4824-8177-55653b52926e",
+  "persistent" : true,
+  "insertionIndex" : 813
+}

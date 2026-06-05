@@ -1,0 +1,44 @@
+{
+  "id" : "d3f1f5fc-7584-49a1-b795-4386ddad7a71",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_modeUpgrade_governanceToCompliance_withoutBypass_throws-PUT-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/update/mode-upgrade-no-bypass",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQjAkYypyPkOuG1fQZIiA2ZThiOGM4MzZhZjU0ODExODBmZTIwMDcwYTAyNWE1OQ--"
+        } ]
+      },
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<Retention><Mode>GOVERNANCE</Mode><RetainUntilDate>2030-01-01T00:00:00Z</RetainUntilDate></Retention>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYypyPkOuG1fQZIiA2ZThiOGM4MzZhZjU0ODExODBmZTIwMDcwYTAyNWE1OQ--",
+      "x-oss-request-id" : "6A221D8C85ECD63234F67AEE",
+      "x-oss-server-time" : "25",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:51:24 GMT"
+    }
+  },
+  "uuid" : "d3f1f5fc-7584-49a1-b795-4386ddad7a71",
+  "persistent" : true,
+  "insertionIndex" : 1044
+}
