@@ -1,0 +1,32 @@
+{
+  "id" : "5b530ac2-1445-4cb3-97ba-5a26ea4d8ae1",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_legalHoldPreservedAcrossUpdate-PUT-8",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/legalhold-preserved",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "bGVnYWxob2xkLXByZXNlcnZlZA=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYo6vyi9GF1fQZIiA3Y2E4YzhiMDZjYjU0OGIxOGJhNGZmMmIxZGE1NmFlMw--",
+      "x-oss-request-id" : "6A221D6457D5143835D35280",
+      "x-oss-server-time" : "41",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "8731513130250404289",
+      "ETag" : "\"F30EE07767065C9F9CC31D17BCD69508\"",
+      "Date" : "Fri, 05 Jun 2026 00:50:44 GMT",
+      "Content-MD5" : "8w7gd2cGXJ+cwx0XvNaVCA=="
+    }
+  },
+  "uuid" : "5b530ac2-1445-4cb3-97ba-5a26ea4d8ae1",
+  "persistent" : true,
+  "insertionIndex" : 997
+}

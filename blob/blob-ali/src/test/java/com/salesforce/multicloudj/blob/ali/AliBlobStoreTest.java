@@ -45,7 +45,6 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -1105,46 +1104,308 @@ public class AliBlobStoreTest {
   }
 
   @Test
-  void testGetObjectLock_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLock() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.getObjectLock(key, versionId);
-        });
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult retentionResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult legalHoldResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult.newBuilder()
+            .legalHold(com.aliyun.sdk.service.oss2.models.LegalHold.newBuilder()
+                .status(com.aliyun.sdk.service.oss2.models.ObjectLegalHoldStatusType.ON)
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenReturn(legalHoldResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
   }
 
   @Test
-  void testUpdateObjectRetention_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLockWithRetentionButNoLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
-    Instant retainUntil = Instant.now().plusSeconds(3600);
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateObjectRetention(key, versionId, retainUntil);
-        });
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult retentionResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+
+    // OSS returns 404 NoSuchObjectLegalHoldConfiguration when an object has retention
+    // but no legal hold set. getObjectLock must treat this as "no legal hold", not fail.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectLegalHold", serviceException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(operationException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
   }
 
   @Test
-  void testUpdateLegalHold_ThrowsUnsupportedException() {
-    // Given
+  void testUpdateLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldResult.newBuilder().build());
+
+    ali.updateLegalHold(key, versionId, true);
+
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testGetObjectLock_nonexistentKey_throws() {
+    String key = "no-such-key";
+    String versionId = null;
+
+    // OSS returns 404 with error code "NoSuchKey" when the object does not exist.
+    // This must NOT be swallowed as "no configuration" — it should propagate as an error.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchKey");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    assertThrows(OperationException.class, () -> ali.getObjectLock(key, versionId));
+  }
+
+  @Test
+  void testGetObjectLock_noRetentionNoLegalHold_returnsDefaults() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Both retention and legal hold return 404 NoSuchConfiguration — object exists but
+    // has no lock configuration. Should return an ObjectLockInfo with null mode and false hold.
+    ServiceException retentionException = mock(ServiceException.class);
+    when(retentionException.statusCode()).thenReturn(404);
+    when(retentionException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException retentionOpException =
+        new OperationException("GetObjectRetention", retentionException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(retentionOpException);
+
+    ServiceException legalHoldException = mock(ServiceException.class);
+    when(legalHoldException.statusCode()).thenReturn(404);
+    when(legalHoldException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException legalHoldOpException =
+        new OperationException("GetObjectLegalHold", legalHoldException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(legalHoldOpException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertNull(info.getMode());
+    assertNull(info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_noCurrentRetention_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // OSS returns 404 NoSuchObjectRetentionConfiguration for an object with no retention.
+    // doUpdateObjectRetention catches this and passes null currentMode to ObjectRetentionRules,
+    // which throws FailedPreconditionException.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
     assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateLegalHold(key, versionId, true);
-        });
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceMode_shortenDate_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has COMPLIANCE mode with retain-until 2035. Attempting to shorten
+    // the date should throw FailedPreconditionException regardless of bypass flag.
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceMode_shortenWithoutBypass_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has GOVERNANCE mode with retain-until 2035. Attempting to shorten
+    // without bypass=true should throw FailedPreconditionException.
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withObjectLock_appliesRetentionAndLegalHold() {
+    // Verify that completing a multipart upload with an ObjectLockConfiguration
+    // triggers putObjectRetention and putObjectLegalHold calls.
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockResult.versionId()).thenReturn("ver-123");
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration lockConfig =
+        com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2100-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .objectLock(lockConfig)
+        .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient).putObjectRetention(any(), any());
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withoutObjectLock_doesNotApplyRetention() {
+    // Verify that completing a multipart upload WITHOUT ObjectLockConfiguration
+    // does NOT call putObjectRetention or putObjectLegalHold.
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectRetention(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectLegalHold(any(), any());
   }
 
   @Test

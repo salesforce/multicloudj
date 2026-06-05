@@ -1,0 +1,32 @@
+{
+  "id" : "30a47e88-6fbe-460b-b394-2059eb28c9b8",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_noCurrentRetention_throws-PUT-2",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/no-current-retention",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "bm8tcmV0ZW50aW9u"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkYzKLWxM6B1fQZIiA0Y2UxYTZkZjc3OTY0ZGI5YWVhODdlNWNjM2QyYmQ0Mw--",
+      "x-oss-request-id" : "6A221CE076ADAE3634DA5F72",
+      "x-oss-server-time" : "66",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "4410973210453914582",
+      "ETag" : "\"BFE1089CB37491A8A0F7E52B9F03B4AB\"",
+      "Date" : "Fri, 05 Jun 2026 00:48:32 GMT",
+      "Content-MD5" : "v+EInLN0kaig9+UrnwO0qw=="
+    }
+  },
+  "uuid" : "30a47e88-6fbe-460b-b394-2059eb28c9b8",
+  "persistent" : true,
+  "insertionIndex" : 814
+}

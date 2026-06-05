@@ -1,0 +1,44 @@
+{
+  "id" : "0de13ff3-8e7f-4b8a-8217-1cbd724f51f4",
+  "name" : "AliBlobStoreIT_testGetObjectLock_afterUploadWithRetentionGovernance-PUT-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/retention-governance",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "versionId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CAEQjAkY3t3er5iL1fQZIiA3ZGFiNTEzOTdiMTE0ZDA1OTYzYmNhNjUzMTQzZDc4OA--"
+        } ]
+      },
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<Retention><Mode>GOVERNANCE</Mode><RetainUntilDate>2100-01-01T00:00:00Z</RetainUntilDate></Retention>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY3t3er5iL1fQZIiA3ZGFiNTEzOTdiMTE0ZDA1OTYzYmNhNjUzMTQzZDc4OA--",
+      "x-oss-request-id" : "6A221E1BFB200F3735ABFFA1",
+      "x-oss-server-time" : "13",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 05 Jun 2026 00:53:47 GMT"
+    }
+  },
+  "uuid" : "0de13ff3-8e7f-4b8a-8217-1cbd724f51f4",
+  "persistent" : true,
+  "insertionIndex" : 1213
+}
