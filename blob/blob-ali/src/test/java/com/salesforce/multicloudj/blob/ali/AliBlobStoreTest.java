@@ -533,8 +533,16 @@ public class AliBlobStoreTest {
       int current = count++;
       assertEquals("key-" + current, blobInfo.getKey());
       assertEquals(current, blobInfo.getObjectSize());
+      assertEquals(
+          BASE_LAST_MODIFIED.plusSeconds(current), blobInfo.getLastModified(),
+          "doList should propagate the OSS ObjectSummary lastModified timestamp");
     }
   }
+
+  // Base instant for deterministic lastModified values in the object-summary fixtures;
+  // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
+  private static final java.time.Instant BASE_LAST_MODIFIED =
+      java.time.Instant.parse("2026-01-01T00:00:00Z");
 
   private List<com.aliyun.sdk.service.oss2.models.ObjectSummary> getObjectSummaryList() {
     List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = new ArrayList<>();
@@ -545,6 +553,7 @@ public class AliBlobStoreTest {
                   com.aliyun.sdk.service.oss2.models.ObjectSummary.newBuilder()
                       .key("key-" + i)
                       .size((long) i)
+                      .lastModified(BASE_LAST_MODIFIED.plusSeconds(i))
                       .build();
               list.add(summary);
             });
@@ -597,8 +606,10 @@ public class AliBlobStoreTest {
     // Verify first and last blob
     assertEquals("key-1", response.getBlobs().get(0).getKey());
     assertEquals(1, response.getBlobs().get(0).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(1), response.getBlobs().get(0).getLastModified());
     assertEquals("key-99", response.getBlobs().get(98).getKey());
     assertEquals(99, response.getBlobs().get(98).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(99), response.getBlobs().get(98).getLastModified());
   }
 
   @Test
