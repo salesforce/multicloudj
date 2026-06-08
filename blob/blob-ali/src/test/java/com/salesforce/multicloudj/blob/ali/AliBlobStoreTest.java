@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +46,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -1219,6 +1221,38 @@ public class AliBlobStoreTest {
     ali.updateObjectRetention(key, versionId, config);
 
     verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceToComplianceUpgrade_throwsUnsupported() {
+    // OSS cannot upgrade an object's retention mode GOVERNANCE -> COMPLIANCE. Even with
+    // bypass=true (which the shared ObjectRetentionRules allows for AWS/GCP), the Ali driver
+    // must fail fast with a typed UnSupportedOperationException instead of issuing the
+    // PutObjectRetention call and leaking OSS's 409 FileImmutable.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(UnSupportedOperationException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // The upgrade is rejected before any PutObjectRetention call is made.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
   }
 
   @Test
