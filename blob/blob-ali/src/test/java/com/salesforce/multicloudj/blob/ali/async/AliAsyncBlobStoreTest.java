@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.ali.async;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,6 +56,7 @@ import com.aliyun.sdk.service.oss2.models.TagSet;
 import com.aliyun.sdk.service.oss2.models.Tagging;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.progress.ProgressListener;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
@@ -1088,6 +1090,88 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
+  void testUploadDirectoryWithLoggingCountsSdkReportedBytes(
+      @TempDir Path tempDir) throws Exception {
+    // "alpha" = 5 bytes, "bravo!" = 6 bytes -> expect 11 cumulative.
+    Files.writeString(tempDir.resolve("a.txt"), "alpha");
+    Files.writeString(tempDir.resolve("b.txt"), "bravo!");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+
+    // Simulate the OSS SDK driving the request's ProgressListener: the real
+    // putObjectAsync wires a ProgressObserver into the upload stream that calls
+    // onProgress(increment, transferred, total) as bytes are sent, then onFinish().
+    // Here we read the listener off the captured request and drive it the same way,
+    // reporting the file's byte count in two chunks to exercise accumulation.
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          PutObjectRequest req = invocation.getArgument(0);
+          ProgressListener listener = req.progressListener();
+          if (listener != null) {
+            long total = req.body() != null && req.body().getLength() != null
+                ? req.body().getLength() : 0L;
+            // Report in two increments that sum to the full object size.
+            long first = total / 2;
+            long second = total - first;
+            listener.onProgress(first, first, total);
+            listener.onProgress(second, total, total);
+            listener.onFinish();
+          }
+          return CompletableFuture.completedFuture(mockResult);
+        });
+
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .transferStatusLoggingEnabled(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    // Byte total is driven entirely by the SDK-reported onProgress increments,
+    // accumulated into the directory-scoped shared counter across both files.
+    assertEquals(11L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testUploadDirectoryLoggingDisabledReturnsNullTotal(
+      @TempDir Path tempDir) throws Exception {
+    Files.writeString(tempDir.resolve("a.txt"), "alpha");
+
+    PutObjectResult mockResult = mock(PutObjectResult.class);
+    when(mockResult.versionId()).thenReturn(null);
+    when(mockResult.eTag()).thenReturn("\"etag\"");
+    // No listener should be attached when logging is disabled; assert that and
+    // ensure we never drive progress so the counter stays at zero / null.
+    when(mockAsyncClient.putObjectAsync(
+        any(PutObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          PutObjectRequest req = invocation.getArgument(0);
+          assertNull(req.progressListener());
+          return CompletableFuture.completedFuture(mockResult);
+        });
+
+    // transferStatusLoggingEnabled defaults to false.
+    DirectoryUploadRequest request = DirectoryUploadRequest.builder()
+        .localSourceDirectory(tempDir.toString())
+        .prefix("pfx")
+        .includeSubFolders(true)
+        .build();
+    DirectoryUploadResponse response =
+        store.uploadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertNull(response.getTotalBytesTransferred());
+  }
+
+  @Test
   void testUploadDirectoryWithSubFolders(@TempDir Path tempDir)
       throws Exception {
     Files.writeString(tempDir.resolve("root.txt"), "root");
@@ -1313,6 +1397,89 @@ public class AliAsyncBlobStoreTest {
     assertNotNull(response);
     assertEquals(0, response.getFailedTransfers().size());
     assertEquals(1024L, response.getTotalBytesTransferred());
+  }
+
+  @Test
+  void testDownloadDirectoryLoggingDisabledReturnsNullTotal(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary obj = mock(ObjectSummary.class);
+    when(obj.key()).thenReturn("log/data.bin");
+    when(obj.size()).thenReturn(2048L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    byte[] content = new byte[2048];
+    GetObjectResult getResult = mock(GetObjectResult.class);
+    when(getResult.body()).thenReturn(new ByteArrayInputStream(content));
+    when(getResult.contentLength()).thenReturn(2048L);
+    when(getResult.eTag()).thenReturn("\"e\"");
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(getResult));
+
+    // transferStatusLoggingEnabled defaults to false — no listener attached, null total.
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("log")
+        .localDestinationDirectory(tempDir.toString())
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    assertNull(response.getTotalBytesTransferred());
+    // The file is still downloaded correctly even with no listener.
+    assertTrue(Files.exists(tempDir.resolve("data.bin")));
+  }
+
+  @Test
+  void testDownloadDirectoryWithLoggingAccumulatesAcrossFiles(
+      @TempDir Path tempDir) throws Exception {
+    ObjectSummary obj1 = mock(ObjectSummary.class);
+    when(obj1.key()).thenReturn("data/a.bin");
+    when(obj1.size()).thenReturn(100L);
+    ObjectSummary obj2 = mock(ObjectSummary.class);
+    when(obj2.key()).thenReturn("data/b.bin");
+    when(obj2.size()).thenReturn(200L);
+
+    ListObjectsV2Result listResult = mock(ListObjectsV2Result.class);
+    when(listResult.contents()).thenReturn(List.of(obj1, obj2));
+    when(listResult.commonPrefixes()).thenReturn(null);
+    when(listResult.isTruncated()).thenReturn(false);
+    when(mockAsyncClient.listObjectsV2Async(
+        any(ListObjectsV2Request.class), any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(listResult));
+
+    when(mockAsyncClient.getObjectAsync(
+        any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenAnswer(invocation -> {
+          GetObjectRequest req = invocation.getArgument(0);
+          int size = req.key().endsWith("a.bin") ? 100 : 200;
+          GetObjectResult result = mock(GetObjectResult.class);
+          when(result.body()).thenReturn(new ByteArrayInputStream(new byte[size]));
+          when(result.contentLength()).thenReturn((long) size);
+          when(result.eTag()).thenReturn("\"e\"");
+          return CompletableFuture.completedFuture(result);
+        });
+
+    DirectoryDownloadRequest request = DirectoryDownloadRequest.builder()
+        .prefixToDownload("data")
+        .localDestinationDirectory(tempDir.toString())
+        .transferStatusLoggingEnabled(true)
+        .build();
+    DirectoryDownloadResponse response =
+        store.downloadDirectory(request).get();
+
+    assertNotNull(response);
+    assertEquals(0, response.getFailedTransfers().size());
+    // Shared counter spans both files: 100 + 200, counted via the self-driven copy loop.
+    assertEquals(300L, response.getTotalBytesTransferred());
   }
 
   @Test

@@ -189,13 +189,48 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
   private CompletableFuture<UploadResponse> doUploadInternal(
       UploadRequest uploadRequest, BinaryData body) {
+    return doUploadInternal(uploadRequest, body, null);
+  }
+
+  /**
+   * Shared upload path. When {@code listener} is non-null (directory uploads only), it is attached
+   * to the {@link PutObjectRequest} so the OSS SDK drives {@code onProgress}/{@code onFinish} as
+   * the upload stream is consumed. When null (all single-file uploads), the request is built
+   * exactly as before and no progress instrumentation is attached — single-file behavior is
+   * unchanged.
+   */
+  private CompletableFuture<UploadResponse> doUploadInternal(
+      UploadRequest uploadRequest, BinaryData body,
+      OssLoggingTransferListener listener) {
     PutObjectRequest request =
         transformer.toPutObjectRequest(uploadRequest, body);
+    if (listener != null) {
+      request = request.toBuilder().progressListener(listener).build();
+    }
     return asyncClient
         .putObjectAsync(request, OperationOptions.defaults())
         .thenApply(
             result ->
                 transformer.toUploadResponse(uploadRequest, result));
+  }
+
+  /**
+   * Directory-upload variant of the path-based upload that threads a progress listener through to
+   * the shared upload path. Mirrors {@link #doUpload(UploadRequest, File)}'s {@link BinaryData}
+   * construction but attaches the per-file listener so byte accounting and (gated) logging run.
+   * Used only by {@link #doUploadDirectory}; single-file uploads never pass a listener.
+   */
+  private CompletableFuture<UploadResponse> doUploadFromPath(
+      UploadRequest uploadRequest, Path path, OssLoggingTransferListener listener) {
+    try {
+      BinaryData body = BinaryData.fromStream(
+          Files.newInputStream(path), Files.size(path));
+      return doUploadInternal(uploadRequest, body, listener);
+    } catch (IOException e) {
+      return CompletableFuture.failedFuture(
+          new SubstrateSdkException(
+              "Failed to read file for upload: " + path, e));
+    }
   }
 
   @Override
@@ -307,6 +342,54 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Directory-download variant that streams the object body to {@code destinationPath}. When
+   * {@code listener} is non-null (transfer status logging enabled), it is driven from our own copy
+   * loop — the OSS SDK does not invoke {@code ProgressListener} on the download path, so, exactly
+   * as the SDK's own {@code transfermanager.Downloader} does, this loop counts bytes per buffer and
+   * calls {@code onProgress}/{@code onFinish} itself. When null (logging disabled, mirroring AWS
+   * which attaches no listener), no instrumentation runs. Used only by
+   * {@link #doDownloadDirectory}; single-file downloads keep their existing behavior.
+   */
+  private CompletableFuture<DownloadResponse> doDownloadToPath(
+      DownloadRequest request, Path destinationPath,
+      OssLoggingTransferListener listener) {
+    return doDownloadInternal(request).thenApply(result -> {
+      try (InputStream body = result.body();
+          OutputStream out = Files.newOutputStream(destinationPath)) {
+        copyStreamWithListener(body, out, listener);
+        if (listener != null) {
+          listener.onFinish();
+        }
+        return transformer.toDownloadResponse(request.getKey(), result);
+      } catch (IOException e) {
+        throw new SubstrateSdkException(
+            "Failed to download blob: " + request.getKey(), e);
+      }
+    });
+  }
+
+  private void copyStreamWithListener(
+      InputStream in, OutputStream out, OssLoggingTransferListener listener) {
+    try {
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      long cumulative = 0L;
+      while ((bytesRead = in.read(buffer)) != -1) {
+        out.write(buffer, 0, bytesRead);
+        cumulative += bytesRead;
+        if (listener != null) {
+          listener.onProgress(bytesRead, cumulative, -1L);
+        }
+      }
+    } catch (IOException e) {
+      // Throw SubstrateSdkException (not a raw RuntimeException) so the failure surfaces
+      // consistently with the rest of the driver instead of as a CompletionException
+      // wrapping an opaque RuntimeException.
+      throw new SubstrateSdkException("Stream copy failed during download", e);
     }
   }
 
@@ -587,7 +670,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             }
           }
 
-          // Fan out per-file downloads.
+          // Fan out per-file downloads. When transfer status logging is enabled, a per-file
+          // listener shares the directory-scoped totalBytes counter and drives byte accounting
+          // and logging. When disabled, no listener is attached (mirrors AWS) — null.
+          boolean loggingEnabled =
+              directoryDownloadRequest.isTransferStatusLoggingEnabled();
           List<CompletableFuture<Void>> futures = blobInfos.stream()
               .map(blob -> {
                 String key = blob.getKey();
@@ -598,14 +685,19 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                 DownloadRequest downloadRequest = DownloadRequest.builder()
                     .withKey(key)
                     .build();
-                return doDownload(downloadRequest, destination)
+                OssLoggingTransferListener listener = loggingEnabled
+                    ? OssLoggingTransferListener.create(
+                        OssLoggingTransferListener.Direction.DOWNLOAD,
+                        key, totalBytes, true)
+                    : null;
+                return doDownloadToPath(downloadRequest, destination, listener)
                     .thenAccept(response -> {
-                      if (directoryDownloadRequest
-                          .isTransferStatusLoggingEnabled()) {
-                        totalBytes.addAndGet(blob.getObjectSize());
-                      }
+                      // onFinish() is invoked inside doDownloadToPath's copy loop.
                     })
                     .exceptionally(ex -> {
+                      if (listener != null) {
+                        listener.transferFailed(ex);
+                      }
                       failures.add(FailedBlobDownload.builder()
                           .destination(destination)
                           .exception(ex)
@@ -670,6 +762,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           if (fileSizes.isEmpty()) {
             return CompletableFuture.completedFuture(null);
           }
+          // When transfer status logging is enabled, a per-file listener shares the
+          // directory-scoped totalBytes counter; the OSS SDK drives it as the put stream is
+          // consumed. When disabled, no listener is attached (mirrors AWS) — null.
+          boolean loggingEnabled =
+              directoryUploadRequest.isTransferStatusLoggingEnabled();
           List<CompletableFuture<Void>> futures = fileSizes.entrySet().stream()
               .map(entry -> {
                 Path filePath = entry.getKey();
@@ -685,14 +782,21 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                   uploadBuilder.withObjectLock(objectLock);
                 }
                 UploadRequest uploadRequest = uploadBuilder.build();
-                return doUpload(uploadRequest, filePath)
+                OssLoggingTransferListener listener = loggingEnabled
+                    ? OssLoggingTransferListener.create(
+                        OssLoggingTransferListener.Direction.UPLOAD,
+                        key, totalBytes, true)
+                    : null;
+                return doUploadFromPath(uploadRequest, filePath, listener)
                     .thenAccept(response -> {
-                      if (directoryUploadRequest
-                          .isTransferStatusLoggingEnabled()) {
-                        totalBytes.addAndGet(fileSize);
-                      }
+                      // For uploads the OSS SDK is the sole driver of onProgress/onFinish as it
+                      // consumes the put stream (mirrors how downloads are self-driven by our
+                      // copy loop). Driving onFinish() here too would double-log completion.
                     })
                     .exceptionally(ex -> {
+                      if (listener != null) {
+                        listener.transferFailed(ex);
+                      }
                       failures.add(FailedBlobUpload.builder()
                           .source(filePath)
                           .exception(ex)
