@@ -114,11 +114,6 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public boolean isObjectLockSupported() {
-      return true;
-    }
-
-    @Override
     public String getEndpoint() {
       return endpoint;
     }

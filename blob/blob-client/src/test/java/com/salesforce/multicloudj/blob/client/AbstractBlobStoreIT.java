@@ -96,14 +96,6 @@ public abstract class AbstractBlobStoreIT {
         boolean useValidBucket, boolean useValidCredentials, boolean useVersionedBucket);
 
     /**
-     * Whether this provider supports object lock (WORM). When false, object lock conformance
-     * tests are skipped. Defaults to false — providers must explicitly opt in.
-     */
-    default boolean isObjectLockSupported() {
-      return false;
-    }
-
-    /**
      * Whether this provider supports directory upload. When false, directory upload conformance
      * tests are skipped.
      */
@@ -2597,9 +2589,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionGovernance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/retention-governance";
     byte[] content = "Object lock retention governance test".getBytes(StandardCharsets.UTF_8);
     // Keep retainUntil in the future so record mode remains valid over time.
@@ -2638,8 +2627,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_afterUploadWithRetentionCompliance() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     // Ali: OBJECT_LOCK_RETAIN_UNTIL_COMPLIANCE constant is in the past; OSS rejects it in
     // record mode. Requires cross-provider fix to the stale constant + re-recording all stubs.
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
@@ -2681,9 +2668,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_objectWithoutLock_returnsNullOrNoRetention() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     String key = "conformance-tests/objectlock/no-lock";
     byte[] content = "Object without lock test".getBytes(StandardCharsets.UTF_8);
 
@@ -2721,9 +2705,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testGetObjectLock_nonexistentKey_throws() {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -2777,8 +2758,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpdateObjectRetention_governance_extend_succeeds() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/gov-extend";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2803,8 +2782,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpdateObjectRetention_compliance_extend_succeeds() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/comp-extend";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2829,8 +2806,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   public void testUpdateObjectRetention_governance_shorten_withBypass_succeeds()
       throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/gov-shorten-bypass";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2856,8 +2831,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   public void testUpdateObjectRetention_governance_shorten_withoutBypass_throws()
       throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/gov-shorten-no-bypass";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2882,8 +2855,6 @@ public abstract class AbstractBlobStoreIT {
     // Mode upgrade requires bypassGovernanceRetention=true on both AWS and GCP — the cloud
     // treats the lock-mode change as a modification of the existing lock. The rules helper
     // mirrors that and rejects upgrade without bypass.
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     // OSS rejects mode upgrade (GOVERNANCE→COMPLIANCE) with 409 FileImmutable even with
     // bypass — OSS does not support changing retention mode once set on an object version.
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
@@ -2915,8 +2886,6 @@ public abstract class AbstractBlobStoreIT {
       throws IOException {
     // Without bypassGovernanceRetention=true, the cloud rejects the lock-mode change.
     // The rules helper rejects this client-side for uniform error reporting.
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/mode-upgrade-no-bypass";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2938,8 +2907,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   public void testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws()
       throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/mode-downgrade";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2966,8 +2933,6 @@ public abstract class AbstractBlobStoreIT {
     // and GCP ignore the flag on the immutable mode. MultiCloudJ surfaces a uniform
     // FailedPreconditionException client-side rather than waiting for HTTP 403 from AWS or
     // HTTP 400/412 from GCP.
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/comp-shorten-bypass";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -2989,8 +2954,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpdateObjectRetention_noCurrentRetention_throws() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     // Upload WITHOUT retention config — object has no retention set.
     String key = "conformance-tests/objectlock/update/no-current-retention";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
@@ -3027,8 +2990,6 @@ public abstract class AbstractBlobStoreIT {
           + " against a recorded WireMock fixture, which is generated alongside the new overload"
           + " fixtures.")
   public void testUpdateObjectRetention_deprecatedInstantOverload_stillWorks() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/deprecated-path";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3050,8 +3011,6 @@ public abstract class AbstractBlobStoreIT {
     // Stateless validation in BlobStoreValidator runs before any provider hook —
     // so this test does NOT need a provider implementation to pass. Verifies that the
     // template (AbstractBlobStore.updateObjectRetention) invokes the validator.
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3070,8 +3029,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   public void testUpdateObjectRetention_nullRetainUntilDate_throws() {
     // Stateless validation. Same as above — does not require a provider implementation.
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3090,8 +3047,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUpdateObjectRetention_legalHoldPreservedAcrossUpdate() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     String key = "conformance-tests/objectlock/update/legalhold-preserved";
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3879,14 +3834,10 @@ public abstract class AbstractBlobStoreIT {
 
   /**
    * Conformance test for tagging on an object-lock-enabled bucket. Same flow as testTagging but
-   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket). Skipped if
-   * the provider does not support object lock.
+   * uses a blob store configured for object lock (e.g. versioned/object-lock bucket).
    */
   @Test
   public void testTagging_withObjectLock() throws IOException {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -5259,8 +5210,6 @@ public abstract class AbstractBlobStoreIT {
         GCP_PROVIDER_ID.equals(harness.getProviderId()),
         "Directory upload with object lock conformance test runs only for GCP");
     Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
-    Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
@@ -5337,8 +5286,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withObjectLock() {
-    Assumptions.assumeTrue(
-        harness.isObjectLockSupported(), "Object lock not supported by this provider");
     // Ali: WireMock cannot replay 5MB multipart part bodies (body regex matching fails on large
     // binary payloads). This is a WireMock harness limitation, not an object lock issue —
     // the test passes in record mode against live OSS.
