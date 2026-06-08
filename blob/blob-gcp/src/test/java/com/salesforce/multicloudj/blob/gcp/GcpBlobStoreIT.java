@@ -198,11 +198,6 @@ public class GcpBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
-    public boolean isObjectLockSupported() {
-      return true;
-    }
-
-    @Override
     public List<String> getWiremockExtensions() {
       return List.of(MultipartBoundaryTransformer.class.getName());
     }
