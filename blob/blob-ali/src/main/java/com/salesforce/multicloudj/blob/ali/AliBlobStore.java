@@ -23,10 +23,13 @@ import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
 import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
@@ -65,7 +68,9 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -250,6 +255,7 @@ public class AliBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -306,6 +312,7 @@ public class AliBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -324,9 +331,13 @@ public class AliBlobStore extends AbstractBlobStore {
   public DownloadResponse doDownload(DownloadRequest downloadRequest) {
     GetObjectRequest request =
         transformer.toGetObjectRequest(downloadRequest);
-    GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults());
+    GetObjectResult result;
+    try {
+      result = ossClient.getObject(request, OperationOptions.defaults());
+    } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
     try {
       validateRangeResponse(downloadRequest, result);
     } catch (RuntimeException e) {
@@ -338,6 +349,82 @@ public class AliBlobStore extends AbstractBlobStore {
       throw e;
     }
     return transformer.toDownloadResponse(downloadRequest.getKey(), result, result.body());
+  }
+
+  /**
+   * If the caller asked for archive detection and the OSS GET failed with HTTP 404 carrying
+   * the {@code x-oss-delete-marker} header, list the prior versions of the key and throw
+   * {@link ResourceNotFoundException} populated with {@link ArchiveInfo} so the caller can
+   * recover the archived data via the prior {@code versionId}. Mirrors the on-the-wire
+   * delete-marker semantics observed against a real versioned + WORM-enabled bucket
+   * (404 NoSuchKey + {@code x-oss-delete-marker: true} + {@code x-oss-version-id} of the
+   * marker).
+   *
+   * <p>Returns silently if (a) {@code checkArchived} is off, (b) the underlying OSS exception
+   * is not 404, or (c) the 404 response did not carry a delete-marker header — in those cases
+   * the original exception is allowed to propagate unchanged.
+   */
+  private void handleArchivedObjects(
+      DownloadRequest downloadRequest, Throwable failure) {
+    if (!downloadRequest.isCheckArchived()) {
+      return;
+    }
+    ServiceException service = unwrapServiceException(failure);
+    if (service == null || service.statusCode() != 404) {
+      return;
+    }
+    Map<String, String> headers = service.headers();
+    if (headers == null) {
+      return;
+    }
+    boolean isDeleteMarker = false;
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if (entry.getKey() != null
+          && entry.getKey().equalsIgnoreCase("x-oss-delete-marker")
+          && "true".equalsIgnoreCase(entry.getValue())) {
+        isDeleteMarker = true;
+        break;
+      }
+    }
+    if (!isDeleteMarker) {
+      return;
+    }
+    ListObjectVersionsResult versions = ossClient.listObjectVersions(
+        ListObjectVersionsRequest.newBuilder()
+            .bucket(bucket)
+            .prefix(downloadRequest.getKey())
+            .maxKeys(2L)
+            .build(),
+        OperationOptions.defaults());
+    String versionId = null;
+    if (versions != null && versions.versions() != null) {
+      for (ObjectVersion v : versions.versions()) {
+        // Match exactly on key — the prefix listing can return sibling keys.
+        if (downloadRequest.getKey().equals(v.key())) {
+          versionId = v.versionId();
+          break;
+        }
+      }
+    }
+    throw new ResourceNotFoundException(
+        "Object is archived (delete marker): " + downloadRequest.getKey(),
+        failure,
+        ArchiveInfo.builder().archived(true).versionId(versionId).build());
+  }
+
+  /**
+   * Walks the cause chain of a thrown OSS exception to find the underlying
+   * {@link ServiceException}.
+   */
+  private static ServiceException unwrapServiceException(Throwable t) {
+    Throwable cur = t;
+    while (cur != null) {
+      if (cur instanceof ServiceException) {
+        return (ServiceException) cur;
+      }
+      cur = cur.getCause();
+    }
+    return null;
   }
 
   // OSS returns the full object with HTTP 200 when range start exceeds object size,
