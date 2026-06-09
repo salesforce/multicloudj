@@ -1256,6 +1256,70 @@ public class AliBlobStoreTest {
   }
 
   @Test
+  void testDoUpdateObjectRetention_governanceSameModeExtend_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: the GOVERNANCE -> COMPLIANCE upgrade guard must NOT interfere with a
+    // same-mode GOVERNANCE update (extending the retain-until date). This path should proceed
+    // normally and issue the PutObjectRetention call.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    // Guard does not fire for same-mode updates; the retention update is issued to OSS.
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceToGovernanceDowngrade_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: a COMPLIANCE -> GOVERNANCE downgrade is rejected by the shared
+    // ObjectRetentionRules (FailedPreconditionException), NOT by the OSS upgrade guard, and must
+    // never reach OSS. Documents that the upgrade guard is scoped to the opposite direction only.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // Rejected by the shared rules before reaching OSS — not via the upgrade guard.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
   void testGetObjectLock_nonexistentKey_throws() {
     String key = "no-such-key";
     String versionId = null;
