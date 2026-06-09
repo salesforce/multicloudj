@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +46,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
@@ -1219,6 +1221,102 @@ public class AliBlobStoreTest {
     ali.updateObjectRetention(key, versionId, config);
 
     verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceToComplianceUpgrade_throwsUnsupported() {
+    // OSS cannot upgrade an object's retention mode GOVERNANCE -> COMPLIANCE. Even with
+    // bypass=true (which the shared ObjectRetentionRules allows for AWS/GCP), the Ali driver
+    // must fail fast with a typed UnSupportedOperationException instead of issuing the
+    // PutObjectRetention call and leaking OSS's 409 FileImmutable.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(UnSupportedOperationException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // The upgrade is rejected before any PutObjectRetention call is made.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceSameModeExtend_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: the GOVERNANCE -> COMPLIANCE upgrade guard must NOT interfere with a
+    // same-mode GOVERNANCE update (extending the retain-until date). This path should proceed
+    // normally and issue the PutObjectRetention call.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    // Guard does not fire for same-mode updates; the retention update is issued to OSS.
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceToGovernanceDowngrade_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: a COMPLIANCE -> GOVERNANCE downgrade is rejected by the shared
+    // ObjectRetentionRules (FailedPreconditionException), NOT by the OSS upgrade guard, and must
+    // never reach OSS. Documents that the upgrade guard is scoped to the opposite direction only.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // Rejected by the shared rules before reaching OSS — not via the upgrade guard.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
   }
 
   @Test

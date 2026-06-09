@@ -66,6 +66,7 @@ import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.io.ByteArrayOutputStream;
@@ -731,6 +732,19 @@ public class AliBlobStore extends AbstractBlobStore {
 
     RetentionMode resolvedMode = ObjectRetentionRules.resolveAndValidate(
         currentMode, currentRetainUntil, config);
+
+    // OSS does not support changing an object's retention mode once set. A
+    // GOVERNANCE -> COMPLIANCE upgrade (which AWS/GCP allow with a bypass) is rejected
+    // server-side with HTTP 409 FileImmutable. Detect it here and fail with a clear,
+    // typed exception rather than leaking the provider-specific HTTP error. The shared
+    // ObjectRetentionRules has already allowed this transition for bypass-capable
+    // providers; this is the OSS-specific platform limitation.
+    if (currentMode == RetentionMode.GOVERNANCE
+        && resolvedMode == RetentionMode.COMPLIANCE) {
+      throw new UnSupportedOperationException(
+          "Alibaba OSS does not support upgrading an object's retention mode from "
+              + "GOVERNANCE to COMPLIANCE; the mode is immutable once set.");
+    }
 
     ossClient.putObjectRetention(
         transformer.toPutObjectRetentionRequest(
