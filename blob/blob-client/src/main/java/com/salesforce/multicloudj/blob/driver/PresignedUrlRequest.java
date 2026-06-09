@@ -59,6 +59,12 @@ public class PresignedUrlRequest {
   /**
    * (Optional) The checksum algorithm used for the checksumValue.
    * Defaults to CRC32C when checksumValue is set but no algorithm is specified.
+   *
+   * <p><b>Ali OSS caveat:</b> The Ali provider maps {@code CRC32C} to its native
+   * {@code x-oss-hash-crc64ecma} header. Callers targeting Ali must compute a CRC64-ECMA
+   * hash (not a 4-byte CRC32C) and pass it as {@code checksumValue} with this field set
+   * to {@code CRC32C}. A future {@code CRC64ECMA} enum value may be added to make this
+   * explicit.
    */
   private final ChecksumMethod checksumAlgorithm;
 
