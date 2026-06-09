@@ -1,0 +1,52 @@
+{
+  "id" : "c87bacb8-b419-4666-bc03-3b36826c1153",
+  "name" : "AliBlobStoreIT_testDownload_checkArchived-GET-2",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "4"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/check-archived/archived-blob"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult>\n  <Name>chameleon-multicloudj-test-versioned</Name>\n  <Prefix>conformance-tests%2Fcheck-archived%2Farchived-blob</Prefix>\n  <KeyMarker></KeyMarker>\n  <VersionIdMarker></VersionIdMarker>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>true</IsTruncated>\n  <NextKeyMarker>conformance-tests%2Fcheck-archived%2Farchived-blob</NextKeyMarker>\n  <NextVersionIdMarker>CAEQigsY9MzO4evFuvUZIiAyMWZlMzAwNzczNzc0M2VhOTRmNmMyNDc2OWZlNzM2ZQ--</NextVersionIdMarker>\n  <DeleteMarker>\n    <Key>conformance-tests%2Fcheck-archived%2Farchived-blob</Key>\n    <VersionId>CAEQigsYlJaOm._FuvUZIiAwMDhiZDJkZjBhM2I0MTI2ODk0OGZmYzEwMDNmMzg1Yw--</VersionId>\n    <IsLatest>true</IsLatest>\n    <LastModified>2026-06-09T23:06:14.000Z</LastModified>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </DeleteMarker>\n  <Version>\n    <Key>conformance-tests%2Fcheck-archived%2Farchived-blob</Key>\n    <VersionId>CAEQigsY9MzO4evFuvUZIiAyMWZlMzAwNzczNzc0M2VhOTRmNmMyNDc2OWZlNzM2ZQ--</VersionId>\n    <IsLatest>false</IsLatest>\n    <LastModified>2026-06-09T23:06:13.000Z</LastModified>\n    <ETag>\"A98871894645D06A06364EFE6B42AF9D\"</ETag>\n    <Type>Normal</Type>\n    <Size>16</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Version>\n</ListVersionsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A289C67986E293831973336",
+      "x-oss-server-time" : "87",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 09 Jun 2026 23:06:15 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "c87bacb8-b419-4666-bc03-3b36826c1153",
+  "persistent" : true,
+  "insertionIndex" : 621
+}
