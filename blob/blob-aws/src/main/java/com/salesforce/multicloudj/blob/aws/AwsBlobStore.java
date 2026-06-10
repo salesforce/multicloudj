@@ -64,6 +64,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.BucketVersioningStatus;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
@@ -71,6 +72,7 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -598,6 +600,24 @@ public class AwsBlobStore extends AbstractBlobStore {
         return false;
       }
       throw e;
+    }
+  }
+
+  @Override
+  protected com.salesforce.multicloudj.blob.driver.BucketVersioningStatus doGetBucketVersioning() {
+    GetBucketVersioningResponse response =
+        s3Client.getBucketVersioning(builder -> builder.bucket(bucket));
+    BucketVersioningStatus status = response.status();
+    if (status == null) {
+      return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
+    }
+    switch (status) {
+      case ENABLED:
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED;
+      case SUSPENDED:
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.SUSPENDED;
+      default:
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
     }
   }
 

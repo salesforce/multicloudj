@@ -968,6 +968,21 @@ public class GcpBlobStore extends AbstractBlobStore {
     }
   }
 
+  @Override
+  protected com.salesforce.multicloudj.blob.driver.BucketVersioningStatus doGetBucketVersioning() {
+    Bucket bucketObj = storage.get(bucket);
+    if (bucketObj == null) {
+      throw new SubstrateSdkException("Bucket not found: " + bucket);
+    }
+    Boolean versioningEnabled = bucketObj.versioningEnabled();
+    if (versioningEnabled == null) {
+      return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
+    }
+    return versioningEnabled
+        ? com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED
+        : com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.SUSPENDED;
+  }
+
   /**
    * Maximum number of objects that can be deleted in a single batch operation. GCP supports up to
    * 1000 objects per batch delete.

@@ -875,6 +875,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
+  protected com.salesforce.multicloudj.blob.driver.BucketVersioningStatus doGetBucketVersioning() {
+    // In-memory implementation always reports versioning as UNSET
+    return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
+  }
+
+  @Override
   public void close() {
     // Nothing to close for in-memory implementation
   }

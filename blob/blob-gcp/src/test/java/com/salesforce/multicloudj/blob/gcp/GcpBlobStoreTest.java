@@ -1538,6 +1538,67 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoGetBucketVersioning_Enabled() {
+    // Given
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockBucket.versioningEnabled()).thenReturn(Boolean.TRUE);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+    // When
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        gcpBlobStore.doGetBucketVersioning();
+
+    // Then
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED, result);
+    verify(mockStorage).get(TEST_BUCKET);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_Suspended() {
+    // Given
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockBucket.versioningEnabled()).thenReturn(Boolean.FALSE);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+    // When
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        gcpBlobStore.doGetBucketVersioning();
+
+    // Then
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.SUSPENDED, result);
+    verify(mockStorage).get(TEST_BUCKET);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_Unset() {
+    // Given
+    Bucket mockBucket = mock(Bucket.class);
+    when(mockBucket.versioningEnabled()).thenReturn(null);
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(mockBucket);
+
+    // When
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        gcpBlobStore.doGetBucketVersioning();
+
+    // Then
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET, result);
+    verify(mockStorage).get(TEST_BUCKET);
+  }
+
+  @Test
+  void testDoGetBucketVersioning_BucketNotFound() {
+    // Given
+    when(mockStorage.get(TEST_BUCKET)).thenReturn(null);
+
+    // When/Then
+    assertThrows(SubstrateSdkException.class, () -> gcpBlobStore.doGetBucketVersioning());
+    verify(mockStorage).get(TEST_BUCKET);
+  }
+
+  @Test
   void testGetException_WithSubstrateSdkException() {
     // Given
     SubstrateSdkException testException = new SubstrateSdkException("Test");
