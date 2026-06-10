@@ -853,4 +853,56 @@ public class AliTransformerTest {
     assertTrue(info.isLegalHold(),
         "legal-hold value comparison should be case-insensitive (\"on\" -> true)");
   }
+
+  @Test
+  void testToBlobMetadata_unknownWormMode_leavesModeNullBestEffort() {
+    // OSS returns a worm-mode value the SDK enum does not recognize. The read is best-effort and
+    // must not throw: objectLockInfo is still populated (the other worm headers are present),
+    // mode falls back to null, and the remaining fields are unaffected.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "UNKNOWN_MODE",
+            "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info,
+        "objectLockInfo should still be populated when other worm headers are present");
+    assertNull(info.getMode(),
+        "an unrecognized worm-mode must fall back to null rather than throw");
+    assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_malformedRetainUntilDate_leavesRetainUntilNullBestEffort() {
+    // OSS returns a retain-until-date that is not valid ISO-8601. The read is best-effort and must
+    // not throw: objectLockInfo is still populated, retainUntilDate falls back to null, and the
+    // mode/legal-hold fields parse normally.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "GOVERNANCE",
+            "x-oss-object-worm-retain-until-date", "not-a-valid-date",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertNull(info.getRetainUntilDate(),
+        "an unparseable retain-until-date must fall back to null rather than throw");
+    assertTrue(info.isLegalHold());
+  }
 }
