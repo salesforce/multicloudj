@@ -360,9 +360,23 @@ public class AliBlobStore extends AbstractBlobStore {
    * (404 NoSuchKey + {@code x-oss-delete-marker: true} + {@code x-oss-version-id} of the
    * marker).
    *
-   * <p>Returns silently if (a) {@code checkArchived} is off, (b) the underlying OSS exception
-   * is not 404, or (c) the 404 response did not carry a delete-marker header — in those cases
-   * the original exception is allowed to propagate unchanged.
+   * <p>The prior version is resolved deterministically by paging through {@code ListObjectVersions}
+   * (via the SDK paginator) and stopping at the first entry whose key matches exactly. Because OSS
+   * delete markers share the listing page-size budget with real versions, a single bounded page can
+   * return markers only; pagination guarantees the real version is found regardless of how many
+   * delete markers precede it (e.g. after repeated PUT/DELETE cycles), without relying on a
+   * guessed page size.
+   *
+   * <p>Archive detection is strictly best-effort: this method returns silently — allowing the
+   * original exception to propagate unchanged — if (a) {@code checkArchived} is off, (b) the
+   * underlying OSS exception is not 404, (c) the 404 response did not carry a delete-marker
+   * header, (d) the {@code ListObjectVersions} paging itself fails (network error, permission
+   * denied, versioning disabled, throttling), or (e) no prior version of the key could be
+   * resolved from the listing. It only throws {@link ResourceNotFoundException} with
+   * {@link ArchiveInfo} when it has positively identified an archived prior version
+   * ({@code versionId} non-null). This guarantees the guard never masks the caller's original
+   * download failure with a secondary error, and never reports {@code archived=true} without a
+   * usable {@code versionId}.
    */
   private void handleArchivedObjects(
       DownloadRequest downloadRequest, Throwable failure) {
@@ -389,22 +403,43 @@ public class AliBlobStore extends AbstractBlobStore {
     if (!isDeleteMarker) {
       return;
     }
-    ListObjectVersionsResult versions = ossClient.listObjectVersions(
-        ListObjectVersionsRequest.newBuilder()
-            .bucket(bucket)
-            .prefix(downloadRequest.getKey())
-            .maxKeys(2L)
-            .build(),
-        OperationOptions.defaults());
+    // Resolve the prior (non-marker) version id by listing versions for the key. A simple
+    // single-page listing is not deterministic: repeated PUT/DELETE cycles stack multiple delete
+    // markers ahead of the first real version, and delete markers share the page-size budget with
+    // versions, so a bounded page can come back with markers only. Instead, page through the
+    // results (the SDK paginator follows the key/version markers transparently) and stop at the
+    // first entry whose key matches exactly — the prefix listing can also return sibling keys.
+    // This yields a correct result regardless of how many delete markers precede the version.
     String versionId = null;
-    if (versions != null && versions.versions() != null) {
-      for (ObjectVersion v : versions.versions()) {
-        // Match exactly on key — the prefix listing can return sibling keys.
-        if (downloadRequest.getKey().equals(v.key())) {
-          versionId = v.versionId();
-          break;
+    try {
+      outer:
+      for (ListObjectVersionsResult page :
+          ossClient.listObjectVersionsPaginator(
+              ListObjectVersionsRequest.newBuilder()
+                  .bucket(bucket)
+                  .prefix(downloadRequest.getKey())
+                  .build())) {
+        if (page == null || page.versions() == null) {
+          continue;
+        }
+        for (ObjectVersion v : page.versions()) {
+          if (downloadRequest.getKey().equals(v.key())) {
+            versionId = v.versionId();
+            break outer;
+          }
         }
       }
+    } catch (Exception listFailure) {
+      // Best-effort: if version listing fails (network error, permission denied, versioning
+      // disabled, throttling), do not mask the caller's original download failure — let the
+      // original exception propagate unchanged.
+      return;
+    }
+    if (versionId == null) {
+      // No prior version of the key could be resolved (e.g. only delete markers exist). Rather
+      // than report archived=true with a null versionId the caller cannot act on, fall through
+      // and let the original 404 propagate unchanged.
+      return;
     }
     throw new ResourceNotFoundException(
         "Object is archived (delete marker): " + downloadRequest.getKey(),

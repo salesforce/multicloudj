@@ -1662,16 +1662,17 @@ public class AliBlobStoreTest {
         any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
         .thenThrow(op);
 
-    // 2. ListObjectVersions returns one prior ObjectVersion. Use the prior version's id (NOT
-    //    the delete marker's id), since the conformance test re-downloads it for the bytes.
+    // 2. ListObjectVersions (paginated) returns one prior ObjectVersion. Use the prior version's
+    //    id (NOT the delete marker's id), since the conformance test re-downloads it for the bytes.
     ObjectVersion priorVersion = mock(ObjectVersion.class);
     when(priorVersion.versionId()).thenReturn(priorVersionId);
     when(priorVersion.key()).thenReturn(key);
     ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
     when(listResult.versions()).thenReturn(List.of(priorVersion));
-    when(mockOssClient.listObjectVersions(any(ListObjectVersionsRequest.class),
-        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
-        .thenReturn(listResult);
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
 
     DownloadRequest request = DownloadRequest.builder()
         .withKey(key).withCheckArchived(true).build();
@@ -1713,8 +1714,8 @@ public class AliBlobStoreTest {
     // listObjectVersions.
     assertThrows(RuntimeException.class,
         () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
-    verify(mockOssClient, never()).listObjectVersions(any(ListObjectVersionsRequest.class),
-        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
   }
 
   @Test
@@ -1743,7 +1744,167 @@ public class AliBlobStoreTest {
     // 404-driven RuntimeException propagates.
     assertThrows(RuntimeException.class,
         () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
-    verify(mockOssClient, never()).listObjectVersions(any(ListObjectVersionsRequest.class),
-        any(com.aliyun.sdk.service.oss2.OperationOptions.class));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
+  }
+
+  @Test
+  void testDoDownload_checkArchived_listVersionsFails_propagatesOriginalException() {
+    // Best-effort contract: if the delete marker is detected but the follow-up
+    // ListObjectVersions call itself fails (network error, permission denied, versioning
+    // disabled, throttling), the guard must NOT mask the caller's original download failure
+    // with the secondary listing error. The original 404-driven exception must propagate and
+    // NO ResourceNotFoundException/ArchiveInfo is produced.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // ListObjectVersions paging blows up.
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenThrow(new RuntimeException("listObjectVersions failed: permission denied"));
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    // The guard swallows the listing failure and re-throws the ORIGINAL exception (the mocked
+    // OperationException), not a ResourceNotFoundException.
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "listObjectVersions failure must not be reported as an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_emptyVersionsPage_propagatesOriginalException() {
+    // Delete marker detected, but the paginated listing yields a page with a null versions list
+    // (e.g. only delete markers, which live in a separate list). The guard must fall through
+    // (no archived=true with a null versionId) and let the original exception propagate.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    ListObjectVersionsResult emptyPage = mock(ListObjectVersionsResult.class);
+    when(emptyPage.versions()).thenReturn(null);
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(emptyPage).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "An empty versions page must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_noMatchingVersion_propagatesOriginalException() {
+    // Delete marker detected, paging returns versions but none whose key matches (e.g. only
+    // sibling keys). versionId stays null across all pages, so the guard must fall through
+    // rather than throw archived=true with a null versionId.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // A version for a DIFFERENT (sibling) key — the exact-key match must skip it.
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(sibling));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "An unresolved versionId must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_versionOnLaterPage_resolvesAcrossPages() {
+    // Determinism check: the matching version is on the SECOND page (the first page contains only
+    // a sibling key, simulating delete markers / unrelated keys consuming the first page). The
+    // paginated walk must cross pages and still resolve the correct prior versionId.
+    String key = "deleted-key";
+    String priorVersionId = "v-on-page-2";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(sibling));
+
+    ObjectVersion match = mock(ObjectVersion.class);
+    when(match.key()).thenReturn(key);
+    when(match.versionId()).thenReturn(priorVersionId);
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(match));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException ex = assertThrows(
+        com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    com.salesforce.multicloudj.common.exceptions.ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info);
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
   }
 }
