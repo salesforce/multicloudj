@@ -502,8 +502,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .completeMultipartUploadAsync(
             transformer.toCompleteMultipartUploadRequest(mpu, parts),
             OperationOptions.defaults())
+        // OSS computes a CRC64 over the assembled object and returns it on the result; surface
+        // it as the cross-cloud composite checksum on MultipartUploadResponse.
         .thenApply(result -> new MultipartUploadResponse(
-            stripQuotes(result.completeMultipartUpload().eTag())));
+            stripQuotes(result.completeMultipartUpload().eTag()),
+            result.hashCRC64()));
   }
 
   @Override

@@ -793,6 +793,55 @@ public class AliAsyncBlobStoreTest {
   }
 
   @Test
+  void testCompleteMultipartUpload_surfacesHashCRC64AsChecksumValue() throws Exception {
+    // Async parity with the sync transformer: OSS's hashCRC64() (composite CRC64 over the
+    // assembled object) must flow through to MultipartUploadResponse.checksumValue.
+    CompleteMultipartUploadResultXml xml = mock(CompleteMultipartUploadResultXml.class);
+    when(xml.eTag()).thenReturn("\"final-etag\"");
+    CompleteMultipartUploadResult mockResult = mock(CompleteMultipartUploadResult.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(xml);
+    when(mockResult.hashCRC64()).thenReturn("14870085893817539781");
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET).key("mpu-key").id("upload-id-123").build();
+    List<UploadPartResponse> parts =
+        List.of(new UploadPartResponse(1, "part-etag-1", 1024));
+    MultipartUploadResponse response = store.completeMultipartUpload(mpu, parts).get();
+
+    assertEquals("final-etag", response.getEtag());
+    assertEquals("14870085893817539781", response.getChecksumValue(),
+        "Async path should surface hashCRC64() as MultipartUploadResponse.checksumValue");
+  }
+
+  @Test
+  void testCompleteMultipartUpload_nullHashCRC64_leavesChecksumValueNull() throws Exception {
+    // When OSS doesn't return a hashCRC64 (null), checksumValue stays null, not the literal
+    // String "null".
+    CompleteMultipartUploadResultXml xml = mock(CompleteMultipartUploadResultXml.class);
+    when(xml.eTag()).thenReturn("\"final-etag\"");
+    CompleteMultipartUploadResult mockResult = mock(CompleteMultipartUploadResult.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(xml);
+    when(mockResult.hashCRC64()).thenReturn(null);
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET).key("mpu-key").id("upload-id-123").build();
+    List<UploadPartResponse> parts =
+        List.of(new UploadPartResponse(1, "part-etag-1", 1024));
+    MultipartUploadResponse response = store.completeMultipartUpload(mpu, parts).get();
+
+    assertEquals("final-etag", response.getEtag());
+    org.junit.jupiter.api.Assertions.assertNull(response.getChecksumValue());
+  }
+
+  @Test
   void testListMultipartUpload() throws Exception {
     Part part1 = mock(Part.class);
     when(part1.partNumber()).thenReturn(1L);

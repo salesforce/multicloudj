@@ -880,6 +880,61 @@ public class AliBlobStoreTest {
   }
 
   @Test
+  void testDoCompleteMultipartUpload_surfacesHashCRC64AsChecksumValue() {
+    // OSS computes a CRC64 over the assembled object on completeMultipartUpload and returns it
+    // on CompleteMultipartUploadResult.hashCRC64(). That should flow through to
+    // MultipartUploadResponse.checksumValue so callers receive a composite checksum, matching
+    // the cross-cloud contract (AWS surfaces SHA256/CRC32C; GCP surfaces CRC32C).
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn("14870085893817539781");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    com.salesforce.multicloudj.blob.driver.MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertEquals("14870085893817539781", response.getChecksumValue(),
+        "Ali should surface OSS's hashCRC64() as MultipartUploadResponse.checksumValue");
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_nullHashCRC64_leavesChecksumValueNull() {
+    // Best-effort: when OSS doesn't return a hashCRC64 (null), checksumValue stays null rather
+    // than being set to the literal string "null".
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn(null);
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    com.salesforce.multicloudj.blob.driver.MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertNull(response.getChecksumValue());
+  }
+
+  @Test
   void testDoListMultipartUpload() {
     com.aliyun.sdk.service.oss2.models.ListPartsResult mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);

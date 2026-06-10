@@ -679,8 +679,11 @@ public class AliBlobStore extends AbstractBlobStore {
     // OSS does not support object lock headers on multipart initiation, so apply retention
     // and legal hold after the object is assembled.
     applyObjectLockAfterUpload(mpu.getKey(), result.versionId(), mpu.getObjectLock());
+    // OSS computes a CRC64 over the assembled object and returns it on the result; surface it
+    // as the cross-cloud composite checksum on MultipartUploadResponse.
     return new MultipartUploadResponse(
-        stripQuotes(result.completeMultipartUpload().eTag()));
+        stripQuotes(result.completeMultipartUpload().eTag()),
+        result.hashCRC64());
   }
 
   /**
