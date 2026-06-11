@@ -1103,6 +1103,12 @@ public class GcpBlobStore extends AbstractBlobStore {
               Storage.BlobField.SIZE,
               Storage.BlobField.GENERATION));
 
+      // Resolve the canonical target directory once so path-traversal checks below
+      // compare absolute, normalized paths (e.g. blocks "../../../etc/passwd").
+      final Path safeTargetDir = targetDir.toAbsolutePath().normalize();
+      final String stripPrefix = prefix != null ? prefix : "";
+
+      List<FailedBlobDownload> failed = new ArrayList<>();
       List<BlobInfo> blobInfos = new ArrayList<>();
       for (Blob blob :
           storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0]))
@@ -1110,12 +1116,28 @@ public class GcpBlobStore extends AbstractBlobStore {
         // Skip folder markers (matches AWS default). GCS TransferManager has no
         // built-in filter and would otherwise create a 0-byte file at the marker's
         // path, blocking the real files inside that virtual folder.
-        if (!isFolderMarker(blob)) {
-          blobInfos.add(blob);
+        if (isFolderMarker(blob)) {
+          continue;
         }
+        // Path-traversal protection: ensure the destination computed from the
+        // (possibly attacker-controlled) blob name stays under safeTargetDir.
+        String name = blob.getName();
+        String relative =
+            name.startsWith(stripPrefix) ? name.substring(stripPrefix.length()) : name;
+        Path destination = safeTargetDir.resolve(relative).normalize();
+        if (!destination.startsWith(safeTargetDir)) {
+          failed.add(
+              FailedBlobDownload.builder()
+                  .destination(destination)
+                  .exception(
+                      new SecurityException(
+                          "Blocked path traversal for blob: " + name))
+                  .build());
+          continue;
+        }
+        blobInfos.add(blob);
       }
 
-      List<FailedBlobDownload> failed = new ArrayList<>();
       if (blobInfos.isEmpty()) {
         return DirectoryDownloadResponse.builder().failedTransfers(failed).build();
       }
