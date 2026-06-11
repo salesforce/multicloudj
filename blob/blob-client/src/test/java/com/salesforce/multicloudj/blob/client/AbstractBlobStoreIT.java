@@ -3722,7 +3722,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withChecksum() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // Runs for all providers. Each substrate resolves its native composite-checksum algorithm
+    // from withChecksumEnabled(true): CRC32C on AWS/GCP, CRC64 on Ali. The harness computes the
+    // matching per-part checksum via the provider-specific computeChecksum() override.
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withChecksum";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -3767,11 +3769,10 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(completeResponse);
       Assertions.assertNotNull(completeResponse.getEtag());
 
-      // For AWS/GCP, verify composite checksum is returned
-      if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
-        Assertions.assertNotNull(completeResponse.getChecksumValue(),
-            "Expected composite checksum in complete response for " + harness.getProviderId());
-      }
+      // All providers surface a substrate-native composite checksum on completion
+      // (CRC32C on AWS/GCP, CRC64 on Ali).
+      Assertions.assertNotNull(completeResponse.getChecksumValue(),
+          "Expected composite checksum in complete response for " + harness.getProviderId());
 
       // Verify the blob exists and content is correct
       boolean exists = bucketClient.doesObjectExist(expectedKey, null);
