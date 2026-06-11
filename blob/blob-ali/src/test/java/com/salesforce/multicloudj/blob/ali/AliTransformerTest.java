@@ -432,6 +432,74 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPresignedPutObjectRequest_withConstraints() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength(1024)
+            .contentType("application/json")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(Integer.valueOf(1024), actual.contentLength());
+    assertEquals("application/json", actual.contentType());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_contentLengthOverflow() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength((long) Integer.MAX_VALUE + 1)
+            .build();
+
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> transformer.toPresignedPutObjectRequest(request));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumCrc32c() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.CRC32C)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("abc123==", actual.headers().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumSha256() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("sha256val==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("sha256val==", actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
   void testToPresignedDownloadRequest() {
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =

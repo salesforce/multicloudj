@@ -33,6 +33,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -604,6 +605,28 @@ public class BucketClientTest {
         () -> {
           client.generatePresignedUrl(presignedUrlRequest);
         });
+  }
+
+  @Test
+  void testPresign() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofMinutes(10))
+            .contentLength(100)
+            .build();
+
+    PresignedUrlResponse mockResponse =
+        PresignedUrlResponse.builder()
+            .url(null)
+            .signedHeaders(Map.of("Content-Length", "100"))
+            .build();
+    when(mockBlobStore.presign(request)).thenReturn(mockResponse);
+
+    PresignedUrlResponse result = client.presign(request);
+    assertEquals(mockResponse, result);
+    verify(mockBlobStore, times(1)).presign(request);
   }
 
   @Test

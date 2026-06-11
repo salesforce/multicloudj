@@ -592,6 +592,29 @@ public class AliTransformer {
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
     }
 
+    if (request.getContentLength() > 0) {
+      if (request.getContentLength() > Integer.MAX_VALUE) {
+        throw new InvalidArgumentException(
+            "contentLength exceeds maximum supported by Ali OSS ("
+                + Integer.MAX_VALUE + " bytes)");
+      }
+      builder.contentLength((int) request.getContentLength());
+    }
+
+    if (StringUtils.isNotEmpty(request.getContentType())) {
+      builder.contentType(request.getContentType());
+    }
+
+    if (StringUtils.isNotEmpty(request.getChecksumValue())) {
+      ChecksumMethod algo = request.getChecksumAlgorithm() != null
+          ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+      if (algo == ChecksumMethod.SHA256) {
+        builder.header("x-oss-content-sha256", request.getChecksumValue());
+      } else {
+        builder.header("x-oss-hash-crc64ecma", request.getChecksumValue());
+      }
+    }
+
     return builder.build();
   }
 

@@ -22,6 +22,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -232,6 +233,12 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
   public CompletableFuture<URL> generatePresignedUrl(PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(
         () -> blobStore.generatePresignedUrl(request), executorService);
+  }
+
+  @Override
+  public CompletableFuture<PresignedUrlResponse> presign(PresignedUrlRequest request) {
+    return CompletableFuture.supplyAsync(
+        () -> blobStore.presign(request), executorService);
   }
 
   @Override

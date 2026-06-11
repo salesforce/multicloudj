@@ -403,7 +403,7 @@ public class AbstractAsyncBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -417,7 +417,22 @@ public class AbstractAsyncBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
+    verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
+  }
+
+  @Test
+  void testPresign() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofMinutes(10))
+            .contentLength(100)
+            .build();
+
+    mockBlobStore.presign(request);
+    verify(mockBlobStore, times(1)).doPresign(request);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 

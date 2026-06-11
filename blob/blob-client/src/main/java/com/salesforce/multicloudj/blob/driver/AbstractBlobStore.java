@@ -222,7 +222,19 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doGeneratePresignedUrl(request);
+    PresignedUrlResponse response = doPresign(request);
+    if (response == null || response.getUrl() == null) {
+      throw new SubstrateSdkException(
+          "doPresign must return a non-null response with a non-null URL");
+    }
+    return response.getUrl();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public PresignedUrlResponse presign(PresignedUrlRequest request) {
+    validator.validate(request);
+    return doPresign(request);
   }
 
   /** {@inheritDoc} */
@@ -352,7 +364,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract void doSetTags(String key, Map<String, String> tags);
 
-  protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
+  protected abstract PresignedUrlResponse doPresign(PresignedUrlRequest request);
 
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 

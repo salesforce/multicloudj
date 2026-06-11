@@ -52,6 +52,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -558,7 +559,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   }
 
   @Override
-  protected CompletableFuture<URL> doGeneratePresignedUrl(
+  protected CompletableFuture<PresignedUrlResponse> doPresign(
       PresignedUrlRequest request) {
     return CompletableFuture.supplyAsync(() -> {
       PresignOptions options = transformer.toPresignOptions(request);
@@ -577,7 +578,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
               "Unsupported PresignedOperation. type=" + request.getType());
       }
       try {
-        return new URL(result.url());
+        return PresignedUrlResponse.builder()
+            .url(new URL(result.url()))
+            .signedHeaders(result.signedHeaders().orElse(Map.of()))
+            .expiration(result.expiration().orElse(null))
+            .build();
       } catch (java.net.MalformedURLException e) {
         throw new SubstrateSdkException(
             "Invalid presigned URL: " + result.url(), e);

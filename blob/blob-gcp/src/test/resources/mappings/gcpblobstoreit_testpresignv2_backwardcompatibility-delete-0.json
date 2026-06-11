@@ -1,0 +1,26 @@
+{
+  "id" : "a3298526-cdb2-47bf-b68f-738fe0431d29",
+  "name" : "GcpBlobStoreIT_testPresignV2_backwardCompatibility-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Fbackward-compat",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "{\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presign-v2/backward-compat\",\n    \"errors\": [\n      {\n        \"message\": \"No such object: substrate-sdk-gcp-poc1-test-bucket/conformance-tests/presign-v2/backward-compat\",\n        \"domain\": \"global\",\n        \"reason\": \"notFound\"\n      }\n    ]\n  }\n}\n",
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEij2KXZqYTIn23dik-5CI78sfFY5gblV3ipveOJAye4gvawEiVZXhhFEIk6SGQRf3Q53oDnplk",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 04 Jun 2026 12:36:51 GMT",
+      "Content-Type" : "application/json; charset=UTF-8"
+    }
+  },
+  "uuid" : "a3298526-cdb2-47bf-b68f-738fe0431d29",
+  "persistent" : true,
+  "insertionIndex" : 1444
+}

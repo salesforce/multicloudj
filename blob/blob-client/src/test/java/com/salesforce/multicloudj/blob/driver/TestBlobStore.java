@@ -133,8 +133,15 @@ public class TestBlobStore extends AbstractBlobStore {
   protected void doSetTags(String key, Map<String, String> tags) {}
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    return null;
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
+    try {
+      return PresignedUrlResponse.builder()
+          .url(new java.net.URL("http://localhost/test"))
+          .signedHeaders(Map.of())
+          .build();
+    } catch (java.net.MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
