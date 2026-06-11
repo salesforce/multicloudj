@@ -478,6 +478,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
       MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     return asyncClient
         .initiateMultipartUploadAsync(
             transformer.toInitiateMultipartUploadRequest(request),

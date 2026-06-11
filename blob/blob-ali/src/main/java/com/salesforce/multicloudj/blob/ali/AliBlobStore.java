@@ -635,6 +635,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     InitiateMultipartUploadRequest ossRequest =
         transformer.toInitiateMultipartUploadRequest(request);
     InitiateMultipartUploadResult result =

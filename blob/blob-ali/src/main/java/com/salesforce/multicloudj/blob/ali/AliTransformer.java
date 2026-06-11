@@ -71,6 +71,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.common.util.HexUtil;
 import java.io.InputStream;
@@ -481,11 +482,32 @@ public class AliTransformer {
     return builder.build();
   }
 
+  /**
+   * OSS computes a CRC64-ECMA checksum over uploaded objects and exposes no CRC32C or SHA256
+   * object checksum. A {@code null} algorithm means "use the substrate-native default" (CRC64 on
+   * OSS) and is allowed; any other explicit algorithm is rejected up front so callers receive a
+   * clear failure rather than a checksum value labeled with an algorithm OSS did not produce.
+   */
+  public static void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    if (algorithm != null && algorithm != ChecksumMethod.CRC64) {
+      throw new UnSupportedOperationException(
+          algorithm + " checksum is not supported by Ali OSS. Use CRC64.");
+    }
+  }
+
   public MultipartUpload toMultipartUpload(
       InitiateMultipartUploadResult result,
       MultipartUploadRequest request) {
     InitiateMultipartUpload upload =
         result.initiateMultipartUpload();
+    // OSS's native object checksum is CRC64-ECMA. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC64) so the stored algorithm honestly
+    // reflects what OSS will return on completion. Unsupported explicit algorithms are rejected
+    // upstream at doInitiateMultipartUpload.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC64;
+    }
     return MultipartUpload.builder()
         .bucket(upload.bucket())
         .key(upload.key())
@@ -493,7 +515,7 @@ public class AliTransformer {
         .metadata(request.getMetadata())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .contentType(request.getContentType())
         .objectLock(request.getObjectLock())
         .build();

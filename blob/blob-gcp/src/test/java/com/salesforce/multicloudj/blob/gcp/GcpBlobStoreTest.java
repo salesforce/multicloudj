@@ -3647,6 +3647,33 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoUpload_WithCrc64_ThrowsUnsupportedOperationException() {
+    // GCS does not expose CRC64; an explicit CRC64 request must be rejected.
+    UploadRequest uploadRequest = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .withChecksumValue("dummychecksum")
+        .build();
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doUpload(
+            uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithCrc64_ThrowsUnsupportedOperationException() {
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .build();
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doInitiateMultipartUpload(request));
+  }
+
+  @Test
   void testDoInitiateMultipartUpload_WithChecksumAlgorithm_CRC32C() {
     // Given
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()

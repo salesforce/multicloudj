@@ -1629,6 +1629,19 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToRequest_UploadWithCrc64Checksum_throwsUnsupported() {
+    // S3 does not expose a plain CRC64 object checksum; an explicit CRC64 request is rejected.
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withChecksumValue("abc123crc64")
+            .withChecksumAlgorithm(ChecksumMethod.CRC64)
+            .build();
+
+    assertThrows(InvalidArgumentException.class, () -> transformer.toRequest(request));
+  }
+
+  @Test
   void testToCreateMultipartUploadRequest_WithSha256() {
     MultipartUploadRequest mpuRequest =
         new MultipartUploadRequest.Builder()
