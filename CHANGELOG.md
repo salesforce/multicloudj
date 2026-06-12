@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.7](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.6...multicloudj-v0.3.7) (2026-06-12)
+
+
+### Blob Store
+
+* add prefix-scope validation for bucket existence ([#470](https://github.com/salesforce/multicloudj/issues/470)) ([e64e363](https://github.com/salesforce/multicloudj/commit/e64e363e7f30d0480cf4e84040186eadbc2ddd06))
+* add transfer status logging for Ali OSS async directory ops ([#473](https://github.com/salesforce/multicloudj/issues/473)) ([9af963f](https://github.com/salesforce/multicloudj/commit/9af963f15653d23dc7f1a298df29b1419d1ee815))
+* honor contentDisposition on Ali OSS presigned download URLs ([#484](https://github.com/salesforce/multicloudj/issues/484)) ([5afc04a](https://github.com/salesforce/multicloudj/commit/5afc04a6afedc9d30b59cc6d5348fb5ebc5d2bc8))
+* implement checkArchived for Ali OSS (delete-marker detection) ([#480](https://github.com/salesforce/multicloudj/issues/480)) ([aaf4c0a](https://github.com/salesforce/multicloudj/commit/aaf4c0a92e54531f7dd8b7ea6ba293aa244640f8))
+* populate lastModified timestamp in BlobInfo for Ali list API ([#474](https://github.com/salesforce/multicloudj/issues/474)) ([1d87e44](https://github.com/salesforce/multicloudj/commit/1d87e440019858c11d479652e51d3e78f923aebb))
+* populate objectLockInfo in BlobMetadata for Ali ([#481](https://github.com/salesforce/multicloudj/issues/481)) ([693f703](https://github.com/salesforce/multicloudj/commit/693f703b9e330ca34c9bfa6a3e77fbec4449ab48))
+* presigned URL v2 — upload constraint binding + signed headers ([#468](https://github.com/salesforce/multicloudj/issues/468)) ([a3bcaf2](https://github.com/salesforce/multicloudj/commit/a3bcaf2b328019fcb62cdd4e5d332abcf60ccb4a))
+* surface composite CRC64 checksum on Ali multipart upload completion ([#482](https://github.com/salesforce/multicloudj/issues/482)) ([f5ee081](https://github.com/salesforce/multicloudj/commit/f5ee08197d0f274614c05c8d0a5e16df2f933897))
+* throw typed exception for unsupported Ali object lock retention mode upgrade ([#479](https://github.com/salesforce/multicloudj/issues/479)) ([d0d7434](https://github.com/salesforce/multicloudj/commit/d0d743464f4c10bab99ad7f5cb101a96f00baada))
+
 ## [0.3.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.5...multicloudj-v0.3.6) (2026-06-05)
 
 
