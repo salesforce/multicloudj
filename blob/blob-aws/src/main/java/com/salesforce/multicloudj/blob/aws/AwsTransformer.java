@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -225,6 +227,11 @@ public class AwsTransformer {
         throw new InvalidArgumentException(
             "Invalid storage class: " + request.getStorageClass(), e);
       }
+    }
+
+    // Set content length if provided (required for presigned URL constraint enforcement)
+    if (request.getContentLength() > 0) {
+      builder.contentLength(request.getContentLength());
     }
 
     // Set object lock if provided
@@ -617,6 +624,19 @@ public class AwsTransformer {
     if (request.getKmsKeyId() != null) {
       builder.withKmsKeyId(request.getKmsKeyId());
     }
+    if (request.getContentLength() > 0) {
+      builder.withContentLength(request.getContentLength());
+    }
+    if (request.getContentType() != null) {
+      builder.withContentType(request.getContentType());
+    }
+    if (request.getChecksumValue() != null) {
+      builder.withChecksumValue(request.getChecksumValue());
+      builder.withChecksumAlgorithm(
+          request.getChecksumAlgorithm() != null
+              ? request.getChecksumAlgorithm()
+              : ChecksumMethod.CRC32C);
+    }
     UploadRequest uploadRequest = builder.build();
 
     return PutObjectPresignRequest.builder()
@@ -634,6 +654,18 @@ public class AwsTransformer {
     return GetObjectPresignRequest.builder()
         .signatureDuration(request.getDuration())
         .getObjectRequest(getObjectBuilder.build())
+        .build();
+  }
+
+  public PresignedUrlResponse toPresignedUrlResponse(
+      software.amazon.awssdk.awscore.presigner.PresignedRequest presigned) {
+    Map<String, String> flatHeaders = new LinkedHashMap<>();
+    presigned.signedHeaders().forEach((k, values) ->
+        flatHeaders.put(k, String.join(",", values)));
+    return PresignedUrlResponse.builder()
+        .url(presigned.url())
+        .signedHeaders(flatHeaders)
+        .expiration(presigned.expiration())
         .build();
   }
 

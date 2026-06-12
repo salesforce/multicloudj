@@ -39,6 +39,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -1369,8 +1370,8 @@ public class AwsBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest);
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest);
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1393,8 +1394,8 @@ public class AwsBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest);
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest);
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test

@@ -88,6 +88,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -1669,7 +1670,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1678,11 +1679,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1704,7 +1705,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-download.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1713,11 +1714,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1739,7 +1740,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://long-term-signed-url.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1748,10 +1749,10 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     assertEquals(duration.toMillis(), Duration.ofDays(7).toMillis()); // Verify duration calculation
     verify(mockStorage)
         .signUrl(
@@ -1776,7 +1777,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1785,11 +1786,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     // Verify signUrl was called with the correct parameters including KMS extension header
     verify(mockStorage)
         .signUrl(
@@ -1812,7 +1813,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-without-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1821,11 +1822,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1848,7 +1849,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-cd.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -1856,9 +1857,9 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
         ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
     verify(mockStorage)
@@ -1887,7 +1888,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -1895,9 +1896,9 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
         ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
     verify(mockStorage)
@@ -2160,14 +2161,14 @@ class GcpBlobStoreTest {
             .duration(Duration.ofHours(1))
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(null);
 
-    URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+    PresignedUrlResponse presignResp = gcpBlobStore.doPresign(request);
 
-    assertNull(url);
+    assertNotNull(presignResp);
     verify(mockStorage)
         .signUrl(eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any());
   }
@@ -2181,14 +2182,32 @@ class GcpBlobStoreTest {
             .duration(Duration.ZERO)
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(new URL("https://example.com"));
 
-    URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+    PresignedUrlResponse presignResp = gcpBlobStore.doPresign(request);
 
-    assertNotNull(url);
+    assertNotNull(presignResp);
     verify(mockStorage).signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any());
+  }
+
+  @Test
+  void testDoPresign_sha256Rejected() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException.class,
+        () -> gcpBlobStore.doPresign(request));
   }
 
   @Test

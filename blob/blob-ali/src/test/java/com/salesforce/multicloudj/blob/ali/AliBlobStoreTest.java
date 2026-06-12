@@ -41,6 +41,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
@@ -987,7 +988,7 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    URL result = ali.doGeneratePresignedUrl(presignedUploadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedUploadRequest);
 
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> requestCaptor =
@@ -1019,7 +1020,7 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    URL result = ali.doGeneratePresignedUrl(presignedDownloadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedDownloadRequest);
 
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> requestCaptor =

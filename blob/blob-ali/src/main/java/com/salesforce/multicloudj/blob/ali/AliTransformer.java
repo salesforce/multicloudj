@@ -336,7 +336,69 @@ public class AliTransformer {
         .createdTime(lastModified)
         .md5(HexUtil.convertToBytes(result.contentMd5()))
         .contentType(result.contentType())
+        .objectLockInfo(extractObjectLockInfo(result.headers()))
         .build();
+  }
+
+  /**
+   * OSS exposes per-object WORM (retention + legal hold) state on HeadObject as response headers
+   * (verified live against a versioned + WORM-enabled bucket): {@code x-oss-object-worm-mode},
+   * {@code x-oss-object-worm-retain-until-date} (ISO-8601), and
+   * {@code x-oss-object-worm-legal-hold} (value <code>"ON"</code>/absent). This single-call read
+   * avoids the latency of a follow-up {@code GetObjectRetention} + {@code GetObjectLegalHold}
+   * round-trip pair.
+   *
+   * @return an {@link ObjectLockInfo} when any of the three worm headers is present; otherwise
+   *     {@code null} so {@code BlobMetadata.objectLockInfo} stays unset on objects without lock
+   *     state.
+   */
+  private static ObjectLockInfo extractObjectLockInfo(Map<String, String> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    String wormMode = caseInsensitiveGet(headers, "x-oss-object-worm-mode");
+    String wormRetainUntil = caseInsensitiveGet(headers, "x-oss-object-worm-retain-until-date");
+    String wormLegalHold = caseInsensitiveGet(headers, "x-oss-object-worm-legal-hold");
+    if (wormMode == null && wormRetainUntil == null && wormLegalHold == null) {
+      return null;
+    }
+    RetentionMode mode = null;
+    if (wormMode != null) {
+      try {
+        mode = RetentionMode.valueOf(wormMode.toUpperCase(java.util.Locale.ROOT));
+      } catch (IllegalArgumentException ignored) {
+        // Unknown OSS worm-mode value — leave mode null rather than fail the metadata read.
+        mode = null;
+      }
+    }
+    Instant retainUntil = null;
+    if (wormRetainUntil != null) {
+      try {
+        retainUntil = Instant.parse(wormRetainUntil);
+      } catch (java.time.format.DateTimeParseException ignored) {
+        retainUntil = null;
+      }
+    }
+    boolean legalHold = "ON".equalsIgnoreCase(wormLegalHold);
+    return ObjectLockInfo.builder()
+        .mode(mode)
+        .retainUntilDate(retainUntil)
+        .legalHold(legalHold)
+        // useEventBasedHold left null — OSS has no event-based-hold concept.
+        .build();
+  }
+
+  private static String caseInsensitiveGet(Map<String, String> headers, String name) {
+    String exact = headers.get(name);
+    if (exact != null) {
+      return exact;
+    }
+    for (Map.Entry<String, String> e : headers.entrySet()) {
+      if (e.getKey() != null && e.getKey().equalsIgnoreCase(name)) {
+        return e.getValue();
+      }
+    }
+    return null;
   }
 
   private String stripQuotes(String value) {
@@ -528,6 +590,29 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
+    }
+
+    if (request.getContentLength() > 0) {
+      if (request.getContentLength() > Integer.MAX_VALUE) {
+        throw new InvalidArgumentException(
+            "contentLength exceeds maximum supported by Ali OSS ("
+                + Integer.MAX_VALUE + " bytes)");
+      }
+      builder.contentLength((int) request.getContentLength());
+    }
+
+    if (StringUtils.isNotEmpty(request.getContentType())) {
+      builder.contentType(request.getContentType());
+    }
+
+    if (StringUtils.isNotEmpty(request.getChecksumValue())) {
+      ChecksumMethod algo = request.getChecksumAlgorithm() != null
+          ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+      if (algo == ChecksumMethod.SHA256) {
+        builder.header("x-oss-content-sha256", request.getChecksumValue());
+      } else {
+        builder.header("x-oss-hash-crc64ecma", request.getChecksumValue());
+      }
     }
 
     return builder.build();

@@ -250,6 +250,17 @@ public interface BlobStore extends SdkService, Provider {
   URL generatePresignedUrl(PresignedUrlRequest request);
 
   /**
+   * Generates a presigned URL with full response including signed headers and expiration. The
+   * signed headers must be replayed verbatim by the uploader for the substrate to accept the
+   * request.
+   *
+   * @param request The presigned request (supports constraint fields: contentLength, contentType,
+   *     checksumValue, checksumAlgorithm)
+   * @return Response containing the URL, signed headers map, and expiration
+   */
+  PresignedUrlResponse presign(PresignedUrlRequest request);
+
+  /**
    * Determines if an object exists for a given key/versionId
    *
    * @param key Name of the blob to check

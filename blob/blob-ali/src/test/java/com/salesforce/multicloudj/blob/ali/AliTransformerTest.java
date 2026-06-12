@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -431,6 +432,74 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPresignedPutObjectRequest_withConstraints() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength(1024)
+            .contentType("application/json")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(Integer.valueOf(1024), actual.contentLength());
+    assertEquals("application/json", actual.contentType());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_contentLengthOverflow() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength((long) Integer.MAX_VALUE + 1)
+            .build();
+
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> transformer.toPresignedPutObjectRequest(request));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumCrc32c() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.CRC32C)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("abc123==", actual.headers().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumSha256() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("sha256val==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("sha256val==", actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
   void testToPresignedDownloadRequest() {
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =
@@ -736,5 +805,172 @@ public class AliTransformerTest {
     assertEquals(
         "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
         ex.getMessage());
+  }
+
+  // ---- toBlobMetadata: objectLockInfo extraction from x-oss-object-worm-* headers ----
+
+  @Test
+  void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {
+    // OSS surfaces object-lock state on HeadObject as response headers (verified live against
+    // a versioned + WORM-enabled bucket). The transformer must read those headers and build an
+    // ObjectLockInfo.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "GOVERNANCE",
+            "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    BlobMetadata metadata = transformer.toBlobMetadata("k", result);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info = metadata.getObjectLockInfo();
+    assertNotNull(info, "objectLockInfo should be populated when worm headers are present");
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+    // OSS has no event-based-hold concept; AWS leaves it null too.
+    assertNull(info.getUseEventBasedHold());
+  }
+
+  @Test
+  void testToBlobMetadata_complianceModeWithoutLegalHold_populatesPartial() {
+    // COMPLIANCE retention with no legal hold: legalHold should be false, mode COMPLIANCE.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "COMPLIANCE",
+            "x-oss-object-worm-retain-until-date", "2030-01-01T00:00:00.000Z");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00.000Z"), info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_legalHoldOnlyWithoutRetention_populatesObjectLockInfo() {
+    // OSS allows legal hold without retention. The transformer must still surface
+    // objectLockInfo with mode=null and legalHold=true so callers can act on the hold.
+    Map<String, String> headers = Map.of("x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info,
+        "objectLockInfo should be populated even when only legal hold is set");
+    assertNull(info.getMode());
+    assertNull(info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_noWormHeaders_objectLockInfoIsNull() {
+    // No worm-related headers on the response — objectLockInfo should remain null, matching
+    // the AWS guard ("extract object lock info if present").
+    Map<String, String> headers =
+        Map.of(
+            "Content-Type", "application/octet-stream",
+            "ETag", "\"abc\"",
+            "x-oss-storage-class", "Standard");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    BlobMetadata metadata = transformer.toBlobMetadata("k", result);
+
+    assertNull(metadata.getObjectLockInfo(),
+        "objectLockInfo should be null when no x-oss-object-worm-* headers are present");
+  }
+
+  @Test
+  void testToBlobMetadata_caseInsensitiveHeaderLookup() {
+    // OSS header casing is conventionally lowercase, but the SDK headers Map should not
+    // dictate behavior here. Use mixed casing to verify the lookup is case-insensitive.
+    Map<String, String> headers =
+        Map.of(
+            "X-OSS-Object-Worm-Mode", "GOVERNANCE",
+            "X-OSS-Object-Worm-Retain-Until-Date", "2026-06-10T23:49:51.000Z",
+            "X-OSS-Object-Worm-Legal-Hold", "on");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertTrue(info.isLegalHold(),
+        "legal-hold value comparison should be case-insensitive (\"on\" -> true)");
+  }
+
+  @Test
+  void testToBlobMetadata_unknownWormMode_leavesModeNullBestEffort() {
+    // OSS returns a worm-mode value the SDK enum does not recognize. The read is best-effort and
+    // must not throw: objectLockInfo is still populated (the other worm headers are present),
+    // mode falls back to null, and the remaining fields are unaffected.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "UNKNOWN_MODE",
+            "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info,
+        "objectLockInfo should still be populated when other worm headers are present");
+    assertNull(info.getMode(),
+        "an unrecognized worm-mode must fall back to null rather than throw");
+    assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_malformedRetainUntilDate_leavesRetainUntilNullBestEffort() {
+    // OSS returns a retain-until-date that is not valid ISO-8601. The read is best-effort and must
+    // not throw: objectLockInfo is still populated, retainUntilDate falls back to null, and the
+    // mode/legal-hold fields parse normally.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "GOVERNANCE",
+            "x-oss-object-worm-retain-until-date", "not-a-valid-date",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertNull(info.getRetainUntilDate(),
+        "an unparseable retain-until-date must fall back to null rather than throw");
+    assertTrue(info.isLegalHold());
   }
 }

@@ -41,6 +41,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -1220,8 +1221,8 @@ public class AwsAsyncBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest).get();
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest).get();
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1245,8 +1246,8 @@ public class AwsAsyncBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest).get();
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest).get();
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test

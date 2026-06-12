@@ -28,6 +28,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -4286,6 +4287,58 @@ public abstract class AbstractBlobStoreIT {
   }
 
   /**
+   * Helper for presign v2 tests: uploads to a presigned URL replaying the signed headers verbatim
+   * (no metadata-prefix wrapping).
+   *
+   * <p><b>Consumer-facing implication:</b> HTTP clients that add a default Content-Type (e.g.
+   * HttpURLConnection sends "application/x-www-form-urlencoded") will break presigned URL
+   * signatures when Content-Type was not part of the signed set. Consumers replaying presigned
+   * URLs must either (a) set Content-Type from the signedHeaders map, or (b) explicitly set it
+   * to empty when not present in signedHeaders. This helper demonstrates the correct pattern.
+   */
+  void uploadWithSignedHeaders(URL presignedUrl, byte[] content, Map<String, String> signedHeaders)
+      throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
+    connection.setDoOutput(true);
+    connection.setRequestMethod("PUT");
+    connection.setFixedLengthStreamingMode(content.length);
+
+    // Replay signed headers exactly as returned by presign().
+    // Skip host (set by connection) and content-length (handled via setFixedLengthStreamingMode).
+    if (signedHeaders != null) {
+      signedHeaders.forEach((k, v) -> {
+        if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
+          connection.setRequestProperty(k, v);
+        }
+      });
+    }
+    // If Content-Type wasn't in signedHeaders, set empty to prevent HttpURLConnection from
+    // sending a default that would cause signature mismatch.
+    // Use case-insensitive check because AWS SDK returns lowercase header names.
+    boolean hasContentType = signedHeaders != null
+        && signedHeaders.keySet().stream().anyMatch(k -> k.equalsIgnoreCase("Content-Type"));
+    if (!hasContentType) {
+      connection.setRequestProperty("Content-Type", "");
+    }
+
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(content);
+    }
+    int responseCode = connection.getResponseCode();
+    if (responseCode != 200) {
+      String errorBody = "";
+      try (InputStream err = connection.getErrorStream()) {
+        if (err != null) {
+          errorBody = new String(err.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
+      throw new IOException(
+          "Failed to upload using presignedUrl with signed headers. responseCode=" + responseCode
+              + "\nError body: " + errorBody);
+    }
+  }
+
+  /**
    * Helper function for downloading from a presignedUrl
    */
   public byte[] useHttpUrlConnectionToGet(URL presignedUrl) throws IOException {
@@ -4548,6 +4601,331 @@ public abstract class AbstractBlobStoreIT {
       safeDeleteBlobs(bucketClient, key);
     }
   }
+
+  // =====================================================================
+  // Presign v2 conformance tests — constraint binding + signed headers
+  // =====================================================================
+
+  @Test
+  public void testPresignV2_contentLengthBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/content-length-binding";
+    byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .contentType("application/octet-stream")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_contentTypeBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/content-type-binding";
+    byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("application/json")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_checksumCrc32cBinding() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
+    byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .checksumValue("q50emA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and cannot be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_signedHeadersNonEmpty() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/signed-headers-present";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(100)
+              .contentType("application/octet-stream")
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should be non-empty when constraints are bound");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_allConstraintsCombined() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/all-constraints-combined";
+    byte[] content = "combined constraint test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(content.length)
+              .contentType("text/plain")
+              .checksumValue("0gBWRg==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty(),
+          "signedHeaders should contain all constraint headers");
+      Assertions.assertNotNull(response.getExpiration(),
+          "expiration should be present");
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  //@Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
+  public void testPresignV2_backwardCompatibility() throws Exception {
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    String key = "conformance-tests/presign-v2/backward-compat";
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // Old API still works exactly as before — no constraints, bare URL
+      URL url = bucketClient.generatePresignedUrl(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .build());
+
+      Assertions.assertNotNull(url);
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  // =====================================================================
+  // Presign v2 negative tests — verify substrate REJECTS mismatched uploads
+  // These only run in record mode (presigned URLs bypass WireMock).
+  // =====================================================================
+
+  @Test
+  public void testPresignV2_contentLengthBinding_rejectsWrongSize() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // GCS cannot enforce Content-Length at the signature level
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-size";
+    byte[] signedContent = "short".getBytes(StandardCharsets.UTF_8);
+    byte[] wrongContent = "this body is much longer than what was signed".getBytes(
+        StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentLength(signedContent.length)
+              .contentType("application/octet-stream")
+              .build());
+
+      // Upload with WRONG body size should be rejected
+      assertUploadRejected(response.getUrl(), wrongContent, response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_contentTypeBinding_rejectsWrongType() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // GCS does not enforce Content-Type mismatch on presigned URL uploads
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-type";
+    byte[] content = "test data".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("text/plain")
+              .build());
+
+      // Upload with WRONG Content-Type should be rejected
+      Map<String, String> wrongHeaders = new java.util.LinkedHashMap<>(
+          response.getSignedHeaders());
+      wrongHeaders.entrySet().stream()
+          .filter(e -> e.getKey().equalsIgnoreCase("content-type"))
+          .findFirst()
+          .ifPresent(e -> e.setValue("application/octet-stream"));
+
+      assertUploadRejected(response.getUrl(), content, wrongHeaders);
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_checksumCrc32cBinding_rejectsWrongChecksum() throws Exception {
+    Assumptions.assumeTrue(System.getProperty("record") != null,
+        "Negative presign tests require record mode (real substrate)");
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+
+    String key = "conformance-tests/presign-v2/negative/wrong-checksum";
+    byte[] content = "data whose checksum won't match".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // Sign with a checksum that does NOT match the content
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              .contentType("application/octet-stream")
+              .checksumValue("AAAAAAAA==")
+              .checksumAlgorithm(ChecksumMethod.CRC32C)
+              .build());
+
+      // Upload should be rejected — checksum doesn't match body
+      assertUploadRejected(response.getUrl(), content, response.getSignedHeaders());
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  /**
+   * Asserts that uploading to a presigned URL with the given headers results in a 4xx rejection.
+   */
+  private void assertUploadRejected(URL presignedUrl, byte[] content,
+      Map<String, String> headers) throws IOException {
+    HttpURLConnection connection = (HttpURLConnection) presignedUrl.openConnection();
+    connection.setDoOutput(true);
+    connection.setRequestMethod("PUT");
+    connection.setFixedLengthStreamingMode(content.length);
+
+    if (headers != null) {
+      headers.forEach((k, v) -> {
+        if (!"host".equalsIgnoreCase(k) && !"content-length".equalsIgnoreCase(k)) {
+          connection.setRequestProperty(k, v);
+        }
+      });
+    }
+    boolean hasContentType = headers != null
+        && headers.keySet().stream().anyMatch(k -> k.equalsIgnoreCase("Content-Type"));
+    if (!hasContentType) {
+      connection.setRequestProperty("Content-Type", "");
+    }
+
+    try (OutputStream out = connection.getOutputStream()) {
+      out.write(content);
+    }
+    int responseCode = connection.getResponseCode();
+    Assertions.assertTrue(responseCode >= 400 && responseCode < 500,
+        "Expected 4xx rejection but got " + responseCode);
+  }
+
 
   @Test
   public void testUploadWithChecksumValidationInputStream() {

@@ -76,6 +76,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -84,6 +85,7 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
@@ -113,6 +115,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -911,8 +914,9 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    var blobInfo = transformer.toBlobInfo(request);
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
+    Instant expiration = Instant.now().plus(request.getDuration());
+    var blobInfo = transformer.toPresignBlobInfo(request);
     HttpMethod httpMethod = null;
     switch (request.getType()) {
       case UPLOAD:
@@ -922,14 +926,43 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpMethod = HttpMethod.GET;
         break;
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
     }
+
+    Map<String, String> signedHeaders = new LinkedHashMap<>();
+    Map<String, String> extHeaders = new LinkedHashMap<>();
+    if (request.getMetadata() != null) {
+      extHeaders.putAll(request.getMetadata());
+    }
+
     List<Storage.SignUrlOption> options = new ArrayList<>();
     options.add(Storage.SignUrlOption.httpMethod(httpMethod));
     options.add(Storage.SignUrlOption.withV4Signature());
-    if (request.getMetadata() != null) {
-      options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+
+    if (request.getType() == PresignedOperation.UPLOAD) {
+      if (request.getContentType() != null) {
+        options.add(Storage.SignUrlOption.withContentType());
+        signedHeaders.put("Content-Type", request.getContentType());
+      }
+      // Content-Length is not signable on GCS (extHeaders must be x-goog-* prefixed).
+      // HTTP enforces content-length naturally; no signature-level enforcement available.
+      if (request.getChecksumValue() != null) {
+        ChecksumMethod algo = request.getChecksumAlgorithm() != null
+            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+        if (algo == ChecksumMethod.SHA256) {
+          throw new UnSupportedOperationException(
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+        }
+        String hashHeader = "crc32c=" + request.getChecksumValue();
+        extHeaders.put("x-goog-hash", hashHeader);
+        signedHeaders.put("x-goog-hash", hashHeader);
+      }
+    }
+
+    if (!extHeaders.isEmpty()) {
+      options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+      signedHeaders.putAll(extHeaders);
     }
     if (request.getContentDisposition() != null
         && request.getType() == PresignedOperation.DOWNLOAD) {
@@ -938,11 +971,17 @@ public class GcpBlobStore extends AbstractBlobStore {
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
-    return storage.signUrl(
+    URL url = storage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
         options.toArray(new Storage.SignUrlOption[0]));
+
+    return PresignedUrlResponse.builder()
+        .url(url)
+        .signedHeaders(signedHeaders)
+        .expiration(expiration)
+        .build();
   }
 
   @Override
