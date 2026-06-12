@@ -99,6 +99,37 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPutObjectRequest_useKmsManagedKey_setsKmsWithoutKeyId() {
+    var request =
+        UploadRequest.builder().withKey("some-key").withUseKmsManagedKey(true).build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertNull(actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToPutObjectRequest_explicitKmsKeyIdTakesPrecedenceOverManagedKey() {
+    var kmsKeyId = "alias/my-kms-key";
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withKmsKeyId(kmsKeyId)
+            .withUseKmsManagedKey(true)
+            .build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
   void testToUploadResponse() {
     UploadRequest request =
         UploadRequest.builder()
@@ -215,6 +246,33 @@ public class AliTransformerTest {
     assertEquals(BUCKET, actual.bucket());
     assertEquals("key", actual.key());
     assertEquals(metadata, actual.metadata());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_useKmsManagedKey_setsKmsWithoutKeyId() {
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder().withKey("key").withUseKmsManagedKey(true).build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertNull(actual.serverSideEncryptionKeyId());
+  }
+
+  @Test
+  void testToInitiateMultipartUploadRequest_explicitKmsKeyIdTakesPrecedenceOverManagedKey() {
+    String kmsKeyId = "alias/my-kms-key";
+    MultipartUploadRequest request =
+        new MultipartUploadRequest.Builder()
+            .withKey("key")
+            .withKmsKeyId(kmsKeyId)
+            .withUseKmsManagedKey(true)
+            .build();
+
+    var actual = transformer.toInitiateMultipartUploadRequest(request);
+
+    assertEquals("KMS", actual.serverSideEncryption());
+    assertEquals(kmsKeyId, actual.serverSideEncryptionKeyId());
   }
 
   @Test
