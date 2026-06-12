@@ -4235,8 +4235,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   void testGetBucketVersioning_VersionedBucket() {
-    // Ali WireMock mappings not yet recorded — skip until cassettes are available
+    // Ali and GCP WireMock mappings not yet recorded — skip until cassettes are available
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
     // Test with a versioned bucket - should return ENABLED
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
