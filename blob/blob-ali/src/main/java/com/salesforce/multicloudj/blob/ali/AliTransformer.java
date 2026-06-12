@@ -642,10 +642,18 @@ public class AliTransformer {
 
   public GetObjectRequest toPresignedGetObjectRequest(
       PresignedUrlRequest request) {
-    return GetObjectRequest.newBuilder()
-        .bucket(bucket)
-        .key(request.getKey())
-        .build();
+    GetObjectRequest.Builder builder =
+        GetObjectRequest.newBuilder()
+            .bucket(bucket)
+            .key(request.getKey());
+
+    // OSS treats responseContentDisposition as a response-header override that is folded into the
+    // signed presigned URL; on download OSS returns it as the Content-Disposition response header.
+    if (StringUtils.isNotEmpty(request.getContentDisposition())) {
+      builder.responseContentDisposition(request.getContentDisposition());
+    }
+
+    return builder.build();
   }
 
   public PresignOptions toPresignOptions(

@@ -589,6 +589,42 @@ public class AliTransformerTest {
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("object-1", actual.key());
+    assertNull(actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedGetObjectRequest_withContentDisposition() {
+    PresignedUrlRequest presignedDownloadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedGetObjectRequest(presignedDownloadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(
+        "attachment; filename=\"report.pdf\"", actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_ignoresContentDisposition() {
+    PresignedUrlRequest presignedUploadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.contentDisposition());
   }
 
   @Test
