@@ -5246,7 +5246,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testDownload_checkArchived() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
     String key = "conformance-tests/check-archived/archived-blob";
@@ -5291,7 +5290,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testDownload_checkArchived_neverExisted() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
     BucketClient bucketClient = new BucketClient(blobStore);
 
