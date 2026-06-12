@@ -60,8 +60,11 @@ public class GcpTransformer {
    * Object-metadata key under which the SDK persists the operation correlation id during upload,
    * so the value is stored on the blob in GCS and matches the correlation id that appears in the
    * same upload's logs and trace span.
+   *
+   * <p>The key uses an {@code sdk-logging-} prefix to clearly mark it as SDK-owned and avoid
+   * colliding with any application-supplied metadata named {@code correlation-id}.
    */
-  public static final String CORRELATION_ID_METADATA_KEY = "correlation-id";
+  public static final String CORRELATION_ID_METADATA_KEY = "sdk-logging-correlation-id";
 
   public GcpTransformer(String bucket) {
     this.bucket = bucket;
