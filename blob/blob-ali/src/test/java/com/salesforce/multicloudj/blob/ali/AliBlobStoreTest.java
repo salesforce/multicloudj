@@ -49,6 +49,7 @@ import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -1961,5 +1962,43 @@ public class AliBlobStoreTest {
     assertNotNull(info);
     assertTrue(info.isArchived());
     assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_socketTimeoutOnly() {
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        socketTimeout, AliBlobStore.Builder.resolveReadWriteTimeout(null, socketTimeout));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_attemptTimeoutTakesPrecedence() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(3000L).build();
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        Duration.ofMillis(3000L),
+        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, socketTimeout));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_attemptTimeoutOnly() {
+    RetryConfig retryConfig = RetryConfig.builder().attemptTimeout(3000L).build();
+    assertEquals(
+        Duration.ofMillis(3000L),
+        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, null));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_neitherSet_returnsNull() {
+    assertNull(AliBlobStore.Builder.resolveReadWriteTimeout(null, null));
+  }
+
+  @Test
+  void testResolveReadWriteTimeout_retryConfigWithoutAttemptTimeout_fallsBackToSocketTimeout() {
+    RetryConfig retryConfig = RetryConfig.builder().maxAttempts(5).build();
+    Duration socketTimeout = Duration.ofSeconds(30);
+    assertEquals(
+        socketTimeout,
+        AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, socketTimeout));
   }
 }
