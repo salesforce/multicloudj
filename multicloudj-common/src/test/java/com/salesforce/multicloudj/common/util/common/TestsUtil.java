@@ -5,16 +5,19 @@ import static com.github.tomakehurst.wiremock.client.WireMock.recordSpec;
 import static com.salesforce.multicloudj.common.util.common.TestsUtil.TruncateRequestBodyTransformer.TRUNCATE_MATCHER_REQUEST_BODY_OVER;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Extension;
 import com.github.tomakehurst.wiremock.extension.Parameters;
+import com.github.tomakehurst.wiremock.extension.ResponseDefinitionTransformer;
 import com.github.tomakehurst.wiremock.extension.StubMappingTransformer;
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction;
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
 import com.github.tomakehurst.wiremock.extension.requestfilter.StubRequestFilterV2;
 import com.github.tomakehurst.wiremock.http.Request;
+import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
@@ -27,11 +30,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -229,6 +234,66 @@ public class TestsUtil {
     }
   }
 
+  /**
+   * A WireMock response transformer that expands compact body markers into full-size generated
+   * response bodies at serve-time. This allows mapping files to stay small in git while still
+   * serving large responses during replay mode.
+   *
+   * <p>Convention: a response body of the form {@code [GENERATED:<char>:<size>]} (e.g.,
+   * {@code [GENERATED:A:16777216]}) will be expanded into a body filled with the specified
+   * character repeated {@code size} times.
+   */
+  public static class GeneratedResponseBodyTransformer extends ResponseDefinitionTransformer {
+
+    private static final Pattern GENERATED_BODY_PATTERN =
+        Pattern.compile("^\\[GENERATED:(.):(\\d+)]$");
+
+    @Override
+    public ResponseDefinition transform(
+        Request request,
+        ResponseDefinition responseDefinition,
+        FileSource files,
+        Parameters parameters) {
+      String body = responseDefinition.getBody();
+      if (body == null) {
+        return responseDefinition;
+      }
+      Matcher matcher = GENERATED_BODY_PATTERN.matcher(body);
+      if (!matcher.matches()) {
+        return responseDefinition;
+      }
+      byte fillByte = (byte) matcher.group(1).charAt(0);
+      long sizeLong;
+      try {
+        sizeLong = Long.parseLong(matcher.group(2));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException(
+            "Invalid size in GENERATED body marker: '" + matcher.group(2) + "'", e);
+      }
+      if (sizeLong > Integer.MAX_VALUE) {
+        throw new IllegalArgumentException(
+            "GENERATED body size exceeds Integer.MAX_VALUE: " + sizeLong);
+      }
+      int size = (int) sizeLong;
+      byte[] generated = new byte[size];
+      Arrays.fill(generated, fillByte);
+      return ResponseDefinitionBuilder.like(responseDefinition)
+          .but()
+          .withBody(generated)
+          .build();
+    }
+
+    @Override
+    public String getName() {
+      return "generated-response-body-transformer";
+    }
+
+    @Override
+    public boolean applyGlobally() {
+      return true;
+    }
+  }
+
   public static void startWireMockServer(String rootDir, int port, String... extensionInstances) {
     boolean isRecordingEnabled = System.getProperty("record") != null;
     logger.info("Recording enabled: {}", isRecordingEnabled);
@@ -239,6 +304,7 @@ public class TestsUtil {
     extensions.add(new QueryParamCountTransformer());
     extensions.add(new QueryParamCountFilter());
     extensions.add(new TruncateRequestBodyTransformer());
+    extensions.add(new GeneratedResponseBodyTransformer());
 
     // Load additional extensions if provided
     for (String extensionClass : extensionInstances) {

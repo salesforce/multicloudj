@@ -459,6 +459,71 @@ public abstract class AbstractBlobStoreIT {
         false);
   }
 
+  /**
+   * Regression test for the GCP large byte[] upload truncation bug. Uploads a 16 MiB byte array via
+   * {@link BucketClient#upload(UploadRequest, byte[])} with only the fields that callers like
+   * CoreStash use (key + contentLength + base64 CRC32C checksum), then downloads and verifies the
+   * full payload round-trips byte-for-byte. Before the fix, the GCP byte[] path used
+   * WriteChannel#write(ByteBuffer) which violates the resumable-upload chunking contract above
+   * ~6 MiB and silently truncated the object.
+   *
+   * <p>Scoped to AWS and GCP — the original bug was provider-specific to GCP's resumable-upload
+   * implementation, and AWS coverage guards the byte[] path on S3 against a similar regression.
+   * Alibaba is excluded because recording 16 MiB fixtures for every provider triples test-resource
+   * size with no additional bug coverage.
+   *
+   * <p>Fixture convention: payload is filled with a single repeating byte ({@code 'A'}) so
+   * that the recorded WireMock {@code bodyPatterns} compress trivially in git pack (matching
+   * the {@code testMultipartUpload_multipleParts} convention). Response body mappings use the
+   * {@code [GENERATED:A:16777216]} marker expanded at serve-time by
+   * {@code TestsUtil.GeneratedResponseBodyTransformer} to avoid committing large files. This
+   * keeps recorded fixtures small in the git object store while preserving full body-match
+   * validation in replay mode.
+   */
+  @Test
+  public void testUpload_largeByteArray_doesNotTruncate() {
+    String providerId = harness.getProviderId();
+    Assumptions.assumeTrue(
+        "aws".equals(providerId) || GCP_PROVIDER_ID.equals(providerId),
+        "Large byte[] upload regression test only runs on AWS and GCP; got providerId="
+            + providerId);
+
+    String testName = "testUpload_largeByteArray_doesNotTruncate";
+    String key = "conformance-tests/upload/largeByteArray16MiB";
+    byte[] content = new byte[16 * 1024 * 1024];
+    Arrays.fill(content, (byte) 'A');
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    String checksum = harness.computeChecksum(content);
+    UploadRequest request =
+        new UploadRequest.Builder()
+            .withKey(key)
+            .withContentLength(content.length)
+            .withChecksumValue(checksum)
+            .build();
+
+    try {
+      UploadResponse response = bucketClient.upload(request, content);
+      Assertions.assertNotNull(response, testName + ": No response was returned!");
+      Assertions.assertNotNull(response.getETag(), testName + ": No eTag was returned!");
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      bucketClient.download(new DownloadRequest.Builder().withKey(key).build(), outputStream);
+
+      byte[] downloaded = outputStream.toByteArray();
+      Assertions.assertEquals(
+          content.length,
+          downloaded.length,
+          testName + ": Content-Length did not match (truncation regression)");
+      Assertions.assertArrayEquals(
+          content, downloaded, testName + ": Bytes did not match after round-trip");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
   private void runUploadTests(String testName, String key, byte[] content, boolean wantError) {
     runUploadTest(testName, false, UploadType.InputStream, key, content, wantError);
     runUploadTest(testName, false, UploadType.ByteArray, key, content, wantError);
