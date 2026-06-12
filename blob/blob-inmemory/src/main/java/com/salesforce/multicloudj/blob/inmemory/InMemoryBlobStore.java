@@ -895,7 +895,10 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
   @Override
   protected com.salesforce.multicloudj.blob.driver.BucketVersioningStatus doGetBucketVersioning() {
-    // In-memory implementation always reports versioning as UNSET
+    BucketMetadata metadata = BUCKETS.get(bucket);
+    if (metadata != null && metadata.isVersioningEnabled()) {
+      return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED;
+    }
     return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
   }
 
@@ -1146,9 +1149,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   @Getter
   static class BucketMetadata {
     private final Instant creationDate;
+    private final boolean versioningEnabled;
 
     public BucketMetadata(Instant creationDate) {
+      this(creationDate, false);
+    }
+
+    public BucketMetadata(Instant creationDate, boolean versioningEnabled) {
       this.creationDate = creationDate;
+      this.versioningEnabled = versioningEnabled;
     }
   }
 
@@ -1240,6 +1249,16 @@ public class InMemoryBlobStore extends AbstractBlobStore {
    */
   public static void createBucket(String bucketName) {
     BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now()));
+  }
+
+  /**
+   * Creates a bucket for testing purposes with optional versioning.
+   *
+   * @param bucketName the name of the bucket to create
+   * @param versioningEnabled whether versioning should be enabled on the bucket
+   */
+  public static void createBucket(String bucketName, boolean versioningEnabled) {
+    BUCKETS.putIfAbsent(bucketName, new BucketMetadata(Instant.now(), versioningEnabled));
   }
 
   /** Clears all in-memory storage including buckets, blobs, tags, and multipart uploads. */
