@@ -127,6 +127,9 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(uploadRequest.getKmsKeyId())) {
       builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(uploadRequest.getKmsKeyId());
+    } else if (uploadRequest.isUseKmsManagedKey()) {
+      // SSE-KMS with no caller-supplied CMK: OSS encrypts with its default managed CMK.
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
@@ -469,6 +472,9 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(request.getKmsKeyId())) {
       builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
       builder.serverSideEncryptionKeyId(request.getKmsKeyId());
+    } else if (request.isUseKmsManagedKey()) {
+      // SSE-KMS with no caller-supplied CMK: OSS encrypts with its default managed CMK.
+      builder.serverSideEncryption(SERVER_SIDE_ENCRYPTION_KMS);
     }
 
     if (StringUtils.isNotEmpty(request.getContentType())) {
