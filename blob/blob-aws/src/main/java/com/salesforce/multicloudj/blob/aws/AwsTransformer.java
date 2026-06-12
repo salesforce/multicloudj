@@ -869,6 +869,13 @@ public class AwsTransformer {
 
   public MultipartUpload toMultipartUpload(MultipartUploadRequest request,
                                            CreateMultipartUploadResponse response) {
+    // S3's default object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what S3 uses — matching the algorithm forwarded on the create request.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
     return MultipartUpload.builder()
         .bucket(response.bucket())
         .key(response.key())
@@ -877,7 +884,7 @@ public class AwsTransformer {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();

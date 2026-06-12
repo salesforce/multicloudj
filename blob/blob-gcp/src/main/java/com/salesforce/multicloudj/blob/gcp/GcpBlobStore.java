@@ -167,16 +167,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
-  private void rejectSha256(ChecksumMethod algorithm) {
-    if (algorithm == ChecksumMethod.SHA256) {
+  private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    // GCS exposes CRC32C (and MD5) for object integrity, but not SHA256 or CRC64. A null
+    // algorithm means "use the substrate default" (CRC32C) and is allowed.
+    if (algorithm != null && algorithm != ChecksumMethod.CRC32C) {
       throw new UnsupportedOperationException(
-          "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
     }
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try (WriteChannel writer =
             storage.writer(
                 transformer.toBlobInfo(uploadRequest),
@@ -192,7 +194,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -207,13 +209,13 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     return doUpload(uploadRequest, file.toPath());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -608,7 +610,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
-    rejectSha256(request.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
@@ -638,6 +640,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
+    // GCS's native object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what GCS produces. Unsupported algorithms were rejected above.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
+
     return MultipartUpload.builder()
         .bucket(getBucket())
         .key(request.getKey())
@@ -646,7 +656,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();

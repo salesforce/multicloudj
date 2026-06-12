@@ -24,6 +24,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -261,6 +262,81 @@ public class AliTransformerTest {
     assertEquals("uploadId", actual.getId());
     assertEquals(metadata, actual.getMetadata());
     assertEquals(kmsKeyId, actual.getKmsKeyId());
+  }
+
+  @Test
+  void testToMultipartUpload_checksumEnabledNoAlgorithm_defaultsToCrc64() {
+    // OSS's native object checksum is CRC64-ECMA. When checksumming is enabled without an explicit
+    // algorithm, the stored MultipartUpload should reflect CRC64 so the value surfaced at
+    // completion is honestly labeled.
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumEnabled(true).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_explicitCrc64_preserved() {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumAlgorithm(ChecksumMethod.CRC64).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_checksumDisabled_algorithmStaysNull() {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertFalse(actual.isChecksumEnabled());
+    assertNull(actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_allowsCrc64AndNull() {
+    // CRC64 is OSS's native algorithm; null means "use the substrate default" — both allowed.
+    AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC64);
+    AliTransformer.rejectUnsupportedChecksum(null);
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_rejectsCrc32cAndSha256() {
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC32C));
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.SHA256));
   }
 
   @Test

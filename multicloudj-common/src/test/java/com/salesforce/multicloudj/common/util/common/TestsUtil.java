@@ -15,6 +15,7 @@ import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterActi
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestWrapper;
 import com.github.tomakehurst.wiremock.extension.requestfilter.StubRequestFilterV2;
 import com.github.tomakehurst.wiremock.http.Request;
+import com.github.tomakehurst.wiremock.matching.BinaryEqualToPattern;
 import com.github.tomakehurst.wiremock.matching.ContentPattern;
 import com.github.tomakehurst.wiremock.matching.RegexPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
@@ -132,23 +133,38 @@ public class TestsUtil {
       List<ContentPattern<?>> bodyPatterns = requestPattern.getBodyPatterns();
       if (bodyPatterns != null && !bodyPatterns.isEmpty()) {
         List<ContentPattern<?>> newPatterns = new ArrayList<>();
+        boolean changed = false;
         int truncateMatcherRequestBodyOver = parameters.getInt(TRUNCATE_MATCHER_REQUEST_BODY_OVER);
 
-        // See if any of the existing body patterns exceed our length limit
         for (ContentPattern<?> pattern : bodyPatterns) {
-          if (pattern.getExpected().length() > truncateMatcherRequestBodyOver) {
-            // We've exceeded our desired matcher length, so truncate it.
-            // The truncated substring may start with regex metacharacters like '{',
-            // so we must escape it before constructing a RegexPattern.
+          boolean overLimit = pattern.getExpected().length() > truncateMatcherRequestBodyOver;
+          if (overLimit && pattern instanceof BinaryEqualToPattern) {
+            // Binary bodies (e.g. an octet-stream multipart part) are recorded by WireMock as a
+            // BinaryEqualToPattern whose getExpected() is the BASE64 text of the raw bytes.
+            // Truncating that base64 into a RegexPattern is unmatchable on replay: WireMock applies
+            // a RegexPattern against the RAW request bytes, not the base64 string, so it never
+            // matches and the request falls through to the live server (via browser proxying).
+            // The request is already uniquely identified by method + URL + query parameters
+            // (e.g. uploadId + partNumber), so drop the body matcher entirely for this case
+            // rather than emit a doomed regex.
+            changed = true;
+            // (intentionally add nothing to newPatterns -> body matcher removed)
+          } else if (overLimit) {
+            // Text bodies: truncate into an anchored regex (existing behavior). The truncated
+            // substring may start with regex metacharacters like '{', so quote it first.
             String truncatedString =
                 pattern.getExpected().substring(0, truncateMatcherRequestBodyOver);
             String escaped = Pattern.quote(truncatedString);
             newPatterns.add(new RegexPattern("^" + escaped + ".*"));
+            changed = true;
+          } else {
+            // Under the limit: keep the original exact matcher (binaryEqualTo / equalTo / etc).
+            newPatterns.add(pattern);
           }
         }
 
-        // Clear out the existing patterns so we can replace them
-        if (!newPatterns.isEmpty()) {
+        // Only rewrite if we actually changed something (truncated or dropped a matcher).
+        if (changed) {
           bodyPatterns.clear();
           bodyPatterns.addAll(newPatterns);
         }
