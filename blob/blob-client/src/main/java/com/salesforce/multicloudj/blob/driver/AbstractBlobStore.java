@@ -252,6 +252,12 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public BucketVersioningStatus getBucketVersioning() {
+    return doGetBucketVersioning();
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public DirectoryDownloadResponse downloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     validator.validate(directoryDownloadRequest);
@@ -369,6 +375,17 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 
   protected abstract boolean doDoesBucketExist();
+
+  /**
+   * Provider hook for retrieving bucket versioning configuration.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected BucketVersioningStatus doGetBucketVersioning() {
+    throw new UnsupportedOperationException(
+        "Bucket versioning status retrieval is not supported by this substrate implementation");
+  }
 
   /**
    * Provider hook for {@link #updateObjectRetention(String, String, ObjectRetentionConfig)}.

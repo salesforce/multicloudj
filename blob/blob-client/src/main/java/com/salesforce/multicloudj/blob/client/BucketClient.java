@@ -5,6 +5,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.BlobSpanNames;
+import com.salesforce.multicloudj.blob.driver.BucketVersioningStatus;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
@@ -713,6 +714,30 @@ public class BucketClient implements AutoCloseable {
               }
             });
     return Boolean.TRUE.equals(result);
+  }
+
+  /**
+   * Retrieves the versioning configuration status of the bucket.
+   *
+   * @return the current {@link com.salesforce.multicloudj.blob.driver.BucketVersioningStatus} of
+   *     the bucket
+   * @throws SubstrateSdkException Thrown if the operation fails
+   * @throws UnsupportedOperationException Thrown when the configured provider does not support this
+   *     operation
+   */
+  public BucketVersioningStatus getBucketVersioning() {
+    return multiCloudJLogger.traceOperation(
+        BlobSpanNames.GET_BUCKET_VERSIONING,
+        bucketAttrs(),
+        null,
+        ctx -> {
+          try {
+            return blobStore.getBucketVersioning();
+          } catch (Throwable t) {
+            propagate(t);
+            return null;
+          }
+        });
   }
 
   /**

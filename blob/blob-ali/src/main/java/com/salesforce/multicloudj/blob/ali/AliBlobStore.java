@@ -12,6 +12,8 @@ import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningRequest;
+import com.aliyun.sdk.service.oss2.models.GetBucketVersioningResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
@@ -931,6 +933,29 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   protected boolean doDoesBucketExist() {
     return ossClient.doesBucketExist(bucket);
+  }
+
+  @Override
+  protected com.salesforce.multicloudj.blob.driver.BucketVersioningStatus doGetBucketVersioning() {
+    GetBucketVersioningRequest request =
+        GetBucketVersioningRequest.newBuilder().bucket(bucket).build();
+    GetBucketVersioningResult result =
+        ossClient.getBucketVersioning(request, OperationOptions.defaults());
+    String status =
+        result.versioningConfiguration() != null
+            ? result.versioningConfiguration().status()
+            : null;
+    if (status == null || status.isEmpty()) {
+      return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
+    }
+    switch (status) {
+      case "Enabled":
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED;
+      case "Suspended":
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.SUSPENDED;
+      default:
+        return com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET;
+    }
   }
 
   @Override

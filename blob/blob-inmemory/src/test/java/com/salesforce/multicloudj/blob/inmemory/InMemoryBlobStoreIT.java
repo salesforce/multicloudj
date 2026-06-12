@@ -51,7 +51,7 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
       // Create the bucket if it should exist
       if (useValidBucket) {
-        InMemoryBlobStore.createBucket(bucketNameToUse);
+        InMemoryBlobStore.createBucket(bucketNameToUse, useVersionedBucket);
       }
 
       return new InMemoryBlobStore.Builder().withBucket(bucketNameToUse).withRegion(region).build();

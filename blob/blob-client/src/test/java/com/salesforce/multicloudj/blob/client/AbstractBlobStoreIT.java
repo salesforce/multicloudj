@@ -4218,6 +4218,35 @@ public abstract class AbstractBlobStoreIT {
     Assertions.assertFalse(bucketClient.doesBucketExist());
   }
 
+  @Test
+  void testGetBucketVersioning() {
+    // Ali WireMock mappings not yet recorded — skip until cassettes are available
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // Test with a valid bucket - should return a non-null versioning status
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus status =
+        bucketClient.getBucketVersioning();
+    Assertions.assertNotNull(status);
+    // The unversioned test bucket should report either UNSET or SUSPENDED
+    Assertions.assertNotEquals(
+        com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED, status);
+  }
+
+  @Test
+  void testGetBucketVersioning_VersionedBucket() {
+    // Ali and GCP WireMock mappings not yet recorded — skip until cassettes are available
+    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeFalse(GCP_PROVIDER_ID.equals(harness.getProviderId()));
+    // Test with a versioned bucket - should return ENABLED
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, true);
+    BucketClient bucketClient = new BucketClient(blobStore);
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus status =
+        bucketClient.getBucketVersioning();
+    Assertions.assertEquals(
+        com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED, status);
+  }
+
   /**
    * Helper function for uploading to a presignedUrl
    */

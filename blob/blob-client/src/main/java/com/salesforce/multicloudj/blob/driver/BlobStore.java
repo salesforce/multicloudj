@@ -278,6 +278,14 @@ public interface BlobStore extends SdkService, Provider {
   boolean doesBucketExist();
 
   /**
+   * Retrieves the versioning configuration status of the bucket.
+   *
+   * @return the current {@link BucketVersioningStatus} of the bucket
+   * @throws UnsupportedOperationException if the provider does not support this operation
+   */
+  BucketVersioningStatus getBucketVersioning();
+
+  /**
    * Downloads a directory from the blob store
    *
    * @param directoryDownloadRequest the directory download request

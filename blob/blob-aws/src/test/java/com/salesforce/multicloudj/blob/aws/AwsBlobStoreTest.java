@@ -108,6 +108,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetBucketVersioningResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -1441,6 +1442,50 @@ public class AwsBlobStoreTest {
 
     result = aws.doDoesBucketExist();
     assertFalse(result);
+  }
+
+  @Test
+  void testDoGetBucketVersioningEnabled() {
+    GetBucketVersioningResponse mockResponse = mock(GetBucketVersioningResponse.class);
+    when(mockResponse.status())
+        .thenReturn(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.ENABLED);
+    when(mockS3Client.getBucketVersioning(
+            ArgumentMatchers.<Consumer<software.amazon.awssdk.services.s3.model
+                .GetBucketVersioningRequest.Builder>>any()))
+        .thenReturn(mockResponse);
+
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        aws.doGetBucketVersioning();
+    assertEquals(com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.ENABLED, result);
+  }
+
+  @Test
+  void testDoGetBucketVersioningSuspended() {
+    GetBucketVersioningResponse mockResponse = mock(GetBucketVersioningResponse.class);
+    when(mockResponse.status())
+        .thenReturn(software.amazon.awssdk.services.s3.model.BucketVersioningStatus.SUSPENDED);
+    when(mockS3Client.getBucketVersioning(
+            ArgumentMatchers.<Consumer<software.amazon.awssdk.services.s3.model
+                .GetBucketVersioningRequest.Builder>>any()))
+        .thenReturn(mockResponse);
+
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        aws.doGetBucketVersioning();
+    assertEquals(com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.SUSPENDED, result);
+  }
+
+  @Test
+  void testDoGetBucketVersioningUnset() {
+    GetBucketVersioningResponse mockResponse = mock(GetBucketVersioningResponse.class);
+    when(mockResponse.status()).thenReturn(null);
+    when(mockS3Client.getBucketVersioning(
+            ArgumentMatchers.<Consumer<software.amazon.awssdk.services.s3.model
+                .GetBucketVersioningRequest.Builder>>any()))
+        .thenReturn(mockResponse);
+
+    com.salesforce.multicloudj.blob.driver.BucketVersioningStatus result =
+        aws.doGetBucketVersioning();
+    assertEquals(com.salesforce.multicloudj.blob.driver.BucketVersioningStatus.UNSET, result);
   }
 
   private S3Object mockObject(int index) {
