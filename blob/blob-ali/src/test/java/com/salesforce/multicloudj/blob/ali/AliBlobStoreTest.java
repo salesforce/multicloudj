@@ -221,12 +221,73 @@ public class AliBlobStoreTest {
   @Test
   void testDoDownloadByteArrayWrapper() {
     Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-    doReturn(buildTestGetObjectResult(now))
-        .when(mockOssClient).getObject(
-            any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class), any());
+    stubGetObject(buildTestGetObjectResult(now));
     ByteArray byteArray = new ByteArray();
-    verifyDownloadTestResults(ali.doDownload(getTestDownloadRequest(), byteArray), now);
+    DownloadResponse response = ali.doDownload(getTestDownloadRequest(), byteArray);
+
+    // The ByteArray path uses the single-argument getObject overload.
+    ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> getObjectRequestCaptor =
+        ArgumentCaptor.forClass(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class);
+    verify(mockOssClient, times(1)).getObject(getObjectRequestCaptor.capture());
+    com.aliyun.sdk.service.oss2.models.GetObjectRequest actualGetObjectRequest =
+        getObjectRequestCaptor.getValue();
+    assertEquals("object-1", actualGetObjectRequest.key());
+    assertEquals("bucket-1", actualGetObjectRequest.bucket());
+    assertEquals("version-1", actualGetObjectRequest.versionId());
+    assertEquals("bytes=10-110", actualGetObjectRequest.range());
+
+    assertEquals("object-1", response.getKey());
+    assertEquals("version-1", response.getMetadata().getVersionId());
+    assertEquals("etag1", response.getMetadata().getETag());
     assertEquals("downloadedData", new String(byteArray.getBytes()));
+  }
+
+  @Test
+  void testDoDownloadByteArray_exactContentLength() {
+    String content = "downloadedData";
+    stubGetObject(buildGetObjectResult(content, content.length(), Instant.now()));
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_contentLengthLargerThanStream_trimsToActualBytes() {
+    String content = "downloadedData";
+    // Reported length intentionally larger than the actual stream; result must be trimmed.
+    stubGetObject(buildGetObjectResult(content, 100L, Instant.now()));
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content.length(), byteArray.getBytes().length);
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_zeroContentLength_drainsEntireStream() {
+    String content = "downloadedData";
+    // A zero content length (e.g. a missing Content-Length header) must fall back to draining the
+    // full stream rather than returning an empty array.
+    stubGetObject(buildGetObjectResult(content, 0L, Instant.now()));
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(content, new String(byteArray.getBytes(), StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void testDoDownloadByteArray_emptyObject() {
+    stubGetObject(buildGetObjectResult("", 0L, Instant.now()));
+
+    ByteArray byteArray = new ByteArray();
+    ali.doDownload(getTestDownloadRequestNoRange(), byteArray);
+
+    assertEquals(0, byteArray.getBytes().length);
   }
 
   @Test
@@ -1079,6 +1140,36 @@ public class AliBlobStoreTest {
         .withVersionId("version-1")
         .withRange(10L, 110L)
         .build();
+  }
+
+  private DownloadRequest getTestDownloadRequestNoRange() {
+    return new DownloadRequest.Builder()
+        .withKey("object-1")
+        .withVersionId("version-1")
+        .build();
+  }
+
+  private void stubGetObject(com.aliyun.sdk.service.oss2.models.GetObjectResult result) {
+    doReturn(result)
+        .when(mockOssClient)
+        .getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class));
+  }
+
+  private com.aliyun.sdk.service.oss2.models.GetObjectResult buildGetObjectResult(
+      String content, long reportedContentLength, Instant now) {
+    InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    String lastModifiedStr = ZonedDateTime.ofInstant(now, ZoneOffset.UTC)
+        .format(DateTimeFormatter.RFC_1123_DATE_TIME);
+    com.aliyun.sdk.service.oss2.models.GetObjectResult result =
+        mock(com.aliyun.sdk.service.oss2.models.GetObjectResult.class);
+    doReturn("version-1").when(result).versionId();
+    doReturn("etag1").when(result).eTag();
+    doReturn(lastModifiedStr).when(result).lastModified();
+    doReturn(Map.of()).when(result).metadata();
+    doReturn(reportedContentLength).when(result).contentLength();
+    doReturn(inputStream).when(result).body();
+    doReturn("application/octet-stream").when(result).contentType();
+    return result;
   }
 
   private com.aliyun.sdk.service.oss2.models.GetObjectResult buildTestGetObjectResult(
