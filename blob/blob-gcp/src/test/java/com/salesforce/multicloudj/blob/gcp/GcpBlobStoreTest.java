@@ -19,7 +19,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -76,6 +75,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -85,8 +85,10 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -353,19 +355,23 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray() {
+  void testDoUpload_WithByteArray() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
+        UploadResponse.builder()
+            .key(TEST_KEY)
+            .versionId(TEST_VERSION_ID)
+            .eTag(TEST_ETAG)
+            .build();
 
     when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(uploadRequest))
         .thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
     // When
@@ -373,8 +379,8 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
@@ -785,7 +791,6 @@ class GcpBlobStoreTest {
   void testDoDelete_WithKeyAndVersionId() {
     // Given
     when(mockTransformer.toBlobId(TEST_BUCKET, TEST_KEY, TEST_VERSION_ID)).thenReturn(mockBlobId);
-    when(mockStorage.list(anyString(), any())).thenReturn(null);
 
     // When
     gcpBlobStore.doDelete(TEST_KEY, TEST_VERSION_ID);
@@ -1604,7 +1609,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1613,11 +1618,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1639,7 +1644,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-download.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1648,11 +1653,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1674,7 +1679,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://long-term-signed-url.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1683,10 +1688,10 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     assertEquals(duration.toMillis(), Duration.ofDays(7).toMillis()); // Verify duration calculation
     verify(mockStorage)
         .signUrl(
@@ -1711,7 +1716,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1720,11 +1725,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     // Verify signUrl was called with the correct parameters including KMS extension header
     verify(mockStorage)
         .signUrl(
@@ -1747,7 +1752,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-without-kms.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo),
         any(Long.class),
@@ -1756,11 +1761,11 @@ class GcpBlobStoreTest {
         .thenReturn(expectedUrl);
 
     // When
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
     // Then
-    assertEquals(expectedUrl, actualUrl);
-    verify(mockTransformer).toBlobInfo(presignedUrlRequest);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
+    verify(mockTransformer).toPresignBlobInfo(presignedUrlRequest);
     verify(mockStorage)
         .signUrl(
             eq(mockBlobInfo),
@@ -1783,7 +1788,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-with-cd.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -1791,9 +1796,9 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
         ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
     verify(mockStorage)
@@ -1822,7 +1827,7 @@ class GcpBlobStoreTest {
 
     URL expectedUrl = new URL("https://signed-url-for-upload.example.com");
 
-    when(mockTransformer.toBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(presignedUrlRequest)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
             eq(mockBlobInfo),
             any(Long.class),
@@ -1830,9 +1835,9 @@ class GcpBlobStoreTest {
             any(Storage.SignUrlOption[].class)))
         .thenReturn(expectedUrl);
 
-    URL actualUrl = gcpBlobStore.doGeneratePresignedUrl(presignedUrlRequest);
+    PresignedUrlResponse presignedResponse = gcpBlobStore.doPresign(presignedUrlRequest);
 
-    assertEquals(expectedUrl, actualUrl);
+    assertEquals(expectedUrl, presignedResponse.getUrl());
     ArgumentCaptor<Storage.SignUrlOption[]> optionsCaptor =
         ArgumentCaptor.forClass(Storage.SignUrlOption[].class);
     verify(mockStorage)
@@ -2095,14 +2100,14 @@ class GcpBlobStoreTest {
             .duration(Duration.ofHours(1))
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(
         eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(null);
 
-    URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+    PresignedUrlResponse presignResp = gcpBlobStore.doPresign(request);
 
-    assertNull(url);
+    assertNotNull(presignResp);
     verify(mockStorage)
         .signUrl(eq(mockBlobInfo), eq(3600000L), eq(TimeUnit.MILLISECONDS), any(), any());
   }
@@ -2116,14 +2121,32 @@ class GcpBlobStoreTest {
             .duration(Duration.ZERO)
             .build();
 
-    when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockStorage.signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any()))
         .thenReturn(new URL("https://example.com"));
 
-    URL url = gcpBlobStore.doGeneratePresignedUrl(request);
+    PresignedUrlResponse presignResp = gcpBlobStore.doPresign(request);
 
-    assertNotNull(url);
+    assertNotNull(presignResp);
     verify(mockStorage).signUrl(eq(mockBlobInfo), eq(0L), eq(TimeUnit.MILLISECONDS), any(), any());
+  }
+
+  @Test
+  void testDoPresign_sha256Rejected() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key(TEST_KEY)
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    when(mockTransformer.toPresignBlobInfo(request)).thenReturn(mockBlobInfo);
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException.class,
+        () -> gcpBlobStore.doPresign(request));
   }
 
   @Test
@@ -2168,22 +2191,22 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithByteArray_EmptyArray() {
+  void testDoUpload_WithByteArray_EmptyArray() throws IOException {
     byte[] emptyArray = new byte[0];
     UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
     when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
-    when(mockStorage.writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class)))
-        .thenReturn(mockWriteChannel);
-    when(mockStorage.get(BlobId.of(TEST_BUCKET, TEST_KEY))).thenReturn(mockBlob);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
     UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
 
     assertNotNull(response);
-    verify(mockStorage).writer(eq(mockBlobInfo), any(Storage.BlobWriteOption[].class));
-    verify(mockStorage).get(BlobId.of(TEST_BUCKET, TEST_KEY));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
   }
 
   @Test
@@ -3624,6 +3647,33 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoUpload_WithCrc64_ThrowsUnsupportedOperationException() {
+    // GCS does not expose CRC64; an explicit CRC64 request must be rejected.
+    UploadRequest uploadRequest = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .withChecksumValue("dummychecksum")
+        .build();
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doUpload(
+            uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+  }
+
+  @Test
+  void testDoInitiateMultipartUpload_WithCrc64_ThrowsUnsupportedOperationException() {
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey(TEST_KEY)
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .build();
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> gcpBlobStore.doInitiateMultipartUpload(request));
+  }
+
+  @Test
   void testDoInitiateMultipartUpload_WithChecksumAlgorithm_CRC32C() {
     // Given
     MultipartUploadRequest request = new MultipartUploadRequest.Builder()
@@ -4355,9 +4405,9 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
@@ -4378,9 +4428,9 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .bypassGovernanceRetention(Boolean.TRUE)
             .build();
@@ -4406,14 +4456,14 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4429,15 +4479,15 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.COMPLIANCE)
             .retainUntilDate(newRetainUntil)
             .bypassGovernanceRetention(Boolean.TRUE)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4453,14 +4503,14 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(newRetainUntil)
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
   }
 
@@ -4472,14 +4522,118 @@ class GcpBlobStoreTest {
     when(mockTransformer.toBlobId(eq(TEST_BUCKET), eq(key), any())).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
 
-    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig cfg =
-        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
-            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+    ObjectRetentionConfig cfg =
+        ObjectRetentionConfig.builder()
+            .mode(RetentionMode.GOVERNANCE)
             .retainUntilDate(java.time.Instant.now().plusSeconds(3600))
             .build();
 
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        FailedPreconditionException.class,
         () -> gcpBlobStore.updateObjectRetention(key, null, cfg));
+  }
+
+
+  @Test
+  void testDoListBlobVersions() {
+    String key = TEST_KEY;
+
+    Blob matchingBlob = mock(Blob.class);
+    when(matchingBlob.getName()).thenReturn(TEST_KEY);
+    when(matchingBlob.getGeneration()).thenReturn(12345L);
+    when(matchingBlob.getEtag()).thenReturn(TEST_ETAG);
+    when(matchingBlob.getSize()).thenReturn(100L);
+
+    Blob nonMatchingBlob = mock(Blob.class);
+    when(nonMatchingBlob.getName()).thenReturn(TEST_KEY + "-extra");
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of(matchingBlob, nonMatchingBlob));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(versions.hasNext());
+    BlobMetadata metadata = versions.next();
+    assertEquals(TEST_KEY, metadata.getKey());
+    assertEquals("12345", metadata.getVersionId());
+    assertEquals(TEST_ETAG, metadata.getETag());
+    assertEquals(100L, metadata.getObjectSize());
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_multipleVersions() {
+    String key = TEST_KEY;
+
+    Blob version1 = mock(Blob.class);
+    when(version1.getName()).thenReturn(TEST_KEY);
+    when(version1.getGeneration()).thenReturn(1000L);
+    when(version1.getEtag()).thenReturn("etag-v1");
+    when(version1.getSize()).thenReturn(100L);
+
+    Blob version2 = mock(Blob.class);
+    when(version2.getName()).thenReturn(TEST_KEY);
+    when(version2.getGeneration()).thenReturn(2000L);
+    when(version2.getEtag()).thenReturn("etag-v2");
+    when(version2.getSize()).thenReturn(200L);
+
+    Blob version3 = mock(Blob.class);
+    when(version3.getName()).thenReturn(TEST_KEY);
+    when(version3.getGeneration()).thenReturn(3000L);
+    when(version3.getEtag()).thenReturn("etag-v3");
+    when(version3.getSize()).thenReturn(300L);
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of(version1, version2, version3));
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    List<BlobMetadata> allVersions = new java.util.ArrayList<>();
+    versions.forEachRemaining(allVersions::add);
+
+    assertEquals(3, allVersions.size());
+    assertEquals("1000", allVersions.get(0).getVersionId());
+    assertEquals("2000", allVersions.get(1).getVersionId());
+    assertEquals("3000", allVersions.get(2).getVersionId());
+  }
+
+  @Test
+  void testDoListBlobVersions_emptyResult() {
+    String key = TEST_KEY;
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertFalse(versions.hasNext());
+  }
+
+  @Test
+  void testDoListBlobVersions_noSuchElementException() {
+    String key = TEST_KEY;
+
+    @SuppressWarnings("unchecked")
+    Page<Blob> page = mock(Page.class);
+    when(page.iterateAll()).thenReturn(List.of());
+    when(mockStorage.list(eq(TEST_BUCKET), any(Storage.BlobListOption[].class))).thenReturn(page);
+
+    Iterator<BlobMetadata> versions = gcpBlobStore.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertThrows(NoSuchElementException.class, versions::next);
   }
 }

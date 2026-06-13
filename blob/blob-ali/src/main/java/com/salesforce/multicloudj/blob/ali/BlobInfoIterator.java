@@ -44,6 +44,7 @@ public class BlobInfoIterator implements Iterator<BlobInfo> {
                 new BlobInfo.Builder()
                     .withKey(objSum.key())
                     .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
+                    .withLastModified(objSum.lastModified())
                     .build())
         .collect(toList());
   }

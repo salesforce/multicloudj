@@ -1,28 +1,40 @@
 {
-  "id" : "65206d62-d9c5-4bd0-b6c7-a100ab740fce",
+  "id" : "16aa5bce-490a-4c43-a181-5dad473c0028",
   "name" : "GcpBlobStoreIT_testVersionedDelete-GET-13",
   "request" : {
-    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?projection=full",
-    "method" : "GET"
+    "urlPath" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "projection" : {
+        "hasExactly" : [ {
+          "equalTo" : "full"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/delete/happyPath/1774433124448767\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?generation=1774433124448767&alt=media\",\n  \"name\": \"conformance-tests/delete/happyPath\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1774433124448767\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"28\",\n  \"md5Hash\": \"wKUIq7ZI/wYgn2BcGDmCDw==\",\n  \"crc32c\": \"c5ssQQ==\",\n  \"etag\": \"CP/zvcDmupMDEAE=\",\n  \"timeCreated\": \"2026-03-25T10:05:24.565Z\",\n  \"updated\": \"2026-03-25T10:05:24.565Z\",\n  \"timeStorageClassUpdated\": \"2026-03-25T10:05:24.565Z\",\n  \"timeFinalized\": \"2026-03-25T10:05:24.565Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/delete/happyPath/1780627302601901\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?generation=1780627302601901&alt=media\",\n  \"name\": \"conformance-tests/delete/happyPath\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1780627302601901\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"28\",\n  \"md5Hash\": \"wKUIq7ZI/wYgn2BcGDmCDw==\",\n  \"crc32c\": \"c5ssQQ==\",\n  \"etag\": \"CK2p5c6J75QDEAE=\",\n  \"timeCreated\": \"2026-06-05T02:41:42.701Z\",\n  \"updated\": \"2026-06-05T02:41:42.701Z\",\n  \"timeStorageClassUpdated\": \"2026-06-05T02:41:42.701Z\",\n  \"timeFinalized\": \"2026-06-05T02:41:42.701Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "private, max-age=0, must-revalidate, no-transform",
-      "ETag" : "CP/zvcDmupMDEAE=",
-      "X-GUploader-UploadID" : "AMNfjG1RUnqrgS41_DION0GIdwEJ8jcjd8V1DLlNmgWE_bYr478OssC1i3Jiv-a7kxcBo8_D",
+      "ETag" : "CK2p5c6J75QDEAE=",
+      "X-GUploader-UploadID" : "AAVLpEh5Ew3P_c4z9W87m5xMGJCu0kQLiP6vvzkL3aoSVY7fOsQuhktVegg1v09SblNQgt7ceSOy9qQ",
       "Vary" : [ "Origin", "X-Origin" ],
-      "Expires" : "Wed, 25 Mar 2026 10:05:24 GMT",
-      "Date" : "Wed, 25 Mar 2026 10:05:24 GMT",
+      "Expires" : "Fri, 05 Jun 2026 02:41:43 GMT",
+      "Date" : "Fri, 05 Jun 2026 02:41:43 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "65206d62-d9c5-4bd0-b6c7-a100ab740fce",
+  "uuid" : "16aa5bce-490a-4c43-a181-5dad473c0028",
   "persistent" : true,
-  "scenarioName" : "testversioneddelete-scenario-4-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath",
-  "requiredScenarioState" : "testversioneddelete-scenario-4-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath-2",
-  "insertionIndex" : 976
+  "scenarioName" : "scenario-testVersionedDelete-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath",
+  "requiredScenarioState" : "scenario-testVersionedDelete-storage-v1-b-substrate-sdk-gcp-poc1-test-bucket-versioned-o-conformance-tests-delete-happyPath-2",
+  "insertionIndex" : 1422
 }

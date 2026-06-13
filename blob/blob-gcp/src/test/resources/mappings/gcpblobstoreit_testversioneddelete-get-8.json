@@ -1,9 +1,26 @@
 {
-  "id" : "1ed81ad9-e347-4711-9f0c-95a86e85d28a",
+  "id" : "729ac958-bf16-4883-9fb6-d1e824e84950",
   "name" : "GcpBlobStoreIT_testVersionedDelete-GET-8",
   "request" : {
-    "url" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath?alt=media&generation=1774433124448767",
-    "method" : "GET"
+    "urlPath" : "/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fdelete%2FhappyPath",
+    "method" : "GET",
+    "headers" : {
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "alt" : {
+        "hasExactly" : [ {
+          "equalTo" : "media"
+        } ]
+      },
+      "generation" : {
+        "hasExactly" : [ {
+          "equalTo" : "1780627302601901"
+        } ]
+      }
+    }
   },
   "response" : {
     "status" : 200,
@@ -11,25 +28,25 @@
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
-      "X-Goog-Generation" : "1774433124448767",
+      "X-Goog-Generation" : "1780627302601901",
       "Pragma" : "no-cache",
-      "Last-Modified" : "Wed, 25 Mar 2026 10:05:24 GMT",
+      "Last-Modified" : "Fri, 05 Jun 2026 02:41:42 GMT",
       "X-Goog-Metageneration" : "1",
-      "Date" : "Wed, 25 Mar 2026 10:05:27 GMT",
+      "Date" : "Fri, 05 Jun 2026 02:41:45 GMT",
       "X-Goog-Stored-Content-Encoding" : "identity",
       "X-Goog-Hash" : "crc32c=c5ssQQ==,md5=wKUIq7ZI/wYgn2BcGDmCDw==",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CP/zvcDmupMDEAE=",
+      "ETag" : "CK2p5c6J75QDEAE=",
       "Content-Disposition" : "attachment",
       "X-Goog-Storage-Class" : "STANDARD",
-      "X-GUploader-UploadID" : "AMNfjG1VrXcjAL-ychYk6hGe8732X7nSEL7QGxssVcvrbfg7M79Io0b90tL0x0ONuwg0FJSs",
+      "X-GUploader-UploadID" : "AAVLpEg0FTXRP0rugbwqhwFYeIkt9PNm8yrvuCRnr9RhXk-l5OlhvgabfIFbG6tnFUA0bbjM",
       "Vary" : [ "Origin", "X-Origin" ],
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
       "X-Goog-Stored-Content-Length" : "28",
       "Content-Type" : "application/octet-stream"
     }
   },
-  "uuid" : "1ed81ad9-e347-4711-9f0c-95a86e85d28a",
+  "uuid" : "729ac958-bf16-4883-9fb6-d1e824e84950",
   "persistent" : true,
-  "insertionIndex" : 971
+  "insertionIndex" : 1417
 }

@@ -11,6 +11,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -22,6 +23,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -425,6 +427,16 @@ public class AwsBlobStore extends AbstractBlobStore {
   }
 
   /**
+   * Lists versions for a single key using S3's paginated {@code ListObjectVersions} API.
+   *
+   * <p>This implementation is streaming/lazy: it walks paginator pages on demand and does not
+   * materialize all pages up front. Only versions for the requested key are returned.
+   */
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return new BlobMetadataIterator(s3Client, getBucket(), request.getKey());
+  }
+
+  /**
    * Initiates a multipart upload
    *
    * @param request the multipart request
@@ -522,24 +534,22 @@ public class AwsBlobStore extends AbstractBlobStore {
     s3Client.putObjectTagging(transformer.toPutObjectTaggingRequest(key, tags));
   }
 
-  /**
-   * Generates a presigned URL for uploading/downloading blobs
-   *
-   * @param request The PresignedUrlRequest
-   * @return Returns the presigned URL
-   */
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try (S3Presigner presigner = getPresigner()) {
+      software.amazon.awssdk.awscore.presigner.PresignedRequest presigned;
       switch (request.getType()) {
         case UPLOAD:
-          return presigner.presignPutObject(transformer.toPutObjectPresignRequest(request)).url();
+          presigned = presigner.presignPutObject(transformer.toPutObjectPresignRequest(request));
+          break;
         case DOWNLOAD:
-          return presigner.presignGetObject(transformer.toGetObjectPresignRequest(request)).url();
+          presigned = presigner.presignGetObject(transformer.toGetObjectPresignRequest(request));
+          break;
         default:
           throw new InvalidArgumentException(
               "Unsupported PresignedOperation. type=" + request.getType());
       }
+      return transformer.toPresignedUrlResponse(presigned);
     }
   }
 

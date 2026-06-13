@@ -93,14 +93,24 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
           .requestConfig(requestConfig)
           .build();
 
-      ossClient =
+      // In record mode the test hits the real cn-shanghai endpoint. Under peak-hour congestion the
+      // server can drop the connection mid-request (NoHttpResponseException); the SDK's default
+      // retry then re-sends, which causes WireMock to record duplicate / out-of-order stubs (e.g.
+      // two UploadPart stubs for the same part) that later break replay. Disable retries during
+      // recording so a dropped request fails fast and cleanly rather than producing a misleading
+      // stub by chance — just re-run the recording (ideally off-peak). Replay mode is unaffected
+      // (it serves stubs locally and never retries against a real server).
+      var ossClientBuilder =
           OSSClient.newBuilder()
               .region(region)
               .endpoint(endpoint)
               .credentialsProvider(
                   OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
-              .httpClient(httpClient)
-              .build();
+              .httpClient(httpClient);
+      if (System.getProperty("record") != null) {
+        ossClientBuilder.retryMaxAttempts(1);
+      }
+      ossClient = ossClientBuilder.build();
 
       AliBlobStore.Builder builder = new AliBlobStore.Builder();
       builder
@@ -111,11 +121,6 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
           .withCredentialsOverrider(credentialsOverrider);
 
       return builder.build();
-    }
-
-    @Override
-    public boolean isObjectLockSupported() {
-      return false;
     }
 
     @Override

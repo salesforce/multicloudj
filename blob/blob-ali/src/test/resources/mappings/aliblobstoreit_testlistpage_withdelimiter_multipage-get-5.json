@@ -1,0 +1,57 @@
+{
+  "id" : "52fcf21c-2d17-4662-aed6-d4ec18126739",
+  "name" : "AliBlobStoreIT_testListPage_WithDelimiter_MultiPage-GET-5",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "5"
+      }
+    },
+    "queryParameters" : {
+      "list-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "max-keys" : {
+        "hasExactly" : [ {
+          "equalTo" : "2"
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/common-prefix-multipage/"
+        } ]
+      },
+      "delimiter" : {
+        "hasExactly" : [ {
+          "equalTo" : "/"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult>\n  <Name>chameleon-multicloudj-test</Name>\n  <Prefix>conformance-tests%2Fcommon-prefix-multipage%2F</Prefix>\n  <MaxKeys>2</MaxKeys>\n  <Delimiter>%2F</Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>true</IsTruncated>\n  <NextContinuationToken>Cixjb25mb3JtYW5jZS10ZXN0cy9jb21tb24tcHJlZml4LW11bHRpcGFnZS9iLxAA</NextContinuationToken>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-multipage%2Fa%2F</Prefix>\n  </CommonPrefixes>\n  <CommonPrefixes>\n    <Prefix>conformance-tests%2Fcommon-prefix-multipage%2Fb%2F</Prefix>\n  </CommonPrefixes>\n  <KeyCount>2</KeyCount>\n</ListBucketResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A10CD06EDDB5B3232844B6F",
+      "x-oss-server-time" : "3",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 22 May 2026 21:39:18 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "52fcf21c-2d17-4662-aed6-d4ec18126739",
+  "persistent" : true,
+  "insertionIndex" : 881
+}

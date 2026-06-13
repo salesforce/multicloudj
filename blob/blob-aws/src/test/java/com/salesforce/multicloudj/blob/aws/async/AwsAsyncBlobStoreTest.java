@@ -41,6 +41,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
 import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -96,6 +97,7 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.internal.async.ByteArrayAsyncResponseTransformer;
 import software.amazon.awssdk.core.internal.async.InputStreamResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.retries.api.RetryStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
@@ -182,7 +184,7 @@ public class AwsAsyncBlobStoreTest {
               ClientOverrideConfiguration.Builder configBuilder =
                   mock(ClientOverrideConfiguration.Builder.class);
               when(configBuilder.retryStrategy(
-                      any(software.amazon.awssdk.retries.api.RetryStrategy.class)))
+                      any(RetryStrategy.class)))
                   .thenReturn(configBuilder);
               when(configBuilder.apiCallAttemptTimeout(any(Duration.class)))
                   .thenReturn(configBuilder);
@@ -1219,8 +1221,8 @@ public class AwsAsyncBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest).get();
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest).get();
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1244,8 +1246,8 @@ public class AwsAsyncBlobStoreTest {
             .duration(Duration.ofHours(4))
             .build();
 
-    URL actualUrl = spyAws.doGeneratePresignedUrl(presignedUrlRequest).get();
-    assertEquals(url, actualUrl);
+    PresignedUrlResponse presignedResponse = spyAws.doPresign(presignedUrlRequest).get();
+    assertEquals(url, presignedResponse.getUrl());
   }
 
   @Test
@@ -1291,12 +1293,12 @@ public class AwsAsyncBlobStoreTest {
     HeadBucketResponse mockResponse = mock(HeadBucketResponse.class);
     doReturn(future(mockResponse))
         .when(mockS3Client)
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
 
     boolean result = aws.doDoesBucketExist().get();
 
     verify(mockS3Client, times(1))
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
     assertTrue(result);
 
     // Verify the error state - bucket doesn't exist (404)
@@ -1304,14 +1306,14 @@ public class AwsAsyncBlobStoreTest {
     doReturn(404).when(mockException).statusCode();
     doReturn(CompletableFuture.failedFuture(mockException))
         .when(mockS3Client)
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
     result = aws.doDoesBucketExist().get();
     assertFalse(result);
 
     // Verify the unexpected error state
     doReturn(CompletableFuture.failedFuture(mock(RuntimeException.class)))
         .when(mockS3Client)
-        .headBucket(ArgumentMatchers.<java.util.function.Consumer<HeadBucketRequest.Builder>>any());
+        .headBucket(ArgumentMatchers.<Consumer<HeadBucketRequest.Builder>>any());
     var exceptionalResult = aws.doDoesBucketExist();
     assertTrue(exceptionalResult.isCompletedExceptionally());
     assertInstanceOf(

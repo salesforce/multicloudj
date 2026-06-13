@@ -23,7 +23,9 @@ import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
+import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -682,6 +684,7 @@ public class InMemoryBlobStore extends AbstractBlobStore {
         .checksumEnabled(request.isChecksumEnabled())
         .kmsKeyId(request.getKmsKeyId())
         .contentType(request.getContentType())
+        .objectLock(request.getObjectLock())
         .build();
   }
 
@@ -767,6 +770,20 @@ public class InMemoryBlobStore extends AbstractBlobStore {
 
       STORAGE.put(versionedKey, blob);
       LATEST_VERSIONS.put(baseKey, versionId);
+
+      // Store object lock configuration if provided on the multipart upload
+      if (mpu.getObjectLock() != null) {
+        ObjectLockConfiguration lockConfig = mpu.getObjectLock();
+        OBJECT_LOCKS.put(
+            versionedKey,
+            ObjectLockInfo.builder()
+                .mode(lockConfig.getMode())
+                .retainUntilDate(lockConfig.getRetainUntilDate())
+                .legalHold(lockConfig.isLegalHold())
+                .useEventBasedHold(lockConfig.getUseEventBasedHold())
+                .build());
+      }
+
       MULTIPART_UPLOADS.remove(mpu.getId());
       String checksumValue = computeCrc32cChecksum(finalData);
 
@@ -829,11 +846,28 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    // Don't validate bucket existence - presigned URLs are client-side operations
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     try {
-      // For in-memory implementation, just return a fake URL
-      return new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      URL url = new URL("http://localhost:8080/" + bucket + "/" + request.getKey());
+      Map<String, String> signedHeaders = new HashMap<>();
+      if (request.getType() == PresignedOperation.UPLOAD) {
+        if (request.getContentLength() > 0) {
+          signedHeaders.put("Content-Length", String.valueOf(request.getContentLength()));
+        }
+        if (request.getContentType() != null) {
+          signedHeaders.put("Content-Type", request.getContentType());
+        }
+        if (request.getChecksumValue() != null) {
+          String algo = request.getChecksumAlgorithm() != null
+              ? request.getChecksumAlgorithm().name() : "CRC32C";
+          signedHeaders.put("x-checksum", algo + "=" + request.getChecksumValue());
+        }
+      }
+      return PresignedUrlResponse.builder()
+          .url(url)
+          .signedHeaders(signedHeaders)
+          .expiration(Instant.now().plus(request.getDuration()))
+          .build();
     } catch (MalformedURLException e) {
       throw new UnknownException("Failed to generate presigned URL", e);
     }

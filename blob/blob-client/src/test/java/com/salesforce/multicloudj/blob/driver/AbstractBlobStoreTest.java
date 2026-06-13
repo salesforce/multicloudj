@@ -57,6 +57,7 @@ public class AbstractBlobStoreTest {
     doCallRealMethod().when(mockBlobStore).copy(any());
     doCallRealMethod().when(mockBlobStore).getMetadata(any(), any());
     doCallRealMethod().when(mockBlobStore).list(any());
+    doCallRealMethod().when(mockBlobStore).listBlobVersions(any());
     doCallRealMethod().when(mockBlobStore).initiateMultipartUpload(any());
     doCallRealMethod().when(mockBlobStore).uploadMultipartPart(any(), any());
     doCallRealMethod().when(mockBlobStore).completeMultipartUpload(any(), any());
@@ -316,6 +317,15 @@ public class AbstractBlobStoreTest {
   }
 
   @Test
+  void testDoListBlobVersions() {
+    String key = "object-1";
+    ListBlobVersionsRequest request = ListBlobVersionsRequest.builder().withKey(key).build();
+    mockBlobStore.listBlobVersions(request);
+    verify(validator, times(1)).validateKey(key);
+    verify(mockBlobStore, times(1)).doListBlobVersions(request);
+  }
+
+  @Test
   void testDoInitiateMultipartUpload() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
@@ -385,7 +395,7 @@ public class AbstractBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 
@@ -399,7 +409,7 @@ public class AbstractBlobStoreTest {
             .build();
 
     mockBlobStore.generatePresignedUrl(presignedUrlRequest);
-    verify(mockBlobStore, times(1)).doGeneratePresignedUrl(presignedUrlRequest);
+    verify(mockBlobStore, times(1)).doPresign(presignedUrlRequest);
     verify(validator, times(1)).validate(any(PresignedUrlRequest.class));
   }
 

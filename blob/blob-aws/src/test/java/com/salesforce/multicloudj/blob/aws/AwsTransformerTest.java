@@ -733,6 +733,37 @@ public class AwsTransformerTest {
   }
 
   @Test
+  void testToPutObjectPresignRequest_checksumDefaultsCrc32c() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .build();
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+    assertEquals("abc123==", actual.putObjectRequest().checksumCRC32C());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        actual.putObjectRequest().checksumAlgorithm());
+  }
+
+  @Test
+  void testToPutObjectPresignRequest_withContentLengthAndType() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength(2048)
+            .contentType("text/plain")
+            .build();
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+    assertEquals(Long.valueOf(2048), actual.putObjectRequest().contentLength());
+    assertEquals("text/plain", actual.putObjectRequest().contentType());
+  }
+
+  @Test
   void testGetPrefixExclusionsFilter() {
     List<String> prefixesToExclude = List.of("files/images", "files/personal");
     DownloadFilter downloadFilter = transformer.getPrefixExclusionsFilter(prefixesToExclude);
@@ -1595,6 +1626,19 @@ public class AwsTransformerTest {
     assertEquals(
         ChecksumAlgorithm.CRC32_C, actual.checksumAlgorithm());
     assertEquals("abc123crc32c", actual.checksumCRC32C());
+  }
+
+  @Test
+  void testToRequest_UploadWithCrc64Checksum_throwsUnsupported() {
+    // S3 does not expose a plain CRC64 object checksum; an explicit CRC64 request is rejected.
+    var request =
+        UploadRequest.builder()
+            .withKey("some-key")
+            .withChecksumValue("abc123crc64")
+            .withChecksumAlgorithm(ChecksumMethod.CRC64)
+            .build();
+
+    assertThrows(InvalidArgumentException.class, () -> transformer.toRequest(request));
   }
 
   @Test

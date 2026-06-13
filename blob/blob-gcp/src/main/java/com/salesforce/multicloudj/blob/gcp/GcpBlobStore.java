@@ -62,6 +62,7 @@ import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
 import com.salesforce.multicloudj.blob.driver.FailedBlobDownload;
 import com.salesforce.multicloudj.blob.driver.FailedBlobUpload;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -75,6 +76,7 @@ import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
 import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
@@ -83,11 +85,13 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.provider.Provider;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -111,6 +115,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -162,16 +167,18 @@ public class GcpBlobStore extends AbstractBlobStore {
     return new Builder();
   }
 
-  private void rejectSha256(ChecksumMethod algorithm) {
-    if (algorithm == ChecksumMethod.SHA256) {
+  private void rejectUnsupportedChecksum(ChecksumMethod algorithm) {
+    // GCS exposes CRC32C (and MD5) for object integrity, but not SHA256 or CRC64. A null
+    // algorithm means "use the substrate default" (CRC32C) and is allowed.
+    if (algorithm != null && algorithm != ChecksumMethod.CRC32C) {
       throw new UnsupportedOperationException(
-          "SHA256 checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
+          algorithm + " checksum is not supported by GCP Cloud Storage. Use CRC32C instead.");
     }
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try (WriteChannel writer =
             storage.writer(
                 transformer.toBlobInfo(uploadRequest),
@@ -187,28 +194,28 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest))) {
-      writer.write(ByteBuffer.wrap(content));
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
+    try {
+      Blob blob =
+          storage.createFrom(
+              transformer.toBlobInfo(uploadRequest),
+              new ByteArrayInputStream(content),
+              transformer.getBlobWriteOptions(uploadRequest));
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from byte array", e);
     }
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, File file) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     return doUpload(uploadRequest, file.toPath());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
-    rejectSha256(uploadRequest.getChecksumAlgorithm());
+    rejectUnsupportedChecksum(uploadRequest.getChecksumAlgorithm());
     try {
       Blob blob =
           storage.createFrom(
@@ -448,7 +455,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected void doDelete(String key, String versionId) {
-    validateBucketExists();
+    validateBucketExists(key);
     storage.delete(transformer.toBlobId(bucket, key, versionId));
   }
 
@@ -559,10 +566,52 @@ public class GcpBlobStore extends AbstractBlobStore {
         blobs, commonPrefixes, page.hasNextPage(), page.getNextPageToken());
   }
 
+  /**
+   * Lists all generations for an exact object key using a bounded lexicographic range.
+   *
+   * <p>GCS version listing does not provide exact-name matching, and prefix-based listing can
+   * over-fetch sibling keys (for example, {@code key-1} when searching for {@code key}). To avoid
+   * that, this uses {@code [key, key + '\0')} bounds and still applies an exact-name filter as a
+   * defensive guard.
+   */
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    String key = request.getKey();
+    List<Storage.BlobListOption> listOptions = new ArrayList<>();
+    listOptions.add(Storage.BlobListOption.startOffset(key));
+    listOptions.add(Storage.BlobListOption.endOffset(key + "\u0000"));
+    listOptions.add(Storage.BlobListOption.versions(true));
+
+    Iterable<Blob> blobs =
+        storage.list(getBucket(), listOptions.toArray(new Storage.BlobListOption[0])).iterateAll();
+    Iterator<Blob> blobIterator =
+        Iterators.filter(blobs.iterator(), blob -> key.equals(blob.getName()));
+
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return blobIterator.hasNext();
+      }
+
+      @Override
+      public BlobMetadata next() {
+        Blob blob = blobIterator.next();
+        java.time.OffsetDateTime versionTimestamp = blob.getCreateTimeOffsetDateTime();
+        return BlobMetadata.builder()
+            .key(blob.getName())
+            .versionId(blob.getGeneration() != null ? blob.getGeneration().toString() : null)
+            .eTag(blob.getEtag())
+            .objectSize(blob.getSize() != null ? blob.getSize() : 0L)
+            .lastModified(versionTimestamp != null ? versionTimestamp.toInstant() : null)
+            .build();
+      }
+    };
+  }
+
   @Override
   protected MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request) {
-    rejectSha256(request.getChecksumAlgorithm());
-    validateBucketExists();
+    rejectUnsupportedChecksum(request.getChecksumAlgorithm());
+    validateBucketExists(request.getKey());
 
     CreateMultipartUploadRequest.Builder createRequestBuilder =
         CreateMultipartUploadRequest.builder().bucket(getBucket()).key(request.getKey());
@@ -591,6 +640,14 @@ public class GcpBlobStore extends AbstractBlobStore {
     CreateMultipartUploadResponse gcpMultipartUpload =
         multipartUploadClient.createMultipartUpload(createRequestBuilder.build());
 
+    // GCS's native object checksum is CRC32C. When checksumming is enabled without an explicit
+    // algorithm, resolve the substrate-native default (CRC32C) so the stored algorithm honestly
+    // reflects what GCS produces. Unsupported algorithms were rejected above.
+    ChecksumMethod algorithm = request.getChecksumAlgorithm();
+    if (algorithm == null && request.isChecksumEnabled()) {
+      algorithm = ChecksumMethod.CRC32C;
+    }
+
     return MultipartUpload.builder()
         .bucket(getBucket())
         .key(request.getKey())
@@ -599,7 +656,7 @@ public class GcpBlobStore extends AbstractBlobStore {
         .tags(request.getTags())
         .kmsKeyId(request.getKmsKeyId())
         .checksumEnabled(request.isChecksumEnabled())
-        .checksumAlgorithm(request.getChecksumAlgorithm())
+        .checksumAlgorithm(algorithm)
         .objectLock(request.getObjectLock())
         .contentType(request.getContentType())
         .build();
@@ -775,15 +832,50 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   /**
-   * Validates that the bucket exists, throwing ResourceNotFoundException if not found. Uses
-   * Objects.List with pageSize(1) instead of Buckets.Get so that only {@code storage.objects.list}
-   * is required on the bucket, not {@code storage.buckets.get}.
+   * Validates that the bucket is accessible by attempting to list objects.
    *
-   * @throws ResourceNotFoundException if the bucket does not exist
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)}.
+   * This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
    */
   private void validateBucketExists() {
     try {
       storage.list(getBucket(), Storage.BlobListOption.pageSize(1));
+    } catch (StorageException e) {
+      if (e.getCode() == 404) {
+        throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
+      }
+      throw new UnknownException("Failed to check bucket existence", e);
+    }
+  }
+
+  /**
+   * Validates that the bucket is accessible by attempting to list objects with a prefix filter.
+   *
+   * Performs a lightweight probe using {@code storage.list()} with {@code pageSize(1)} and
+   * a prefix filter. This requires only {@code storage.objects.list} IAM permission, not
+   * {@code storage.buckets.get}.
+   *
+   * Using a prefix filter enables validation when IAM permissions are scoped to specific
+   * prefixes within the bucket. For example, a service account with permission to list only
+   * objects under {@code "user-data/"} can validate access by passing that prefix.
+   *
+   * @param keyPrefix the object key prefix to filter by; must match the caller's IAM
+   *     permission scope for validation to succeed
+   * @throws ResourceNotFoundException if the list operation returns HTTP 404 (bucket does not
+   *     exist or caller lacks permission to see it)
+   * @throws UnknownException if the list operation fails with any other error
+   */
+  private void validateBucketExists(String keyPrefix) {
+    try {
+      storage.list(
+          getBucket(),
+          Storage.BlobListOption.prefix(keyPrefix),
+          Storage.BlobListOption.pageSize(1));
     } catch (StorageException e) {
       if (e.getCode() == 404) {
         throw new ResourceNotFoundException("Bucket not found: " + bucket, e);
@@ -832,8 +924,9 @@ public class GcpBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
-    var blobInfo = transformer.toBlobInfo(request);
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
+    Instant expiration = Instant.now().plus(request.getDuration());
+    var blobInfo = transformer.toPresignBlobInfo(request);
     HttpMethod httpMethod = null;
     switch (request.getType()) {
       case UPLOAD:
@@ -843,14 +936,43 @@ public class GcpBlobStore extends AbstractBlobStore {
         httpMethod = HttpMethod.GET;
         break;
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidArgumentException(
             "Unsupported PresignedOperation. type=" + request.getType());
     }
+
+    Map<String, String> signedHeaders = new LinkedHashMap<>();
+    Map<String, String> extHeaders = new LinkedHashMap<>();
+    if (request.getMetadata() != null) {
+      extHeaders.putAll(request.getMetadata());
+    }
+
     List<Storage.SignUrlOption> options = new ArrayList<>();
     options.add(Storage.SignUrlOption.httpMethod(httpMethod));
     options.add(Storage.SignUrlOption.withV4Signature());
-    if (request.getMetadata() != null) {
-      options.add(Storage.SignUrlOption.withExtHeaders(request.getMetadata()));
+
+    if (request.getType() == PresignedOperation.UPLOAD) {
+      if (request.getContentType() != null) {
+        options.add(Storage.SignUrlOption.withContentType());
+        signedHeaders.put("Content-Type", request.getContentType());
+      }
+      // Content-Length is not signable on GCS (extHeaders must be x-goog-* prefixed).
+      // HTTP enforces content-length naturally; no signature-level enforcement available.
+      if (request.getChecksumValue() != null) {
+        ChecksumMethod algo = request.getChecksumAlgorithm() != null
+            ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
+        if (algo == ChecksumMethod.SHA256) {
+          throw new UnSupportedOperationException(
+              "SHA256 presigned-URL upload integrity is not supported on GCS; use CRC32C");
+        }
+        String hashHeader = "crc32c=" + request.getChecksumValue();
+        extHeaders.put("x-goog-hash", hashHeader);
+        signedHeaders.put("x-goog-hash", hashHeader);
+      }
+    }
+
+    if (!extHeaders.isEmpty()) {
+      options.add(Storage.SignUrlOption.withExtHeaders(extHeaders));
+      signedHeaders.putAll(extHeaders);
     }
     if (request.getContentDisposition() != null
         && request.getType() == PresignedOperation.DOWNLOAD) {
@@ -859,11 +981,17 @@ public class GcpBlobStore extends AbstractBlobStore {
       options.add(Storage.SignUrlOption.withQueryParams(queryParams));
     }
 
-    return storage.signUrl(
+    URL url = storage.signUrl(
         blobInfo,
         request.getDuration().toMillis(),
         TimeUnit.MILLISECONDS,
         options.toArray(new Storage.SignUrlOption[0]));
+
+    return PresignedUrlResponse.builder()
+        .url(url)
+        .signedHeaders(signedHeaders)
+        .expiration(expiration)
+        .build();
   }
 
   @Override

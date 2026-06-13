@@ -1,0 +1,38 @@
+{
+  "id" : "545056ba-334c-4b55-8977-36e3ccc14c7f",
+  "name" : "AliBlobStoreIT_testGetObjectLock_nonexistentKey_throws-GET-0",
+  "request" : {
+    "urlPath" : "/conformance-tests/objectlock/nonexistent",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "retention" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchKey</Code>\n  <Message>The specified key does not exist.</Message>\n  <RequestId>6A221CD5079ACC38320A3E41</RequestId>\n  <HostId>chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com</HostId>\n  <Key>conformance-tests/objectlock/nonexistent</Key>\n  <EC>0026-00000001</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0026-00000001</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A221CD5079ACC38320A3E41",
+      "x-oss-server-time" : "12",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0026-00000001",
+      "Date" : "Fri, 05 Jun 2026 00:48:21 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "545056ba-334c-4b55-8977-36e3ccc14c7f",
+  "persistent" : true,
+  "insertionIndex" : 795
+}

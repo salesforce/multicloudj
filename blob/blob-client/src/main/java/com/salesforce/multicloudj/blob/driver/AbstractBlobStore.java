@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -162,6 +163,13 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   /** {@inheritDoc} */
   @Override
+  public Iterator<BlobMetadata> listBlobVersions(ListBlobVersionsRequest request) {
+    validator.validateKey(request.getKey());
+    return doListBlobVersions(request);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public MultipartUpload initiateMultipartUpload(MultipartUploadRequest request) {
     return doInitiateMultipartUpload(request);
   }
@@ -214,7 +222,19 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
   @Override
   public URL generatePresignedUrl(PresignedUrlRequest request) {
     validator.validate(request);
-    return doGeneratePresignedUrl(request);
+    PresignedUrlResponse response = doPresign(request);
+    if (response == null || response.getUrl() == null) {
+      throw new SubstrateSdkException(
+          "doPresign must return a non-null response with a non-null URL");
+    }
+    return response.getUrl();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public PresignedUrlResponse presign(PresignedUrlRequest request) {
+    validator.validate(request);
+    return doPresign(request);
   }
 
   /** {@inheritDoc} */
@@ -266,8 +286,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
    */
   @Override
   @Deprecated
-  public void updateObjectRetention(
-      String key, String versionId, java.time.Instant retainUntilDate) {
+  public void updateObjectRetention(String key, String versionId, Instant retainUntilDate) {
     updateObjectRetention(
         key,
         versionId,
@@ -318,6 +337,17 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract ListBlobsPageResponse doListPage(ListBlobsPageRequest request);
 
+  /**
+   * Provider hook for listing blob versions.
+   *
+   * <p>Default implementation throws {@link UnsupportedOperationException}; providers opt in by
+   * overriding this method.
+   */
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    throw new UnsupportedOperationException(
+        "List object versions is not supported by this substrate implementation");
+  }
+
   protected abstract MultipartUpload doInitiateMultipartUpload(MultipartUploadRequest request);
 
   protected abstract UploadPartResponse doUploadMultipartPart(
@@ -334,7 +364,7 @@ public abstract class AbstractBlobStore implements BlobStore, AutoCloseable {
 
   protected abstract void doSetTags(String key, Map<String, String> tags);
 
-  protected abstract URL doGeneratePresignedUrl(PresignedUrlRequest request);
+  protected abstract PresignedUrlResponse doPresign(PresignedUrlRequest request);
 
   protected abstract boolean doDoesObjectExist(String key, String versionId);
 

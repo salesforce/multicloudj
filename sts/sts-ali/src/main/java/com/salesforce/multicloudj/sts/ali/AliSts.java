@@ -5,11 +5,13 @@ import com.aliyuncs.IAcsClient;
 import com.aliyuncs.auth.BasicSessionCredentials;
 import com.aliyuncs.auth.DefaultCredentialsProvider;
 import com.aliyuncs.exceptions.ClientException;
+import com.aliyuncs.http.HttpClientConfig;
 import com.aliyuncs.profile.DefaultProfile;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleRequest;
 import com.aliyuncs.sts.model.v20150401.AssumeRoleResponse;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
+import com.aliyuncs.utils.EnvironmentUtils;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -41,6 +43,23 @@ public class AliSts extends AbstractSts {
     } else {
       clientProfile = DefaultProfile.getProfile(builder.getRegion());
     }
+
+    // Configure proxy if any proxy settings are provided
+    if (builder.getProxyEndpoint() != null
+        || builder.getUseSystemPropertyProxyValues() != null
+        || builder.getUseEnvironmentVariableProxyValues() != null) {
+      HttpClientConfig httpClientConfig = buildHttpClientConfig(builder);
+      clientProfile.setHttpClientConfig(httpClientConfig);
+    }
+
+    // Workaround for SDK limitation: When environment variables should be disabled,
+    // set EnvironmentUtils to empty strings to prevent auto-detection during requests
+    if (Boolean.FALSE.equals(builder.getUseEnvironmentVariableProxyValues())) {
+      EnvironmentUtils.setHttpProxy("");
+      EnvironmentUtils.setHttpsProxy("");
+      EnvironmentUtils.setNoProxy("");
+    }
+
     this.stsClient = new DefaultAcsClient(clientProfile);
   }
 
@@ -77,6 +96,56 @@ public class AliSts extends AbstractSts {
     }
 
     return profile;
+  }
+
+  /**
+   * Builds HttpClientConfig with proxy configuration.
+   *
+   * <p><b>SDK Limitation:</b> The Alibaba SDK (aliyun-java-sdk-core 4.7.2) does not provide API
+   * methods to control proxy auto-detection from system properties or environment variables. The
+   * SDK automatically reads:
+   *
+   * <ul>
+   *   <li>Environment variables: HTTP_PROXY, HTTPS_PROXY, NO_PROXY (via EnvironmentUtils)
+   *   <li>System properties: NOT read by Alibaba SDK (does not call useSystemProperties())
+   * </ul>
+   *
+   * <p><b>Behavior by Configuration:</b>
+   *
+   * <ul>
+   *   <li>Explicit proxyEndpoint: Used for both HTTP and HTTPS, overrides all auto-detection
+   *   <li>useSystemPropertyProxyValues=false: HONORED (no-op, SDK does not read sys props anyway)
+   *   <li>useEnvironmentVariableProxyValues=false: WORKAROUND - Sets EnvironmentUtils to empty
+   *       strings to prevent env var reading
+   *   <li>Default (all null): SDK automatically reads environment variables
+   * </ul>
+   *
+   * <p><b>Workaround Implementation:</b> When useEnvironmentVariableProxyValues=false, the
+   * constructor calls EnvironmentUtils.setHttpProxy("") to override the SDK's environment variable
+   * reading. This is not a true disable (SDK limitation), but prevents proxy usage in practice.
+   *
+   * @param builder The builder containing proxy configuration
+   * @return Configured HttpClientConfig
+   */
+  static HttpClientConfig buildHttpClientConfig(Builder builder) {
+    HttpClientConfig clientConfig = HttpClientConfig.getDefault();
+
+    // Priority 1: Explicit proxy endpoint (overrides system properties and env vars)
+    if (builder.getProxyEndpoint() != null) {
+      String proxyUrl = builder.getProxyEndpoint().toString();
+      // Set both HTTP and HTTPS proxy to the same endpoint
+      // Alibaba SDK determines which to use based on the target endpoint protocol
+      clientConfig.setHttpProxy(proxyUrl);
+      clientConfig.setHttpsProxy(proxyUrl);
+    }
+
+    // Priority 2 & 3: System properties and environment variables
+    // System properties: NOT read by Alibaba SDK (no useSystemProperties() call)
+    // Environment variables: Handled by EnvironmentUtils workaround in constructor
+    //   - When useEnvironmentVariableProxyValues=false, constructor sets EnvironmentUtils to ""
+    //   - When null/true, SDK automatically reads HTTP_PROXY/HTTPS_PROXY via EnvironmentUtils
+
+    return clientConfig;
   }
 
   @Override
