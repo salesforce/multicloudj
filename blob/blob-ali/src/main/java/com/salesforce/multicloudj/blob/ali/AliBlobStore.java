@@ -240,6 +240,7 @@ public class AliBlobStore extends AbstractBlobStore {
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
     GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     try (GetObjectResult result = ossClient.getObject(request)) {
+      validateRangeResponse(downloadRequest, result);
       long contentLength = result.contentLength() != null ? result.contentLength() : 0L;
       byteArray.setBytes(readAllBytes(result.body(), contentLength));
       return transformer.toDownloadResponse(downloadRequest.getKey(), result);
