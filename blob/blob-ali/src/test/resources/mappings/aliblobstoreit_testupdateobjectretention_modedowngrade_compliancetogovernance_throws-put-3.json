@@ -1,0 +1,32 @@
+{
+  "id" : "d31ecab1-37d0-474a-99c0-e499a5835704",
+  "name" : "AliBlobStoreIT_testUpdateObjectRetention_modeDowngrade_complianceToGovernance_throws-PUT-3",
+  "request" : {
+    "url" : "/conformance-tests/objectlock/update/mode-downgrade",
+    "method" : "PUT",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      }
+    },
+    "bodyPatterns" : [ {
+      "binaryEqualTo" : "cmV0ZW50aW9uLXVwZGF0ZS1jb25mb3JtYW5jZS10ZXN0cy9vYmplY3Rsb2NrL3VwZGF0ZS9tb2RlLWRvd25ncmFkZQ=="
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-version-id" : "CAEQjAkY6NeigLn71PQZIiBhNDhhMTJkZDI1MWU0ZjNjOTFkMjE3OTBjOTgxYTY1Mw--",
+      "x-oss-request-id" : "6A221C16DC97B332347F1CB4",
+      "x-oss-server-time" : "68",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "17769024574023487473",
+      "ETag" : "\"3BCDA782607F16C89F0C4D3BD549A6D0\"",
+      "Date" : "Fri, 05 Jun 2026 00:45:10 GMT",
+      "Content-MD5" : "O82ngmB/FsifDE071Umm0A=="
+    }
+  },
+  "uuid" : "d31ecab1-37d0-474a-99c0-e499a5835704",
+  "persistent" : true,
+  "insertionIndex" : 590
+}

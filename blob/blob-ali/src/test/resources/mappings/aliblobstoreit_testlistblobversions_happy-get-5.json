@@ -1,0 +1,50 @@
+{
+  "id" : "6edfc9cd-8f2a-4c93-8f5d-08c9937c6ee3",
+  "name" : "AliBlobStoreIT_testListBlobVersions_happy-GET-5",
+  "request" : {
+    "urlPath" : "/",
+    "method" : "GET",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test-versioned.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "3"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "versions" : {
+        "hasExactly" : [ {
+          "equalTo" : ""
+        } ]
+      },
+      "prefix" : {
+        "hasExactly" : [ {
+          "equalTo" : "conformance-tests/list-object-versions/exact-three-versions-blob"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult>\n  <Name>chameleon-multicloudj-test-versioned</Name>\n  <Prefix>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Prefix>\n  <KeyMarker></KeyMarker>\n  <VersionIdMarker></VersionIdMarker>\n  <MaxKeys>100</MaxKeys>\n  <Delimiter></Delimiter>\n  <EncodingType>url</EncodingType>\n  <IsTruncated>false</IsTruncated>\n  <Version>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQ6wYYiZflyrmH1fMZIiA3OGU0ZTQyNDNhYmE0NTMyYWM2ZjA2MDZhMzAzODI0ZA--</VersionId>\n    <IsLatest>true</IsLatest>\n    <LastModified>2026-05-29T19:43:53.000Z</LastModified>\n    <ETag>\"E05F0ABEBC0C2132019426823E3B1923\"</ETag>\n    <Type>Normal</Type>\n    <Size>19</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Version>\n  <Version>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQ6wYYnJjqtbaH1fMZIiBjNDQxODFlZGU0OGQ0YjIwODEzZDU5NWNjMjI2MzI4OA--</VersionId>\n    <IsLatest>false</IsLatest>\n    <LastModified>2026-05-29T19:43:52.000Z</LastModified>\n    <ETag>\"AB9782DD75210385218989F982BE54EB\"</ETag>\n    <Type>Normal</Type>\n    <Size>19</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Version>\n  <Version>\n    <Key>conformance-tests%2Flist-object-versions%2Fexact-three-versions-blob</Key>\n    <VersionId>CAEQ6wYYo8S6kLOH1fMZIiA5NjcyNzg0Yjc5ODk0OTNjODQyNzRhNTE4OWZmY2Y0NA--</VersionId>\n    <IsLatest>false</IsLatest>\n    <LastModified>2026-05-29T19:43:51.000Z</LastModified>\n    <ETag>\"D62C85C9A3B1CAC2ED2DF2B9811D2891\"</ETag>\n    <Type>Normal</Type>\n    <Size>19</Size>\n    <StorageClass>Standard</StorageClass>\n    <Owner>\n      <ID>1099202394511537</ID>\n      <DisplayName>1099202394511537</DisplayName>\n    </Owner>\n  </Version>\n</ListVersionsResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A19EC7A9E5E0B313242546D",
+      "x-oss-server-time" : "44",
+      "Server" : "AliyunOSS",
+      "Date" : "Fri, 29 May 2026 19:43:54 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "6edfc9cd-8f2a-4c93-8f5d-08c9937c6ee3",
+  "persistent" : true,
+  "scenarioName" : "scenario-1-",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "scenario-1--2",
+  "insertionIndex" : 774
+}

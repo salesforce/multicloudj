@@ -5,19 +5,22 @@ import com.salesforce.multicloudj.docstore.driver.ActionList;
 import com.salesforce.multicloudj.docstore.driver.Document;
 import com.salesforce.multicloudj.docstore.driver.DocumentIterator;
 import com.salesforce.multicloudj.docstore.driver.FilterOperation;
+import com.salesforce.multicloudj.docstore.driver.PaginationToken;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.Disabled;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -25,6 +28,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -37,9 +41,10 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Disabled
-@BenchmarkMode({Mode.Throughput, Mode.AverageTime})
+@BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = TimeUnit.SECONDS)
@@ -48,21 +53,39 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDocstoreBenchmarkTest {
 
-  // Test data
+  private static final Logger logger =
+      LoggerFactory.getLogger(AbstractDocstoreBenchmarkTest.class);
+
+  // Pre-seeded test data
   protected List<String> documentKeys;
   protected List<Player> testPlayers;
   protected List<HighScore> testHighScores;
-  protected Random random;
   protected DocStoreClient docStoreClient;
   protected DocStoreClient queryDocStoreClient; // For composite key table queries
 
-  private final AtomicInteger nextPutId = new AtomicInteger(0);
-  private final AtomicInteger nextGetId = new AtomicInteger(0);
-  private final AtomicInteger nextCreateId = new AtomicInteger(0);
-  private final AtomicInteger nextReplaceId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchPutId = new AtomicInteger(0);
-  private final AtomicInteger nextBatchGetId = new AtomicInteger(0);
-  private final AtomicInteger nextWriteReadDeleteId = new AtomicInteger(0);
+  // Keys created during benchmark invocations, cleaned up in teardown.
+  // ConcurrentHashMap.newKeySet() uses bucket-level locking — no global monitor contention
+  // under @Threads(4) unlike Collections.synchronizedSet().
+  private final Set<String> benchmarkCreatedKeys = ConcurrentHashMap.newKeySet();
+
+  // Pre-filtered key lists to avoid O(n) stream allocation in the benchmark hot path.
+  private List<String> smallPlayerKeys;
+  private List<String> largePlayerKeys;
+
+  /**
+   * Batch-size param scoped to {@link #benchmarkBatchPut} / {@link #benchmarkBatchGet} only.
+   * Method-level injection (vs. a class-level @Param field) prevents JMH from cross-producting
+   * batchSize across the 12 non-batch benchmarks and doubling suite runtime for no signal.
+   *
+   * <p>Two points {10, 50} span the typical request-batch range. Excluding 100 because at
+   * batchSize=100 × 5 measurement iterations + warmups, Firestore's quota / SDK pool stalls
+   * on cross-region runs. {10, 50} already shows the scaling trend.
+   */
+  @State(Scope.Benchmark)
+  public static class BatchParams {
+    @Param({"10", "50"})
+    public int batchSize;
+  }
 
   // Harness interface
   public interface Harness extends AutoCloseable {
@@ -75,6 +98,24 @@ public abstract class AbstractDocstoreBenchmarkTest {
 
   protected abstract Harness createHarness();
 
+  protected abstract String getProviderId();
+
+  /**
+   * Reads a required config value from OS environment first, then from -D system properties.
+   * Fails fast with a clear error if neither is set — avoids silent misconfiguration producing
+   * garbage benchmark results.
+   */
+  protected static String requireEnv(String name) {
+    String value = System.getenv(name);
+    if (StringUtils.isBlank(value)) {
+      value = System.getProperty(name);
+    }
+    if (StringUtils.isBlank(value)) {
+      throw new IllegalStateException("Required environment variable not set: " + name);
+    }
+    return value;
+  }
+
   @Setup(Level.Trial)
   public void setupBenchmark() throws Exception {
     try {
@@ -83,7 +124,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       documentKeys = new ArrayList<>();
       testPlayers = new ArrayList<>();
       testHighScores = new ArrayList<>();
-      random = new Random(42);
 
       // Setup single key table
       AbstractDocStore docStore = harness.createDocStore();
@@ -97,6 +137,16 @@ public abstract class AbstractDocstoreBenchmarkTest {
       generateTestPlayers();
       generateTestHighScores();
       setupTestData();
+
+      // Pre-filter key lists once so hot-path lookups are O(1)
+      smallPlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkSmall"))
+              .collect(Collectors.toList()));
+      largePlayerKeys = Collections.unmodifiableList(
+          documentKeys.stream()
+              .filter(k -> k.contains("BenchmarkLarge"))
+              .collect(Collectors.toList()));
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup benchmark", e);
     }
@@ -105,6 +155,32 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @TearDown(Level.Trial)
   public void teardownBenchmark() throws Exception {
     try {
+      if (!benchmarkCreatedKeys.isEmpty() && docStoreClient != null) {
+        // Bulk-delete via ActionList instead of one RPC per key. After a batch trial we can have
+        // ~1000+ keys to clean up; the per-key sequential delete loop took long enough that the
+        // Firestore SDK retry future stalled (observed 2026-05-29). Chunk to 400/batch to stay
+        // under Firestore's 500-write-per-CommitRequest limit and DynamoDB's 25/BatchWriteItem
+        // — the per-provider runWritesBatched does the wire-level batching from there.
+        List<String> keys = new ArrayList<>(benchmarkCreatedKeys);
+        int chunkSize = 400;
+        for (int start = 0; start < keys.size(); start += chunkSize) {
+          int end = Math.min(start + chunkSize, keys.size());
+          ActionList deletes = docStoreClient.getActions();
+          for (String key : keys.subList(start, end)) {
+            Player p = new Player();
+            p.setPName(key);
+            deletes.delete(new Document(p));
+          }
+          try {
+            deletes.run();
+          } catch (Exception e) {
+            logger.warn(
+                "Failed to bulk-delete benchmark keys [{}..{}]: {}", start, end, e.getMessage());
+          }
+        }
+        benchmarkCreatedKeys.clear();
+      }
+
       cleanupTestData();
 
       if (docStoreClient != null) {
@@ -137,15 +213,6 @@ public abstract class AbstractDocstoreBenchmarkTest {
       testPlayers.add(player);
     }
 
-    int mediumDocSize = 9900;
-    for (int i = 0; i < 20; i++) {
-      String baseName = baseNames[i % baseNames.length];
-      String pName = baseName + "BenchmarkMedium" + i;
-      Player player = createPlayer(pName, i, mediumDocSize);
-      documentKeys.add(pName);
-      testPlayers.add(player);
-    }
-
     // Large players - ~100KB document size
     int largeDocSize = 99900;
     for (int i = 0; i < 5; i++) {
@@ -157,101 +224,51 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
+  // 200 HighScore docs (5 games × 10 players × 4 rounds). Larger dataset gives query planners
+  // a path that reflects real-world workloads — at 15 rows, providers can pick degenerate plans
+  // (e.g., DynamoDB skipping index lookups for full-table scan) that don't represent customer
+  // behavior. Score values are deterministic but well-distributed so range/orderBy benchmarks
+  // see meaningful spread.
   private void generateTestHighScores() {
-    // Create test data for query benchmarks
-    List<HighScore> allScores =
-        List.of(
-            new HighScore(
-                game1, "pat", 49, "2024-03-13", false, (byte) 5, (short) 3, 45000L, 85.5f, 1.2),
-            new HighScore(
-                game1, "mel", 60, "2024-04-10", false, (byte) 7, (short) 2, 52000L, 90.0f, 1.5),
-            new HighScore(
-                game1, "andy", 81, "2024-02-01", false, (byte) 9, (short) 1, 63000L, 95.2f, 2.1),
-            new HighScore(
-                game1, "fran", 33, "2024-03-19", false, (byte) 3, (short) 4, 28000L, 75.8f, 1.0),
-            new HighScore(
-                game2, "pat", 120, "2024-04-01", true, (byte) 12, (short) 5, 89000L, 88.9f, 2.5),
-            new HighScore(
-                game2,
-                "billie",
-                111,
-                "2024-04-10",
-                false,
-                (byte) 11,
-                (short) 2,
-                78000L,
-                92.1f,
-                2.2),
-            new HighScore(
-                game2, "mel", 190, "2024-04-18", true, (byte) 15, (short) 1, 120000L, 97.3f, 3.1),
-            new HighScore(
-                game2, "fran", 33, "2024-03-20", false, (byte) 4, (short) 3, 31000L, 78.5f, 1.1),
-            new HighScore(
-                game3, "alex", 75, "2024-05-01", false, (byte) 8, (short) 2, 67000L, 89.7f, 1.8),
-            new HighScore(
-                game3, "sam", 95, "2024-05-15", true, (byte) 10, (short) 4, 84000L, 93.4f, 2.3),
-            // Add more test data for better benchmarking
-            new HighScore(
-                game1,
-                "chris",
-                200,
-                "2024-06-01",
-                false,
-                (byte) 20,
-                (short) 5,
-                145000L,
-                98.1f,
-                3.5),
-            new HighScore(
-                game1, "jamie", 150, "2024-06-05", true, (byte) 14, (short) 3, 110000L, 94.7f, 2.8),
-            new HighScore(
-                game2,
-                "taylor",
-                300,
-                "2024-06-10",
-                false,
-                (byte) 25,
-                (short) 2,
-                180000L,
-                99.2f,
-                4.2),
-            new HighScore(
-                game2,
-                "jordan",
-                250,
-                "2024-06-15",
-                true,
-                (byte) 22,
-                (short) 1,
-                165000L,
-                96.8f,
-                3.8),
-            new HighScore(
-                game3,
-                "morgan",
-                180,
-                "2024-06-20",
-                false,
-                (byte) 18,
-                (short) 4,
-                135000L,
-                95.5f,
-                3.2));
-    testHighScores.addAll(allScores);
+    String[] players = {
+      "pat", "mel", "andy", "fran", "billie", "alex", "sam", "chris", "jamie", "taylor"
+    };
+    for (int g = 0; g < games.length; g++) {
+      for (int p = 0; p < players.length; p++) {
+        for (int r = 0; r < 4; r++) {
+          int score = 10 + (g * 73 + p * 17 + r * 5) % 390;
+          int magic = (g * 11 + p * 3 + r) % 30;
+          int taken = (g * 7 + p * 2 + r) % 8;
+          long fld1 = (long) score * 1000L;
+          float fld2 = score / 4.0f;
+          double fld3 = score / 100.0;
+          testHighScores.add(
+              new HighScore(
+                  games[g],
+                  players[p] + r,
+                  score,
+                  "2024-0" + (g + 1) + "-" + (10 + p),
+                  score > 200,
+                  (byte) magic,
+                  (short) taken,
+                  fld1,
+                  fld2,
+                  fld3));
+        }
+      }
+    }
   }
 
   private void setupTestData() {
     try {
-      for (Player player : testPlayers) {
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-      }
+      // Use batchPut to seed all data in 2 RPCs instead of 140 serial puts
+      List<Document> playerDocs =
+          testPlayers.stream().map(Document::new).collect(Collectors.toList());
+      docStoreClient.batchPut(playerDocs);
 
-      // Setup HighScore data in composite key table
-      for (HighScore highScore : testHighScores) {
-        Document doc = new Document(highScore);
-        queryDocStoreClient.put(doc);
-      }
+      List<Document> scoreDocs =
+          testHighScores.stream().map(Document::new).collect(Collectors.toList());
+      queryDocStoreClient.batchPut(scoreDocs);
     } catch (Exception e) {
       throw new RuntimeException("Failed to setup test data", e);
     }
@@ -274,12 +291,12 @@ public abstract class AbstractDocstoreBenchmarkTest {
               actionList.delete(new Document(deleteDoc));
             }
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn("Failed to add cleanup delete for key {}: {}", key, e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("Player cleanup ActionList run failed: {}", e.getMessage());
       }
     }
 
@@ -294,90 +311,81 @@ public abstract class AbstractDocstoreBenchmarkTest {
             deleteScore.setPlayer(highScore.getPlayer());
             actionList.delete(new Document(deleteScore));
           } catch (Exception e) {
-            // Continue cleanup on error
+            logger.warn(
+                "Failed to add cleanup delete for highscore {}/{}: {}",
+                highScore.getGame(),
+                highScore.getPlayer(),
+                e.getMessage());
           }
         }
         actionList.run();
       } catch (Exception e) {
-        // Continue cleanup on error
+        logger.warn("HighScore cleanup ActionList run failed: {}", e.getMessage());
       }
     }
   }
 
-  /** Single Action Put */
+  /**
+   * Single-document put baseline. Renamed from benchmarkSingleActionPut, which executed 10 puts
+   * in a loop per invocation — that conflated batch effects with single-op cost. One put per
+   * invocation gives the true per-op latency and ops/s baseline.
+   */
   @Benchmark
   @Threads(4)
-  public void benchmarkSingleActionPut(Blackhole bh) {
-    benchmarkSingleActionPut(bh, 10);
-  }
-
-  private void benchmarkSingleActionPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-put-player-";
+  public void benchmarkPut(Blackhole bh) {
+    final String baseKey = "benchmarkput-player-";
     final int docSize = 500;
-
     try {
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextPutId.incrementAndGet();
-        Player player = createPlayer(key, i, docSize);
-
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-        bh.consume(player.getPName());
-      }
+      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      benchmarkCreatedKeys.add(key);
+      Player player = createPlayer(key, 0, docSize);
+      docStoreClient.put(new Document(player));
+      bh.consume(player.getPName());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action put failed", e);
+      throw new RuntimeException("Benchmark put failed", e);
     }
   }
 
-  /** Single Action Get */
+  /**
+   * Single-document get from pre-seeded data. Replaces the old benchmarkSingleActionGet which
+   * embedded 10 puts before the get, conflating put + get in the measurement. This version
+   * reads only — every invocation is a single get RPC, so the number reflects get latency.
+   */
   @Benchmark
   @Threads(4)
-  public void benchmarkSingleActionGet(Blackhole bh) {
-    benchmarkSingleActionGet(bh, 10);
-  }
-
-  private void benchmarkSingleActionGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarksingleaction-get-player-";
-    final int docSize = 500;
-
+  public void benchmarkGet(Blackhole bh) {
     try {
-      List<String> keys = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextGetId.incrementAndGet();
-        keys.add(key);
-        Player player = createPlayer(key, i, docSize);
-
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-      }
-
-      for (String key : keys) {
-        Player getPlayer = new Player();
-        getPlayer.setPName(key);
-        Document doc = new Document(getPlayer);
-        docStoreClient.get(doc);
-        bh.consume(doc.getField("pName"));
-      }
+      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      Player getPlayer = new Player();
+      getPlayer.setPName(key);
+      Document doc = new Document(getPlayer);
+      docStoreClient.get(doc);
+      bh.consume(doc.getField("pName"));
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark single action get failed", e);
+      throw new RuntimeException("Benchmark get failed", e);
     }
   }
 
-  /** Batch Action Put */
+  /**
+   * Batch put across {@code @Param batchSize} ∈ {10, 50}. Renamed from benchmarkActionListPut
+   * which was fixed at batch=50; the parameter exposes the batch-size scaling curve.
+   *
+   * <p>Single-threaded by design. {@code @Threads(4)} × batchSize=50 × 5 measurement iterations
+   * generated ~1000 puts per benchmark run, accumulating as orphan docs before teardown — Firestore
+   * stalled at that scale on cross-region runs (observed 2026-05-28). Single-thread batch put is
+   * also closer to typical usage anyway (apps usually batch from one writer at a time).
+   */
   @Benchmark
-  @Threads(4)
-  public void benchmarkActionListPut(Blackhole bh) {
-    benchmarkActionListPut(bh, 50);
-  }
-
-  private void benchmarkActionListPut(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-put-player-";
+  @Threads(1)
+  public void benchmarkBatchPut(Blackhole bh, BatchParams p) {
+    final String baseKey = "benchmarkbatchput-player-";
     final int docSize = 200;
 
     try {
       List<Document> documents = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchPutId.incrementAndGet();
+      for (int i = 0; i < p.batchSize; i++) {
+        String key = baseKey + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, docSize);
         documents.add(new Document(player));
       }
@@ -385,37 +393,41 @@ public abstract class AbstractDocstoreBenchmarkTest {
       docStoreClient.batchPut(documents);
       bh.consume(documents.size());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list put failed", e);
+      throw new RuntimeException("Benchmark batch put failed", e);
     }
   }
 
-  /** Batch Action Get */
+  /**
+   * Batch get from pre-seeded data across {@code @Param batchSize} ∈ {10, 50}. Replaces the old
+   * benchmarkActionListGet which embedded 100 puts before the batchGet — that pattern caused
+   * suite hangs (~2000 orphan docs accumulating per run on Firestore) and conflated put + get in
+   * the measurement. Reading only; every invocation is one batchGet RPC.
+   *
+   * <p>Keys are sampled without replacement because the SDK's ActionList rejects duplicate-key
+   * actions in a single batch (see {@code ActionList.toDriverActions}). The pre-seeded pool has
+   * 100 keys, so both batch sizes (10/50) fit. We do an O(n) shuffle of a fresh copy each
+   * invocation — adds GC pressure but avoids the duplicate-key error and keeps the randomness
+   * signal across iterations.
+   *
+   * <p>Single-threaded by design (matches {@code benchmarkBatchPut} for comparable batch
+   * concurrency, and avoids the same load-induced stall on cross-region Firestore).
+   */
   @Benchmark
-  @Threads(4)
-  public void benchmarkActionListGet(Blackhole bh) {
-    benchmarkActionListGet(bh, 100);
-  }
-
-  private void benchmarkActionListGet(Blackhole bh, int n) {
-    final String baseKey = "benchmarkactionlist-get-player-";
-    final int docSize = 200;
-
+  @Threads(1)
+  public void benchmarkBatchGet(Blackhole bh, BatchParams p) {
     try {
-      List<Document> documents = new ArrayList<>();
-      for (int i = 0; i < n; i++) {
-        String key = baseKey + nextBatchGetId.incrementAndGet();
-        Player player = createPlayer(key, i, docSize);
-        Document doc = new Document(player);
-        docStoreClient.put(doc);
-
+      List<String> shuffled = new ArrayList<>(smallPlayerKeys);
+      Collections.shuffle(shuffled, ThreadLocalRandom.current());
+      List<Document> documents = new ArrayList<>(p.batchSize);
+      for (int i = 0; i < p.batchSize; i++) {
         Player getPlayer = new Player();
-        getPlayer.setPName(key);
+        getPlayer.setPName(shuffled.get(i));
         documents.add(new Document(getPlayer));
       }
       docStoreClient.batchGet(documents);
       bh.consume(documents.size());
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark action list get failed", e);
+      throw new RuntimeException("Benchmark batch get failed", e);
     }
   }
 
@@ -427,8 +439,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
     final int docSize = 500;
 
     try {
-      String key = baseKey + nextWriteReadDeleteId.incrementAndGet();
-      Player player = createPlayer(key, random.nextInt(1000), docSize);
+      String key = baseKey + ThreadLocalRandom.current().nextLong();
+      Player player = createPlayer(key, ThreadLocalRandom.current().nextInt(1000), docSize);
 
       Document writeDoc = new Document(player);
       docStoreClient.put(writeDoc);
@@ -447,38 +459,15 @@ public abstract class AbstractDocstoreBenchmarkTest {
     }
   }
 
-  /** Benchmark gets using test data */
-  @Benchmark
-  public void benchmarkGetFromTestData(Blackhole bh) {
-    try {
-      String key = getRandomPlayerKey();
-      Player getPlayer = new Player();
-      getPlayer.setPName(key);
-      Document doc = new Document(getPlayer);
-      docStoreClient.get(doc);
-      bh.consume(doc.getField("pName"));
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark get from test data failed", e);
-    }
-  }
-
-  /** Benchmark operations by data size */
-  @Benchmark
-  @Threads(4)
-  public void benchmarkGetSmall(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkSmall");
-  }
-
-  @Benchmark
-  @Threads(2)
-  public void benchmarkGetMedium(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkMedium");
-  }
-
+  /**
+   * Single-document get of a large (~100 KB) Player. Pairs with benchmarkGet (small ~900 B) to
+   * bracket the document-size range. The middle "medium" benchmark was dropped — small + large
+   * already capture the scaling trend.
+   */
   @Benchmark
   @Threads(1)
   public void benchmarkGetLarge(Blackhole bh) {
-    benchmarkGetByPrefix(bh, "BenchmarkLarge");
+    benchmarkGetByList(bh, largePlayerKeys, "Large");
   }
 
   /** Benchmark atomic writes */
@@ -490,7 +479,8 @@ public abstract class AbstractDocstoreBenchmarkTest {
       ActionList actions = docStoreClient.getActions();
 
       for (int i = 0; i < 5; i++) {
-        String key = "AtomicDoc" + UUID.randomUUID().toString().substring(0, 8);
+        String key = "AtomicDoc" + ThreadLocalRandom.current().nextLong();
+        benchmarkCreatedKeys.add(key);
         Player player = createPlayer(key, i, 100);
         initialPlayers.add(player);
         actions.create(new Document(player));
@@ -529,10 +519,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkPartitionKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      // Query by Game (partition key)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
+      iter = queryDocStoreClient.query().where("Game", FilterOperation.EQUAL, game2).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -544,28 +533,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark partition key query failed", e);
-    }
-  }
-
-  /** Query Benchmark 2: Sort Key Queries */
-  @Benchmark
-  @Threads(2)
-  public void benchmarkSortKeyQuery(Blackhole bh) {
-    try {
-      // Query by Player (sort key) - this may use Global Secondary Index
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Player", FilterOperation.EQUAL, "pat").get();
-
-      int count = 0;
-      while (iter.hasNext()) {
-        HighScore score = new HighScore();
-        iter.next(new Document(score));
-        count++;
-        bh.consume(score.getPlayer());
+    } finally {
+      if (iter != null) {
+        iter.stop();
       }
-      bh.consume(count);
-    } catch (Exception e) {
-      throw new RuntimeException("Benchmark sort key query failed", e);
     }
   }
 
@@ -573,9 +544,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(2)
   public void benchmarkCompositeKeyQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-
-      DocumentIterator iter =
+      iter =
           queryDocStoreClient
               .query()
               .where("Game", FilterOperation.EQUAL, game1)
@@ -592,6 +563,10 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark composite key query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
@@ -599,10 +574,9 @@ public abstract class AbstractDocstoreBenchmarkTest {
   @Benchmark
   @Threads(1)
   public void benchmarkRangeQuery(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      // Query by Score range (may use Local Secondary Index)
-      DocumentIterator iter =
-          queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
+      iter = queryDocStoreClient.query().where("Score", FilterOperation.GREATER_THAN, 100).get();
 
       int count = 0;
       while (iter.hasNext()) {
@@ -614,20 +588,172 @@ public abstract class AbstractDocstoreBenchmarkTest {
       bh.consume(count);
     } catch (Exception e) {
       throw new RuntimeException("Benchmark range query failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
     }
   }
 
-  /** Helper method to get players by prefix */
-  private void benchmarkGetByPrefix(Blackhole bh, String prefix) {
+  /** Query with limit clause — measures cost of bounding result set size at the cloud. */
+  @Benchmark
+  @Threads(2)
+  public void benchmarkQueryWithLimit(Blackhole bh) {
+    DocumentIterator iter = null;
     try {
-      String key = getRandomPlayerKeyWithPrefix(prefix);
+      iter =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .limit(10)
+              .get();
+
+      int count = 0;
+      while (iter.hasNext()) {
+        HighScore score = new HighScore();
+        iter.next(new Document(score));
+        count++;
+        bh.consume(score.getScore());
+      }
+      bh.consume(count);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with limit failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
+    }
+  }
+
+  /**
+   * Query with orderBy — fundamental cross-cloud variance: provider plans range over indexed vs.
+   * non-indexed sorts very differently. orderBy field must appear in a where clause (see
+   * Query#orderBy javadoc for cross-substrate consistency). Uses descending order
+   * ("leaderboard"-style highest score first). Requires Firestore composite index
+   * (Game ASC, Score DESC) on the composite-key collection.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkQueryWithOrderBy(Blackhole bh) {
+    DocumentIterator iter = null;
+    try {
+      iter =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .where("Score", FilterOperation.GREATER_THAN, 0)
+              .orderBy("Score", false)
+              .get();
+
+      int count = 0;
+      while (iter.hasNext()) {
+        HighScore score = new HighScore();
+        iter.next(new Document(score));
+        count++;
+        bh.consume(score.getScore());
+      }
+      bh.consume(count);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with orderBy failed", e);
+    } finally {
+      if (iter != null) {
+        iter.stop();
+      }
+    }
+  }
+
+  /**
+   * Two-page fetch using paginationToken — measures cursor overhead across providers. Different
+   * providers (DynamoDB LastEvaluatedKey, Firestore startAfter cursor, etc.) produce
+   * behaviorally significant cross-cloud differences here.
+   */
+  @Benchmark
+  @Threads(1)
+  public void benchmarkQueryWithPagination(Blackhole bh) {
+    DocumentIterator firstPage = null;
+    DocumentIterator secondPage = null;
+    try {
+      firstPage =
+          queryDocStoreClient
+              .query()
+              .where("Game", FilterOperation.EQUAL, game1)
+              .limit(20)
+              .get();
+
+      int firstCount = 0;
+      while (firstPage.hasNext()) {
+        HighScore score = new HighScore();
+        firstPage.next(new Document(score));
+        firstCount++;
+        bh.consume(score.getScore());
+      }
+
+      PaginationToken token = firstPage.getPaginationToken();
+      // Release the first cursor before opening the second so we never hold both at once.
+      firstPage.stop();
+      firstPage = null;
+      if (token != null) {
+        secondPage =
+            queryDocStoreClient
+                .query()
+                .where("Game", FilterOperation.EQUAL, game1)
+                .limit(20)
+                .paginationToken(token)
+                .get();
+
+        int secondCount = 0;
+        while (secondPage.hasNext()) {
+          HighScore score = new HighScore();
+          secondPage.next(new Document(score));
+          secondCount++;
+          bh.consume(score.getScore());
+        }
+        bh.consume(secondCount);
+      }
+      bh.consume(firstCount);
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark query with pagination failed", e);
+    } finally {
+      if (firstPage != null) {
+        firstPage.stop();
+      }
+      if (secondPage != null) {
+        secondPage.stop();
+      }
+    }
+  }
+
+  /**
+   * Get with field projection — partial-field read. Each provider implements projection
+   * differently (DynamoDB ProjectionExpression, Firestore DocumentMask), so this quantifies the
+   * wire-transfer benefit of asking for fewer fields.
+   */
+  @Benchmark
+  @Threads(4)
+  public void benchmarkGetWithProjection(Blackhole bh) {
+    try {
+      String key = smallPlayerKeys.get(ThreadLocalRandom.current().nextInt(smallPlayerKeys.size()));
+      Player getPlayer = new Player();
+      getPlayer.setPName(key);
+      Document doc = new Document(getPlayer);
+      docStoreClient.get(doc, "pName", "i");
+      bh.consume(doc.getField("pName"));
+    } catch (Exception e) {
+      throw new RuntimeException("Benchmark get with projection failed", e);
+    }
+  }
+
+  /** Helper — get from a pre-filtered, pre-computed key list (O(1), no allocation) */
+  private void benchmarkGetByList(Blackhole bh, List<String> keys, String label) {
+    try {
+      String key = keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
       Player getPlayer = new Player();
       getPlayer.setPName(key);
       Document doc = new Document(getPlayer);
       docStoreClient.get(doc);
       bh.consume(doc.getField("pName"));
     } catch (Exception e) {
-      throw new RuntimeException("Benchmark get " + prefix + " failed", e);
+      throw new RuntimeException("Benchmark get " + label + " failed", e);
     }
   }
 
@@ -643,45 +769,29 @@ public abstract class AbstractDocstoreBenchmarkTest {
     return new Player(
         pName,
         baseValue,
-        (float) (baseValue + random.nextFloat() * 100),
+        (float) (baseValue + ThreadLocalRandom.current().nextFloat() * 100),
         baseValue % 2 == 0,
         largeString,
         "randomString".getBytes(StandardCharsets.UTF_8));
   }
 
-  /** Get a random player key from pre-populated test data */
-  protected String getRandomPlayerKey() {
-    List<String> playerKeys =
-        documentKeys.stream().filter(key -> key.contains("Benchmark")).collect(Collectors.toList());
-
-    if (playerKeys.isEmpty()) {
-      return "FallbackBenchmarkPlayer";
-    }
-    return playerKeys.get(random.nextInt(playerKeys.size()));
-  }
-
-  /** Get a rand player key with specific prefix */
-  protected String getRandomPlayerKeyWithPrefix(String prefix) {
-    List<String> filteredKeys =
-        documentKeys.stream().filter(key -> key.contains(prefix)).collect(Collectors.toList());
-
-    if (filteredKeys.isEmpty()) {
-      return prefix + "fallback";
-    }
-
-    return filteredKeys.get(random.nextInt(filteredKeys.size()));
-  }
-
   @Test
+  @EnabledIfSystemProperty(named = "runBenchmarks", matches = "true")
   public void runBenchmarks() throws RunnerException {
+    List<String> forwardedArgs = new ArrayList<>();
+    for (String key : System.getProperties().stringPropertyNames()) {
+      if (key.startsWith("DOCSTORE_BENCHMARK_")) {
+        forwardedArgs.add("-D" + key + "=" + System.getProperty(key));
+      }
+    }
+
     Options opt =
         new OptionsBuilder()
-            .include(".*" + this.getClass().getName() + ".benchmarkPartitionKeyQuery.*")
+            .include(".*" + this.getClass().getName() + ".*")
             .forks(1)
-            .warmupIterations(3)
-            .measurementIterations(5)
             .resultFormat(ResultFormatType.JSON)
-            .result("target/jmh-results.json")
+            .result("target/jmh-docstore-results-" + getProviderId() + ".json")
+            .jvmArgsAppend(forwardedArgs.toArray(new String[0]))
             .build();
 
     new Runner(opt).run();
@@ -690,4 +800,7 @@ public abstract class AbstractDocstoreBenchmarkTest {
   private static final String game1 = "Praise All Monsters";
   private static final String game2 = "Zombie DMV";
   private static final String game3 = "Days Gone";
+  private static final String game4 = "Space Drifter";
+  private static final String game5 = "Neon Abyss";
+  private static final String[] games = {game1, game2, game3, game4, game5};
 }

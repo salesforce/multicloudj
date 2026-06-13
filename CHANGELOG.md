@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.3.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.5...multicloudj-v0.3.6) (2026-06-05)
+
+
+### Blob Store
+
+* add async blob store skeleton for Ali OSS ([#445](https://github.com/salesforce/multicloudj/issues/445)) ([53cce24](https://github.com/salesforce/multicloudj/commit/53cce24c8826b7487924c8f5df5f4bc8ffe10a2f))
+* add ListObjectVersions API ([#418](https://github.com/salesforce/multicloudj/issues/418)) ([e72e3da](https://github.com/salesforce/multicloudj/commit/e72e3dae12fa45a3fb73bb6b57412b59b8bb5042))
+* change the ListBlobVersions signature to long term with ListBlobVersionRequest as param ([#456](https://github.com/salesforce/multicloudj/issues/456)) ([ed9003e](https://github.com/salesforce/multicloudj/commit/ed9003e86d2d148ce7d163ce9d4dde4bd678241a))
+* Enable object lock for inmemory store ([#466](https://github.com/salesforce/multicloudj/issues/466)) ([ba67974](https://github.com/salesforce/multicloudj/commit/ba67974083354e7978bc8f414c5e8e3a33253d8e))
+* Enhance conformance test for blobstore directory operations ([#449](https://github.com/salesforce/multicloudj/issues/449)) ([d9b4718](https://github.com/salesforce/multicloudj/commit/d9b471896dac331b8a7082eecf4b0b96b7f7f1c9))
+* fix GCP large upload truncation for byte[] uploads ([#450](https://github.com/salesforce/multicloudj/issues/450)) ([6069776](https://github.com/salesforce/multicloudj/commit/6069776f4ebf8e2842adef0db88b068a37587e94))
+* implement async delete and copy operations for Ali OSS ([#451](https://github.com/salesforce/multicloudj/issues/451)) ([e167a74](https://github.com/salesforce/multicloudj/commit/e167a74a7455b79c5cde4fcc5e2ab237d3d7962f))
+* implement async directory operations for Ali OSS ([#460](https://github.com/salesforce/multicloudj/issues/460)) ([bc4600b](https://github.com/salesforce/multicloudj/commit/bc4600bcd6ed00400065b7b8bbacb1057e76e77d))
+* implement async list/listPage operation for Ali OSS ([#454](https://github.com/salesforce/multicloudj/issues/454)) ([c791bac](https://github.com/salesforce/multicloudj/commit/c791bac2c977d29c5c728c8b7e2bde1bdaf1ba0a))
+* implement async metadata operations for Ali OSS ([#452](https://github.com/salesforce/multicloudj/issues/452)) ([b1170a4](https://github.com/salesforce/multicloudj/commit/b1170a4bce4d09621f67d555988733f8e78236da))
+* implement async multipart upload operation for Ali OSS ([#457](https://github.com/salesforce/multicloudj/issues/457)) ([c5e55fb](https://github.com/salesforce/multicloudj/commit/c5e55fbc7ae1c8f596f8c55f6fd3824b51c1c024))
+* implement async tags and presign URL operation for Ali OSS ([#459](https://github.com/salesforce/multicloudj/issues/459)) ([b47f103](https://github.com/salesforce/multicloudj/commit/b47f103e52822248b4b00c406258c12a84dfc764))
+* implement async upload and download operations for Ali OSS ([#447](https://github.com/salesforce/multicloudj/issues/447)) ([893cc37](https://github.com/salesforce/multicloudj/commit/893cc379534b58b7efa9967b14994df4f0a8d86a))
+* implement listBlobVersions for Ali OSS using v2 SDK paginator ([#453](https://github.com/salesforce/multicloudj/issues/453)) ([3b0b630](https://github.com/salesforce/multicloudj/commit/3b0b630ba039302c84f395530971adb2413445e8))
+* implement object lock/retention for Ali OSS ([#471](https://github.com/salesforce/multicloudj/issues/471)) ([fe62077](https://github.com/salesforce/multicloudj/commit/fe6207748d700fda45c4190894311e33d84dbe4c))
+* implement retry configuration for Ali OSS sync and async clients ([#462](https://github.com/salesforce/multicloudj/issues/462)) ([2189864](https://github.com/salesforce/multicloudj/commit/218986401863a111872eea893292ecba27f545cd))
+* migrate Ali blobstore implementation to OSS SDK v2 ([#436](https://github.com/salesforce/multicloudj/issues/436)) ([cbd2f32](https://github.com/salesforce/multicloudj/commit/cbd2f32a73a9da768af3f1a84eac34b8e1eafb92))
+
+
+### Document Store
+
+* add 4 new benchmarks + expand HighScore dataset ([#443](https://github.com/salesforce/multicloudj/issues/443)) ([08ad2a7](https://github.com/salesforce/multicloudj/commit/08ad2a70dfa68a71d288e49c8825ef4db7d0b039))
+* clean up benchmark suite to spike's final 14 benchmarks ([#448](https://github.com/salesforce/multicloudj/issues/448)) ([6d3924a](https://github.com/salesforce/multicloudj/commit/6d3924a149c31a28e2758997cf6652ae39bd222c))
+* fix critical bugs in benchmark harness ([#432](https://github.com/salesforce/multicloudj/issues/432)) ([cc0936b](https://github.com/salesforce/multicloudj/commit/cc0936bcd05c4820eaee4803e9a9a5d29556e2eb))
+
+
+### STS
+
+* add objectListPrefix support to GcpSts CAB expression ([#437](https://github.com/salesforce/multicloudj/issues/437)) ([1114f2a](https://github.com/salesforce/multicloudj/commit/1114f2ac223f2051e95e65e14bdebb56e7c511c6))
+* onboard proxy configurations for sts interface ([#467](https://github.com/salesforce/multicloudj/issues/467)) ([314e52a](https://github.com/salesforce/multicloudj/commit/314e52a5932c57b1d08dd2f9391732af5255660a))
+* remove weak coverage tests sts test files ([#469](https://github.com/salesforce/multicloudj/issues/469)) ([96f40cd](https://github.com/salesforce/multicloudj/commit/96f40cd419c225af1d4a9a47316b69e3e202044a))
+
 ## [0.3.5](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.4...multicloudj-v0.3.5) (2026-05-21)
 
 

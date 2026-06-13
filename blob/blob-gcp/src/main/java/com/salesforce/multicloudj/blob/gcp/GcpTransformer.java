@@ -271,6 +271,27 @@ public class GcpTransformer {
     return toBlobInfo(presignedUrlRequest.getKey(), metadata);
   }
 
+  public BlobInfo toPresignBlobInfo(PresignedUrlRequest presignedUrlRequest) {
+    Map<String, String> metadata = new HashMap<>();
+    if (presignedUrlRequest.getMetadata() != null) {
+      metadata.putAll(presignedUrlRequest.getMetadata());
+    }
+
+    if (presignedUrlRequest.getTags() != null && !presignedUrlRequest.getTags().isEmpty()) {
+      presignedUrlRequest
+          .getTags()
+          .forEach((tagName, tagValue) -> metadata.put(TAG_PREFIX + tagName, tagValue));
+    }
+
+    return toBlobInfo(
+        presignedUrlRequest.getKey(),
+        metadata,
+        null,
+        null,
+        null,
+        presignedUrlRequest.getContentType());
+  }
+
   public BlobInfo toBlobInfo(MultipartUploadRequest request) {
     Map<String, String> metadata = new HashMap<>();
     if (request.getMetadata() != null) {

@@ -26,6 +26,13 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     Assumptions.assumeTrue(true, "testInvalidCredentials");
   }
 
+  @Test
+  @Override
+  public void testListBlobVersions_happy() {
+    // In-memory blob store does not implement listBlobVersions.
+    Assumptions.assumeTrue(false, "List object versions not supported by in-memory provider");
+  }
+
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
@@ -79,11 +86,6 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
     public String getKmsKeyId() {
       // In-memory doesn't support KMS encryption
       return null;
-    }
-
-    @Override
-    public boolean isObjectLockSupported() {
-      return false;
     }
 
     @Override

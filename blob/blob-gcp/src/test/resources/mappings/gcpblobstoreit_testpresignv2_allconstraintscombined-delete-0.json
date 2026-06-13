@@ -1,0 +1,25 @@
+{
+  "id" : "a620b8a7-ae99-40e7-b84e-a63768cdac72",
+  "name" : "GcpBlobStoreIT_testPresignV2_allConstraintsCombined-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Fall-constraints-combined",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AAVLpEg_Pk1dQHs_sB3vIYubvVCPQdj5DPmk83LcK6X_i_I0decXWl_lPHz61jb6BgRsetV2",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Thu, 04 Jun 2026 12:36:56 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "a620b8a7-ae99-40e7-b84e-a63768cdac72",
+  "persistent" : true,
+  "insertionIndex" : 1453
+}

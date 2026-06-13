@@ -25,6 +25,7 @@ import com.salesforce.multicloudj.blob.driver.ByteArray;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
@@ -32,6 +33,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
@@ -51,6 +53,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -412,6 +415,34 @@ public class BucketClientTest {
   }
 
   @Test
+  void testListBlobVersions() {
+    ListBlobVersionsRequest request =
+        ListBlobVersionsRequest.builder().withKey("object-1").build();
+    @SuppressWarnings("unchecked")
+    Iterator<BlobMetadata> expectedIterator = mock(Iterator.class);
+    when(mockBlobStore.listBlobVersions(any(ListBlobVersionsRequest.class)))
+        .thenReturn(expectedIterator);
+
+    Iterator<BlobMetadata> actualIterator = client.listBlobVersions(request);
+    verify(mockBlobStore, times(1)).listBlobVersions(eq(request));
+    assertEquals(expectedIterator, actualIterator);
+  }
+
+  @Test
+  void testListBlobVersionsThrowsException() {
+    ListBlobVersionsRequest request =
+        ListBlobVersionsRequest.builder().withKey("object-1").build();
+    when(mockBlobStore.listBlobVersions(any(ListBlobVersionsRequest.class)))
+        .thenThrow(RuntimeException.class);
+
+    assertThrows(
+        UnAuthorizedException.class,
+        () -> {
+          client.listBlobVersions(request);
+        });
+  }
+
+  @Test
   void testInitiateMultipartUpload() {
     MultipartUploadRequest request =
         new MultipartUploadRequest.Builder().withKey("object-1").build();
@@ -574,6 +605,28 @@ public class BucketClientTest {
         () -> {
           client.generatePresignedUrl(presignedUrlRequest);
         });
+  }
+
+  @Test
+  void testPresign() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofMinutes(10))
+            .contentLength(100)
+            .build();
+
+    PresignedUrlResponse mockResponse =
+        PresignedUrlResponse.builder()
+            .url(null)
+            .signedHeaders(Map.of("Content-Length", "100"))
+            .build();
+    when(mockBlobStore.presign(request)).thenReturn(mockResponse);
+
+    PresignedUrlResponse result = client.presign(request);
+    assertEquals(mockResponse, result);
+    verify(mockBlobStore, times(1)).presign(request);
   }
 
   @Test

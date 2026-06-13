@@ -1,5 +1,5 @@
 {
-  "id" : "09ad6d24-d773-49af-bec5-8f43e56ecd3f",
+  "id" : "78dbf569-3ae9-4911-8ab5-a473b5d14c0d",
   "name" : "GcpBlobStoreIT_testDownload_checkArchived-PUT-9",
   "request" : {
     "urlPath" : "/upload/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o",
@@ -22,7 +22,7 @@
       },
       "upload_id" : {
         "hasExactly" : [ {
-          "equalTo" : "AAVLpEgLOZ0M83F2O_IlD3UWac-PVe0yz9q_zUYKHeBidR4TCpBK6DOyZcQxbt2E9xDedmXe9Gx4-vR_2lBN8YUOp30j0OXX-FWzWRsR4R8MIg"
+          "equalTo" : "AJ5rDhFb2T2YpQ0olfaXCiXpGOBcImBGbxKtotVqV121PNJcyY5lamCfIL8g8vsKKcmKi2ezzwE8HexTekr4ejmwOyYpaUugUCuMuaDnNQ7udQ"
         } ]
       }
     },
@@ -33,21 +33,21 @@
   },
   "response" : {
     "status" : 200,
-    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/check-archived/archived-blob/1778097605341764\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob?generation=1778097605341764&alt=media\",\n  \"name\": \"conformance-tests/check-archived/archived-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1778097605341764\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"16\",\n  \"md5Hash\": \"qYhxiUZF0GoGNk7+a0KvnQ==\",\n  \"crc32c\": \"VQHFnw==\",\n  \"etag\": \"CMTkkeG5pZQDEAE=\",\n  \"timeCreated\": \"2026-05-06T20:00:05.410Z\",\n  \"updated\": \"2026-05-06T20:00:05.410Z\",\n  \"timeStorageClassUpdated\": \"2026-05-06T20:00:05.410Z\",\n  \"timeFinalized\": \"2026-05-06T20:00:05.410Z\"\n}\n",
+    "body" : "{\n  \"kind\": \"storage#object\",\n  \"id\": \"substrate-sdk-gcp-poc1-test-bucket-versioned/conformance-tests/check-archived/archived-blob/1780617271749127\",\n  \"selfLink\": \"https://www.googleapis.com/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob\",\n  \"mediaLink\": \"https://storage.googleapis.com/download/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket-versioned/o/conformance-tests%2Fcheck-archived%2Farchived-blob?generation=1780617271749127&alt=media\",\n  \"name\": \"conformance-tests/check-archived/archived-blob\",\n  \"bucket\": \"substrate-sdk-gcp-poc1-test-bucket-versioned\",\n  \"generation\": \"1780617271749127\",\n  \"metageneration\": \"1\",\n  \"contentType\": \"application/octet-stream\",\n  \"storageClass\": \"STANDARD\",\n  \"size\": \"16\",\n  \"md5Hash\": \"qYhxiUZF0GoGNk7+a0KvnQ==\",\n  \"crc32c\": \"VQHFnw==\",\n  \"etag\": \"CIfU2p/k7pQDEAE=\",\n  \"timeCreated\": \"2026-06-04T23:54:31.803Z\",\n  \"updated\": \"2026-06-04T23:54:31.803Z\",\n  \"timeStorageClassUpdated\": \"2026-06-04T23:54:31.803Z\",\n  \"timeFinalized\": \"2026-06-04T23:54:31.803Z\"\n}\n",
     "headers" : {
       "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
       "Server" : "UploadServer",
       "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
-      "ETag" : "CMTkkeG5pZQDEAE=",
-      "X-GUploader-UploadID" : "AAVLpEgLOZ0M83F2O_IlD3UWac-PVe0yz9q_zUYKHeBidR4TCpBK6DOyZcQxbt2E9xDedmXe9Gx4-vR_2lBN8YUOp30j0OXX-FWzWRsR4R8MIg",
+      "ETag" : "CIfU2p/k7pQDEAE=",
+      "X-GUploader-UploadID" : "AJ5rDhFb2T2YpQ0olfaXCiXpGOBcImBGbxKtotVqV121PNJcyY5lamCfIL8g8vsKKcmKi2ezzwE8HexTekr4ejmwOyYpaUugUCuMuaDnNQ7udQ",
       "Vary" : [ "Origin", "X-Origin" ],
       "Pragma" : "no-cache",
       "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
-      "Date" : "Wed, 06 May 2026 20:00:05 GMT",
+      "Date" : "Thu, 04 Jun 2026 23:54:31 GMT",
       "Content-Type" : "application/json; charset=UTF-8"
     }
   },
-  "uuid" : "09ad6d24-d773-49af-bec5-8f43e56ecd3f",
+  "uuid" : "78dbf569-3ae9-4911-8ab5-a473b5d14c0d",
   "persistent" : true,
-  "insertionIndex" : 1250
+  "insertionIndex" : 1307
 }

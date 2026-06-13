@@ -1,8 +1,10 @@
 package com.salesforce.multicloudj.blob.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -21,6 +23,9 @@ import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
+import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
@@ -260,6 +265,81 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToMultipartUpload_checksumEnabledNoAlgorithm_defaultsToCrc64() {
+    // OSS's native object checksum is CRC64-ECMA. When checksumming is enabled without an explicit
+    // algorithm, the stored MultipartUpload should reflect CRC64 so the value surfaced at
+    // completion is honestly labeled.
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumEnabled(true).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_explicitCrc64_preserved() {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").withChecksumAlgorithm(ChecksumMethod.CRC64).build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertTrue(actual.isChecksumEnabled());
+    assertEquals(ChecksumMethod.CRC64, actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testToMultipartUpload_checksumDisabled_algorithmStaysNull() {
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult result =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload upload =
+        mock(com.aliyun.sdk.service.oss2.models.InitiateMultipartUpload.class);
+    doReturn(upload).when(result).initiateMultipartUpload();
+    doReturn(BUCKET).when(upload).bucket();
+    doReturn("key").when(upload).key();
+    doReturn("uploadId").when(upload).uploadId();
+    MultipartUploadRequest request = new MultipartUploadRequest.Builder()
+        .withKey("key").build();
+
+    var actual = transformer.toMultipartUpload(result, request);
+
+    assertFalse(actual.isChecksumEnabled());
+    assertNull(actual.getChecksumAlgorithm());
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_allowsCrc64AndNull() {
+    // CRC64 is OSS's native algorithm; null means "use the substrate default" — both allowed.
+    AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC64);
+    AliTransformer.rejectUnsupportedChecksum(null);
+  }
+
+  @Test
+  void testRejectUnsupportedChecksum_rejectsCrc32cAndSha256() {
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.CRC32C));
+    assertThrows(UnSupportedOperationException.class,
+        () -> AliTransformer.rejectUnsupportedChecksum(ChecksumMethod.SHA256));
+  }
+
+  @Test
   void testToUploadPartRequest() {
     MultipartUpload mpu =
         MultipartUpload.builder()
@@ -428,6 +508,74 @@ public class AliTransformerTest {
   }
 
   @Test
+  void testToPresignedPutObjectRequest_withConstraints() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength(1024)
+            .contentType("application/json")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(Integer.valueOf(1024), actual.contentLength());
+    assertEquals("application/json", actual.contentType());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_contentLengthOverflow() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .contentLength((long) Integer.MAX_VALUE + 1)
+            .build();
+
+    assertThrows(
+        InvalidArgumentException.class,
+        () -> transformer.toPresignedPutObjectRequest(request));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumCrc32c() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("abc123==")
+            .checksumAlgorithm(ChecksumMethod.CRC32C)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals("abc123==", actual.headers().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_withChecksumSha256() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("sha256val==")
+            .checksumAlgorithm(ChecksumMethod.SHA256)
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("sha256val==", actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
   void testToPresignedDownloadRequest() {
     Duration duration = Duration.ofHours(12);
     PresignedUrlRequest presignedDownloadRequest =
@@ -441,6 +589,42 @@ public class AliTransformerTest {
 
     assertEquals(BUCKET, actual.bucket());
     assertEquals("object-1", actual.key());
+    assertNull(actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedGetObjectRequest_withContentDisposition() {
+    PresignedUrlRequest presignedDownloadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.DOWNLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedGetObjectRequest(presignedDownloadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertEquals(
+        "attachment; filename=\"report.pdf\"", actual.responseContentDisposition());
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_ignoresContentDisposition() {
+    PresignedUrlRequest presignedUploadRequest =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(12))
+            .contentDisposition("attachment; filename=\"report.pdf\"")
+            .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(presignedUploadRequest);
+
+    assertEquals(BUCKET, actual.bucket());
+    assertEquals("object-1", actual.key());
+    assertNull(actual.contentDisposition());
   }
 
   @Test
@@ -598,5 +782,307 @@ public class AliTransformerTest {
     assertEquals(BUCKET, result.bucket());
     assertEquals("test-key", result.key());
     assertEquals("text/plain", result.contentType());
+  }
+
+  @Test
+  void testToAliRetryerExponentialMode() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(5)
+        .initialDelayMillis(200L)
+        .maxDelayMillis(10000L)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(5, retryer.maxAttempts());
+    // Verify delay is within expected range (EqualJitterBackoff adds jitter)
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertNotNull(delay);
+    assertTrue(delay.toMillis() >= 100);
+    assertTrue(delay.toMillis() <= 10000);
+  }
+
+  @Test
+  void testToAliRetryerFixedMode() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(3)
+        .fixedDelayMillis(500L)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(3, retryer.maxAttempts());
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertEquals(500L, delay.toMillis());
+  }
+
+  @Test
+  void testToAliRetryerNullConfigThrows() {
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(null));
+    assertEquals("RetryConfig cannot be null", ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerNoModeUsesDefaults() {
+    RetryConfig config = RetryConfig.builder()
+        .maxAttempts(4)
+        .build();
+
+    var retryer = AliTransformer.toAliRetryer(config);
+
+    assertNotNull(retryer);
+    assertEquals(4, retryer.maxAttempts());
+    // Verify SDK default backoff produces a sane delay (not zero or negative)
+    Duration delay = retryer.retryDelay(1, new RuntimeException("test"));
+    assertNotNull(delay);
+    assertTrue(delay.toMillis() > 0,
+        "Default backoff should produce a positive delay, got: " + delay.toMillis());
+  }
+
+  @Test
+  void testToAliRetryerInvalidMaxAttempts() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(0)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: 0", ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerNegativeMaxAttempts() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(-1)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals("RetryConfig.maxAttempts must be greater than 0, got: -1", ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerExponentialInvalidInitialDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(3)
+        .initialDelayMillis(0L)
+        .maxDelayMillis(5000L)
+        .build();
+
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.initialDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
+        ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerExponentialInvalidMaxDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.EXPONENTIAL)
+        .maxAttempts(3)
+        .initialDelayMillis(100L)
+        .maxDelayMillis(0L)
+        .build();
+
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.maxDelayMillis must be greater than 0 for EXPONENTIAL mode, got: 0",
+        ex.getMessage());
+  }
+
+  @Test
+  void testToAliRetryerFixedInvalidDelay() {
+    RetryConfig config = RetryConfig.builder()
+        .mode(RetryConfig.Mode.FIXED)
+        .maxAttempts(3)
+        .fixedDelayMillis(0L)
+        .build();
+
+    InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
+        () -> AliTransformer.toAliRetryer(config));
+    assertEquals(
+        "RetryConfig.fixedDelayMillis must be greater than 0 for FIXED mode, got: 0",
+        ex.getMessage());
+  }
+
+  // ---- toBlobMetadata: objectLockInfo extraction from x-oss-object-worm-* headers ----
+
+  @Test
+  void testToBlobMetadata_locked_populatesObjectLockInfoFromHeaders() {
+    // OSS surfaces object-lock state on HeadObject as response headers (verified live against
+    // a versioned + WORM-enabled bucket). The transformer must read those headers and build an
+    // ObjectLockInfo.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "GOVERNANCE",
+            "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    BlobMetadata metadata = transformer.toBlobMetadata("k", result);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info = metadata.getObjectLockInfo();
+    assertNotNull(info, "objectLockInfo should be populated when worm headers are present");
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+    // OSS has no event-based-hold concept; AWS leaves it null too.
+    assertNull(info.getUseEventBasedHold());
+  }
+
+  @Test
+  void testToBlobMetadata_complianceModeWithoutLegalHold_populatesPartial() {
+    // COMPLIANCE retention with no legal hold: legalHold should be false, mode COMPLIANCE.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "COMPLIANCE",
+            "x-oss-object-worm-retain-until-date", "2030-01-01T00:00:00.000Z");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00.000Z"), info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_legalHoldOnlyWithoutRetention_populatesObjectLockInfo() {
+    // OSS allows legal hold without retention. The transformer must still surface
+    // objectLockInfo with mode=null and legalHold=true so callers can act on the hold.
+    Map<String, String> headers = Map.of("x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info,
+        "objectLockInfo should be populated even when only legal hold is set");
+    assertNull(info.getMode());
+    assertNull(info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_noWormHeaders_objectLockInfoIsNull() {
+    // No worm-related headers on the response — objectLockInfo should remain null, matching
+    // the AWS guard ("extract object lock info if present").
+    Map<String, String> headers =
+        Map.of(
+            "Content-Type", "application/octet-stream",
+            "ETag", "\"abc\"",
+            "x-oss-storage-class", "Standard");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    BlobMetadata metadata = transformer.toBlobMetadata("k", result);
+
+    assertNull(metadata.getObjectLockInfo(),
+        "objectLockInfo should be null when no x-oss-object-worm-* headers are present");
+  }
+
+  @Test
+  void testToBlobMetadata_caseInsensitiveHeaderLookup() {
+    // OSS header casing is conventionally lowercase, but the SDK headers Map should not
+    // dictate behavior here. Use mixed casing to verify the lookup is case-insensitive.
+    Map<String, String> headers =
+        Map.of(
+            "X-OSS-Object-Worm-Mode", "GOVERNANCE",
+            "X-OSS-Object-Worm-Retain-Until-Date", "2026-06-10T23:49:51.000Z",
+            "X-OSS-Object-Worm-Legal-Hold", "on");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertTrue(info.isLegalHold(),
+        "legal-hold value comparison should be case-insensitive (\"on\" -> true)");
+  }
+
+  @Test
+  void testToBlobMetadata_unknownWormMode_leavesModeNullBestEffort() {
+    // OSS returns a worm-mode value the SDK enum does not recognize. The read is best-effort and
+    // must not throw: objectLockInfo is still populated (the other worm headers are present),
+    // mode falls back to null, and the remaining fields are unaffected.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "UNKNOWN_MODE",
+            "x-oss-object-worm-retain-until-date", "2026-06-10T23:49:51.000Z",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info,
+        "objectLockInfo should still be populated when other worm headers are present");
+    assertNull(info.getMode(),
+        "an unrecognized worm-mode must fall back to null rather than throw");
+    assertEquals(Instant.parse("2026-06-10T23:49:51.000Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
+  }
+
+  @Test
+  void testToBlobMetadata_malformedRetainUntilDate_leavesRetainUntilNullBestEffort() {
+    // OSS returns a retain-until-date that is not valid ISO-8601. The read is best-effort and must
+    // not throw: objectLockInfo is still populated, retainUntilDate falls back to null, and the
+    // mode/legal-hold fields parse normally.
+    Map<String, String> headers =
+        Map.of(
+            "x-oss-object-worm-mode", "GOVERNANCE",
+            "x-oss-object-worm-retain-until-date", "not-a-valid-date",
+            "x-oss-object-worm-legal-hold", "ON");
+    com.aliyun.sdk.service.oss2.models.HeadObjectResult result =
+        com.aliyun.sdk.service.oss2.models.HeadObjectResult.newBuilder()
+            .headers(headers)
+            .build();
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        transformer.toBlobMetadata("k", result).getObjectLockInfo();
+
+    assertNotNull(info);
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertNull(info.getRetainUntilDate(),
+        "an unparseable retain-until-date must fall back to null rather than throw");
+    assertTrue(info.isLegalHold());
   }
 }

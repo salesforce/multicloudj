@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +19,10 @@ import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
+import com.aliyun.sdk.service.oss2.paginator.ListObjectVersionsIterable;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -28,6 +32,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -36,6 +41,7 @@ import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.PresignedOperation;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
@@ -591,8 +597,16 @@ public class AliBlobStoreTest {
       int current = count++;
       assertEquals("key-" + current, blobInfo.getKey());
       assertEquals(current, blobInfo.getObjectSize());
+      assertEquals(
+          BASE_LAST_MODIFIED.plusSeconds(current), blobInfo.getLastModified(),
+          "doList should propagate the OSS ObjectSummary lastModified timestamp");
     }
   }
+
+  // Base instant for deterministic lastModified values in the object-summary fixtures;
+  // each summary i gets BASE_LAST_MODIFIED + i seconds so tests can assert exact timestamps.
+  private static final java.time.Instant BASE_LAST_MODIFIED =
+      java.time.Instant.parse("2026-01-01T00:00:00Z");
 
   private List<com.aliyun.sdk.service.oss2.models.ObjectSummary> getObjectSummaryList() {
     List<com.aliyun.sdk.service.oss2.models.ObjectSummary> list = new ArrayList<>();
@@ -603,6 +617,7 @@ public class AliBlobStoreTest {
                   com.aliyun.sdk.service.oss2.models.ObjectSummary.newBuilder()
                       .key("key-" + i)
                       .size((long) i)
+                      .lastModified(BASE_LAST_MODIFIED.plusSeconds(i))
                       .build();
               list.add(summary);
             });
@@ -655,8 +670,10 @@ public class AliBlobStoreTest {
     // Verify first and last blob
     assertEquals("key-1", response.getBlobs().get(0).getKey());
     assertEquals(1, response.getBlobs().get(0).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(1), response.getBlobs().get(0).getLastModified());
     assertEquals("key-99", response.getBlobs().get(98).getKey());
     assertEquals(99, response.getBlobs().get(98).getObjectSize());
+    assertEquals(BASE_LAST_MODIFIED.plusSeconds(99), response.getBlobs().get(98).getLastModified());
   }
 
   @Test
@@ -924,6 +941,61 @@ public class AliBlobStoreTest {
   }
 
   @Test
+  void testDoCompleteMultipartUpload_surfacesHashCRC64AsChecksumValue() {
+    // OSS computes a CRC64 over the assembled object on completeMultipartUpload and returns it
+    // on CompleteMultipartUploadResult.hashCRC64(). That should flow through to
+    // MultipartUploadResponse.checksumValue so callers receive a composite checksum, matching
+    // the cross-cloud contract (AWS surfaces SHA256/CRC32C; GCP surfaces CRC32C).
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn("14870085893817539781");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    com.salesforce.multicloudj.blob.driver.MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertEquals("14870085893817539781", response.getChecksumValue(),
+        "Ali should surface OSS's hashCRC64() as MultipartUploadResponse.checksumValue");
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_nullHashCRC64_leavesChecksumValueNull() {
+    // Best-effort: when OSS doesn't return a hashCRC64 (null), checksumValue stays null rather
+    // than being set to the literal string "null".
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockResult.hashCRC64()).thenReturn(null);
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    MultipartUpload multipartUpload =
+        MultipartUpload.builder().bucket("bucket-1").key("object-1").id("mpu-id").build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    com.salesforce.multicloudj.blob.driver.MultipartUploadResponse response =
+        ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    assertEquals("result-etag", response.getEtag());
+    assertNull(response.getChecksumValue());
+  }
+
+  @Test
   void testDoListMultipartUpload() {
     com.aliyun.sdk.service.oss2.models.ListPartsResult mockResult =
         mock(com.aliyun.sdk.service.oss2.models.ListPartsResult.class);
@@ -1032,7 +1104,7 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    URL result = ali.doGeneratePresignedUrl(presignedUploadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedUploadRequest);
 
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.PutObjectRequest> requestCaptor =
@@ -1064,7 +1136,7 @@ public class AliBlobStoreTest {
             .duration(duration)
             .build();
 
-    URL result = ali.doGeneratePresignedUrl(presignedDownloadRequest);
+    PresignedUrlResponse result = ali.doPresign(presignedDownloadRequest);
 
     assertNotNull(result);
     ArgumentCaptor<com.aliyun.sdk.service.oss2.models.GetObjectRequest> requestCaptor =
@@ -1192,45 +1264,793 @@ public class AliBlobStoreTest {
   }
 
   @Test
-  void testGetObjectLock_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLock() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.getObjectLock(key, versionId);
-        });
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult retentionResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult legalHoldResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult.newBuilder()
+            .legalHold(com.aliyun.sdk.service.oss2.models.LegalHold.newBuilder()
+                .status(com.aliyun.sdk.service.oss2.models.ObjectLegalHoldStatusType.ON)
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenReturn(legalHoldResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertTrue(info.isLegalHold());
   }
 
   @Test
-  void testUpdateObjectRetention_ThrowsUnsupportedException() {
-    // Given
+  void testGetObjectLockWithRetentionButNoLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
-    Instant retainUntil = Instant.now().plusSeconds(3600);
 
-    // When/Then
-    assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateObjectRetention(key, versionId, retainUntil);
-        });
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult retentionResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(retentionResult);
+
+    // OSS returns 404 NoSuchObjectLegalHoldConfiguration when an object has retention
+    // but no legal hold set. getObjectLock must treat this as "no legal hold", not fail.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectLegalHold", serviceException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(operationException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertEquals(
+        com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE, info.getMode());
+    assertEquals(Instant.parse("2030-01-01T00:00:00Z"), info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
   }
 
   @Test
-  void testUpdateLegalHold_ThrowsUnsupportedException() {
-    // Given
+  void testUpdateLegalHold() {
     String key = "test-key";
     String versionId = "version-1";
 
-    // When/Then
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldResult.newBuilder().build());
+
+    ali.updateLegalHold(key, versionId, true);
+
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceToComplianceUpgrade_throwsUnsupported() {
+    // OSS cannot upgrade an object's retention mode GOVERNANCE -> COMPLIANCE. Even with
+    // bypass=true (which the shared ObjectRetentionRules allows for AWS/GCP), the Ali driver
+    // must fail fast with a typed UnSupportedOperationException instead of issuing the
+    // PutObjectRetention call and leaking OSS's 409 FileImmutable.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(UnSupportedOperationException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // The upgrade is rejected before any PutObjectRetention call is made.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceSameModeExtend_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: the GOVERNANCE -> COMPLIANCE upgrade guard must NOT interfere with a
+    // same-mode GOVERNANCE update (extending the retain-until date). This path should proceed
+    // normally and issue the PutObjectRetention call.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .build();
+
+    ali.updateObjectRetention(key, versionId, config);
+
+    // Guard does not fire for same-mode updates; the retention update is issued to OSS.
+    verify(mockOssClient).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceToGovernanceDowngrade_isUnaffectedByUpgradeGuard() {
+    // Regression safeguard: a COMPLIANCE -> GOVERNANCE downgrade is rejected by the shared
+    // ObjectRetentionRules (FailedPreconditionException), NOT by the OSS upgrade guard, and must
+    // never reach OSS. Documents that the upgrade guard is scoped to the opposite direction only.
+    String key = "test-key";
+    String versionId = "version-1";
+
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2030-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
     assertThrows(
-        UnSupportedOperationException.class,
-        () -> {
-          ali.updateLegalHold(key, versionId, true);
-        });
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+
+    // Rejected by the shared rules before reaching OSS — not via the upgrade guard.
+    verify(mockOssClient, never()).putObjectRetention(any(), any());
+  }
+
+  @Test
+  void testGetObjectLock_nonexistentKey_throws() {
+    String key = "no-such-key";
+    String versionId = null;
+
+    // OSS returns 404 with error code "NoSuchKey" when the object does not exist.
+    // This must NOT be swallowed as "no configuration" — it should propagate as an error.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchKey");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    assertThrows(OperationException.class, () -> ali.getObjectLock(key, versionId));
+  }
+
+  @Test
+  void testGetObjectLock_noRetentionNoLegalHold_returnsDefaults() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Both retention and legal hold return 404 NoSuchConfiguration — object exists but
+    // has no lock configuration. Should return an ObjectLockInfo with null mode and false hold.
+    ServiceException retentionException = mock(ServiceException.class);
+    when(retentionException.statusCode()).thenReturn(404);
+    when(retentionException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException retentionOpException =
+        new OperationException("GetObjectRetention", retentionException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(retentionOpException);
+
+    ServiceException legalHoldException = mock(ServiceException.class);
+    when(legalHoldException.statusCode()).thenReturn(404);
+    when(legalHoldException.errorCode()).thenReturn("NoSuchObjectLegalHoldConfiguration");
+    OperationException legalHoldOpException =
+        new OperationException("GetObjectLegalHold", legalHoldException);
+    when(mockOssClient.getObjectLegalHold(any(), any())).thenThrow(legalHoldOpException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockInfo info =
+        ali.getObjectLock(key, versionId);
+
+    assertNull(info.getMode());
+    assertNull(info.getRetainUntilDate());
+    assertFalse(info.isLegalHold());
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_noCurrentRetention_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // OSS returns 404 NoSuchObjectRetentionConfiguration for an object with no retention.
+    // doUpdateObjectRetention catches this and passes null currentMode to ObjectRetentionRules,
+    // which throws FailedPreconditionException.
+    ServiceException serviceException = mock(ServiceException.class);
+    when(serviceException.statusCode()).thenReturn(404);
+    when(serviceException.errorCode()).thenReturn("NoSuchObjectRetentionConfiguration");
+    OperationException operationException =
+        new OperationException("GetObjectRetention", serviceException);
+    when(mockOssClient.getObjectRetention(any(), any())).thenThrow(operationException);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2031-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_complianceMode_shortenDate_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has COMPLIANCE mode with retain-until 2035. Attempting to shorten
+    // the date should throw FailedPreconditionException regardless of bypass flag.
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.COMPLIANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.COMPLIANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(true)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoUpdateObjectRetention_governanceMode_shortenWithoutBypass_throwsFailedPrecondition() {
+    String key = "test-key";
+    String versionId = "version-1";
+
+    // Object currently has GOVERNANCE mode with retain-until 2035. Attempting to shorten
+    // without bypass=true should throw FailedPreconditionException.
+    com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult currentResult =
+        com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult.newBuilder()
+            .retention(com.aliyun.sdk.service.oss2.models.Retention.newBuilder()
+                .mode(com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType.GOVERNANCE)
+                .retainUntilDate("2035-01-01T00:00:00Z")
+                .build())
+            .build();
+    when(mockOssClient.getObjectRetention(any(), any())).thenReturn(currentResult);
+
+    com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig config =
+        com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2030-01-01T00:00:00Z"))
+            .bypassGovernanceRetention(false)
+            .build();
+
+    assertThrows(
+        com.salesforce.multicloudj.common.exceptions.FailedPreconditionException.class,
+        () -> ali.updateObjectRetention(key, versionId, config));
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withObjectLock_appliesRetentionAndLegalHold() {
+    // Verify that completing a multipart upload with an ObjectLockConfiguration
+    // triggers putObjectRetention and putObjectLegalHold calls.
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockResult.versionId()).thenReturn("ver-123");
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+    when(mockOssClient.putObjectRetention(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectRetentionResult.newBuilder().build());
+    when(mockOssClient.putObjectLegalHold(any(), any()))
+        .thenReturn(
+            com.aliyun.sdk.service.oss2.models.PutObjectLegalHoldResult.newBuilder().build());
+
+    com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration lockConfig =
+        com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration.builder()
+            .mode(com.salesforce.multicloudj.blob.driver.RetentionMode.GOVERNANCE)
+            .retainUntilDate(Instant.parse("2100-01-01T00:00:00Z"))
+            .legalHold(true)
+            .build();
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .objectLock(lockConfig)
+        .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient).putObjectRetention(any(), any());
+    verify(mockOssClient).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testDoCompleteMultipartUpload_withoutObjectLock_doesNotApplyRetention() {
+    // Verify that completing a multipart upload WITHOUT ObjectLockConfiguration
+    // does NOT call putObjectRetention or putObjectLegalHold.
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult mockResult =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult.class);
+    com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml mockXml =
+        mock(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResultXml.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(mockXml);
+    when(mockXml.eTag()).thenReturn("\"result-etag\"");
+    when(mockOssClient.completeMultipartUpload(
+        any(com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class))).thenReturn(mockResult);
+
+    MultipartUpload multipartUpload = MultipartUpload.builder()
+        .bucket("bucket-1").key("object-1").id("mpu-id")
+        .build();
+    List<com.salesforce.multicloudj.blob.driver.UploadPartResponse> listOfParts =
+        List.of(new com.salesforce.multicloudj.blob.driver.UploadPartResponse(1, "etag", 0));
+
+    ali.completeMultipartUpload(multipartUpload, listOfParts);
+
+    verify(mockOssClient).completeMultipartUpload(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectRetention(any(), any());
+    verify(mockOssClient, org.mockito.Mockito.never()).putObjectLegalHold(any(), any());
+  }
+
+  @Test
+  void testListBlobVersions() {
+    String key = "my-object";
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("etag1").size(100L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("etag2").size(200L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(v1, v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata first = iter.next();
+    assertEquals(key, first.getKey());
+    assertEquals("v1", first.getVersionId());
+    assertEquals("etag1", first.getETag());
+    assertEquals(100L, first.getObjectSize());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata second = iter.next();
+    assertEquals("v2", second.getVersionId());
+    assertEquals(200L, second.getObjectSize());
+
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsFiltersPrefixMatches() {
+    String key = "obj-1";
+    ObjectVersion matching = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion nonMatching = ObjectVersion.newBuilder()
+        .key("obj-1-extra").versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of(matching, nonMatching));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+
+    assertTrue(iter.hasNext());
+    BlobMetadata metadata = iter.next();
+    assertEquals(key, metadata.getKey());
+    assertEquals("v1", metadata.getVersionId());
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  void testListBlobVersionsMultiplePages() {
+    String key = "paged-obj";
+    ObjectVersion v1 = ObjectVersion.newBuilder()
+        .key(key).versionId("v1").eTag("e1").size(10L)
+        .lastModified(Instant.now()).build();
+    ObjectVersion v2 = ObjectVersion.newBuilder()
+        .key(key).versionId("v2").eTag("e2").size(20L)
+        .lastModified(Instant.now()).build();
+
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(v1));
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(v2));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    List<BlobMetadata> all = new ArrayList<>();
+    iter.forEachRemaining(all::add);
+
+    assertEquals(2, all.size());
+    assertEquals("v1", all.get(0).getVersionId());
+    assertEquals("v2", all.get(1).getVersionId());
+  }
+
+  @Test
+  void testListBlobVersionsEmpty() {
+    String key = "no-versions";
+
+    ListObjectVersionsResult result = mock(ListObjectVersionsResult.class);
+    when(result.versions()).thenReturn(List.of());
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(result).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(
+        any(ListObjectVersionsRequest.class))).thenReturn(iterable);
+
+    Iterator<BlobMetadata> iter = ali.listBlobVersions(
+        ListBlobVersionsRequest.builder()
+            .withKey(key).build());
+    assertFalse(iter.hasNext());
+    assertThrows(NoSuchElementException.class, iter::next);
+  }
+
+  // ---------- checkArchived (delete-marker / prior-version detection) ----------
+
+  @Test
+  void testDoDownload_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
+    // OSS returns 404 NoSuchKey on a GET of a deleted versioned object, with the
+    // x-oss-delete-marker:true header on the ServiceException. Behavior verified live
+    // against a real bucket — see AliCheckArchivedSmokeIT (separate IT branch). With
+    // checkArchived=true, the driver must call ListObjectVersions, capture the prior
+    // ObjectVersion's id, and throw ResourceNotFoundException with ArchiveInfo populated.
+    String key = "deleted-key";
+    String priorVersionId = "v-prior-1";
+
+    // 1. The OSS GET fails with 404 + the delete-marker header. Use a mocked OperationException
+    //    rather than `new OperationException(...)` because that constructor performs a
+    //    String.format on the cause, which interacts poorly with the JaCoCo agent on Mockito-spun
+    //    ServiceException instances in this build environment.
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // 2. ListObjectVersions (paginated) returns one prior ObjectVersion. Use the prior version's
+    //    id (NOT the delete marker's id), since the conformance test re-downloads it for the bytes.
+    ObjectVersion priorVersion = mock(ObjectVersion.class);
+    when(priorVersion.versionId()).thenReturn(priorVersionId);
+    when(priorVersion.key()).thenReturn(key);
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(priorVersion));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException ex = assertThrows(
+        com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+
+    com.salesforce.multicloudj.common.exceptions.ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testDoDownload_checkArchivedFalse_doesNotListVersionsOrChangeException() {
+    // When checkArchived is OFF, the guard must be a complete no-op: no ListObjectVersions
+    // call, and the original OSS exception type must propagate unchanged. This protects the
+    // single-file download path from any regression introduced by the guard.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // checkArchived defaults to false on DownloadRequest.
+    DownloadRequest request = DownloadRequest.builder().withKey(key).build();
+
+    // The original OSS-side failure surfaces (the existing path wraps it in RuntimeException);
+    // the assertion is that the driver does NOT enrich it with ArchiveInfo and does NOT call
+    // listObjectVersions.
+    assertThrows(RuntimeException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
+  }
+
+  @Test
+  void testDoDownload_checkArchived_neverExisted_doesNotPopulateArchiveInfo() {
+    // 404 with NO x-oss-delete-marker header -> the key never existed (vs. was deleted on a
+    // versioned bucket). The driver must NOT call ListObjectVersions and must NOT throw a
+    // ResourceNotFoundException with archived=true. The conformance test
+    // testDownload_checkArchived_neverExisted accepts either a null ArchiveInfo or
+    // archived=false; we satisfy it by simply propagating the original exception unchanged.
+    String key = "never-existed-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    when(service.headers()).thenReturn(new java.util.HashMap<>()); // no delete-marker header
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    // No ResourceNotFoundException with archive info — guard short-circuits and the original
+    // 404-driven RuntimeException propagates.
+    assertThrows(RuntimeException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    verify(mockOssClient, never())
+        .listObjectVersionsPaginator(any(ListObjectVersionsRequest.class));
+  }
+
+  @Test
+  void testDoDownload_checkArchived_listVersionsFails_propagatesOriginalException() {
+    // Best-effort contract: if the delete marker is detected but the follow-up
+    // ListObjectVersions call itself fails (network error, permission denied, versioning
+    // disabled, throttling), the guard must NOT mask the caller's original download failure
+    // with the secondary listing error. The original 404-driven exception must propagate and
+    // NO ResourceNotFoundException/ArchiveInfo is produced.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // ListObjectVersions paging blows up.
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenThrow(new RuntimeException("listObjectVersions failed: permission denied"));
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    // The guard swallows the listing failure and re-throws the ORIGINAL exception (the mocked
+    // OperationException), not a ResourceNotFoundException.
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "listObjectVersions failure must not be reported as an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_emptyVersionsPage_propagatesOriginalException() {
+    // Delete marker detected, but the paginated listing yields a page with a null versions list
+    // (e.g. only delete markers, which live in a separate list). The guard must fall through
+    // (no archived=true with a null versionId) and let the original exception propagate.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    ListObjectVersionsResult emptyPage = mock(ListObjectVersionsResult.class);
+    when(emptyPage.versions()).thenReturn(null);
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(emptyPage).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "An empty versions page must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_noMatchingVersion_propagatesOriginalException() {
+    // Delete marker detected, paging returns versions but none whose key matches (e.g. only
+    // sibling keys). versionId stays null across all pages, so the guard must fall through
+    // rather than throw archived=true with a null versionId.
+    String key = "deleted-key";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    // A version for a DIFFERENT (sibling) key — the exact-key match must skip it.
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(sibling));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    Exception thrown = assertThrows(Exception.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    assertFalse(
+        thrown instanceof com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException,
+        "An unresolved versionId must not produce an archived ResourceNotFoundException");
+  }
+
+  @Test
+  void testDoDownload_checkArchived_versionOnLaterPage_resolvesAcrossPages() {
+    // Determinism check: the matching version is on the SECOND page (the first page contains only
+    // a sibling key, simulating delete markers / unrelated keys consuming the first page). The
+    // paginated walk must cross pages and still resolve the correct prior versionId.
+    String key = "deleted-key";
+    String priorVersionId = "v-on-page-2";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("x-oss-delete-marker", "true");
+    when(service.headers()).thenReturn(headers);
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(com.aliyun.sdk.service.oss2.models.GetObjectRequest.class),
+        any(com.aliyun.sdk.service.oss2.OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion sibling = mock(ObjectVersion.class);
+    when(sibling.key()).thenReturn("deleted-key-sibling");
+    ListObjectVersionsResult page1 = mock(ListObjectVersionsResult.class);
+    when(page1.versions()).thenReturn(List.of(sibling));
+
+    ObjectVersion match = mock(ObjectVersion.class);
+    when(match.key()).thenReturn(key);
+    when(match.versionId()).thenReturn(priorVersionId);
+    ListObjectVersionsResult page2 = mock(ListObjectVersionsResult.class);
+    when(page2.versions()).thenReturn(List.of(match));
+
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(page1, page2).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException ex = assertThrows(
+        com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+    com.salesforce.multicloudj.common.exceptions.ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info);
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
   }
 }

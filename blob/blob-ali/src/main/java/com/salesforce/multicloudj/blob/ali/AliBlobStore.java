@@ -6,32 +6,37 @@ import com.aliyun.sdk.service.oss2.PresignOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
 import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
-import com.aliyun.sdk.service.oss2.models.CommonPrefix;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.CompleteMultipartUploadResult;
 import com.aliyun.sdk.service.oss2.models.CopyObjectRequest;
 import com.aliyun.sdk.service.oss2.models.CopyObjectResult;
 import com.aliyun.sdk.service.oss2.models.DeleteMultipleObjectsRequest;
 import com.aliyun.sdk.service.oss2.models.DeleteObjectRequest;
+import com.aliyun.sdk.service.oss2.models.GetObjectLegalHoldResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectMetaRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectResult;
+import com.aliyun.sdk.service.oss2.models.GetObjectRetentionResult;
 import com.aliyun.sdk.service.oss2.models.GetObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.GetObjectTaggingResult;
 import com.aliyun.sdk.service.oss2.models.HeadObjectRequest;
 import com.aliyun.sdk.service.oss2.models.HeadObjectResult;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadRequest;
 import com.aliyun.sdk.service.oss2.models.InitiateMultipartUploadResult;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsRequest;
+import com.aliyun.sdk.service.oss2.models.ListObjectVersionsResult;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Request;
 import com.aliyun.sdk.service.oss2.models.ListObjectsV2Result;
 import com.aliyun.sdk.service.oss2.models.ListPartsRequest;
 import com.aliyun.sdk.service.oss2.models.ListPartsResult;
+import com.aliyun.sdk.service.oss2.models.ObjectVersion;
 import com.aliyun.sdk.service.oss2.models.PresignResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectRequest;
 import com.aliyun.sdk.service.oss2.models.PutObjectResult;
 import com.aliyun.sdk.service.oss2.models.PutObjectTaggingRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
+import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
@@ -44,6 +49,7 @@ import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DownloadRequest;
 import com.salesforce.multicloudj.blob.driver.DownloadResponse;
+import com.salesforce.multicloudj.blob.driver.ListBlobVersionsRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageRequest;
 import com.salesforce.multicloudj.blob.driver.ListBlobsPageResponse;
 import com.salesforce.multicloudj.blob.driver.ListBlobsRequest;
@@ -51,13 +57,20 @@ import com.salesforce.multicloudj.blob.driver.MultipartPart;
 import com.salesforce.multicloudj.blob.driver.MultipartUpload;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadRequest;
 import com.salesforce.multicloudj.blob.driver.MultipartUploadResponse;
+import com.salesforce.multicloudj.blob.driver.ObjectLockConfiguration;
 import com.salesforce.multicloudj.blob.driver.ObjectLockInfo;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionConfig;
+import com.salesforce.multicloudj.blob.driver.ObjectRetentionRules;
 import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
+import com.salesforce.multicloudj.blob.driver.PresignedUrlResponse;
+import com.salesforce.multicloudj.blob.driver.RetentionMode;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
+import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
+import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -70,12 +83,12 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
@@ -198,7 +211,32 @@ public class AliBlobStore extends AbstractBlobStore {
     PutObjectResult result =
         ossClient.putObject(request,
             OperationOptions.defaults());
-    return transformer.toUploadResponse(uploadRequest, result);
+    UploadResponse response =
+        transformer.toUploadResponse(uploadRequest, result);
+    applyObjectLockAfterUpload(
+        uploadRequest.getKey(), response.getVersionId(),
+        uploadRequest.getObjectLock());
+    return response;
+  }
+
+  private void applyObjectLockAfterUpload(
+      String key, String versionId,
+      ObjectLockConfiguration lockConfig) {
+    if (lockConfig == null) {
+      return;
+    }
+    if (lockConfig.getMode() != null && lockConfig.getRetainUntilDate() != null) {
+      ossClient.putObjectRetention(
+          transformer.toPutObjectRetentionRequest(
+              key, versionId, lockConfig.getMode(),
+              lockConfig.getRetainUntilDate(), false),
+          OperationOptions.defaults());
+    }
+    if (lockConfig.isLegalHold()) {
+      ossClient.putObjectLegalHold(
+          transformer.toPutObjectLegalHoldRequest(key, versionId, true),
+          OperationOptions.defaults());
+    }
   }
 
   /**
@@ -222,6 +260,7 @@ public class AliBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -306,6 +345,7 @@ public class AliBlobStore extends AbstractBlobStore {
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -324,9 +364,13 @@ public class AliBlobStore extends AbstractBlobStore {
   public DownloadResponse doDownload(DownloadRequest downloadRequest) {
     GetObjectRequest request =
         transformer.toGetObjectRequest(downloadRequest);
-    GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults());
+    GetObjectResult result;
+    try {
+      result = ossClient.getObject(request, OperationOptions.defaults());
+    } catch (Exception e) {
+      handleArchivedObjects(downloadRequest, e);
+      throw e;
+    }
     try {
       validateRangeResponse(downloadRequest, result);
     } catch (RuntimeException e) {
@@ -338,6 +382,117 @@ public class AliBlobStore extends AbstractBlobStore {
       throw e;
     }
     return transformer.toDownloadResponse(downloadRequest.getKey(), result, result.body());
+  }
+
+  /**
+   * If the caller asked for archive detection and the OSS GET failed with HTTP 404 carrying
+   * the {@code x-oss-delete-marker} header, list the prior versions of the key and throw
+   * {@link ResourceNotFoundException} populated with {@link ArchiveInfo} so the caller can
+   * recover the archived data via the prior {@code versionId}. Mirrors the on-the-wire
+   * delete-marker semantics observed against a real versioned + WORM-enabled bucket
+   * (404 NoSuchKey + {@code x-oss-delete-marker: true} + {@code x-oss-version-id} of the
+   * marker).
+   *
+   * <p>The prior version is resolved deterministically by paging through {@code ListObjectVersions}
+   * (via the SDK paginator) and stopping at the first entry whose key matches exactly. Because OSS
+   * delete markers share the listing page-size budget with real versions, a single bounded page can
+   * return markers only; pagination guarantees the real version is found regardless of how many
+   * delete markers precede it (e.g. after repeated PUT/DELETE cycles), without relying on a
+   * guessed page size.
+   *
+   * <p>Archive detection is strictly best-effort: this method returns silently — allowing the
+   * original exception to propagate unchanged — if (a) {@code checkArchived} is off, (b) the
+   * underlying OSS exception is not 404, (c) the 404 response did not carry a delete-marker
+   * header, (d) the {@code ListObjectVersions} paging itself fails (network error, permission
+   * denied, versioning disabled, throttling), or (e) no prior version of the key could be
+   * resolved from the listing. It only throws {@link ResourceNotFoundException} with
+   * {@link ArchiveInfo} when it has positively identified an archived prior version
+   * ({@code versionId} non-null). This guarantees the guard never masks the caller's original
+   * download failure with a secondary error, and never reports {@code archived=true} without a
+   * usable {@code versionId}.
+   */
+  private void handleArchivedObjects(
+      DownloadRequest downloadRequest, Throwable failure) {
+    if (!downloadRequest.isCheckArchived()) {
+      return;
+    }
+    ServiceException service = unwrapServiceException(failure);
+    if (service == null || service.statusCode() != 404) {
+      return;
+    }
+    Map<String, String> headers = service.headers();
+    if (headers == null) {
+      return;
+    }
+    boolean isDeleteMarker = false;
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if (entry.getKey() != null
+          && entry.getKey().equalsIgnoreCase("x-oss-delete-marker")
+          && "true".equalsIgnoreCase(entry.getValue())) {
+        isDeleteMarker = true;
+        break;
+      }
+    }
+    if (!isDeleteMarker) {
+      return;
+    }
+    // Resolve the prior (non-marker) version id by listing versions for the key. A simple
+    // single-page listing is not deterministic: repeated PUT/DELETE cycles stack multiple delete
+    // markers ahead of the first real version, and delete markers share the page-size budget with
+    // versions, so a bounded page can come back with markers only. Instead, page through the
+    // results (the SDK paginator follows the key/version markers transparently) and stop at the
+    // first entry whose key matches exactly — the prefix listing can also return sibling keys.
+    // This yields a correct result regardless of how many delete markers precede the version.
+    String versionId = null;
+    try {
+      outer:
+      for (ListObjectVersionsResult page :
+          ossClient.listObjectVersionsPaginator(
+              ListObjectVersionsRequest.newBuilder()
+                  .bucket(bucket)
+                  .prefix(downloadRequest.getKey())
+                  .build())) {
+        if (page == null || page.versions() == null) {
+          continue;
+        }
+        for (ObjectVersion v : page.versions()) {
+          if (downloadRequest.getKey().equals(v.key())) {
+            versionId = v.versionId();
+            break outer;
+          }
+        }
+      }
+    } catch (Exception listFailure) {
+      // Best-effort: if version listing fails (network error, permission denied, versioning
+      // disabled, throttling), do not mask the caller's original download failure — let the
+      // original exception propagate unchanged.
+      return;
+    }
+    if (versionId == null) {
+      // No prior version of the key could be resolved (e.g. only delete markers exist). Rather
+      // than report archived=true with a null versionId the caller cannot act on, fall through
+      // and let the original 404 propagate unchanged.
+      return;
+    }
+    throw new ResourceNotFoundException(
+        "Object is archived (delete marker): " + downloadRequest.getKey(),
+        failure,
+        ArchiveInfo.builder().archived(true).versionId(versionId).build());
+  }
+
+  /**
+   * Walks the cause chain of a thrown OSS exception to find the underlying
+   * {@link ServiceException}.
+   */
+  private static ServiceException unwrapServiceException(Throwable t) {
+    Throwable cur = t;
+    while (cur != null) {
+      if (cur instanceof ServiceException) {
+        return (ServiceException) cur;
+      }
+      cur = cur.getCause();
+    }
+    return null;
   }
 
   // OSS returns the full object with HTTP 200 when range start exceeds object size,
@@ -497,27 +652,12 @@ public class AliBlobStore extends AbstractBlobStore {
     ListObjectsV2Result response =
         ossClient.listObjectsV2(listRequest,
             OperationOptions.defaults());
+    return transformer.toListBlobsPageResponse(response);
+  }
 
-    List<BlobInfo> blobs =
-        response.contents().stream()
-            .map(
-                objSum ->
-                    new BlobInfo.Builder()
-                        .withKey(objSum.key())
-                        .withObjectSize(objSum.size() != null ? objSum.size() : 0L)
-                        .build())
-            .collect(Collectors.toList());
-
-    List<String> commonPrefixes = response.commonPrefixes() != null
-        ? response.commonPrefixes().stream()
-            .map(CommonPrefix::prefix)
-            .collect(Collectors.toList())
-        : List.of();
-
-    return new ListBlobsPageResponse(
-        blobs, commonPrefixes,
-        Boolean.TRUE.equals(response.isTruncated()),
-        response.nextContinuationToken());
+  @Override
+  protected Iterator<BlobMetadata> doListBlobVersions(ListBlobVersionsRequest request) {
+    return new BlobMetadataIterator(ossClient, getBucket(), request.getKey());
   }
 
   /**
@@ -528,6 +668,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     InitiateMultipartUploadRequest ossRequest =
         transformer.toInitiateMultipartUploadRequest(request);
     InitiateMultipartUploadResult result =
@@ -569,8 +710,14 @@ public class AliBlobStore extends AbstractBlobStore {
     CompleteMultipartUploadResult result =
         ossClient.completeMultipartUpload(request,
             OperationOptions.defaults());
+    // OSS does not support object lock headers on multipart initiation, so apply retention
+    // and legal hold after the object is assembled.
+    applyObjectLockAfterUpload(mpu.getKey(), result.versionId(), mpu.getObjectLock());
+    // OSS computes a CRC64 over the assembled object and returns it on the result; surface it
+    // as the cross-cloud composite checksum on MultipartUploadResponse.
     return new MultipartUploadResponse(
-        stripQuotes(result.completeMultipartUpload().eTag()));
+        stripQuotes(result.completeMultipartUpload().eTag()),
+        result.hashCRC64());
   }
 
   /**
@@ -641,33 +788,141 @@ public class AliBlobStore extends AbstractBlobStore {
         OperationOptions.defaults());
   }
 
-  /** {@inheritdoc} */
   @Override
   public ObjectLockInfo getObjectLock(String key, String versionId) {
-    throw new UnSupportedOperationException("Alibaba OSS does not support object lock");
-  }
+    // OSS exposes retention and legal hold as two separate calls, and returns 404
+    // (NoSuchObjectRetention / NoSuchObjectLegalHoldConfiguration) when that specific
+    // configuration was never set on the object. An object may have retention but no
+    // legal hold (or vice versa), so each absence is treated as "not configured"
+    // rather than an error.
+    GetObjectRetentionResult retentionResult = null;
+    try {
+      retentionResult = ossClient.getObjectRetention(
+          transformer.toGetObjectRetentionRequest(key, versionId),
+          OperationOptions.defaults());
+    } catch (Exception e) {
+      if (!isNoSuchConfiguration(e)) {
+        throw e;
+      }
+    }
 
-  /** {@inheritdoc} */
-  @Override
-  public void updateObjectRetention(
-      String key, String versionId, java.time.Instant retainUntilDate) {
-    throw new UnSupportedOperationException("Alibaba OSS does not support object lock/retention");
-  }
+    GetObjectLegalHoldResult legalHoldResult = null;
+    try {
+      legalHoldResult = ossClient.getObjectLegalHold(
+          transformer.toGetObjectLegalHoldRequest(key, versionId),
+          OperationOptions.defaults());
+    } catch (Exception e) {
+      if (!isNoSuchConfiguration(e)) {
+        throw e;
+      }
+    }
 
-  /** {@inheritdoc} */
-  @Override
-  public void updateLegalHold(String key, String versionId, boolean legalHold) {
-    throw new UnSupportedOperationException("Alibaba OSS does not support object lock/legal hold");
+    return transformer.toObjectLockInfo(retentionResult, legalHoldResult);
   }
 
   /**
-   * Generates a presigned URL for uploading/downloading blobs
+   * Returns true when the throwable represents an OSS "configuration not found" response
+   * for retention or legal hold — i.e. the object exists but simply does not have that
+   * lock configuration set. This is NOT an error for {@link #getObjectLock}.
    *
-   * @param request The PresignedUrlRequest
-   * @return Returns the presigned URL
+   * <p>Matches 404 errors with codes like {@code NoSuchObjectRetentionConfiguration} or
+   * {@code NoSuchObjectLegalHoldConfiguration}, but explicitly excludes {@code NoSuchKey}
+   * (object does not exist) which should propagate as an error.
    */
+  private static boolean isNoSuchConfiguration(Throwable t) {
+    ServiceException se = extractServiceException(t);
+    if (se == null) {
+      return false;
+    }
+    String errorCode = se.errorCode();
+    return se.statusCode() == 404
+        && errorCode != null
+        && errorCode.startsWith("NoSuch")
+        && !"NoSuchKey".equals(errorCode);
+  }
+
+  private static ServiceException extractServiceException(Throwable t) {
+    if (t instanceof ServiceException) {
+      return (ServiceException) t;
+    } else if (t instanceof OperationException
+        && t.getCause() instanceof ServiceException) {
+      return (ServiceException) t.getCause();
+    }
+    return null;
+  }
+
+  // TODO(objectlock): OSS stores/returns retention timestamps at coarser (second/millisecond)
+  // precision than the Instant we send (Instant.now() carries micro/nanoseconds), so a
+  // round-tripped retainUntilDate is truncated. The shorten check below
+  // (ObjectRetentionRules.resolveAndValidate -> config.getRetainUntilDate().isBefore(
+  // currentRetainUntil)) compares the caller's full-precision value against the truncated
+  // stored value; at sub-second boundaries this could misclassify an extend vs. shorten.
+  // Negligible under whole-second usage (conformance tests use whole-second constants), but
+  // revisit if sub-second retain dates are ever supported — likely normalize/truncate to
+  // seconds on both the inbound config and the parsed current value before comparing.
   @Override
-  protected URL doGeneratePresignedUrl(PresignedUrlRequest request) {
+  protected void doUpdateObjectRetention(
+      String key, String versionId, ObjectRetentionConfig config) {
+    // Fetch current retention state. OSS returns 404 NoSuchObjectRetentionConfiguration
+    // when the object has no retention set — treat that as "no current retention" so
+    // ObjectRetentionRules.resolveAndValidate can reject with FailedPreconditionException.
+    GetObjectRetentionResult currentResult = null;
+    try {
+      currentResult = ossClient.getObjectRetention(
+          transformer.toGetObjectRetentionRequest(key, versionId),
+          OperationOptions.defaults());
+    } catch (Exception e) {
+      if (!isNoSuchConfiguration(e)) {
+        throw e;
+      }
+      // currentResult stays null → no current retention
+    }
+
+    RetentionMode currentMode = null;
+    java.time.Instant currentRetainUntil = null;
+    if (currentResult != null && currentResult.retention() != null) {
+      currentMode = AliTransformer.toRetentionMode(
+          com.aliyun.sdk.service.oss2.models.ObjectRetentionModeType
+              .fromString(currentResult.retention().mode()));
+      if (currentResult.retention().retainUntilDate() != null) {
+        currentRetainUntil = java.time.Instant.parse(
+            currentResult.retention().retainUntilDate());
+      }
+    }
+
+    RetentionMode resolvedMode = ObjectRetentionRules.resolveAndValidate(
+        currentMode, currentRetainUntil, config);
+
+    // OSS does not support changing an object's retention mode once set. A
+    // GOVERNANCE -> COMPLIANCE upgrade (which AWS/GCP allow with a bypass) is rejected
+    // server-side with HTTP 409 FileImmutable. Detect it here and fail with a clear,
+    // typed exception rather than leaking the provider-specific HTTP error. The shared
+    // ObjectRetentionRules has already allowed this transition for bypass-capable
+    // providers; this is the OSS-specific platform limitation.
+    if (currentMode == RetentionMode.GOVERNANCE
+        && resolvedMode == RetentionMode.COMPLIANCE) {
+      throw new UnSupportedOperationException(
+          "Alibaba OSS does not support upgrading an object's retention mode from "
+              + "GOVERNANCE to COMPLIANCE; the mode is immutable once set.");
+    }
+
+    ossClient.putObjectRetention(
+        transformer.toPutObjectRetentionRequest(
+            key, versionId, resolvedMode,
+            config.getRetainUntilDate(),
+            config.getBypassGovernanceRetention()),
+        OperationOptions.defaults());
+  }
+
+  @Override
+  public void updateLegalHold(String key, String versionId, boolean legalHold) {
+    ossClient.putObjectLegalHold(
+        transformer.toPutObjectLegalHoldRequest(key, versionId, legalHold),
+        OperationOptions.defaults());
+  }
+
+  @Override
+  protected PresignedUrlResponse doPresign(PresignedUrlRequest request) {
     PresignOptions options = transformer.toPresignOptions(request);
     PresignResult result;
     switch (request.getType()) {
@@ -682,7 +937,11 @@ public class AliBlobStore extends AbstractBlobStore {
             "Unsupported PresignedOperation. type=" + request.getType());
     }
     try {
-      return new URL(result.url());
+      return PresignedUrlResponse.builder()
+          .url(new URL(result.url()))
+          .signedHeaders(result.signedHeaders().orElse(Map.of()))
+          .expiration(result.expiration().orElse(null))
+          .build();
     } catch (java.net.MalformedURLException e) {
       throw new RuntimeException("Invalid presigned URL: " + result.url(), e);
     }
@@ -766,6 +1025,16 @@ public class AliBlobStore extends AbstractBlobStore {
         clientBuilder.proxyHost(
             builder.getProxyEndpoint().getHost()
                 + ":" + builder.getProxyEndpoint().getPort());
+      }
+      if (builder.getRetryConfig() != null) {
+        Retryer retryer = AliTransformer.toAliRetryer(builder.getRetryConfig());
+        if (retryer != null) {
+          clientBuilder.retryer(retryer);
+        }
+        if (builder.getRetryConfig().getAttemptTimeout() != null) {
+          clientBuilder.readWriteTimeout(
+              Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
+        }
       }
 
       return clientBuilder.build();
