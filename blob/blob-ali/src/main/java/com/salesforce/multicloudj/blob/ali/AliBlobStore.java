@@ -84,6 +84,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -93,6 +94,10 @@ import lombok.Getter;
 /** Alibaba implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
 public class AliBlobStore extends AbstractBlobStore {
+
+  private static final int COPY_BUFFER_SIZE = 16 * 1024;
+
+  private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
   private final OSSClient ossClient;
   private final AliTransformer transformer;
@@ -272,10 +277,41 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
+    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
+    try (GetObjectResult result = ossClient.getObject(request)) {
+      validateRangeResponse(downloadRequest, result);
+      long contentLength = result.contentLength() != null ? result.contentLength() : 0L;
+      byteArray.setBytes(readAllBytes(result.body(), contentLength));
+      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
+    } catch (IOException e) {
+      throw new SubstrateSdkException(
+          "Failed to download Blob: " + downloadRequest.getKey(), e);
+    } catch (Exception e) {
+      if (e instanceof SubstrateSdkException) {
+        throw (SubstrateSdkException) e;
+      }
+      throw new SubstrateSdkException(
+          "Failed to download Blob: " + downloadRequest.getKey(), e);
+    }
+  }
+
+  private byte[] readAllBytes(InputStream in, long contentLength) throws IOException {
+    if (contentLength > 0 && contentLength <= MAX_ARRAY_SIZE) {
+      byte[] bytes = new byte[(int) contentLength];
+      int offset = 0;
+      while (offset < bytes.length) {
+        int read = in.read(bytes, offset, bytes.length - offset);
+        if (read == -1) {
+          break;
+        }
+        offset += read;
+      }
+      return offset == bytes.length ? bytes : Arrays.copyOf(bytes, offset);
+    }
+    // Fallback: Drain the entire stream when the content length isn't specified.
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
-    byteArray.setBytes(outputStream.toByteArray());
-    return downloadResponse;
+    copyStream(in, outputStream);
+    return outputStream.toByteArray();
   }
 
   /**
@@ -486,7 +522,7 @@ public class AliBlobStore extends AbstractBlobStore {
 
   private void copyStream(InputStream in, OutputStream out) {
     try {
-      byte[] buffer = new byte[1024];
+      byte[] buffer = new byte[COPY_BUFFER_SIZE];
       int bytesRead;
       while ((bytesRead = in.read(buffer)) != -1) {
         out.write(buffer, 0, bytesRead);
