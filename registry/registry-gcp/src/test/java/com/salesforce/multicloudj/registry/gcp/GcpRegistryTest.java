@@ -167,16 +167,16 @@ class GcpRegistryTest {
   }
 
   @Test
-  void testGetException_WithSubstrateSdkException() throws Exception {
+  void testMapException_WithSubstrateSdkException() throws Exception {
     withMockedRegistry(
         registry -> {
           SubstrateSdkException testException = new SubstrateSdkException("Test");
-          assertEquals(SubstrateSdkException.class, registry.getException(testException));
+          assertEquals(testException, registry.mapException(testException));
         });
   }
 
   @Test
-  void testGetException_WithApiException() throws Exception {
+  void testMapException_WithApiException() throws Exception {
     withMockedRegistry(
         registry -> {
           StatusCode mockStatusCode = mock(StatusCode.class);
@@ -184,26 +184,26 @@ class GcpRegistryTest {
           ApiException apiException = mock(ApiException.class);
           when(apiException.getStatusCode()).thenReturn(mockStatusCode);
 
-          assertEquals(ResourceNotFoundException.class, registry.getException(apiException));
+          org.junit.jupiter.api.Assertions.assertInstanceOf(
+              ResourceNotFoundException.class, registry.mapException(apiException));
         });
   }
 
   @Test
-  void testGetException_WithIllegalArgumentException() throws Exception {
+  void testMapException_WithIllegalArgumentException() throws Exception {
     withMockedRegistry(
-        registry -> {
-          assertEquals(
-              InvalidArgumentException.class,
-              registry.getException(new IllegalArgumentException("Invalid")));
-        });
+        registry ->
+            org.junit.jupiter.api.Assertions.assertInstanceOf(
+                InvalidArgumentException.class,
+                registry.mapException(new IllegalArgumentException("Invalid"))));
   }
 
   @Test
-  void testGetException_WithUnknownException() throws Exception {
+  void testMapException_WithUnknownException() throws Exception {
     withMockedRegistry(
-        registry -> {
-          assertEquals(UnknownException.class, registry.getException(new RuntimeException("Test")));
-        });
+        registry ->
+            org.junit.jupiter.api.Assertions.assertInstanceOf(
+                UnknownException.class, registry.mapException(new RuntimeException("Test"))));
   }
 
   @Test

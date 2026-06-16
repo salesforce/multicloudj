@@ -390,15 +390,14 @@ public abstract class AbstractIamIT {
   /** Tests exception mapping for provider-specific exceptions. */
   @Test
   public void testExceptionMapping() {
-    // Test with a generic exception
     Throwable genericException = new RuntimeException("Generic error");
-    Class<? extends com.salesforce.multicloudj.common.exceptions.SubstrateSdkException>
-        exceptionClass = iam.getException(genericException);
+    com.salesforce.multicloudj.common.exceptions.SubstrateSdkException mapped =
+        iam.mapException(genericException);
 
-    Assertions.assertNotNull(exceptionClass, "Exception class should not be null");
-    Assertions.assertEquals(
+    Assertions.assertNotNull(mapped, "Mapped exception should not be null");
+    Assertions.assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.UnknownException.class,
-        exceptionClass,
+        mapped,
         "Generic exceptions should map to UnknownException");
   }
 

@@ -72,7 +72,7 @@ public class BucketClientTest {
   @BeforeEach
   void setup() {
     mockBlobStore = mock(AbstractBlobStore.class);
-    doReturn(UnAuthorizedException.class).when(mockBlobStore).getException(any());
+    doReturn(new UnAuthorizedException()).when(mockBlobStore).mapException(any());
     providerSupplier = mockStatic(ProviderSupplier.class);
     AbstractBlobStore.Builder mockBuilder = mock(AbstractBlobStore.Builder.class);
     when(mockBuilder.build()).thenReturn(mockBlobStore);

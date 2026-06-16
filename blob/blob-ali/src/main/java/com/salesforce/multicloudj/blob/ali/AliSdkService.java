@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.blob.ali;
 
 import com.aliyun.sdk.service.oss2.exceptions.OperationException;
 import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
+import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
@@ -10,22 +12,27 @@ import com.salesforce.multicloudj.common.service.SdkService;
 public interface AliSdkService extends SdkService {
 
   @Override
-  default Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof OperationException) {
+  default SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
+    Boolean retryableHint = null;
+    if (t instanceof OperationException) {
       Throwable cause = t.getCause();
       if (cause instanceof ServiceException) {
-        String errorCode = ((ServiceException) cause).errorCode();
-        return ErrorCodeMapping.getException(errorCode);
+        ServiceException service = (ServiceException) cause;
+        exceptionClass = ErrorCodeMapping.getException(service.errorCode());
+        retryableHint = AliRetryClassifier.classifyByStatusCode(service.statusCode());
+      } else {
+        exceptionClass = UnknownException.class;
       }
-      return UnknownException.class;
     } else if (t instanceof ServiceException) {
-      String errorCode = ((ServiceException) t).errorCode();
-      return ErrorCodeMapping.getException(errorCode);
+      ServiceException service = (ServiceException) t;
+      exceptionClass = ErrorCodeMapping.getException(service.errorCode());
+      retryableHint = AliRetryClassifier.classifyByStatusCode(service.statusCode());
     } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, retryableHint);
   }
 }

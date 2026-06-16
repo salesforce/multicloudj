@@ -15,11 +15,13 @@ import com.google.iam.v1.Binding;
 import com.google.iam.v1.GetIamPolicyRequest;
 import com.google.iam.v1.Policy;
 import com.google.iam.v1.SetIamPolicyRequest;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.Action;
 import com.salesforce.multicloudj.iam.model.AttachInlinePolicyRequest;
@@ -570,12 +572,12 @@ public class GcpIam extends AbstractIam {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     if (t instanceof ApiException) {
-      ApiException exception = (ApiException) t;
-      return CommonErrorCodeMapping.getException(exception.getStatusCode().getCode());
+      exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   @Override

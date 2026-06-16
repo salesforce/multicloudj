@@ -66,6 +66,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common-ali</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>aliyun-java-sdk-core</artifactId>
             <version>4.7.2</version>

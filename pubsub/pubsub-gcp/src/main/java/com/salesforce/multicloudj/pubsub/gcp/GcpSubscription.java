@@ -18,11 +18,14 @@ import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.Subscription;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import com.salesforce.multicloudj.pubsub.driver.AbstractSubscription;
@@ -212,14 +215,12 @@ public class GcpSubscription extends AbstractSubscription<GcpSubscription> {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     if (t instanceof ApiException) {
-      ApiException apiException = (ApiException) t;
-      return CommonErrorCodeMapping.getException(apiException.getStatusCode().getCode());
+      exceptionClass = CommonErrorCodeMapping.getException((ApiException) t);
     }
-
-    // For any other exceptions, return UnknownException as the fallback
-    return com.salesforce.multicloudj.common.exceptions.UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   @Override

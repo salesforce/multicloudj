@@ -243,10 +243,10 @@ public class GcpTopicTest {
   }
 
   @Test
-  void testGetExceptionWithOtherException() {
+  void testMapExceptionWithOtherException() {
     RuntimeException otherException = new RuntimeException("test");
-    Class<? extends SubstrateSdkException> exceptionClass = topic.getException(otherException);
-    assertEquals(UnknownException.class, exceptionClass);
+    SubstrateSdkException mapped = topic.mapException(otherException);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test
@@ -404,10 +404,10 @@ public class GcpTopicTest {
     Mockito.when(apiException.getStatusCode()).thenReturn(mockStatusCode);
     Mockito.when(mockStatusCode.getCode()).thenReturn(statusCode);
 
-    Class<? extends SubstrateSdkException> actualExceptionClass = topic.getException(apiException);
-    Assertions.assertEquals(
+    SubstrateSdkException mapped = topic.mapException(apiException);
+    Assertions.assertInstanceOf(
         expectedExceptionClass,
-        actualExceptionClass,
+        mapped,
         "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
   }
 }

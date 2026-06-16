@@ -446,19 +446,16 @@ class BlobStoreAsyncBridgeTest {
   }
 
   @Test
-  void testGetException() {
-    // Given
+  void testMapException() {
     Throwable testException = new RuntimeException("Test exception");
-    Class<? extends SubstrateSdkException> expectedExceptionClass = SubstrateSdkException.class;
-    doReturn(expectedExceptionClass).when(mockBlobStore).getException(testException);
+    SubstrateSdkException expected =
+        new com.salesforce.multicloudj.common.exceptions.UnknownException(testException);
+    doReturn(expected).when(mockBlobStore).mapException(testException);
 
-    // When
-    Class<? extends SubstrateSdkException> actualExceptionClass =
-        asyncWrapper.getException(testException);
+    SubstrateSdkException actual = asyncWrapper.mapException(testException);
 
-    // Then
-    assertEquals(expectedExceptionClass, actualExceptionClass);
-    verify(mockBlobStore).getException(testException);
+    assertEquals(expected, actual);
+    verify(mockBlobStore).mapException(testException);
   }
 
   @Test

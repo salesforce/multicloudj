@@ -70,6 +70,10 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common-gcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>docstore-client</artifactId>
         </dependency>
         <dependency>

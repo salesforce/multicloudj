@@ -69,6 +69,10 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common-gcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>dbbackuprestore-client</artifactId>
         </dependency>
         <dependency>

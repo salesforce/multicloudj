@@ -192,8 +192,8 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return SubstrateSdkException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    return new com.salesforce.multicloudj.common.exceptions.UnknownException(t);
   }
 
   @Override

@@ -112,9 +112,9 @@ public class AwsSubscriptionTest {
     subscription = builder.build();
     InvalidArgumentException sdkException = new InvalidArgumentException("Test error");
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(sdkException);
+    SubstrateSdkException result = subscription.mapException(sdkException);
 
-    assertEquals(InvalidArgumentException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -124,9 +124,9 @@ public class AwsSubscriptionTest {
     AwsServiceException serviceException =
         AwsServiceException.builder().awsErrorDetails(errorDetails).build();
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(serviceException);
+    SubstrateSdkException result = subscription.mapException(serviceException);
 
-    assertEquals(ResourceNotFoundException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(ResourceNotFoundException.class, result);
   }
 
   @Test
@@ -136,9 +136,9 @@ public class AwsSubscriptionTest {
     AwsServiceException serviceException =
         AwsServiceException.builder().awsErrorDetails(errorDetails).build();
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(serviceException);
+    SubstrateSdkException result = subscription.mapException(serviceException);
 
-    assertEquals(UnAuthorizedException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(UnAuthorizedException.class, result);
   }
 
   @Test
@@ -149,9 +149,9 @@ public class AwsSubscriptionTest {
     AwsServiceException serviceException =
         AwsServiceException.builder().awsErrorDetails(errorDetails).build();
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(serviceException);
+    SubstrateSdkException result = subscription.mapException(serviceException);
 
-    assertEquals(
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException.class, result);
   }
 
@@ -161,9 +161,9 @@ public class AwsSubscriptionTest {
     AwsServiceException serviceException =
         AwsServiceException.builder().awsErrorDetails(null).build();
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(serviceException);
+    SubstrateSdkException result = subscription.mapException(serviceException);
 
-    assertEquals(UnknownException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, result);
   }
 
   @Test
@@ -172,9 +172,9 @@ public class AwsSubscriptionTest {
     SdkClientException clientException =
         SdkClientException.builder().message("any message").build();
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(clientException);
+    SubstrateSdkException result = subscription.mapException(clientException);
 
-    assertEquals(InvalidArgumentException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -182,9 +182,9 @@ public class AwsSubscriptionTest {
     subscription = builder.build();
     IllegalArgumentException illegalArgException = new IllegalArgumentException("Invalid argument");
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(illegalArgException);
+    SubstrateSdkException result = subscription.mapException(illegalArgException);
 
-    assertEquals(InvalidArgumentException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -192,9 +192,9 @@ public class AwsSubscriptionTest {
     subscription = builder.build();
     RuntimeException unknownException = new RuntimeException("Unknown error");
 
-    Class<? extends SubstrateSdkException> result = subscription.getException(unknownException);
+    SubstrateSdkException result = subscription.mapException(unknownException);
 
-    assertEquals(UnknownException.class, result);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, result);
   }
 
   @Test

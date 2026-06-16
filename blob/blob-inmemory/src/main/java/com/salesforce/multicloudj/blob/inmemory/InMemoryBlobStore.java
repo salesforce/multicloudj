@@ -31,6 +31,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.ArchiveInfo;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -102,13 +103,12 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass =
+        t instanceof IllegalArgumentException
+            ? InvalidArgumentException.class
+            : UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   @Override

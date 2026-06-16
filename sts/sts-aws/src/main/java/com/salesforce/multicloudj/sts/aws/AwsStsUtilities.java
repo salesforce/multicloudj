@@ -3,6 +3,8 @@ package com.salesforce.multicloudj.sts.aws;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
@@ -241,12 +243,13 @@ public class AwsStsUtilities extends AbstractStsUtilities<AwsStsUtilities> {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     if (t instanceof AwsServiceException) {
       String errorCode = ((AwsServiceException) t).awsErrorDetails().errorCode();
-      return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
     }
-    return null;
+    return ExceptionHandler.build(exceptionClass, t, AwsRetryClassifier.classify(t));
   }
 
   // The common error codes as source of truth is here:

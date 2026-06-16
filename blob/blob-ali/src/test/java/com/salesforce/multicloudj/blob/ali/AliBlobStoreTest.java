@@ -122,17 +122,17 @@ public class AliBlobStoreTest {
     when(serviceException.errorCode()).thenReturn("AccessDenied");
     OperationException operationException = mock(OperationException.class);
     when(operationException.getCause()).thenReturn(serviceException);
-    Class<?> cls = ali.getException(operationException);
-    assertEquals(cls, UnAuthorizedException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(operationException));
 
-    cls = ali.getException(serviceException);
-    assertEquals(cls, UnAuthorizedException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(serviceException));
 
-    cls = ali.getException(new IllegalArgumentException("bad arg"));
-    assertEquals(cls, InvalidArgumentException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        InvalidArgumentException.class, ali.mapException(new IllegalArgumentException("bad arg")));
 
-    cls = ali.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnknownException.class, ali.mapException(new IOException("Channel is closed")));
   }
 
   @Test

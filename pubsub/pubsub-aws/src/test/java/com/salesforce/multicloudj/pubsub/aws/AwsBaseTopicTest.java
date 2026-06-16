@@ -109,32 +109,30 @@ public class AwsBaseTopicTest {
   }
 
   @Test
-  void testGetException() {
-    // AwsServiceException with error code
+  void testMapException() {
     AwsServiceException awsException =
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    assertEquals(UnAuthorizedException.class, topic.getException(awsException));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnAuthorizedException.class, topic.mapException(awsException));
 
-    // AwsServiceException without error code
     AwsServiceException awsExceptionNoCode = AwsServiceException.builder().build();
-    assertEquals(UnknownException.class, topic.getException(awsExceptionNoCode));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnknownException.class, topic.mapException(awsExceptionNoCode));
 
-    // SdkClientException
-    assertEquals(
-        InvalidArgumentException.class, topic.getException(SdkClientException.builder().build()));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(SdkClientException.builder().build()));
 
-    // IllegalArgumentException
-    assertEquals(
-        InvalidArgumentException.class, topic.getException(new IllegalArgumentException()));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(new IllegalArgumentException()));
 
-    // Unknown exception
-    assertEquals(UnknownException.class, topic.getException(new RuntimeException()));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnknownException.class, topic.mapException(new RuntimeException()));
 
-    // SubstrateSdkException
     InvalidArgumentException substrateException = new InvalidArgumentException("test");
-    assertEquals(InvalidArgumentException.class, topic.getException(substrateException));
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        InvalidArgumentException.class, topic.mapException(substrateException));
   }
 
   @Test

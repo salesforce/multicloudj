@@ -163,8 +163,8 @@ public class AbstractSubscriptionTest {
     }
 
     @Override
-    public Class<? extends SubstrateSdkException> getException(Throwable t) {
-      return SubstrateSdkException.class;
+    public SubstrateSdkException mapException(Throwable t) {
+      return new com.salesforce.multicloudj.common.exceptions.UnknownException(t);
     }
 
     @Override
@@ -246,7 +246,7 @@ public class AbstractSubscriptionTest {
     assertFalse(sub.canNack());
     assertNotNull(sub.getAttributes());
     assertFalse(sub.isRetryable(new RuntimeException()));
-    assertNotNull(sub.getException(new RuntimeException()));
+    assertNotNull(sub.mapException(new RuntimeException()));
   }
 
   @Test

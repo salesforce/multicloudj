@@ -3,7 +3,9 @@ package com.salesforce.multicloudj.sts.aws;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
 import com.salesforce.multicloudj.common.aws.CommonErrorCodeMapping;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -234,17 +236,20 @@ public class AwsSts extends AbstractSts {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass;
     if (t instanceof AwsServiceException) {
       AwsServiceException serviceException = (AwsServiceException) t;
       if (serviceException.awsErrorDetails() == null) {
-        return UnknownException.class;
+        exceptionClass = UnknownException.class;
+      } else {
+        String errorCode = serviceException.awsErrorDetails().errorCode();
+        exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
       }
-
-      String errorCode = serviceException.awsErrorDetails().errorCode();
-      return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, AwsRetryClassifier.classify(t));
   }
 
   /**

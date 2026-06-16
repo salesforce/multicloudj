@@ -453,15 +453,15 @@ public class AwsAsyncBlobStoreTest {
         AwsErrorDetails.builder().errorCode("IncompleteSignature").build();
     AwsServiceException awsServiceException =
         AwsServiceException.builder().awsErrorDetails(errorDetails).build();
-    Class<?> cls = aws.getException(awsServiceException);
-    assertEquals(cls, UnAuthorizedException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnAuthorizedException.class, aws.mapException(awsServiceException));
 
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    cls = aws.getException(sdkClientException);
-    assertEquals(cls, InvalidArgumentException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        InvalidArgumentException.class, aws.mapException(sdkClientException));
 
-    cls = aws.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    org.junit.jupiter.api.Assertions.assertInstanceOf(
+        UnknownException.class, aws.mapException(new IOException("Channel is closed")));
   }
 
   private UploadRequest generateTestUploadRequest() {
