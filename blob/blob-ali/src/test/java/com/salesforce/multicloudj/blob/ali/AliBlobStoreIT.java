@@ -31,6 +31,12 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
   private static final String region = "cn-shanghai";
 
+  /**
+   * OSS sends this header only on copy operations (never on a plain upload PUT). Captured as a
+   * recording match header to disambiguate copy-PUT vs upload-PUT to the same key.
+   */
+  private static final String OSS_COPY_SOURCE_HEADER = "x-oss-copy-source";
+
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
@@ -170,7 +176,10 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public java.util.List<String> getRecordingCaptureHeaders() {
-      return java.util.List.of("Host");
+      // OSS_COPY_SOURCE_HEADER disambiguates copy-PUT vs upload-PUT to the same key, and
+      // distinguishes multiple copies to the same key by their differing source value. Inert
+      // for non-copy requests (header absent -> no matcher added).
+      return java.util.List.of("Host", OSS_COPY_SOURCE_HEADER);
     }
 
     @Override
