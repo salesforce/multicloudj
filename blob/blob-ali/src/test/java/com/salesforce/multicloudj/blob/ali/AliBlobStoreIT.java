@@ -167,7 +167,11 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public java.util.List<String> getRecordingCaptureHeaders() {
-      return java.util.List.of("Host");
+      // x-oss-copy-source is sent only on copy operations (never on a plain upload PUT), so
+      // capturing it as a stub matcher disambiguates copy-PUT vs upload-PUT to the same key,
+      // and distinguishes multiple copies to the same key by their differing source value.
+      // Inert for non-copy requests (header absent -> no matcher added).
+      return java.util.List.of("Host", "x-oss-copy-source");
     }
 
     @Override
