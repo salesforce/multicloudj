@@ -5277,7 +5277,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5341,7 +5340,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_withoutSubFolders(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
 
@@ -5397,7 +5395,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_withTags(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5444,7 +5441,6 @@ public abstract class AbstractBlobStoreIT {
   public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5525,7 +5521,6 @@ public abstract class AbstractBlobStoreIT {
   public void testDeleteDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
