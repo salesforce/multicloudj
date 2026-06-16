@@ -155,7 +155,10 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public boolean isSha256Supported() {
-      return true;
+      // Ali OSS's only native object checksum is CRC64-ECMA; it rejects SHA256 (and CRC32C) for
+      // caller-supplied checksums (see AliTransformer.rejectUnsupportedChecksum). SHA256-specific
+      // conformance tests are skipped via this capability flag rather than a provider guard.
+      return false;
     }
 
     @Override
