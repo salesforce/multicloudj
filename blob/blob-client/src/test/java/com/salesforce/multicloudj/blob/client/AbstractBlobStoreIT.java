@@ -3555,7 +3555,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_invalidMultipartUpload() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3609,7 +3608,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_multipleMultipartUploadsForSameKey() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3642,7 +3640,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_completeAnAbortedUpload() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -5065,7 +5062,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withSha256Checksum() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     Assumptions.assumeTrue(
         harness.isSha256Supported(),
         "SHA256 checksum not supported by " + harness.getProviderId());
@@ -5135,7 +5131,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withContentType() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
     String contentType = "text/plain";
 
@@ -5659,10 +5654,10 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withObjectLock() {
-    // Ali: WireMock cannot replay 5MB multipart part bodies (body regex matching fails on large
-    // binary payloads). This is a WireMock harness limitation, not an object lock issue —
-    // the test passes in record mode against live OSS.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // Ali: the recorded part-upload PUT stubs intentionally use empty bodyPatterns (no body
+    // matching) because WireMock's regex body matching fails on large (5MB) binary payloads.
+    // Requests are still uniquely matched by method + URL + query (uploadId/partNumber), so the
+    // test passes in both record and replay mode.
 
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withObjectLock";
     // Keep retainUntil in the future so record mode remains valid over time.
