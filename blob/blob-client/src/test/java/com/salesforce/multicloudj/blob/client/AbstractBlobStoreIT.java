@@ -1455,8 +1455,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopy() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/blob-for-copying";
     String destKey = "conformance-tests/copied-blob";
     String blobToClobber = "conformance-tests/clobbered-blob";
@@ -1684,8 +1682,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopyFrom() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/blob-for-copyFrom";
     String destKey = "conformance-tests/copied-from-blob";
     String blobToClobber = "conformance-tests/clobbered-from-blob";
