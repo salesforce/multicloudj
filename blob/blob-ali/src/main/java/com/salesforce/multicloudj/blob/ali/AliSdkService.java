@@ -13,19 +13,11 @@ public interface AliSdkService extends SdkService {
 
   @Override
   default SubstrateSdkException mapException(Throwable t) {
+    Throwable target = (t instanceof OperationException) ? t.getCause() : t;
     Class<? extends SubstrateSdkException> exceptionClass;
     Boolean retryableHint = null;
-    if (t instanceof OperationException) {
-      Throwable cause = t.getCause();
-      if (cause instanceof ServiceException) {
-        ServiceException service = (ServiceException) cause;
-        exceptionClass = ErrorCodeMapping.getException(service.errorCode());
-        retryableHint = AliRetryClassifier.classifyByStatusCode(service.statusCode());
-      } else {
-        exceptionClass = UnknownException.class;
-      }
-    } else if (t instanceof ServiceException) {
-      ServiceException service = (ServiceException) t;
+    if (target instanceof ServiceException) {
+      ServiceException service = (ServiceException) target;
       exceptionClass = ErrorCodeMapping.getException(service.errorCode());
       retryableHint = AliRetryClassifier.classifyByStatusCode(service.statusCode());
     } else if (t instanceof IllegalArgumentException) {
