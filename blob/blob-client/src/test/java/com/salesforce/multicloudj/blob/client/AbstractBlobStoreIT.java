@@ -4573,7 +4573,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_contentLengthBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-length-binding";
     byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
 
@@ -4605,7 +4604,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_contentTypeBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-type-binding";
     byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
 
@@ -4666,7 +4664,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_signedHeadersNonEmpty() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/signed-headers-present";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -4733,7 +4730,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   //@Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
   public void testPresignV2_backwardCompatibility() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/backward-compat";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
