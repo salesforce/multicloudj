@@ -21,13 +21,14 @@ public final class AliRetryClassifier {
    * Classifies an HTTP status code as retryable.
    *
    * @param httpStatus HTTP status code from a service exception
-   * @return {@code true} for 5xx and 408, {@code false} for other 4xx, {@code null} otherwise
+   * @return {@code true} for 5xx and the retryable 4xx codes (408 Request Timeout, 429 Too Many
+   *     Requests); {@code false} for other 4xx; {@code null} otherwise
    */
   public static Boolean classifyByStatusCode(int httpStatus) {
     if (httpStatus >= 500 && httpStatus <= 599) {
       return true;
     }
-    if (httpStatus == 408) {
+    if (httpStatus == 408 || httpStatus == 429) {
       return true;
     }
     if (httpStatus >= 400 && httpStatus <= 499) {
