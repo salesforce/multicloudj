@@ -75,6 +75,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -976,13 +977,28 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
         if (retryer != null) {
           clientBuilder.retryer(retryer);
         }
-        if (builder.getRetryConfig().getAttemptTimeout() != null) {
-          clientBuilder.readWriteTimeout(
-              Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
-        }
+      }
+
+      Duration readWriteTimeout =
+          resolveReadWriteTimeout(builder.getRetryConfig(), builder.getSocketTimeout());
+      if (readWriteTimeout != null) {
+        clientBuilder.readWriteTimeout(readWriteTimeout);
       }
 
       return clientBuilder.build();
+    }
+
+    /**
+     * Resolves the value for the Ali SDK's single {@code readWriteTimeout} setting from the two
+     * MultiCloudJ inputs that map onto it. {@code RetryConfig.attemptTimeout} (the more specific
+     * per-attempt deadline) takes precedence over the transport-level {@code socketTimeout}; if
+     * neither is set, returns {@code null} so the SDK default is left in place.
+     */
+    static Duration resolveReadWriteTimeout(RetryConfig retryConfig, Duration socketTimeout) {
+      if (retryConfig != null && retryConfig.getAttemptTimeout() != null) {
+        return Duration.ofMillis(retryConfig.getAttemptTimeout());
+      }
+      return socketTimeout;
     }
 
     @Override
