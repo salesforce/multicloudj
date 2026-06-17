@@ -5,6 +5,7 @@ import com.google.protobuf.util.Timestamps;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.TransactionFailedException;
 import com.salesforce.multicloudj.common.util.UUID;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.function.Executable;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractDocstoreIT {
@@ -222,7 +224,7 @@ public abstract class AbstractDocstoreIT {
 
     for (TestCase testCase : testCases) {
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.create(new Document(testCase.doc)),
             String.format("Test %s failed", testCase.name));
@@ -454,7 +456,7 @@ public abstract class AbstractDocstoreIT {
       Object got = testCase.got;
 
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.get(new Document(got), testCase.fieldPaths.toArray(new String[0])),
             String.format("Test %s failed", testCase.name));
@@ -473,6 +475,22 @@ public abstract class AbstractDocstoreIT {
       }
     }
     docStoreClient.close();
+  }
+
+  /**
+   * Asserts that the executable throws {@code wantErr} AND that the thrown exception's {@code
+   * isRetryable()} matches the type-default classification (all {@code wantErr} types used in this
+   * suite — {@link InvalidArgumentException}, {@link ResourceAlreadyExistsException}, {@link
+   * ResourceNotFoundException}, {@link TransactionFailedException} — are non-retryable).
+   */
+  private static void assertThrowsAndNotRetryable(
+      Class<? extends Exception> wantErr,
+      Executable executable,
+      String message) {
+    Exception thrown = Assertions.assertThrows(wantErr, executable, message);
+    Assertions.assertFalse(
+        ((SubstrateSdkException) thrown).isRetryable(),
+        message + " (expected non-retryable but isRetryable()=true)");
   }
 
   private void verifyNoRevisionField(Object doc, String revisionField) {
@@ -575,7 +593,7 @@ public abstract class AbstractDocstoreIT {
 
     for (TestCase testCase : testCases) {
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.put(new Document(testCase.doc)),
             String.format("Test %s failed", testCase.name));
@@ -696,7 +714,7 @@ public abstract class AbstractDocstoreIT {
     for (TestCase testCase : testCases) {
       docStoreClient.create(new Document(testCase.doc));
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.delete(new Document(testCase.deleteDoc)),
             String.format("Test %s failed", testCase.name));
@@ -869,7 +887,7 @@ public abstract class AbstractDocstoreIT {
         verifyRevisionFieldExist(testCase.origDoc, "DocstoreRevision");
       }
       if (testCase.wantErr != null) {
-        Assertions.assertThrows(
+        assertThrowsAndNotRetryable(
             testCase.wantErr,
             () -> docStoreClient.replace(new Document(testCase.replaceDoc)),
             String.format("Test %s failed", testCase.name));
@@ -1037,9 +1055,10 @@ public abstract class AbstractDocstoreIT {
     if (harness.supportOrderByInFullScan()) {
       Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", true).get());
     } else {
-      Assertions.assertThrows(
+      assertThrowsAndNotRetryable(
           InvalidArgumentException.class,
-          () -> docStoreClient.query().orderBy("Player", true).get());
+          () -> docStoreClient.query().orderBy("Player", true).get(),
+          "orderBy in full scan should fail with non-retryable InvalidArgumentException");
     }
 
     // 14. query all order by player desc, should fail because full scans with order by are not
@@ -1047,9 +1066,10 @@ public abstract class AbstractDocstoreIT {
     if (harness.supportOrderByInFullScan()) {
       Assertions.assertDoesNotThrow(() -> docStoreClient.query().orderBy("Player", false).get());
     } else {
-      Assertions.assertThrows(
+      assertThrowsAndNotRetryable(
           InvalidArgumentException.class,
-          () -> docStoreClient.query().orderBy("Player", false).get());
+          () -> docStoreClient.query().orderBy("Player", false).get(),
+          "orderBy desc in full scan should fail with non-retryable InvalidArgumentException");
     }
 
     // 15. Test for valid order by clause.
@@ -1371,7 +1391,11 @@ public abstract class AbstractDocstoreIT {
     actions.put(new Document(t8));
 
     // The atomic transaction should fail
-    Assertions.assertThrows(TransactionFailedException.class, actions::run);
+    assertThrowsAndNotRetryable(
+        TransactionFailedException.class,
+        actions::run,
+        "atomic write referencing non-existent doc should fail with non-retryable "
+            + "TransactionFailedException");
 
     // Verify get documents still contain the expected data (from before the failed transaction)
     for (int i = 0; i < 3; i++) {

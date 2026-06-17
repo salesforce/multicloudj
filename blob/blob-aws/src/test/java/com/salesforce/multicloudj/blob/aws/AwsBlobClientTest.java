@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -139,7 +140,7 @@ public class AwsBlobClientTest {
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("IncompleteSignature").build())
             .build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, aws.mapException(awsServiceException));
 
     AwsServiceException awsServiceException403NoRequestId =
@@ -148,14 +149,14 @@ public class AwsBlobClientTest {
             .requestId(null)
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, aws.mapException(awsServiceException403NoRequestId));
 
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, aws.mapException(sdkClientException));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, aws.mapException(new IOException("Channel is closed")));
   }
 

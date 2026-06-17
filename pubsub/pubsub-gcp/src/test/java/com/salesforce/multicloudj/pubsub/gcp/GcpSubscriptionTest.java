@@ -468,10 +468,10 @@ public class GcpSubscriptionTest {
 
   @Test
   void testMapException() {
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.UnknownException.class,
         subscription.mapException(new RuntimeException("test")));
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.UnknownException.class,
         subscription.mapException(new IllegalArgumentException("test")));
     try {

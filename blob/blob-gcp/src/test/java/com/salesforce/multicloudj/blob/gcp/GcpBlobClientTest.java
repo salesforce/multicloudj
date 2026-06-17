@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -101,11 +102,11 @@ public class GcpBlobClientTest {
   @Test
   void testExceptionHandlingStorageException() {
     StorageException notFoundException = new StorageException(404, "Not found");
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         ResourceNotFoundException.class, gcpBlobClient.mapException(notFoundException));
 
     StorageException badRequestException = new StorageException(400, "Bad request");
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, gcpBlobClient.mapException(badRequestException));
   }
 
@@ -116,7 +117,7 @@ public class GcpBlobClientTest {
     when(notFoundStatusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
     when(notFoundException.getStatusCode()).thenReturn(notFoundStatusCode);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         ResourceNotFoundException.class, gcpBlobClient.mapException(notFoundException));
 
     ApiException invalidArgException = mock(ApiException.class);
@@ -124,21 +125,21 @@ public class GcpBlobClientTest {
     when(invalidArgStatusCode.getCode()).thenReturn(StatusCode.Code.INVALID_ARGUMENT);
     when(invalidArgException.getStatusCode()).thenReturn(invalidArgStatusCode);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, gcpBlobClient.mapException(invalidArgException));
   }
 
   @Test
   void testExceptionHandlingIllegalArgument() {
     IllegalArgumentException illegalArgException = new IllegalArgumentException("Invalid argument");
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, gcpBlobClient.mapException(illegalArgException));
   }
 
   @Test
   void testExceptionHandlingUnknown() {
     RuntimeException unknownException = new RuntimeException("Unknown error");
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, gcpBlobClient.mapException(unknownException));
   }
 

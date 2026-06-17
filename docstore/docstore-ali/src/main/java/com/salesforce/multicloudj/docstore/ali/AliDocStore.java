@@ -104,12 +104,7 @@ public class AliDocStore extends AbstractDocStore {
             .orElse(null);
     if (tableStoreException != null) {
       exceptionClass = ErrorCodeMapping.getException(tableStoreException.getErrorCode());
-      retryableHint =
-          AliRetryClassifier.classifyByThrottlingErrorCode(tableStoreException.getErrorCode());
-      if (retryableHint == null) {
-        retryableHint =
-            AliRetryClassifier.classifyByStatusCode(tableStoreException.getHttpStatus());
-      }
+      retryableHint = AliRetryClassifier.classifyByStatusCode(tableStoreException.getHttpStatus());
     } else if (causeChain.stream().anyMatch(ClientException.class::isInstance)
         || causeChain.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
       exceptionClass = InvalidArgumentException.class;

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.dbbackuprestore.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -297,7 +298,7 @@ public class FSDBBackupRestoreTest {
 
   @Test
   void testMapException() {
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class,
         dbBackupRestore.mapException(new RuntimeException("Generic error")));
 
@@ -305,27 +306,27 @@ public class FSDBBackupRestoreTest {
     StatusCode mockStatusCode = org.mockito.Mockito.mock(StatusCode.class);
     when(apiException.getStatusCode()).thenReturn(mockStatusCode);
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         ResourceNotFoundException.class, dbBackupRestore.mapException(apiException));
 
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.ALREADY_EXISTS);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         ResourceAlreadyExistsException.class, dbBackupRestore.mapException(apiException));
 
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.PERMISSION_DENIED);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, dbBackupRestore.mapException(apiException));
 
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.UNAUTHENTICATED);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, dbBackupRestore.mapException(apiException));
 
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.INTERNAL);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, dbBackupRestore.mapException(apiException));
 
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.INVALID_ARGUMENT);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, dbBackupRestore.mapException(apiException));
   }
 

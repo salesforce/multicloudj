@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.aws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.spy;
 
@@ -114,24 +115,24 @@ public class AwsBaseTopicTest {
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, topic.mapException(awsException));
 
     AwsServiceException awsExceptionNoCode = AwsServiceException.builder().build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, topic.mapException(awsExceptionNoCode));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, topic.mapException(SdkClientException.builder().build()));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, topic.mapException(new IllegalArgumentException()));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, topic.mapException(new RuntimeException()));
 
     InvalidArgumentException substrateException = new InvalidArgumentException("test");
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, topic.mapException(substrateException));
   }
 

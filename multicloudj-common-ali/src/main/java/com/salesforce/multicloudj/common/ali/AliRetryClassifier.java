@@ -1,7 +1,5 @@
 package com.salesforce.multicloudj.common.ali;
 
-import java.util.Set;
-
 /**
  * Retryability helpers for Alibaba Cloud SDK exceptions.
  *
@@ -12,21 +10,10 @@ import java.util.Set;
  *
  * <p>Instead, each provider's {@code mapException} extracts the typed exception it cares about and
  * calls one of the helpers below directly. This keeps each service module's classpath tight (no
- * cross-pollination of OSS v2 / Tablestore / Tea jars) while still delegating the policy
- * (status-code interpretation, throttling-code recognition) to a single source of truth.
+ * cross-pollination of OSS v2 / Tablestore / Tea jars) and keeps this common module free of any
+ * service-specific knowledge.
  */
 public final class AliRetryClassifier {
-
-  /** Tablestore error codes that indicate throttling and are always retryable. */
-  private static final Set<String> RETRYABLE_TABLESTORE_ERROR_CODES =
-      Set.of(
-          "OTSServerBusy",
-          "OTSPartitionUnavailable",
-          "OTSTimeout",
-          "OTSServerUnavailable",
-          "OTSInternalServerError",
-          "OTSQuotaExhausted",
-          "OTSRequestTimeout");
 
   private AliRetryClassifier() {}
 
@@ -55,20 +42,5 @@ public final class AliRetryClassifier {
    */
   public static Boolean classifyByStatusCode(Integer httpStatus) {
     return httpStatus == null ? null : classifyByStatusCode(httpStatus.intValue());
-  }
-
-  /**
-   * @param errorCode error code from a Tablestore exception
-   * @return {@code true} if the error code identifies a known retryable throttling/transient
-   *     failure, otherwise {@code null}
-   */
-  public static Boolean classifyByThrottlingErrorCode(String errorCode) {
-    if (errorCode == null) {
-      return null;
-    }
-    if (RETRYABLE_TABLESTORE_ERROR_CODES.contains(errorCode)) {
-      return true;
-    }
-    return null;
   }
 }

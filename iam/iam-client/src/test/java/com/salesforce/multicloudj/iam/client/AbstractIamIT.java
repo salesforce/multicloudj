@@ -1,5 +1,7 @@
 package com.salesforce.multicloudj.iam.client;
 
+import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.util.common.TestsUtil;
 import com.salesforce.multicloudj.iam.driver.AbstractIam;
 import com.salesforce.multicloudj.iam.model.Action;
@@ -391,14 +393,11 @@ public abstract class AbstractIamIT {
   @Test
   public void testExceptionMapping() {
     Throwable genericException = new RuntimeException("Generic error");
-    com.salesforce.multicloudj.common.exceptions.SubstrateSdkException mapped =
-        iam.mapException(genericException);
+    SubstrateSdkException mapped = iam.mapException(genericException);
 
     Assertions.assertNotNull(mapped, "Mapped exception should not be null");
     Assertions.assertInstanceOf(
-        com.salesforce.multicloudj.common.exceptions.UnknownException.class,
-        mapped,
-        "Generic exceptions should map to UnknownException");
+        UnknownException.class, mapped, "Generic exceptions should map to UnknownException");
   }
 
   /** Tests deleting an identity. */

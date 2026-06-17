@@ -1570,7 +1570,7 @@ class GcpBlobStoreTest {
   void testMapException_WithUnknownException() {
     RuntimeException runtimeException = new RuntimeException("Test");
     SubstrateSdkException mapped = gcpBlobStore.mapException(runtimeException);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, mapped);
+    assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test

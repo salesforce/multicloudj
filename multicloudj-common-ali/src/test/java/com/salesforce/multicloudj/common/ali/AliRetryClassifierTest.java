@@ -43,21 +43,4 @@ class AliRetryClassifierTest {
     assertEquals(Boolean.FALSE, AliRetryClassifier.classifyByStatusCode(Integer.valueOf(404)));
   }
 
-  @Test
-  void throttlingErrorCodes_areRetryable() {
-    assertEquals(
-        Boolean.TRUE, AliRetryClassifier.classifyByThrottlingErrorCode("OTSServerBusy"));
-    assertEquals(
-        Boolean.TRUE,
-        AliRetryClassifier.classifyByThrottlingErrorCode("OTSPartitionUnavailable"));
-    assertEquals(
-        Boolean.TRUE,
-        AliRetryClassifier.classifyByThrottlingErrorCode("OTSQuotaExhausted"));
-  }
-
-  @Test
-  void unknownErrorCode_returnsNull() {
-    assertNull(AliRetryClassifier.classifyByThrottlingErrorCode("OTSInvalidParameter"));
-    assertNull(AliRetryClassifier.classifyByThrottlingErrorCode(null));
-  }
 }

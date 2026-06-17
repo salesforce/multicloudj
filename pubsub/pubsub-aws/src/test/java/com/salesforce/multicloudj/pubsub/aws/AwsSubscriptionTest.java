@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.pubsub.aws;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -114,7 +115,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(sdkException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
+    assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -126,7 +127,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(serviceException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(ResourceNotFoundException.class, result);
+    assertInstanceOf(ResourceNotFoundException.class, result);
   }
 
   @Test
@@ -138,7 +139,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(serviceException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(UnAuthorizedException.class, result);
+    assertInstanceOf(UnAuthorizedException.class, result);
   }
 
   @Test
@@ -151,7 +152,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(serviceException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.ResourceExhaustedException.class, result);
   }
 
@@ -163,7 +164,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(serviceException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, result);
+    assertInstanceOf(UnknownException.class, result);
   }
 
   @Test
@@ -174,7 +175,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(clientException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
+    assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -184,7 +185,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(illegalArgException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(InvalidArgumentException.class, result);
+    assertInstanceOf(InvalidArgumentException.class, result);
   }
 
   @Test
@@ -194,7 +195,7 @@ public class AwsSubscriptionTest {
 
     SubstrateSdkException result = subscription.mapException(unknownException);
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, result);
+    assertInstanceOf(UnknownException.class, result);
   }
 
   @Test

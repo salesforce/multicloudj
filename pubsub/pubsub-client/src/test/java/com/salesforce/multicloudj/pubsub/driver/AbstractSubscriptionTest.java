@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.pubsub.batcher.Batcher;
 import com.salesforce.multicloudj.pubsub.client.GetAttributeResult;
 import java.net.URI;
@@ -164,7 +165,7 @@ public class AbstractSubscriptionTest {
 
     @Override
     public SubstrateSdkException mapException(Throwable t) {
-      return new com.salesforce.multicloudj.common.exceptions.UnknownException(t);
+      return new UnknownException(t);
     }
 
     @Override

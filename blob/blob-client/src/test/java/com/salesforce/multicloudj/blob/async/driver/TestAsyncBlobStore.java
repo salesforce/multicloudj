@@ -26,6 +26,7 @@ import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import java.io.File;
 import java.io.InputStream;
@@ -193,7 +194,7 @@ public class TestAsyncBlobStore extends AbstractAsyncBlobStore {
 
   @Override
   public SubstrateSdkException mapException(Throwable t) {
-    return new com.salesforce.multicloudj.common.exceptions.UnknownException(t);
+    return new UnknownException(t);
   }
 
   @Override

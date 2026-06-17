@@ -3,6 +3,7 @@ package com.salesforce.multicloudj.blob.aws;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -303,7 +304,7 @@ public class AwsBlobStoreTest {
         AwsServiceException.builder()
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("IncompleteSignature").build())
             .build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, aws.mapException(awsServiceException));
 
     AwsServiceException awsServiceException403NoRequestId =
@@ -312,14 +313,14 @@ public class AwsBlobStoreTest {
             .requestId(null)
             .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDenied").build())
             .build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, aws.mapException(awsServiceException403NoRequestId));
 
     SdkClientException sdkClientException = SdkClientException.builder().build();
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, aws.mapException(sdkClientException));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, aws.mapException(new IOException("Channel is closed")));
   }
 

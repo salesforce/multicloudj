@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.pubsub.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -246,7 +247,7 @@ public class GcpTopicTest {
   void testMapExceptionWithOtherException() {
     RuntimeException otherException = new RuntimeException("test");
     SubstrateSdkException mapped = topic.mapException(otherException);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(UnknownException.class, mapped);
+    assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test

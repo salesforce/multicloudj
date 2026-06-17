@@ -346,7 +346,7 @@ class AwsRegistryTest {
       throws Exception {
     withMockedRegistry(
         registry ->
-            org.junit.jupiter.api.Assertions.assertInstanceOf(
+            assertInstanceOf(
                 expected, registry.mapException(input)));
   }
 }

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.registry.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -184,7 +185,7 @@ class GcpRegistryTest {
           ApiException apiException = mock(ApiException.class);
           when(apiException.getStatusCode()).thenReturn(mockStatusCode);
 
-          org.junit.jupiter.api.Assertions.assertInstanceOf(
+          assertInstanceOf(
               ResourceNotFoundException.class, registry.mapException(apiException));
         });
   }
@@ -193,7 +194,7 @@ class GcpRegistryTest {
   void testMapException_WithIllegalArgumentException() throws Exception {
     withMockedRegistry(
         registry ->
-            org.junit.jupiter.api.Assertions.assertInstanceOf(
+            assertInstanceOf(
                 InvalidArgumentException.class,
                 registry.mapException(new IllegalArgumentException("Invalid"))));
   }
@@ -202,7 +203,7 @@ class GcpRegistryTest {
   void testMapException_WithUnknownException() throws Exception {
     withMockedRegistry(
         registry ->
-            org.junit.jupiter.api.Assertions.assertInstanceOf(
+            assertInstanceOf(
                 UnknownException.class, registry.mapException(new RuntimeException("Test"))));
   }
 

@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -122,16 +123,16 @@ public class AliBlobStoreTest {
     when(serviceException.errorCode()).thenReturn("AccessDenied");
     OperationException operationException = mock(OperationException.class);
     when(operationException.getCause()).thenReturn(serviceException);
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, ali.mapException(operationException));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnAuthorizedException.class, ali.mapException(serviceException));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         InvalidArgumentException.class, ali.mapException(new IllegalArgumentException("bad arg")));
 
-    org.junit.jupiter.api.Assertions.assertInstanceOf(
+    assertInstanceOf(
         UnknownException.class, ali.mapException(new IOException("Channel is closed")));
   }
 
