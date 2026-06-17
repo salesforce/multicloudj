@@ -96,9 +96,7 @@ public class StsClient {
     try {
       return this.sts.assumeRole(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -111,9 +109,7 @@ public class StsClient {
     try {
       return getCallerIdentity(GetCallerIdentityRequest.builder().build());
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -126,9 +122,7 @@ public class StsClient {
     try {
       return this.sts.getCallerIdentity(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -142,9 +136,7 @@ public class StsClient {
     try {
       return this.sts.getAccessToken(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 
@@ -159,9 +151,7 @@ public class StsClient {
     try {
       return this.sts.assumeRoleWithWebIdentity(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.sts.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.sts.mapException(t);
     }
   }
 

@@ -11,11 +11,13 @@ import com.google.firestore.admin.v1.RestoreDatabaseMetadata;
 import com.google.firestore.admin.v1.RestoreDatabaseRequest;
 import com.google.longrunning.Operation;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.dbbackuprestore.driver.AbstractDBBackupRestore;
 import com.salesforce.multicloudj.dbbackuprestore.driver.Backup;
 import com.salesforce.multicloudj.dbbackuprestore.driver.BackupStatus;
@@ -61,24 +63,25 @@ public class FSDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // GCP exceptions are typically ApiException
-    if (t instanceof ApiException) {
-      ApiException apiException = (ApiException) t;
-      // Map common GCP error codes
-      switch (apiException.getStatusCode().getCode()) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
+    if (t instanceof ApiException && ((ApiException) t).getStatusCode() != null) {
+      switch (((ApiException) t).getStatusCode().getCode()) {
         case NOT_FOUND:
-          return ResourceNotFoundException.class;
+          exceptionClass = ResourceNotFoundException.class;
+          break;
         case ALREADY_EXISTS:
-          return ResourceAlreadyExistsException.class;
+          exceptionClass = ResourceAlreadyExistsException.class;
+          break;
         case PERMISSION_DENIED:
         case UNAUTHENTICATED:
-          return UnAuthorizedException.class;
+          exceptionClass = UnAuthorizedException.class;
+          break;
         default:
-          return UnknownException.class;
+          exceptionClass = UnknownException.class;
       }
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   @Override

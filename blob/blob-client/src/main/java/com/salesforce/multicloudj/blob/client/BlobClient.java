@@ -52,9 +52,7 @@ public class BlobClient implements AutoCloseable {
           try {
             return blobClient.listBuckets();
           } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
-            return null;
+            throw blobClient.mapException(t);
           }
         });
   }
@@ -73,8 +71,7 @@ public class BlobClient implements AutoCloseable {
           try {
             blobClient.createBucket(bucketName);
           } catch (Throwable t) {
-            Class<? extends SubstrateSdkException> exception = blobClient.getException(t);
-            ExceptionHandler.handleAndPropagate(exception, t);
+            throw blobClient.mapException(t);
           }
         });
   }

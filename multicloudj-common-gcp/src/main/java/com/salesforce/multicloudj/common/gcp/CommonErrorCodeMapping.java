@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.common.gcp;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
@@ -85,5 +86,25 @@ public class CommonErrorCodeMapping {
    */
   public static Class<? extends SubstrateSdkException> getException(int code) {
     return STORAGE_EXCEPTION_MAP.getOrDefault(code, UnknownException.class);
+  }
+
+  /**
+   * Returns the appropriate SubstrateSdkException class for the given gax {@link
+   * com.google.api.gax.rpc.ApiException}, defending against a null {@code statusCode} (which gax
+   * may produce for non-RPC failures wrapped at the gax layer).
+   *
+   * @param apiException the GCP API exception
+   * @return the corresponding SubstrateSdkException class; {@link UnknownException} if {@code
+   *     apiException} or its {@link StatusCode} is null.
+   */
+  public static Class<? extends SubstrateSdkException> getException(ApiException apiException) {
+    if (apiException == null) {
+      return UnknownException.class;
+    }
+    StatusCode statusCode = apiException.getStatusCode();
+    if (statusCode == null) {
+      return UnknownException.class;
+    }
+    return getException(statusCode.getCode());
   }
 }

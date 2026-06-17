@@ -52,6 +52,10 @@
         </dependency>
         <dependency>
             <groupId>com.salesforce.multicloudj</groupId>
+            <artifactId>multicloudj-common-ali</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.salesforce.multicloudj</groupId>
             <artifactId>sts-client</artifactId>
         </dependency>
         <dependency>

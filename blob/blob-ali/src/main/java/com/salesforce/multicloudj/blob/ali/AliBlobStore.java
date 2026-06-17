@@ -93,7 +93,7 @@ import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
-public class AliBlobStore extends AbstractBlobStore {
+public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
   private final OSSClient ossClient;
   private final AliTransformer transformer;
@@ -111,28 +111,6 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   public Provider.Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof OperationException) {
-      Throwable cause = t.getCause();
-      if (cause instanceof ServiceException) {
-        String errorCode =
-            ((ServiceException) cause).errorCode();
-        return ErrorCodeMapping.getException(errorCode);
-      }
-      return UnknownException.class;
-    } else if (t instanceof ServiceException) {
-      String errorCode =
-          ((ServiceException) t).errorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
   }
 
   /**

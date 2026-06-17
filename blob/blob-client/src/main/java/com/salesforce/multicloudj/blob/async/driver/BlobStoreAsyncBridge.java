@@ -253,8 +253,8 @@ public class BlobStoreAsyncBridge implements AsyncBlobStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return blobStore.getException(t);
+  public SubstrateSdkException mapException(Throwable t) {
+    return blobStore.mapException(t);
   }
 
   @Override

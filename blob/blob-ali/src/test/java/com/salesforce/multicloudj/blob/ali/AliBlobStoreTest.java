@@ -2,6 +2,7 @@ package com.salesforce.multicloudj.blob.ali;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -123,17 +124,17 @@ public class AliBlobStoreTest {
     when(serviceException.errorCode()).thenReturn("AccessDenied");
     OperationException operationException = mock(OperationException.class);
     when(operationException.getCause()).thenReturn(serviceException);
-    Class<?> cls = ali.getException(operationException);
-    assertEquals(cls, UnAuthorizedException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(operationException));
 
-    cls = ali.getException(serviceException);
-    assertEquals(cls, UnAuthorizedException.class);
+    assertInstanceOf(
+        UnAuthorizedException.class, ali.mapException(serviceException));
 
-    cls = ali.getException(new IllegalArgumentException("bad arg"));
-    assertEquals(cls, InvalidArgumentException.class);
+    assertInstanceOf(
+        InvalidArgumentException.class, ali.mapException(new IllegalArgumentException("bad arg")));
 
-    cls = ali.getException(new IOException("Channel is closed"));
-    assertEquals(cls, UnknownException.class);
+    assertInstanceOf(
+        UnknownException.class, ali.mapException(new IOException("Channel is closed")));
   }
 
   @Test

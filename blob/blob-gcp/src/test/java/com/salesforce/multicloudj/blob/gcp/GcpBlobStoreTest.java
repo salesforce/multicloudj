@@ -1539,59 +1539,38 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testGetException_WithSubstrateSdkException() {
-    // Given
+  void testMapException_WithSubstrateSdkException() {
     SubstrateSdkException testException = new SubstrateSdkException("Test");
-
-    // When
-    Class<? extends SubstrateSdkException> exceptionClass =
-        gcpBlobStore.getException(testException);
-
-    // Then
-    assertEquals(SubstrateSdkException.class, exceptionClass);
+    SubstrateSdkException mapped = gcpBlobStore.mapException(testException);
+    assertEquals(testException, mapped);
   }
 
   @Test
-  void testGetException_WithApiException() {
-    // Given
+  void testMapException_WithApiException() {
     StatusCode mockStatusCode = mock(StatusCode.class);
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
 
     ApiException apiException = mock(ApiException.class);
     when(apiException.getStatusCode()).thenReturn(mockStatusCode);
 
-    // When
-    Class<? extends SubstrateSdkException> exceptionClass = gcpBlobStore.getException(apiException);
-
-    // Then
-    assertNotNull(exceptionClass);
+    SubstrateSdkException mapped = gcpBlobStore.mapException(apiException);
+    assertNotNull(mapped);
   }
 
   @Test
-  void testGetException_WithStorageException() {
-    // Given
+  void testMapException_WithStorageException() {
     StorageException storageException = mock(StorageException.class);
     when(storageException.getCode()).thenReturn(404);
 
-    // When
-    Class<? extends SubstrateSdkException> exceptionClass =
-        gcpBlobStore.getException(storageException);
-
-    // Then
-    assertNotNull(exceptionClass);
+    SubstrateSdkException mapped = gcpBlobStore.mapException(storageException);
+    assertNotNull(mapped);
   }
 
   @Test
-  void testGetException_WithUnknownException() {
-    // Given
+  void testMapException_WithUnknownException() {
     RuntimeException runtimeException = new RuntimeException("Test");
-
-    // When
-    Class<? extends SubstrateSdkException> exceptionClass =
-        gcpBlobStore.getException(runtimeException);
-
-    // Then
-    assertEquals(UnknownException.class, exceptionClass);
+    SubstrateSdkException mapped = gcpBlobStore.mapException(runtimeException);
+    assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test

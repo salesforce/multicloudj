@@ -10,6 +10,7 @@ import com.aliyuncs.http.FormatType;
 import com.aliyuncs.http.MethodType;
 import com.aliyuncs.http.ProtocolType;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -127,7 +128,7 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
     String errorCode = null;
     String errMessage = null;
     if (t instanceof ClientException) {
@@ -138,17 +139,16 @@ public class AliStsUtilities extends AbstractStsUtilities<AliStsUtilities> {
       errMessage = t.getCause().getMessage();
     }
 
-    // First, check errorCode in ERROR_CODE_MAPPING
+    Class<? extends SubstrateSdkException> exceptionClass;
     if (StringUtils.isNotBlank(errorCode)) {
-      return ERROR_CODE_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      exceptionClass = ERROR_CODE_MAPPING.getOrDefault(errorCode, UnknownException.class);
+    } else if (StringUtils.isNotBlank(errMessage)) {
+      exceptionClass = ERROR_MSG_MAPPING.getOrDefault(errMessage, UnknownException.class);
+    } else {
+      exceptionClass = UnknownException.class;
     }
-
-    // Then, check errMessage in ERROR_MSG_MAPPING
-    if (StringUtils.isNotBlank(errMessage)) {
-      return ERROR_MSG_MAPPING.getOrDefault(errMessage, UnknownException.class);
-    }
-
-    return UnknownException.class;
+    // aliyuncs ClientException has no status/retry signal; rely on type-default retryability.
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   // The common error codes as source of truth is here:
