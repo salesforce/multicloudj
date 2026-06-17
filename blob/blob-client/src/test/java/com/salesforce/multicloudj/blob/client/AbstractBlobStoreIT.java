@@ -3285,7 +3285,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the BucketClient
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);

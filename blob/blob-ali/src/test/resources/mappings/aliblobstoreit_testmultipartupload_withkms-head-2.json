@@ -1,0 +1,36 @@
+{
+  "id" : "b739f6e3-e39a-4d0d-b7a9-f050b39fbdf3",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withKms-HEAD-2",
+  "request" : {
+    "url" : "/conformance-tests/multipart-withKms",
+    "method" : "HEAD",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "headers" : {
+      "x-oss-request-id" : "6A32E1A66AC388363234DA96",
+      "x-oss-server-time" : "63",
+      "Server" : "AliyunOSS",
+      "x-oss-object-type" : "Multipart",
+      "x-oss-server-side-encryption" : "KMS",
+      "Last-Modified" : "Wed, 17 Jun 2026 18:04:21 GMT",
+      "Date" : "Wed, 17 Jun 2026 18:04:22 GMT",
+      "Accept-Ranges" : "bytes",
+      "x-oss-storage-class" : "Standard",
+      "x-oss-hash-crc64ecma" : "16941702395769382088",
+      "ETag" : "\"8C11B624ED7D61A26D45D7A28FE98349-2\"",
+      "Vary" : "Accept-Encoding",
+      "x-oss-server-side-encryption-key-id" : "key-shh6a32d9fajtygsv4msy",
+      "x-oss-meta-encryption" : "kms",
+      "Content-Type" : "text/plain"
+    }
+  },
+  "uuid" : "b739f6e3-e39a-4d0d-b7a9-f050b39fbdf3",
+  "persistent" : true,
+  "insertionIndex" : 101
+}
