@@ -168,6 +168,14 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
     }
 
     @Override
+    public boolean isDirectoryUploadSupported() {
+      // Ali implements directory operations only on the async blob store; the synchronous
+      // AliBlobStore does not, so the sync directory conformance tests are skipped via this
+      // capability flag (matching the AWS harness, which is also async-only for directory ops).
+      return false;
+    }
+
+    @Override
     public String computeChecksum(byte[] content) {
       CRC64 crc64 = new CRC64();
       crc64.update(content, content.length);
