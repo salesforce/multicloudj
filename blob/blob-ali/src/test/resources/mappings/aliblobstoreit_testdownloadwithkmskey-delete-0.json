@@ -1,5 +1,5 @@
 {
-  "id" : "1a233ae4-b847-47fc-856e-403e6fa0d898",
+  "id" : "6cebddb6-5dc1-4eeb-94a2-506605a5ebde",
   "name" : "AliBlobStoreIT_testDownloadWithKmsKey-DELETE-0",
   "request" : {
     "url" : "/conformance-tests/kms/download-happy-path",
@@ -13,13 +13,13 @@
   "response" : {
     "status" : 204,
     "headers" : {
-      "x-oss-request-id" : "6A0F7EA999244C3638589DEA",
-      "x-oss-server-time" : "45",
+      "x-oss-request-id" : "6A32E19ABA20453636B2BC6D",
+      "x-oss-server-time" : "29",
       "Server" : "AliyunOSS",
-      "Date" : "Thu, 21 May 2026 21:52:41 GMT"
+      "Date" : "Wed, 17 Jun 2026 18:04:10 GMT"
     }
   },
-  "uuid" : "1a233ae4-b847-47fc-856e-403e6fa0d898",
+  "uuid" : "6cebddb6-5dc1-4eeb-94a2-506605a5ebde",
   "persistent" : true,
-  "insertionIndex" : 41
+  "insertionIndex" : 91
 }

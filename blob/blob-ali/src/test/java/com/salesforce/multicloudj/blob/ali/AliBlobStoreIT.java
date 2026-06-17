@@ -156,7 +156,9 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public String getKmsKeyId() {
-      return null;
+      // OSS KMS CMK in cn-shanghai (same region as the test bucket). Used by the SSE-KMS
+      // conformance tests. Not a secret (it's a key identifier, not key material).
+      return "acs:kms:cn-shanghai:1099202394511537:key/key-shh6a32d9fajtygsv4msy";
     }
 
     @Override

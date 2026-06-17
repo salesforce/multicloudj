@@ -1,0 +1,38 @@
+{
+  "id" : "5e7c31fa-abd9-49c3-b78b-36d7797a8e1f",
+  "name" : "AliBlobStoreIT_testMultipartUpload_unorderedMultipleParts-DELETE-0",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-unorderedMultipleParts",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "1"
+      }
+    },
+    "queryParameters" : {
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "CD239A88289643BD9BDA0720102EB42A"
+        } ]
+      }
+    }
+  },
+  "response" : {
+    "status" : 404,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>NoSuchUpload</Code>\n  <Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message>\n  <RequestId>6A330A06986E29393372A772</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <UploadId>CD239A88289643BD9BDA0720102EB42A</UploadId>\n  <EC>0042-00000002</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0042-00000002</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A330A06986E29393372A772",
+      "x-oss-server-time" : "40",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0042-00000002",
+      "Date" : "Wed, 17 Jun 2026 20:56:38 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "5e7c31fa-abd9-49c3-b78b-36d7797a8e1f",
+  "persistent" : true,
+  "insertionIndex" : 139
+}
