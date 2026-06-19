@@ -1143,4 +1143,54 @@ public class AliTransformerTest {
         "an unparseable retain-until-date must fall back to null rather than throw");
     assertTrue(info.isLegalHold());
   }
+
+  @Test
+  void testToHttpClientOptionsAllNullKeepsSdkDefaults() {
+    // When no inputs are supplied, the produced options must match the OSS SDK defaults so a
+    // client built from them behaves identically to the SDK's own default client.
+    var defaults = com.aliyun.sdk.service.oss2.transport.HttpClientOptions.custom().build();
+
+    var options = AliTransformer.toHttpClientOptions(null, null, null, null);
+
+    assertNotNull(options);
+    assertEquals(defaults.maxConnections(), options.maxConnections());
+    assertEquals(defaults.keepAliveTimeout(), options.keepAliveTimeout());
+    assertEquals(defaults.readWriteTimeout(), options.readWriteTimeout());
+    assertEquals(defaults.connectTimeout(), options.connectTimeout());
+    assertNull(options.proxyHost());
+  }
+
+  @Test
+  void testToHttpClientOptionsAppliesMaxConnectionsAndIdleTimeout() {
+    var options = AliTransformer.toHttpClientOptions(
+        null, null, 42, Duration.ofSeconds(75));
+
+    assertEquals(42, options.maxConnections());
+    assertEquals(Duration.ofSeconds(75), options.keepAliveTimeout());
+  }
+
+  @Test
+  void testToHttpClientOptionsPreservesProxyHostAndReadWriteTimeout() {
+    // Supplying a custom client bypasses the SDK's own option derivation, so the transport
+    // fields the driver otherwise sets (proxyHost, readWriteTimeout) must survive.
+    var options = AliTransformer.toHttpClientOptions(
+        "proxy.example.com:8080", Duration.ofSeconds(20), 10, Duration.ofSeconds(50));
+
+    assertEquals("proxy.example.com:8080", options.proxyHost());
+    assertEquals(Duration.ofSeconds(20), options.readWriteTimeout());
+    assertEquals(10, options.maxConnections());
+    assertEquals(Duration.ofSeconds(50), options.keepAliveTimeout());
+  }
+
+  @Test
+  void testToHttpClientOptionsOnlyIdleTimeoutLeavesMaxConnectionsDefault() {
+    var defaults = com.aliyun.sdk.service.oss2.transport.HttpClientOptions.custom().build();
+
+    var options = AliTransformer.toHttpClientOptions(
+        null, null, null, Duration.ofSeconds(90));
+
+    assertEquals(Duration.ofSeconds(90), options.keepAliveTimeout());
+    assertEquals(defaults.maxConnections(), options.maxConnections(),
+        "maxConnections must keep the SDK default when only idle timeout is set");
+  }
 }

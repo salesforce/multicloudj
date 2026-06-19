@@ -1,5 +1,6 @@
 package com.salesforce.multicloudj.blob.ali;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -2001,5 +2002,48 @@ public class AliBlobStoreTest {
     assertEquals(
         socketTimeout,
         AliBlobStore.Builder.resolveReadWriteTimeout(retryConfig, socketTimeout));
+  }
+
+  // No withClient() — exercises the real buildOSSClient path. Setters are called as statements
+  // (not chained) because the base BlobStoreBuilder setters return BlobStoreBuilder, not the Ali
+  // subtype.
+  private AliBlobStore.Builder newRealClientBuilder() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliBlobStore.Builder builder = new AliBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withProxyEndpoint(URI.create("http://proxy.example.com:80"));
+    builder.withCredentialsOverrider(credsOverrider);
+    return builder;
+  }
+
+  @Test
+  void testBuildOSSClient_withConnectionPoolConfig_buildsSuccessfully() {
+    // Setting maxConnections/idleConnectionTimeout routes through the explicit-HttpClient path
+    // (Apache5HttpClientBuilder.options(...)). Verify the client and store build without error.
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withOnlyMaxConnections_buildsSuccessfully() {
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withoutConnectionPoolConfig_buildsSuccessfully() {
+    // Neither knob set — the SDK builds its own default client (no behavior change). Building
+    // must still succeed; combined with the toHttpClientOptions defaults test this guards the
+    // no-op path.
+    assertDoesNotThrow(() -> newRealClientBuilder().build());
   }
 }

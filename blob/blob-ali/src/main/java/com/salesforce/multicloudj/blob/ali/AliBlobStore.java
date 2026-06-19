@@ -38,6 +38,7 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -981,7 +982,25 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
       Duration readWriteTimeout =
           resolveReadWriteTimeout(builder.getRetryConfig(), builder.getSocketTimeout());
-      if (readWriteTimeout != null) {
+
+      // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
+      // not on the OSS client builder. When the caller sets either, build an explicit transport
+      // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
+      // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
+      // own default client and set readWriteTimeout directly, preserving the prior behavior.
+      if (builder.getMaxConnections() != null || builder.getIdleConnectionTimeout() != null) {
+        String proxyHost = builder.getProxyEndpoint() != null
+            ? builder.getProxyEndpoint().getHost() + ":" + builder.getProxyEndpoint().getPort()
+            : null;
+        clientBuilder.httpClient(
+            Apache5HttpClientBuilder.create()
+                .options(AliTransformer.toHttpClientOptions(
+                    proxyHost,
+                    readWriteTimeout,
+                    builder.getMaxConnections(),
+                    builder.getIdleConnectionTimeout()))
+                .build());
+      } else if (readWriteTimeout != null) {
         clientBuilder.readWriteTimeout(readWriteTimeout);
       }
 

@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.ali.async;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -61,6 +62,7 @@ import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -86,8 +88,12 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -1705,5 +1711,41 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.deleteDirectory("dir/").get());
     assertNotNull(ex.getCause());
+  }
+
+  // No withAsyncClient()/withSyncClient() — exercises the real client-construction path for both
+  // the async and sync sub-clients. Setters are called as statements (not chained) because the
+  // base BlobStoreBuilder setters return BlobStoreBuilder, not the Ali subtype.
+  private AliAsyncBlobStore.Builder newRealClientBuilder() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket(BUCKET);
+    builder.withRegion(REGION);
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withProxyEndpoint(URI.create("http://proxy.example.com:80"));
+    builder.withCredentialsOverrider(credsOverrider);
+    return builder;
+  }
+
+  @Test
+  void testBuildClients_withConnectionPoolConfig_buildsSuccessfully() {
+    // Setting maxConnections/idleConnectionTimeout routes both sub-clients through the explicit-
+    // HttpClient path (Apache5AsyncHttpClientBuilder / Apache5HttpClientBuilder). Verify both
+    // build without error.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    AsyncBlobStore built = builder.build();
+    assertNotNull(built);
+  }
+
+  @Test
+  void testBuildClients_withoutConnectionPoolConfig_buildsSuccessfully() {
+    // Neither knob set — both sub-clients use the SDK default (no behavior change).
+    assertDoesNotThrow(() -> newRealClientBuilder().build());
   }
 }
