@@ -48,6 +48,7 @@ import com.aliyun.sdk.service.oss2.retry.FixedDelayBackoff;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.retry.StandardRetryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.HttpClientOptions;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -800,6 +801,48 @@ public class AliTransformer {
       builder.backoffDelayer(backoff);
     }
 
+    return builder.build();
+  }
+
+  /**
+   * Builds {@link HttpClientOptions} carrying the transport settings MultiCloudJ exposes that map
+   * onto the OSS SDK's HTTP client. Only non-null inputs are applied; any option left unset keeps
+   * the SDK's own default, so a client built from these options behaves identically to the SDK
+   * default client for the unset fields.
+   *
+   * <p>The OSS SDK's {@code OSSClient}/{@code OSSAsyncClient} builders expose no connection-pool or
+   * idle-timeout setters directly; those live only on {@code HttpClientOptions}. Callers therefore
+   * build a transport client (sync {@code Apache5HttpClientBuilder} or async
+   * {@code Apache5AsyncHttpClientBuilder}) from these options and supply it via
+   * {@code .httpClient(...)}. Because supplying a client bypasses the SDK's own
+   * {@code toHttpClientOptions} derivation, the two transport fields the driver otherwise sets on
+   * the client builder ({@code proxyHost}, {@code readWriteTimeout}) must be passed in here so they
+   * are preserved. Reconciled against {@code alibabacloud-oss-v2:0.4.0}.
+   *
+   * @param proxyHost host:port proxy string, or null to leave unset
+   * @param readWriteTimeout resolved read/write timeout, or null to leave unset
+   * @param maxConnections max connection-pool size, or null to leave unset
+   * @param idleConnectionTimeout idle-connection (keep-alive) timeout, or null to leave unset
+   * @return the assembled {@link HttpClientOptions}
+   */
+  public static HttpClientOptions toHttpClientOptions(
+      String proxyHost,
+      Duration readWriteTimeout,
+      Integer maxConnections,
+      Duration idleConnectionTimeout) {
+    HttpClientOptions.Builder builder = HttpClientOptions.custom();
+    if (proxyHost != null) {
+      builder.proxyHost(proxyHost);
+    }
+    if (readWriteTimeout != null) {
+      builder.readWriteTimeout(readWriteTimeout);
+    }
+    if (maxConnections != null) {
+      builder.maxConnections(maxConnections);
+    }
+    if (idleConnectionTimeout != null) {
+      builder.keepAliveTimeout(idleConnectionTimeout);
+    }
     return builder.build();
   }
 
