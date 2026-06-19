@@ -72,6 +72,7 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -940,9 +941,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
-        java.time.Duration asyncReadWriteTimeout =
+        Duration asyncReadWriteTimeout =
             getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
-                ? java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout())
+                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
                 : getSocketTimeout();
         // Connection-pool size and idle-connection timeout are only settable via
         // HttpClientOptions, not on the async client builder. When the caller sets either, build
@@ -988,9 +989,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
-        java.time.Duration syncReadWriteTimeout =
+        Duration syncReadWriteTimeout =
             getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
-                ? java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout())
+                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
                 : getSocketTimeout();
         // Connection-pool size and idle-connection timeout are only settable via
         // HttpClientOptions, not on the sync client builder. When the caller sets either, build

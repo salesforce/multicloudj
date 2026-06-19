@@ -88,6 +88,7 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
 import com.salesforce.multicloudj.sts.model.CredentialsType;
 import com.salesforce.multicloudj.sts.model.StsCredentials;
@@ -1747,5 +1748,49 @@ public class AliAsyncBlobStoreTest {
   void testBuildClients_withoutConnectionPoolConfig_buildsSuccessfully() {
     // Neither knob set — both sub-clients use the SDK default (no behavior change).
     assertDoesNotThrow(() -> newRealClientBuilder().build());
+  }
+
+  @Test
+  void testBuildClients_withConnectionPoolConfigAndNoProxy_buildsSuccessfully() {
+    // Covers the proxyHost==null branch of the explicit-HttpClient path on both sub-clients
+    // (no proxy endpoint set).
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket(BUCKET);
+    builder.withRegion(REGION);
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withCredentialsOverrider(credsOverrider);
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildClients_withAttemptTimeout_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs but RetryConfig.attemptTimeout set — exercises the
+    // attemptTimeout-precedence path and the else-if readWriteTimeout fallback on both sub-clients.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withRetryConfig(RetryConfig.builder().maxAttempts(3).attemptTimeout(5000L).build());
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildClients_withSocketTimeoutOnly_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs, no attemptTimeout, but socketTimeout set — exercises the
+    // socketTimeout fallback in the readWriteTimeout resolution on both sub-clients.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withSocketTimeout(Duration.ofSeconds(30));
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildClients_withOnlyIdleConnectionTimeout_buildsSuccessfully() {
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
   }
 }

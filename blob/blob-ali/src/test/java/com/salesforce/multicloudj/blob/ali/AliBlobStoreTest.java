@@ -2040,10 +2040,44 @@ public class AliBlobStoreTest {
   }
 
   @Test
+  void testBuildOSSClient_withOnlyIdleConnectionTimeout_buildsSuccessfully() {
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
   void testBuildOSSClient_withoutConnectionPoolConfig_buildsSuccessfully() {
     // Neither knob set — the SDK builds its own default client (no behavior change). Building
     // must still succeed; combined with the toHttpClientOptions defaults test this guards the
     // no-op path.
     assertDoesNotThrow(() -> newRealClientBuilder().build());
+  }
+
+  @Test
+  void testBuildOSSClient_withConnectionPoolConfigAndNoProxy_buildsSuccessfully() {
+    // Covers the proxyHost==null branch of the explicit-HttpClient path (no proxy endpoint set).
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliBlobStore.Builder builder = new AliBlobStore.Builder();
+    builder.withBucket("bucket-1");
+    builder.withRegion("cn-shanghai");
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withCredentialsOverrider(credsOverrider);
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildOSSClient_withSocketTimeoutOnly_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs but a socketTimeout set — exercises the
+    // else-if readWriteTimeout fallback (default-client path with an explicit timeout).
+    AliBlobStore.Builder builder = newRealClientBuilder();
+    builder.withSocketTimeout(Duration.ofSeconds(30));
+    assertNotNull(builder.build());
   }
 }
