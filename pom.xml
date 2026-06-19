@@ -61,14 +61,14 @@
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <wiremock.version>3.13.2</wiremock.version>
         <lombok.version>1.18.36</lombok.version>
-        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpcore.version>4.4.16</httpcore.version>
         <httpasyncclient.version>4.1.5</httpasyncclient.version>
         <reactive-streams.version>1.0.4</reactive-streams.version>
         <eventstream.version>1.0.1</eventstream.version>
         <jmh.version>1.37</jmh.version>
-        <netty.version>4.1.132.Final</netty.version>
+        <netty.version>4.1.135.Final</netty.version>
         <jackson.version>2.18.6</jackson.version>
         <aws-sdk.version>2.42.40</aws-sdk.version>
         <commons-codec.version>1.16.0</commons-codec.version>
