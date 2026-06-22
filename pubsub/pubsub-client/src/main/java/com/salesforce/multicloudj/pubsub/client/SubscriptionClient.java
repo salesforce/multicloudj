@@ -48,9 +48,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       return subscription.receive();
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null; // Never reached due to exception propagation
+      throw subscription.mapException(t);
     }
   }
 
@@ -67,8 +65,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       subscription.sendAck(ackID);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -85,9 +82,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       return subscription.sendAcks(ackIDs);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return CompletableFuture.failedFuture(t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -105,8 +100,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       subscription.sendNack(ackID);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -126,8 +120,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       subscription.sendNack(ackID, visibilityTimeout);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -145,9 +138,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       return subscription.sendNacks(ackIDs);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return CompletableFuture.failedFuture(t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -165,9 +156,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       return subscription.sendNacks(ackIDs, visibilityTimeout);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return CompletableFuture.failedFuture(t);
+      throw subscription.mapException(t);
     }
   }
 
@@ -193,9 +182,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       return subscription.getAttributes();
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null; // Never reached due to exception propagation
+      throw subscription.mapException(t);
     }
   }
 
@@ -225,8 +212,7 @@ public class SubscriptionClient implements AutoCloseable {
     try {
       subscription.close();
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = subscription.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw subscription.mapException(t);
     }
   }
 

@@ -74,9 +74,7 @@ public class AsyncBucketClient implements AutoCloseable {
   }
 
   protected <T> T handleException(Throwable ex) {
-    Class<? extends SubstrateSdkException> exceptionClass = blobStore.getException(ex);
-    ExceptionHandler.handleAndPropagate(exceptionClass, ex);
-    return null;
+    throw blobStore.mapException(ex);
   }
 
   /**

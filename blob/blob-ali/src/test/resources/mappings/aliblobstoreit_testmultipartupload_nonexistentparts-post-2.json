@@ -1,0 +1,46 @@
+{
+  "id" : "8470d75f-1f96-4db0-90ff-6e5ac0a325d7",
+  "name" : "AliBlobStoreIT_testMultipartUpload_nonExistentParts-POST-2",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-nonExistentParts",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "73F26E07F6A94FEF92F438D34AFE2B3C"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>2</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part><Part><PartNumber>3</PartNumber><ETag>fakeEtag</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 400,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n  <Code>InvalidPart</Code>\n  <Message>One or more of the specified parts could not be found or the specified entity tag might not have matched the part's entity tag.</Message>\n  <RequestId>6A33040E3BC91B3739B58C95</RequestId>\n  <HostId>chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com</HostId>\n  <ETag>fakeEtag</ETag>\n  <PartNumber>3</PartNumber>\n  <UploadId>73F26E07F6A94FEF92F438D34AFE2B3C</UploadId>\n  <EC>0042-00000212</EC>\n  <RecommendDoc>https://api.aliyun.com/troubleshoot?q=0042-00000212</RecommendDoc>\n</Error>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A33040E3BC91B3739B58C95",
+      "x-oss-server-time" : "40",
+      "Server" : "AliyunOSS",
+      "x-oss-ec" : "0042-00000212",
+      "Date" : "Wed, 17 Jun 2026 20:31:10 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8470d75f-1f96-4db0-90ff-6e5ac0a325d7",
+  "persistent" : true,
+  "insertionIndex" : 152
+}

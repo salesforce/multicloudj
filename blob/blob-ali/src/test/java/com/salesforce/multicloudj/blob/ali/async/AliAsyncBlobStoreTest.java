@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.blob.ali.async;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -61,6 +62,7 @@ import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadResult;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
+import com.salesforce.multicloudj.blob.async.driver.AsyncBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
@@ -86,8 +88,13 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
+import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
+import com.salesforce.multicloudj.sts.model.CredentialsType;
+import com.salesforce.multicloudj.sts.model.StsCredentials;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -790,6 +797,55 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals("final-etag", response.getEtag());
+  }
+
+  @Test
+  void testCompleteMultipartUpload_surfacesHashCRC64AsChecksumValue() throws Exception {
+    // Async parity with the sync transformer: OSS's hashCRC64() (composite CRC64 over the
+    // assembled object) must flow through to MultipartUploadResponse.checksumValue.
+    CompleteMultipartUploadResultXml xml = mock(CompleteMultipartUploadResultXml.class);
+    when(xml.eTag()).thenReturn("\"final-etag\"");
+    CompleteMultipartUploadResult mockResult = mock(CompleteMultipartUploadResult.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(xml);
+    when(mockResult.hashCRC64()).thenReturn("14870085893817539781");
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET).key("mpu-key").id("upload-id-123").build();
+    List<UploadPartResponse> parts =
+        List.of(new UploadPartResponse(1, "part-etag-1", 1024));
+    MultipartUploadResponse response = store.completeMultipartUpload(mpu, parts).get();
+
+    assertEquals("final-etag", response.getEtag());
+    assertEquals("14870085893817539781", response.getChecksumValue(),
+        "Async path should surface hashCRC64() as MultipartUploadResponse.checksumValue");
+  }
+
+  @Test
+  void testCompleteMultipartUpload_nullHashCRC64_leavesChecksumValueNull() throws Exception {
+    // When OSS doesn't return a hashCRC64 (null), checksumValue stays null, not the literal
+    // String "null".
+    CompleteMultipartUploadResultXml xml = mock(CompleteMultipartUploadResultXml.class);
+    when(xml.eTag()).thenReturn("\"final-etag\"");
+    CompleteMultipartUploadResult mockResult = mock(CompleteMultipartUploadResult.class);
+    when(mockResult.completeMultipartUpload()).thenReturn(xml);
+    when(mockResult.hashCRC64()).thenReturn(null);
+    when(mockAsyncClient.completeMultipartUploadAsync(
+        any(CompleteMultipartUploadRequest.class),
+        any(OperationOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockResult));
+
+    MultipartUpload mpu = MultipartUpload.builder()
+        .bucket(BUCKET).key("mpu-key").id("upload-id-123").build();
+    List<UploadPartResponse> parts =
+        List.of(new UploadPartResponse(1, "part-etag-1", 1024));
+    MultipartUploadResponse response = store.completeMultipartUpload(mpu, parts).get();
+
+    assertEquals("final-etag", response.getEtag());
+    org.junit.jupiter.api.Assertions.assertNull(response.getChecksumValue());
   }
 
   @Test
@@ -1656,5 +1712,85 @@ public class AliAsyncBlobStoreTest {
     ExecutionException ex = assertThrows(ExecutionException.class,
         () -> store.deleteDirectory("dir/").get());
     assertNotNull(ex.getCause());
+  }
+
+  // No withAsyncClient()/withSyncClient() — exercises the real client-construction path for both
+  // the async and sync sub-clients. Setters are called as statements (not chained) because the
+  // base BlobStoreBuilder setters return BlobStoreBuilder, not the Ali subtype.
+  private AliAsyncBlobStore.Builder newRealClientBuilder() {
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket(BUCKET);
+    builder.withRegion(REGION);
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withProxyEndpoint(URI.create("http://proxy.example.com:80"));
+    builder.withCredentialsOverrider(credsOverrider);
+    return builder;
+  }
+
+  @Test
+  void testBuildClients_withConnectionPoolConfig_buildsSuccessfully() {
+    // Setting maxConnections/idleConnectionTimeout routes both sub-clients through the explicit-
+    // HttpClient path (Apache5AsyncHttpClientBuilder / Apache5HttpClientBuilder). Verify both
+    // build without error.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    AsyncBlobStore built = builder.build();
+    assertNotNull(built);
+  }
+
+  @Test
+  void testBuildClients_withoutConnectionPoolConfig_buildsSuccessfully() {
+    // Neither knob set — both sub-clients use the SDK default (no behavior change).
+    assertDoesNotThrow(() -> newRealClientBuilder().build());
+  }
+
+  @Test
+  void testBuildClients_withConnectionPoolConfigAndNoProxy_buildsSuccessfully() {
+    // Covers the proxyHost==null branch of the explicit-HttpClient path on both sub-clients
+    // (no proxy endpoint set).
+    StsCredentials creds = new StsCredentials("key-1", "secret-1", "token-1");
+    CredentialsOverrider credsOverrider =
+        new CredentialsOverrider.Builder(CredentialsType.SESSION)
+            .withSessionCredentials(creds)
+            .build();
+    AliAsyncBlobStore.Builder builder = new AliAsyncBlobStore.Builder();
+    builder.withBucket(BUCKET);
+    builder.withRegion(REGION);
+    builder.withEndpoint(URI.create("https://test.example.com"));
+    builder.withCredentialsOverrider(credsOverrider);
+    builder.withMaxConnections(64);
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
+  }
+
+  @Test
+  void testBuildClients_withAttemptTimeout_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs but RetryConfig.attemptTimeout set — exercises the
+    // attemptTimeout-precedence path and the else-if readWriteTimeout fallback on both sub-clients.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withRetryConfig(RetryConfig.builder().maxAttempts(3).attemptTimeout(5000L).build());
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildClients_withSocketTimeoutOnly_usesReadWriteTimeoutBranch() {
+    // No connection-pool knobs, no attemptTimeout, but socketTimeout set — exercises the
+    // socketTimeout fallback in the readWriteTimeout resolution on both sub-clients.
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withSocketTimeout(Duration.ofSeconds(30));
+    assertDoesNotThrow(builder::build);
+  }
+
+  @Test
+  void testBuildClients_withOnlyIdleConnectionTimeout_buildsSuccessfully() {
+    AliAsyncBlobStore.Builder builder = newRealClientBuilder();
+    builder.withIdleConnectionTimeout(Duration.ofSeconds(45));
+    assertNotNull(builder.build());
   }
 }

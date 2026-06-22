@@ -32,6 +32,8 @@ import com.alicloud.openservices.tablestore.model.StartLocalTransactionResponse;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
 import com.alicloud.openservices.tablestore.model.sql.SQLQueryRequest;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.ali.AliRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
@@ -89,25 +91,27 @@ public class AliDocStore extends AbstractDocStore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    // It's best to scan the stack list to some reasonable depth to find exceptions
-    // we look for in certain order.
-    // First check, if the exception being thrown is SubstrateSdkException, this means
-    // the exception has already been converted to our Sdk exception.
-    // Secondly, check the SdkClient exception and finally the exceptions from the server.
-    Set<Throwable> exceptions =
-        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toSet());
-    if (exceptions.stream().anyMatch(SubstrateSdkException.class::isInstance)) {
-      // the exception is already mapped to internal, just let it flow
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (exceptions.stream().anyMatch(TableStoreException.class::isInstance)) {
-      String errorCode = ((TableStoreException) t).getErrorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (exceptions.stream().anyMatch(ClientException.class::isInstance)
-        || exceptions.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
-      return InvalidArgumentException.class;
+  public SubstrateSdkException mapException(Throwable t) {
+    List<Throwable> causeChain =
+        ExceptionUtils.getThrowableList(t).stream().limit(5).collect(Collectors.toList());
+    Class<? extends SubstrateSdkException> exceptionClass;
+    Boolean retryableHint = null;
+    TableStoreException tableStoreException =
+        causeChain.stream()
+            .filter(TableStoreException.class::isInstance)
+            .map(TableStoreException.class::cast)
+            .findFirst()
+            .orElse(null);
+    if (tableStoreException != null) {
+      exceptionClass = ErrorCodeMapping.getException(tableStoreException.getErrorCode());
+      retryableHint = AliRetryClassifier.classifyByStatusCode(tableStoreException.getHttpStatus());
+    } else if (causeChain.stream().anyMatch(ClientException.class::isInstance)
+        || causeChain.stream().anyMatch(IllegalArgumentException.class::isInstance)) {
+      exceptionClass = InvalidArgumentException.class;
+    } else {
+      exceptionClass = UnknownException.class;
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, retryableHint);
   }
 
   public static class Builder extends AbstractDocStore.Builder<AliDocStore, Builder> {

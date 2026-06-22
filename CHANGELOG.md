@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.4.0](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.6...multicloudj-v0.4.0) (2026-06-19)
+
+
+### Features
+
+* onboard retryable hints in exceptions ([#490](https://github.com/salesforce/multicloudj/issues/490)) ([97df2c0](https://github.com/salesforce/multicloudj/commit/97df2c081048d756214d5fac761a6b95cf0511fd))
+
+
+### Blob Store
+
+* add prefix-scope validation for bucket existence ([#470](https://github.com/salesforce/multicloudj/issues/470)) ([e64e363](https://github.com/salesforce/multicloudj/commit/e64e363e7f30d0480cf4e84040186eadbc2ddd06))
+* add transfer status logging for Ali OSS async directory ops ([#473](https://github.com/salesforce/multicloudj/issues/473)) ([9af963f](https://github.com/salesforce/multicloudj/commit/9af963f15653d23dc7f1a298df29b1419d1ee815))
+* add WireMock recordings for Ali presign v2 conformance tests ([#497](https://github.com/salesforce/multicloudj/issues/497)) ([6f84aef](https://github.com/salesforce/multicloudj/commit/6f84aefc4df308564fea987e27268ce08552c6a1))
+* enable Ali OSS multipart-upload helper tier + SSE-KMS conformance tests ([#494](https://github.com/salesforce/multicloudj/issues/494)) ([9a1ba47](https://github.com/salesforce/multicloudj/commit/9a1ba47f884efe76bbeded891e3f4f7efb21b1a9))
+* enable multipart upload conformance tests for Ali ([#492](https://github.com/salesforce/multicloudj/issues/492)) ([061a68f](https://github.com/salesforce/multicloudj/commit/061a68f33eea9c518742eefa596b45660d58518a))
+* enable presign v2 positive conformance tests for Ali ([#495](https://github.com/salesforce/multicloudj/issues/495)) ([e03b5c9](https://github.com/salesforce/multicloudj/commit/e03b5c9433b43f4431df15bb9d020aac575ffc67))
+* enable testCopy and testCopyFrom conformance tests for Ali ([#491](https://github.com/salesforce/multicloudj/issues/491)) ([1dd29c2](https://github.com/salesforce/multicloudj/commit/1dd29c2880739ed1ac065bcd5d75e2ab112924d5))
+* gate Ali directory conformance tests on the capability flag ([#493](https://github.com/salesforce/multicloudj/issues/493)) ([b2ae6dd](https://github.com/salesforce/multicloudj/commit/b2ae6dd38e50a37edcf41f39fa7985143e921dbe))
+* honor contentDisposition on Ali OSS presigned download URLs ([#484](https://github.com/salesforce/multicloudj/issues/484)) ([5afc04a](https://github.com/salesforce/multicloudj/commit/5afc04a6afedc9d30b59cc6d5348fb5ebc5d2bc8))
+* honor useKmsManagedKey on Ali OSS upload ([#485](https://github.com/salesforce/multicloudj/issues/485)) ([9cdd8df](https://github.com/salesforce/multicloudj/commit/9cdd8dfa2b0d80db8431e77071a2b6d28d5dd8ad))
+* implement checkArchived for Ali OSS (delete-marker detection) ([#480](https://github.com/salesforce/multicloudj/issues/480)) ([aaf4c0a](https://github.com/salesforce/multicloudj/commit/aaf4c0a92e54531f7dd8b7ea6ba293aa244640f8))
+* populate lastModified timestamp in BlobInfo for Ali list API ([#474](https://github.com/salesforce/multicloudj/issues/474)) ([1d87e44](https://github.com/salesforce/multicloudj/commit/1d87e440019858c11d479652e51d3e78f923aebb))
+* populate objectLockInfo in BlobMetadata for Ali ([#481](https://github.com/salesforce/multicloudj/issues/481)) ([693f703](https://github.com/salesforce/multicloudj/commit/693f703b9e330ca34c9bfa6a3e77fbec4449ab48))
+* presigned URL v2 — upload constraint binding + signed headers ([#468](https://github.com/salesforce/multicloudj/issues/468)) ([a3bcaf2](https://github.com/salesforce/multicloudj/commit/a3bcaf2b328019fcb62cdd4e5d332abcf60ccb4a))
+* replace inline fully-qualified class names with imports in Ali blob tests ([#498](https://github.com/salesforce/multicloudj/issues/498)) ([d0d0248](https://github.com/salesforce/multicloudj/commit/d0d0248e4f72b5502169f7cf0ee721bf2372a0c0))
+* surface composite CRC64 checksum on Ali multipart upload completion ([#482](https://github.com/salesforce/multicloudj/issues/482)) ([f5ee081](https://github.com/salesforce/multicloudj/commit/f5ee08197d0f274614c05c8d0a5e16df2f933897))
+* throw typed exception for unsupported Ali object lock retention mode upgrade ([#479](https://github.com/salesforce/multicloudj/issues/479)) ([d0d7434](https://github.com/salesforce/multicloudj/commit/d0d743464f4c10bab99ad7f5cb101a96f00baada))
+* update the netty dependencies ([#499](https://github.com/salesforce/multicloudj/issues/499)) ([8ea95d6](https://github.com/salesforce/multicloudj/commit/8ea95d624816e865c4275b2e96ddb4705a5c6821))
+* wire maxConnections and idleConnectionTimeout into the Ali OSS client ([#496](https://github.com/salesforce/multicloudj/issues/496)) ([b3deb52](https://github.com/salesforce/multicloudj/commit/b3deb526c73977749713ebc951492aea854e85cd))
+* wire socketTimeout into the Ali OSS sync client builder ([#486](https://github.com/salesforce/multicloudj/issues/486)) ([7c96f24](https://github.com/salesforce/multicloudj/commit/7c96f243c0c593b7a604e2ad66053bd6ec3cdd80))
+
 ## [0.3.6](https://github.com/salesforce/multicloudj/compare/multicloudj-v0.3.5...multicloudj-v0.3.6) (2026-06-05)
 
 

@@ -232,11 +232,10 @@ public class GcpStsTest {
   }
 
   @Test
-  public void testGetExceptionWithNonApiException() {
+  public void testMapExceptionWithNonApiException() {
     GcpSts sts = new GcpSts().builder().build(mockGoogleCredentials);
-    Class<? extends SubstrateSdkException> exceptionClass =
-        sts.getException(new RuntimeException("Test error"));
-    Assertions.assertEquals(UnknownException.class, exceptionClass);
+    SubstrateSdkException mapped = sts.mapException(new RuntimeException("Test error"));
+    Assertions.assertInstanceOf(UnknownException.class, mapped);
   }
 
   @Test
@@ -663,10 +662,10 @@ public class GcpStsTest {
     Mockito.when(apiException.getStatusCode()).thenReturn(mockStatusCode);
     Mockito.when(mockStatusCode.getCode()).thenReturn(statusCode);
 
-    Class<? extends SubstrateSdkException> actualExceptionClass = sts.getException(apiException);
-    Assertions.assertEquals(
+    SubstrateSdkException mapped = sts.mapException(apiException);
+    Assertions.assertInstanceOf(
         expectedExceptionClass,
-        actualExceptionClass,
+        mapped,
         "Expected " + expectedExceptionClass.getSimpleName() + " for status code " + statusCode);
   }
 

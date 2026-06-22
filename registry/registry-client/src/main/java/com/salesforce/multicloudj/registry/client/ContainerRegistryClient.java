@@ -32,9 +32,7 @@ public class ContainerRegistryClient implements AutoCloseable {
     try {
       return registry.pull(imageRef);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = registry.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw registry.mapException(t);
     }
   }
 
@@ -48,9 +46,7 @@ public class ContainerRegistryClient implements AutoCloseable {
     try {
       return registry.extract(image);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = registry.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw registry.mapException(t);
     }
   }
 

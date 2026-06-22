@@ -44,8 +44,7 @@ public class TopicClient implements AutoCloseable {
     try {
       topic.send(message);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = topic.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw topic.mapException(t);
     }
   }
 
@@ -63,8 +62,7 @@ public class TopicClient implements AutoCloseable {
     try {
       topic.close();
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = topic.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
+      throw topic.mapException(t);
     }
   }
 

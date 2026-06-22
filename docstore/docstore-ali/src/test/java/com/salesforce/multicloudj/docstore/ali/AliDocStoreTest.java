@@ -199,13 +199,14 @@ class AliDocStoreTest {
   }
 
   @Test
-  void testGetException() {
+  void testMapException() {
     AliDocStore docStore = new AliDocStore();
-    Class<?> clazz = docStore.getException(new ClientException("hello", ""));
-    Assertions.assertEquals(InvalidArgumentException.class, clazz);
+    Assertions.assertInstanceOf(
+        InvalidArgumentException.class, docStore.mapException(new ClientException("hello", "")));
 
-    clazz = docStore.getException(new TableStoreException("does-not-matter", "OTSAuthFailed"));
-    Assertions.assertEquals(UnAuthorizedException.class, clazz);
+    Assertions.assertInstanceOf(
+        UnAuthorizedException.class,
+        docStore.mapException(new TableStoreException("does-not-matter", "OTSAuthFailed")));
   }
 
   @Test
@@ -606,12 +607,10 @@ class AliDocStoreTest {
   @Test
   void testExceptionHandling() {
     TableStoreException tsException = new TableStoreException("test1", "OTSNoPermissionAccess");
-    Class<?> cls = ali.getException(tsException);
-    Assertions.assertEquals(cls, UnAuthorizedException.class);
+    Assertions.assertInstanceOf(UnAuthorizedException.class, ali.mapException(tsException));
 
     ClientException clientException = new ClientException();
-    cls = ali.getException(clientException);
-    Assertions.assertEquals(cls, InvalidArgumentException.class);
+    Assertions.assertInstanceOf(InvalidArgumentException.class, ali.mapException(clientException));
   }
 
   @Test

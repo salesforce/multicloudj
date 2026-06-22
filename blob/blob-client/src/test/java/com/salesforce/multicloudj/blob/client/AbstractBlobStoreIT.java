@@ -1455,8 +1455,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopy() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/blob-for-copying";
     String destKey = "conformance-tests/copied-blob";
     String blobToClobber = "conformance-tests/clobbered-blob";
@@ -1684,8 +1682,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testCopyFrom() throws IOException {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
-
     String key = "conformance-tests/blob-for-copyFrom";
     String destKey = "conformance-tests/copied-from-blob";
     String blobToClobber = "conformance-tests/clobbered-from-blob";
@@ -3289,7 +3285,6 @@ public abstract class AbstractBlobStoreIT {
   }
 
   private void runMultipartUploadTest(MultipartUploadTestConfig testConfig) {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     // Create the BucketClient
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -3559,7 +3554,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_invalidMultipartUpload() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3613,7 +3607,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_multipleMultipartUploadsForSameKey() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3646,7 +3639,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_completeAnAbortedUpload() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
 
@@ -3722,7 +3714,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withChecksum() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // Runs for all providers. Each substrate resolves its native composite-checksum algorithm
+    // from withChecksumEnabled(true): CRC32C on AWS/GCP, CRC64 on Ali. The harness computes the
+    // matching per-part checksum via the provider-specific computeChecksum() override.
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withChecksum";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -3767,11 +3761,10 @@ public abstract class AbstractBlobStoreIT {
       Assertions.assertNotNull(completeResponse);
       Assertions.assertNotNull(completeResponse.getEtag());
 
-      // For AWS/GCP, verify composite checksum is returned
-      if (!ALI_PROVIDER_ID.equals(harness.getProviderId())) {
-        Assertions.assertNotNull(completeResponse.getChecksumValue(),
-            "Expected composite checksum in complete response for " + harness.getProviderId());
-      }
+      // All providers surface a substrate-native composite checksum on completion
+      // (CRC32C on AWS/GCP, CRC64 on Ali).
+      Assertions.assertNotNull(completeResponse.getChecksumValue(),
+          "Expected composite checksum in complete response for " + harness.getProviderId());
 
       // Verify the blob exists and content is correct
       boolean exists = bucketClient.doesObjectExist(expectedKey, null);
@@ -4580,7 +4573,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_contentLengthBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-length-binding";
     byte[] content = "exact length content".getBytes(StandardCharsets.UTF_8);
 
@@ -4612,7 +4604,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_contentTypeBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/content-type-binding";
     byte[] content = "{\"test\": true}".getBytes(StandardCharsets.UTF_8);
 
@@ -4673,7 +4664,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_signedHeadersNonEmpty() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/signed-headers-present";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -4740,7 +4730,6 @@ public abstract class AbstractBlobStoreIT {
   @Test
   //@Disabled("Enable after recording: existing generatePresignedUrl still works unchanged")
   public void testPresignV2_backwardCompatibility() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/presign-v2/backward-compat";
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
@@ -5068,7 +5057,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withSha256Checksum() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     Assumptions.assumeTrue(
         harness.isSha256Supported(),
         "SHA256 checksum not supported by " + harness.getProviderId());
@@ -5138,7 +5126,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withContentType() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withContentType";
     String contentType = "text/plain";
 
@@ -5285,7 +5272,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5349,7 +5335,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_withoutSubFolders(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
 
@@ -5405,7 +5390,6 @@ public abstract class AbstractBlobStoreIT {
   public void testUploadDirectory_withTags(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5452,7 +5436,6 @@ public abstract class AbstractBlobStoreIT {
   public void testDownloadDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5533,7 +5516,6 @@ public abstract class AbstractBlobStoreIT {
   public void testDeleteDirectory_basic(@TempDir Path tempDir) throws Exception {
     Assumptions.assumeTrue(
         harness.isDirectoryUploadSupported(), "Directory upload not supported by this provider");
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
 
     AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
     BucketClient bucketClient = new BucketClient(blobStore);
@@ -5662,10 +5644,10 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testMultipartUpload_withObjectLock() {
-    // Ali: WireMock cannot replay 5MB multipart part bodies (body regex matching fails on large
-    // binary payloads). This is a WireMock harness limitation, not an object lock issue —
-    // the test passes in record mode against live OSS.
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    // Ali: the recorded part-upload PUT stubs intentionally use empty bodyPatterns (no body
+    // matching) because WireMock's regex body matching fails on large (5MB) binary payloads.
+    // Requests are still uniquely matched by method + URL + query (uploadId/partNumber), so the
+    // test passes in both record and replay mode.
 
     String expectedKey = DEFAULT_MULTIPART_KEY_PREFIX + "withObjectLock";
     // Keep retainUntil in the future so record mode remains valid over time.

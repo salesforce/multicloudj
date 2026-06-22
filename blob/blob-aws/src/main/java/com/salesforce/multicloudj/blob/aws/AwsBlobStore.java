@@ -35,8 +35,6 @@ import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,7 +53,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -97,7 +94,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /** AWS implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
-public class AwsBlobStore extends AbstractBlobStore {
+public class AwsBlobStore extends AbstractBlobStore implements AwsSdkService {
   private final S3Client s3Client;
   private final AwsTransformer transformer;
 
@@ -124,24 +121,6 @@ public class AwsBlobStore extends AbstractBlobStore {
   @Override
   public Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof AwsServiceException) {
-      AwsServiceException awsServiceException = (AwsServiceException) t;
-      String requestId = awsServiceException.requestId();
-      if ((requestId == null || requestId.isEmpty()) && awsServiceException.statusCode() == 403) {
-        return UnAuthorizedException.class;
-      }
-      String errorCode = awsServiceException.awsErrorDetails().errorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof SdkClientException || t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
   }
 
   /**

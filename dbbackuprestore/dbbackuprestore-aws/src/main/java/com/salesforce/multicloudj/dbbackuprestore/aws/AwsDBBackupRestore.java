@@ -2,6 +2,8 @@ package com.salesforce.multicloudj.dbbackuprestore.aws;
 
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.aws.AwsConstants;
+import com.salesforce.multicloudj.common.aws.AwsRetryClassifier;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.util.UUID;
@@ -66,8 +68,9 @@ public class AwsDBBackupRestore extends AbstractDBBackupRestore {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    return ErrorCodeMapping.getException(t);
+  public SubstrateSdkException mapException(Throwable t) {
+    return ExceptionHandler.build(
+        ErrorCodeMapping.getException(t), t, AwsRetryClassifier.classify(t));
   }
 
   @Override
