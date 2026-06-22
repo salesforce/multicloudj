@@ -270,86 +270,10 @@ class GcpBlobStoreTest {
   }
 
   @Test
-  void testDoUpload_WithInputStream() {
+  void testDoUpload_WithInputStream() throws IOException {
     // Given
     UploadRequest uploadRequest =
         UploadRequest.builder().withKey(TEST_KEY).withContentLength(TEST_CONTENT.length).build();
-    UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getKmsTargetOptions(uploadRequest))
-            .thenReturn(new Storage.BlobTargetOption[0]);
-    when(mockStorage.create(
-            eq(mockBlobInfo), any(byte[].class), any(Storage.BlobTargetOption[].class)))
-            .thenReturn(mockBlob);
-    when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
-
-    // When
-    UploadResponse response =
-            gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT));
-
-    // Then
-    assertEquals(expectedResponse, response);
-    ArgumentCaptor<byte[]> contentCaptor = ArgumentCaptor.forClass(byte[].class);
-    verify(mockStorage).create(
-            eq(mockBlobInfo), contentCaptor.capture(), any(Storage.BlobTargetOption[].class));
-    assertArrayEquals(TEST_CONTENT, contentCaptor.getValue());
-    verify(mockTransformer).toUploadResponse(mockBlob);
-  }
-
-  @Test
-  void testDoUpload_WithInputStream_ThrowsException() throws IOException {
-    // Given
-    int declaredLength = TEST_CONTENT.length + 10;
-    UploadRequest uploadRequest =
-            UploadRequest.builder().withKey(TEST_KEY).withContentLength(declaredLength).build();
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-
-    var exception =
-        assertThrows(
-            com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
-            () -> gcpBlobStore.doUpload(
-                uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
-    assertEquals(
-        "UploadRequest contentLength does not match input stream length",
-        exception.getMessage());
-    verify(mockStorage, never())
-        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never())
-        .createFrom(
-            any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-  }
-
-  @Test
-  void testDoUpload_WithInputStream_ThrowsException_WhenStreamLongerThanDeclaredLength()
-      throws IOException {
-    int declaredLength = TEST_CONTENT.length - 1;
-    UploadRequest uploadRequest =
-        UploadRequest.builder().withKey(TEST_KEY).withContentLength(declaredLength).build();
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-
-    var exception =
-        assertThrows(
-            com.salesforce.multicloudj.common.exceptions.InvalidArgumentException.class,
-            () -> gcpBlobStore.doUpload(
-                uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
-    assertEquals(
-        "UploadRequest contentLength does not match input stream length",
-        exception.getMessage());
-    verify(mockStorage, never())
-        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never())
-        .createFrom(
-            any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class));
-  }
-
-  @Test
-  void testDoUpload_WithInputStream_UsesCreateFromWhenContentLengthUnknown() throws IOException {
-    // Given
-    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
     UploadResponse expectedResponse =
         UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
 
@@ -375,6 +299,23 @@ class GcpBlobStoreTest {
   }
 
   @Test
+  void testDoUpload_WithInputStream_ThrowsException() throws IOException {
+    // Given
+    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
+
+    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+            any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(new IOException("simulated IO error"));
+
+    assertThrows(
+        SubstrateSdkException.class,
+        () -> gcpBlobStore.doUpload(uploadRequest, new ByteArrayInputStream(TEST_CONTENT)));
+  }
+
+  @Test
   void testDoUpload_WithByteArray() throws IOException {
     // Given
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
@@ -387,10 +328,10 @@ class GcpBlobStoreTest {
             .build();
 
     when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getKmsTargetOptions(uploadRequest))
-        .thenReturn(new Storage.BlobTargetOption[0]);
-    when(mockStorage.create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class)))
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
@@ -399,78 +340,17 @@ class GcpBlobStoreTest {
 
     // Then
     assertEquals(expectedResponse, response);
-    verify(mockStorage).create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never()).createFrom(
-        any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never()).create(
+        any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     verify(mockTransformer).toUploadResponse(mockBlob);
   }
 
   @Test
-  void testDoUpload_WithFile_UsesDirectUpload() throws IOException {
+  void testDoUpload_WithFile() throws IOException {
     Path testFile = tempDir.resolve("test.txt");
     Files.write(testFile, TEST_CONTENT);
-
-    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
-
-    UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getKmsTargetOptions(uploadRequest))
-        .thenReturn(new Storage.BlobTargetOption[0]);
-    when(mockStorage.create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class)))
-        .thenReturn(mockBlob);
-    when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
-
-    // When
-    UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile.toFile());
-
-    // Then
-    assertEquals(expectedResponse, response);
-    verify(mockStorage).create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never())
-        .createFrom(any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class));
-    verify(mockTransformer).toUploadResponse(mockBlob);
-  }
-
-  @Test
-  void testDoUpload_WithPath_UsesDirectUpload() throws IOException {
-    Path testFile = tempDir.resolve("test.txt");
-    Files.write(testFile, TEST_CONTENT);
-
-    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
-
-    UploadResponse expectedResponse =
-        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
-
-    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getKmsTargetOptions(uploadRequest))
-        .thenReturn(new Storage.BlobTargetOption[0]);
-    when(mockStorage.create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class)))
-        .thenReturn(mockBlob);
-    when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
-
-    // When
-    UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile);
-
-    // Then
-    assertEquals(expectedResponse, response);
-    verify(mockStorage).create(
-        eq(mockBlobInfo), eq(TEST_CONTENT), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never())
-        .createFrom(any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class));
-    verify(mockTransformer).toUploadResponse(mockBlob);
-  }
-
-  @Test
-  void testDoUpload_WithPath_LargeFile_UsesResumableUpload() throws IOException {
-    byte[] largeContent = new byte[17 * 1024 * 1024];
-    Path testFile = tempDir.resolve("large.txt");
-    Files.write(testFile, largeContent);
 
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
@@ -485,10 +365,36 @@ class GcpBlobStoreTest {
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
 
-    // When
+    UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile.toFile());
+
+    assertEquals(expectedResponse, response);
+    verify(mockStorage).createFrom(
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never())
+        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
+    verify(mockTransformer).toUploadResponse(mockBlob);
+  }
+
+  @Test
+  void testDoUpload_WithPath() throws IOException {
+    Path testFile = tempDir.resolve("test.txt");
+    Files.write(testFile, TEST_CONTENT);
+
+    UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
+
+    UploadResponse expectedResponse =
+        UploadResponse.builder().key(TEST_KEY).versionId(TEST_VERSION_ID).eTag(TEST_ETAG).build();
+
+    when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+        eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class)))
+        .thenReturn(mockBlob);
+    when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(expectedResponse);
+
     UploadResponse response = gcpBlobStore.doUpload(uploadRequest, testFile);
 
-    // Then
     assertEquals(expectedResponse, response);
     verify(mockStorage).createFrom(
         eq(mockBlobInfo), eq(testFile), any(Storage.BlobWriteOption[].class));
@@ -504,8 +410,12 @@ class GcpBlobStoreTest {
     UploadRequest uploadRequest = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(uploadRequest)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(uploadRequest))
+        .thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+            any(BlobInfo.class), eq(missingFile), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(new IOException("simulated IO error"));
 
-    // When & Then
     SubstrateSdkException exception =
         assertThrows(
             SubstrateSdkException.class,
@@ -632,24 +542,26 @@ class GcpBlobStoreTest {
 
   @Test
   void testDoDownload_WithByteArray() {
-    // Given
-    DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
+    try (MockedStatic<ByteStreams> ignored = Mockito.mockStatic(ByteStreams.class)) {
+      // Given
+      DownloadRequest downloadRequest = DownloadRequest.builder().withKey(TEST_KEY).build();
 
-    DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
+      DownloadResponse expectedResponse = DownloadResponse.builder().key(TEST_KEY).build();
 
-    when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
-    when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
-    when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
-        .thenReturn(expectedResponse);
+      when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
+      when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
+      when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+      when(mockTransformer.toDownloadResponse(mockBlob)).thenReturn(expectedResponse);
 
-    ByteArray byteArray = new ByteArray();
+      ByteArray byteArray = new ByteArray();
 
-    // When
-    DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, byteArray);
+      // When
+      DownloadResponse response = gcpBlobStore.doDownload(downloadRequest, byteArray);
 
-    // Then
-    assertEquals(expectedResponse, response);
+      // Then
+      assertEquals(expectedResponse, response);
+      assertNotNull(byteArray.getBytes());
+    }
   }
 
   @Test
@@ -1856,7 +1768,10 @@ class GcpBlobStoreTest {
 
     when(mockTransformer.toBlobId(downloadRequest)).thenReturn(mockBlobId);
     when(mockStorage.get(mockBlobId)).thenReturn(mockBlob);
-    when(mockStorage.reader(mockBlobId)).thenReturn(mockReadChannel);
+    when(mockBlob.reader()).thenReturn(mockReadChannel);
+    when(mockBlob.getSize()).thenReturn(100L);
+    when(mockTransformer.computeRange(null, null, 100L))
+        .thenReturn(new ImmutablePair<>(null, null));
     when(mockTransformer.toDownloadResponse(eq(mockBlob), any(InputStream.class)))
         .thenAnswer(invocation -> DownloadResponse.builder()
             .key(TEST_KEY)
@@ -1868,7 +1783,7 @@ class GcpBlobStoreTest {
     assertEquals(TEST_KEY, response.getKey());
     assertNotNull(response.getInputStream());
     verify(mockStorage).get(mockBlobId);
-    verify(mockStorage).reader(mockBlobId);
+    verify(mockBlob).reader();
     verify(mockTransformer).toDownloadResponse(eq(mockBlob), any(InputStream.class));
   }
 
@@ -2137,10 +2052,10 @@ class GcpBlobStoreTest {
       UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-      when(mockTransformer.getKmsTargetOptions(request))
-          .thenReturn(new Storage.BlobTargetOption[0]);
-      when(mockStorage.create(
-          any(BlobInfo.class), eq(new byte[0]), any(Storage.BlobTargetOption[].class)))
+      when(mockTransformer.getBlobWriteOptions(request))
+          .thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockStorage.createFrom(
+          any(BlobInfo.class), eq(tempFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -2148,9 +2063,9 @@ class GcpBlobStoreTest {
 
       assertNotNull(response);
       verify(mockStorage)
-          .create(any(BlobInfo.class), eq(new byte[0]), any(Storage.BlobTargetOption[].class));
+          .createFrom(any(BlobInfo.class), eq(tempFile), any(Storage.BlobWriteOption[].class));
       verify(mockStorage, never())
-          .createFrom(any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class));
+          .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     } finally {
       Files.deleteIfExists(tempFile);
     }
@@ -2162,12 +2077,14 @@ class GcpBlobStoreTest {
     UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
+    when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+            any(BlobInfo.class), eq(nonExistentFile), any(Storage.BlobWriteOption[].class)))
+        .thenThrow(new IOException("file not found"));
 
     assertThrows(
         SubstrateSdkException.class,
-        () -> {
-          gcpBlobStore.doUpload(request, nonExistentFile);
-        });
+        () -> gcpBlobStore.doUpload(request, nonExistentFile));
   }
 
   @Test
@@ -2176,19 +2093,19 @@ class GcpBlobStoreTest {
     UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
     when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-    when(mockTransformer.getKmsTargetOptions(request)).thenReturn(new Storage.BlobTargetOption[0]);
-    when(mockStorage.create(
-        any(BlobInfo.class), eq(emptyArray), any(Storage.BlobTargetOption[].class)))
+    when(mockTransformer.getBlobWriteOptions(request)).thenReturn(new Storage.BlobWriteOption[0]);
+    when(mockStorage.createFrom(
+        any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class)))
         .thenReturn(mockBlob);
     when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
     UploadResponse response = gcpBlobStore.doUpload(request, emptyArray);
 
     assertNotNull(response);
-    verify(mockStorage).create(
-        any(BlobInfo.class), eq(emptyArray), any(Storage.BlobTargetOption[].class));
-    verify(mockStorage, never()).createFrom(
+    verify(mockStorage).createFrom(
         any(BlobInfo.class), any(InputStream.class), any(Storage.BlobWriteOption[].class));
+    verify(mockStorage, never()).create(
+        any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
   }
 
   @Test
@@ -2198,10 +2115,10 @@ class GcpBlobStoreTest {
       UploadRequest request = UploadRequest.builder().withKey(TEST_KEY).build();
 
       when(mockTransformer.toBlobInfo(request)).thenReturn(mockBlobInfo);
-      when(mockTransformer.getKmsTargetOptions(request))
-          .thenReturn(new Storage.BlobTargetOption[0]);
-      when(mockStorage.create(
-          any(BlobInfo.class), eq(new byte[0]), any(Storage.BlobTargetOption[].class)))
+      when(mockTransformer.getBlobWriteOptions(request))
+          .thenReturn(new Storage.BlobWriteOption[0]);
+      when(mockStorage.createFrom(
+          any(BlobInfo.class), eq(emptyFile), any(Storage.BlobWriteOption[].class)))
           .thenReturn(mockBlob);
       when(mockTransformer.toUploadResponse(mockBlob)).thenReturn(mockUploadResponse);
 
@@ -2209,9 +2126,9 @@ class GcpBlobStoreTest {
 
       assertNotNull(response);
       verify(mockStorage)
-          .create(any(BlobInfo.class), eq(new byte[0]), any(Storage.BlobTargetOption[].class));
+          .createFrom(any(BlobInfo.class), eq(emptyFile), any(Storage.BlobWriteOption[].class));
       verify(mockStorage, never())
-          .createFrom(any(BlobInfo.class), any(Path.class), any(Storage.BlobWriteOption[].class));
+          .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     } finally {
       Files.deleteIfExists(emptyFile);
     }
