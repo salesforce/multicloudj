@@ -7,6 +7,7 @@ import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
 import com.salesforce.multicloudj.blob.driver.BlobInfo;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
 import com.salesforce.multicloudj.blob.driver.ByteArray;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyFromRequest;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
@@ -35,6 +36,7 @@ import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
+import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,8 +48,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -923,13 +928,24 @@ public class InMemoryBlobStore extends AbstractBlobStore {
   }
 
   private void validateChecksum(UploadRequest uploadRequest, byte[] content) {
-    if (uploadRequest.getChecksumValue() != null && !uploadRequest.getChecksumValue().isEmpty()) {
-      String actual = computeCrc32cChecksum(content);
-      if (!actual.equals(uploadRequest.getChecksumValue())) {
-        throw new InvalidArgumentException(
-            "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
-                + " but computed " + actual);
-      }
+    if (uploadRequest.getChecksumValue() == null || uploadRequest.getChecksumValue().isEmpty()) {
+      return;
+    }
+    ChecksumMethod algorithm = uploadRequest.getChecksumAlgorithm();
+    String actual;
+    if (algorithm == ChecksumMethod.MD5) {
+      actual = computeMd5Checksum(content);
+    } else if (algorithm == null || algorithm == ChecksumMethod.CRC32C) {
+      // CRC32C is the in-memory provider's native checksum and the cloud-agnostic default.
+      actual = computeCrc32cChecksum(content);
+    } else {
+      throw new UnSupportedOperationException(
+          algorithm + " checksum is not supported by the in-memory provider. Use CRC32C or MD5.");
+    }
+    if (!actual.equals(uploadRequest.getChecksumValue())) {
+      throw new InvalidArgumentException(
+          "Checksum mismatch: expected " + uploadRequest.getChecksumValue()
+              + " but computed " + actual);
     }
   }
 
@@ -950,7 +966,17 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     checksumBytes[1] = (byte) (value >> 16);
     checksumBytes[2] = (byte) (value >> 8);
     checksumBytes[3] = (byte) value;
-    return java.util.Base64.getEncoder().encodeToString(checksumBytes);
+    return Base64.getEncoder().encodeToString(checksumBytes);
+  }
+
+  private String computeMd5Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("MD5").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // MD5 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("MD5 algorithm not available", e);
+    }
   }
 
   private byte[] extractRange(byte[] data, Long start, Long end) {
