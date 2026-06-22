@@ -1206,4 +1206,56 @@ public class AliTransformerTest {
     assertEquals(defaults.maxConnections(), options.maxConnections(),
         "maxConnections must keep the SDK default when only idle timeout is set");
   }
+
+  @Test
+  void testToPutObjectRequest_md5_routesToContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
+    // MD5 must NOT also be written to the inert OSS hash headers.
+    assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
+    assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
+
+  @Test
+  void testToPutObjectRequest_crc64_stillUsesInertHeaderNotContentMd5() {
+    // Option B: non-MD5 algorithms are unchanged (routed to the OSS hash header, not Content-MD5).
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("12345")
+        .withChecksumAlgorithm(ChecksumMethod.CRC64)
+        .build();
+    com.aliyun.sdk.service.oss2.transport.BinaryData body =
+        com.aliyun.sdk.service.oss2.transport.BinaryData.fromBytes("data".getBytes());
+
+    var actual = transformer.toPutObjectRequest(request, body);
+
+    assertNull(actual.contentMd5());
+    assertEquals("12345", actual.headers().get("x-oss-hash-crc64ecma"));
+  }
+
+  @Test
+  void testToPresignedPutObjectRequest_md5_routesToContentMd5() {
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key("object-1")
+        .duration(Duration.ofHours(1))
+        .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .checksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    var actual = transformer.toPresignedPutObjectRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMd5());
+    assertNull(actual.headers().get("x-oss-hash-crc64ecma"));
+    assertNull(actual.headers().get("x-oss-content-sha256"));
+  }
 }
