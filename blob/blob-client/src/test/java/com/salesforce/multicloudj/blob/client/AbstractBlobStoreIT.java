@@ -4667,7 +4667,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_checksumCrc32cBinding() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/presign-v2/checksum-crc32c-binding";
     byte[] content = "checksum test data".getBytes(StandardCharsets.UTF_8);
 
@@ -4924,6 +4926,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithChecksumValidationInputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-checksum";
     byte[] content = "Test checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -4959,6 +4964,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithChecksumValidationFile() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-file-checksum";
     byte[] content = "Test checksum with File".getBytes(StandardCharsets.UTF_8);
 
@@ -5136,7 +5144,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumInputStream() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
     byte[] content = "Test invalid checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -5164,7 +5174,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumByteArray() {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-bytearray-invalid-checksum";
     byte[] content = "Test invalid checksum with byte array".getBytes(StandardCharsets.UTF_8);
 
@@ -5191,7 +5203,9 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidChecksumFile() throws Exception {
-    Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.CRC32C),
+        "CRC32C upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-file-invalid-checksum";
     byte[] content = "Test invalid checksum with File".getBytes(StandardCharsets.UTF_8);
 
