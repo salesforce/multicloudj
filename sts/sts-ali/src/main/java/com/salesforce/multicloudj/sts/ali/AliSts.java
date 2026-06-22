@@ -13,6 +13,7 @@ import com.aliyuncs.sts.model.v20150401.GetCallerIdentityRequest;
 import com.aliyuncs.sts.model.v20150401.GetCallerIdentityResponse;
 import com.aliyuncs.utils.EnvironmentUtils;
 import com.google.auto.service.AutoService;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
@@ -216,13 +217,15 @@ public class AliSts extends AbstractSts {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     // ali-yun has a wierd chain where ServerException extends the ClientException
     if (t instanceof ClientException) {
       String errorCode = ((ClientException) t).getErrCode();
-      return ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
+      exceptionClass = ERROR_MAPPING.getOrDefault(errorCode, UnknownException.class);
     }
-    return UnknownException.class;
+    // aliyuncs ClientException has no status/retry signal; rely on type-default retryability.
+    return ExceptionHandler.build(exceptionClass, t, null);
   }
 
   // The common error codes as source of truth is here:

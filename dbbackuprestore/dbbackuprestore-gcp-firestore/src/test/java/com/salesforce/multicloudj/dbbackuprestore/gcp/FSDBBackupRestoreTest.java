@@ -1,6 +1,7 @@
 package com.salesforce.multicloudj.dbbackuprestore.gcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -296,38 +297,37 @@ public class FSDBBackupRestoreTest {
   }
 
   @Test
-  void testGetException() {
-    // Test non-ApiException cases - should map to UnknownException
-    assertEquals(
+  void testMapException() {
+    assertInstanceOf(
         UnknownException.class,
-        dbBackupRestore.getException(new RuntimeException("Generic error")));
+        dbBackupRestore.mapException(new RuntimeException("Generic error")));
 
-    // Test ApiException with NOT_FOUND -> ResourceNotFoundException
     ApiException apiException = org.mockito.Mockito.mock(ApiException.class);
     StatusCode mockStatusCode = org.mockito.Mockito.mock(StatusCode.class);
     when(apiException.getStatusCode()).thenReturn(mockStatusCode);
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.NOT_FOUND);
-    assertEquals(ResourceNotFoundException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        ResourceNotFoundException.class, dbBackupRestore.mapException(apiException));
 
-    // Test ApiException with ALREADY_EXISTS -> ResourceAlreadyExistsException
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.ALREADY_EXISTS);
-    assertEquals(ResourceAlreadyExistsException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        ResourceAlreadyExistsException.class, dbBackupRestore.mapException(apiException));
 
-    // Test ApiException with PERMISSION_DENIED -> UnAuthorizedException
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.PERMISSION_DENIED);
-    assertEquals(UnAuthorizedException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        UnAuthorizedException.class, dbBackupRestore.mapException(apiException));
 
-    // Test ApiException with UNAUTHENTICATED -> UnAuthorizedException
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.UNAUTHENTICATED);
-    assertEquals(UnAuthorizedException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        UnAuthorizedException.class, dbBackupRestore.mapException(apiException));
 
-    // Test ApiException with INTERNAL -> UnknownException
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.INTERNAL);
-    assertEquals(UnknownException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        UnknownException.class, dbBackupRestore.mapException(apiException));
 
-    // Test ApiException with INVALID_ARGUMENT -> UnknownException
     when(mockStatusCode.getCode()).thenReturn(StatusCode.Code.INVALID_ARGUMENT);
-    assertEquals(UnknownException.class, dbBackupRestore.getException(apiException));
+    assertInstanceOf(
+        UnknownException.class, dbBackupRestore.mapException(apiException));
   }
 
   @Test

@@ -111,7 +111,7 @@ public class AliStsTest {
   @Test
   public void testRuntimeExceptionType() {
     AliSts sts = new AliSts().builder().build(mockStsClient);
-    Assertions.assertEquals(UnknownException.class, sts.getException(new RuntimeException()));
+    Assertions.assertInstanceOf(UnknownException.class, sts.mapException(new RuntimeException()));
   }
 
   @Test

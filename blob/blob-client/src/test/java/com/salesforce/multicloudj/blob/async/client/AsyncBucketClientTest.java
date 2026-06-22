@@ -43,7 +43,6 @@ import com.salesforce.multicloudj.blob.driver.PresignedUrlRequest;
 import com.salesforce.multicloudj.blob.driver.UploadPartResponse;
 import com.salesforce.multicloudj.blob.driver.UploadRequest;
 import com.salesforce.multicloudj.blob.driver.UploadResponse;
-import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.retries.RetryConfig;
 import com.salesforce.multicloudj.sts.model.CredentialsOverrider;
@@ -77,16 +76,11 @@ public class AsyncBucketClientTest {
   private AsyncBucketClient client;
 
   private MockedStatic<ProviderSupplier> providerSupplier;
-  private MockedStatic<ExceptionHandler> mockedExceptionHandler;
 
   @BeforeEach
   void setup() {
-    mockedExceptionHandler = mockStatic(ExceptionHandler.class);
-    mockedExceptionHandler
-        .when(() -> ExceptionHandler.handleAndPropagate(any(), any()))
-        .thenThrow(UnAuthorizedException.class);
-
     mockBlobStore = mock(AsyncBlobStore.class);
+    doReturn(new UnAuthorizedException()).when(mockBlobStore).mapException(any());
     providerSupplier = mockStatic(ProviderSupplier.class);
     AsyncBlobStoreProvider.Builder mockBuilder = mock(AsyncBlobStoreProvider.Builder.class);
     when(mockBuilder.build()).thenReturn(mockBlobStore);
@@ -121,10 +115,6 @@ public class AsyncBucketClientTest {
   void testdown() {
     if (providerSupplier != null) {
       providerSupplier.close();
-    }
-
-    if (mockedExceptionHandler != null) {
-      mockedExceptionHandler.close();
     }
   }
 

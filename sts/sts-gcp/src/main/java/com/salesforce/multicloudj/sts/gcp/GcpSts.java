@@ -22,6 +22,7 @@ import com.google.auth.oauth2.IdTokenProvider;
 import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.common.exceptions.DeadlineExceededException;
+import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.FailedPreconditionException;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceAlreadyExistsException;
@@ -32,6 +33,7 @@ import com.salesforce.multicloudj.common.exceptions.UnAuthorizedException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
+import com.salesforce.multicloudj.common.gcp.GcpRetryClassifier;
 import com.salesforce.multicloudj.sts.driver.AbstractSts;
 import com.salesforce.multicloudj.sts.model.AssumeRoleWebIdentityRequest;
 import com.salesforce.multicloudj.sts.model.AssumedRoleRequest;
@@ -390,13 +392,15 @@ public class GcpSts extends AbstractSts {
   }
 
   @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
+  public SubstrateSdkException mapException(Throwable t) {
+    Class<? extends SubstrateSdkException> exceptionClass = UnknownException.class;
     if (t instanceof ApiException) {
-      ApiException exception = (ApiException) t;
-      StatusCode statusCode = exception.getStatusCode();
-      return ERROR_MAPPING.getOrDefault(statusCode.getCode(), UnknownException.class);
+      StatusCode statusCode = ((ApiException) t).getStatusCode();
+      if (statusCode != null) {
+        exceptionClass = ERROR_MAPPING.getOrDefault(statusCode.getCode(), UnknownException.class);
+      }
     }
-    return UnknownException.class;
+    return ExceptionHandler.build(exceptionClass, t, GcpRetryClassifier.classify(t));
   }
 
   private static final Map<StatusCode.Code, Class<? extends SubstrateSdkException>> ERROR_MAPPING =

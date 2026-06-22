@@ -3,8 +3,6 @@ package com.salesforce.multicloudj.blob.ali;
 import com.aliyun.sdk.service.oss2.OSSClient;
 import com.aliyun.sdk.service.oss2.OperationOptions;
 import com.aliyun.sdk.service.oss2.credentials.CredentialsProvider;
-import com.aliyun.sdk.service.oss2.exceptions.OperationException;
-import com.aliyun.sdk.service.oss2.exceptions.ServiceException;
 import com.aliyun.sdk.service.oss2.models.ListBucketsRequest;
 import com.aliyun.sdk.service.oss2.models.ListBucketsResult;
 import com.aliyun.sdk.service.oss2.models.PutBucketRequest;
@@ -12,9 +10,7 @@ import com.salesforce.multicloudj.blob.driver.AbstractBlobClient;
 import com.salesforce.multicloudj.blob.driver.BucketInfo;
 import com.salesforce.multicloudj.blob.driver.ListBucketsResponse;
 import com.salesforce.multicloudj.common.ali.AliConstants;
-import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
 import java.util.stream.Collectors;
 
@@ -25,7 +21,7 @@ import java.util.stream.Collectors;
  * <p>This class provides methods to access Ali resources using Alibaba OSS JDK to interact with the
  * OSS service.
  */
-public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
+public class AliBlobClient extends AbstractBlobClient<AliBlobClient> implements AliSdkService {
   private OSSClient ossClient;
 
   /**
@@ -94,29 +90,6 @@ public class AliBlobClient extends AbstractBlobClient<AliBlobClient> {
   @Override
   public Provider.Builder builder() {
     return new AliBlobStore.Builder();
-  }
-
-  /** Returns the appropriate SubstrateSdkException subclass for the given Throwable. */
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof OperationException) {
-      Throwable cause = t.getCause();
-      if (cause instanceof ServiceException) {
-        String errorCode =
-            ((ServiceException) cause).errorCode();
-        return ErrorCodeMapping.getException(errorCode);
-      }
-      return UnknownException.class;
-    } else if (t instanceof ServiceException) {
-      String errorCode =
-          ((ServiceException) t).errorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
   }
 
   /** Closes the underlying OSS client and releases any resources. */

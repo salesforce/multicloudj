@@ -38,6 +38,7 @@ import com.aliyun.sdk.service.oss2.models.UploadPartRequest;
 import com.aliyun.sdk.service.oss2.models.UploadPartResult;
 import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.google.auto.service.AutoService;
 import com.salesforce.multicloudj.blob.driver.AbstractBlobStore;
 import com.salesforce.multicloudj.blob.driver.BlobIdentifier;
@@ -75,6 +76,7 @@ import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
 import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import com.salesforce.multicloudj.common.provider.Provider;
+import com.salesforce.multicloudj.common.retries.RetryConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -92,7 +94,7 @@ import lombok.Getter;
 
 /** Alibaba implementation of BlobStore */
 @AutoService(AbstractBlobStore.class)
-public class AliBlobStore extends AbstractBlobStore {
+public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
   private final OSSClient ossClient;
   private final AliTransformer transformer;
@@ -110,28 +112,6 @@ public class AliBlobStore extends AbstractBlobStore {
   @Override
   public Provider.Builder builder() {
     return new Builder();
-  }
-
-  @Override
-  public Class<? extends SubstrateSdkException> getException(Throwable t) {
-    if (t instanceof SubstrateSdkException) {
-      return (Class<? extends SubstrateSdkException>) t.getClass();
-    } else if (t instanceof OperationException) {
-      Throwable cause = t.getCause();
-      if (cause instanceof ServiceException) {
-        String errorCode =
-            ((ServiceException) cause).errorCode();
-        return ErrorCodeMapping.getException(errorCode);
-      }
-      return UnknownException.class;
-    } else if (t instanceof ServiceException) {
-      String errorCode =
-          ((ServiceException) t).errorCode();
-      return ErrorCodeMapping.getException(errorCode);
-    } else if (t instanceof IllegalArgumentException) {
-      return InvalidArgumentException.class;
-    }
-    return UnknownException.class;
   }
 
   /**
@@ -635,6 +615,7 @@ public class AliBlobStore extends AbstractBlobStore {
    */
   @Override
   protected MultipartUpload doInitiateMultipartUpload(final MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     InitiateMultipartUploadRequest ossRequest =
         transformer.toInitiateMultipartUploadRequest(request);
     InitiateMultipartUploadResult result =
@@ -679,8 +660,11 @@ public class AliBlobStore extends AbstractBlobStore {
     // OSS does not support object lock headers on multipart initiation, so apply retention
     // and legal hold after the object is assembled.
     applyObjectLockAfterUpload(mpu.getKey(), result.versionId(), mpu.getObjectLock());
+    // OSS computes a CRC64 over the assembled object and returns it on the result; surface it
+    // as the cross-cloud composite checksum on MultipartUploadResponse.
     return new MultipartUploadResponse(
-        stripQuotes(result.completeMultipartUpload().eTag()));
+        stripQuotes(result.completeMultipartUpload().eTag()),
+        result.hashCRC64());
   }
 
   /**
@@ -994,13 +978,46 @@ public class AliBlobStore extends AbstractBlobStore {
         if (retryer != null) {
           clientBuilder.retryer(retryer);
         }
-        if (builder.getRetryConfig().getAttemptTimeout() != null) {
-          clientBuilder.readWriteTimeout(
-              Duration.ofMillis(builder.getRetryConfig().getAttemptTimeout()));
-        }
+      }
+
+      Duration readWriteTimeout =
+          resolveReadWriteTimeout(builder.getRetryConfig(), builder.getSocketTimeout());
+
+      // Connection-pool size and idle-connection timeout are only settable via HttpClientOptions,
+      // not on the OSS client builder. When the caller sets either, build an explicit transport
+      // client from those options (carrying proxyHost + readWriteTimeout forward so nothing the
+      // builder would otherwise set is lost). When neither is set, leave the SDK to construct its
+      // own default client and set readWriteTimeout directly, preserving the prior behavior.
+      if (builder.getMaxConnections() != null || builder.getIdleConnectionTimeout() != null) {
+        String proxyHost = builder.getProxyEndpoint() != null
+            ? builder.getProxyEndpoint().getHost() + ":" + builder.getProxyEndpoint().getPort()
+            : null;
+        clientBuilder.httpClient(
+            Apache5HttpClientBuilder.create()
+                .options(AliTransformer.toHttpClientOptions(
+                    proxyHost,
+                    readWriteTimeout,
+                    builder.getMaxConnections(),
+                    builder.getIdleConnectionTimeout()))
+                .build());
+      } else if (readWriteTimeout != null) {
+        clientBuilder.readWriteTimeout(readWriteTimeout);
       }
 
       return clientBuilder.build();
+    }
+
+    /**
+     * Resolves the value for the Ali SDK's single {@code readWriteTimeout} setting from the two
+     * MultiCloudJ inputs that map onto it. {@code RetryConfig.attemptTimeout} (the more specific
+     * per-attempt deadline) takes precedence over the transport-level {@code socketTimeout}; if
+     * neither is set, returns {@code null} so the SDK default is left in place.
+     */
+    static Duration resolveReadWriteTimeout(RetryConfig retryConfig, Duration socketTimeout) {
+      if (retryConfig != null && retryConfig.getAttemptTimeout() != null) {
+        return Duration.ofMillis(retryConfig.getAttemptTimeout());
+      }
+      return socketTimeout;
     }
 
     @Override

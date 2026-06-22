@@ -21,6 +21,8 @@ import com.aliyun.sdk.service.oss2.retry.Retryer;
 import com.aliyun.sdk.service.oss2.transfermanager.DownloadError;
 import com.aliyun.sdk.service.oss2.transfermanager.Downloader;
 import com.aliyun.sdk.service.oss2.transport.BinaryData;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5AsyncHttpClientBuilder;
+import com.aliyun.sdk.service.oss2.transport.apache5client.Apache5HttpClientBuilder;
 import com.salesforce.multicloudj.blob.ali.AliSdkService;
 import com.salesforce.multicloudj.blob.ali.AliTransformer;
 import com.salesforce.multicloudj.blob.ali.AliTransformerSupplier;
@@ -70,6 +72,7 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -478,6 +481,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
   @Override
   protected CompletableFuture<MultipartUpload> doInitiateMultipartUpload(
       MultipartUploadRequest request) {
+    AliTransformer.rejectUnsupportedChecksum(request.getChecksumAlgorithm());
     return asyncClient
         .initiateMultipartUploadAsync(
             transformer.toInitiateMultipartUploadRequest(request),
@@ -502,8 +506,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .completeMultipartUploadAsync(
             transformer.toCompleteMultipartUploadRequest(mpu, parts),
             OperationOptions.defaults())
+        // OSS computes a CRC64 over the assembled object and returns it on the result; surface
+        // it as the cross-cloud composite checksum on MultipartUploadResponse.
         .thenApply(result -> new MultipartUploadResponse(
-            stripQuotes(result.completeMultipartUpload().eTag())));
+            stripQuotes(result.completeMultipartUpload().eTag()),
+            result.hashCRC64()));
   }
 
   @Override
@@ -934,12 +941,30 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
-        if (getRetryConfig() != null
-            && getRetryConfig().getAttemptTimeout() != null) {
-          asyncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
-        } else if (getSocketTimeout() != null) {
-          asyncBuilder.readWriteTimeout(getSocketTimeout());
+        Duration asyncReadWriteTimeout =
+            getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
+                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
+                : getSocketTimeout();
+        // Connection-pool size and idle-connection timeout are only settable via
+        // HttpClientOptions, not on the async client builder. When the caller sets either, build
+        // an explicit async transport client from those options (carrying proxyHost +
+        // readWriteTimeout forward so nothing the builder would otherwise set is lost). When
+        // neither is set, leave the SDK to construct its own default client and set
+        // readWriteTimeout directly, preserving the prior behavior.
+        if (getMaxConnections() != null || getIdleConnectionTimeout() != null) {
+          String proxyHost = getProxyEndpoint() != null
+              ? getProxyEndpoint().getHost() + ":" + getProxyEndpoint().getPort()
+              : null;
+          asyncBuilder.httpClient(
+              Apache5AsyncHttpClientBuilder.create()
+                  .options(AliTransformer.toHttpClientOptions(
+                      proxyHost,
+                      asyncReadWriteTimeout,
+                      getMaxConnections(),
+                      getIdleConnectionTimeout()))
+                  .build());
+        } else if (asyncReadWriteTimeout != null) {
+          asyncBuilder.readWriteTimeout(asyncReadWriteTimeout);
         }
         async = asyncBuilder.build();
       }
@@ -964,12 +989,30 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         // single readWriteTimeout setting. When both are set, attemptTimeout (the
         // more specific per-attempt deadline) takes precedence over the
         // transport-level socketTimeout.
-        if (getRetryConfig() != null
-            && getRetryConfig().getAttemptTimeout() != null) {
-          syncBuilder.readWriteTimeout(
-              java.time.Duration.ofMillis(getRetryConfig().getAttemptTimeout()));
-        } else if (getSocketTimeout() != null) {
-          syncBuilder.readWriteTimeout(getSocketTimeout());
+        Duration syncReadWriteTimeout =
+            getRetryConfig() != null && getRetryConfig().getAttemptTimeout() != null
+                ? Duration.ofMillis(getRetryConfig().getAttemptTimeout())
+                : getSocketTimeout();
+        // Connection-pool size and idle-connection timeout are only settable via
+        // HttpClientOptions, not on the sync client builder. When the caller sets either, build
+        // an explicit sync transport client from those options (carrying proxyHost +
+        // readWriteTimeout forward so nothing the builder would otherwise set is lost). When
+        // neither is set, leave the SDK to construct its own default client and set
+        // readWriteTimeout directly, preserving the prior behavior.
+        if (getMaxConnections() != null || getIdleConnectionTimeout() != null) {
+          String proxyHost = getProxyEndpoint() != null
+              ? getProxyEndpoint().getHost() + ":" + getProxyEndpoint().getPort()
+              : null;
+          syncBuilder.httpClient(
+              Apache5HttpClientBuilder.create()
+                  .options(AliTransformer.toHttpClientOptions(
+                      proxyHost,
+                      syncReadWriteTimeout,
+                      getMaxConnections(),
+                      getIdleConnectionTimeout()))
+                  .build());
+        } else if (syncReadWriteTimeout != null) {
+          syncBuilder.readWriteTimeout(syncReadWriteTimeout);
         }
         sync = syncBuilder.build();
       }

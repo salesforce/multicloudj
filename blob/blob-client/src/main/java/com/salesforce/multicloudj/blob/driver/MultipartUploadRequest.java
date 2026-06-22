@@ -26,10 +26,12 @@ public class MultipartUploadRequest {
     this.tags = builder.tags;
     this.kmsKeyId = builder.kmsKeyId;
     this.useKmsManagedKey = builder.useKmsManagedKey;
-    this.checksumAlgorithm = builder.checksumAlgorithm != null
-        ? builder.checksumAlgorithm
-        : (builder.checksumEnabled ? ChecksumMethod.CRC32C : null);
-    this.checksumEnabled = this.checksumAlgorithm != null;
+    // Carry the caller's explicit algorithm (or null) through to the driver. When checksumming is
+    // enabled without an explicit algorithm, the substrate-native default is resolved per provider
+    // (e.g. CRC32C for S3/GCS, CRC64 for OSS) rather than hard-coding one here — a fixed default
+    // cannot be honored by every substrate.
+    this.checksumAlgorithm = builder.checksumAlgorithm;
+    this.checksumEnabled = builder.checksumEnabled || builder.checksumAlgorithm != null;
     this.objectLock = builder.objectLock;
     this.contentType = builder.contentType;
   }

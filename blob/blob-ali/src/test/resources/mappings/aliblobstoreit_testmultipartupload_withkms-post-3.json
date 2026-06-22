@@ -1,0 +1,49 @@
+{
+  "id" : "8281e070-7ce8-41d3-a464-d4171afee060",
+  "name" : "AliBlobStoreIT_testMultipartUpload_withKms-POST-3",
+  "request" : {
+    "urlPath" : "/conformance-tests/multipart-withKms",
+    "method" : "POST",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      },
+      "X-Query-Param-Count" : {
+        "equalTo" : "2"
+      }
+    },
+    "queryParameters" : {
+      "encoding-type" : {
+        "hasExactly" : [ {
+          "equalTo" : "url"
+        } ]
+      },
+      "uploadId" : {
+        "hasExactly" : [ {
+          "equalTo" : "585F5259F3BE433CBED29234B270C9BC"
+        } ]
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalToXml" : "<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>2B5C91AD399409EC9B409B66F5BB00FB</ETag></Part><Part><PartNumber>2</PartNumber><ETag>267C038CC2EC32FFD0EE2512FF5DA5A5</ETag></Part></CompleteMultipartUpload>"
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CompleteMultipartUploadResult>\n  <EncodingType>url</EncodingType>\n  <Location>https://chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com/conformance-tests/multipart-withKms</Location>\n  <Bucket>chameleon-multicloudj-test</Bucket>\n  <Key>conformance-tests%2Fmultipart-withKms</Key>\n  <ETag>\"8C11B624ED7D61A26D45D7A28FE98349-2\"</ETag>\n</CompleteMultipartUploadResult>\n",
+    "headers" : {
+      "x-oss-request-id" : "6A32E1A5279F713739817F0F",
+      "x-oss-server-time" : "72",
+      "Server" : "AliyunOSS",
+      "x-oss-hash-crc64ecma" : "16941702395769382088",
+      "ETag" : "\"8C11B624ED7D61A26D45D7A28FE98349-2\"",
+      "x-oss-server-side-encryption" : "KMS",
+      "x-oss-server-side-encryption-key-id" : "key-shh6a32d9fajtygsv4msy",
+      "Date" : "Wed, 17 Jun 2026 18:04:21 GMT",
+      "Content-Type" : "application/xml"
+    }
+  },
+  "uuid" : "8281e070-7ce8-41d3-a464-d4171afee060",
+  "persistent" : true,
+  "insertionIndex" : 102
+}

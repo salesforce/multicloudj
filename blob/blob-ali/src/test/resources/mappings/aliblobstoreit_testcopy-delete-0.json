@@ -1,0 +1,25 @@
+{
+  "id" : "4084e211-5bd1-4ed6-83ff-8449a664bb5c",
+  "name" : "AliBlobStoreIT_testCopy-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/clobbered-blob",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A31BA094A9D9839384AE65B",
+      "x-oss-server-time" : "52",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 16 Jun 2026 21:03:05 GMT"
+    }
+  },
+  "uuid" : "4084e211-5bd1-4ed6-83ff-8449a664bb5c",
+  "persistent" : true,
+  "insertionIndex" : 44
+}

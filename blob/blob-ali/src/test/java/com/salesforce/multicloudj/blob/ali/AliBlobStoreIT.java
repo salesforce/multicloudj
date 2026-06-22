@@ -31,6 +31,12 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
   private static final String nonExistentBucketName = "java-bucket-does-not-exist";
   private static final String region = "cn-shanghai";
 
+  /**
+   * OSS sends this header only on copy operations (never on a plain upload PUT). Captured as a
+   * recording match header to disambiguate copy-PUT vs upload-PUT to the same key.
+   */
+  private static final String OSS_COPY_SOURCE_HEADER = "x-oss-copy-source";
+
   @Override
   protected Harness createHarness() {
     return new HarnessImpl();
@@ -93,14 +99,24 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
           .requestConfig(requestConfig)
           .build();
 
-      ossClient =
+      // In record mode the test hits the real cn-shanghai endpoint. Under peak-hour congestion the
+      // server can drop the connection mid-request (NoHttpResponseException); the SDK's default
+      // retry then re-sends, which causes WireMock to record duplicate / out-of-order stubs (e.g.
+      // two UploadPart stubs for the same part) that later break replay. Disable retries during
+      // recording so a dropped request fails fast and cleanly rather than producing a misleading
+      // stub by chance — just re-run the recording (ideally off-peak). Replay mode is unaffected
+      // (it serves stubs locally and never retries against a real server).
+      var ossClientBuilder =
           OSSClient.newBuilder()
               .region(region)
               .endpoint(endpoint)
               .credentialsProvider(
                   OSSCredentialsProvider.getCredentialsProvider(credentialsOverrider, region))
-              .httpClient(httpClient)
-              .build();
+              .httpClient(httpClient);
+      if (System.getProperty("record") != null) {
+        ossClientBuilder.retryMaxAttempts(1);
+      }
+      ossClient = ossClientBuilder.build();
 
       AliBlobStore.Builder builder = new AliBlobStore.Builder();
       builder
@@ -140,12 +156,25 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public String getKmsKeyId() {
-      return null;
+      // OSS KMS CMK in cn-shanghai (same region as the test bucket). Used by the SSE-KMS
+      // conformance tests. Not a secret (it's a key identifier, not key material).
+      return "acs:kms:cn-shanghai:1099202394511537:key/key-shh6a32d9fajtygsv4msy";
     }
 
     @Override
     public boolean isSha256Supported() {
-      return true;
+      // Ali OSS's only native object checksum is CRC64-ECMA; it rejects SHA256 (and CRC32C) for
+      // caller-supplied checksums (see AliTransformer.rejectUnsupportedChecksum). SHA256-specific
+      // conformance tests are skipped via this capability flag rather than a provider guard.
+      return false;
+    }
+
+    @Override
+    public boolean isDirectoryUploadSupported() {
+      // Ali implements directory operations only on the async blob store; the synchronous
+      // AliBlobStore does not, so the sync directory conformance tests are skipped via this
+      // capability flag (matching the AWS harness, which is also async-only for directory ops).
+      return false;
     }
 
     @Override
@@ -157,7 +186,10 @@ public class AliBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public java.util.List<String> getRecordingCaptureHeaders() {
-      return java.util.List.of("Host");
+      // OSS_COPY_SOURCE_HEADER disambiguates copy-PUT vs upload-PUT to the same key, and
+      // distinguishes multiple copies to the same key by their differing source value. Inert
+      // for non-copy requests (header absent -> no matcher added).
+      return java.util.List.of("Host", OSS_COPY_SOURCE_HEADER);
     }
 
     @Override

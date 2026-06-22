@@ -151,9 +151,9 @@ public class ActionListTest {
   @Test
   void testToDriverActions() {
     doNothing().when(mockDocStore).runActions(any(), any());
-    doReturn(InvalidArgumentException.class)
+    doReturn(new InvalidArgumentException())
         .when(mockDocStore)
-        .getException(any(IllegalArgumentException.class));
+        .mapException(any(IllegalArgumentException.class));
     al.create(mockDoc).run();
     Assertions.assertEquals(0, al.getActions().get(0).getIndex());
 

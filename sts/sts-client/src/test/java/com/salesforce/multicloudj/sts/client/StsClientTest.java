@@ -135,8 +135,8 @@ public class StsClientTest {
 
     when(mockProvider.getCallerIdentity(any(GetCallerIdentityRequest.class)))
         .thenThrow(new RuntimeException("Test exception"));
-    when(mockProvider.getException(any(Throwable.class)))
-        .thenAnswer(invocation -> UnknownException.class);
+    when(mockProvider.mapException(any(Throwable.class)))
+        .thenAnswer(invocation -> new UnknownException((Throwable) invocation.getArgument(0)));
 
     ServiceLoader serviceLoader = mock(ServiceLoader.class);
     Iterator<? extends AbstractSts> providerIterator = List.of(mockProvider).iterator();
@@ -163,8 +163,8 @@ public class StsClientTest {
 
     when(mockProvider.getCallerIdentity(any(GetCallerIdentityRequest.class)))
         .thenThrow(new RuntimeException("Test exception"));
-    when(mockProvider.getException(any(Throwable.class)))
-        .thenAnswer(invocation -> UnknownException.class);
+    when(mockProvider.mapException(any(Throwable.class)))
+        .thenAnswer(invocation -> new UnknownException((Throwable) invocation.getArgument(0)));
 
     ServiceLoader serviceLoader = mock(ServiceLoader.class);
     Iterator<? extends AbstractSts> providerIterator = List.of(mockProvider).iterator();
@@ -193,8 +193,8 @@ public class StsClientTest {
 
     when(mockProvider.assumeRoleWithWebIdentity(any(AssumeRoleWebIdentityRequest.class)))
         .thenThrow(new RuntimeException("Test exception"));
-    when(mockProvider.getException(any(Throwable.class)))
-        .thenAnswer(invocation -> UnknownException.class);
+    when(mockProvider.mapException(any(Throwable.class)))
+        .thenAnswer(invocation -> new UnknownException((Throwable) invocation.getArgument(0)));
 
     ServiceLoader serviceLoader = mock(ServiceLoader.class);
     Iterator<? extends AbstractSts> providerIterator = List.of(mockProvider).iterator();

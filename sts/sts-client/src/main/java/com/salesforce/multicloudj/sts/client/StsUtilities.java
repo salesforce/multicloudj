@@ -94,9 +94,7 @@ public class StsUtilities {
     try {
       return this.stsUtility.cloudNativeAuthSignedRequest(request);
     } catch (Throwable t) {
-      Class<? extends SubstrateSdkException> exception = this.stsUtility.getException(t);
-      ExceptionHandler.handleAndPropagate(exception, t);
-      return null;
+      throw this.stsUtility.mapException(t);
     }
   }
 

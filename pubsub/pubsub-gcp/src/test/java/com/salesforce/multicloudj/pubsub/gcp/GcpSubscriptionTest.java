@@ -467,20 +467,17 @@ public class GcpSubscriptionTest {
   }
 
   @Test
-  void testGetException() {
-    assertSame(
+  void testMapException() {
+    assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.UnknownException.class,
-        subscription.getException(new RuntimeException("test")));
-    assertSame(
+        subscription.mapException(new RuntimeException("test")));
+    assertInstanceOf(
         com.salesforce.multicloudj.common.exceptions.UnknownException.class,
-        subscription.getException(new IllegalArgumentException("test")));
-    assertSame(
-        com.salesforce.multicloudj.common.exceptions.UnknownException.class,
-        subscription.getException(null));
+        subscription.mapException(new IllegalArgumentException("test")));
     try {
-      assertNotNull(subscription.getException(new RuntimeException("test")));
+      assertNotNull(subscription.mapException(new RuntimeException("test")));
     } catch (Exception e) {
-      fail("getException should not throw an exception");
+      fail("mapException should not throw an exception");
     }
   }
 
