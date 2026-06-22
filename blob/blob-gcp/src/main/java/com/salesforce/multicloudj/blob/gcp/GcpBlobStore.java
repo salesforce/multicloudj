@@ -91,7 +91,6 @@ import com.salesforce.multicloudj.common.gcp.CommonErrorCodeMapping;
 import com.salesforce.multicloudj.common.gcp.GcpConstants;
 import com.salesforce.multicloudj.common.gcp.GcpCredentialsProvider;
 import com.salesforce.multicloudj.common.provider.Provider;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -123,6 +122,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
@@ -138,6 +138,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   private static final String OBJECT_KEY_DIRECTORY_PREFIX_REGEX = "^.*/";
   private static final Logger logger = LoggerFactory.getLogger(GcpBlobStore.class);
+  private static final int DIRECT_UPLOAD_THRESHOLD_BYTES = 16 * 1024 * 1024;
 
   private final Storage storage;
   private final MultipartUploadClient multipartUploadClient;
@@ -177,32 +178,59 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, InputStream inputStream) {
     rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try (WriteChannel writer =
-            storage.writer(
-                transformer.toBlobInfo(uploadRequest),
-                transformer.getBlobWriteOptions(uploadRequest));
-         var channel = Channels.newOutputStream(writer)) {
-      ByteStreams.copy(inputStream, channel);
+    BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+    try {
+      Blob blob;
+      long contentLength = uploadRequest.getContentLength();
+      if (contentLength > 0
+              && contentLength <= DIRECT_UPLOAD_THRESHOLD_BYTES
+              && shouldUseDirectCreateFastPath(uploadRequest)) {
+        byte[] content = readDirectUploadContent(inputStream, contentLength);
+        blob = storage.create(blobInfo, content, transformer.getKmsTargetOptions(uploadRequest));
+      } else {
+        blob = storage.createFrom(
+            blobInfo, inputStream, transformer.getBlobWriteOptions(uploadRequest));
+      }
+      return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from input stream", e);
     }
-    Blob blob = getRequiredBlob(BlobId.of(getBucket(), uploadRequest.getKey()));
-    return transformer.toUploadResponse(blob);
+  }
+
+  /**
+   * Reads content for the direct-upload path and validates that the stream is at least as long as
+   * the declared contentLength. Uses readNBytes(expectedLength) so the call returns as soon as
+   * expectedLength bytes have been read (or the stream ends), avoiding a blocking extra-byte probe
+   * on streams that defer EOF signalling until the next read attempt.
+   */
+  private byte[] readDirectUploadContent(InputStream inputStream, long contentLength)
+          throws IOException {
+    int expectedLength = Math.toIntExact(contentLength);
+    byte[] content = inputStream.readNBytes(expectedLength);
+    if (content.length != expectedLength) {
+      throw new InvalidArgumentException(
+          "UploadRequest contentLength does not match input stream length");
+    }
+    if (inputStream.read() != -1) {
+      throw new InvalidArgumentException(
+          "UploadRequest contentLength does not match input stream length");
+    }
+    return content;
+  }
+
+  private boolean shouldUseDirectCreateFastPath(UploadRequest uploadRequest) {
+    return StringUtils.isEmpty(uploadRequest.getChecksumValue());
   }
 
   @Override
   protected UploadResponse doUpload(UploadRequest uploadRequest, byte[] content) {
     rejectSha256(uploadRequest.getChecksumAlgorithm());
-    try {
-      Blob blob =
-          storage.createFrom(
-              transformer.toBlobInfo(uploadRequest),
-              new ByteArrayInputStream(content),
-              transformer.getBlobWriteOptions(uploadRequest));
-      return transformer.toUploadResponse(blob);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Request failed while uploading from byte array", e);
-    }
+    Blob blob =
+            storage.create(
+                    transformer.toBlobInfo(uploadRequest),
+                    content,
+                    transformer.getKmsTargetOptions(uploadRequest));
+    return transformer.toUploadResponse(blob);
   }
 
   @Override
@@ -215,11 +243,16 @@ public class GcpBlobStore extends AbstractBlobStore {
   protected UploadResponse doUpload(UploadRequest uploadRequest, Path path) {
     rejectSha256(uploadRequest.getChecksumAlgorithm());
     try {
-      Blob blob =
-          storage.createFrom(
-              transformer.toBlobInfo(uploadRequest),
-              path,
-              transformer.getBlobWriteOptions(uploadRequest));
+      BlobInfo blobInfo = transformer.toBlobInfo(uploadRequest);
+      Blob blob;
+      long fileSize = Files.size(path);
+      if (fileSize <= DIRECT_UPLOAD_THRESHOLD_BYTES
+          && shouldUseDirectCreateFastPath(uploadRequest)) {
+        byte[] content = Files.readAllBytes(path);
+        blob = storage.create(blobInfo, content, transformer.getKmsTargetOptions(uploadRequest));
+      } else {
+        blob = storage.createFrom(blobInfo, path, transformer.getBlobWriteOptions(uploadRequest));
+      }
       return transformer.toUploadResponse(blob);
     } catch (IOException e) {
       throw new SubstrateSdkException("Request failed while uploading from path", e);
@@ -229,23 +262,33 @@ public class GcpBlobStore extends AbstractBlobStore {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    BlobId blobId = transformer.toBlobId(downloadRequest);
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+
+    if (hasRange) {
+      Blob blob = getRequiredBlobForDownload(downloadRequest);
+      BlobId blobId = transformer.toBlobId(downloadRequest);
+      try (ReadChannel reader = storage.reader(blobId);
+           var channel = Channels.newInputStream(reader)) {
+        var range =
+                transformer.computeRange(
+                        downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        ByteStreams.copy(channel, outputStream);
+        return transformer.toDownloadResponse(blob);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Request failed during download", e);
+      }
+    }
+
     Blob blob = getRequiredBlobForDownload(downloadRequest);
-    // Parallel download uses Transfer Manager / file paths only; OutputStream downloads always use
-    // ReadChannel streaming (parallelDownload is ignored for this overload).
+    BlobId blobId = transformer.toBlobId(downloadRequest);
     try (ReadChannel reader = storage.reader(blobId);
         var channel = Channels.newInputStream(reader)) {
-
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
-      }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-
       ByteStreams.copy(channel, outputStream);
       return transformer.toDownloadResponse(blob);
     } catch (IOException e) {
@@ -255,10 +298,32 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
-    byteArray.setBytes(outputStream.toByteArray());
-    return downloadResponse;
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
+    Blob blob = getRequiredBlobForDownload(downloadRequest);
+
+    if (hasRange) {
+      try {
+        ReadChannel reader = blob.reader();
+        var range =
+                transformer.computeRange(
+                        downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        InputStream inputStream = Channels.newInputStream(reader);
+        return transformer.toDownloadResponse(blob, inputStream);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create input stream for download", e);
+      }
+    }
+
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    ReadChannel reader = storage.reader(blobId);
+    InputStream inputStream = Channels.newInputStream(reader);
+    return transformer.toDownloadResponse(blob, inputStream);
   }
 
   @Override
@@ -270,23 +335,31 @@ public class GcpBlobStore extends AbstractBlobStore {
   // cannot produce an InputStream directly.
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest) {
+    boolean hasRange = downloadRequest.getStart() != null || downloadRequest.getEnd() != null;
     Blob blob = getRequiredBlobForDownload(downloadRequest);
-    try {
-      ReadChannel reader = blob.reader();
-      var range =
-          transformer.computeRange(
-              downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
-      if (range.getLeft() != null) {
-        reader.seek(range.getLeft());
+    if (hasRange) {
+      try {
+        ReadChannel reader = blob.reader();
+        var range =
+            transformer.computeRange(
+                downloadRequest.getStart(), downloadRequest.getEnd(), blob.getSize());
+        if (range.getLeft() != null) {
+          reader.seek(range.getLeft());
+        }
+        if (range.getRight() != null) {
+          reader.limit(range.getRight());
+        }
+        InputStream inputStream = Channels.newInputStream(reader);
+        return transformer.toDownloadResponse(blob, inputStream);
+      } catch (IOException e) {
+        throw new SubstrateSdkException("Failed to create input stream for download", e);
       }
-      if (range.getRight() != null) {
-        reader.limit(range.getRight());
-      }
-      InputStream inputStream = Channels.newInputStream(reader);
-      return transformer.toDownloadResponse(blob, inputStream);
-    } catch (IOException e) {
-      throw new SubstrateSdkException("Failed to create input stream for download", e);
     }
+
+    BlobId blobId = transformer.toBlobId(downloadRequest);
+    ReadChannel reader = storage.reader(blobId);
+    InputStream inputStream = Channels.newInputStream(reader);
+    return transformer.toDownloadResponse(blob, inputStream);
   }
 
   /**
@@ -1480,6 +1553,7 @@ public class GcpBlobStore extends AbstractBlobStore {
 
   @Getter
   public static class Builder extends AbstractBlobStore.Builder<GcpBlobStore, Builder> {
+    private static final int DEFAULT_MAX_CONNECTIONS = 50;
 
     private Storage storage;
     private MultipartUploadClient mpuClient;
@@ -1697,10 +1771,10 @@ public class GcpBlobStore extends AbstractBlobStore {
     private static HttpClientConnectionManager buildConnectionManager(Builder builder) {
       PoolingHttpClientConnectionManager connectionManager =
           new PoolingHttpClientConnectionManager();
-      if (builder.getMaxConnections() != null) {
-        connectionManager.setMaxTotal(builder.getMaxConnections());
-        connectionManager.setDefaultMaxPerRoute(builder.getMaxConnections());
-      }
+      int maxConns = builder.getMaxConnections() != null
+          ? builder.getMaxConnections() : DEFAULT_MAX_CONNECTIONS;
+      connectionManager.setMaxTotal(maxConns);
+      connectionManager.setDefaultMaxPerRoute(maxConns);
       return connectionManager;
     }
 
