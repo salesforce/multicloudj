@@ -793,7 +793,7 @@ public class AwsTransformerTest {
             .build();
 
     DownloadDirectoryRequest downloadDirectoryRequest =
-        transformer.toDownloadDirectoryRequest(request);
+        transformer.toDownloadDirectoryRequest(request, null, null);
 
     assertEquals(BUCKET, downloadDirectoryRequest.bucket());
     assertEquals(destination, downloadDirectoryRequest.destination().toString());

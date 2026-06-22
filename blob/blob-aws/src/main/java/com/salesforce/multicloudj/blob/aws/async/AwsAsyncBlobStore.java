@@ -438,8 +438,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
   protected CompletableFuture<DirectoryDownloadResponse> doDownloadDirectory(
       DirectoryDownloadRequest directoryDownloadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     DownloadDirectoryRequest request =
-        transformer.toDownloadDirectoryRequest(directoryDownloadRequest, totalBytesTransferred);
+        transformer.toDownloadDirectoryRequest(
+            directoryDownloadRequest, totalBytesTransferred, totalBytesRequested);
     return transferManager
         .downloadDirectory(request)
         .completionFuture()
@@ -447,17 +449,21 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             completed ->
                 transformer.toDirectoryDownloadResponse(
                     completed,
-                    directoryDownloadRequest.isTransferStatusLoggingEnabled()
-                        ? totalBytesTransferred.get()
-                        : null));
+                    resolveDirectoryTotalBytes(
+                        directoryDownloadRequest.isTransferStatusLoggingEnabled(),
+                        completed.failedTransfers().isEmpty(),
+                        totalBytesTransferred,
+                        totalBytesRequested)));
   }
 
   @Override
   protected CompletableFuture<DirectoryUploadResponse> doUploadDirectory(
       DirectoryUploadRequest directoryUploadRequest) {
     AtomicLong totalBytesTransferred = new AtomicLong(0L);
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     UploadDirectoryRequest uploadDirectoryRequest =
-        transformer.toUploadDirectoryRequest(directoryUploadRequest, totalBytesTransferred);
+        transformer.toUploadDirectoryRequest(
+            directoryUploadRequest, totalBytesTransferred, totalBytesRequested);
     return transferManager
         .uploadDirectory(uploadDirectoryRequest)
         .completionFuture()
@@ -465,9 +471,31 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
             completed ->
                 transformer.toDirectoryUploadResponse(
                     completed,
-                    directoryUploadRequest.isTransferStatusLoggingEnabled()
-                        ? totalBytesTransferred.get()
-                        : null));
+                    resolveDirectoryTotalBytes(
+                        directoryUploadRequest.isTransferStatusLoggingEnabled(),
+                        completed.failedTransfers().isEmpty(),
+                        totalBytesTransferred,
+                        totalBytesRequested)));
+  }
+
+  /**
+   * Picks the value to populate {@code totalBytesTransferred} in the directory response.
+   *
+   * <p>When transfer-status logging is enabled, the per-file listener has accumulated actual
+   * bytes — use that. When disabled, fall back to the requested total (sum of object sizes
+   * counted in the filter / per-file size stat) on full success, or 0 if any per-file transfer
+   * failed. Attaching a listener has significant heap cost on large directory operations, so
+   * callers leaving it off still get a usable byte total without paying that cost.
+   */
+  private static Long resolveDirectoryTotalBytes(
+      boolean loggingEnabled,
+      boolean allTransfersSucceeded,
+      AtomicLong totalBytesTransferred,
+      AtomicLong totalBytesRequested) {
+    if (loggingEnabled) {
+      return totalBytesTransferred.get();
+    }
+    return allTransfersSucceeded ? totalBytesRequested.get() : 0L;
   }
 
   @Override

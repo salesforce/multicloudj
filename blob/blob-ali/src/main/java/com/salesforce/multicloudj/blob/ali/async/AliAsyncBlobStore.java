@@ -632,6 +632,10 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
 
     List<BlobInfo> blobInfos = Collections.synchronizedList(new ArrayList<>());
     AtomicLong totalBytes = new AtomicLong(0L);
+    // Accumulated during listing — sum of object sizes for blobs that pass the filter.
+    // Drives the response's totalBytesTransferred on the listener-off success path so
+    // callers can avoid the listener's heap cost while still seeing a useful byte total.
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     List<FailedBlobDownload> failures =
         Collections.synchronizedList(new ArrayList<>());
 
@@ -644,7 +648,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
             "Failed to create destination directory: " + targetDir, e);
       }
     }, executorService)
-        // Stage 2: async paginated listing; consumer collects matching blobs.
+        // Stage 2: async paginated listing; consumer collects matching blobs and sums sizes.
         .thenCompose(v -> doList(
             ListBlobsRequest.builder().withPrefix(prefix).build(),
             batch -> {
@@ -654,6 +658,7 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
                   continue;
                 }
                 blobInfos.add(blob);
+                totalBytesRequested.addAndGet(blob.getObjectSize());
               }
             }))
         // Stage 3: create all destination directories upfront, then fan out downloads.
@@ -725,9 +730,33 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .thenApply(v -> DirectoryDownloadResponse.builder()
             .failedTransfers(new ArrayList<>(failures))
             .totalBytesTransferred(
-                directoryDownloadRequest.isTransferStatusLoggingEnabled()
-                    ? totalBytes.get() : null)
+                resolveDirectoryTotalBytes(
+                    directoryDownloadRequest.isTransferStatusLoggingEnabled(),
+                    failures.isEmpty(),
+                    totalBytes,
+                    totalBytesRequested))
             .build());
+  }
+
+  /**
+   * Picks the value to populate {@code totalBytesTransferred} in the directory response.
+   *
+   * <p>When transfer-status logging is enabled, the per-file listener has accumulated actual
+   * bytes — use that. When disabled, fall back to the requested total (sum of object sizes
+   * for downloads, sum of file sizes for uploads) on full success, or 0 if any per-file
+   * transfer failed. The shared listener has significant heap cost on large directory
+   * operations, so callers leaving it off still get a usable byte total without paying that
+   * cost.
+   */
+  private static Long resolveDirectoryTotalBytes(
+      boolean loggingEnabled,
+      boolean allTransfersSucceeded,
+      AtomicLong totalBytesTransferred,
+      AtomicLong totalBytesRequested) {
+    if (loggingEnabled) {
+      return totalBytesTransferred.get();
+    }
+    return allTransfersSucceeded ? totalBytesRequested.get() : 0L;
   }
 
   private boolean isFolderMarker(BlobInfo blob) {
@@ -756,6 +785,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     Map<String, String> tags = directoryUploadRequest.getTags();
     var objectLock = directoryUploadRequest.getObjectLock();
     AtomicLong totalBytes = new AtomicLong(0L);
+    // Sum of source-file sizes from the stage-1 stat pass. Drives the response's
+    // totalBytesTransferred on the listener-off success path; see resolveDirectoryTotalBytes.
+    AtomicLong totalBytesRequested = new AtomicLong(0L);
     List<FailedBlobUpload> failures =
         Collections.synchronizedList(new ArrayList<>());
 
@@ -766,6 +798,8 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
           // Compute file sizes upfront so Stage 2 avoids I/O on completion threads.
           Map<Path, Long> fileSizes = paths.stream()
               .collect(Collectors.toMap(p -> p, p -> p.toFile().length()));
+          totalBytesRequested.addAndGet(
+              fileSizes.values().stream().mapToLong(Long::longValue).sum());
           return fileSizes;
         },
         executorService)
@@ -824,8 +858,11 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
         .thenApply(v -> DirectoryUploadResponse.builder()
             .failedTransfers(new ArrayList<>(failures))
             .totalBytesTransferred(
-                directoryUploadRequest.isTransferStatusLoggingEnabled()
-                    ? totalBytes.get() : null)
+                resolveDirectoryTotalBytes(
+                    directoryUploadRequest.isTransferStatusLoggingEnabled(),
+                    failures.isEmpty(),
+                    totalBytes,
+                    totalBytesRequested))
             .build());
   }
 
