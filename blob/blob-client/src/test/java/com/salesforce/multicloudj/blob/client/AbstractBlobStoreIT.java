@@ -5000,6 +5000,141 @@ public abstract class AbstractBlobStoreIT {
   }
 
   @Test
+  public void testUploadWithMd5Checksum_InputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
+        "MD5 upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-inputstream-md5";
+    byte[] content = "Test MD5 checksum with InputStream".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse =
+          bucketClient.upload(uploadRequest, new ByteArrayInputStream(content));
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithMd5Checksum_ByteArray() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
+        "MD5 upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-bytearray-md5";
+    byte[] content = "Test MD5 checksum with byte array".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      String md5 = harness.computeChecksum(content, ChecksumMethod.MD5);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(md5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      UploadResponse uploadResponse = bucketClient.upload(uploadRequest, content);
+
+      Assertions.assertNotNull(uploadResponse);
+      Assertions.assertEquals(key, uploadResponse.getKey());
+      Assertions.assertTrue(
+          bucketClient.doesObjectExist(key, null), "Uploaded blob should exist");
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testUploadWithInvalidMd5Checksum_InputStream() {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
+        "MD5 upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/checksum/upload-inputstream-invalid-md5";
+    byte[] content = "Test invalid MD5 checksum".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      // A syntactically valid but incorrect base64 MD5 (16 zero bytes) the substrate must reject.
+      String invalidMd5 = Base64.getEncoder().encodeToString(new byte[16]);
+
+      UploadRequest uploadRequest =
+          UploadRequest.builder()
+              .withKey(key)
+              .withContentLength(content.length)
+              .withChecksumValue(invalidMd5)
+              .withChecksumAlgorithm(ChecksumMethod.MD5)
+              .build();
+
+      Assertions.assertThrows(
+          InvalidArgumentException.class,
+          () -> bucketClient.upload(uploadRequest, new ByteArrayInputStream(content)));
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
+  public void testPresignV2_md5Binding() throws Exception {
+    Assumptions.assumeTrue(
+        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
+        "MD5 upload checksum not supported by " + harness.getProviderId());
+    String key = "conformance-tests/presign-v2/md5-binding";
+    byte[] content = "Test MD5 presign binding".getBytes(StandardCharsets.UTF_8);
+
+    AbstractBlobStore blobStore = harness.createBlobStore(true, true, false);
+    BucketClient bucketClient = new BucketClient(blobStore);
+
+    try {
+      PresignedUrlResponse response = bucketClient.presign(
+          PresignedUrlRequest.builder()
+              .type(PresignedOperation.UPLOAD)
+              .key(key)
+              .duration(Duration.ofHours(1))
+              // Bind a content-type so the upload helper replays a signed Content-Type rather than
+              // forcing an unsigned empty one (which would break the OSS V4 signature).
+              .contentType("text/plain")
+              .checksumValue(harness.computeChecksum(content, ChecksumMethod.MD5))
+              .checksumAlgorithm(ChecksumMethod.MD5)
+              .build());
+
+      Assertions.assertNotNull(response.getUrl());
+      Assertions.assertNotNull(response.getSignedHeaders());
+      Assertions.assertFalse(response.getSignedHeaders().isEmpty());
+
+      // Upload only in record mode — presigned URLs bypass WireMock and can't be replayed.
+      if (System.getProperty("record") != null) {
+        uploadWithSignedHeaders(response.getUrl(), content, response.getSignedHeaders());
+      }
+    } finally {
+      safeDeleteBlobs(bucketClient, key);
+    }
+  }
+
+  @Test
   public void testUploadWithInvalidChecksumInputStream() {
     Assumptions.assumeFalse(ALI_PROVIDER_ID.equals(harness.getProviderId()));
     String key = "conformance-tests/checksum/upload-inputstream-invalid-checksum";
