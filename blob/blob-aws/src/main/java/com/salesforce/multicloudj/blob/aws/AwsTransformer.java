@@ -821,16 +821,17 @@ public class AwsTransformer {
             fileRequestBuilder.addTransferListener(transferListener);
           }
           if (countRequested) {
-            // Best-effort stat. If the file vanished between filesystem walk and upload start,
-            // skip the count — the upload itself will fail and surface via failedTransfers.
+            // Best-effort stat, evaluated independently per file. A file that throws here is
+            // also a file the SDK can't upload, so it'll appear in failedTransfers and the
+            // response will already report 0 via resolveDirectoryTotalBytes — the under-counted
+            // requested total is never the value handed back to the caller in that case.
             Path source = fileRequestBuilder.build().source();
             if (source != null) {
               try {
                 totalBytesRequested.addAndGet(Files.size(source));
               } catch (IOException ignored) {
-                // intentional: undercount by one file is acceptable; the failed upload tells
-                // the caller something went wrong, and partial-failure already maps to 0
-                // transferred.
+                // Skip this file's contribution; other files in the same directory op are
+                // unaffected and still get counted.
               }
             }
           }
