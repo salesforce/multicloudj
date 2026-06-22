@@ -838,7 +838,8 @@ public class AwsTransformerTest {
             .prefix("/files")
             .includeSubFolders(true)
             .build();
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(BUCKET, request.bucket());
     assertTrue(request.maxDepth().isPresent());
     assertEquals(Integer.MAX_VALUE, request.maxDepth().getAsInt());
@@ -852,7 +853,7 @@ public class AwsTransformerTest {
             .prefix("/files")
             .includeSubFolders(false)
             .build();
-    request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    request = transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertTrue(request.maxDepth().isPresent());
   }
 
@@ -865,7 +866,8 @@ public class AwsTransformerTest {
             .includeSubFolders(true)
             .followSymbolicLinks(true)
             .build();
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(Optional.of(true), request.followSymbolicLinks());
 
     directoryUploadRequest =
@@ -875,7 +877,7 @@ public class AwsTransformerTest {
             .includeSubFolders(true)
             .followSymbolicLinks(false)
             .build();
-    request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    request = transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
     assertEquals(Optional.of(false), request.followSymbolicLinks());
   }
 
@@ -892,7 +894,8 @@ public class AwsTransformerTest {
             .build();
 
     // When
-    UploadDirectoryRequest request = transformer.toUploadDirectoryRequest(directoryUploadRequest);
+    UploadDirectoryRequest request =
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
 
     // Then
     assertEquals(BUCKET, request.bucket());
@@ -925,7 +928,7 @@ public class AwsTransformerTest {
             .build();
 
     UploadDirectoryRequest request =
-        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
 
     assertNotNull(request);
     // Verify the per-file transformer applies object lock to each PutObjectRequest
@@ -960,7 +963,7 @@ public class AwsTransformerTest {
             .build();
 
     UploadDirectoryRequest request =
-        transformer.toUploadDirectoryRequest(directoryUploadRequest);
+        transformer.toUploadDirectoryRequest(directoryUploadRequest, null, null);
 
     assertNotNull(request);
     UploadFileRequest.Builder fileBuilder =

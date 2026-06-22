@@ -758,10 +758,6 @@ public class AwsTransformer {
         .build();
   }
 
-  public UploadDirectoryRequest toUploadDirectoryRequest(DirectoryUploadRequest request) {
-    return toUploadDirectoryRequest(request, null, null);
-  }
-
   /**
    * Builds the S3 Transfer Manager upload-directory request. When non-null counters are
    * supplied, the per-file transformer stats each source into {@code totalBytesRequested} and
