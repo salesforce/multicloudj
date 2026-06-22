@@ -145,6 +145,40 @@ public abstract class AbstractBlobStoreIT {
       return Base64.getEncoder().encodeToString(checksumBytes);
     }
 
+    // Computes the base64-encoded checksum of the given content using the requested algorithm,
+    // independent of the substrate's native default. Used by tests that exercise a specific
+    // caller-supplied algorithm (e.g. MD5). Algorithm-driven, so no per-provider override needed.
+    default String computeChecksum(byte[] content, ChecksumMethod algorithm) {
+      switch (algorithm) {
+        case MD5:
+          return base64Digest(content, "MD5");
+        case SHA256:
+          return base64Digest(content, "SHA-256");
+        case CRC32C:
+          return computeChecksum(content);
+        default:
+          throw new UnSupportedOperationException(
+              "computeChecksum does not support algorithm " + algorithm);
+      }
+    }
+
+    default String base64Digest(byte[] content, String jdkAlgorithm) {
+      try {
+        return Base64.getEncoder().encodeToString(
+            MessageDigest.getInstance(jdkAlgorithm).digest(content));
+      } catch (NoSuchAlgorithmException e) {
+        throw new UnSupportedOperationException(jdkAlgorithm + " not available", e);
+      }
+    }
+
+    // The checksum algorithms this substrate validates against a caller-supplied digest on
+    // single-object upload and presigned-URL upload. Excludes server-computed-only checksums
+    // (e.g. OSS CRC64) and multipart per-part validation (see isSha256Supported). Tests that
+    // exercise a specific caller-supplied algorithm gate on this set.
+    default Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
+      return Set.of(ChecksumMethod.CRC32C);
+    }
+
     // Whether this provider supports SHA256 checksums.
     default boolean isSha256Supported() {
       return true;
