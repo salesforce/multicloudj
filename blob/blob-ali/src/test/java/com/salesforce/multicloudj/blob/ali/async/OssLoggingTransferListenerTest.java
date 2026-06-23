@@ -124,9 +124,11 @@ class OssLoggingTransferListenerTest {
     listener.onProgress(100L, 100L, 200L);
     verify(logger).trace(anyString(), any(), any(), any(), any(), any());
 
-    // onFinish -> INFO (direction, key, fileBytes, directoryCumulativeBytes, elapsed)
+    // onFinish -> DEBUG (direction, key, fileBytes, directoryCumulativeBytes, elapsed).
+    // Per-file completion is high-volume on large directories, so it is emitted at DEBUG
+    // to avoid swamping production log appender queues.
     listener.onFinish();
-    verify(logger).info(anyString(), any(), any(), any(), any(), any());
+    verify(logger).debug(anyString(), any(), any(), any(), any(), any());
 
     // transferFailed -> ERROR (direction, key, fileBytes, directoryCumulativeBytes, elapsed, ex)
     RuntimeException ex = new RuntimeException("boom");
@@ -178,10 +180,10 @@ class OssLoggingTransferListenerTest {
     // Directory cumulative = 500 (pre-existing) + 300 (this file) = 800.
     assertEquals(800L, cumulative.get());
 
-    // The INFO completion log records fileBytes=300 and directoryCumulativeBytes=800 as
+    // The DEBUG completion log records fileBytes=300 and directoryCumulativeBytes=800 as
     // distinct positional args, so operators don't misread the running total as per-file.
     ArgumentCaptor<Object> args = ArgumentCaptor.forClass(Object.class);
-    verify(logger).info(anyString(), args.capture(), args.capture(),
+    verify(logger).debug(anyString(), args.capture(), args.capture(),
         args.capture(), args.capture(), args.capture());
     List<Object> captured = args.getAllValues();
     // positional: direction, key, fileBytes, directoryCumulativeBytes, elapsed
