@@ -36,7 +36,6 @@ import com.salesforce.multicloudj.common.exceptions.ExceptionHandler;
 import com.salesforce.multicloudj.common.exceptions.InvalidArgumentException;
 import com.salesforce.multicloudj.common.exceptions.ResourceNotFoundException;
 import com.salesforce.multicloudj.common.exceptions.SubstrateSdkException;
-import com.salesforce.multicloudj.common.exceptions.UnSupportedOperationException;
 import com.salesforce.multicloudj.common.exceptions.UnknownException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -935,12 +934,15 @@ public class InMemoryBlobStore extends AbstractBlobStore {
     String actual;
     if (algorithm == ChecksumMethod.MD5) {
       actual = computeMd5Checksum(content);
-    } else if (algorithm == null || algorithm == ChecksumMethod.CRC32C) {
-      // CRC32C is the in-memory provider's native checksum and the cloud-agnostic default.
-      actual = computeCrc32cChecksum(content);
+    } else if (algorithm == ChecksumMethod.SHA256) {
+      actual = computeSha256Checksum(content);
+    } else if (algorithm == ChecksumMethod.CRC64) {
+      actual = computeCrc64Checksum(content);
     } else {
-      throw new UnSupportedOperationException(
-          algorithm + " checksum is not supported by the in-memory provider. Use CRC32C or MD5.");
+      // CRC32C is the in-memory provider's default, and the cloud-agnostic default when no
+      // algorithm is set. The in-memory provider validates every algorithm because it computes
+      // them locally and depends on no cloud SDK.
+      actual = computeCrc32cChecksum(content);
     }
     if (!actual.equals(uploadRequest.getChecksumValue())) {
       throw new InvalidArgumentException(
@@ -977,6 +979,25 @@ public class InMemoryBlobStore extends AbstractBlobStore {
       // MD5 is a standard algorithm guaranteed by the JDK; this should never happen.
       throw new IllegalStateException("MD5 algorithm not available", e);
     }
+  }
+
+  private String computeSha256Checksum(byte[] data) {
+    try {
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+      return Base64.getEncoder().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      // SHA-256 is a standard algorithm guaranteed by the JDK; this should never happen.
+      throw new IllegalStateException("SHA-256 algorithm not available", e);
+    }
+  }
+
+  private String computeCrc64Checksum(byte[] data) {
+    long value = Crc64.compute(data);
+    byte[] checksumBytes = new byte[8];
+    for (int i = 0; i < 8; i++) {
+      checksumBytes[i] = (byte) (value >>> (56 - 8 * i));
+    }
+    return Base64.getEncoder().encodeToString(checksumBytes);
   }
 
   private byte[] extractRange(byte[] data, Long start, Long end) {

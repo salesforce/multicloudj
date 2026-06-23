@@ -97,7 +97,12 @@ public class InMemoryBlobStoreIT extends AbstractBlobStoreIT {
 
     @Override
     public Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
-      return Set.of(ChecksumMethod.CRC32C, ChecksumMethod.MD5);
+      // The in-memory test double computes every algorithm locally, so it validates them all.
+      return Set.of(
+          ChecksumMethod.CRC32C,
+          ChecksumMethod.SHA256,
+          ChecksumMethod.CRC64,
+          ChecksumMethod.MD5);
     }
 
     @Override
