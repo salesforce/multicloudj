@@ -5009,9 +5009,8 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithMd5Checksum_InputStream() {
-    Assumptions.assumeTrue(
-        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
-        "MD5 upload checksum not supported by " + harness.getProviderId());
+    // MD5 is validated as a caller-supplied digest on every substrate this SDK supports, so this
+    // test runs unconditionally.
     String key = "conformance-tests/checksum/upload-inputstream-md5";
     byte[] content = "Test MD5 checksum with InputStream".getBytes(StandardCharsets.UTF_8);
 
@@ -5043,9 +5042,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithMd5Checksum_ByteArray() {
-    Assumptions.assumeTrue(
-        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
-        "MD5 upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-bytearray-md5";
     byte[] content = "Test MD5 checksum with byte array".getBytes(StandardCharsets.UTF_8);
 
@@ -5076,9 +5072,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testUploadWithInvalidMd5Checksum_InputStream() {
-    Assumptions.assumeTrue(
-        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
-        "MD5 upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/checksum/upload-inputstream-invalid-md5";
     byte[] content = "Test invalid MD5 checksum".getBytes(StandardCharsets.UTF_8);
 
@@ -5107,9 +5100,6 @@ public abstract class AbstractBlobStoreIT {
 
   @Test
   public void testPresignV2_md5Binding() throws Exception {
-    Assumptions.assumeTrue(
-        harness.getSupportedChecksumAlgorithmsForUpload().contains(ChecksumMethod.MD5),
-        "MD5 upload checksum not supported by " + harness.getProviderId());
     String key = "conformance-tests/presign-v2/md5-binding";
     byte[] content = "Test MD5 presign binding".getBytes(StandardCharsets.UTF_8);
 
