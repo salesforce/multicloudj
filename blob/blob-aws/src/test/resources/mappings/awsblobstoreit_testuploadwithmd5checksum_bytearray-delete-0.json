@@ -1,0 +1,20 @@
+{
+  "id" : "bd62e8c6-6fd4-4238-8d3e-ccbb7aec931f",
+  "name" : "AwsBlobStoreIT_testUploadWithMd5Checksum_ByteArray-DELETE-0",
+  "request" : {
+    "url" : "/chameleon-jcloud/conformance-tests/checksum/upload-bytearray-md5",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Server" : "AmazonS3",
+      "x-amz-request-id" : "MDN1ZCBRJZWE3QGS",
+      "x-amz-id-2" : "aS74wC1thGw4Z/VVLZaVT5bV49sgmjmeeE5twZPZ5voj5MoQLNa92zfsHwLrFCIieGb7C9+OOlVC9Hvd6E8bP9iwhNv2WakC",
+      "Date" : "Tue, 23 Jun 2026 00:15:27 GMT"
+    }
+  },
+  "uuid" : "bd62e8c6-6fd4-4238-8d3e-ccbb7aec931f",
+  "persistent" : true,
+  "insertionIndex" : 764
+}

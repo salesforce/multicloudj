@@ -1,0 +1,25 @@
+{
+  "id" : "cdbc0ef5-72ef-4ad3-9168-7a31d85aa716",
+  "name" : "GcpBlobStoreIT_testPresignV2_md5Binding-DELETE-0",
+  "request" : {
+    "url" : "/storage/v1/b/substrate-sdk-gcp-poc1-test-bucket/o/conformance-tests%2Fpresign-v2%2Fmd5-binding",
+    "method" : "DELETE"
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "Alt-Svc" : "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "Server" : "UploadServer",
+      "Cache-Control" : "no-cache, no-store, max-age=0, must-revalidate",
+      "X-GUploader-UploadID" : "AJ5rDhGaHXAm6A3ZVPrqnKZhmrwnTmD7YPSGaXpnpenBy6KQUa7l7JttsGVS_m2gwokQ_vu6yiyuIGUInf2YCw",
+      "Vary" : [ "Origin", "X-Origin" ],
+      "Pragma" : "no-cache",
+      "Expires" : "Mon, 01 Jan 1990 00:00:00 GMT",
+      "Date" : "Tue, 23 Jun 2026 00:22:07 GMT",
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "cdbc0ef5-72ef-4ad3-9168-7a31d85aa716",
+  "persistent" : true,
+  "insertionIndex" : 1448
+}
