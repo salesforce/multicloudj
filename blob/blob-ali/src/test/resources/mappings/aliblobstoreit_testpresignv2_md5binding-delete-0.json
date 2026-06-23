@@ -1,0 +1,25 @@
+{
+  "id" : "acb120db-5882-4fb4-88f1-bd8bf861c393",
+  "name" : "AliBlobStoreIT_testPresignV2_md5Binding-DELETE-0",
+  "request" : {
+    "url" : "/conformance-tests/presign-v2/md5-binding",
+    "method" : "DELETE",
+    "headers" : {
+      "Host" : {
+        "equalTo" : "chameleon-multicloudj-test.oss-cn-shanghai.aliyuncs.com"
+      }
+    }
+  },
+  "response" : {
+    "status" : 204,
+    "headers" : {
+      "x-oss-request-id" : "6A39CCC65E3726383110DDEE",
+      "x-oss-server-time" : "60",
+      "Server" : "AliyunOSS",
+      "Date" : "Tue, 23 Jun 2026 00:01:11 GMT"
+    }
+  },
+  "uuid" : "acb120db-5882-4fb4-88f1-bd8bf861c393",
+  "persistent" : true,
+  "insertionIndex" : 151
+}
