@@ -173,8 +173,8 @@ public abstract class AbstractBlobStoreIT {
 
     // The checksum algorithms this substrate validates against a caller-supplied digest on
     // single-object upload and presigned-URL upload. Excludes server-computed-only checksums
-    // (e.g. OSS CRC64) and multipart per-part validation (see isSha256Supported). Tests that
-    // exercise a specific caller-supplied algorithm gate on this set.
+    // and multipart per-part validation (see isSha256Supported). Tests that exercise a specific
+    // caller-supplied algorithm gate on this set.
     default Set<ChecksumMethod> getSupportedChecksumAlgorithmsForUpload() {
       return Set.of(ChecksumMethod.CRC32C);
     }

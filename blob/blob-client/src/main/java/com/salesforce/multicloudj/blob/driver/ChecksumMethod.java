@@ -12,10 +12,10 @@ public enum ChecksumMethod {
   SHA256,
   CRC64,
   /**
-   * MD5, sent as the RFC 1864 {@code Content-MD5} header. Accepted and server-validated as a
-   * caller-supplied digest on single-object and presigned-URL uploads by AWS, GCP, and Alibaba.
-   * Not used for multipart uploads (per-part {@code Content-MD5} is not available on every
-   * substrate's multipart API).
+   * MD5, sent as the RFC 1864 {@code Content-MD5} header. Validated as a caller-supplied digest
+   * on single-object and presigned-URL uploads by every substrate this SDK supports. Not used for
+   * multipart uploads (per-part {@code Content-MD5} is not available on every substrate's
+   * multipart API).
    */
   MD5
 }
