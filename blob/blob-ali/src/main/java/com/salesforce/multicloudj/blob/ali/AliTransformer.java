@@ -134,7 +134,12 @@ public class AliTransformer {
     }
 
     if (StringUtils.isNotEmpty(uploadRequest.getChecksumValue())) {
-      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
+      if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.MD5) {
+        // Content-MD5 is the only caller-supplied digest OSS server-validates (mismatch ->
+        // 400 InvalidDigest). The other algorithms below are routed to request headers OSS does
+        // not validate (it computes CRC64 itself); MD5 is therefore the integrity-checked option.
+        builder.contentMd5(uploadRequest.getChecksumValue());
+      } else if (uploadRequest.getChecksumAlgorithm() == ChecksumMethod.SHA256) {
         builder.header("x-oss-content-sha256", uploadRequest.getChecksumValue());
       } else {
         builder.header("x-oss-hash-crc64ecma", uploadRequest.getChecksumValue());
@@ -637,7 +642,12 @@ public class AliTransformer {
     if (StringUtils.isNotEmpty(request.getChecksumValue())) {
       ChecksumMethod algo = request.getChecksumAlgorithm() != null
           ? request.getChecksumAlgorithm() : ChecksumMethod.CRC32C;
-      if (algo == ChecksumMethod.SHA256) {
+      if (algo == ChecksumMethod.MD5) {
+        // Content-MD5 is signed into the presigned URL and server-validated against the uploaded
+        // body (mismatch -> 400 InvalidDigest). The other algorithms below are signed but inert
+        // (OSS does not content-validate them on the presigned PUT).
+        builder.contentMd5(request.getChecksumValue());
+      } else if (algo == ChecksumMethod.SHA256) {
         builder.header("x-oss-content-sha256", request.getChecksumValue());
       } else {
         builder.header("x-oss-hash-crc64ecma", request.getChecksumValue());

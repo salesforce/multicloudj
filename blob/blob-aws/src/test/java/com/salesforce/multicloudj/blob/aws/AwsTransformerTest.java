@@ -1837,4 +1837,55 @@ public class AwsTransformerTest {
     assertEquals("etag", actual.getEtag());
     assertEquals("sha256completevalue", actual.getChecksumValue());
   }
+
+  @Test
+  void testToRequest_md5_routesToContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.contentMD5());
+    // MD5 uses the classic Content-MD5 header, not the x-amz-checksum-* additional-checksum path.
+    assertNull(actual.checksumAlgorithm());
+    assertNull(actual.checksumCRC32C());
+    assertNull(actual.checksumSHA256());
+  }
+
+  @Test
+  void testToRequest_crc32c_stillUsesAdditionalChecksumNotContentMd5() {
+    var request = UploadRequest.builder()
+        .withKey("some-key")
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    var actual = transformer.toRequest(request);
+
+    assertNull(actual.contentMD5());
+    assertEquals("abc123==", actual.checksumCRC32C());
+    assertEquals(
+        software.amazon.awssdk.services.s3.model.ChecksumAlgorithm.CRC32_C,
+        actual.checksumAlgorithm());
+  }
+
+  @Test
+  void testToPutObjectPresignRequest_md5_routesToContentMd5() {
+    PresignedUrlRequest request =
+        PresignedUrlRequest.builder()
+            .type(PresignedOperation.UPLOAD)
+            .key("object-1")
+            .duration(Duration.ofHours(1))
+            .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+            .checksumAlgorithm(ChecksumMethod.MD5)
+            .build();
+
+    PutObjectPresignRequest actual = transformer.toPutObjectPresignRequest(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", actual.putObjectRequest().contentMD5());
+    assertNull(actual.putObjectRequest().checksumAlgorithm());
+  }
 }

@@ -16,6 +16,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BlobInfo.Retention;
 import com.google.cloud.storage.Storage;
 import com.salesforce.multicloudj.blob.driver.BlobMetadata;
+import com.salesforce.multicloudj.blob.driver.ChecksumMethod;
 import com.salesforce.multicloudj.blob.driver.CopyRequest;
 import com.salesforce.multicloudj.blob.driver.CopyResponse;
 import com.salesforce.multicloudj.blob.driver.DirectoryUploadRequest;
@@ -2198,5 +2199,76 @@ class GcpTransformerTest {
         () -> {
           transformer.toGenerationId(invalidVersionId);
         });
+  }
+
+  @Test
+  void testToBlobInfo_md5_setsMd5NotCrc32c() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", blobInfo.getMd5());
+    assertNull(blobInfo.getCrc32c());
+  }
+
+  @Test
+  void testToBlobInfo_crc32c_setsCrc32cNotMd5() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    BlobInfo blobInfo = transformer.toBlobInfo(request);
+
+    assertEquals("abc123==", blobInfo.getCrc32c());
+    assertNull(blobInfo.getMd5());
+  }
+
+  @Test
+  void testGetBlobWriteOptions_md5_usesMd5Match() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .withChecksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(request);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.md5Match(), options[0]);
+  }
+
+  @Test
+  void testGetBlobWriteOptions_crc32c_usesCrc32cMatch() {
+    UploadRequest request = UploadRequest.builder()
+        .withKey(TEST_KEY)
+        .withChecksumValue("abc123==")
+        .withChecksumAlgorithm(ChecksumMethod.CRC32C)
+        .build();
+
+    Storage.BlobWriteOption[] options = transformer.getBlobWriteOptions(request);
+
+    assertEquals(1, options.length);
+    assertEquals(Storage.BlobWriteOption.crc32cMatch(), options[0]);
+  }
+
+  @Test
+  void testToPresignBlobInfo_md5_setsMd5OnBlobInfo() {
+    PresignedUrlRequest request = PresignedUrlRequest.builder()
+        .type(PresignedOperation.UPLOAD)
+        .key(TEST_KEY)
+        .duration(Duration.ofHours(1))
+        .checksumValue("rL0Y20zC+Fzt72VPzMSk2A==")
+        .checksumAlgorithm(ChecksumMethod.MD5)
+        .build();
+
+    BlobInfo blobInfo = transformer.toPresignBlobInfo(request);
+
+    assertEquals("rL0Y20zC+Fzt72VPzMSk2A==", blobInfo.getMd5());
   }
 }
