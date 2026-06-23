@@ -483,9 +483,10 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
    *
    * <p>When transfer-status logging is enabled, the per-file listener has accumulated actual
    * bytes — use that. When disabled, fall back to the requested total (sum of object sizes
-   * counted in the filter / per-file size stat) on full success, or 0 if any per-file transfer
-   * failed. Attaching a listener has significant heap cost on large directory operations, so
-   * callers leaving it off still get a usable byte total without paying that cost.
+   * counted in the filter / per-file size stat) on full success, or {@code null} on partial
+   * failure so callers can't confuse it with an empty directory that succeeded. Attaching a
+   * listener has significant heap cost on large directory operations, so callers leaving it
+   * off still get a usable byte total without paying that cost.
    */
   private static Long resolveDirectoryTotalBytes(
       boolean loggingEnabled,
@@ -495,7 +496,7 @@ public class AwsAsyncBlobStore extends AbstractAsyncBlobStore implements AwsSdkS
     if (loggingEnabled) {
       return totalBytesTransferred.get();
     }
-    return allTransfersSucceeded ? totalBytesRequested.get() : 0L;
+    return allTransfersSucceeded ? totalBytesRequested.get() : null;
   }
 
   @Override

@@ -1592,8 +1592,9 @@ public class AwsAsyncBlobStoreTest {
     DirectoryDownloadResponse response = aws.doDownloadDirectory(downloadRequest).get();
     assertNotNull(response);
     assertEquals(1, response.getFailedTransfers().size());
-    // Listener off + any failure → 0; callers must consult failedTransfers for detail.
-    assertEquals(0L, response.getTotalBytesTransferred());
+    // Listener off + any failure → null so callers can't confuse it with an empty directory
+    // that succeeded. failedTransfers carries the actual error detail.
+    assertNull(response.getTotalBytesTransferred());
   }
 
   @Test
@@ -1702,8 +1703,9 @@ public class AwsAsyncBlobStoreTest {
       DirectoryUploadResponse response = aws.doUploadDirectory(uploadRequest).get();
       assertNotNull(response);
       assertEquals(1, response.getFailedTransfers().size());
-      // Listener off + any failure → 0.
-      assertEquals(0L, response.getTotalBytesTransferred());
+      // Listener off + any failure → null so callers can't confuse it with an empty directory
+      // that succeeded. failedTransfers carries the actual error detail.
+      assertNull(response.getTotalBytesTransferred());
     } finally {
       Files.deleteIfExists(tempFile);
       Files.deleteIfExists(tempDir);

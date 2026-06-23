@@ -1257,9 +1257,9 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(1, response.getFailedTransfers().size());
-    // Listener off + at least one failed transfer → report 0 so callers don't read the
-    // requested total as if everything actually moved. Inspect failedTransfers for detail.
-    assertEquals(0L, response.getTotalBytesTransferred());
+    // Listener off + at least one failed transfer → null so callers can't confuse it with an
+    // empty directory that succeeded. failedTransfers carries the actual error detail.
+    assertNull(response.getTotalBytesTransferred());
   }
 
   @Test
@@ -1571,8 +1571,9 @@ public class AliAsyncBlobStoreTest {
 
     assertNotNull(response);
     assertEquals(1, response.getFailedTransfers().size());
-    // Listener off + at least one failed transfer → 0; failedTransfers carries the detail.
-    assertEquals(0L, response.getTotalBytesTransferred());
+    // Listener off + at least one failed transfer → null so callers can't confuse it with an
+    // empty directory that succeeded. failedTransfers carries the actual error detail.
+    assertNull(response.getTotalBytesTransferred());
   }
 
   @Test

@@ -756,7 +756,9 @@ public class AliAsyncBlobStore extends AbstractAsyncBlobStore implements AliSdkS
     if (loggingEnabled) {
       return totalBytesTransferred.get();
     }
-    return allTransfersSucceeded ? totalBytesRequested.get() : 0L;
+    // Partial failure → null (rather than 0L) so callers can't confuse it with an empty
+    // directory that succeeded. failedTransfers carries the actual error detail.
+    return allTransfersSucceeded ? totalBytesRequested.get() : null;
   }
 
   private boolean isFolderMarker(BlobInfo blob) {

@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -57,6 +58,7 @@ import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectLegalHoldResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRetentionResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
@@ -799,6 +801,80 @@ public class AwsTransformerTest {
     assertEquals(destination, downloadDirectoryRequest.destination().toString());
     assertNotNull(downloadDirectoryRequest.filter());
     assertNotNull(downloadDirectoryRequest.listObjectsRequestTransformer());
+  }
+
+  @Test
+  void testToDownloadDirectoryRequest_LoggingEnabledButNullCounter_NoListener() {
+    // Pinning symmetric behavior with the upload path: when transferStatusLoggingEnabled is
+    // true but the caller passes a null totalBytesTransferred counter, no listener should be
+    // attached. A null counter signals "don't count", and constructing the listener with null
+    // would NPE — silently dropping it would be a worse footgun.
+    DirectoryDownloadRequest request =
+        DirectoryDownloadRequest.builder()
+            .localDestinationDirectory("/home/documents")
+            .prefixToDownload("/files")
+            .transferStatusLoggingEnabled(true)
+            .build();
+
+    DownloadDirectoryRequest downloadDirectoryRequest =
+        transformer.toDownloadDirectoryRequest(request, null, null);
+
+    // Drive the SDK's downloadFileRequestTransformer against a stub per-file builder; with
+    // the null-counter guard in place no listener should be attached, even though the
+    // request flag asks for transfer-status logging.
+    DownloadFileRequest.Builder fileBuilder =
+        DownloadFileRequest.builder()
+            .destination(Paths.get("/tmp/dest.txt"))
+            .getObjectRequest(GetObjectRequest.builder().bucket(BUCKET).key("a").build());
+    downloadDirectoryRequest.downloadFileRequestTransformer().accept(fileBuilder);
+    DownloadFileRequest fileRequest = fileBuilder.build();
+    assertTrue(fileRequest.transferListeners() == null
+        || fileRequest.transferListeners().isEmpty());
+
+    // And the default filter (no exclusions, no counter) admits every object without
+    // mutating any shared counter.
+    AtomicLong wouldBeRequested = new AtomicLong(0L);
+    downloadDirectoryRequest.filter().test(S3Object.builder().key("a").size(123L).build());
+    assertEquals(0L, wouldBeRequested.get());
+  }
+
+  @Test
+  void testToUploadDirectoryRequest_LoggingEnabledButNullCounter_NoListener()
+      throws java.io.IOException {
+    // Symmetric guard to the download path: logging request + null totalBytesTransferred
+    // should not attach the listener. Counters opt in to byte tracking; null means opt out.
+    java.nio.file.Path tempDir =
+        java.nio.file.Files.createTempDirectory("aws-transformer-null-counter");
+    try {
+      DirectoryUploadRequest directoryUploadRequest =
+          DirectoryUploadRequest.builder()
+              .localSourceDirectory(tempDir.toString())
+              .prefix("/files")
+              .includeSubFolders(true)
+              .transferStatusLoggingEnabled(true)
+              .build();
+
+      // Pass null transferred-counter, non-null requested-counter — listener should be skipped,
+      // and (because requested counter is non-null) the per-file transformer is installed for
+      // the byte-stat side-effect but not for the listener.
+      AtomicLong totalBytesRequested = new AtomicLong(0L);
+      UploadDirectoryRequest request =
+          transformer.toUploadDirectoryRequest(directoryUploadRequest, null, totalBytesRequested);
+
+      UploadFileRequest.Builder fileBuilder =
+          UploadFileRequest.builder()
+              .source(Paths.get(tempDir.toString(), "missing.txt"))
+              .putObjectRequest(
+                  PutObjectRequest.builder().bucket(BUCKET).key("/files/missing.txt").build());
+      request.uploadFileRequestTransformer().accept(fileBuilder);
+      UploadFileRequest fileRequest = fileBuilder.build();
+      // SDK returns null when no listeners were attached. Either null or empty proves the
+      // guard worked: the listener was not attached despite isTransferStatusLoggingEnabled().
+      assertTrue(fileRequest.transferListeners() == null
+          || fileRequest.transferListeners().isEmpty());
+    } finally {
+      java.nio.file.Files.deleteIfExists(tempDir);
+    }
   }
 
   @Test

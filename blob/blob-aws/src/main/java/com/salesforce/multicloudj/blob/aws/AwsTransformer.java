@@ -703,12 +703,21 @@ public class AwsTransformer {
           b -> b.prefix(request.getPrefixToDownload()));
     }
 
-    builder.filter(getPrefixExclusionsFilter(
-        request.getPrefixesToExclude(),
-        totalBytesRequested));
+    // Only install a filter when we actually have work for it (exclusion or byte counting).
+    // S3 Transfer Manager may take a fast path internally when no filter is set, and there's
+    // no point allocating a pass-through lambda that returns true for every object.
+    boolean hasExclusions =
+        request.getPrefixesToExclude() != null && !request.getPrefixesToExclude().isEmpty();
+    if (hasExclusions || totalBytesRequested != null) {
+      builder.filter(getPrefixExclusionsFilter(
+          request.getPrefixesToExclude(),
+          totalBytesRequested));
+    }
 
-
-    if (request.isTransferStatusLoggingEnabled()) {
+    // Symmetric to toUploadDirectoryRequest: only attach the listener when the caller
+    // supplied a counter to drive — a null counter signals "don't bother counting", and
+    // attaching the listener anyway would NPE inside its constructor.
+    if (request.isTransferStatusLoggingEnabled() && totalBytesTransferred != null) {
       S3LoggingTransferListener transferListener =
           S3LoggingTransferListener.create(totalBytesTransferred);
       builder.downloadFileRequestTransformer(b -> b.addTransferListener(transferListener));
@@ -725,6 +734,11 @@ public class AwsTransformer {
    * Same filter contract as the single-arg overload — return {@code false} to exclude. When
    * {@code totalBytesRequested} is non-null, each retained object's size is added to it, so
    * the count reflects only objects S3 Transfer Manager will actually download.
+   *
+   * <p>Counting relies on the SDK calling this filter exactly once per listed object during
+   * the listing phase — the {@link DownloadFilter} contract today. A future SDK change that
+   * re-invoked the filter (e.g. on internal page retry) would over-count, but the alternative
+   * of deduplicating by key would re-introduce the heap pressure this PR exists to avoid.
    */
   protected DownloadFilter getPrefixExclusionsFilter(
       List<String> prefixesToExclude, AtomicLong totalBytesRequested) {
@@ -803,7 +817,9 @@ public class AwsTransformer {
     // putObjectRequest(Consumer) would replace it and drop bucket/key.
     // S3 Transfer Manager doesn't expose a directory-listing filter for uploads, so this
     // per-file hook is also where we stat each source's planned size into
-    // totalBytesRequested.
+    // totalBytesRequested. This relies on the SDK invoking the transformer exactly once per
+    // file (its current contract). A future SDK change that re-invoked on retry could
+    // over-count; the same trade-off applies as the download filter above.
     builder.uploadFileRequestTransformer(
         fileRequestBuilder -> {
           if (hasTags || hasObjectLock) {
