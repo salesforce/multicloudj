@@ -96,6 +96,11 @@ import lombok.Getter;
 @AutoService(AbstractBlobStore.class)
 public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
 
+  private static final int COPY_BUFFER_SIZE = 16 * 1024;
+
+  // Largest array the JVM can reliably allocate; some VMs reserve a few header words.
+  private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
   private final OSSClient ossClient;
   private final AliTransformer transformer;
 
@@ -224,23 +229,7 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
   @Override
   protected DownloadResponse doDownload(
       DownloadRequest downloadRequest, OutputStream outputStream) {
-    GetObjectRequest request =
-        transformer.toGetObjectRequest(downloadRequest);
-    try (GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults())) {
-      validateRangeResponse(downloadRequest, result);
-      copyStream(result.body(), outputStream);
-      return transformer.toDownloadResponse(downloadRequest.getKey(), result);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-    } catch (Exception e) {
-      handleArchivedObjects(downloadRequest, e);
-      if (e instanceof RuntimeException) {
-        throw (RuntimeException) e;
-      }
-      throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
-    }
+    return download(downloadRequest, result -> copyStream(result.body(), outputStream));
   }
 
   /**
@@ -252,10 +241,7 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, ByteArray byteArray) {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    DownloadResponse downloadResponse = doDownload(downloadRequest, outputStream);
-    byteArray.setBytes(outputStream.toByteArray());
-    return downloadResponse;
+    return download(downloadRequest, result -> byteArray.setBytes(readBody(result)));
   }
 
   /**
@@ -279,15 +265,36 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
    */
   @Override
   protected DownloadResponse doDownload(DownloadRequest downloadRequest, Path path) {
-    Path destinationPath =
-        createDownloadDestinationPath(downloadRequest, path);
-    GetObjectRequest request =
-        transformer.toGetObjectRequest(downloadRequest);
+    Path destinationPath = createDownloadDestinationPath(downloadRequest, path);
+    return download(downloadRequest, result -> Files.copy(result.body(), destinationPath));
+  }
+
+  /**
+   * Consumes the body of a {@link GetObjectResult} into a download destination.
+   */
+  @FunctionalInterface
+  private interface BodyConsumer {
+    void accept(GetObjectResult result) throws IOException;
+  }
+
+  /**
+   * Shared GET-object download flow for the destination-based overloads (OutputStream, byte array,
+   * and file/path). It issues the GET, validates any requested range, hands the open result to the
+   * supplied {@link BodyConsumer} to drain the body, and closes the result via try-with-resources.
+   * The error contract is uniform across every destination: archived/delete-marker detection runs
+   * through {@link #handleArchivedObjects}, and other failures are wrapped in
+   * {@code RuntimeException} so the framework's exception-translation layer maps them consistently.
+   *
+   * <p>The InputStream overload is intentionally not routed through here: it returns the body
+   * stream to the caller without consuming or closing it, so it cannot share this
+   * try-with-resources flow.
+   */
+  private DownloadResponse download(DownloadRequest downloadRequest, BodyConsumer consumer) {
+    GetObjectRequest request = transformer.toGetObjectRequest(downloadRequest);
     try (GetObjectResult result =
-        ossClient.getObject(request,
-            OperationOptions.defaults())) {
+        ossClient.getObject(request, OperationOptions.defaults())) {
       validateRangeResponse(downloadRequest, result);
-      Files.copy(result.body(), destinationPath);
+      consumer.accept(result);
       return transformer.toDownloadResponse(downloadRequest.getKey(), result);
     } catch (IOException e) {
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
@@ -298,6 +305,34 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
       }
       throw new RuntimeException("Failed to download Blob: " + downloadRequest.getKey(), e);
     }
+  }
+
+  /**
+   * Reads the object body into a single right-sized {@code byte[]}, avoiding the double buffering
+   * of draining into a {@link ByteArrayOutputStream} and then copying out through
+   * {@code toByteArray()}.
+   * When the content length is known and addressable as one array, the body is read into an exactly
+   * sized buffer; if the stream turns out to hold more bytes than the reported length, the read is
+   * rejected rather than silently truncating the payload ({@code readNBytes} already truncates if
+   * the stream ends early, which is harmless). Otherwise — unknown, zero, or oversized length — it
+   * falls back to draining the full stream.
+   */
+  private byte[] readBody(GetObjectResult result) throws IOException {
+    Long reported = result.contentLength();
+    long contentLength = reported != null ? reported : 0L;
+    if (contentLength > 0 && contentLength <= MAX_ARRAY_SIZE) {
+      InputStream body = result.body();
+      byte[] bytes = body.readNBytes((int) contentLength);
+      if (body.read() != -1) {
+        throw new IOException(
+            "Object stream exceeded the reported content length of " + contentLength + " bytes");
+      }
+      return bytes;
+    }
+    // Fallback: drain the entire stream when the length is unknown, zero, or too large to allocate.
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    copyStream(result.body(), outputStream);
+    return outputStream.toByteArray();
   }
 
   /**
@@ -464,15 +499,11 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
     }
   }
 
-  private void copyStream(InputStream in, OutputStream out) {
-    try {
-      byte[] buffer = new byte[1024];
-      int bytesRead;
-      while ((bytesRead = in.read(buffer)) != -1) {
-        out.write(buffer, 0, bytesRead);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+  private void copyStream(InputStream in, OutputStream out) throws IOException {
+    byte[] buffer = new byte[COPY_BUFFER_SIZE];
+    int bytesRead;
+    while ((bytesRead = in.read(buffer)) != -1) {
+      out.write(buffer, 0, bytesRead);
     }
   }
 
