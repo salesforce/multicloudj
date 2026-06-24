@@ -312,14 +312,22 @@ public class AliBlobStore extends AbstractBlobStore implements AliSdkService {
    * of draining into a {@link ByteArrayOutputStream} and then copying out through
    * {@code toByteArray()}.
    * When the content length is known and addressable as one array, the body is read into an exactly
-   * sized buffer (trimmed if the stream ends early). Otherwise — unknown, zero, or oversized length
-   * — it falls back to draining the full stream.
+   * sized buffer; if the stream turns out to hold more bytes than the reported length, the read is
+   * rejected rather than silently truncating the payload ({@code readNBytes} already truncates if
+   * the stream ends early, which is harmless). Otherwise — unknown, zero, or oversized length — it
+   * falls back to draining the full stream.
    */
   private byte[] readBody(GetObjectResult result) throws IOException {
     Long reported = result.contentLength();
     long contentLength = reported != null ? reported : 0L;
     if (contentLength > 0 && contentLength <= MAX_ARRAY_SIZE) {
-      return result.body().readNBytes((int) contentLength);
+      InputStream body = result.body();
+      byte[] bytes = body.readNBytes((int) contentLength);
+      if (body.read() != -1) {
+        throw new IOException(
+            "Object stream exceeded the reported content length of " + contentLength + " bytes");
+      }
+      return bytes;
     }
     // Fallback: drain the entire stream when the length is unknown, zero, or too large to allocate.
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

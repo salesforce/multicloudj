@@ -398,6 +398,20 @@ public class AliBlobStoreTest {
     assertEquals(0, byteArray.getBytes().length);
   }
 
+  @Test
+  void testDoDownloadByteArray_contentLengthSmallerThanStream_throws() {
+    String content = "muchLongerThanReported";
+    // Reported length (5) under-reports the actual 22-byte stream: the read must NOT silently
+    // truncate the payload, it must fail loudly instead.
+    doReturn(buildByteArrayGetObjectResult(content, 5L))
+        .when(mockOssClient).getObject(any(GetObjectRequest.class), any());
+
+    ByteArray byteArray = new ByteArray();
+    assertThrows(
+        RuntimeException.class,
+        () -> ali.doDownload(getTestDownloadRequestNoRange(), byteArray));
+  }
+
   void verifyDownloadTestResults(DownloadResponse response, Instant now) {
 
     // Verify the parameters passed into the OSS SDK
@@ -1876,6 +1890,47 @@ public class AliBlobStoreTest {
     ResourceNotFoundException ex = assertThrows(
         ResourceNotFoundException.class,
         () -> ali.doDownload(request, new java.io.ByteArrayOutputStream()));
+
+    ArchiveInfo info = ex.getArchiveInfo();
+    assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
+    assertTrue(info.isArchived());
+    assertEquals(priorVersionId, info.getVersionId());
+  }
+
+  @Test
+  void testDoDownloadByteArray_checkArchived_deletedOnVersionedBucket_throwsWithArchiveInfo() {
+    // The ByteArray download path must preserve the same archived-object contract as the
+    // OutputStream path: a 404 + x-oss-delete-marker GET resolves the prior version and throws
+    // ResourceNotFoundException with ArchiveInfo populated. This guards the shared download()
+    // helper so the byte[] overload cannot silently diverge from the streaming overload.
+    String key = "deleted-key";
+    String priorVersionId = "v-prior-1";
+
+    ServiceException service = mock(ServiceException.class);
+    when(service.statusCode()).thenReturn(404);
+    when(service.errorCode()).thenReturn("NoSuchKey");
+    when(service.headers()).thenReturn(Map.of("x-oss-delete-marker", "true"));
+    OperationException op = mock(OperationException.class);
+    when(op.getCause()).thenReturn(service);
+    when(mockOssClient.getObject(any(GetObjectRequest.class), any(OperationOptions.class)))
+        .thenThrow(op);
+
+    ObjectVersion priorVersion = mock(ObjectVersion.class);
+    when(priorVersion.versionId()).thenReturn(priorVersionId);
+    when(priorVersion.key()).thenReturn(key);
+    ListObjectVersionsResult listResult = mock(ListObjectVersionsResult.class);
+    when(listResult.versions()).thenReturn(List.of(priorVersion));
+    ListObjectVersionsIterable iterable = mock(ListObjectVersionsIterable.class);
+    when(iterable.iterator()).thenReturn(List.of(listResult).iterator());
+    when(mockOssClient.listObjectVersionsPaginator(any(ListObjectVersionsRequest.class)))
+        .thenReturn(iterable);
+
+    DownloadRequest request = DownloadRequest.builder()
+        .withKey(key).withCheckArchived(true).build();
+
+    ResourceNotFoundException ex = assertThrows(
+        ResourceNotFoundException.class,
+        () -> ali.doDownload(request, new ByteArray()));
 
     ArchiveInfo info = ex.getArchiveInfo();
     assertNotNull(info, "ArchiveInfo should be populated when a delete marker is detected");
